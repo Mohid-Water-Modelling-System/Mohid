@@ -257,6 +257,7 @@ Module ModuleBasin
         character(len=PathLength)                   :: TopographicFile
         character(len=PathLength)                   :: HDFFile
         character(len=PathLength)                   :: EVTPHDFFile
+        character(len=PathLength)                   :: EVTPRefHDFFile
         character(len=PathLength)                   :: InitialFile
         character(len=PathLength)                   :: FinalFile
         character(len=PathLength)                   :: TimeSerieLocation
@@ -421,6 +422,7 @@ Module ModuleBasin
         real(8), dimension(:,:), pointer            :: AccFlowProduction      => null()
         real(8), dimension(:,:), pointer            :: AccEVTP                => null()
         real(8), dimension(:,:), pointer            :: PartialAccEVTP         => null()
+        real(8), dimension(:,:), pointer            :: PartialAccEVTPRef      => null()
         real(8), dimension(:,:), pointer            :: AccRainFall            => null()
         real(8), dimension(:,:), pointer            :: AccEVPCanopy           => null()
         real,    dimension(:,:), pointer            :: AccRainHour            => null()
@@ -446,6 +448,7 @@ Module ModuleBasin
         type (T_Time)                               :: EndTime       
         type (T_OutPut)                             :: OutPut
         type (T_OutPut)                             :: EVTPOutPut
+        type (T_OutPut)                             :: EVTPRefOutPut
         
         real                                        :: DefaultKcWhenLAI0        = 0.3
         logical                                     :: UseDefaultKcWhenLAI0     = .false.
@@ -469,6 +472,7 @@ Module ModuleBasin
         integer                                     :: ObjVegetation            = 0
         integer                                     :: ObjHDF5                  = 0
         integer                                     :: ObjEVTPHDF               = 0
+        integer                                     :: ObjEVTPRefHDF            = 0
         integer                                     :: ObjTimeSerie             = 0
         integer                                     :: ObjTimeSerieBasin        = 0
         integer                                     :: ObjTimeSerieBasin2       = 0
@@ -728,7 +732,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         nullify  (NewObjBasin%Output%OutTime)
         nullify  (NewObjBasin%Output%OutputChannels)
         nullify  (NewObjBasin%EVTPOutput%OutTime)
-        nullify  (NewObjBasin%EVTPOutput%OutputChannels)        
+        nullify  (NewObjBasin%EVTPOutput%OutputChannels)   
+        nullify  (NewObjBasin%EVTPRefOutput%OutTime)
+        nullify  (NewObjBasin%EVTPRefOutput%OutputChannels) 
 
         nullify  (NewObjBasin%ExtVar%BasinPoints)
         nullify  (NewObjBasin%ExtVar%RiverPoints)
@@ -1145,6 +1151,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            SearchType    = FromFile,                 &
                            OutPutsTime   = Me%EVTPOutPut%OutTime,    &
                            OutPutsOn     = Me%EVTPOutPut%Yes,        &
+                           STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR330'
+        
+        call GetOutPutTime(Me%ObjEnterData,                          &
+                           CurrentTime   = Me%CurrentTime,           &
+                           EndTime       = Me%EndTime,               &
+                           keyword       = 'EVTP_REF_OUTPUT_TIME',   &
+                           SearchType    = FromFile,                 &
+                           OutPutsTime   = Me%EVTPRefOutPut%OutTime, &
+                           OutPutsOn     = Me%EVTPRefOutPut%Yes,     &
                            STAT          = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR330'
         
@@ -2090,6 +2106,67 @@ i1:         if (CoordON) then
 
    !--------------------------------------------------------------------------
    
+    subroutine ConstructEVTPRefHDFOutput
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: ILB, IUB, JLB, JUB   
+        integer                                             :: STAT_CALL
+        integer                                             :: HDF5_CREATE
+        
+        !------------------------------------------------------------------------
+       
+       
+        !Reads file name of the EVTP hdf outupt
+        call ReadFileName('BASIN_EVTPREFHDF', Me%Files%EVTPRefHDFFile,                        &
+                           Message = "Basin EVTPREFHDF Output File", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR010'             
+
+       
+        !Bounds
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB           
+        
+        Me%EVTPRefOutPut%NextOutPut = 1 
+        
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        !Opens HDF File
+        call ConstructHDF5      (Me%ObjEVTPRefHDF, trim(Me%Files%EVTPRefHDFFile)//"5", HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR020'
+
+      
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjEVTPRefHDF, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR030'
+
+
+        !Sets limits for next write operations
+        call HDF5SetLimits      (Me%ObjEVTPRefHDF, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR040'
+        
+        !Writes the Grid
+        call HDF5WriteData   (Me%ObjEVTPRefHDF, "/Grid", "Bathymetry", "m",           &
+                              Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR050'
+
+        !WriteBasinPoints
+        call HDF5WriteData   (Me%ObjEVTPRefHDF, "/Grid", "BasinPoints", "-",          &
+                              Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR060'
+
+        !Flushes All pending HDF5 commands
+        call HDF5FlushMemory (Me%ObjEVTPRefHDF, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR070'       
+
+    end subroutine ConstructEVTPRefHDFOutput
+
+   !--------------------------------------------------------------------------    
+    
     subroutine AllocateVariables
 
         !Arguments-------------------------------------------------------------
@@ -2141,8 +2218,16 @@ i1:         if (CoordON) then
         allocate(Me%RainStartTime           (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%RainDuration            (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%WaterColumnEvaporated   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
-        allocate(Me%PartialAccEVTP          (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         
+        if (Me%EVTPOutput%Yes) then
+            allocate(Me%PartialAccEVTP          (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            Me%PartialAccEVTP           = 0.0
+        endif
+        
+        if (Me%EVTPRefOutput%Yes) then
+            allocate(Me%PartialAccEVTPRef       (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            Me%PartialAccEVTPRef        = 0.0
+        endif                    
        
         if (Me%Coupled%Snow) allocate(Me%SnowPack (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
 
@@ -2183,8 +2268,7 @@ i1:         if (CoordON) then
         Me%AccEVPCanopy             = 0.0
         Me%PotentialInfCol          = 0.0
         Me%FlowProduction           = null_real
-        Me%WaterColumnEvaporated    = 0.0
-        Me%PartialAccEVTP           = 0.0
+        Me%WaterColumnEvaporated    = 0.0                
         
         if (Me%Coupled%Snow) Me%SnowPack = FillValueReal
         
@@ -2439,6 +2523,11 @@ i1:         if (CoordON) then
         if (Me%EVTPOutput%Yes) then
             call ConstructEVTPHDFOutput()
         endif
+        
+        !Constructs Output
+        if (Me%EVTPRefOutput%Yes) then
+            call ConstructEVTPRefHDFOutput()
+        endif        
         
     end subroutine ConstructCoupledModules
 
@@ -2972,10 +3061,15 @@ cd2 :           if (BlockFound) then
                 endif
             endif
 
-            !EVTP HDF 5 Output
+            !EVTP HDF5 Output
             if (Me%EVTPOutput%Yes) then
                 call EVTPHDFOutPut       
             endif
+            
+            !EVTP HDF5 Output
+            if (Me%EVTPRefOutput%Yes) then
+                call EVTPRefHDFOutPut       
+            endif            
             
             !UnGets ExternalVars
             UnLockToWhichModules = 'AllModules'
@@ -3510,7 +3604,12 @@ cd2 :           if (BlockFound) then
                     RefEvapotrans%Field(i, j)  = max(RefEvapotrans%Field(i, j) * Me%ETConversionFactor, 0.0)
                 
                 endif        
-                       
+                    
+                if (Me%EVTPRefOutput%yes) then
+                    !mm                           = mm                         +  m/s                       * mm/m * s
+                    Me%PartialAccEVTPRef   (i, j) = Me%PartialAccEVTPRef (i,j) + (RefEvapotrans%Field(i, j) * 1000 * Me%CurrentDT)                 
+                endif
+                
 !                call ExtractDate(Me%CurrentTime, Year, Month, Day, hour, minute, second) 
 !                call DateToGregorianDay(Me%CurrentTime, days)
 !                                                                     
@@ -6767,6 +6866,81 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
 
+    subroutine EVTPRefHDFOutput
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: ILB, IUB, JLB, JUB    
+        integer                                         :: STAT_CALL           
+        real, dimension(6), target                      :: AuxTime
+        real, dimension(:), pointer                     :: TimePointer
+
+        if (MonitorPerformance) call StartWatch ("ModuleBasin", "EVTPRefHDFOutput")
+
+        !Bounds
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB   
+
+        if (Me%CurrentTime >= Me%EVTPRefOutPut%OutTime(Me%EVTPRefOutPut%NextOutPut)) then
+
+            !Writes current time
+            call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2), &
+                                                AuxTime(3), AuxTime(4), &
+                                                AuxTime(5), AuxTime(6))
+            TimePointer => AuxTime
+
+            call HDF5SetLimits  (Me%ObjEVTPRefHDF, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR010'
+
+            call HDF5WriteData  (Me%ObjEVTPRefHDF, "/Time", "Time",          &
+                                 "YYYY/MM/DD HH:MM:SS",                      &
+                                 Array1D      = TimePointer,                 &
+                                 OutputNumber = Me%EVTPRefOutPut%NextOutPut, &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR020'
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%ObjEVTPRefHDF, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR030'
+
+
+            !Writes the Open Points
+            call HDF5WriteData   (Me%ObjEVTPRefHDF, "//Grid/OpenPoints",      &
+                                  "OpenPoints", "-",                          &
+                                  Array2D = Me%ExtVar%OpenPoints2D,           &
+                                  OutputNumber = Me%EVTPRefOutPut%NextOutPut, &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR040'
+
+           
+            !Writes the Water Column - should be on runoff
+            call HDF5WriteData   (Me%ObjEVTPRefHDF, "//Results/ReferencePartialAccEVTP", &
+                                  "ReferencePartialAccEVTP", "m",                        &
+                                  Array2D      = Me%PartialAccEVTPRef,                   &
+                                  OutputNumber = Me%EVTPRefOutPut%NextOutPut,            &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR050'
+      
+            !Writes everything to disk
+            call HDF5FlushMemory (Me%ObjEVTPRefHDF, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR100'
+
+            Me%PartialAccEVTPRef = 0.0
+            Me%EVTPRefOutPut%NextOutPut = Me%EVTPRefOutPut%NextOutPut + 1
+
+        endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleBasin", "EVTPRefHDFOutput")
+            
+    end subroutine EVTPRefHDFOutput
+
+    !--------------------------------------------------------------------------
+    
+    
     subroutine GlobalMassBalance
 
         !Arguments-------------------------------------------------------------
@@ -7405,7 +7579,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%EVTPOutput%Yes) then
                     call KillHDF5 (Me%ObjEVTPHDF, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR150'
-                endif            
+                endif    
+                if (Me%EVTPRefOutput%Yes) then
+                    call KillHDF5 (Me%ObjEVTPRefHDF, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR150'
+                endif                   
 
                 !Kills the TimeSerie
                 if (Me%ObjTimeSerie > 0) then
