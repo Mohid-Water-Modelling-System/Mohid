@@ -5077,12 +5077,13 @@ cd2 :           if (BlockFound) then
                 !m
                 Me%AccEVTP          (i, j) = Me%AccEVTP  (i, j)         + EfectiveEVTP (i,j)
                 
-                !mm         
-                Me%PartialAccEVTP   (i, j) = Me%PartialAccEVTP (i,j) + (EfectiveEVTP (i,j) * 1000) 
-                                
+                if (Me%EVTPOutput%Yes) then
+                    !mm         
+                    Me%PartialAccEVTP   (i, j) = Me%PartialAccEVTP (i,j) + (EfectiveEVTP (i,j) * 1000) 
+                endif
+                  
                 !m
                 Me%AccFlowProduction(i, j) = Me%AccFlowProduction(i, j) + Me%FlowProduction (i, j)
-                
             endif
         enddo
         enddo
