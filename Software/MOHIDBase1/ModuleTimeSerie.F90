@@ -56,6 +56,7 @@ Module ModuleTimeSerie
 
     !Modifier
     public  :: WriteTimeSerie
+    public  :: WriteTimeSerieLineNow
     public  :: WriteTimeSerieLine
     private ::      WriteBufferToFile
     public  :: CorrectsCellsTimeSerie
@@ -2016,6 +2017,129 @@ do2:                do IPC = 1, Me%NumberOfProperties
         !----------------------------------------------------------------------
 
     end subroutine WriteTimeSerieLine
+
+    !--------------------------------------------------------------------------
+    !This subroutine is implemented so that user decides when to write line
+    !e.g. for hourly and daily values that do not need to be linked to timeserie dt
+    
+    subroutine WriteTimeSerieLineNow(TimeSerieID, DataLine, STAT)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TimeSerieID
+        real,    dimension(:), pointer              :: DataLine
+        integer, optional, intent(OUT)              :: STAT
+    
+        !External--------------------------------------------------------------
+        integer                                     :: ready_ , STAT_        
+
+        !Local-----------------------------------------------------------------
+        type (T_Time)                               :: CurrentTime
+        integer                                     :: IPC, IBC, iTimeSerie
+        real                                        :: DT_Residual
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeSerieID, ready_)    
+
+        !Shorten variavel name
+        IPC = Me%InternalPropertyCount
+
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            !Stores the actual compute time
+            call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT)
+
+
+do1:        do iTimeSerie = 1, Me%NumberOfTimeSeries
+
+                if(Me%ComputeResidual)then
+
+                    !Calculates the residual values
+                    DT_Residual = CurrentTime - Me%TimeSerie(iTimeSerie)%LastResidual
+
+                    if (DT_Residual + Me%TimeSerie(iTimeSerie)%ResidualTime > 0) then
+
+                        !Updates the Residual Values
+                        do IPC = 1, Me%NumberOfProperties
+                            Me%TimeSerie(iTimeSerie)%ResidualValues(IPC) =                  &
+                                (Me%TimeSerie(iTimeSerie)%ResidualValues(IPC)               &
+                               * Me%TimeSerie(iTimeSerie)%ResidualTime                      &
+                               + DataLine(IPC) * DT_Residual)                               &
+                               / (Me%TimeSerie(iTimeSerie)%ResidualTime + DT_Residual)
+                        enddo
+                    endif
+
+                    Me%TimeSerie(iTimeSerie)%ResidualTime =                             &
+                    Me%TimeSerie(iTimeSerie)%ResidualTime + DT_Residual
+
+                    Me%TimeSerie(iTimeSerie)%LastResidual = CurrentTime
+
+                end if
+
+                !Always Stores the data in the buffer!!!
+!cd2:            if (CurrentTime .ge. Me%TimeSerie(iTimeSerie)%NextOutPut .or.           &
+!                    CurrentTime .eq. Me%TimeSerie(iTimeSerie)%EndOutPut) then
+                    
+do2:                do IPC = 1, Me%NumberOfProperties
+
+
+
+                        if (IPC == 1) then
+                            !Increments the internal buffer count
+                            Me%TimeSerie(iTimeSerie)%BufferCount =                  &
+                                Me%TimeSerie(iTimeSerie)%BufferCount + 1 
+                            IBC = Me%TimeSerie(iTimeSerie)%BufferCount
+                            
+                            !Stores the current time
+                            Me%TimeSerie(iTimeSerie)%TimeBuffer(IBC) = CurrentTime
+                        endif
+
+
+                        !Shorten Variable
+                        IBC = Me%TimeSerie(iTimeSerie)%BufferCount
+
+
+                        !Locates the place of the time serie to store
+                        Me%TimeSerie(iTimeSerie)%TimeSerieData(IPC,IBC) = DataLine(IPC)
+
+
+                        !Sets next output time
+                        if (IPC == Me%NumberOfProperties)                           &
+                            Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
+                                CurrentTime + Me%TimeSerie(iTimeSerie)%DT
+
+                        !Verifies if the buffer is full
+                        if ((Me%TimeSerie(iTimeSerie)%BufferCount  ==               &
+                             Me%TimeSerie(iTimeSerie)%BufferSize)  .and.            &
+                            (IPC == Me%NumberOfProperties))        then
+                            call WriteBufferToFile(Me%TimeSerie(iTimeSerie),Me%NumberOfProperties)
+                            Me%TimeSerie(iTimeSerie)%BufferCount = 0
+                        endif
+
+                    enddo do2
+
+!                endif cd2
+
+            enddo do1
+
+            STAT_ = SUCCESS_
+
+        else               
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        Me%InternalPropertyCount = IPC
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine WriteTimeSerieLineNow
 
     !--------------------------------------------------------------------------
 

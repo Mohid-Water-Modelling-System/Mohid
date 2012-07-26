@@ -158,7 +158,7 @@ Module ModuleDrainageNetwork
                                            OxygenSaturationHenry, OxygenSaturationCeQualW2, AerationFlux,   &
                                            TimeToString, ChangeSuffix, DistanceBetweenTwoGPSPoints
     use ModuleTimeSerie            , only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerieLine,         &
-                                           GetTimeSerieValue, KillTimeSerie
+                                           GetTimeSerieValue, KillTimeSerie, WriteTimeSerieLineNow
     use ModuleStopWatch            , only: StartWatch, StopWatch
     use ModuleDischarges           , only: Construct_Discharges, GetDischargesNumber, GetDischargesNodeID,  &
                                            GetDischargeWaterFlow, GetDischargeConcentration, Kill_Discharges
@@ -453,6 +453,11 @@ Module ModuleDrainageNetwork
         real                                        :: MinimumFlow
     end type T_FlowFrequency
 
+    type T_IntFlow
+        real                                        :: IntFlowDTOutput
+        type (T_Time)                               :: IntFlowNextOutput
+    end type T_IntFlow
+
     type T_OutPut
         type (T_Time), dimension(:), pointer        :: OutTime
         type (T_Time), dimension(:), pointer        :: RestartOutTime
@@ -462,7 +467,10 @@ Module ModuleDrainageNetwork
         logical                                     :: RestartOverwrite     = .false.
         integer                                     :: NextRestartOutput    = 1
         logical                                     :: ComputeFlowFrequency = .false.
-        type (T_FlowFrequency)                      :: FlowFrequency        
+        type (T_FlowFrequency)                      :: FlowFrequency  
+        logical                                     :: ComputeIntegratedFlow = .false.
+        logical                                     :: ComputeIntegratedMass = .false.
+        type (T_IntFlow      )                      :: IntFlow
     end type T_OutPut
 
     type T_Files 
@@ -577,6 +585,11 @@ Module ModuleDrainageNetwork
         real                                        :: InitialFlowAccTime       = 0.0
         real                                        :: FlowAccTime              = 0.0
         real                                        :: FlowAccPerc              = 0.0
+        
+        real                                        :: InitialOutputVolume      = 0.0
+        real                                        :: OutputVolume             = 0.0
+        real                                        :: InitialOutputTime        = 0.0
+        real                                        :: OutputTime               = 0.0
 
     end type   T_Reach
 
@@ -586,11 +599,17 @@ Module ModuleDrainageNetwork
         character(PathLength)                                   :: Location        
         integer                                                 :: nNodes       = 0
         integer                                                 :: nProp        = 0
-        integer                 , dimension (:), pointer        :: ObjTimeSerie        
+        integer                 , dimension (:), pointer        :: ObjTimeSerie
+        integer                 , dimension (:), pointer        :: ObjTimeSerieMass           !for integrated mass
+        logical                 , dimension (:), pointer        :: ComputeMass                !for integrated mass        
         character(StringLength) , dimension (:), pointer        :: Name
         real                    , dimension (:), pointer        :: X
         real                    , dimension (:), pointer        :: Y        
-        real, dimension(:), pointer                             :: DataLine        
+        real, dimension(:), pointer                             :: DataLine
+        real, dimension(:), pointer                             :: DataLine2                 !for integrated volume
+        real, dimension(:), pointer                             :: DataLine3                 !for integrated mass
+        integer                                                 :: ObjTimeSerieIntFlow = 0
+        
     end type T_TimeSerie
 
     type       T_ExtVar
@@ -641,7 +660,8 @@ Module ModuleDrainageNetwork
         logical                                     :: EVTPFromReach            = .false.
         logical                                     :: StormWaterModelLink      = .false.
         logical                                     :: LimitToCriticalFlow      = .true.
-        integer                                     :: FaceWaterColumn          = WDMaxBottom_        
+        integer                                     :: FaceWaterColumn          = WDMaxBottom_  
+        logical                                     :: IntMassFlux              = .false.
     end type T_ComputeOptions
 
     type       T_Coupling
@@ -686,6 +706,12 @@ Module ModuleDrainageNetwork
         real, dimension (:), pointer                :: DepositionRate           => null()   !kg m-3 s-1
         real, dimension (:), pointer                :: Ws                       => null()   !m s-1 (vertical velocity)
                                                                                             !positive direction is downswards  
+                                                                                            
+        real, dimension (:), pointer                :: OutputMass               => null()    !g
+        real, dimension (:), pointer                :: InitialOutputMass        => null()    !g
+        real, dimension (:), pointer                :: OutputTime               => null()    !s
+        real, dimension (:), pointer                :: InitialOutputTime        => null()    !s
+        
         real                                        :: MinValue     
         real                                        :: InitialValue 
         real                                        :: BottomMinConc                        !kg m-2
@@ -717,6 +743,10 @@ Module ModuleDrainageNetwork
         real                                        :: KL1
         real                                        :: ML
         real                                        :: M
+        
+        !Mass integration output
+        real                                        :: IntMassFluxDT            
+        type (T_Time)                               :: IntMassFluxNextOutput
 
         character(PathLength)                       :: OutputName
         type (T_Property), pointer                  :: Next, Prev
@@ -1621,7 +1651,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                                           &
                      keyword      = 'RESTART_FILE_OVERWRITE',                           &
                      Default      = .true.,                                             &
-                     ClientModule = 'ModuleBasin',                                      &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR42'
 
@@ -1631,7 +1661,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                                           &
                      keyword      = 'OUTPUT_FLOW_FREQUENCY',                            &
                      Default      = .false.,                                            &
-                     ClientModule = 'ModuleBasin',                                      &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR50'
         
@@ -1643,7 +1673,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                                           &
                          keyword      = 'FLOW_FREQUENCY_STARTDATE',                         &
                          Default      = Me%BeginTime,                                       &
-                         ClientModule = 'ModuleBasin',                                      &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR55'            
 
@@ -1654,7 +1684,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                                           &
                          keyword      = 'FLOW_FREQUENCY_ENDDATE',                           &
                          Default      = Me%EndTime,                                         &
-                         ClientModule = 'ModuleBasin',                                      &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR60'            
             
@@ -1664,7 +1694,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                                           &
                          keyword      = 'FLOW_FREQUENCY_MINIMUMFLOW',                       &
                          Default      = 0.0,                                                &
-                         ClientModule = 'ModuleBasin',                                      &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR65'            
 
@@ -1678,7 +1708,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                                           &
                      keyword      = 'EVTP_FROM_REACH',                                  &
                      Default      = .false.,                                            &
-                     ClientModule = 'ModuleBasin',                                      &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR70'
         
@@ -1691,7 +1721,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                                           &
                          keyword      = 'EVTP_MAXIMUM_DEPTH',                               &
                          Default      = 0.1,                                                &
-                         ClientModule = 'ModuleBasin',                                      &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR80'
 
@@ -1703,9 +1733,36 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                                           &
                          keyword      = 'EVTP_CROP_COEF',                                   &
                          Default      = 1.0,                                                &
-                         ClientModule = 'ModuleBasin',                                      &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR90'
+            
+        endif
+
+        call GetData(Me%Output%ComputeIntegratedFlow,                                   &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'INTEGRATE_FLOW',                                   &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR95'
+
+        if (Me%Output%ComputeIntegratedFlow) then
+
+            call GetData(Me%Output%IntFlow%IntFlowDTOutput,                                 &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'INTEGRATE_FLOW_DT',                                &
+                         Default      = 86400.,                                             &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR95'
+            
+            !first output date is current (beggining)
+            Me%Output%IntFlow%IntFlowNextOutput = Me%CurrentTime
             
         endif
 
@@ -3520,7 +3577,10 @@ cd2 :           if (BlockFound) then
         allocate (NewProperty%TotalConc                (1:Me%TotalNodes))
         allocate (NewProperty%Load                     (1:Me%TotalNodes))
         allocate (NewProperty%MassInKg                 (1:Me%TotalNodes))
-            
+        allocate (NewProperty%OutputMass               (1:Me%TotalNodes))
+        allocate (NewProperty%InitialOutputMass        (1:Me%TotalNodes))
+        allocate (NewProperty%OutputTime               (1:Me%TotalNodes))
+        allocate (NewProperty%InitialOutputTime        (1:Me%TotalNodes))            
        
         NewProperty%Concentration           = 0.0
         NewProperty%ConcentrationOld        = 0.0
@@ -3532,6 +3592,10 @@ cd2 :           if (BlockFound) then
         NewProperty%TotalConc               = 0.0
         NewProperty%Load                    = 0.0
         NewProperty%MassInKg                = 0.0
+        NewProperty%InitialOutputMass       = 0.0
+        NewProperty%OutputMass              = 0.0
+        NewProperty%InitialOutputTime       = 0.0
+        NewProperty%OutputTime              = 0.0
 
         call ConstructPropertyID     (NewProperty%ID, Me%ObjEnterData, FromBlock)
 
@@ -4244,6 +4308,36 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
         if (NewProperty%OutputName /= 'NAME' .and. NewProperty%OutputName /= 'DESCRIPTION') &
             stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR99b'
 
+
+        call GetData(NewProperty%ComputeOptions%IntMassFlux,                        &
+             Me%ObjEnterData, iflag,                                                &
+             Keyword        = 'INTEGRATE_MASS_FLUX',                                &
+             ClientModule   = 'ModuleDrainageNetwork',                              &
+             SearchType     = FromBlock,                                            &
+             Default        = .false.,                                              &
+             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR100'
+        
+        if (NewProperty%ComputeOptions%IntMassFlux) then
+            Me%Output%ComputeIntegratedMass = .true.
+        endif
+        
+        if (NewProperty%ComputeOptions%IntMassFlux) then
+
+            call GetData(NewProperty%IntMassFluxDT,                                     &
+                 Me%ObjEnterData, iflag,                                                &
+                 Keyword        = 'INTEGRATE_MASS_FLUX_DT',                             &
+                 ClientModule   = 'ModuleDrainageNetwork',                              &
+                 SearchType     = FromBlock,                                            &
+                 Default        = 86400.,                                               &
+                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR110'    
+                
+            NewProperty%IntMassFluxNextOutput = Me%CurrentTime
+        endif
+        
     end subroutine ConstructPropertyValues    
     
     !---------------------------------------------------------------------------
@@ -5376,8 +5470,13 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                        &
             stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR01'
-
-    
+        
+        !Integrated mass is by prop
+        if (Me%TimeSerie%ByNodes .and. Me%Output%ComputeIntegratedMass) then
+            write(*,*)'Integrated Mass needs that time series are made by nodes'
+            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR01a'
+        endif
+        
         call GetData(Me%TimeSerie%Location,                                 &
                      Me%ObjEnterData, flag,                                 &
                      SearchType   = FromFile,                               &
@@ -5539,6 +5638,28 @@ if0:    if (Me%TimeSerie%ByNodes) then
             
             allocate (Me%TimeSerie%ObjTimeSerie (1:Me%TimeSerie%nProp))
             allocate (Me%TimeSerie%Name         (1:Me%TimeSerie%nProp))
+            if (Me%Output%ComputeIntegratedMass) then
+                allocate (Me%TimeSerie%ObjTimeSerieMass (1:Me%TimeSerie%nProp))
+                Me%TimeSerie%ObjTimeSerieMass = 0
+                allocate (Me%TimeSerie%ComputeMass   (1:Me%TimeSerie%nProp))
+                Me%TimeSerie%ComputeMass = .false.
+                
+                !which timeseries to create
+                if (Me%HasProperties) then
+
+                    Property => Me%FirstProperty
+                    i = BaseTimeSeries
+                    do while (associated (Property))
+                        
+                        i = i + 1
+                        if (Property%ComputeOptions%TimeSerie .and. Property%ComputeOptions%IntMassFlux) then 
+                            Me%TimeSerie%ComputeMass(i) = .true.
+                        end if                        
+                            
+                        Property => Property%Next
+                    end do
+                endif
+            endif
 
             Me%TimeSerie%ObjTimeSerie = 0
 
@@ -5651,6 +5772,21 @@ if2:        if (Me%TimeSerie%ByNodes) then
                                             ModelName         = Me%ModelName,                   &                
                                             STAT              = STAT_CALL)
                         if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR03'
+                        
+                        !for properties marked to integrate mass create a new file
+                        if (Me%Output%ComputeIntegratedMass .and. Me%TimeSerie%ComputeMass(i)) then
+                            
+                            allocate (Me%TimeSerie%DataLine3  (1:Me%TimeSerie%nNodes ))
+                            
+                            call StartTimeSerie(Me%TimeSerie%ObjTimeSerieMass(i), Me%ObjTime,       &
+                                                TimeSerieDataFile = trim(Me%TimeSerie%Location),    &
+                                                PropertyList      = NodeHeaderList,                 &
+                                                Extension         = "srn",                          &
+                                                ResultFileName    = trim(adjustl(Me%TimeSerie%Name (i)))//'_Integrated_Mass', &
+                                                ModelName         = Me%ModelName,                   &                
+                                                STAT              = STAT_CALL)
+                            if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR04'
+                        endif
 
                     end if
 
@@ -5660,7 +5796,34 @@ if2:        if (Me%TimeSerie%ByNodes) then
                 deallocate (ReachHeaderList )
 
             end if if2
+            
+            if (Me%Output%ComputeIntegratedFlow) then
+                
+                allocate (ReachHeaderList         (1:Me%TimeSerie%nNodes )) 
+                allocate (Me%TimeSerie%DataLine2  (1:Me%TimeSerie%nNodes ))            
+                
+                !by reaches
+                nReaches = 1
+                do ReachPos = 1, Me%TotalReaches
+                
+                    if (Me%Reaches(ReachPos)%TimeSerie) then
+                        ReachHeaderList(nReaches) = ReachName(Me%Reaches(ReachPos))
+                        nReaches = nReaches + 1 
+                    endif                
 
+                enddo
+            
+                call StartTimeSerie(Me%TimeSerie%ObjTimeSerieIntFlow, Me%ObjTime,       &
+                                    TimeSerieDataFile = trim(Me%TimeSerie%Location),    &
+                                    PropertyList      = ReachHeaderList,                &
+                                    Extension         = "srn",                          &
+                                    ResultFileName    = 'Integrated_Flow',              &
+                                    ModelName         = Me%ModelName,                   &                
+                                    STAT              = STAT_CALL)
+                if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR05'            
+            
+            endif
+            
         end if if1
 
 
@@ -7641,6 +7804,14 @@ do2 :   do while (associated(PropertyX))
                     call ComputeFlowFrequency (LocalDT, SumDT)
                 endif                
 
+                if (Me%Output%ComputeIntegratedFlow) then
+                    call OutputIntFlow (LocalDT)
+                endif  
+
+                if (Me%Output%ComputeIntegratedMass) then
+                    call OutputIntMass (LocalDT)
+                endif
+
                 
             endif
 
@@ -7861,10 +8032,10 @@ do2 :   do while (associated(PropertyX))
 
                 endif
 
-                nullify(CurrReach)
 
             enddo
             
+            nullify(CurrReach)
             
             !End of time step - update flow percentage
             if (Abs(Me%ExtVar%DT - SumDT) .lt. AllmostZero) then
@@ -7877,11 +8048,11 @@ do2 :   do while (associated(PropertyX))
                     TimeWindow            = Me%CurrentTime - Me%Output%FlowFrequency%StartDate
                     CurrReach%FlowAccPerc = CurrReach%FlowAccTime / TimeWindow
                 
-                    nullify(CurrReach)
-                    
                     
                 enddo
                 
+                nullify(CurrReach)
+               
             endif
             
             
@@ -7891,6 +8062,159 @@ do2 :   do while (associated(PropertyX))
 
     !---------------------------------------------------------------------------
 
+    subroutine OutputIntFlow(LocalDT)
+        
+        !Argument--------------------------------------------------------------
+        real                                    :: LocalDT
+        !Local-----------------------------------------------------------------
+        integer                                 :: ReachID, nNodes, STAT_CALL
+        type(T_Reach), pointer                  :: CurrReach
+        !Begin-----------------------------------------------------------------
+        
+        nNodes = 1
+        do ReachID = 1, Me%TotalReaches
+
+            CurrReach => Me%Reaches(ReachID)
+
+            !Select only reaches whit time serie active
+            if (Me%Reaches(ReachID)%TimeSerie) then
+            
+                if (Me%ComputeFaces(ReachID) == OpenPoint) then
+                    !Negative flows are removed so the same volume is not accounted twice
+                    !if water comes back
+                    !m3 = m3 + m3/s * s
+                    CurrReach%OutputVolume = CurrReach%OutputVolume + (CurrReach%FlowNew * LocalDT)
+                endif
+                CurrReach%OutputTime   = CurrReach%OutputTime + LocalDT
+            
+                !Check if time to write
+                if (Me%CurrentTime .ge. Me%Output%IntFlow%IntFlowNextOutput) then
+                    
+                    !m3/s
+                    Me%TimeSerie%DataLine2(nNodes) = CurrReach%OutputVolume / CurrReach%OutputTime
+                    nNodes = nNodes + 1
+                    
+                    CurrReach%OutputVolume = 0.0
+                    CurrReach%OutputTime   = 0.0
+                    
+                endif
+            endif  
+        enddo        
+        
+
+        !check if time to write all the line
+        !and it cant be linked to timeserie file dt because it may overpass
+        !lines if times do not check (WriteTimeSerieLine)
+        if (Me%CurrentTime .ge. Me%Output%IntFlow%IntFlowNextOutput) then
+        
+            call WriteTimeSerieLineNow(Me%TimeSerie%ObjTimeSerieIntFlow,    &
+                                       DataLine = Me%TimeSerie%DataLine2,     &
+                                       STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - OutputIntFlow - ERR01'                              
+
+            
+            Me%Output%IntFlow%IntFlowNextOutput = Me%Output%IntFlow%IntFlowNextOutput   &
+                                                  + Me%Output%IntFlow%IntFlowDTOutput
+        
+        endif        
+        
+        
+    end subroutine OutputIntFlow
+
+    !---------------------------------------------------------------------------
+
+    subroutine OutputIntMass(LocalDT)
+        
+        !Argument--------------------------------------------------------------
+        real                                    :: LocalDT
+        !Local-----------------------------------------------------------------
+        integer                                 :: NodeID, nNodes, STAT_CALL, i, j
+        type(T_Node), pointer                   :: CurrNode
+        type (T_Property), pointer              :: Property
+        real(8)                                 :: Flow
+        type (T_Reach), pointer                 :: DownReach
+        !Begin-----------------------------------------------------------------
+
+        nullify (Property)
+        Property => Me%FirstProperty
+        
+        j = BaseTimeSeries
+        do while (associated (Property))
+            
+            j = j + 1
+            
+            if (Property%ComputeOptions%IntMassFlux) then 
+                
+                nNodes = 1
+                do NodeID = 1, Me%TotalNodes
+
+                    !Select only nodes whit time serie active
+                    if (Me%Nodes(NodeID)%TimeSerie) then
+                
+                        CurrNode  => Me%Nodes (NodeID)
+
+                        Flow = 0.0
+
+                        !Adds Inflow due to channel flow
+                        do i = 1, CurrNode%nDownStreamReaches
+                            DownReach => Me%Reaches (CurrNode%DownStreamReaches (i))
+                            
+                            if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
+                                Flow = Flow +  dble(DownReach%FlowNew)
+                            endif
+                            
+                        enddo
+                        
+                        !g = g + m3/s * s * g/m3 
+                        Property%OutputMass(NodeID) = Property%OutputMass(NodeID) +        &
+                                                    (Flow * LocalDT * Property%ConcentrationOld(NodeID))
+                        
+                        Property%OutputTime(NodeID) = Property%OutputTime(NodeID) + LocalDT
+                        
+                        !Check if time to write
+                        if (Me%CurrentTime .ge. Property%IntMassFluxNextOutput) then
+                            
+                            !g/s
+                            Me%TimeSerie%DataLine3(nNodes) = Property%OutputMass(NodeID) / Property%OutputTime(NodeID)
+                            nNodes = nNodes + 1
+                            
+                            Property%OutputMass(NodeID) = 0.0
+                            Property%OutputTime(NodeID) = 0.0
+                            
+                        endif
+                       
+                    endif
+                    
+                enddo
+                
+                !check if time to write all the line
+                !and it cant be linked to timeserie file dt because it may overpass
+                !lines if times do not check (WriteTimeSerieLine)
+                if (Me%CurrentTime .ge. Property%IntMassFluxNextOutput) then
+                
+                    call WriteTimeSerieLineNow(Me%TimeSerie%ObjTimeSerieMass(j), &
+                                               DataLine = Me%TimeSerie%DataLine3,     &
+                                               STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - OutputIntMass - ERR01'                              
+
+                    
+                    Property%IntMassFluxNextOutput = Property%IntMassFluxNextOutput   &
+                                                          + Property%IntMassFluxDT
+                
+                endif                        
+                
+
+            end if
+        
+            Property => Property%Next
+
+        enddo
+        
+
+    end subroutine OutputIntMass
+
+    !---------------------------------------------------------------------------
+    
     subroutine CalculateLoad()
 
         !Arguments--------------------------------------------------------------
@@ -11498,6 +11822,23 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
             end do        
         endif
 
+        if (Me%Output%ComputeIntegratedFlow) then
+            do ReachID = 1, Me%TotalReaches
+                 Me%Reaches(ReachID)%InitialOutputVolume = Me%Reaches(ReachID)%OutputVolume
+                 Me%Reaches(ReachID)%InitialOutputTime   = Me%Reaches(ReachID)%OutputTime
+            end do        
+        endif
+
+        if (Me%Output%ComputeIntegratedMass) then
+            nullify (Property)
+            Property => Me%FirstProperty                                                    
+            do while (associated (Property))
+                Property%InitialOutputMass    = Property%OutputMass
+                Property%InitialOutputTime    = Property%OutputTime
+                Property => Property%Next
+            enddo
+        endif
+        
     end subroutine StoreInitialValues
 
     !---------------------------------------------------------------------------
@@ -11543,6 +11884,23 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
             do ReachID = 1, Me%TotalReaches
                  Me%Reaches(ReachID)%FlowAccTime = Me%Reaches(ReachID)%InitialFlowAccTime
             end do        
+        endif
+
+        if (Me%Output%ComputeIntegratedFlow) then
+            do ReachID = 1, Me%TotalReaches
+                 Me%Reaches(ReachID)%OutputVolume = Me%Reaches(ReachID)%InitialOutputVolume
+                 Me%Reaches(ReachID)%OutputTime   = Me%Reaches(ReachID)%InitialOutputTime
+            end do        
+        endif
+
+        if (Me%Output%ComputeIntegratedMass) then
+            nullify (Property)
+            Property => Me%FirstProperty                                                    
+            do while (associated (Property))
+                Property%OutputMass    = Property%InitialOutputMass
+                Property%OutputTime    = Property%InitialOutputTime
+                Property => Property%Next
+            enddo
         endif
 
     end subroutine ResetToInitialValues
@@ -12810,9 +13168,25 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         end do                    
 
                     end if
+                    
+                    if (Me%TimeSerie%ObjTimeSerieIntFlow > 0) then
+                        call KillTimeSerie(Me%TimeSerie%ObjTimeSerieIntFlow, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR55'
+                    endif                    
+
+                    if (Me%Output%ComputeIntegratedMass) then
+                        do i = 1, Me%TimeSerie%nProp
+                            if (Me%TimeSerie%ObjTimeSerieMass(i) > 0) then
+                                call KillTimeSerie(Me%TimeSerie%ObjTimeSerieMass(i), STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR56'
+                            endif
+                        enddo
+                    endif 
+                    
                 endif         
                                
                 deallocate (Me%TimeSerie%ObjTimeSerie)
+                deallocate (Me%TimeSerie%ObjTimeSerieMass)
                 deallocate (Me%TimeSerie%Name        )
 
                 if (Me%Downstream%Boundary == ImposedWaterLevel &

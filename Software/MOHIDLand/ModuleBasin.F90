@@ -5760,12 +5760,16 @@ cd2 :           if (BlockFound) then
         if (SplashErosion) then
             
             if (Me%Coupled%Vegetation) then
-                call GetVegetationOptions (VegetationID = Me%ObjVegetation, ModelCanopyHeight = ModelCanopyHeight, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0120'
-                
-                if (ModelCanopyHeight) then
+!                call GetVegetationOptions (VegetationID = Me%ObjVegetation, ModelCanopyHeight = ModelCanopyHeight, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0120'
+!                
+!                if (ModelCanopyHeight) then
                     call GetCanopyHeight (VegetationID = Me%ObjVegetation, Scalar = CanopyHeight, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0130'
+!                endif
+                if (.not. associated (CanopyHeight)) then
+                    write(*,*)'For Splash Erosion need to be defined canopy height in ModuleVegetation'
+                    stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0135'
                 endif
             else
                 allocate(CanopyHeight(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
