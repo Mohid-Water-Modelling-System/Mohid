@@ -1207,11 +1207,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate(Me%Distance(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,       &
                  1:Me%TotalDirections))
         Me%Distance(:,:,:) =  FillValueReal
-
-        !Fetch weighted in 8 directions or not weighted in 16 directions
-        allocate(Me%Fetch(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,1:Me%FetchDirections))
-        Me%Fetch(:,:,:) =  FillValueReal
-
+        
+        if (Me%FetchDirections .eq. 8) then
+            !Fetch weighted in 8 directions. In case of 16 directions, matrix will point to Distances to Land matrix
+            allocate(Me%Fetch(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,1:Me%FetchDirections))
+            Me%Fetch(:,:,:) =  FillValueReal
+        endif
+        
         allocate(Me%AngleList(1:Me%TotalDirections))
         Me%AngleList(:) = FillValueReal
         
@@ -3252,7 +3254,7 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
             if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaves - ERR30'
 
             !Writes OpenPoints
-            call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints", "OpenPoints",        &
+            call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints", "OpenPoints2D",        &
                                  "-", Array2D = Me%ExternalVar%OpenPoints2D,            &
                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaves - ERR40'
@@ -3511,8 +3513,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 if (Me%Wavegen_type.eq.CEQUALW2) then
                     deallocate(Me%Distance)
-                    deallocate(Me%Fetch)
-                    
+                    !if 16 directions Me%Fetch is pointing to Me%Distance and the previous is enough
+                    !in taht case it would create error to deallocate Me%Fetch
+                    if (Me%FetchDirections .eq. 8) then
+                        deallocate(Me%Fetch)
+                    endif
                     if (Me%DepthType.eq.DepthAverage .or. Me%DepthType.eq.DepthDefined) then
                         deallocate(Me%AverageDepth)
                         deallocate(Me%Depth)
