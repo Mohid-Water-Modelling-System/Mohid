@@ -8862,10 +8862,11 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 
     end function SettlingVelocity
 
-    real function SettlingVelSecondaryClarifier (Cx)
+    real function SettlingVelSecondaryClarifier (Cx, WithCompression)
         
         !Arguments-------------------------------------------------
         real,       intent(IN) :: Cx     !kg/m3 or g/l 
+        logical,    intent(IN) :: WithCompression
         
         !Local-----------------------------------------------------
         real(8)                :: v0max, v0, Rh, Rf, Fns, Cmin, vs, Cy
@@ -8873,20 +8874,20 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         
         !Begin-----------------------------------------------------
         
-        !Parameters - Hindering settling - PhD Thesis Takács (2008) - Medium load
+        !Parameters - Hindering settling - PhD Thesis Takács (2008)
         ![m/day]
-        v0max   = 370
+        v0max   = 360
         ! 120 - 370
-        v0      = 142.9
+        v0      = 240
         ![l/g]
         !0.2 - 1
-        Rh      = 0.378
+        Rh      = 1
         !5 - 100
-        Rf      = 2.86
+        Rf      = 100
         ![-]
         !No settling fraction
         !1e-3 : 3e-3
-        Fns     = 2.28e-3
+        Fns     = 2e-3
         
         !Parameters - Compression settling
         ![m/day]
@@ -8909,14 +8910,16 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 
         vs = v0 * (exp(-Rh*Cy)-exp(-Rf*Cy))
         
-        !compression (m/day)
-        vs = vs + Vcorr         /(1+exp(-Rcorr1*(Cx-Xcorr1))) - &
-                  Vcorr + Vres  /(1+exp(-Rcorr2*(Cx-Xcorr2)))
-                  
-        if (vs <0    ) vs = 0.                  
-        if (vs >v0max) vs = v0max
-        
+        if (WithCompression) then
+            !compression (m/day)
+            vs = vs +  Vcorr          /(1+exp(-Rcorr1*(Cx-Xcorr1))) - &
+                      (Vcorr + Vres)  /(1+exp(-Rcorr2*(Cx-Xcorr2)))
+        endif
+                            
         !From m/day to m/s
+        if (vs <0    ) vs = 0.                  
+        if (vs >v0max) vs = v0max 
+        
         SettlingVelSecondaryClarifier = vs / 86400.
 
     end function SettlingVelSecondaryClarifier

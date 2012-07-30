@@ -47,6 +47,7 @@
 !   FREEVERT_IMPEXP_ADV         : real              [0]         !Time discretization method to compute vertical
 !                                                               !transport: 0 - Implicit ; 1 - Explicit
 !   DEPOSITION                  : 0/1               [1]         !Property can be deposited in the bottom
+!   WITH_COMPRESSION            : 0/1               [1]         !Settling velocity with the compression effect
 !<endproperty>
 
 Module ModuleFreeVerticalMovement
@@ -132,6 +133,7 @@ Module ModuleFreeVerticalMovement
         real                                    :: SalinityLimit    = FillValueReal
         integer                                 :: Ws_Type          = SPMFunction
         logical                                 :: Deposition       = .true.
+        logical                                 :: WithCompression  = .true.
         real, pointer, dimension(:,:,:)         :: FreeConvFlux
         real, pointer, dimension(:,:,:)         :: Velocity
         type(T_Property), pointer               :: Next, Prev
@@ -619,7 +621,7 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleFreeVerticalMovement',               &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR01'        
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR10'        
 
         !<BeginKeyword>
             !Keyword          : WS_VALUE
@@ -644,7 +646,7 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleFreeVerticalMovement',               &
                      STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR02'        
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR20'        
 
         if (NewProperty%Ws_Value > 0.) NewProperty%Ws_Value  = - NewProperty%Ws_Value
 
@@ -671,7 +673,7 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleFreeVerticalMovement',               &
                      STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR03' 
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR40' 
            
            
         if(NewProperty%Ws_Type == SPMFunction          ) Me%Needs%SPM = .true.       
@@ -705,7 +707,7 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleFreeVerticalMovement',               &
                      STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR04'
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR50'
 
         if(NewProperty%SalinityEffect) Me%Needs%Salinity = .true.
         
@@ -735,7 +737,7 @@ cd2 :           if (BlockFound) then
                          ClientModule = 'ModuleFreeVerticalMovement',           &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR05'        
+                stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR60'        
         
         endif
 
@@ -764,7 +766,7 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleFreeVerticalMovement',               &
                      STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR06'        
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR70'        
 
         !<BeginKeyword>
             !Keyword          : KL1
@@ -789,7 +791,7 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleFreeVerticalMovement',               &
                      STAT       = STAT_CALL)  
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR07'        
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR80'        
 
           
         !<BeginKeyword>
@@ -815,7 +817,7 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleFreeVerticalMovement',               &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR08'        
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR90'        
 
 
         !<BeginKeyword>
@@ -841,7 +843,7 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleFreeVerticalMovement',               &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR09'        
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR100'        
 
 
         !<BeginKeyword>
@@ -867,7 +869,7 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleFreeVerticalMovement',               &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR10'  
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR110'  
             
         !<BeginKeyword>
             !Keyword          : DEPOSITION
@@ -892,7 +894,17 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleFreeVerticalMovement',               &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR10' 
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR120' 
+            
+        call GetData(NewProperty%WithCompression,                               &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType   = FromBlock,                                  &
+                     keyword      = 'WITH_COMPRESSION',                         &
+                     Default      = .true.,                                     &
+                     ClientModule = 'ModuleFreeVerticalMovement',               &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR130'             
             
     end subroutine Construct_PropertyParameters
 
@@ -1058,9 +1070,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
               
         call Vertical_Velocity          (PropertyX)
 
-        if(PropertyX%Deposition)then
-            call BottomBoundary         (PropertyX)
-        end if
+        call BottomBoundary             (PropertyX)
 
         call VerticalFreeConvection     (PropertyX)
 
@@ -1364,7 +1374,7 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExternalVar%OpenPoints3D(i, j, k)== OpenPoint) then
-                    PropertyX%Velocity(i, j, k)=-SettlingVelSecondaryClarifier (SPM(i, j, k)*SPMISCoef)
+                    PropertyX%Velocity(i, j, k)=-SettlingVelSecondaryClarifier (SPM(i, j, k)*SPMISCoef, PropertyX%WithCompression)
                 else
                     PropertyX%Velocity(i, j, k)= 0.                                            
                 end if
@@ -1457,25 +1467,49 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         CHUNK = CHUNK_J(JLB, JUB)
 
         if (MonitorPerformance) call StartWatch ("ModuleFreeVerticalMovement", "BottomBoundary")
+        
+        if(PropertyX%Deposition)then
 
-        !$OMP PARALLEL SHARED(CHUNK, PropertyX) PRIVATE(I,J,Kbottom)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do j=JLB, JUB
-        do i=ILB, IUB
-            
-            if (Me%ExternalVar%OpenPoints3D (i,j, KUB) == OpenPoint) then
+            !$OMP PARALLEL SHARED(CHUNK, PropertyX) PRIVATE(I,J,Kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j=JLB, JUB
+            do i=ILB, IUB
+                
+                if (Me%ExternalVar%OpenPoints3D (i,j, KUB) == OpenPoint) then
 
-                Kbottom = Me%ExternalVar%KFloor_Z(i, j)
+                    Kbottom = Me%ExternalVar%KFloor_Z(i, j)
 
-                PropertyX%Velocity(i,j,Kbottom) = PropertyX%Velocity(i,j,Kbottom) *     &
-                                                  Me%ExternalVar%DepositionProbability(i,j)
+                    PropertyX%Velocity(i,j,Kbottom) = PropertyX%Velocity(i,j,Kbottom) *     &
+                                                      Me%ExternalVar%DepositionProbability(i,j)
 
-            endif
-            
-        end do
-        end do
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
+                endif
+                
+            end do
+            end do
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+
+        else
+
+            !$OMP PARALLEL SHARED(CHUNK, PropertyX) PRIVATE(I,J,Kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j=JLB, JUB
+            do i=ILB, IUB
+                
+                if (Me%ExternalVar%OpenPoints3D (i,j, KUB) == OpenPoint) then
+
+                    Kbottom = Me%ExternalVar%KFloor_Z(i, j)
+
+                    PropertyX%Velocity(i,j,Kbottom) = 0.
+
+                endif
+                
+            end do
+            end do
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        
+        endif    
 
         if (MonitorPerformance) call StopWatch ("ModuleFreeVerticalMovement", "BottomBoundary")
 
