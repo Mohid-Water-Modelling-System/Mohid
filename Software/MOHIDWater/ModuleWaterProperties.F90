@@ -349,6 +349,7 @@ Module ModuleWaterProperties
     public  :: GetSalinity
     public  :: GetTemperature
     public  :: GetSigma
+    public  :: GetSigmaNoPressure
     public  :: GetSpecificHeat
     public  :: GetSpecificHeatReference
     public  :: WaterPropertyExists
@@ -855,6 +856,7 @@ Module ModuleWaterProperties
         logical                                 :: CorrecPress, CorrecSed
         real, pointer, dimension(:,:,:)         :: Field
         real, pointer, dimension(:,:,:)         :: Sigma
+        real, pointer, dimension(:,:,:)         :: SigmaNoPressure
         real                                    :: Reference    = FillValueReal
         real                                    :: CohesiveSed  = FillValueReal
         logical                                 :: Variable     =.false.
@@ -7448,6 +7450,15 @@ cd2 :       if (BlockFound) then
 
         allocate (Me%Density%Sigma(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR60'
+        
+        if (Me%Density%CorrecPress) then
+
+            allocate (Me%Density%SigmaNoPressure(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR70'
+
+        else
+            Me%Density%SigmaNoPressure => Me%Density%Sigma
+        endif
 
         do k = KLB, KUB
         do j = JLB, JUB
@@ -7472,6 +7483,7 @@ cd2 :       if (BlockFound) then
         enddo
         enddo
         enddo
+        
 
         call ExtractBlockFromBuffer(Me%ObjEnterData,                        &
                                     ClientNumber    = ClientNumber,         &
@@ -7494,12 +7506,12 @@ cd2 :       if (BlockFound) then
                                         TypeZUV              = TypeZ_,                           &
                                         STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                          &
-                    stop 'ConstructDensity - ModuleWaterProperties - ERR70'
+                    stop 'ConstructDensity - ModuleWaterProperties - ERR90'
 
 
                 call KillFillMatrix(Me%Density%ID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)&
-                    stop 'ConstructDensity - ModuleWaterProperties - ERR80'
+                    stop 'ConstructDensity - ModuleWaterProperties - ERR100'
 
                 do k = KLB, KUB
                 do j = JLB, JUB
@@ -7516,12 +7528,17 @@ cd2 :       if (BlockFound) then
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
 
             if (STAT_CALL .NE. SUCCESS_) then
-                stop 'ConstructDensity - ModuleWaterProperties - ERR90'        
+                stop 'ConstructDensity - ModuleWaterProperties - ERR110'        
             endif
         else
-            stop 'ConstructDensity - ModuleWaterProperties - ERR100'        
+            stop 'ConstructDensity - ModuleWaterProperties - ERR120'        
         endif cd1
 
+        if (Me%Density%CorrecPress) then
+
+            Me%Density%SigmaNoPressure(:,:,:) = Me%Density%Sigma(:,:,:)
+        
+        endif     
 
         Me%Density%Variable = .false.
 
@@ -7546,7 +7563,7 @@ temp:          if (STAT_CALL == SUCCESS_)then
                    
                     if (Me%Density%CorrecSed) then
                         call Search_Property(PropertyX, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
-                        if (STAT_CALL/= SUCCESS_) stop 'ConstructDensity - ModuleWaterProperties - ERR110.'
+                        if (STAT_CALL/= SUCCESS_) stop 'ConstructDensity - ModuleWaterProperties - ERR130.'
                         
                         if (PropertyX%Evolution%Variable) Me%Density%Variable = .TRUE.                        
                     endif
@@ -7557,7 +7574,7 @@ temp:          if (STAT_CALL == SUCCESS_)then
 
                 else
                     
-                    stop 'ConstructDensity - ModuleWaterProperties - ERR120'
+                    stop 'ConstructDensity - ModuleWaterProperties - ERR140'
 
                 endif temp
 
@@ -14841,8 +14858,10 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                         stop ' ModifyDensity - ModuleWaterProperties - ERR00'
 
             end select
-
+            
             if (Me%Density%CorrecPress) then
+
+                Me%Density%SigmaNoPressure(:,:,:) = Me%Density%Sigma(:,:,:)
 
                 select case(Me%Density%Method)
 
@@ -17342,6 +17361,54 @@ cd2 :       if (Me%Density%Variable) then
     end subroutine GetSigma  
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine GetSigmaNoPressure(WaterPropertiesID, SigmaNoPressure, CurrentTime, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: WaterPropertiesID
+        real, pointer, dimension(:,:,:)             :: SigmaNoPressure              
+        type(T_Time)                                :: CurrentTime
+        integer, optional                           :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+        integer                                     :: ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(WaterPropertiesID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mWATERPROPERTIES_, Me%InstanceID) 
+
+
+cd2 :       if (Me%Density%Variable) then
+                
+                call ModifyDensity(CurrentTime)
+
+            end if cd2
+
+
+            SigmaNoPressure => Me%Density%SigmaNoPressure 
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+    end subroutine GetSigmaNoPressure  
+
+    !--------------------------------------------------------------------------    
 
     subroutine GetSpecificHeat(WaterPropertiesID, SpecificHeat, CurrentTime, STAT)
 
@@ -19513,9 +19580,22 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
         !----------------------------------------------------------------------
 
         deallocate(Me%Density%Field, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                          &
-            stop 'KillDensity - ModuleWaterProperties - ERR01'
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'KillDensity - ModuleWaterProperties - ERR10'
         nullify   (Me%Density%Field)
+
+        deallocate(Me%Density%Sigma, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'KillDensity - ModuleWaterProperties - ERR20'
+        nullify   (Me%Density%Sigma)
+
+        if (Me%Density%CorrecPress) then
+            deallocate(Me%Density%SigmaNoPressure, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'KillDensity - ModuleWaterProperties - ERR30'
+        endif
+        
+        nullify   (Me%Density%SigmaNoPressure)
 
         Me%Density%Variable  = .FALSE.
         Me%Density%Reference = FillValueInt

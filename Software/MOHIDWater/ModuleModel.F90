@@ -61,13 +61,13 @@ Module ModuleModel
 #endif _USE_SEQASSIMILATION
 #ifndef _USE_SEQASSIMILATION
     use ModuleWaterProperties,          only : Construct_WaterProperties,                &
-                                               GetDensity, GetConcentration, GetSigma,   &
+                                               GetDensity, GetSigmaNoPressure, GetSigma, &
                                                UnGetWaterProperties,                     &
                                                WaterProperties_Evolution,                &
                                                KillWaterProperties
 #else
     use ModuleWaterProperties,          only : Construct_WaterProperties,                &
-                                               GetDensity, GetConcentration, GetSigma,   &
+                                               GetDensity, GetSigmaNoPressure, GetSigma, &
                                                UnGetWaterProperties,                     &
                                                WaterProperties_Evolution,                &
                                                KillWaterProperties,                      &
@@ -181,13 +181,12 @@ Module ModuleModel
   
     type T_ExternalVar
         real, dimension(:,:,:), pointer         :: Density, SigmaDens       => null()
-        real, dimension(:,:,:), pointer         :: Salinity                 => null()
-        real, dimension(:,:,:), pointer         :: Temperature              => null()
+        real, dimension(:,:,:), pointer         :: SigmaNoPressure          => null()
         real, dimension(:,:,:), pointer         :: VelocityX                => null()
         real, dimension(:,:,:), pointer         :: VelocityY                => null()
         real, dimension(:,:,:), pointer         :: VelocityZ                => null()
         real, dimension(:,:  ), pointer         :: Chezy, WaterLevel        => null()
-        logical                                 :: NeedsTempSalinity
+        logical                                 :: NeedsSigmaNoPressure
     end type T_ExternalVar
 
     !Groups modules of the WaterColumn
@@ -664,9 +663,9 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR240'
 
-            call GetTurbulenceOptions   (TurbulenceID     = Me%ObjTurbulence,            &
-                                         NeedsTempSalinity= Me%ExternalVar%NeedsTempSalinity, &
-                                         STAT             = STAT_CALL)
+            call GetTurbulenceOptions   (TurbulenceID        = Me%ObjTurbulence,        &
+                                         NeedsSigmaNoPressure= Me%ExternalVar%NeedsSigmaNoPressure, &
+                                         STAT                = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR250'
 
             !Constructs hydrodynamic
@@ -1801,15 +1800,12 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR06a'
 
 
-        if(Me%ExternalVar%NeedsTempSalinity)then
+        if(Me%ExternalVar%NeedsSigmaNoPressure)then
 
-            call GetConcentration(Me%ObjWaterProperties, Me%ExternalVar%Salinity,   &
-                                  Salinity_, STAT = STAT_CALL)
+            call GetSigmaNoPressure(Me%ObjWaterProperties, Me%ExternalVar%SigmaNoPressure,   &
+                                    Me%CurrentTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'RunOneModel - ModuleModel - ERR07'
 
-            call GetConcentration(Me%ObjWaterProperties, Me%ExternalVar%Temperature,&
-                                  Temperature_, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'RunOneModel - ModuleModel - ERR08'
 
         endif
 
@@ -1832,8 +1828,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                         Me%ExternalVar%VelocityY,                                   &
                         Me%ExternalVar%VelocityZ,                                   &
                         Me%ExternalVar%Chezy,                                       &
-                        Me%ExternalVar%Salinity,                                    &
-                        Me%ExternalVar%Temperature,                                 &
+                        Me%ExternalVar%SigmaNoPressure,                             &
                         STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR13'
 
@@ -1870,15 +1865,11 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR19a'
 
 
-        if(Me%ExternalVar%NeedsTempSalinity)then
+        if(Me%ExternalVar%NeedsSigmaNoPressure)then
 
-            call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%Salinity, &
+            call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%SigmaNoPressure, &
                                       STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR20'
-
-            call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%Temperature, &
-                                      STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR21'
 
         end if
 

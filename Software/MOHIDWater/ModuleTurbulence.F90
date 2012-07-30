@@ -63,10 +63,7 @@
 Module ModuleTurbulence
 
     use ModuleEnterData  
-    use ModuleFunctions,        only : Sigma, SigmaUNESCO, SigmaUNESCOPressureCorrection,       &
-                                       SigmaMel96PressureCorrection, ConvertTemperature, &
-                                       SigmaJMD95PressureCorrection, SigmaLeendertse,    &
-                                       SigmaWang, SetMatrixValue, CHUNK_J, CHUNK_K
+    use ModuleFunctions,        only : SetMatrixValue, CHUNK_J, CHUNK_K
     use ModuleGlobalData
     use ModuleGridData,         only : GetGridData, UngetGridData   
     use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,          &
@@ -284,6 +281,8 @@ Module ModuleTurbulence
         real                                        :: ReferenceVelocity      = null_real     !Estuary
         real                                        :: HORCON                 = null_real     !Smagorinsky
         real                                        :: TKE_MLD,RICH_MLD
+        logical                                     :: SmagorinskyStratified
+        real                                        :: RichardsonCritical
     end type T_TurbVar
 
     type       T_External
@@ -316,8 +315,7 @@ Module ModuleTurbulence
         real,    pointer, dimension(:,:  )          :: DZY
 
         !WaterProperties
-        real,    dimension(:,:,:), pointer          :: Salinity
-        real,    dimension(:,:,:), pointer          :: Temperature
+        real,    dimension(:,:,:), pointer          :: SigmaNoPressure
 
         !Bottom
         real                                        :: BottomRugosity
@@ -1984,6 +1982,31 @@ cd2 :   if ((Me%TurbVar%HORCON .LT. 0.0) .OR.               &
             write(*,*) 'Value should be between 0.0 and 1.0'
             write(*,*) 'Actual value is ', Me%TurbVar%HORCON
         end if cd2
+        
+        !Smagorinsky anisotropic (horz vs vert)
+        call GetData(Me%TurbVar%SmagorinskyStratified,      &
+                     Me%ObjEnterData, iflag,                &
+                     SearchType   = FromFile,               &
+                     keyword      = 'SMAGORINSKY_STRATIFIED',&
+                     ClientModule = 'ModuleTurbulence',     &
+                     default      = .false.,                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                          &
+            stop 'InicEstuaryModel - ModuleTurbulence - ERR20'        
+            
+        if (Me%TurbVar%SmagorinskyStratified) then
+        
+            call GetData(Me%TurbVar%RichardsonCritical,         &
+                         Me%ObjEnterData, iflag,                &
+                         SearchType   = FromFile,               &
+                         keyword      = 'RICH_CRITICAL',        &
+                         ClientModule = 'ModuleTurbulence',     &
+                         default      = 0.25,                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                          &
+                stop 'InicEstuaryModel - ModuleTurbulence - ERR30'        
+                
+        endif
 
     end subroutine InicSmagorinskyModel
  
@@ -2854,11 +2877,11 @@ cd1 :   if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
     !--------------------------------------------------------------------------
     
-    subroutine GetTurbulenceOptions(TurbulenceID, NeedsTempSalinity, STAT)
+    subroutine GetTurbulenceOptions(TurbulenceID, NeedsSigmaNoPressure, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                         :: TurbulenceID
-        logical,           intent(OUT)  :: NeedsTempSalinity
+        logical,           intent(OUT)  :: NeedsSigmaNoPressure
         integer, optional, intent(OUT)  :: STAT
 
         !External--------------------------------------------------------------
@@ -2879,11 +2902,11 @@ cd1 :   if ((ready_ == IDLE_ERR_     ) .OR.                             &
             if (Me%TurbOptions%MODTURB       == Constant_       .or.    &
                 Me%TurbOptions%DensityMethod == ConstantDensity_) then
 
-                NeedsTempSalinity = .false.
+                NeedsSigmaNoPressure = .false.
 
             else
 
-                NeedsTempSalinity = .true.
+                NeedsSigmaNoPressure = .true.
 
             endif
 
@@ -3036,7 +3059,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
 
     subroutine Turbulence(TurbulenceID, VelocityX, VelocityY, VelocityZ, Chezy, &
-                          Salinity, Temperature, STAT)
+                          SigmaNoPressure, STAT)
 
         !Arguments-------------------------------------------------------------
         integer, optional, intent(OUT)                  :: STAT
@@ -3044,8 +3067,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         real, dimension(:,:,:), pointer                 :: VelocityX
         real, dimension(:,:,:), pointer                 :: VelocityY
         real, dimension(:,:,:), pointer                 :: VelocityZ
-        real, dimension(:,:,:), pointer                 :: Salinity
-        real, dimension(:,:,:), pointer                 :: Temperature
+        real, dimension(:,:,:), pointer                 :: SigmaNoPressure
         real, dimension(:,:  ), pointer                 :: Chezy
 
         !External--------------------------------------------------------------
@@ -3087,11 +3109,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             Me%ExternalVar%VelocityZ          => VelocityZ
             Me%ExternalVar%Chezy              => Chezy
             
-i1 :        if      (.not.(Me%TurbOptions%MODTURB .EQ. Constant_   .or.       &
-                           Me%TurbOptions%MODTURB .EQ. file2D_)) then            
-                Me%ExternalVar%Salinity           => Salinity
-                Me%ExternalVar%Temperature        => Temperature
-                
+i1 :        if      (.not.(Me%TurbOptions%MODTURB .EQ. Constant_)) then            
+                Me%ExternalVar%SigmaNoPressure => SigmaNoPressure
             endif i1
 
 
@@ -3378,7 +3397,7 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
     subroutine ImposeTurbVertLimit
 
         !Local-----------------------------------------------------------------
-        integer                                         :: STAT_CALL, i, j, k, kbottom
+        integer                                         :: i, j, k, kbottom
 
         !Begin-----------------------------------------------------------------
         
@@ -3937,7 +3956,7 @@ do1 :           do K = kbottom, KUB+1
         real,    pointer, dimension(:,:,:)      :: ZCellCenter
         real,    pointer, dimension(:,:,:)      :: SZZ
         real,    dimension(:,:,:), pointer      :: VelocityX, VelocityY
-        real,    dimension(:,:,:), pointer      :: S, T
+        real,    dimension(:,:,:), pointer      :: SigmaNoPressure
         integer, dimension(:,:,:), pointer      :: ComputeFacesU3D, ComputeFacesV3D
         integer, dimension(:,:  ), pointer      :: KFloorZ
         real                                    :: RICH
@@ -3960,8 +3979,7 @@ do1 :           do K = kbottom, KUB+1
         SZZ             => Me%ExternalVar%SZZ
         ZCellCenter     => Me%ExternalVar%ZCellCenter
         KFloorZ         => Me%ExternalVar%KFloorZ
-        T               => Me%ExternalVar%Temperature
-        S               => Me%ExternalVar%Salinity
+        SigmaNoPressure => Me%ExternalVar%SigmaNoPressure
         VelocityX       => Me%ExternalVar%VelocityX
         VelocityY       => Me%ExternalVar%VelocityY
         ComputeFacesU3D => Me%ExternalVar%ComputeFacesU3D
@@ -3995,17 +4013,10 @@ do1 :       do k = kbottom, KUB-1
                       VelocityY(i,  j,  k+1) * ComputeFacesV3D(i,  j,  k+1)) / 2.0
 
                  !griflet: bypass the sigma density calculation
-                 Depth = -1.0 * ZCellCenter(i,j,k+1)
-                 RO = Sigma(Me%TurbOptions%DensityMethod, &
-                            Me%TurbOptions%PressureCorrec, &
-                            T(i, j, k+1), &
-                            S(i, j, k+1), &
-                            Depth)
-                 RO_PERT = Sigma(Me%TurbOptions%DensityMethod, &
-                            Me%TurbOptions%PressureCorrec, &
-                            T(i, j, k), &
-                            S(i, j, k), &
-                            Depth)
+                 Depth   = -1.0 * ZCellCenter(i,j,k+1)
+                 RO      = SigmaNoPressure(i, j, k+1)
+                 RO_PERT = SigmaNoPressure(i, j, k  )
+                 
                  !griflet: end of bypass
                  
                  DRODZ = (RO - RO_PERT) / DZZ(i,j,k)
@@ -4142,7 +4153,7 @@ do1 :       do k = kbottom, KUB-1
         integer, dimension(:,:,:), pointer      :: ComputeFacesU3D, ComputeFacesV3D, ComputeFacesW3D
         integer, dimension(:,:  ), pointer      :: KFloorZ
         real, dimension(3,3)                    :: S
-        real                                    :: ViscTurb, Cs, Dgrid
+        real                                    :: ViscTurb, Cs, Dgrid, F_Ri
         
         !----------------------------------------------------------------------
 
@@ -4301,6 +4312,42 @@ do6 :           do k = kbottom, KUB-1
         end do do5
         end do do4
         
+        if (Me%TurbVar%SmagorinskyStratified) then
+        
+do7 :       do j = JLB, JUB
+do8 :       do i = ILB, IUB
+
+cd3 :           if (Me%ExternalVar%WaterPoints3D(i, j, KUB) == WaterPoint) then
+
+                    kbottom = KFloorZ(i, j)
+                
+do9 :               do k = kbottom, KUB-1                     
+
+                        if     (Me%TurbVar%Richardson(i, j, k+1)< 0) then
+                        
+                            F_ri = 1
+                            
+                        elseif (Me%TurbVar%Richardson(i, j, k+1)>= 0 .and.             &
+                                Me%TurbVar%Richardson(i, j, k+1)<= Me%TurbVar%RichardsonCritical) then
+                                
+                            F_ri = sqrt(1-Me%TurbVar%Richardson(i, j, k+1)/Me%TurbVar%RichardsonCritical)
+                            
+                        elseif (Me%TurbVar%Richardson(i, j, k+1)> Me%TurbVar%RichardsonCritical)  then
+                        
+                            F_ri = 0.
+                            
+                        endif    
+                            
+                        Me%Viscosity%Vertical(i, j, k+1) = max(Me%Viscosity%Background, F_Ri * Me%Viscosity%Vertical(i, j, k+1))
+                        
+                    enddo do9
+                end if cd3
+
+            end do do8
+            end do do7
+            
+        endif         
+                                                       
 
 
         nullify(DWZ             )
@@ -5236,6 +5283,34 @@ do2 :   do I = ILB, IUB
                              "SS", "s-2", Array3D = Me%OutPut%Aux3D,            &
                              OutputNumber = Index, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleTurbulence - ERR11'
+        
+        !Richarson
+        call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, FillValueReal)
+
+        do j=JLB,JUB
+        do i=ILB,IUB
+     
+           if (Me%ExternalVar%WaterPoints3D(i, j, WorkKUB)   == WaterPoint) then
+           
+              Kbottom = Me%ExternalVar%KFloorZ (i,j)
+
+              do k=Kbottom,WorkKUB
+
+                 Me%OutPut%Aux3D(i,j,k) = (Me%TurbVar%Richardson(i,j,k)        &
+                                          +Me%TurbVar%Richardson(i,j,k+1))/2.
+
+              end do
+            
+           end if
+           
+        end do
+        end do
+
+        call HDF5WriteData  (Me%ObjHDF5, "/Results/Richardson",                         &
+                             "Richardson", "-", Array3D = Me%OutPut%Aux3D,              &
+                             OutputNumber = Index, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleTurbulence - ERR10'
+        
 
 ifTKE:  if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
         
