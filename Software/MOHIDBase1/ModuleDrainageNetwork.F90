@@ -5774,18 +5774,19 @@ if2:        if (Me%TimeSerie%ByNodes) then
                         if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR03'
                         
                         !for properties marked to integrate mass create a new file
-                        if (Me%Output%ComputeIntegratedMass .and. Me%TimeSerie%ComputeMass(i)) then
+                        if (Me%Output%ComputeIntegratedMass) then
+                            if (Me%TimeSerie%ComputeMass(i)) then                            
+                                allocate (Me%TimeSerie%DataLine3  (1:Me%TimeSerie%nNodes ))
                             
-                            allocate (Me%TimeSerie%DataLine3  (1:Me%TimeSerie%nNodes ))
-                            
-                            call StartTimeSerie(Me%TimeSerie%ObjTimeSerieMass(i), Me%ObjTime,       &
-                                                TimeSerieDataFile = trim(Me%TimeSerie%Location),    &
-                                                PropertyList      = NodeHeaderList,                 &
-                                                Extension         = "srn",                          &
-                                                ResultFileName    = trim(adjustl(Me%TimeSerie%Name (i)))//'_Integrated_Mass', &
-                                                ModelName         = Me%ModelName,                   &                
-                                                STAT              = STAT_CALL)
-                            if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR04'
+                                call StartTimeSerie(Me%TimeSerie%ObjTimeSerieMass(i), Me%ObjTime,       &
+                                                    TimeSerieDataFile = trim(Me%TimeSerie%Location),    &
+                                                    PropertyList      = NodeHeaderList,                 &
+                                                    Extension         = "srn",                          &
+                                                    ResultFileName    = trim(adjustl(Me%TimeSerie%Name (i)))//'_Integrated_Mass', &
+                                                    ModelName         = Me%ModelName,                   &                
+                                                    STAT              = STAT_CALL)
+                                if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR04'
+                            endif
                         endif
 
                     end if
@@ -9683,10 +9684,10 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                     
                     if (UpFlux .gt. 0.0) then
                         UpFlux  = UpReach%FlowOld
-                        UpFlux  = UpReach%Velocity
+                        UpProp  = UpReach%Velocity
                     else
                         UpFlux  = CurrReach%FlowOld
-                        UpFlux  = CurrReach%Velocity                   
+                        UpProp  = CurrReach%Velocity                   
                     endif
                     
                     !m4/s2        = m4/s2           m3/s     * m/s
