@@ -13182,12 +13182,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                 if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR56'
                             endif
                         enddo
+                        deallocate (Me%TimeSerie%ObjTimeSerieMass)
                     endif 
                     
                 endif         
                                
                 deallocate (Me%TimeSerie%ObjTimeSerie)
-                deallocate (Me%TimeSerie%ObjTimeSerieMass)
                 deallocate (Me%TimeSerie%Name        )
 
                 if (Me%Downstream%Boundary == ImposedWaterLevel &
