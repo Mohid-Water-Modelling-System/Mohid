@@ -93,7 +93,8 @@ Module ModulePorousMedia
     use ModuleMap,              only : ConstructMap, GetWaterPoints3D, GetOpenPoints3D,  &
                                        GetComputeFaces3D, UnGetMap,                      &
                                        UpdateComputeFaces3D, KillMap         
-    use ModuleFillMatrix,       only : ConstructFillMatrix, KillFillMatrix
+    use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,            &
+                                       KillFillMatrix, GetIfMatrixRemainsConstant
     use ModuleDrainageNetwork,  only : GetChannelsWaterLevel, GetChannelsBottomLevel,    &
                                        GetChannelsBottomWidth, GetChannelsOpenProcess,   &
                                        GetChannelsNodeLength, UnGetDrainageNetwork
@@ -366,6 +367,8 @@ Module ModulePorousMedia
         integer                                 :: ObjBottomTopography      = 0
         integer                                 :: ObjEnterData             = 0
         integer                                 :: ObjProfile               = 0
+        type (T_PropertyID)                     :: ImpermeableFractionID
+        
         real,    allocatable, dimension(:,:,:)  :: ThetaField               ! => null() !!FieldCapacity [m3/m3]                
 
         type (T_OutPut)                         :: OutPut
@@ -1630,13 +1633,14 @@ HF:         if (STAT_CALL == SUCCESS_ .and. SoilTypeFound) then
         logical                                     :: AllOK
         integer                                     :: nProps, iflag
         type (T_PropertyID)                         :: WaterLevelID
-        type (T_PropertyID)                         :: ImpermeableFractionID
+        !type (T_PropertyID)                         :: ImpermeableFractionID
         integer, allocatable, dimension(:)          :: LayerControl
         integer, dimension(:,:,:), pointer          :: AuxPointsToFill
         real, dimension(:,:,:), pointer             :: AuxSoilID
         integer                                     :: i, j, k
         character(LEN = StringLength)               :: string
         type (T_PropertyID)                         :: ID
+        logical                                     :: ImpermeableConstant
         
         
         allocate(LayerControl(Me%WorkSize%KLB: Me%WorkSize%KUB))
@@ -1906,7 +1910,7 @@ doSP:           do
                 stop 'InitialFields - ModulePorousMedia - ERR100'
             endif
             
-            call ConstructFillMatrix  ( PropertyID           = ImpermeableFractionID,       &
+            call ConstructFillMatrix  ( PropertyID           = Me%ImpermeableFractionID,    &
                                         EnterDataID          = Me%ObjEnterData,             &
                                         TimeID               = Me%ObjTime,                  &
                                         HorizontalGridID     = Me%ObjHorizontalGrid,        &
@@ -1915,13 +1919,16 @@ doSP:           do
                                         Matrix2D             = Me%ImpermeableFraction,      &
                                         TypeZUV              = TypeZ_,                      &
                                         STAT                 = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'InitialFields - ModulePorousMedia - ERR81'
-            
-            call KillFillMatrix       (ImpermeableFractionID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'InitialFields - ModulePorousMedia - ERR82'
+            if (STAT_CALL /= SUCCESS_) stop 'InitialFields - ModulePorousMedia - ERR110'
+
+
+            if (.not. Me%ImpermeableFractionID%SolutionFromFile) then
+                call KillFillMatrix (Me%ImpermeableFractionID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InitialFields - ModulePorousMedia - ERR0130'
+            endif
 
         else
-            stop 'InitialFields - ModulePorousMedia - ERR110'
+            stop 'InitialFields - ModulePorousMedia - ERR140'
         endif
 
 
@@ -3605,6 +3612,15 @@ i1:         if (CoordON) then
 
             !Sets External Variables
             call ReadLockExternalVar
+            
+            !Check impermeability solution from file
+            if (Me%ImpermeableFractionID%ObjFillMatrix /= 0 .and. Me%ImpermeableFractionID%SolutionFromFile) then
+                call ModifyFillMatrix (FillMatrixID   = Me%ImpermeableFractionID%ObjFillMatrix,  &
+                                       Matrix2D       = Me%ImpermeableFraction,                  &
+                                       PointsToFill2D = Me%ExtVar%BasinPoints,                   &
+                                       STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyPorousMedia - ModulePorousMedia - ERR010'            
+            endif
             
             !Points to Arguments
             Me%TranspirationExists = .false.
@@ -6741,7 +6757,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     nUsers = DeassociateInstance (mDRAINAGENETWORK_, Me%ObjDrainageNetwork)
                     if (nUsers == 0) stop 'KillPorousMedia - Porousmedia - ERR06'
                 endif                
-
+                
+                if (Me%ImpermeableFractionID%ObjFillMatrix /= 0) then
+                    call KillFillMatrix (Me%ImpermeableFractionID%ObjFillMatrix, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillPorousMedia - PorousMedia - ERR06.5'                
+                endif
+                
                 nUsers = DeassociateInstance (mTIME_, Me%ObjTime)
                 if (nUsers == 0) stop 'KillPorousMedia - Porousmedia - ERR07'
 
