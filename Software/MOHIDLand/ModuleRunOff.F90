@@ -192,8 +192,6 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: iFlowBoundary            => null() !Integrated    Flow to impose BC
         real,    dimension(:,:), pointer            :: lFlowDischarge           => null() !Instantaneous Flow of discharges
         real,    dimension(:,:), pointer            :: iFlowDischarge           => null() !Integrated    Flow of discharges
-        real,    dimension(:,:), pointer            :: lFlowToSewerSystem       => null() !Instantaneous Flow to sewer system
-        real,    dimension(:,:), pointer            :: iFlowToSewerSystem       => null() !Integrated    Flow to sewer system
         real(8), dimension(:,:), pointer            :: lFlowX, lFlowY           => null() !Instantaneous OverLandFlow (LocalDT   )
         real(8), dimension(:,:), pointer            :: iFlowX, iFlowY           => null() !Integrated    OverLandFlow (AfterSumDT)
         real(8), dimension(:,:), pointer            :: FlowXOld, FlowYOld       => null() !Flow From previous iteration
@@ -214,6 +212,8 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: StormWaterCenterModulus  => null() !Output 
         real,    dimension(:,:), pointer            :: BuildingsHeight          => null() !Height of building in cell
         real,    dimension(:,:), pointer            :: StormWaterInteraction    => null() !Points where interaction with SWMM occurs
+        real,    dimension(:,:), pointer            :: StreetGutterLength       => null() !Length of Stret Gutter in a given cell
+        real,    dimension(:,:), pointer            :: AssociatedGutterLength   => null()
         real,    dimension(:,:), pointer            :: MassError                => null() !Contains mass error
         real, dimension(:,:), pointer               :: CenterFlowX, CenterFlowY
         real, dimension(:,:), pointer               :: CenterVelocityX, CenterVelocityY
@@ -225,6 +225,10 @@ Module ModuleRunOff
         type(T_PropertyID)                          :: OverLandCoefficientID
         logical                                     :: StormWaterModel = .false.          !If connected to SWMM
         real,    dimension(:,:), pointer            :: StormWaterModelFlow      => null() !Flow from SWMM
+        real,    dimension(:,:), pointer            :: StreetGutterFlow         => null() !Flow through "street gutters"
+        real,    dimension(:,:), pointer            :: SewerInflow              => null() !Integrated inflow at sewer points
+        integer, dimension(:,:), pointer            :: StreetGutterTargetI      => null() !Sewer interaction point...
+        integer, dimension(:,:), pointer            :: StreetGutterTargetJ      => null() !...where street gutter drains to
         real                                        :: MinSlope
         logical                                     :: AdjustSlope
         logical                                     :: Stabilize
@@ -253,6 +257,7 @@ Module ModuleRunOff
         real                                        :: MaxCourant           = 1.0        
         logical                                     :: ImposeBoundaryValue  = .false.
         real                                        :: BoundaryValue
+        real                                        :: MaxDtmForBoundary
         real(8)                                     :: FlowAtBoundary       = 0.0
         integer                                     :: MaxIterations        = 5
         logical                                     :: SimpleChannelInteraction = .false.
@@ -477,6 +482,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         type(T_PropertyID)                          :: StormWaterDrainageID
         type(T_PropertyID)                          :: BuildingsHeightID
         type(T_PropertyID)                          :: StormWaterInteractionID
+        type(T_PropertyID)                          :: StreetGutterLengthID
         integer                                     :: iflag, ClientNumber
         logical                                     :: BlockFound
         integer                                     :: i, j
@@ -843,9 +849,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          keyword      = 'BOUNDARY_VALUE',                       &
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
-                         Default      = 0.0,                                    &
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR360'        
+
+            if (iflag == 0) then
+                write(*,*)'BOUNDARY_VALUE must be defined in module Runoff'
+                stop 'ReadDataFile - ModuleRunOff - ERR0230'
+            endif
+
+
+            call GetData(Me%MaxDtmForBoundary,                                  &
+                         ObjEnterData, iflag,                                   &  
+                         keyword      = 'MAX_DTM_FOR_BOUNDARY',                 &
+                         ClientModule = 'ModuleRunOff',                         &
+                         SearchType   = FromFile,                               &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR360'        
+
+            if (iflag == 0) then
+                write(*,*)'MAX_DTM_FOR_BOUNDARY must be defined in module Runoff'
+                stop 'ReadDataFile - ModuleRunOff - ERR0230'
+            endif
+
         endif
         
         !Discharges
@@ -1164,6 +1189,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%StormWaterModel) then
         
             allocate(Me%StormWaterInteraction(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%StreetGutterLength   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
             call RewindBuffer (ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR680'
@@ -1194,7 +1220,34 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write(*,*)'Missing Block <BeginStormWaterInteraction> / <EndStormWaterInteraction>' 
                 stop      'ReadDataFile - ModuleRunOff - ERR08'
             endif
-        
+            
+            !Gets Street Gutter Length in each grid cell
+            call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                          &
+                                        '<BeginStreetGutterLength>',                         &
+                                        '<EndStreetGutterLength>', BlockFound,               &
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR690'
+
+            if (BlockFound) then
+                call ConstructFillMatrix  ( PropertyID       = StreetGutterLengthID,         &
+                                            EnterDataID      = ObjEnterData,                 &
+                                            TimeID           = Me%ObjTime,                   &
+                                            HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                            ExtractType      = FromBlock,                    &
+                                            PointsToFill2D   = Me%ExtVar%BasinPoints,        &
+                                            Matrix2D         = Me%StreetGutterLength,        &
+                                            TypeZUV          = TypeZ_,                       &
+                                            STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR700'
+
+                call KillFillMatrix(StreetGutterLengthID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR710'
+
+            else
+                write(*,*)'Missing Block <BeginStreetGutterLength> / <EndStreetGutterLength>' 
+                stop      'ReadDataFile - ModuleRunOff - ERR08'
+            endif
+            
         endif
                 
         
@@ -1631,6 +1684,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                             :: ILB, IUB, JLB, JUB    
         integer                                             :: i, j
+        logical                                             :: nearestfound
+        integer                                             :: dij, lowestI, lowestJ
+        integer                                             :: iAux, jAux
+        real                                                :: lowestValue
 
         !Bounds
         ILB = Me%WorkSize%ILB
@@ -1676,7 +1733,69 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%StormWaterModel) then
         
             allocate(Me%StormWaterModelFlow    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            Me%StormWaterModelFlow    = 0
+            allocate(Me%StreetGutterFlow       (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%SewerInflow            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%StreetGutterTargetI    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%StreetGutterTargetJ    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%AssociatedGutterLength (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            Me%StormWaterModelFlow    = 0.0
+            Me%StreetGutterFlow       = 0.0
+            Me%SewerInflow            = 0.0
+            Me%AssociatedGutterLength = 0.0
+            
+            Me%StreetGutterTargetI    = null_int
+            Me%StreetGutterTargetJ    = null_int
+            
+            !Algorithm to find the nearest sewer interaction point near the street gutter. 
+            !Point must be lower equal current point
+            !Algorithm is not quiet correct, since it does not search in circles, but in rectangles
+            !Algorithm is not very eficent, since it should look only to the border points of the rectangls. But we are in the constructor
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint .and. Me%StreetGutterLength(i, j) > AllmostZero) then 
+                    
+                    nearestfound = .false.
+                    dij = 0
+                    do while (.not. nearestfound)
+
+                        lowestValue = Me%ExtVar%Topography(i, j)
+                        lowestI     = null_int
+                        lowestJ     = null_int
+
+                        !Efficiency is somethink else.... we soud only travel arround the outer cells
+                        do iAux = Max(i-dij, ILB), Min(i+dij, IUB)
+                        do jAux = Max(j-dij, JLB), Min(j+dij, JUB)
+                            if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
+                                if (Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j) .and. Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
+                                    nearestfound = .true.
+                                    if (Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
+                                        lowestValue = Me%ExtVar%Topography(iAux, jAux)
+                                        lowestI     = iAux
+                                        lowestJ     = jAux
+                                    endif
+                                endif
+                            endif
+                        enddo
+                        enddo
+
+                        dij = dij + 1
+
+                    enddo
+                    
+                    !Sets Link
+                    Me%StreetGutterTargetI(i, j)  = lowestI
+                    Me%StreetGutterTargetJ(i, j)  = lowestJ
+                    
+                    !Integrates associated length
+                    Me%AssociatedGutterLength(lowestI, lowestJ) = Me%AssociatedGutterLength(lowestI, lowestJ) + Me%StreetGutterLength(i, j)
+                                      
+
+                endif
+
+            enddo
+            enddo                
+            
             
         endif            
 
@@ -2534,9 +2653,9 @@ doIter:         do while (iter <= Niter)
                     endif
 
                     !Boundary Condition
-                    if (Me%ImposeBoundaryValue) then
-                        call ImposeBoundaryValue    (LocalDT)
-                    endif
+!                    if (Me%ImposeBoundaryValue) then
+!                        call ImposeBoundaryValue    (LocalDT)
+!                    endif
 
                     
                     call CheckStability(Restart, Niter) 
@@ -2580,6 +2699,10 @@ doIter:         do while (iter <= Niter)
             !Gets ExternalVars
             call ReadLockExternalVar (StaticOnly = .false.)
 
+            !Flow through street gutter
+            if (Me%StormWaterModel) then
+                call StreetGutterFlow
+            endif
                     
             !StormWater Drainage
             if (Me%StormWaterDrainage) then
@@ -2602,6 +2725,10 @@ doIter:         do while (iter <= Niter)
                 call RouteDFourPoints
             endif
 
+            !Boundary Condition
+            if (Me%ImposeBoundaryValue) then
+                call ImposeBoundaryValue_v2
+            endif
 
             !Calculates center flow and velocities (for output and next DT)
             call ComputeCenterValues
@@ -3904,12 +4031,12 @@ doIter:         do while (iter <= Niter)
                 !!if (WaterDepth .gt. 0.0) then
                 
                 !Critical Flow                    
-                AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
-                FlowMax = Min(sqrt(Gravity * Me%myWaterColumn(i, j)) *  Me%myWaterColumn(i, j) * AverageCellLength, &
-                              0.1 * Me%myWaterColumn(i, j) * AverageCellLength)
+                !AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
+                !FlowMax = Min(sqrt(Gravity * Me%myWaterColumn(i, j)) *  Me%myWaterColumn(i, j) * AverageCellLength, &
+                !              0.1 * Me%myWaterColumn(i, j) * AverageCellLength)
                 
                 
-                !!FlowMax = sqrt(Gravity * WaterDepth) *  WaterDepth * AverageCellLength
+                FlowMax = sqrt(Gravity * Me%myWaterColumn(i, j)) *  Me%myWaterColumn(i, j) * AverageCellLength
                 
 
                 !dVol -> max Critical Flow & Avaliable Volume
@@ -4214,7 +4341,81 @@ doIter:         do while (iter <= Niter)
     end subroutine StormWaterDrainage
 
     !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
     
+    subroutine StreetGutterFlow
+    
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j
+        integer                                     :: ILB, IUB, JLB, JUB
+        real                                        :: dVol, flow
+        real                                        :: AverageCellLength, y0
+        
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+            if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn .and. Me%StreetGutterLength(i, j) > AllmostZero) then 
+        
+                !Q  = L * K * y0^(3/2) * sqrt(g)
+                !L  = Cumprimento Sargeta = 0.5
+                !K  = Coef = 0.2
+                !y0 = Altura a montante da sargeta
+                       
+                AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
+                
+                !Considering an average side slope of 5% (1/0.05 = 20) of the street
+                y0 = sqrt(2.0*Me%myWaterColumn(i, j)*AverageCellLength / 20.0)
+                
+                !When triangle of street is full, consider new head 
+                if (y0 * 20.0 > AverageCellLength) then
+                    y0 = AverageCellLength / 40.0 + Me%myWaterColumn(i, j)
+                endif
+                
+                !flow = 0.5 * 0.2 * y0**1.5 * sqrt(Gravity)
+                flow = Me%StreetGutterLength(i, j) * 0.2 * y0**1.5 * sqrt(Gravity)
+            
+                !Flow Rate into street Gutter
+                Me%StreetGutterFlow(i, j) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)
+
+!
+! Volume will be removed after SWMM iteration. Here we don't know how many water fits into the sewer system
+!
+
+
+                !Volume variation
+!                dVol = Me%StreetGutterFlow(i, j) * Me%ExtVar%DT
+
+!                !New Volume 
+!                Me%myWaterVolume   (i, j) = Me%myWaterVolume   (i, j) - dVol
+!                
+!                !New WaterColumn
+!                Me%myWaterColumn   (i, j) = Me%myWaterVolume   (i, j) / Me%ExtVar%GridCellArea(i, j)
+!
+!                !New Level
+!                Me%myWaterLevel    (i, j) = Me%myWaterColumn   (i, j) + Me%ExtVar%Topography(i, j)
+           
+            else
+            
+                Me%StreetGutterFlow(i, j) = 0.0
+            
+            endif
+
+        enddo
+        enddo
+        
+    end subroutine StreetGutterFlow
+        
+    !--------------------------------------------------------------------------
+        
     subroutine AddFlowFromStormWaterModel
 
         !Arguments-------------------------------------------------------------
@@ -4222,6 +4423,8 @@ doIter:         do while (iter <= Niter)
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: targetI, targetJ
+        real                                        :: Flow
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -4231,7 +4434,36 @@ doIter:         do while (iter <= Niter)
         do j = JLB, JUB
         do i = ILB, IUB
         
+            !The algorithm below has the following assumptions
+            !1. MOHID Land calculates the possible inflow into the sewer system through the street gutters (routine StreetGutterFlow)
+            !2. This flow is provide as integrated value, at the interaction points to SWMM
+            !3. Swmm calculates the efective inflow
+            !4. The algorithm below calculates the efective inflow in each Street Gutter Point
+            !4. a if the flow in the target point is negative (inflow into the sewer system) the flow is relative to the total length associated to the target point
+            !4. b if the flow in the target point is positive (outflow from the sewer system), the flow flows out at the target point ("saltam as tampas")
+            !5. The Water Column is reduces due to the final flow
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+
+                Flow = 0.0
+
+                !If the point is a street gutter point, we have to reduce the volume by the total number of associated inlets
+                if (Me%StreetGutterLength(i, j) > 0.0) then 
+               
+                    targetI = Me%StreetGutterTargetI(i, j)
+                    targetJ = Me%StreetGutterTargetJ(i, j)
+
+                    if (Me%StormWaterModelFlow(targetI, targetJ) < 0.0) then
+                        Me%StormWaterModelFlow(i, j) = Me%StreetGutterLength(i, j) / Me%AssociatedGutterLength(targetI, targetJ) * &
+                                                       Me%StormWaterModelFlow(targetI, targetJ)
+                    endif
+                    
+!                else if (Me%StormWaterInteraction(i, j) > AllmostZero .and. Me%StormWaterModelFlow(i, j) > 0) then
+!                    Flow = Me%StormWaterModelFlow(i, j)
+                endif
+
+!                if (Me%StormWaterInteraction(i, j) > AllmostZero .and. Me%StormWaterModelFlow(i, j) > 0) then
+!                    Me%StormWaterModelFlow(i, j) = Me%StormWaterModelFlow(i, j)
+!                endif
 
                 Me%myWaterColumnOld   (i, j)  = Me%myWaterColumnOld   (i, j) +          &
                                                 Me%StormWaterModelFlow(i, j) *          &
@@ -4789,7 +5021,7 @@ doIter:         do while (iter <= Niter)
         !if (Me%Stabilize .and. Niter .ge. Me%MaxIterations) then
         if (Niter .ge. Me%MaxIterations) then
              write(*,*)'Number of iterations above maximum: ', Niter
-             write(*,*)'Check DT configurations'
+             write(*,*)'Check configurations [MAX_ITERATIONS]'
              stop 'CheckStability - ModuleRunoff - ERR01'
         endif
         
@@ -4923,16 +5155,16 @@ doIter:         do while (iter <= Niter)
         endif
         
         !Integrates Flow At boundary
-        if (Me%ImposeBoundaryValue) then
-           !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                Me%iFlowBoundary(i, j) = (Me%iFlowBoundary(i, j) * SumDT + Me%lFlowBoundary(i, j) * LocalDT) / &
-                                         (SumDT + LocalDT)
-            enddo
-            enddo
-            !$OMP END DO NOWAIT
-        endif
+!        if (Me%ImposeBoundaryValue) then
+!           !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+!            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+!                Me%iFlowBoundary(i, j) = (Me%iFlowBoundary(i, j) * SumDT + Me%lFlowBoundary(i, j) * LocalDT) / &
+!                                         (SumDT + LocalDT)
+!            enddo
+!            enddo
+!            !$OMP END DO NOWAIT
+!        endif
 
         !Integrates Flow Discharges
         if (Me%Discharges) then
@@ -4982,7 +5214,7 @@ doIter:         do while (iter <= Niter)
                 Me%myWaterColumn     (i, j)  > 0.1         .and. &      !"Flooding"
                 Me%myWaterLevel      (i, j)  > Me%BoundaryValue) then   !Level higher then imposed level
 
-                !Check if near a boudary point
+                !Check if near a boundary point
                 NearBoundary = .false.
                 do dj = -1, 1
                 do di = -1, 1
@@ -5038,6 +5270,62 @@ doIter:         do while (iter <= Niter)
     
     end subroutine    
     
+    !--------------------------------------------------------------------------
+
+    subroutine ImposeBoundaryValue_v2
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, di, dj
+        integer                                     :: ILB, IUB, JLB, JUB
+        real                                        :: dh, dVOl
+        logical                                     :: NearBoundary
+        real                                        :: Width, Area
+
+        !Routes water outside the watershed if water is higher then a given treshold values
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        
+        !Sets Boundary values
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint       .and. &   !BasinPoint
+                Me%ExtVar%Topography (i, j)  < Me%MaxDtmForBoundary .and. &   !Low land point where to imposes BC
+                Me%myWaterLevel      (i, j)  > Me%BoundaryValue) then   !Level higher then imposed level
+
+                !Check if near a boundary point
+                NearBoundary = .false.
+                do dj = -1, 1
+                do di = -1, 1
+                    if (Me%ExtVar%BasinPoints(i+di, j+dj) == 0) then
+                        NearBoundary = .true.
+                    endif
+                enddo
+                enddo
+
+                if (NearBoundary) then
+
+                    !Necessary Variation in height
+                    Me%myWaterLevel (i, j) = max(Me%BoundaryValue, Me%ExtVar%Topography (i, j))
+
+                    !Updates Water Column
+                    Me%myWaterColumn(i, j) = Me%myWaterLevel (i, j) - Me%ExtVar%Topography (i, j)
+                    
+                    !Updates Volume
+                    Me%myWaterVolume(i, j) = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
+
+
+                endif
+           
+            endif
+        enddo
+        enddo
+
+    
+    end subroutine ImposeBoundaryValue_v2       
     !--------------------------------------------------------------------------
     
     subroutine ComputeCenterValues 
@@ -5425,12 +5713,18 @@ doIter:         do while (iter <= Niter)
             if (Me%StormWaterModel) then
             
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water flow",         &
-                                      "storm water flow", "m3",                         &
+                                      "storm water flow", "m3/s",                       &
                                       Array2D      = Me%StormWaterModelFlow,            &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR085'
                 
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/street gutter flow",       &
+                                      "street gutter flow", "m3/s",                     &
+                                      Array2D      = Me%StreetGutterFlow,               &
+                                      OutputNumber = Me%OutPut%NextOutPut,              &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR085'
             
             endif
 
@@ -6137,67 +6431,45 @@ cd1:    if (RunOffID > 0) then
         integer                                     :: STAT_CALL
         integer                                     :: ready_         
         integer                                     :: i, j, idx
-        real                                        :: flow, y0
-        real                                        :: AverageCellLength
+        integer                                     :: targetI
+        integer                                     :: targetJ
 
         call Ready(RunOffID, ready_)    
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
-            call GetComputeTimeStep     (Me%ObjTime, Me%ExtVar%DT, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetInletInFlow - ModuleRunOff - ERR01'
-            
-            call GetHorizontalGrid(Me%ObjHorizontalGrid,                                     &
-                                   DUX    = Me%ExtVar%DUX,    DVY    = Me%ExtVar%DVY,        &
-                                   STAT   = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetInletInFlow - ModuleRunOff - ERR02'
-        
+           
+            !Integrates values from gutter inflow to inflow at sewer points
+            Me%SewerInflow = 0.0
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%StreetGutterLength(i, j) > AllmostZero) then
+                
+                    !SEWER interaction point
+                    targetI = Me%StreetGutterTargetI(i, j)
+                    targetJ = Me%StreetGutterTargetJ(i, j)
+                    
+                    Me%SewerInflow(targetI, targetJ) = Me%SewerInflow(targetI, targetJ) + Me%StreetGutterFlow(i, j)  
+                else if (Me%StormWaterInteraction (i, j) > AllmostZero) then
+                    Me%SewerInflow(i, j) = 0.0
+                endif
+            enddo
+            enddo                
+    
+            !Puts values into 1D OpenMI matrix
             idx = 1
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%StormWaterInteraction(i, j) > AllmostZero) then
-                
-                
-                    if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn) then 
-                
-                        !Q  = L * K * y0^(3/2) * sqrt(g)
-                        !L  = Cumprimento Sargeta = 0.5
-                        !K  = Coef = 0.2
-                        !y0 = Altura a montante da sargeta
-                               
-                        AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
-                        
-                        !Considering an average side slope of 5% (1/0.05 = 20) of the street
-                        y0 = sqrt(2.0*Me%myWaterColumn(i, j)*AverageCellLength / 20.0)
-                        
-                        !When triangle of street is full, consider new head 
-                        if (y0 * 20.0 > AverageCellLength) then
-                            y0 = AverageCellLength / 40.0 + Me%myWaterColumn(i, j)
-                        endif
-                        
-                        flow = 0.5 * 0.2 * y0**1.5 * sqrt(Gravity)
-                    
-                        !inlet Flow rate min between 
-                        inletInflow(idx) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT / Me%StormWaterInteraction(i, j))
-                        
-                   
-                    else
-                    
-                        inletInflow(idx) = 0.0
-                    
-                    endif
 
+                if (Me%StormWaterInteraction (i, j) > AllmostZero) then 
+                
+                    !inlet Flow rate min between 
+                    inletInflow(idx) = Me%SewerInflow(i, j)
                     idx = idx + 1
-                    
                 endif
+                    
             enddo
             enddo
-
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%DUX, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetInletInFlow - ModuleRunOff - ERR03'
-
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%DVY, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetInletInFlow - ModuleRunOff - ERR04'
 
 
             GetInletInFlow = .true.
