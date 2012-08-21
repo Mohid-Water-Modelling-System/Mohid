@@ -122,9 +122,9 @@ Module ModuleRunOff
     integer, parameter                              :: UnitMax          = 80
     
     !water column computation in faces
-    integer, parameter                              :: WCMaxBottom_       = 1
-    integer, parameter                              :: WCAverageBottom_   = 2
-
+    integer, parameter                              :: WCMaxBottom_     = 1
+    integer, parameter                              :: WCAverageBottom_ = 2
+    
     !Types---------------------------------------------------------------------
     type T_OutPut
          type (T_Time), pointer, dimension(:)       :: OutTime                  => null()
@@ -213,7 +213,6 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: BuildingsHeight          => null() !Height of building in cell
         real,    dimension(:,:), pointer            :: StormWaterInteraction    => null() !Points where interaction with SWMM occurs
         real,    dimension(:,:), pointer            :: StreetGutterLength       => null() !Length of Stret Gutter in a given cell
-        real,    dimension(:,:), pointer            :: AssociatedGutterLength   => null()
         real,    dimension(:,:), pointer            :: MassError                => null() !Contains mass error
         real, dimension(:,:), pointer               :: CenterFlowX, CenterFlowY
         real, dimension(:,:), pointer               :: CenterVelocityX, CenterVelocityY
@@ -226,7 +225,8 @@ Module ModuleRunOff
         logical                                     :: StormWaterModel = .false.          !If connected to SWMM
         real,    dimension(:,:), pointer            :: StormWaterModelFlow      => null() !Flow from SWMM
         real,    dimension(:,:), pointer            :: StreetGutterFlow         => null() !Flow through "street gutters"
-        real,    dimension(:,:), pointer            :: SewerInflow              => null() !Integrated inflow at sewer points
+        real,    dimension(:,:), pointer            :: SewerInflow              => null() !Integrated inflow at sewer points (potential)
+        real,    dimension(:,:), pointer            :: StormInteractionFlow     => null() !Interaction Flow (at gutters + sewer points) (real)
         integer, dimension(:,:), pointer            :: StreetGutterTargetI      => null() !Sewer interaction point...
         integer, dimension(:,:), pointer            :: StreetGutterTargetJ      => null() !...where street gutter drains to
         real                                        :: MinSlope
@@ -1688,6 +1688,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                             :: dij, lowestI, lowestJ
         integer                                             :: iAux, jAux
         real                                                :: lowestValue
+        logical                                             :: IgnoreTopography
 
         !Bounds
         ILB = Me%WorkSize%ILB
@@ -1737,11 +1738,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             allocate(Me%SewerInflow            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%StreetGutterTargetI    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%StreetGutterTargetJ    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%AssociatedGutterLength (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%StormInteractionFlow   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             Me%StormWaterModelFlow    = 0.0
             Me%StreetGutterFlow       = 0.0
             Me%SewerInflow            = 0.0
-            Me%AssociatedGutterLength = 0.0
+            Me%StormInteractionFlow   = 0.0
             
             Me%StreetGutterTargetI    = null_int
             Me%StreetGutterTargetJ    = null_int
@@ -1757,19 +1758,58 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     
                     nearestfound = .false.
                     dij = 0
+                    IgnoreTopography = .false.
                     do while (.not. nearestfound)
 
                         lowestValue = Me%ExtVar%Topography(i, j)
                         lowestI     = null_int
                         lowestJ     = null_int
 
-                        !Efficiency is somethink else.... we soud only travel arround the outer cells
+                        !Left
+                        jAux = Max(j-dij, JLB)
                         do iAux = Max(i-dij, ILB), Min(i+dij, IUB)
-                        do jAux = Max(j-dij, JLB), Min(j+dij, JUB)
+
                             if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
-                                if (Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j) .and. Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
+                                if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
+                                     Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
                                     nearestfound = .true.
-                                    if (Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
+                                    if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
+                                        lowestValue = Me%ExtVar%Topography(iAux, jAux)
+                                        lowestI     = iAux
+                                        lowestJ     = jAux
+                                    endif
+                                endif
+                            endif
+
+                        enddo
+
+                        !Right
+                        jAux = Min(j+dij, JUB)
+                        do iAux = Max(i-dij, ILB), Min(i+dij, IUB)
+
+                            if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
+                                if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
+                                    Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
+                                    nearestfound = .true.
+                                    if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
+                                        lowestValue = Me%ExtVar%Topography(iAux, jAux)
+                                        lowestI     = iAux
+                                        lowestJ     = jAux
+                                    endif
+                                endif
+                            endif
+
+                        enddo
+ 
+                        !Bottom
+                        iAux = Max(i-dij, ILB)
+                        do jAux = Max(j-dij, JLB), Min(j+dij, JUB)
+
+                            if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
+                                if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
+                                     Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
+                                    nearestfound = .true.
+                                    if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
                                         lowestValue = Me%ExtVar%Topography(iAux, jAux)
                                         lowestI     = iAux
                                         lowestJ     = jAux
@@ -1777,9 +1817,55 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                 endif
                             endif
                         enddo
+ 
+                        !Top
+                        iAux = Min(i+dij, IUB)
+                        do jAux = Max(j-dij, JLB), Min(j+dij, JUB)
+
+                            if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
+                                if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
+                                    Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
+                                    nearestfound = .true.
+                                    if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
+                                        lowestValue = Me%ExtVar%Topography(iAux, jAux)
+                                        lowestI     = iAux
+                                        lowestJ     = jAux
+                                    endif
+                                endif
+                            endif
                         enddo
+ 
+!
+!                        
+!                        !Efficiency is somethink else.... we should only travel arround the outer cells
+!                        do jAux = Max(j-dij, JLB), Min(j+dij, JUB)
+!                        do iAux = Max(i-dij, ILB), Min(i+dij, IUB)
+!
+!                            if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
+!                                if (Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j) .and. Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
+!                                    nearestfound = .true.
+!                                    if (Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
+!                                        lowestValue = Me%ExtVar%Topography(iAux, jAux)
+!                                        lowestI     = iAux
+!                                        lowestJ     = jAux
+!                                    endif
+!                                endif
+!                            endif
+!
+!                        enddo
+!                        enddo
 
                         dij = dij + 1
+                        if (dij > IUB .and. dij > JUB) then
+                            if (.not. IgnoreTopography) then
+                                IgnoreTopography = .true.
+                                dij = 0
+                                write(*,*)'Topography Ignored for', i, j 
+                            else
+                                write(*,*)'Internal Error locating Street Gutter Target', i, j 
+                            endif
+                        endif
+
 
                     enddo
                     
@@ -1787,10 +1873,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     Me%StreetGutterTargetI(i, j)  = lowestI
                     Me%StreetGutterTargetJ(i, j)  = lowestJ
                     
-                    !Integrates associated length
-                    Me%AssociatedGutterLength(lowestI, lowestJ) = Me%AssociatedGutterLength(lowestI, lowestJ) + Me%StreetGutterLength(i, j)
-                                      
-
                 endif
 
             enddo
@@ -2859,12 +2941,10 @@ doIter:         do while (iter <= Niter)
                 
                 if (Me%FaceWaterColumn == WCMaxBottom_) then
                     !Maximum Bottom Level
-                    Bottom = max(Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1), &
-                                 Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
+                    Bottom = max(Me%ExtVar%Topography(i, j-1), Me%ExtVar%Topography(i, j))
                 elseif (Me%FaceWaterColumn == WCAverageBottom_) then
                     !Average Bottom Level
-                    Bottom = ((Me%ExtVar%Topography(i,j) +  Me%BuildingsHeight(i, j))   &
-                               + (Me%ExtVar%Topography(i,j-1) +  Me%BuildingsHeight(i, j-1))) / 2.0                
+                    Bottom = (Me%ExtVar%Topography(i,j) + Me%ExtVar%Topography(i,j-1)) / 2.0                
                 endif
                 
                 !Water Column Left (above MaxBottom)
@@ -2875,8 +2955,7 @@ doIter:         do while (iter <= Niter)
 
                 !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
                 if (Me%HydrodynamicApproximation == KinematicWave_) then
-                    if (Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1) >      &
-                        Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
+                    if (Me%ExtVar%Topography(i, j-1) > Me%ExtVar%Topography(i, j)) then
                         WCA = WCL
                     else
                         WCA = WCR
@@ -2915,12 +2994,10 @@ doIter:         do while (iter <= Niter)
                 
                 if (Me%FaceWaterColumn == WCMaxBottom_) then
                     !Maximum Bottom Level
-                    Bottom = max(Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j), &
-                                    Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
+                    Bottom = max(Me%ExtVar%Topography(i-1, j), Me%ExtVar%Topography(i, j))
                 elseif (Me%FaceWaterColumn == WCAverageBottom_) then
                     !Average Bottom Level
-                    Bottom = ((Me%ExtVar%Topography(i,j) +  Me%BuildingsHeight(i, j))   &
-                                + (Me%ExtVar%Topography(i-1,j) +  Me%BuildingsHeight(i-1, j))) / 2.0                
+                    Bottom = (Me%ExtVar%Topography(i,j) +  Me%ExtVar%Topography(i-1,j)) / 2.0                
                 endif
                 
                 !Water Column Left
@@ -2931,8 +3008,7 @@ doIter:         do while (iter <= Niter)
                
                 !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
                 if (Me%HydrodynamicApproximation == KinematicWave_) then
-                    if (Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j) >      &
-                        Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
+                    if (Me%ExtVar%Topography(i-1, j) > Me%ExtVar%Topography(i, j)) then
                         WCA = WCL
                     else
                         WCA = WCR
@@ -3048,8 +3124,7 @@ doIter:         do while (iter <= Niter)
                 if ((Me%FaceWaterColumn == WCMaxBottom_) .and. (Me%CalculateCellMargins)) then
                     !Water Depth consistent with AreaU computed (only water above max bottom)
                     WaterDepth = Me%AreaU(i,j) / Me%ExtVar%DYY(i, j)
-                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),     &
-                                    Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1))
+                    MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i, j-1))
                     
                     !to check wich cell to use to use since areaU depends on higher water level and max bottom
                     if (level_left .gt. level_right) then
@@ -3167,8 +3242,7 @@ doIter:         do while (iter <= Niter)
                 if ((Me%FaceWaterColumn == WCMaxBottom_) .and. (Me%CalculateCellMargins)) then
                     !Water Depth consistent with AreaV computed (only water above max bottom)
                     WaterDepth = Me%AreaV(i,j) / Me%ExtVar%DXX(i, j)
-                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),     &
-                                    Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j))
+                    MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i-1, j))
 
                     !to check wich cell to use since areaV depends on higher water level
                     if (level_bottom .gt. level_top) then
@@ -3311,8 +3385,7 @@ doIter:         do while (iter <= Niter)
                     !Then, is checked if "margins" occur on the cell of the highest water level
                     !water depth consistent with AreaU computed (only water above max bottom)
                     WaterDepth = Me%AreaU(i,j) / Me%ExtVar%DYY(i, j)
-                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
-                                Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1))
+                    MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i, j-1))
                     
                     !to check which cell to use since areaU depends on higher water level
                     if (level_left .gt. level_right) then
@@ -3488,8 +3561,7 @@ doIter:         do while (iter <= Niter)
                         !can be in opposite direction of height gradient (AreaU uses the higher water level)              
                         !WaterDepth = Me%AreaU(i,j)/Me%ExtVar%DYY(i,j)
                         if (Me%FaceWaterColumn == WCMaxBottom_) then
-                            MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
-                                        Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1))     
+                            MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i, j-1))     
                                                             
                             if (Me%lFlowX(i, j) .gt. 0.0) then           
                                 WaterDepth = max(Me%MyWaterLevel(i,j-1) - MaxBottom, 0.0)
@@ -3625,8 +3697,7 @@ doIter:         do while (iter <= Niter)
                 if ((Me%FaceWaterColumn == WCMaxBottom_) .and. (Me%CalculateCellMargins)) then
                     !water Depth consistent with AreaV computed (only water above max bottom)
                     WaterDepth = Me%AreaV(i,j) / Me%ExtVar%DXX(i, j)
-                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),    &
-                                Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j))
+                    MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i-1, j))
 
                     !to check wich cell to use since areaV depends on higher water level
                     if (level_bottom .gt. level_top) then
@@ -3782,8 +3853,7 @@ doIter:         do while (iter <= Niter)
                         !can be in opposite direction of height gradient (AreaU uses the higher)
                         !WaterDepth = Me%AreaV(i,j)/Me%ExtVar%DXX(i,j)
                         if (Me%FaceWaterColumn == WCMaxBottom_) then
-                            MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
-                                        Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j))     
+                            MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i-1, j))
                                                             
                             if (Me%lFlowY(i, j) .gt. 0.0) then           
                                 WaterDepth = max(Me%MyWaterLevel(i-1,j) - MaxBottom, 0.0)
@@ -4353,13 +4423,19 @@ doIter:         do while (iter <= Niter)
         integer                                     :: ILB, IUB, JLB, JUB
         real                                        :: dVol, flow
         real                                        :: AverageCellLength, y0
-        
+        integer                                     :: targetI, targetJ
+        integer                                     :: CHUNK
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
+        !Calculates the inflow at each street gutter point
+        !$OMP PARALLEL PRIVATE(I,J, dVol, flow, AverageCellLength)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
@@ -4385,24 +4461,7 @@ doIter:         do while (iter <= Niter)
             
                 !Flow Rate into street Gutter
                 Me%StreetGutterFlow(i, j) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)
-
-!
-! Volume will be removed after SWMM iteration. Here we don't know how many water fits into the sewer system
-!
-
-
-                !Volume variation
-!                dVol = Me%StreetGutterFlow(i, j) * Me%ExtVar%DT
-
-!                !New Volume 
-!                Me%myWaterVolume   (i, j) = Me%myWaterVolume   (i, j) - dVol
-!                
-!                !New WaterColumn
-!                Me%myWaterColumn   (i, j) = Me%myWaterVolume   (i, j) / Me%ExtVar%GridCellArea(i, j)
-!
-!                !New Level
-!                Me%myWaterLevel    (i, j) = Me%myWaterColumn   (i, j) + Me%ExtVar%Topography(i, j)
-           
+                
             else
             
                 Me%StreetGutterFlow(i, j) = 0.0
@@ -4411,6 +4470,34 @@ doIter:         do while (iter <= Niter)
 
         enddo
         enddo
+        !$OMP END DO
+        
+        !Integrates values from gutter flow at sewer points
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%StormWaterInteraction(i, j) > AllmostZero) then
+                Me%SewerInflow(i, j) = 0.0
+            endif
+        enddo
+        enddo    
+        !$OMP END DO
+        !$OMP END PARALLEL
+                    
+        !This do loop should not be parallel
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%StreetGutterLength(i, j) > AllmostZero) then
+            
+                !SEWER interaction point
+                targetI = Me%StreetGutterTargetI(i, j)
+                targetJ = Me%StreetGutterTargetJ(i, j)
+                
+                Me%SewerInflow(targetI, targetJ) = Me%SewerInflow(targetI, targetJ) + Me%StreetGutterFlow(i, j)  
+            endif
+        enddo
+        enddo                
+        
         
     end subroutine StreetGutterFlow
         
@@ -4424,49 +4511,74 @@ doIter:         do while (iter <= Niter)
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: targetI, targetJ
-        real                                        :: Flow
+        integer                                     :: CHUNK
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(I,J, targetI, targetJ)
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
+        
+        !The algorithm below has the following assumptions
+        !1. MOHID Land calculates the possible inflow into the sewer system through the street gutters (matrix StreetGutterFlow)
+        !2. The values of the StreetGutterFlow are integrated at the nearest StormWaterInteraction points (matrix SewerInflow)
+        !3. This matrix (SewerInflow) is provide to SWMM
+        !4. Swmm calculates the efective inflow and returns the efective flow at each interaction point (matrix StormWaterModelFlow)
+        !5. The algorithm below calculates the efective inflow in each Street Gutter Point
+        !5a  - if the flow in the target point is negative (inflow into the sewer system) the flow at each point is the relative one StreetGutterFlow/StormWaterModelFlow
+        !5b  - if the flow in the target point is positive (outflow from the sewer system), the flow flows out at the target point ("saltam as tampas"). 
+        !6. The Water Column is reduces due to the final flow
+
+
+        !Algorithm which calculates the real inflow in each point
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
-        
-            !The algorithm below has the following assumptions
-            !1. MOHID Land calculates the possible inflow into the sewer system through the street gutters (routine StreetGutterFlow)
-            !2. This flow is provide as integrated value, at the interaction points to SWMM
-            !3. Swmm calculates the efective inflow
-            !4. The algorithm below calculates the efective inflow in each Street Gutter Point
-            !4. a if the flow in the target point is negative (inflow into the sewer system) the flow is relative to the total length associated to the target point
-            !4. b if the flow in the target point is positive (outflow from the sewer system), the flow flows out at the target point ("saltam as tampas")
-            !5. The Water Column is reduces due to the final flow
+
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
 
-                Flow = 0.0
+                Me%StormInteractionFlow(i, j) = 0.0
 
-                !If the point is a street gutter point, we have to reduce the volume by the total number of associated inlets
+                !If the point is a street gutter point
+                !we have to reduce the volume by the total number of associated inlets
                 if (Me%StreetGutterLength(i, j) > 0.0) then 
                
                     targetI = Me%StreetGutterTargetI(i, j)
                     targetJ = Me%StreetGutterTargetJ(i, j)
 
-                    if (Me%StormWaterModelFlow(targetI, targetJ) < 0.0) then
-                        Me%StormWaterModelFlow(i, j) = Me%StreetGutterLength(i, j) / Me%AssociatedGutterLength(targetI, targetJ) * &
-                                                       Me%StormWaterModelFlow(targetI, targetJ)
+                    if (Me%StormWaterModelFlow(targetI, targetJ) < 0.0 .and. Me%SewerInflow(targetI, targetJ) > AllmostZero) then
+                        !Distribute real / potentil
+                        Me%StormInteractionFlow(i, j) = -1.0 * Me%StreetGutterFlow(i, j) * Me%StormWaterModelFlow(targetI, targetJ) / &
+                                                                                           Me%SewerInflow(targetI, targetJ) 
+                                                               
                     endif
                     
-!                else if (Me%StormWaterInteraction(i, j) > AllmostZero .and. Me%StormWaterModelFlow(i, j) > 0) then
-!                    Flow = Me%StormWaterModelFlow(i, j)
                 endif
+                
+                !Overflow of the sewer system
+                if (Me%StormWaterInteraction(i, j) > AllmostZero .and. Me%StormWaterModelFlow(i, j) > 0) then
+                    Me%StormInteractionFlow(i, j) = -1.0 * Me%StormWaterModelFlow(i, j)
+                endif
+                
+            endif
 
-!                if (Me%StormWaterInteraction(i, j) > AllmostZero .and. Me%StormWaterModelFlow(i, j) > 0) then
-!                    Me%StormWaterModelFlow(i, j) = Me%StormWaterModelFlow(i, j)
-!                endif
+        enddo
+        enddo  
+        !$OMP END DO
 
-                Me%myWaterColumnOld   (i, j)  = Me%myWaterColumnOld   (i, j) +          &
-                                                Me%StormWaterModelFlow(i, j) *          &
+        !Update water column
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+
+                Me%myWaterColumnOld   (i, j)  = Me%myWaterColumnOld   (i, j)  -         &
+                                                Me%StormInteractionFlow(i, j) *         &
                                                 Me%ExtVar%DT /                          &
                                                 Me%ExtVar%GridCellArea(i, j)
                                              
@@ -4481,6 +4593,8 @@ doIter:         do while (iter <= Niter)
 
         enddo
         enddo  
+        !$OMP END DO
+        !$OMP END PARALLEL
                   
     
     end subroutine AddFlowFromStormWaterModel
@@ -5726,6 +5840,13 @@ doIter:         do while (iter <= Niter)
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR085'
             
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water real flow",    &
+                                      "storm water real flow", "m3/s",                  &
+                                      Array2D      = Me%StormInteractionFlow,           &
+                                      OutputNumber = Me%OutPut%NextOutPut,              &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR085'
+           
             endif
 
            
@@ -6438,24 +6559,6 @@ cd1:    if (RunOffID > 0) then
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
-           
-            !Integrates values from gutter inflow to inflow at sewer points
-            Me%SewerInflow = 0.0
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%StreetGutterLength(i, j) > AllmostZero) then
-                
-                    !SEWER interaction point
-                    targetI = Me%StreetGutterTargetI(i, j)
-                    targetJ = Me%StreetGutterTargetJ(i, j)
-                    
-                    Me%SewerInflow(targetI, targetJ) = Me%SewerInflow(targetI, targetJ) + Me%StreetGutterFlow(i, j)  
-                else if (Me%StormWaterInteraction (i, j) > AllmostZero) then
-                    Me%SewerInflow(i, j) = 0.0
-                endif
-            enddo
-            enddo                
-    
             !Puts values into 1D OpenMI matrix
             idx = 1
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
