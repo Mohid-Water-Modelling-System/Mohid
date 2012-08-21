@@ -2297,6 +2297,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         if (STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR40'
 
         if (CoordType /= CoordTypeSon) then
+            Write (*,*) 'Fathergrid coordinate type is different than son grid coordinate type'
             stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR50'
         endif
 
