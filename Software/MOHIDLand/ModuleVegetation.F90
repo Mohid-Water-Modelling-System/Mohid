@@ -1731,9 +1731,9 @@ cd2 :           if (BlockFound) then
 
         call ConstructPropertyID        (NewProperty%ID, Me%ObjEnterData, FromBlock)
 
-        call ConstructPropertyValues    (NewProperty)
-
         call ConstructPropertyEvolution (NewProperty)
+        
+        call ConstructPropertyValues    (NewProperty)
 
         call ConstructPropertyOutPut    (NewProperty)
 
@@ -1777,14 +1777,14 @@ cd2 :           if (BlockFound) then
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyValues - ModuleVegetation - ERR05'
         
-        !If "real" continuous cycle, all properties have to be continuous
-        if(Me%ComputeOptions%Continuous .and. Me%ComputeOptions%StopOnWrongDate .and. .not. NewProperty%Old) then
-!        if(Me%ComputeOptions%Continuous .and. .not. NewProperty%Old) then
+        !If "real" continuous cycle and using SWAT model, all properties modelled have to have old active
+        if(NewProperty%Evolution == SWAT .and. Me%ComputeOptions%Continuous   & 
+           .and. Me%ComputeOptions%StopOnWrongDate .and. .not. NewProperty%Old) then
             write(*,*)'ERROR! Property ', trim(adjustl(NewProperty%ID%name))
             write(*,*)'has not OLD keyword active but global keyword CONTINUOUS is.'
             stop 'ConstructPropertyValues - ModuleVegetation - ERR06'
         endif
-        !Do not use old property values if on spin-up periods with.
+        !Do not use old property values if on spin-up periods (final HDF file will have different date) 
         if(Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate .and. NewProperty%Old) then
             write(*,*)'ERROR! Property ', trim(adjustl(NewProperty%ID%name))
             write(*,*)'has OLD keyword active but user is running spin-up with "wrongdate" on.'
