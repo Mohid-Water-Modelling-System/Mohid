@@ -16248,6 +16248,19 @@ do9:                do k=kbottom, KUB
                                                                 STAT                      = STAT_CALL)
                                 if (STAT_CALL/= SUCCESS_) stop 'Compute_SWExtCoefField - ModuleWaterProperties - ERR02.1'
                          
+                         
+                         else
+                         
+                                call ModifyLightExtinctionField(LightExtinctionID   = Me%ObjLightExtinction,          &
+                                                                WaterPoints3D       = Me%ExternalVar%WaterPoints3D,   &
+                                                                CurrentTime         = Me%ExternalVar%Now,             &
+                                                                PropertyID          = PropertyX%ID%IDNumber,          &
+                                                                Concentration       = PropertyX%Concentration,        &
+                                                                ExtinctionParameter = ExtinctionParameter,            &
+                                                                UnitsCoef           = PropertyX%IScoefficient,        &
+                                                                STAT                = STAT_CALL)
+                                if (STAT_CALL/= SUCCESS_) stop 'Compute_SWExtCoefField - ModuleWaterProperties - ERR02.2'
+                         
                          endif
 
                     else
@@ -16262,7 +16275,8 @@ do9:                do k=kbottom, KUB
                         if (STAT_CALL/= SUCCESS_) stop 'Compute_SWExtCoefField - ModuleWaterProperties - ERR03'
 
                     end if
-
+                
+                  ! endif
 
                 endif
 
