@@ -149,7 +149,8 @@ Module ModuleInterfaceSedimentWater
                                           SetFluxToWaterProperties, WaterPropertyExists,    &
                                           GetWaterPropertiesBottomOptions,                  &
                                           SetMacroAlgaeParameters,                          &
-                                          GetShortWaveRadiationAverage
+                                          GetShortWaveRadiationAverage,                     &
+                                          GetSeagrassesLeavesRates, GetSeagrassArray2D
     use ModuleHydrodynamic,         only: GetChezy,GetHorizontalVelocity, UnGetHydrodynamic,&
                                           SetHydrodynamicManning, SetBottomWaterFlux,       &
                                           SetHydrodynamicRugosityMatrix, GetWavesStressON,  &
@@ -174,7 +175,9 @@ Module ModuleInterfaceSedimentWater
     use ModuleSedimentProperties,   only: SedimentPropertyExists,GetSedimentPropertyOptions,&
                                           GetSedimentConcentration, UnGetSedimentProperties,&
                                           SetFluxToSedimentProperties, SetSedimentWaterFlux,&
-                                          GetSedimentDryDensity
+                                          GetSedimentDryDensity,                            &
+                                          GetSeagrassesRootsRates, GetRootsArray2D             ! Isabella
+                                          
 
     use ModuleConsolidation,        only: GetConsolidationWaterFluxes,                      &
                                           GetConsolidationOptions,                          &
@@ -447,7 +450,6 @@ Module ModuleInterfaceSedimentWater
          real, dimension(:,:), pointer              :: WaterConcentration
          real, dimension(:,:), pointer              :: MassInKg
          real, dimension(:,:), pointer              :: Mass_FromWater
-         real, dimension(:,:), pointer              :: MassInKgFromWater
          real, dimension(:,:), pointer              :: SedimentConcentration
          real, dimension(:,:), pointer              :: FluxToWater
          real, dimension(:,:), pointer              :: FluxToSediment
@@ -471,6 +473,7 @@ Module ModuleInterfaceSedimentWater
         type (T_ID)                                 :: FirstProp
         type (T_ID)                                 :: SecondProp
         real, pointer, dimension(:,:)               :: Field 
+        real, pointer, dimension(:,:)               :: Field2
         type(T_BenthicRate), pointer                :: Next, Prev
     end type   T_BenthicRate
 
@@ -509,6 +512,16 @@ Module ModuleInterfaceSedimentWater
          type(T_Property_2D)                        :: Rate
          type(T_Time)                               :: LastCompute
     end type  T_Consolidation
+
+   Type T_Seagrasses     ! Isabella
+        real,    pointer, dimension(:,:  )      :: UptakeNH4NO3w2D
+        real,    pointer, dimension(:,:  )      :: UptakeNH4s2D
+        real,    pointer, dimension(:,:  )      :: UptakePO4w2D
+        real,    pointer, dimension(:,:  )      :: LightFactor2D
+        real                                    :: NintInit
+        real                                    :: PintInit
+        real, pointer, dimension(:,:  )         :: Array2D
+   end type T_Seagrasses
 
     type       T_Shear
          real, pointer, dimension (:,:)             :: CurrentVel, CurrentU, CurrentV
@@ -578,6 +591,7 @@ Module ModuleInterfaceSedimentWater
         integer                                     :: PropertiesNumber         = 0
         integer                                     :: BenthicRatesNumber       = 0
         type(T_Consolidation)                       :: Consolidation
+        type(T_Seagrasses )                         :: Seagrasses   ! Isabella
 
         !Instance of ModuleBoxDif                   
         integer                                     :: ObjBoxDif                = 0
@@ -1649,6 +1663,7 @@ cd2 :           if (BlockFound) then
         nullify(NewProperty%FluxToSediment       )
         nullify(NewProperty%ErosionCoefficient   )
         nullify(NewProperty%Prev,NewProperty%Next)
+        nullify(NewProperty%Mass_Available       )
 
         !Construct property ID
         call ConstructPropertyID        (NewProperty%ID, Me%ObjEnterData, FromBlock)
@@ -1682,6 +1697,7 @@ cd2 :           if (BlockFound) then
         integer                             :: iflag, i, j
         integer                             :: ILB, IUB, JLB, JUB
         integer                             :: WILB, WIUB, WJLB, WJUB
+        real, dimension(:,:),     pointer   :: Biomass
         
         !----------------------------------------------------------------------
         
@@ -1734,12 +1750,30 @@ cd2 :           if (BlockFound) then
             NewProperty%Mass_Available  = null_real
             allocate(NewProperty%MassInKg      (ILB:IUB, JLB:JUB))
             NewProperty%MassInKg        = null_real
-            allocate(NewProperty%MassInKgFromWater(ILB:IUB, JLB:JUB))
             allocate(NewProperty%Mass_FromWater(ILB:IUB, JLB:JUB))
+            NewProperty%Mass_FromWater        = null_real
 
             if(NewProperty%Old)then
 
                 call Read_Old_Properties_2D(NewProperty%Mass_Available, NewProperty%ID%Name)
+                
+                  ! In the module interfacesediment water properties are initialized 
+                    if(  (NewProperty%ID%IDNumber == SeagrassesLeaves_ )  .or.  &
+                       (NewProperty%ID%IDNumber == SeagrassesRoots_    )  .or.  &
+                       (NewProperty%ID%IDNumber == SeagrassesP_        )  .or.  &
+                       (NewProperty%ID%IDNumber == SeagrassesN_        )         )   then
+                       
+                           do i=ILB,IUB
+                           do j=JLB,JUB             
+                              if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then 
+
+                              ! kg =                   Kg/m2  * m2
+                              NewProperty%MassInKg(i,j)=NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
+                              endif
+                           enddo
+                           enddo   
+                   endif
+                
             
             else
 
@@ -1759,6 +1793,132 @@ cd2 :           if (BlockFound) then
                 if (STAT_CALL  /= SUCCESS_) &
                     stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR05'
 
+
+
+
+                
+                 if (NewProperty%ID%IDNumber== SeagrassesN_ ) then
+             
+                 !KgN/m2
+               call GetData(Me%Seagrasses%NintInit,                       &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'NINTINIT',                                &
+                     Default        = 0.15,                       &  ! kgN
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleInterfaceSedimentWater',                          &
+                      STAT           = STAT_CALL)
+              if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR05'
+              if (iflag == 0)            stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR06'
+             
+               NewProperty%Mass_Available= Me%Seagrasses%NintInit
+             
+              ! get the value in kg (this is necessary to initialize the leaves when running modulebenthicEcology)
+               do i=ILB,IUB
+               do j=JLB,JUB             
+                if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+                ! kg =                   Kg/m2  * m2
+               NewProperty%MassInKg(i,j) = NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
+                endif
+               enddo
+               enddo
+             
+          endif
+             
+             
+            if (NewProperty%ID%IDNumber== SeagrassesP_) then
+             
+                          !KgP/m2
+                        call GetData(Me%Seagrasses%PintInit,                       &
+                                 Me%ObjEnterData, iflag,                                            &
+                                 Keyword        = 'PINTINIT',                                &
+                                 Default        = 0.001,                                            &
+                                 SearchType     = FromFile,                                         &
+                                 ClientModule   = 'ModuleInterfaceSedimentWater',                          &
+                                  STAT           = STAT_CALL)
+                       if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR07'
+                       if (iflag == 0)            stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR08'
+             
+             
+                      NewProperty%Mass_Available = Me%Seagrasses%PintInit
+                     
+                     ! get the value in kg (this is necessary to initialize the leaves when running modulebenthicEcology)
+                       do i=ILB,IUB
+                       do j=JLB,JUB             
+                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+                        ! kg =                   Kg/m2  * m2
+                       NewProperty%MassInKg (i,j)=NewProperty%Mass_Available(i,j)*Me%ExternalVar%GridCellArea(i,j)
+                        endif
+                       enddo
+                       enddo
+                     
+             
+             
+             endif
+             
+              if (NewProperty%ID%IDNumber== SeagrassesLeaves_) then
+              
+              
+                        call GetSeagrassArray2D(Me%ObjWaterProperties, Biomass, ArrayID= SeagrassesLeaves_, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+                      
+                     
+                       
+                      ! get the value in kg (this is necessary to initialize the leaves when running modulebenthicEcology)
+                       do i=ILB,IUB
+                       do j=JLB,JUB             
+                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then 
+                        
+                        ! gets the mass  in g/m2 and convert to kg/m2
+                       NewProperty%Mass_Available(i,j)=Biomass(i,j)/1000.  ! convert to kg/m2
+                       
+                       
+                        ! kg =                   Kg/m2  * m2
+                       NewProperty%MassInKg(i,j)=NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
+                        endif
+                       enddo
+                       enddo
+               
+               
+       
+               
+               call UnGetWaterProperties(Me%ObjWaterProperties, Biomass, STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+          
+              endif
+              
+              
+              if (NewProperty%ID%IDNumber== SeagrassesRoots_) then
+              
+              
+                call GetRootsArray2D(Me%ObjSedimentProperties, Biomass,ArrayID=SeagrassesRoots_, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR11'
+              
+              ! gets the mass from the water column in g/m2
+               
+               NewProperty%Mass_Available=Biomass/1000.  ! convert to kg/m2
+               
+               ! get the value in kg (this is necessary to initialize the roots when running modulebenthicEcology)
+               do i=ILB,IUB
+               do j=JLB,JUB   
+                if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then  ! not sure what to put here   
+                !if(Me%ExtSed%OpenPoints2D(i,j) == OpenPoint)
+                  ! i put the waterpoints to say that i have roots where i have leaves                                                
+                 
+                 ! kg =                   Kg/m2  * m2
+                  NewProperty%MassInKg(i,j)=NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
+                endif
+               enddo
+               enddo
+               
+               call UnGetSedimentProperties(Me%ObjSedimentProperties, Biomass, STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR15'
+          
+              endif
+                
                 !Test to verify mass matrix consistence
                 do j = WJLB, WJUB
                 do i = WILB, WIUB
@@ -2518,9 +2678,9 @@ do1 :   do
             stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR03' 
         end if 
 
-        call Search_Property(PropertyX, PropertyXID = PropNumber, STAT = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_)                                                     &
-            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR04' 
+        !call Search_Property(PropertyX, PropertyXID = PropNumber, STAT = STAT_CALL)                                  
+       ! if (STAT_CALL /= SUCCESS_)                                                     &
+         !   stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR04' 
         
         !second Property defined in a rate relation
         call GetData(NewBenthicRate%SecondProp%Name,                                     &
@@ -2544,9 +2704,9 @@ do1 :   do
             stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR07' 
         end if
         
-        call Search_Property(PropertyX, PropertyXID = PropNumber, STAT = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR08' 
+       ! call Search_Property(PropertyX, PropertyXID = PropNumber, STAT = STAT_CALL)                                  
+       ! if (STAT_CALL /= SUCCESS_)                                                       &
+       !     stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR08' 
   
   
        !Rate description ex: zooplankton grazing over phytoplankton
@@ -3129,13 +3289,18 @@ do1 :   do while (associated(PropertyX))
         real                                                :: BenthicEcologyDT
         integer                                             :: Index = 0
         integer                                             :: ILB,IUB,JLB,JUB
+        integer                                             :: KLBW,KUBW, KLBS, KUBS
         !----------------------------------------------------------------------
 
         ILB = Me%Size2D%ILB
         IUB = Me%Size2D%IUB
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
-
+        
+        KLBW=Me%WaterWorkSize3D%KLB     ! 1
+        KUBW=Me%WaterWorkSize3D%KUB     ! 1
+        KLBS=Me%SedimentWorkSize3D%KLB  ! 1
+        KUBS=Me%SedimentWorkSize3D%KUB  ! 2
 
         Index = 0
 
@@ -3192,6 +3357,31 @@ do1 :   do while (associated(PropertyX))
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR14'
 
+
+      allocate(Me%Seagrasses%UptakeNH4s2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            if(STAT_CALL .ne. SUCCESS_)&
+                stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR08'
+                
+      allocate(Me%Seagrasses%UptakeNH4NO3w2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+                if(STAT_CALL .ne. SUCCESS_)&
+                    stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR09'
+     
+      
+        allocate(Me%Seagrasses%UptakePO4w2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+                if(STAT_CALL .ne. SUCCESS_)&
+                    stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR10'
+     
+      
+                     
+        allocate(Me%Seagrasses%LightFactor2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+                if(STAT_CALL .ne. SUCCESS_)&
+                    stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR12'
+        
+        Me%Seagrasses%UptakeNH4s2D  = 0.
+        Me%Seagrasses%LightFactor2D = 0.
+        Me%Seagrasses%UptakePO4w2D  = 0.
+        Me%Seagrasses%UptakeNH4NO3w2D =0.
+        
         deallocate(BenthicEcologyPropertyList)
         nullify   (BenthicEcologyPropertyList)
 
@@ -4998,7 +5188,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                                                 
                             
                             PropertyX%Mass_FromWater(i,j) =  PropertyX%WaterConcentration(i,j) * &
-                                                                 Me%ExtWater%VolumeZ(i,j,kbottom)                                    
+                                                                 Me%ExtWater%VolumeZ(i,j,kbottom) 
 
                         end if
 
@@ -6654,15 +6844,28 @@ subroutine BenthicEcology_Processes
         type (T_Property   ),       pointer     :: PropertyX
         type (T_BenthicRate),       pointer     :: BenthicRateX
         integer                                 :: WILB, WIUB, WJLB, WJUB
-        integer                                 :: i, j, kbottom
+        integer                                 :: KLBW,KUBW, KLBS, KUBS
+        integer                                 :: i, j, k, kbottom, ktop
         real, dimension(:,:,:),     pointer     :: ConcentrationOld
         character(len=StringLength)             :: WaterPropertyUnits
         real                                    :: WaterPropertyISCoef
         real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
         real, dimension(:,:,:),     pointer     :: ShortWaveRadiationAverage
+        real, dimension(:,:,:),     pointer     :: UptakeNH4NO3w3D
+        real, dimension(:,:,:),     pointer     :: UptakePO4w3D
+        real, dimension(:,:,:),     pointer     :: LightFactor3D
+        real, dimension(:,:,:),     pointer     :: UptakeNH4s3D
+        real, dimension(:,:  ),     pointer     :: Biomass
+        real, dimension(:,:  ),     pointer     :: Array2D
         integer                                 :: CHUNK
+        
 
         !Begin-----------------------------------------------------------------
+        KLBW=Me%WaterWorkSize3D%KLB
+        KUBW=Me%WaterWorkSize3D%KUB
+        
+        KLBS=Me%SedimentWorkSize3D%KLB
+        KUBS=Me%SedimentWorkSize3D%KUB
         
         WIUB = Me%WorkSize2D%IUB
         WJUB = Me%WorkSize2D%JUB
@@ -6670,6 +6873,8 @@ subroutine BenthicEcology_Processes
         WJLB = Me%WorkSize2D%JLB
 
         CHUNK = CHUNK_J(WJLB, WJUB)
+        
+
         
         if (MonitorPerformance) then
             call StartWatch ("ModuleInterfaceSedimentWater", "BenthicEcology_Processes")
@@ -6757,8 +6962,152 @@ subroutine BenthicEcology_Processes
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR04'
 
+             
+             
+             elseif(PropertyX%ID%IDNumber == SeagrassesRoots_) then
+               
+                    Me%Seagrasses%UptakeNH4s2D =0.
+                    
+                    call GetSeagrassesRootsRates(Me%ObjSedimentProperties, RootsUptakeN_, UptakeNH4s3D, STAT = STAT_CALL)
+                     if (STAT_CALL .NE. SUCCESS_)                                            &
+                     stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
+         
+                            do j = WJLB, WJUB
+                               do i = WILB, WIUB
+                            
+                                if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+                                             
+                                            ktop = Me%ExtSed%KTop(i,j)
+                                            if(Me%SedimentWorkSize3D%KUB > 1)then 
+                                                do k=KLBS, ktop
+                                              
+                                               Me%Seagrasses%UptakeNH4s2D(i,j)=Me%Seagrasses%UptakeNH4s2D(i,j)+ &
+                                                                               UptakeNH4s3D(i,j,k)
+                                               
 
+
+                                               enddo
+                                           else
+                                               Me%Seagrasses%UptakeNH4s2D(i,j)=UptakeNH4s3D(i,j,ktop)
+                                           endif
+                                           
+                              endif
+                            enddo
+                          enddo
+                           
+                           call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                                              PropertyID    = PropertyX%ID%IDNumber,            &
+                                              Concentration = PropertyX%MassInKg,               &
+                                              UptakeNH4s2D  = Me%Seagrasses%UptakeNH4s2D,     &
+                                              WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                                              OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                                              STAT          = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR10'
+                            
+                            
+                           
+                      
+                       call UnGetSedimentProperties(Me%ObjSedimentProperties, UptakeNH4s3D, STAT = STAT_CALL)
+                            if(STAT_CALL .ne. SUCCESS_)&
+                                stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR11'
+           
+                
+                
+                
+                elseif (PropertyX%ID%IDNumber == SeagrassesLeaves_) then
+                            
+                            Me%Seagrasses%UptakeNH4NO3w2D =0.
+                            Me%Seagrasses%UptakePO4w2D    =0.
+                            Me%Seagrasses%LightFactor2D     =0.
+                
+                          call GetSeagrassesLeavesRates(Me%ObjWaterProperties, LeavesUptakeN_, UptakeNH4NO3w3D, STAT = STAT_CALL)
+                         if (STAT_CALL .NE. SUCCESS_)                                            &
+                         stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR20'
+                         
+                         
+                          call GetSeagrassesLeavesRates(Me%ObjWaterProperties, LeavesLightFactor_ , LightFactor3D, STAT = STAT_CALL)
+                         if (STAT_CALL .NE. SUCCESS_)                                            &
+                         stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR23'
+                         
+                         
+                         
+                          call GetSeagrassesLeavesRates(Me%ObjWaterProperties, LeavesUptakeP_   , UptakePO4w3D, STAT = STAT_CALL)
+                         if (STAT_CALL .NE. SUCCESS_)                                            &
+                         stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR25'
+           
+           
+                               do j = WJLB, WJUB
+                               do i = WILB, WIUB
+                            
+                                if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+                                             
+                                            kbottom = Me%ExtWater%KFloor_Z(i, j) 
+                                          
+                                          if(Me%WaterWorkSize3D%KUB > 1)then 
+                                          
+                                          ! if the run is 3D in the water column 
+                                           
+                                                    do k=kbottom, KUBW
+                                                  
+                                                   Me%Seagrasses%UptakeNH4NO3w2D(i,j)=Me%Seagrasses%UptakeNH4NO3w2D(i,j)+ &
+                                                                                            UptakeNH4NO3w3D(i,j,k)   ! gN/day
+                                                   
+                                                   Me%Seagrasses%UptakePO4w2D(i,j)=Me%Seagrasses%UptakePO4w2D(i,j)+ &
+                                                                                         UptakePO4w3D(i,j,k)         ! gP/day
+                                                
+                                                     
+                                                   Me%Seagrasses%LightFactor2D(i,j) =Me%Seagrasses%LightFactor2D(i,j)+ &  
+                                                                                         LightFactor3D(i,j,k) 
+
+                                                   enddo
+                                           
+                                           else
+                                                ! if the run is 2D in the water column
+                                                
+                                                    Me%Seagrasses%UptakeNH4NO3w2D(i,j)= UptakeNH4NO3w3D(i,j,kbottom)   ! gN/day
+                                                           
+                                                    Me%Seagrasses%UptakePO4w2D(i,j) = UptakePO4w3D(i,j,kbottom)         ! gP/day
+                                                        
+                                                             
+                                                    Me%Seagrasses%LightFactor2D(i,j) =LightFactor3D(i,j,kbottom) !dimensionless
+                                           
+                                           endif
+                              endif
+                            enddo
+                            enddo
+                      
+                      ! The BenthicEcology modifier is called and the 
+                  
+                                   call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                                                      PropertyID    = PropertyX%ID%IDNumber,            &
+                                                      Concentration = PropertyX%MassInKg,               &
+                                                      UptakePO4w2D  = Me%Seagrasses%UptakePO4w2D,     &
+                                                      UptakeNH4NO3w2D  = Me%Seagrasses%UptakeNH4NO3w2D,     &
+                                                      LightFactor2D   = Me%Seagrasses%LightFactor2D,     &
+                                                      WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                                                      OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                                                      STAT          = STAT_CALL)
+                                if (STAT_CALL .NE. SUCCESS_)                                            &
+                                    stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR30'
+                
+
+                
+                             call UnGetWaterProperties(Me%ObjWaterProperties, UptakeNH4NO3w3D, STAT = STAT_CALL)
+                                        if(STAT_CALL .ne. SUCCESS_)&
+                                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR31'
+                                            
+                            call UnGetWaterProperties(Me%ObjWaterProperties, UptakePO4w3D, STAT = STAT_CALL)
+                                        if(STAT_CALL .ne. SUCCESS_)&
+                                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR32'
+                           
+                           call UnGetWaterProperties(Me%ObjWaterProperties, LightFactor3D, STAT = STAT_CALL)
+                                        if(STAT_CALL .ne. SUCCESS_)&
+                                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR33'
+                
                 else
+                    
+                    
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
                     if(PropertyX%Particulate)then
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -6794,10 +7143,10 @@ subroutine BenthicEcology_Processes
                             if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
 
                                 kbottom = Me%ExtWater%KFloor_Z(i, j)
-
-                                !PropertyX%MassInKg(i,j) = PropertyX%WaterConcentration(i,j) * &  !For particulate properties, MassInkg and Mass_FromWater are the same
+                                !For particulate properties, MassInkg and Mass_FromWater are the same
+                                !PropertyX%MassInKg(i,j) = PropertyX%WaterConcentration(i,j) * &  
                                 !                          Me%ExtWater%VolumeZ(i,j,kbottom)
-                                PropertyX%Mass_FromWater(i,j) = PropertyX%WaterConcentration(i,j) * &  !For particulate properties, MassInkg and Mass_FromWater are the same
+                                PropertyX%Mass_FromWater(i,j) = PropertyX%WaterConcentration(i,j) * & 
                                                           Me%ExtWater%VolumeZ(i,j,kbottom)
 
 
@@ -6824,10 +7173,10 @@ subroutine BenthicEcology_Processes
                            !     stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR05'
                            
                            !else
-                            
+                            ! Concentration is NOT a concentration but a mass
                             call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
                                                   PropertyID    = PropertyX%ID%IDNumber,            &
-                                                  Concentration = PropertyX%MassInKg,               &  ! Concentration is NOT a concentration but a mass
+                                                  Concentration = PropertyX%MassInKg,               &  
                                               MassInKgFromWater = PropertyX%Mass_FromWater,      &
                                                   WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
                                                   OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
@@ -6888,8 +7237,8 @@ subroutine BenthicEcology_Processes
                             if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
 
                                 kbottom = Me%ExtWater%KFloor_Z(i, j)
-
-                                PropertyX%Mass_FromWater(i,j) = PropertyX%WaterConcentration(i,j) * &  ! If the property is dissolved, the mass is retrieved from the water
+                                ! If the property is dissolved, the mass is retrieved from the water
+                                PropertyX%Mass_FromWater(i,j) = PropertyX%WaterConcentration(i,j) * &  
                                                           Me%ExtWater%VolumeZ(i,j,kbottom)
                                                           
                                 PropertyX%MassInKg(i,j)=0. ! since the property is dissolved, it has no mass on the bottom 
@@ -7040,6 +7389,228 @@ subroutine BenthicEcology_Processes
         if (MonitorPerformance) then
             call StopWatch ("ModuleInterfaceSedimentWater", "BenthicEcology_Processes")
         endif
+        
+        
+        
+        
+                  PropertyX => Me%FirstProperty
+          
+                  do while(associated(PropertyX))
+                  
+               if11:       if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
+                  
+                  if21:         if (PropertyX%ID%IDNumber==SeagrassesLeaves_) then
+                                ! if property is seagrassesleaves get the  value
+                               ! of their biomass and put it in the water property:
+                               ! 1. get seagrassesleaves%biomass from waterproperty
+                               ! 2. change seagrassesleaves%biomass equal to to the value of PropertyX%MassInKg/area/1000.
+                               ! 3. unget the seagrassesleaves%biomass
+     
+                                        call GetSeagrassArray2D(Me%ObjWaterProperties, Biomass, ArrayID=SeagrassesLeaves_ , STAT = STAT_CALL)
+                                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+
+                                            
+                                      ! get the value in kg 
+                                       do i=WILB,WIUB
+                                       do j=WJLB,WJUB             
+                                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+                                        ! g/m2 =                   Kg       * 1000/m2
+                                       Biomass(i,j) = PropertyX%MassInKg(i,j)*1000./Me%ExternalVar%Gridcellarea(i,j)
+                                        endif
+                                       enddo
+                                       enddo
+                               
+                    
+                               call UnGetWaterProperties(Me%ObjWaterProperties, Biomass, STAT = STAT_CALL)
+                                    if(STAT_CALL .ne. SUCCESS_)&
+                                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+                           
+                           elseif(PropertyX%ID%IDNumber==SeagrassesRoots_) then
+                                         
+                                        call GetRootsArray2D(Me%ObjSedimentProperties, Biomass, ArrayID=SeagrassesRoots_ , STAT = STAT_CALL)
+                                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+
+                                            
+                                      ! get the value in kg 
+                                       do i=WILB,WIUB
+                                       do j=WJLB,WJUB             
+                                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+                                        ! g/m2 =                   Kg       * 1000/m2
+                                       Biomass(i,j) = PropertyX%MassInKg(i,j)*1000./Me%ExternalVar%Gridcellarea(i,j)
+                                        endif
+                                       enddo
+                                       enddo
+                               
+                    
+                               call UnGetSedimentProperties(Me%ObjSedimentProperties, Biomass, STAT = STAT_CALL)
+                                    if(STAT_CALL .ne. SUCCESS_)&
+                                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+                
+                            endif if21
+                       endif if11
+                     
+                     PropertyX => PropertyX%Next
+         
+                 enddo
+        
+
+        BenthicRateX => Me%FirstBenthicRate
+
+        do while (associated(BenthicRateX))
+        
+
+        
+        
+
+            call GetRateFlux(InterfaceID    = Me%ObjInterface,                          &
+                             FirstProp      = BenthicRateX%FirstProp%IDNumber,          &
+                             SecondProp     = BenthicRateX%SecondProp%IDNumber,         &
+                             RateFlux2D     = BenthicRateX%Field,                       &
+                             WaterPoints2D  = Me%ExtWater%WaterPoints2D,                &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR55'
+
+          ! This subroutine has been modified to transfer information from BenthicEcology to water properties: 
+          ! The rates calculated in the BenthicEcology model for seagrasses roots and leaves are transferred as 2D array
+          ! to the module waterproperties.
+          
+          if111:  if (BenthicRateX%FirstProp%IDNumber==NintFactor_) then
+            
+             call GetSeagrassArray2D(Me%ObjWaterProperties, Array2D, ArrayID= NintFactor_, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+            
+                 Array2D = BenthicRateX%Field
+            
+             call UnGetWaterProperties(Me%ObjWaterProperties, Array2D, STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+                        
+                        
+              BenthicRateX%Field2 => BenthicRateX%Field
+                        
+                        where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
+                        BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea 
+                    
+
+                    call BoxDif(Me%ObjBoxDif,                                                   &
+                                BenthicRateX%Field2,                                             &
+                                BenthicRateX%ID%Name,                                           &
+                                Me%ExtWater%WaterPoints2D,                                      &
+                                STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                &
+                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'          
+                       
+            elseif (BenthicRateX%FirstProp%IDNumber==PintFactor_) then
+            
+             call GetSeagrassArray2D(Me%ObjWaterProperties, Array2D, ArrayID= PintFactor_, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+            
+                 Array2D = BenthicRateX%Field
+            
+             call UnGetWaterProperties(Me%ObjWaterProperties, Array2D, STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+             
+             
+             BenthicRateX%Field2 => BenthicRateX%Field
+                        
+                        where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
+                        BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea 
+                    
+
+                    call BoxDif(Me%ObjBoxDif,                                                   &
+                                BenthicRateX%Field2,                                             &
+                                BenthicRateX%ID%Name,                                           &
+                                Me%ExtWater%WaterPoints2D,                                      &
+                                STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                &
+                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
+                        
+          elseif (BenthicRateX%FirstProp%IDNumber==RootsMort_) then
+            
+             call GetRootsArray2D(Me%ObjSedimentProperties, Array2D, ArrayID= RootsMort_, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+            
+                 Array2D = BenthicRateX%Field
+            
+             call UnGetSedimentProperties(Me%ObjSedimentProperties, Array2D, STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'           
+                        
+                        ! I can eventually make an output for boxes as for the other BenthicEcology 
+                        !rate fluxes, but I have to check how to do a unit conversion . 
+                        BenthicRateX%Field2 => BenthicRateX%Field
+                        
+                        where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
+                        BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea 
+                    
+
+                    call BoxDif(Me%ObjBoxDif,                                                   &
+                                BenthicRateX%Field2,                                             &
+                                BenthicRateX%ID%Name,                                           &
+                                Me%ExtWater%WaterPoints2D,                                      &
+                                STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                &
+                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
+            
+              elseif (BenthicRateX%FirstProp%IDNumber==NintFactorR_) then
+            
+             call GetRootsArray2D(Me%ObjSedimentProperties, Array2D, ArrayID= NintFactorR_, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+            
+                 Array2D = BenthicRateX%Field
+            
+             call UnGetSedimentProperties(Me%ObjSedimentProperties, Array2D, STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'           
+                        
+                        ! I can eventually make an output for boxes as for the other BenthicEcology 
+                        !rate fluxes, but I have to check how to do a unit conversion . 
+                        BenthicRateX%Field2 => BenthicRateX%Field
+                        
+                        where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
+                        BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea 
+                    
+
+                    call BoxDif(Me%ObjBoxDif,                                                   &
+                                BenthicRateX%Field2,                                             &
+                                BenthicRateX%ID%Name,                                           &
+                                Me%ExtWater%WaterPoints2D,                                      &
+                                STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                &
+                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
+            else
+            
+           
+                     
+            
+                    where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
+                        BenthicRateX%Field = BenthicRateX%Field * Me%ExternalVar%GridCellArea / &  ! Kg/s?
+                                             Me%Coupled%BenthicEcology%DT_Compute
+                    
+
+                    call BoxDif(Me%ObjBoxDif,                                                   &
+                                BenthicRateX%Field,                                             &
+                                BenthicRateX%ID%Name,                                           &
+                                Me%ExtWater%WaterPoints2D,                                      &
+                                STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                &
+                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
+          
+         endif if111
+          
+          
+            BenthicRateX => BenthicRateX%Next
+        enddo
+        
+        
         
         !BenthicRateX => Me%FirstBenthicRate
 
@@ -8083,6 +8654,24 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%BottomSWRadiationAverage, STAT = STAT_CALL) 
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR604'
+              
+              
+                deallocate(Me%Seagrasses%UptakeNH4s2D, STAT = STAT_CALL) 
+                     if(STAT_CALL .ne. SUCCESS_)&
+                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR605'
+                                
+                deallocate(Me%Seagrasses%UptakeNH4NO3w2D, STAT = STAT_CALL) 
+                     if(STAT_CALL .ne. SUCCESS_)&
+                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR606'
+                  
+                deallocate(Me%Seagrasses%UptakePO4w2D, STAT = STAT_CALL) 
+                     if(STAT_CALL .ne. SUCCESS_)&
+                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR607'
+                  
+                                                   
+                deallocate(Me%Seagrasses%LightFactor2D, STAT = STAT_CALL) 
+                     if(STAT_CALL .ne. SUCCESS_)&
+                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR608'
                                
                 endif
 
@@ -8104,6 +8693,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR36b'
                     nullify(PropertyX%Mass_FromWater)
+                    
 
                     if(PropertyX%Evolution%Deposition)then
 

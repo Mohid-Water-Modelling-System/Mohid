@@ -97,7 +97,7 @@ Module ModuleSedimentProperties
 
     use ModuleGlobalData
     use ModuleTime
-    use ModuleFunctions,            only: ConstructPropertyID 
+    use ModuleFunctions,            only: ConstructPropertyID , SetMatrixValue
     use ModuleHDF5,                 only: ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,          &
                                           HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5
     use ModuleEnterData,            only: ReadFileName, ConstructEnterData, GetData,                &
@@ -166,6 +166,10 @@ Module ModuleSedimentProperties
     private ::          ConstructGlobalOutput
     private ::          Open_HDF5_OutPut_File
     private ::     ConstructLog
+    private ::          CoupleSeagrassesRoots   !Isabella
+    private ::             RootsOccupation      !Isabella
+    private ::             DistributeRoots      !Isabella
+    private ::     Read_Old_Properties_2D       !Isabella
 
     !Selector
     public  :: SedimentPropertyExists
@@ -176,6 +180,8 @@ Module ModuleSedimentProperties
     public  :: UngetSedimentProperties
     public  :: SetFluxToSedimentProperties
     public  :: SetSedimentWaterFlux
+    public  :: GetSeagrassesRootsRates
+    public  :: GetRootsArray2D
 
     !Modifier
     public  :: SedimentProperties_Evolution
@@ -192,6 +198,7 @@ Module ModuleSedimentProperties
     private ::      OutPut_BoxTimeSeries
     private ::      TimeStepActualization
     private ::      Actualize_Time_Evolution
+    private ::      SeagrassesRoots_Processes
 
     !Destructor
     public  :: KillSedimentProperties
@@ -270,6 +277,7 @@ Module ModuleSedimentProperties
         logical                                 :: ComputeBioturbation  = .false.
         logical                                 :: SurfaceFluxes        = .false.
         logical                                 :: MinConcentration     = .false.
+        logical                                 :: SeagrassesRoots      = .false.
         type(T_AdvectionDiffusion_Parameters)   :: Advec_Difus_Parameters
         type(T_Partition)                       :: Partition
         type(T_Bioturbation)                    :: Bioturbation
@@ -302,6 +310,7 @@ Module ModuleSedimentProperties
         type (T_ID)                             :: FirstProp
         type (T_ID)                             :: SecondProp
         real, pointer, dimension(:,:,:)         :: Field 
+        real, pointer, dimension(:,:,:)         :: Field2
         type(T_SedimentRate), pointer           :: Next, Prev
     end type T_SedimentRate
 
@@ -337,6 +346,7 @@ Module ModuleSedimentProperties
          type(T_Coupling)                       :: TimeSerie
          type(T_Coupling)                       :: BoxTimeSerie
          type(T_Coupling)                       :: OutputHDF
+         type(T_Coupling)                       :: SeagrassesRoots
     end type T_Coupled
 
     type       T_External
@@ -375,6 +385,19 @@ Module ModuleSedimentProperties
         real                                    :: DT
     end type T_External
 
+   type       T_SeagrassesRoots
+        real,    pointer, dimension(:,:  )      :: Biomass     !gC/m2
+        real,    pointer, dimension(:,:  )      :: Length 
+        real,    pointer, dimension(:,:,:)      :: Occupation
+        real,    pointer, dimension(:,:,:)      :: NintFactor3DR
+        real,    pointer, dimension(:,:  )      :: NintFactor2DR
+        real,    pointer, dimension(:,:,:)      :: RootsMort3DR
+        real,    pointer, dimension(:,:  )      :: RootsMort2DR
+        real,    pointer, dimension(:,:,:)      :: UptakeNH4s3D  
+        real                                    :: DefaultValue, LBRatio
+        real(8), pointer, dimension(:,:,:)      :: Volume
+    end type   T_SeagrassesRoots
+
 
     type      T_SedimentProperties 
         integer                                 :: InstanceID
@@ -394,6 +417,7 @@ Module ModuleSedimentProperties
         type(T_Property_3D)                     :: Sediment_DryDensity
         type(T_Property_3D)                     :: HorizontalDiffCoef
         type(T_Property_3D)                     :: VerticalDiffCoef
+        type(T_SeagrassesRoots)                 :: SeagrassesRoots
         integer                                 :: PropertiesNumber     = 0
         integer                                 :: SedimentRatesNumber  = 0
         real(8), pointer, dimension(:,:  )      :: PartitionMatrix
@@ -445,7 +469,11 @@ Module ModuleSedimentProperties
         integer                                 :: ObjInterface         = 0
         
         !Instance of ModuleInterface
-        integer                                 :: ObjLUD               = 0    
+        integer                                 :: ObjLUD               = 0  
+        
+        
+        !Instance of ModuleSeagrassesRoots
+        integer                                 :: ObjSeagrassSedimInteraction     = 0  
 
         !Collection of instances
         type(T_SedimentProperties), pointer     :: Next
@@ -1062,7 +1090,63 @@ do1 :   do
 
    
     !----------------------------------------------------------------------
+!--------------------------------------------------------------------------
 
+
+    subroutine Read_Old_Properties_2D(Scalar_2D, PropertyName)
+
+        !Arguments--------------------------------------------------------------
+        real, dimension(:,:), pointer               :: Scalar_2D
+        character (Len=*), Intent(IN)               :: PropertyName
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: IUB, JUB, ILB, JLB 
+        integer                                     :: STAT_CALL
+        integer                                     :: HDF5_READ
+        integer                                     :: ObjHDF5 = 0
+        logical                                     :: exist
+
+        !----------------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB 
+        JLB = Me%WorkSize%JLB
+        IUB = Me%WorkSize%IUB 
+        JUB = Me%WorkSize%JUB
+
+        ObjHDF5 = 0
+
+
+        inquire(File = trim(Me%Files%Initial)//"5", Exist = exist)
+        
+        if(.not. exist)then
+            write(*,*) 
+            write(*,*)     'Could not find the final InterfaceSedimentWater file.'
+            write(*,'(A)') 'BoxFileName = ', trim(Me%Files%Initial)//"5"
+            stop           'Read_Old_Properties_2D - ModuleSedimentProperty - ERR00'    
+        end if
+
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+        !Opens HDF5 File
+        call ConstructHDF5 (ObjHDF5, trim(Me%Files%Initial)//"5", HDF5_READ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleSedimentProperty - ERR01'
+            
+        !Reads from HDF file the Property concentration and open boundary values
+        call HDF5SetLimits  (ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleSedimentProperty - ERR02'
+            
+        call HDF5ReadData(ObjHDF5, "/Results/"//PropertyName, &
+                          PropertyName, Array2D = Scalar_2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'read_Old_Properties_2D - ModuleSedimentProperty - ERR03'            
+        
+        call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'read_Old_Properties_2D - ModuleSedimentProperty - ERR04'            
+
+    end subroutine Read_Old_Properties_2D
+    
+    
+    !----------------------------------------------------------------------
     
     subroutine Construct_Time_Serie
 
@@ -1189,6 +1273,13 @@ do1 :   do
                 Me%Coupled%OutputHDF%NumberOfProperties             + 1
                 Me%Coupled%OutputHDF%Yes                            = ON
             endif
+            
+            if (PropertyX%Evolution%SeagrassesRoots) then                       ! Isabella
+                Me%Coupled%SeagrassesRoots%NumberOfProperties       = &
+                Me%Coupled%SeagrassesRoots%NumberOfProperties       + 1
+                Me%Coupled%SeagrassesRoots%Yes                      = ON
+            endif
+
 
             PropertyX=>PropertyX%Next
 
@@ -1216,6 +1307,10 @@ do1 :   do
 
         if (Me%Coupled%OutputHDF%Yes)then
             call ConstructGlobalOutput
+        end if
+        
+        if (Me%Coupled%SeagrassesRoots%Yes)then    ! isabella
+            call CoupleSeagrassesRoots
         end if
         
         !Opens HDF format output file
@@ -1247,6 +1342,7 @@ do1 :   do
             write(*, *)"---Adv. Diff.     : ", CurrentProperty%Evolution%AdvectionDiffusion
             write(*, *)"---Bioturbation   : ", CurrentProperty%Evolution%ComputeBioturbation
             write(*, *)"---Surface Fluxes : ", CurrentProperty%Evolution%SurfaceFluxes
+            write(*, *)"---Seagrassesroots: ", CurrentProperty%Evolution%SeagrassesRoots
             write(*, *)
 
             CurrentProperty=>CurrentProperty%Next
@@ -1372,6 +1468,390 @@ do1 :   do
     
     
     !--------------------------------------------------------------------------
+    
+     subroutine CoupleSeagrassesRoots
+        
+        !Local-----------------------------------------------------------------
+        type(T_Property), pointer                           :: PropertyX
+        
+        integer, pointer, dimension(:)                      :: SeagrassesRootsPropertyList
+        integer                                             :: STAT_CALL, iflag
+        real                                                :: SeagrassesRootsDT
+        integer                                             :: Index = 0
+        integer                                             :: ILB, IUB, JLB, JUB, KLB, KUB
+
+        !----------------------------------------------------------------------
+        
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+        KLB = Me%Size%KLB
+        KUB = Me%Size%KUB
+
+        !gC/m2
+        call GetData(Me%SeagrassesRoots%DefaultValue,                       &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'ROOTS_MASS',                                &
+                     Default        = 0.001,                                            &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleSedimentProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CoupleSeagrassesRoots - ModuleSedimentProperties- ERR02'
+        if (iflag == 0)            stop 'CoupleSeagrassesRoots - ModuleSedimentProperties- ERR03'
+        
+        !m
+        call GetData(Me%SeagrassesRoots%LBratio,                           &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'ROOTS_LBRATIO',                           &
+                     Default        = 0.003,                                            &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleSedimentProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CoupleSeagrassesRoots - ModuleSedimentProperties- ERR04'
+        if (iflag == 0)            stop 'CoupleSeagrassesRoots - ModuleSedimentProperties- ERR05'
+        
+              
+        
+
+        ! Roots
+        allocate(Me%SeagrassesRoots%Biomass  (ILB:IUB, JLB:JUB)) !gdw/m2
+        Me%SeagrassesRoots%Biomass   (:,:) = Me%SeagrassesRoots%DefaultValue
+        
+        allocate(Me%SeagrassesRoots%Length  (ILB:IUB, JLB:JUB)) 
+       Me%SeagrassesRoots%Length   (:,:) = Me%SeagrassesRoots%DefaultValue * &
+                                                        Me%SeagrassesRoots%LBRatio
+
+        allocate(Me%SeagrassesRoots%Occupation    (ILB:IUB, JLB:JUB, KLB:KUB)) 
+        Me%SeagrassesRoots%Occupation(:,:,:) = 0.
+        
+
+        allocate (Me%SeagrassesRoots%NintFactor3DR(ILB:IUB,JLB:JUB,KLB:KUB))
+        Me%SeagrassesRoots%NintFactor3DR(:,:,:) =0.
+        
+        allocate (Me%SeagrassesRoots%NintFactor2DR(ILB:IUB,JLB:JUB))
+        Me%SeagrassesRoots%NintFactor2DR(:,:) =0.
+
+        
+        allocate (Me%SeagrassesRoots%UptakeNH4s3D(ILB:IUB,JLB:JUB,KLB:KUB))
+        Me%SeagrassesRoots%UptakeNH4s3D(:,:,:) =0.
+        
+        allocate(Me%SeagrassesRoots%Volume(ILB:IUB,JLB:JUB,KLB:KUB))
+        Me%SeagrassesRoots%Volume(:,:,:) =0.
+        
+        allocate (Me%SeagrassesRoots%RootsMort2DR(ILB:IUB,JLB:JUB))
+        Me%SeagrassesRoots%RootsMort2DR(:,:) =0.
+        
+        allocate (Me%SeagrassesRoots%RootsMort3DR(ILB:IUB,JLB:JUB,KLB:KUB))
+        Me%SeagrassesRoots%RootsMort3DR(:,:,:) =0.
+       
+        ! Forcings
+
+
+        Index = 0
+
+        nullify (SeagrassesRootsPropertyList)
+        allocate(SeagrassesRootsPropertyList(1:Me%Coupled%SeagrassesRoots%NumberOfProperties))
+
+        PropertyX => Me%FirstProperty
+            
+ DoProd1:       do while(associated(PropertyX))
+
+            if(PropertyX%Evolution%SeagrassesRoots)then
+
+                Index                               = Index + 1
+                SeagrassesRootsPropertyList(Index) = PropertyX%ID%IDNumber
+                
+                
+                if(PropertyX%ID%IDNumber == SeagrassesRoots_)then
+                
+                
+                                
+                  if(PropertyX%Evolution%AdvectionDiffusion)then
+                    
+                    write(*,*)
+                    write(*,*)'Seagrasses Roots can not have ADVECTION_DIFFUSION'
+                    write(*,*)'Property : ', trim(adjustl(PropertyX%ID%Name))
+                    write(*,*)'ADVECTION_DIFFUSION will be switched off'
+                    
+                    PropertyX%Evolution%AdvectionDiffusion = OFF
+
+                end if
+
+                    if(PropertyX%Old)then
+                        call Read_Old_Properties_2D(Me%SeagrassesRoots%Biomass, "seagrasses roots biomass" )
+                    else
+                        call RootsOccupation(Me%SeagrassesRoots)
+                        call DistributeRoots(PropertyX, Me%SeagrassesRoots)
+                    end if
+
+                end if
+
+               
+                
+                
+
+
+            end if
+            
+            PropertyX => PropertyX%Next
+        enddo DoProd1
+        
+        nullify(PropertyX)
+
+        call ConstructInterface(InterfaceID         = Me%ObjSeagrassSedimInteraction,   &
+                                TimeID              = Me%ObjTime,                        &
+                                SinksSourcesModel   = SeagrassSedimInteractionModel,                   &
+                                DT                  = SeagrassesRootsDT,                &
+                                PropertiesList      = SeagrassesRootsPropertyList,      &
+                                WaterPoints3D       = Me%ExternalVar%WaterPoints3D,      &
+                                Size3D              = Me%WorkSize,                       &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'CoupleSeagrassesRoots - ModuleSedimentProperties - ERR01'
+        
+        Me%Coupled%SeagrassesRoots%DT_Compute   = SeagrassesRootsDT 
+        Me%Coupled%SeagrassesRoots%NextCompute  = Me%ExternalVar%Now
+        
+        deallocate(SeagrassesRootsPropertyList)
+        nullify   (SeagrassesRootsPropertyList)
+
+
+    end subroutine CoupleSeagrassesRoots
+    
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+    subroutine  RootsOccupation(SeagrassesRoots)  
+    
+  
+          
+        !Arguments------------------------------------------------------------- 
+        type (T_SeagrassesRoots)                          :: SeagrassesRoots
+        
+        !Local----------------------------------------------------------------- 
+        real, allocatable, dimension(:,:  )     :: SedimentColumnZ
+        integer                                 :: i, j, k, KTop
+        integer                                 :: ILB, IUB, JLB, JUB, KUB, KLB
+        integer                                 :: STAT_CALL
+        real                                    :: Remaining_root_Length
+        
+        !Begin----------------------------------------------------------------- 
+
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB 
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        KUB = Me%WorkSize%KUB  
+        KLB = Me%WorkSize%KLB
+
+        !SedimentColumnZ
+        
+         allocate(SedimentColumnZ(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+         SedimentColumnZ(ILB:IUB, JLB:JUB) =0.
+        
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+ 
+                     do k = KLB, Me%Externalvar%KTop(i,j)
+            
+                       SedimentcolumnZ(i,j)=SedimentcolumnZ(i,j)+Me%Externalvar%DWZ(i,j,k)
+                     
+                     enddo
+         
+            enddo
+            enddo
+
+        call SetMatrixValue(SeagrassesRoots%Occupation, Me%WorkSize, 0.)
+
+        !if running in 3D
+        if(Me%WorkSize%KUB > 1)then
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+               ! i have a doubt if it should be :
+               !                 ktop= Me%ExternalVar%KTop(i, j)
+               !                 if (Me%ExternalVar%OpenPoints3D(i, j, ktop) == OpenPoint) then
+               
+               
+                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                    !KTop = Me%ExternalVar%KTop(i, j)
+                    SeagrassesRoots%Length(i,j)=SeagrassesRoots%Biomass(i,j)*SeagrassesRoots%LBratio
+                    if(SeagrassesRoots%Length(i,j) .ge. SedimentColumnZ(i,j))then
+
+                        SeagrassesRoots%Occupation(i,j,KLB:Me%ExternalVar%KTop(i, j)) = 1
+
+                    else
+
+                        k = Me%ExternalVar%KTop(i, j)    ! index for the top sediment layer
+
+                        Remaining_root_Length = SeagrassesRoots%Length(i,j)
+
+                        do while(k .GE. KLB)
+
+                            
+                            if  (Remaining_root_Length >= Me%ExternalVar%DWZ(i,j,k))then
+
+                                SeagrassesRoots%Occupation(i,j,k)   = 1.
+                                Remaining_root_Length               = Remaining_root_Length - Me%ExternalVar%DWZ(i,j,k)
+                                k                                   = k - 1
+
+                            else
+                                SeagrassesRoots%Occupation(i,j,k)   = Remaining_root_Length / Me%ExternalVar%DWZ(i,j,k)
+                                k                                   = k - 1
+                            end if
+
+                        end do
+
+                    end if
+
+                endif
+
+            enddo
+            enddo
+        
+        else !if running in 2D (this way is faster)
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                    KTop                 = Me%ExternalVar%KTop(i, j)
+                    SeagrassesRoots%Length(i,j)=SeagrassesRoots%Biomass(i,j)*SeagrassesRoots%LBratio
+
+                    if (SeagrassesRoots%Length(i,j) .ge. SedimentColumnZ(i,j))then
+                        
+                        SeagrassesRoots%Occupation(i,j,KLB:KTop) = 1.
+
+                    else
+
+                        SeagrassesRoots%Occupation(i,j,KLB:KTop) = SeagrassesRoots%Length(i,j) / &
+                                                                      SedimentColumnZ(i,j)
+                    end if
+
+                endif
+
+            enddo
+            enddo
+
+        end if
+
+          deallocate(SedimentColumnZ)
+         
+    end  subroutine RootsOccupation  
+         
+         
+!-------------------------------------------------------------------------------
+
+
+     !--------------------------------------------------------------------------
+
+    subroutine DistributeRoots(PropertyX, SeagrassesRoots)
+        
+        !Arguments------------------------------------------------------------- 
+        type (T_Property),      pointer         :: PropertyX
+        type (T_SeagrassesRoots)                :: SeagrassesRoots
+       
+        !Local----------------------------------------------------------------- 
+        real, dimension(:,:  ), pointer         :: SedimentColumnZ
+        integer                                 :: i, j, k, ktop  
+        integer                                 :: ILB, IUB, JLB, JUB, KLB
+        integer                                 :: STAT_CALL
+        
+        !Begin----------------------------------------------------------------- 
+
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB 
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        KLB = Me%WorkSize%KLB
+
+          !SedimentColumnZ
+        
+         allocate(SedimentColumnZ(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+         SedimentColumnZ(ILB:IUB, JLB:JUB) =0.
+        
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+ 
+                     do k = KLB, Me%Externalvar%KTop(i,j)
+            
+                       SedimentcolumnZ(i,j)=SedimentcolumnZ(i,j)+Me%Externalvar%DWZ(i,j,k)
+                     
+                     enddo
+         
+            enddo
+            enddo
+
+        if(Me%WorkSize%KUB > 1)then
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+               
+               ktop = Me%ExternalVar%KTop(i, j)
+                
+                if (Me%ExternalVar%OpenPoints3D(i, j, ktop) == OpenPoint) then
+
+                    
+                    
+                    SeagrassesRoots%Length(i,j)=SeagrassesRoots%Biomass(i,j)*SeagrassesRoots%LBratio
+
+                    do k = KLB, ktop
+                        !gC/m3 = gC/m2 * m2 / m3 * m / m
+                        PropertyX%Concentration(i,j,k) = SeagrassesRoots%Occupation(i,j,k) * &
+                                                         SeagrassesRoots%Biomass(i,j)      * &
+                                                         Me%ExternalVar%GridCellArea(i,j)  / &
+                                                         Me%ExternalVar%VolumeZ(i,j,k)     * &
+                                                        (Me%ExternalVar%DWZ(i,j,k)         / &
+                                                         SeagrassesRoots%Length(i,j))
+
+                    enddo
+
+                endif
+
+            enddo
+            enddo
+
+        else
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+
+                  ktop = Me%ExternalVar%KTop(i, j)
+                
+                
+                if (Me%ExternalVar%OpenPoints3D(i, j, ktop) == OpenPoint) then
+
+        
+                    do k = KLB, ktop
+
+                        !gC/m3 = gC/m2 * m2 / m3 * m / m
+                        PropertyX%Concentration(i,j,k) = SeagrassesRoots%Biomass(i,j) * &
+                                                         Me%ExternalVar%GridCellArea(i,j)  / &
+                                                         Me%ExternalVar%VolumeZ(i,j,k)
+
+                    enddo
+
+
+
+                endif
+
+            enddo
+            enddo
+
+        endif
+
+   deallocate(SedimentColumnZ)
+   
+   
+    end subroutine DistributeRoots
+    
+    !---------------------------------------------------------------------------------------------
+
 
     
     subroutine ConstructPartition
@@ -1576,9 +2056,9 @@ do1:    do while(associated(Property))
             stop 'Construct_SedimentRateID - ModuleSedimentProperties - ERR03' 
         end if 
 
-        call Search_Property(PropertyX, PropertyXID = PropNumber, STAT = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_)                                                     &
-            stop 'Construct_SedimentRateID - ModuleSedimentProperties - ERR04' 
+        !call Search_Property(PropertyX, PropertyXID = PropNumber, STAT = STAT_CALL)                                  
+        !if (STAT_CALL /= SUCCESS_)                                                     &
+        !    stop 'Construct_SedimentRateID - ModuleSedimentProperties - ERR04' 
         
         !second Property defined in a rate relation
         call GetData(NewSedimentRate%SecondProp%name,                                    &
@@ -1904,6 +2384,19 @@ do1:    do while(associated(Property))
             call Construct_Property_Diffusivity (NewProperty)
         
         end if
+        
+        
+          call GetData(NewProperty%Evolution%SeagrassesRoots,                          &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'SEAGROOT',                                      &
+                     ClientModule = 'ModuleSedimentProperties',                          &
+                     default      = .false.,                                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Construct_PropertyEvolution - ModuleSedimentProperties - ERR35'
+            
+        if(NewProperty%Evolution%SeagrassesRoots)NewProperty%Evolution%Variable = .true.
 
         !Property has partition as sink and source
         call GetData(NewProperty%Evolution%Partitioning,                                 &
@@ -2607,6 +3100,10 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Coupled%AdvectionDiffusion%Yes)      &
                 call Advection_Diffusion_Processes
+                
+            if (Me%Coupled%SeagrassesRoots%Yes)         &     ! Isabella
+                call SeagrassesRoots_Processes
+
 
             !if (Me%Coupled%SedimentQuality%Yes)         &
             !    call SedimentQuality_Processes
@@ -2781,6 +3278,240 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
     
     !--------------------------------------------------------------------------
+       !--------------------------------------------------------------------------
+    subroutine SeagrassesRoots_Processes
+        !Local----------------------------------------------------------------- 
+        type (T_Property),       pointer         :: PropertyX
+        type (T_SedimentRate  ), pointer         :: SedimentRateX
+        integer                                  :: i, j, k, kbottom, KTop
+        integer                                  :: ILB, IUB, JLB, JUB,KLB, KUB
+        integer                                  :: STAT_CALL
+        integer                                  :: CHUNK
+        real, dimension(:,:,:), pointer          :: Volume
+
+        
+
+        !Begin----------------------------------------------------------------- 
+
+            ILB = Me%WorkSize%ILB 
+            IUB = Me%WorkSize%IUB 
+            JLB = Me%WorkSize%JLB 
+            JUB = Me%WorkSize%JUB 
+            KUB = Me%WorkSize%KUB
+            KLB = Me%WorkSize%KLB
+        
+        
+        
+
+        
+        PropertyX => Me%FirstProperty
+
+       do while (associated(PropertyX))
+
+                if (PropertyX%Evolution%SeagrassesRoots) then
+                
+                    if(PropertyX%ID%IDNumber == SeagrassesRoots_)then
+                                    
+                        call RootsOccupation(Me%SeagrassesRoots)
+                        call DistributeRoots(PropertyX, Me%SeagrassesRoots)
+                       
+                    end if
+                
+               
+                
+                end if 
+                
+                PropertyX=>PropertyX%Next
+       end do
+       
+       
+            !CHUNK = CHUNK_J(JLB, JUB)
+            
+            ! total occupation
+
+            if (Me%WorkSize%KUB >1) then
+            
+                        do j=JLB, JUB
+                        do i=ILB, IUB
+                        do k=KLB, KUB
+                        
+                        
+                        
+                        if (Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) then
+                       
+                        !factors assumed to be the constant over the sediment column 
+                        Me%SeagrassesRoots%NintFactor3DR(i,j,k)=Me%SeagrassesRoots%NintFactor2DR(i,j)
+                        !kgrams of dry weight per day divided by total mass 
+                        Me%SeagrassesRoots%RootsMort3DR(i,j,k)=Me%SeagrassesRoots%RootsMort2DR(i,j) / &
+                                                               ( (Me%SeagrassesRoots%Biomass(i,j)/1000.) * Me%ExternalVar%GridCellArea(i,j) )
+                                                               
+                        
+                        endif        
+                        
+                        enddo
+                        enddo
+                        enddo
+            
+            else
+            
+            ! 2D
+                        do j=JLB, JUB
+                        do i=ILB, IUB
+
+                        KTop                 = Me%ExternalVar%KTop(i, j)
+                        
+                        if (Me%ExternalVar%OpenPoints3D(i, j, KTop) == OpenPoint) then
+                       
+                        !factors assumed to be the constant over the sediment column 
+                        Me%SeagrassesRoots%NintFactor3DR(i,j,KTop)=Me%SeagrassesRoots%NintFactor2DR(i,j)
+                        !kgrams of dry weight per day divided by total mass 
+                        Me%SeagrassesRoots%RootsMort3DR(i,j,KTop)=Me%SeagrassesRoots%RootsMort2DR(i,j) 
+                                                               
+                        
+                        endif        
+                        
+                        enddo
+                        enddo
+
+            
+            endif
+
+            
+            PropertyX => Me%FirstProperty
+
+        if (Me%ExternalVar%Now .GE. Me%Coupled%SeagrassesRoots%NextCompute) then
+
+      
+   
+
+
+          
+            do while(associated(PropertyX))
+            
+                if(PropertyX%ID%IDNumber == SeagrassesRoots_)then
+                
+                Me%SeagrassesRoots%Volume => Me%ExternalVar%VolumeZ
+            
+                   call Modify_Interface(InterfaceID    = Me%ObjSeagrassSedimInteraction,        &
+                                      PropertyID        = PropertyX%ID%IDNumber,                 &
+                                      Concentration     = PropertyX%Concentration,               &
+                                      WaterPoints3D     = Me%ExternalVar%WaterPoints3D,          &
+                                      OpenPoints3D      = Me%ExternalVar%OpenPoints3D,           &
+                                      DWZ               = Me%ExternalVar%DWZ,                    &
+                                      NintFac3DR        = Me%SeagrassesRoots%NintFactor3DR,      & 
+                                      SedimCellVol3D    = Me%SeagrassesRoots%Volume,                &
+                                      RootsMort         = Me%SeagrassesRoots%RootsMort3DR,      &
+                                      STAT              = STAT_CALL)
+                     if (STAT_CALL .NE. SUCCESS_)                                                &
+                     stop 'SeagrassesRoots_Processes - ModuleSedimentProperties - ERR02'
+           
+              else
+           
+                     call Modify_Interface(InterfaceID  = Me%ObjSeagrassSedimInteraction,   &
+                                      PropertyID        = PropertyX%ID%IDNumber,                 &
+                                      Concentration     = PropertyX%Concentration,               &
+                                      WaterPoints3D     = Me%ExternalVar%WaterPoints3D,          &
+                                      OpenPoints3D      = Me%ExternalVar%OpenPoints3D,           & 
+                                      DWZ               = Me%ExternalVar%DWZ,               &
+                                      STAT              = STAT_CALL)
+                         if (STAT_CALL .NE. SUCCESS_)                                                &
+                         stop 'SeagrassesRoots_Processes - ModuleSedimentProperties - ERR02'
+           
+             endif
+           
+                PropertyX => PropertyX%Next
+
+            end do
+
+            Me%Coupled%SeagrassesRoots%NextCompute = Me%Coupled%SeagrassesRoots%NextCompute + &
+                                                      Me%Coupled%SeagrassesRoots%DT_Compute
+            
+        end if 
+
+
+
+
+        PropertyX => Me%FirstProperty
+
+        do while (associated(PropertyX))
+
+            if (PropertyX%Evolution%SeagrassesRoots) then
+    
+                if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
+
+                    call Modify_Interface(InterfaceID   = Me%ObjSeagrassSedimInteraction,  &
+                                          PropertyID    = PropertyX%ID%IDNumber,            &
+                                          Concentration = PropertyX%Concentration,          &
+                                          DTProp        = PropertyX%Evolution%DTInterval,   &
+                                          WaterPoints3D = Me%ExternalVar%WaterPoints3D,     &
+                                          OpenPoints3D  = Me%ExternalVar%OpenPoints3D,      &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'SeagrassesRoots_Processes - ModuleSedimentProperties - ERR03'
+
+                        if(PropertyX%ID%IDNumber == SeagrassesRoots_)then
+                        !Integrate roots distribution in the sediment column in to kgC/m2
+                        !call IntegrateRoots(PropertyX, Me%SeagrassesRoots)
+                    
+                    end if
+                endif
+
+            endif
+            
+            PropertyX=>PropertyX%Next
+
+        enddo
+
+
+        SedimentRateX => Me%FirstSedimentRate
+        
+        do while (associated(SedimentRateX))
+
+            !if(SedimentRateX%Model == 'SeagrassSedimInteraction')then
+
+                call GetRateFlux(InterfaceID    = Me%ObjSeagrassSedimInteraction,          &
+                                 FirstProp      = SedimentRateX%FirstProp%IDNumber,               &
+                                 SecondProp     = SedimentRateX%SecondProp%IDNumber,              &
+                                 RateFlux3D     = SedimentRateX%Field,                            &
+                                 WaterPoints3D  = Me%ExternalVar%WaterPoints3D,             &
+                                 STAT           = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                                &
+                    stop 'SeagrassesRoots_Processes - ModuleSedimentProperties - ERR04'
+
+          SedimentRateX%Field2 =>SedimentRateX%Field
+
+          if (SedimentRateX%FirstProp%IDNumber==RootsUptakeN_) then
+             
+             
+                         Me%SeagrassesRoots%UptakeNH4s3D =SedimentRateX%Field  !gN/day 
+                         
+                    else
+                where (Me%ExternalVar%WaterPoints3D == WaterPoint) &
+                     SedimentRateX%Field =  SedimentRateX%Field * Me%ExternalVar%VolumeZ / &
+                                    Me%Coupled%SeagrassesRoots%DT_Compute
+
+                call BoxDif(Me%ObjBoxDif,                                                   &
+                             SedimentRateX%Field,                                                  &
+                            trim(SedimentRateX%ID%Name),                                          &
+                            Me%ExternalVar%WaterPoints3D,                                   &
+                            STAT  = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                                &
+                    stop 'SeagrassesRoots_Processes - ModuleSedimentProperties - ERR05'
+
+            end if  
+        !endif
+             SedimentRateX=> SedimentRateX%Next
+
+        enddo
+
+        nullify( SedimentRateX)
+        nullify(PropertyX)
+     
+     
+     end   subroutine SeagrassesRoots_Processes
+ 
+    
+    !---------------------------------------------------------------------------------------------
 
     
     subroutine ComputeDissolvedToParticulate3D
@@ -3843,6 +4574,21 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                             stop 'OutPut_Results_HDF - ModuleSedimentProperties - ERR08'
 
                     endif
+                    
+                                        
+                     if (PropertyX%ID%IDNumber==SeagrassesRoots_) then
+                
+                    call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB,                   &
+                                         WorkJLB, WorkJUB, WorkKLB, WorkKUB,             &
+                                         STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleSedimentProperties - ERR09'
+
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/"//"seagrasses roots biomass",  &
+                                         "seagrasses roots biomass", "gdw/m2",                  &
+                                         Array2D = Me%SeagrassesRoots%Biomass, &
+                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleSedimentProperties - ERR10'
+                endif
 
                     !Writes everything to disk
                     call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
@@ -4332,6 +5078,104 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
 
     !--------------------------------------------------------------------------
+    
+       subroutine GetRootsArray2D(SedimentPropertiesID, Array, ArrayID, STAT)  
+    !
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: SedimentPropertiesID
+        real, pointer, dimension(:,:)               :: Array
+        integer,            optional, intent(OUT)   :: STAT
+        integer,            optional, intent(IN)    :: ArrayID
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(SedimentPropertiesID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mSEDIMENTPROPERTIES_, Me%InstanceID) 
+           
+           select case(ArrayID)
+           
+           case(SeagrassesRoots_)
+
+            Array => Me%SeagrassesRoots%Biomass
+           
+          case(NintFactorR_)
+
+            Array => Me%SeagrassesRoots%NintFactor2DR
+            
+          case(RootsMort_)
+
+            Array => Me%SeagrassesRoots%RootsMort2DR
+
+          
+          end select
+
+            STAT_ = SUCCESS_
+            
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetRootsArray2D
+    !--------------------------------------------------------------------------
+    
+   
+
+    subroutine GetSeagrassesRootsRates(SedimentPropertiesID, RateID, Rateflux, STAT)  
+   
+        !Arguments---------------------------------------------------------------
+        integer                                     :: SedimentPropertiesID
+        real, pointer, dimension(:,:,:)             :: Rateflux
+        integer,                      intent(IN)    :: RateID
+        integer,            optional, intent(OUT)   :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(SedimentPropertiesID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mSEDIMENTPROPERTIES_, Me%InstanceID) 
+            
+            select case(RateID)
+
+            
+            case(RootsUptakeN_)
+           
+            Rateflux => Me%SeagrassesRoots%UptakeNH4s3D ! gN/day  
+         
+           
+            end select
+
+            STAT_ = SUCCESS_
+            
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetSeagrassesRootsRates
+     !----------------------------------------------------------------------------
 
     subroutine GetSedimentDryDensity(SedimentPropertiesID, SedimentDryDensity,  STAT) 
 
@@ -4876,7 +5720,39 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                     if (STAT_CALL .NE. SUCCESS_)stop 'KillSedimentProperties - ModuleSedimentProperties - ERR010'
 
                 end if
+ 
+ 
+           if(Me%Coupled%SeagrassesRoots%Yes)then
+              
+                 call KillInterface(Me%ObjSeagrassSedimInteraction, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'KillSedimentProperties - ModuleSedimentProperties - ERR011'
+               
+                 deallocate(Me%SeagrassesRoots%Biomass                    ) 
+                 deallocate(Me%SeagrassesRoots%Length                     )
+                 deallocate(Me%SeagrassesRoots%Occupation                 )
+                 deallocate(Me%SeagrassesRoots%NintFactor3DR              )
+                 deallocate(Me%SeagrassesRoots%NintFactor2DR              )
+                 deallocate(Me%SeagrassesRoots%UptakeNH4s3D               )
+                 deallocate(Me%SeagrassesRoots%RootsMort3DR               )
+                 deallocate(Me%SeagrassesRoots%RootsMort2DR               )
+                 !deallocate(Me%SeagrassesRoots%Volume                     )
 
+            
+                 nullify(Me%SeagrassesRoots%Biomass                       ) 
+                 nullify(Me%SeagrassesRoots%Length                        )
+                 nullify(Me%SeagrassesRoots%Occupation                    )
+                 nullify(Me%SeagrassesRoots%NintFactor3DR                 )
+                 nullify(Me%SeagrassesRoots%NintFactor2DR                 )
+                 nullify(Me%SeagrassesRoots%UptakeNH4s3D                  )
+                 nullify(Me%SeagrassesRoots%RootsMort3DR                  )
+                 nullify(Me%SeagrassesRoots%RootsMort2DR                  )
+                ! nullify(Me%SeagrassesRoots%Volume                        )
+ 
+                ! Roots
+
+
+              endif
 
                 !Kills the TimeSerie
                 if (Me%Coupled%TimeSerie%Yes) then
@@ -5138,6 +6014,22 @@ do1 :           do while(associated(PropertyX))
                     stop 'Write_Final_SedProperties_HDF - ModuleSedimentProperties - ERR16'
 
             endif
+            
+             if (Property%ID%IDNumber==SeagrassesRoots_) then
+                
+                    call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                             &
+                                         WorkJLB, WorkJUB, WorkKLB, WorkKUB,                    &
+                                         STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Write_Final_SedProperties_HDF - ModuleSedimentProperties - ERR17'
+
+                    call HDF5WriteData  (ObjHDF5, "/Results/"//"seagrasses roots biomass",       &
+                                         "seagrasses roots biomass", "gdw/m2",                    &
+                                         Array2D = Me%SeagrassesRoots%Biomass)
+                    if (STAT_CALL /= SUCCESS_) stop 'Write_Final_SedProperties_HDF - ModuleSedimentProperties - ERR18'
+                    
+
+               
+               endif 
 
             Property => Property%Next
 

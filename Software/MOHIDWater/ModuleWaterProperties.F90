@@ -315,6 +315,7 @@ Module ModuleWaterProperties
     private ::          CoupleCEQUALW2
     private ::          CoupleLife
     private ::          CoupleMacroAlgae
+    private ::          CoupleSeagrassesLeaves
     private ::          CoupleFreeVerticalMovement
     private ::          CoupleHydroIntegration
     private ::          ConstructPartition
@@ -325,6 +326,7 @@ Module ModuleWaterProperties
     private ::          Construct_Output_Profile
     private ::      CheckAditionalOutputs
     private ::      ConstructLog
+    private ::      Read_Old_Properties_2D
 #ifdef _USE_SEQASSIMILATION
     private ::      ConstructBooleanSeqAssimilation
 #endif _USE_SEQASSIMILATION
@@ -361,6 +363,8 @@ Module ModuleWaterProperties
     public  :: GetWaterPropertiesBottomOptions
     public  :: GetPropertySurfaceFlux
     public  :: GetShortWaveRadiationAverage
+    public  :: GetSeagrassArray2D
+    public  :: GetSeagrassesLeavesRates
 #ifdef _USE_SEQASSIMILATION
     public  :: GetWaterPropertiesIDArray
     public  :: GetWaterSeqAssimilation
@@ -473,11 +477,13 @@ Module ModuleWaterProperties
     !Interfaces----------------------------------------------------------------
 
     private :: UngetWaterProperties3D
+    private :: UngetWaterProperties2D ! Isabella
     interface  UngetWaterProperties
 #ifdef _USE_SEQASSIMILATION
         module procedure UngetWaterProperties1D_I4
 #endif _USE_SEQASSIMILATION
         module procedure UngetWaterProperties3D
+        module procedure UngetWaterProperties2D
     end interface UngetWaterProperties
 
     !Parameter-----------------------------------------------------------------
@@ -642,6 +648,7 @@ Module ModuleWaterProperties
         type(T_Time)                            :: NextCompute
         logical                                 :: WaterQuality         = .false.
         logical                                 :: MacroAlgae           = .false.
+        logical                                 :: SeagrassesLeaves     = .false.
         logical                                 :: CEQUALW2             = .false.
         logical                                 :: Life                 = .false.
         logical                                 :: WWTPQ                = .false.
@@ -786,6 +793,7 @@ Module ModuleWaterProperties
         type (T_ID)                             :: FirstProp, SecondProp
         type (T_OutPut)                         :: OutPut
         real, pointer, dimension(:,:,:)         :: Field
+        real, pointer, dimension(:,:,:)         :: Field2
         character(len=StringLength)             :: Model
         type(T_WQRate), pointer                 :: next,prev
         integer                                 :: CeQualID
@@ -844,6 +852,7 @@ Module ModuleWaterProperties
          type(T_Coupling)                       :: CalculateAge
          type(T_Coupling)                       :: Filtration !aqui
          type(T_Coupling)                       :: MacroAlgae
+         type(T_Coupling)                       :: SeagrassesLeaves
          type(T_Coupling)                       :: LagSinksSources
          type(T_Coupling)                       :: Reinitialize
          logical                                :: AllSolutionFromFile
@@ -939,6 +948,25 @@ Module ModuleWaterProperties
         real,    pointer, dimension(:,:  )      :: SurfaceRadiation
     end type T_ExtSurface
     
+          type       T_SeagrassesLeaves
+        real,    pointer, dimension(:,:  )      :: Biomass     !kgC/m2
+        real,    pointer, dimension(:,:  )      :: Length 
+        real,    pointer, dimension(:,:,:)      :: Occupation
+        real,    pointer, dimension(:,:,:)      :: NintFactor3D
+        real,    pointer, dimension(:,:  )      :: NintFactor2D
+        real,    pointer, dimension(:,:,:)      :: PintFactor3D
+        real,    pointer, dimension(:,:,:)      :: SeagrassesL3D
+        real,    pointer, dimension(:,:  )      :: PintFactor2D
+        real,    pointer, dimension(:,:,:)      :: UptakeNH4NO3w3D   
+        real,    pointer, dimension(:,:,:)      :: UptakePO4w3D
+        real,    pointer, dimension(:,:,:)      :: LightFactor3D
+        real(8),    pointer, dimension(:,:,:)      :: Volume
+
+           
+        ! aggiungo il puntatore per i tassi: Me%SeagrassesLeaves%Rates(:,:) 
+        real                                    :: DefaultValue, LBRatio
+ end type   T_SeagrassesLeaves
+    
     type      T_NoFlux
         integer, pointer, dimension(:,:,:)      :: U,V,W
         logical                                 :: ON
@@ -971,6 +999,7 @@ Module ModuleWaterProperties
         type(T_DischargeTimeSerie), pointer     :: FirstDischargeTimeSerie
         type(T_Age)                             :: Age
         type(T_MacroAlgae)                      :: MacroAlgae
+        type(T_SeagrassesLeaves)                :: SeagrassesLeaves 
         type(T_Discharge)                       :: Discharge
         type(T_HybridWeights)                   :: HybridWeights
         type(T_NoFlux       )                   :: NoFlux
@@ -1068,6 +1097,9 @@ Module ModuleWaterProperties
                                                 
         !Instance of ModuleAssimilation         
         integer                                 :: ObjAssimilation          = 0
+        
+        !Instance of ModuleSeagrassWaterInteraction 
+        integer                                 :: ObjSeagrassWaterInteraction  = 0
 
 #ifdef _ENABLE_CUDA
         integer                                 :: ObjCuda                  = 0
@@ -2098,6 +2130,7 @@ cd2 :           if (BlockFound) then
         Me%Coupled%MacroAlgae%NumberOfProperties            = 0
         Me%Coupled%LagSinksSources%NumberOfProperties       = 0
         Me%Coupled%Reinitialize%NumberOfProperties          = 0
+        Me%Coupled%SeagrassesLeaves%NumberOfProperties      = 0
 
         Me%Coupled%AllSolutionFromFile                      = .true.
         Me%Coupled%HybridReferenceField                     = .false.
@@ -2122,6 +2155,12 @@ do1 :   do while (associated(PropertyX))
                 Me%Coupled%MacroAlgae%NumberOfProperties                = &
                 Me%Coupled%MacroAlgae%NumberOfProperties                + 1
                 Me%Coupled%MacroAlgae%Yes                               = ON
+            endif
+            
+            if (PropertyX%Evolution%SeagrassesLeaves)then
+                Me%Coupled%SeagrassesLeaves%NumberOfProperties        = &
+                Me%Coupled%SeagrassesLeaves%NumberOfProperties        + 1
+                Me%Coupled%SeagrassesLeaves%Yes                       = ON
             endif
 
             if (PropertyX%Evolution%CEQUALW2) then
@@ -2388,6 +2427,13 @@ do1 :   do while (associated(PropertyX))
             call CoupleMacroAlgae
 
         end if
+        
+        ! SeagrassesLeaves
+        if (Me%Coupled%SeagrassesLeaves%Yes)then
+           
+            call CoupleSeagrassesLeaves
+        
+        end if 
 
         !WWTPQ
         if(Me%Coupled%WWTPQM%Yes)then
@@ -2608,6 +2654,7 @@ do1 :   do while (associated(PropertyX))
 
                 if(PropertyX%Evolution%WaterQuality                  .or. &
                    PropertyX%Evolution%MacroAlgae                    .or. &
+                   PropertyX%Evolution%SeagrassesLeaves              .or. &
                    PropertyX%Evolution%CEQUALW2                      .or. &
                    PropertyX%Evolution%Life                          .or. &
                    PropertyX%Evolution%WWTPQ                         .or. &
@@ -3172,7 +3219,180 @@ do1 :   do while (associated(PropertyX))
     end subroutine CoupleMacroAlgae
     
     !--------------------------------------------------------------------------
+ !------------------------------------------------------------------------------
+    
+     subroutine CoupleSeagrassesLeaves
+        
+        !Local-----------------------------------------------------------------
+        type(T_Property), pointer                           :: PropertyX
+        
+        integer, pointer, dimension(:)                      :: SeagrassesLeavesPropertyList
+        integer                                             :: STAT_CALL, iflag
+        real                                                :: SeagrassesLeavesDT
+        integer                                             :: Index = 0
+        integer                                             :: ILB, IUB, JLB, JUB, KLB, KUB
+        
+        ! this subroutine was created to allocate arrays which values 
+        ! will be calculated in the module SeagrassWaterInteraction
+        ! The only reason to create 3d arrays is that the it is not possible to 
+        ! access the information of ModuleInterfaceSedimentWater from ModuleWaterProperty,
+        ! because of dependences in the code.
+        ! 
+        ! InterfaceSedimentWater gets those arrays from ModuleWaterProperty,
+        ! converts them into 2d arrays and passes them to BenthicEcology module.
+        !----------------------------------------------------------------------
+        
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+        KLB = Me%Size%KLB
+        KUB = Me%Size%KUB
 
+        !gC/m2
+        call GetData(Me%SeagrassesLeaves%DefaultValue,                       &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'LEAVES_MASS',                                &
+                     Default        = 0.001,                                            &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CoupleSeagrassesLeaves - ModuleWaterProperties- ERR02'
+        if (iflag == 0)            stop 'CoupleSeagrassesLeaves - ModuleWaterProperties- ERR03'
+        
+        !m
+        call GetData(Me%SeagrassesLeaves%LBratio,                           &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'LEAVES_LBRATIO',                           &
+                     Default        = 0.003,                                            &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CoupleSeagrassesLeaves - ModuleWaterProperties- ERR04'
+        if (iflag == 0)            stop 'CoupleSeagrassesLeaves - ModuleWaterProperties- ERR05'
+        
+              
+        
+
+        ! Leaves Biomass should be initialized in module InterfaceSedimentWater, but it is initialized here because 
+        ! the constructor of module InterfaceSedimentWater is executed after the constructor of WaterProperties.
+        ! Module WaterProperties needs the value of the leaves biomass to calculate the leaves occupation
+        ! already during the constructor phase.
+        ! 
+        allocate(Me%SeagrassesLeaves%Biomass  (ILB:IUB, JLB:JUB)) !gdw/m2
+        Me%SeagrassesLeaves%Biomass   (:,:) = Me%SeagrassesLeaves%DefaultValue
+        
+        allocate(Me%SeagrassesLeaves%Length  (ILB:IUB, JLB:JUB)) !gdw/m2
+       Me%SeagrassesLeaves%Length   (:,:) = Me%SeagrassesLeaves%DefaultValue * &
+                                                        Me%SeagrassesLeaves%LBRatio
+        ! Allocation of arrays which values 
+        ! will be calculated in the module SeagrassWaterInteraction
+        allocate(Me%SeagrassesLeaves%Occupation    (ILB:IUB, JLB:JUB, KLB:KUB)) 
+        Me%SeagrassesLeaves%Occupation(:,:,:) = 0.
+
+       
+        allocate (Me%SeagrassesLeaves%NintFactor3D(ILB:IUB,JLB:JUB,KLB:KUB))
+        Me%SeagrassesLeaves%NintFactor3D(:,:,:) =0.
+        
+        
+        allocate (Me%SeagrassesLeaves%NintFactor2D(ILB:IUB,JLB:JUB))
+        Me%SeagrassesLeaves%NintFactor2D(:,:) =0.
+        
+        allocate (Me%SeagrassesLeaves%PintFactor3D(ILB:IUB,JLB:JUB,KLB:KUB))
+        Me%SeagrassesLeaves%PintFactor3D(:,:,:) =0.
+        
+        allocate (Me%SeagrassesLeaves%SeagrassesL3D(ILB:IUB,JLB:JUB,KLB:KUB))
+        Me%SeagrassesLeaves%SeagrassesL3D(:,:,:) =0.
+        
+        allocate (Me%SeagrassesLeaves%PintFactor2D(ILB:IUB,JLB:JUB))
+        Me%SeagrassesLeaves%PintFactor2D(:,:) =0.
+          
+ 
+       allocate(Me%SeagrassesLeaves%UptakeNH4NO3w3D(ILB:IUB,JLB:JUB,KLB:KUB))
+       
+       allocate(Me%SeagrassesLeaves%UptakePO4w3D(ILB:IUB,JLB:JUB,KLB:KUB))
+       
+       allocate(Me%SeagrassesLeaves%LightFactor3D(ILB:IUB,JLB:JUB,KLB:KUB))
+       
+       allocate(Me%SeagrassesLeaves%Volume(ILB:IUB,JLB:JUB,KLB:KUB))
+       Me%SeagrassesLeaves%UptakeNH4NO3w3D=0.
+       Me%SeagrassesLeaves%UptakePO4w3D=0.
+       Me%SeagrassesLeaves%UptakePO4w3D=0.
+       Me%SeagrassesLeaves%Volume=0.
+        
+        ! allocare Me%Rates come array 2d
+
+
+        Index = 0
+
+        nullify (SeagrassesLeavesPropertyList)
+        allocate(SeagrassesLeavesPropertyList(1:Me%Coupled%SeagrassesLeaves%NumberOfProperties))
+
+        PropertyX => Me%FirstProperty
+            
+ DoProd1:       do while(associated(PropertyX))
+
+            if(PropertyX%Evolution%SeagrassesLeaves)then
+
+                Index                               = Index + 1
+                SeagrassesLeavesPropertyList(Index) = PropertyX%ID%IDNumber
+                
+                
+                if(PropertyX%ID%IDNumber == SeagrassesLeaves_)then
+                
+                
+                                
+                  if(PropertyX%Evolution%AdvectionDiffusion)then
+                    
+                    write(*,*)
+                    write(*,*)'Seagrasses Leaves can not have ADVECTION_DIFFUSION'
+                    write(*,*)'Property : ', trim(adjustl(PropertyX%ID%Name))
+                    write(*,*)'ADVECTION_DIFFUSION will be switched off'
+                    
+                    PropertyX%Evolution%AdvectionDiffusion = OFF
+
+                end if
+
+                    if(PropertyX%Old)then
+                        call Read_Old_Properties_2D(Me%SeagrassesLeaves%Biomass, "seagrasses leaves biomass" )
+                    else
+                        call LeavesOccupation(Me%SeagrassesLeaves)
+                       call DistributeLeaves(PropertyX, Me%SeagrassesLeaves)
+                    end if
+
+                end if
+             
+      end if
+            
+            PropertyX => PropertyX%Next
+        enddo DoProd1
+        
+        nullify(PropertyX)
+
+        call ConstructInterface(InterfaceID         = Me%ObjSeagrassWaterInteraction,   &
+                                TimeID              = Me%ObjTime,                        &
+                                SinksSourcesModel   = SeagrassWaterInteractionModel,                   &
+                                DT                  = SeagrassesLeavesDT,                &
+                                PropertiesList      = SeagrassesLeavesPropertyList,      &
+                                WaterPoints3D       = Me%ExternalVar%WaterPoints3D,      &
+                                Size3D              = Me%WorkSize,                       &
+                                Vertical1D          = Me%ExternalVar%Vertical1D,         &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'CoupleSeagrassesLeaves - ModuleWaterProperties - ERR01'
+        
+        Me%Coupled%SeagrassesLeaves%DT_Compute   = SeagrassesLeavesDT 
+        Me%Coupled%SeagrassesLeaves%NextCompute  = Me%ExternalVar%Now
+        
+        deallocate(SeagrassesLeavesPropertyList)
+        nullify   (SeagrassesLeavesPropertyList)
+        
+        
+
+          
+    end subroutine CoupleSeagrassesLeaves
+    
+!------------------------------------------------------------------------------ 
 
     subroutine CoupleWWTPQ
 
@@ -3675,6 +3895,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         if (NewProperty%Evolution%WaterQuality          .or.                            &
             NewProperty%Evolution%MacroAlgae            .or.                            &
+            NewProperty%Evolution%SeagrassesLeaves      .or.                            &
             NewProperty%Evolution%CEQUALW2              .or.                            &
             NewProperty%Evolution%Life                  .or.                            &
             NewProperty%Evolution%WWTPQ                 .or.                            &
@@ -4816,6 +5037,33 @@ case1 : select case(PropertyID)
             stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR50'
 
         if(NewProperty%Evolution%Macroalgae) NewProperty%evolution%Variable = .true.
+        
+        
+        !<BeginKeyword>
+            !Keyword          : SEAGRLEAVES
+            !<BeginDescription>       
+               ! This property has BenthicProducers Model as a sink and source
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : FALSE
+            !File keyword     : DISPQUAL
+            !Multiple Options : NO, WQM
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>    
+           
+        call GetData(NewProperty%Evolution%SeagrassesLeaves,                            &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'SEAGRLEAVES',                                &
+                     Default      = OFF,                                                &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR55'
+
+        if(NewProperty%Evolution%SeagrassesLeaves) NewProperty%evolution%Variable = .true.
 
         !<BeginKeyword>
             !Keyword          : CEQUALW2
@@ -7929,6 +8177,10 @@ cd2 :       if (BlockFound) then
                 case(MacroAlgae_)
                     
                     if(PropertyX%Evolution%MacroAlgae   ) SolarRadiationIsNeeded = .true.
+                
+                case(SeagrassesLeaves_)
+                    
+                    if(PropertyX%Evolution%SeagrassesLeaves) SolarRadiationIsNeeded = .true.
 
                 case(Algae_1_, Algae_2_, Algae_3_, Algae_4_, Algae_5_)
                 
@@ -8056,6 +8308,7 @@ cd2 :       if (BlockFound) then
             write(*, *)"---CEQUALW2         : ", CurrentProperty%Evolution%CEQUALW2
             write(*, *)"---Life             : ", CurrentProperty%Evolution%Life
             write(*, *)"---MacroAlgae       : ", CurrentProperty%Evolution%MacroAlgae
+            write(*, *)"---Seagrasses       : ", CurrentProperty%Evolution%SeagrassesLeaves
             write(*, *)"---WWTPQ            : ", CurrentProperty%Evolution%WWTPQ
             write(*, *)"---Partitioning     : ", CurrentProperty%Evolution%Partitioning
             write(*, *)"---Free Vert. Mov   : ", CurrentProperty%Evolution%FreeVerticalMovement
@@ -8075,8 +8328,63 @@ cd2 :       if (BlockFound) then
     end subroutine ConstructLog
     
     
-    !--------------------------------------------------------------------------
 
+!--------------------------------------------------------------------------
+
+
+    subroutine Read_Old_Properties_2D(Scalar_2D, PropertyName)
+
+        !Arguments--------------------------------------------------------------
+        real, dimension(:,:), pointer               :: Scalar_2D
+        character (Len=*), Intent(IN)               :: PropertyName
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: IUB, JUB, ILB, JLB 
+        integer                                     :: STAT_CALL
+        integer                                     :: HDF5_READ
+        integer                                     :: ObjHDF5 = 0
+        logical                                     :: exist
+
+        !----------------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB 
+        JLB = Me%WorkSize%JLB
+        IUB = Me%WorkSize%IUB 
+        JUB = Me%WorkSize%JUB
+
+
+        ObjHDF5 = 0
+
+
+        inquire(File = trim(Me%Files%InitialWaterProperties)//"5", Exist = exist)
+        
+        if(.not. exist)then
+            write(*,*) 
+            write(*,*)     'Could not find the final WaterProperties file.'
+            write(*,'(A)') 'Hdf5 file name = ', trim(Me%Files%InitialWaterProperties)//"5"
+            stop           'Read_Old_Properties_2D - WaterProperties - ERR00'    
+        end if
+
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+        !Opens HDF5 File
+        call ConstructHDF5 (ObjHDF5, trim(Me%Files%InitialWaterProperties)//"5", HDF5_READ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - WaterProperties - ERR01'
+            
+        !Reads from HDF file the Property concentration and open boundary values
+        call HDF5SetLimits  (ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - WaterProperties - ERR02'
+            
+        call HDF5ReadData(ObjHDF5, trim("/Results/"//PropertyName), &
+                          PropertyName, Array2D = Scalar_2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'read_Old_Properties_2D - WaterProperties - ERR03'            
+        
+        call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'read_Old_Properties_2D - WaterProperties - ERR04'            
+
+    end subroutine Read_Old_Properties_2D
+    !------------------------------------------------------------------------------------
 
     subroutine ConstructGlobalOutput 
 
@@ -8659,6 +8967,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Coupled%MacroAlgae%Yes)                    &
                 call MacroAlgae_Processes
+                
+            if (Me%Coupled%SeagrassesLeaves%Yes)              &
+                call SeagrassesLeaves_Processes
 
             if (Me%Coupled%WWTPQM%Yes)                           &
                 call WWTPQ_Processes
@@ -11808,6 +12119,581 @@ cd5:                if (TotalVolume > 0.) then
         enddo
 
     end subroutine MacroAlgaePhysicalConditions
+    
+    
+    !--------------------------------------------------------------------------
+    
+    
+    subroutine SeagrassesLeaves_Processes
+        !Local----------------------------------------------------------------- 
+        type (T_Property),       pointer         :: PropertyX
+        type (T_WQRate  ), pointer              :: WqRateX
+        real, dimension(:,:,:), pointer         :: ShortWaveExtinctionField
+        real, dimension(:,:,:), pointer         :: ShortWaveTop
+        !real, dimension(:,:,:), pointer :: Volume
+        integer                                  :: i, j, k, kbottom
+        integer                                  :: ILB, IUB, JLB, JUB,KLB, KUB
+        integer                                  :: STAT_CALL
+        real, dimension(:,:  ), pointer         :: WaterColumnZ
+       
+        
+        !Begin----------------------------------------------------------------- 
+
+            ILB = Me%WorkSize%ILB 
+            IUB = Me%WorkSize%IUB 
+            JLB = Me%WorkSize%JLB 
+            JUB = Me%WorkSize%JUB 
+            KUB = Me%WorkSize%KUB
+            KLB = Me%WorkSize%KLB
+        
+        
+
+        ShortWaveTop => Me%SolarRadiation%ShortWaveTop
+        
+        !Short wave light extinction coefficient
+        call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR01'
+
+        
+        PropertyX => Me%FirstProperty
+
+       do while (associated(PropertyX))
+
+                if (PropertyX%Evolution%SeagrassesLeaves) then
+                
+                    if(PropertyX%ID%IDNumber == SeagrassesLeaves_)then
+                                    
+                        call LeavesOccupation(Me%SeagrassesLeaves)
+                        call DistributeLeaves(PropertyX, Me%SeagrassesLeaves)
+                        
+                        
+                    end if
+                
+               
+                
+                end if 
+                
+                PropertyX=>PropertyX%Next
+       end do
+       
+       
+        
+            do k=KLB, KUB
+            do j=JLB, JUB
+            do i=ILB, IUB
+            
+            
+            !if (Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) then
+
+           ! if (Me%SeagrassesLeaves%NintFactor2D(i,j) < 0) then
+            ! Write (*,*), 'NintFactor = ',Me%SeagrassesLeaves%NintFactor2D(i,j), 'in cell i = ' ,i, 'j = ' ,j
+            ! Me%SeagrassesLeaves%NintFactor2D(i,j)=0.
+            !factors assumed to be the constant over the water column 
+            
+
+           ! endif
+            
+           !  if (Me%SeagrassesLeaves%PintFactor2D(i,j) < 0) then
+           !  Write (*,*), 'PintFactor = ',Me%SeagrassesLeaves%PintFactor2D(i,j), 'in cell i = ' ,i, 'j = ' ,j
+           !  Me%SeagrassesLeaves%PintFactor2D(i,j)=0.
+            !factors assumed to be the constant over the water column 
+            
+
+            !endif
+            
+            Me%SeagrassesLeaves%NintFactor3D(i,j,k)=Me%SeagrassesLeaves%NintFactor2D(i,j)
+            Me%SeagrassesLeaves%PintFactor3D(i,j,k)=Me%SeagrassesLeaves%PintFactor2D(i,j)
+            
+            Me%SeagrassesLeaves%SeagrassesL3D(i,j,k)=Me%SeagrassesLeaves%Length(i,j)
+            !endif        
+            
+            enddo
+            enddo
+            enddo
+
+        
+            
+            PropertyX => Me%FirstProperty
+
+        if (Me%ExternalVar%Now .GE. Me%Coupled%SeagrassesLeaves%NextCompute) then
+
+
+
+          
+            do while(associated(PropertyX))
+
+
+            if(PropertyX%ID%IDNumber == SeagrassesLeaves_)then
+           
+
+            Me%SeagrassesLeaves%Volume=>Me%ExternalVar%VolumeZ
+
+            
+                call Modify_Interface(InterfaceID       = Me%ObjSeagrassWaterInteraction,       &
+                                      PropertyID        = PropertyX%ID%IDNumber,                 &
+                                      Concentration     = PropertyX%Concentration,               &
+                                      WaterPoints3D     = Me%ExternalVar%WaterPoints3D,          &
+                                      OpenPoints3D      = Me%ExternalVar%OpenPoints3D,           &
+                                      ShortWaveTop      = ShortWaveTop,                          &
+                                      LightExtCoefField = ShortWaveExtinctionField,              &
+                                      WaterCellVol3D    = Me%SeagrassesLeaves%Volume,            &
+                                      NintFac3D         = Me%SeagrassesLeaves%NintFactor3D,      &
+                                      PintFac3D         = Me%SeagrassesLeaves%PintFactor3D,      &
+                                      SeagrassesLength   = Me%SeagrassesLeaves%SeagrassesL3D,            & 
+                                      DWZ               = Me%ExternalVar%DWZ,                    &
+                                      STAT              = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                                     &
+                    stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR02'
+            else
+                   call Modify_Interface(InterfaceID       = Me%ObjSeagrassWaterInteraction,       &
+                                      PropertyID        = PropertyX%ID%IDNumber,                 &
+                                      Concentration     = PropertyX%Concentration,               &
+                                      WaterPoints3D     = Me%ExternalVar%WaterPoints3D,          &
+                                      OpenPoints3D      = Me%ExternalVar%OpenPoints3D,           &
+                                      STAT              = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                                     &
+                    stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR02'
+            endif
+                PropertyX => PropertyX%Next
+
+            end do
+
+            Me%Coupled%SeagrassesLeaves%NextCompute = Me%Coupled%SeagrassesLeaves%NextCompute + &
+                                                      Me%Coupled%SeagrassesLeaves%DT_Compute
+            
+        end if 
+
+
+
+
+        PropertyX => Me%FirstProperty
+
+        do while (associated(PropertyX))
+
+            if (PropertyX%Evolution%SeagrassesLeaves) then
+    
+                    if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
+
+                         call Modify_Interface(InterfaceID   = Me%ObjSeagrassWaterInteraction,  &
+                                          PropertyID    = PropertyX%ID%IDNumber,            &
+                                          Concentration = PropertyX%Concentration,          &
+                                          DTProp        = PropertyX%Evolution%DTInterval,   &
+                                          WaterPoints3D = Me%ExternalVar%WaterPoints3D,     &
+                                          OpenPoints3D  = Me%ExternalVar%OpenPoints3D,      &
+                                          STAT          = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR03'
+
+
+            endif
+
+            endif
+            
+            PropertyX=>PropertyX%Next
+
+        enddo
+        
+        
+
+
+
+        WqRateX => Me%FirstWqRate
+        
+        
+        do while (associated(WqRateX))
+
+            if(WqRateX%Model == 'SeagrassWaterInteraction')then
+
+                  call GetRateFlux(InterfaceID    = Me%ObjSeagrassWaterInteraction,          &
+                                 FirstProp      = WqRateX%FirstProp%IDNumber,               &
+                                 SecondProp     = WqRateX%SecondProp%IDNumber,              &
+                                 RateFlux3D     = WqRateX%Field,                            &
+                                 WaterPoints3D  = Me%ExternalVar%WaterPoints3D,             &
+                                 STAT           = STAT_CALL)
+                   if (STAT_CALL .NE. SUCCESS_)                                                &
+                    stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR04'
+
+
+                   WqRateX%Field2=>WqRateX%Field
+                   
+                   
+                   
+                       if (WqRateX%FirstProp%IDNumber==LeavesUptakeN_) then
+             
+             
+                         Me%SeagrassesLeaves%UptakeNH4NO3w3D =WqRateX%Field
+                         
+                         
+                         
+                         where (Me%ExternalVar%WaterPoints3D == WaterPoint) &
+                                  WqRateX%Field2=  WqRateX%Field2 * Me%ExternalVar%VolumeZ 
+
+                            call BoxDif(Me%ObjBoxDif,                                                   &
+                                         WqRateX%Field2,                                                  &
+                                        trim(WqRateX%ID%Name),                                          &
+                                        Me%ExternalVar%WaterPoints3D,                                   &
+                                        STAT  = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                                                &
+                                stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR05'
+                   
+                      elseif (WqRateX%FirstProp%IDNumber==LeavesUptakeP_) then
+                   
+               
+                        Me%SeagrassesLeaves%UptakePO4w3D = WqRateX%Field
+                        
+                        
+                        where (Me%ExternalVar%WaterPoints3D == WaterPoint) &
+                                  WqRateX%Field2=  WqRateX%Field2 * Me%ExternalVar%VolumeZ 
+
+                            call BoxDif(Me%ObjBoxDif,                                                   &
+                                         WqRateX%Field2,                                                  &
+                                        trim(WqRateX%ID%Name),                                          &
+                                        Me%ExternalVar%WaterPoints3D,                                   &
+                                        STAT  = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                                                &
+                                stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR05'
+               
+               
+                     elseif(WqRateX%FirstProp%IDNumber==LeavesLightFactor_) then
+                     
+                     
+                          Me%SeagrassesLeaves%LightFactor3D = WqRateX%Field
+                          
+                          call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)
+                          if (STAT_CALL /= SUCCESS_)  stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR01'
+        
+                          
+                                        do j = JLB, JUB
+                               do i = ILB, IUB 
+                                  
+                                  if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                                    kbottom = Me%ExternalVar%KFloor_Z(i, j)
+                                       if (Me%WorkSize%KUB > 1) then
+                                       
+                                               do k = kbottom, KUB
+                                               ! light factor is calculated in each cell and is varying between 0 and 1
+                                               ! and it is multiplied by the percent of plant present in each cell
+                                               ! In moduleInterfaceSedimentWater, the factor is summed up over the water column
+                                               ! to get the total light factor
+                                                Me%SeagrassesLeaves%LightFactor3D(i,j,k) =Me%SeagrassesLeaves%LightFactor3D(i,j,k) * &
+                                                                                          Me%SeagrassesLeaves%Occupation(i,j,k)    * &
+                                                                                         ( Me%ExternalVar%DWZ(i, j, k)             / &
+                                                                                          Me%SeagrassesLeaves%Length(i,j)  )
+                                                                            
+                                              enddo
+                                       else
+                                              
+                                               Me%SeagrassesLeaves%LightFactor3D(i,j,k)=Me%SeagrassesLeaves%LightFactor3D(i,j,kbottom)
+                                       
+                                       endif
+                                 
+                                  endif
+                              
+                               enddo
+                               enddo 
+                               
+                                call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL)
+                     
+                     
+                             if (STAT_CALL /= SUCCESS_) stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR20'   
+                    
+                     where (Me%ExternalVar%WaterPoints3D == WaterPoint) &
+                                  WqRateX%Field2=  WqRateX%Field2 * Me%ExternalVar%VolumeZ 
+
+                            call BoxDif(Me%ObjBoxDif,                                                   &
+                                         WqRateX%Field2,                                                  &
+                                        trim(WqRateX%ID%Name),                                          &
+                                        Me%ExternalVar%WaterPoints3D,                                   &
+                                        STAT  = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                                                &
+                                stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR05'
+                    else
+
+                            where (Me%ExternalVar%WaterPoints3D == WaterPoint) &
+                                 WqRateX%Field =  WqRateX%Field * Me%ExternalVar%VolumeZ / &
+                                                Me%Coupled%SeagrassesLeaves%DT_Compute
+
+                            call BoxDif(Me%ObjBoxDif,                                                   &
+                                         WqRateX%Field,                                                  &
+                                        trim(WqRateX%ID%Name),                                          &
+                                        Me%ExternalVar%WaterPoints3D,                                   &
+                                        STAT  = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                                                &
+                                stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR05'
+                    endif
+            end if  
+              
+             WqRateX=> WqRateX%Next  
+
+        enddo
+
+        nullify( WqRateX)
+        nullify(PropertyX)
+     
+
+     call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR06'
+
+     
+     end   subroutine SeagrassesLeaves_Processes
+     
+
+ !--------------------------------------------------------------------------
+
+    subroutine DistributeLeaves(PropertyX, SeagrassesLeaves)
+        
+        !Arguments------------------------------------------------------------- 
+        type (T_Property),      pointer         :: PropertyX
+        type (T_SeagrassesLeaves)               :: SeagrassesLeaves
+       
+        !Local----------------------------------------------------------------- 
+        real, dimension(:,:  ), pointer         :: WaterColumnZ
+        integer                                 :: i, j, k, kbottom
+        integer                                 :: ILB, IUB, JLB, JUB, KUB
+        integer                                 :: STAT_CALL
+        
+        !Begin----------------------------------------------------------------- 
+
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB 
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        KUB = Me%WorkSize%KUB
+
+        !WaterColumnZ
+        call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DistributeLeaves - ModuleWaterProperties - ERR02'
+
+        if(Me%WorkSize%KUB > 1)then
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                    kbottom = Me%ExternalVar%KFloor_Z(i, j)
+                    
+                    SeagrassesLeaves%Length(i,j)=SeagrassesLeaves%Biomass(i,j)*SeagrassesLeaves%LBratio
+
+                    do k = kbottom, KUB
+                        !gdw/m3 = gdw/m2 * m2 / m3 * m / m
+                        PropertyX%Concentration(i,j,k) = SeagrassesLeaves%Occupation(i,j,k) * &
+                                                         SeagrassesLeaves%Biomass(i,j)      * &
+                                                         Me%ExternalVar%GridCellArea(i,j)  / &
+                                                         Me%ExternalVar%VolumeZ(i,j,k)     * &
+                                                        (Me%ExternalVar%DWZ(i,j,k)         / &
+                                                         SeagrassesLeaves%Length(i,j))
+
+                    enddo
+
+                endif
+
+            enddo
+            enddo
+
+        else
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                    kbottom = Me%ExternalVar%KFloor_Z(i, j)
+             
+               SeagrassesLeaves%Length(i,j)=SeagrassesLeaves%Biomass(i,j)*SeagrassesLeaves%LBratio
+                                   
+               
+                    do k = kbottom, KUB
+
+                        !gdw/m3 = gdw/m2 * m2 / m3 
+                        PropertyX%Concentration(i,j,k) = SeagrassesLeaves%Biomass(i,j) * &
+                                                         Me%ExternalVar%GridCellArea(i,j)  / &
+                                                         Me%ExternalVar%VolumeZ(i,j,k)
+
+                    enddo
+
+
+
+                endif
+
+            enddo
+            enddo
+
+        endif
+
+                
+        call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'DistributeLeaves - ModuleWaterProperties - ERR06'
+
+    end subroutine DistributeLeaves
+    
+    !---------------------------------------------------------------------------------------------
+
+    subroutine  LeavesOccupation(SeagrassesLeaves)  
+    
+  
+          
+        !Arguments------------------------------------------------------------- 
+        type (T_SeagrassesLeaves)                          :: SeagrassesLeaves
+        
+        !Local----------------------------------------------------------------- 
+        real, dimension(:,:  ), pointer         :: WaterColumnZ
+        integer                                 :: i, j, k, kbottom
+        integer                                 :: ILB, IUB, JLB, JUB, KUB, KLB
+        integer                                 :: STAT_CALL
+        real                                    :: Remaining_leaves_Length
+        
+        !Begin----------------------------------------------------------------- 
+
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB 
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        KUB = Me%WorkSize%KUB  
+        KLB = Me%WorkSize%KLB
+
+       
+
+         !WaterColumnZ
+        call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'LeavesOccupation - ModuleWaterProperties - ERR01'
+        
+        
+        
+
+      
+
+        call SetMatrixValue(SeagrassesLeaves%Occupation, Me%WorkSize, 0.)
+
+        !if running in 3D
+        if(Me%WorkSize%KUB > 1)then
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+            
+            kbottom = Me%ExternalVar%KFloor_Z(i, j)
+
+                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                   
+                    SeagrassesLeaves%Length(i,j)=SeagrassesLeaves%Biomass(i,j)*SeagrassesLeaves%LBratio
+                    if(SeagrassesLeaves%Length(i,j) .ge. WaterColumnZ(i,j))then
+
+                        SeagrassesLeaves%Occupation(i,j,kbottom:KUB) = 1
+
+                    else
+
+                        k = kbottom    ! index for the top sediment layer
+
+                        Remaining_leaves_Length = SeagrassesLeaves%Length(i,j)
+
+                        do while(k .LE. KUB)
+
+                            
+                            if  (Remaining_leaves_Length >= Me%ExternalVar%DWZ(i,j,k))then
+
+                                SeagrassesLeaves%Occupation(i,j,k)   = 1.
+                                Remaining_leaves_Length               = Remaining_leaves_Length - Me%ExternalVar%DWZ(i,j,k)
+                            else
+                                SeagrassesLeaves%Occupation(i,j,k)   = Remaining_leaves_Length / Me%ExternalVar%DWZ(i,j,k)
+
+                            end if
+                                k                                   = k + 1
+                        end do
+
+                    end if
+
+                endif
+
+            enddo
+            enddo
+        
+        else !if running in 2D (this way is faster)
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                kbottom = Me%ExternalVar%KFloor_Z(i, j)
+                
+                
+                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                    
+                    SeagrassesLeaves%Length(i,j)=SeagrassesLeaves%Biomass(i,j)*SeagrassesLeaves%LBratio
+
+                    if (SeagrassesLeaves%Length(i,j) .ge. WaterColumnZ(i,j))then
+                        
+                        SeagrassesLeaves%Occupation(i,j,kbottom:KUB) = 1.
+
+                    else
+
+                        SeagrassesLeaves%Occupation(i,j,kbottom:KUB) = SeagrassesLeaves%Length(i,j) / &
+                                                                      WaterColumnZ(i,j)
+                    end if
+
+                endif
+
+            enddo
+            enddo
+
+        end if
+
+         call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'LeavesOccupation - ModuleWaterProperties - ERR02'   
+         
+    end  subroutine LeavesOccupation  
+    
+   !--------------------------------------------------------------------------
+    subroutine GetSeagrassesLeavesRates(WaterPropertiesID, RateID, Rateflux, STAT)  
+   
+        !Arguments---------------------------------------------------------------
+        integer                                     :: WaterPropertiesID
+        real, pointer, dimension(:,:,:)             :: Rateflux
+        integer,                      intent(IN)    :: RateID
+        integer,            optional, intent(OUT)   :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(WaterPropertiesID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mWATERPROPERTIES_, Me%InstanceID) 
+            
+            select case(RateID)
+           
+            case(LeavesUptakeN_)
+           
+            Rateflux => Me%SeagrassesLeaves%UptakeNH4NO3w3D
+            
+            case(LeavesUptakeP_)
+           
+            Rateflux => Me%SeagrassesLeaves%UptakePO4w3D
+         
+         
+            case(LeavesLightFactor_)
+           
+            Rateflux => Me%SeagrassesLeaves%LightFactor3D            
+           
+            end select
+
+            STAT_ = SUCCESS_
+            
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetSeagrassesLeavesRates
 
     !--------------------------------------------------------------------------
     !   Makes the connection between the Water         
@@ -15334,17 +16220,35 @@ do9:                do k=kbottom, KUB
                     if(NeedsParameters)then
 
                         ExtinctionParameter = PropertyX%Evolution%Extinction%Coefficient 
+                        
+                        if(PropertyX%ID%IDNumber == MacroAlgae_)then
 
-                        call ModifyLightExtinctionField(LightExtinctionID   = Me%ObjLightExtinction,          &
-                                                        WaterPoints3D       = Me%ExternalVar%WaterPoints3D,   &
-                                                        CurrentTime         = Me%ExternalVar%Now,             &
-                                                        PropertyID          = PropertyX%ID%IDNumber,          &
-                                                        Concentration       = PropertyX%Concentration,        &
-                                                        UnitsCoef           = PropertyX%IScoefficient,        &
-                                                        ExtinctionParameter = ExtinctionParameter,            &
-                                                        MacroAlgaeOccupation= Me%MacroAlgae%Occupation,       &
-                                                        STAT                = STAT_CALL)
-                        if (STAT_CALL/= SUCCESS_) stop 'Compute_SWExtCoefField - ModuleWaterProperties - ERR02'
+                            call ModifyLightExtinctionField(LightExtinctionID   = Me%ObjLightExtinction,          &
+                                                            WaterPoints3D       = Me%ExternalVar%WaterPoints3D,   &
+                                                            CurrentTime         = Me%ExternalVar%Now,             &
+                                                            PropertyID          = PropertyX%ID%IDNumber,          &
+                                                            Concentration       = PropertyX%Concentration,        &
+                                                            UnitsCoef           = PropertyX%IScoefficient,        &
+                                                            ExtinctionParameter = ExtinctionParameter,            &
+                                                            ProducerOccupation  = Me%MacroAlgae%Occupation,       &
+                                                            STAT                = STAT_CALL)
+                            if (STAT_CALL/= SUCCESS_) stop 'Compute_SWExtCoefField - ModuleWaterProperties - ERR02'
+                        
+                        elseif(PropertyX%ID%IDNumber == SeagrassesLeaves_)then     
+                        
+                        
+                            call ModifyLightExtinctionField(LightExtinctionID        = Me%ObjLightExtinction,          &
+                                                                WaterPoints3D            = Me%ExternalVar%WaterPoints3D,   &
+                                                                CurrentTime              = Me%ExternalVar%Now,             &
+                                                                PropertyID               = PropertyX%ID%IDNumber,          &
+                                                                Concentration            = PropertyX%Concentration,        &
+                                                                UnitsCoef                = PropertyX%IScoefficient,        &
+                                                                ExtinctionParameter      = ExtinctionParameter,            &
+                                                                ProducerOccupation = Me%SeagrassesLeaves%Occupation, & 
+                                                                STAT                      = STAT_CALL)
+                                if (STAT_CALL/= SUCCESS_) stop 'Compute_SWExtCoefField - ModuleWaterProperties - ERR02.1'
+                         
+                         endif
 
                     else
 
@@ -15715,6 +16619,25 @@ sp3:                if (.not. SimpleOutPut) then
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR170'
                 
             end if
+            
+            
+             if (Me%Coupled%SeagrassesLeaves%Yes .and. .not. SimpleOutPut)then
+            
+
+                   
+                       call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                         &
+                                             WorkJLB, WorkJUB, WorkKLB, WorkKUB,                &
+                                             STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR142'
+
+                        call HDF5WriteData  (ObjHDF5, "/Results/"//"seagrasses leaves biomass",   &
+                                             "seagrasses leaves biomass", "gdw/m2",                &
+                                             Array2D = Me%SeagrassesLeaves%Biomass,              &
+                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR144'
+                        
+
+           endif
 
 
             !Bounds
@@ -17143,7 +18066,58 @@ cd2 :           if (PropertyX%SubModel%ON) then
     end subroutine GetShortWaveRadiationAverage
 
     !----------------------------------------------------------------------------
+    subroutine GetSeagrassArray2D(WaterPropertiesID, Array, ArrayID, STAT)  
+    !
 
+        !Arguments---------------------------------------------------------------
+        integer                                     :: WaterPropertiesID
+        real, pointer, dimension(:,:)               :: Array
+        integer,            optional, intent(OUT)   :: STAT
+        integer,            optional, intent(IN)    :: ArrayID
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(WaterPropertiesID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mWATERPROPERTIES_, Me%InstanceID) 
+           
+           select case(ArrayID)
+           
+           case(SeagrassesLeaves_)
+
+            Array => Me%SeagrassesLeaves%Biomass
+           
+          case(NintFactor_)
+
+            Array => Me%SeagrassesLeaves%NintFactor2D
+            
+          case(PintFactor_)
+
+            Array => Me%SeagrassesLeaves%PintFactor2D
+          
+          
+          end select
+
+            STAT_ = SUCCESS_
+            
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetSeagrassArray2D
+
+    !--------------------------------------------------------------------------
     
     subroutine GetFiltrationRate (WaterPropertiesID, FiltrationRateX,                   &
                                   DTProp, PropertyXIDNumber, STAT)
@@ -17658,13 +18632,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                     (PropertyX%ID%IDNumber == Algae_1_       )  .or. &
                     (PropertyX%ID%IDNumber == Diatom_C_      )  .or. &
                     (PropertyX%ID%IDNumber == Epiphyton_1_   )  .or. &
-                    (PropertyX%ID%IDNumber == MacroAlgae_)) then
+                    (PropertyX%ID%IDNumber == MacroAlgae_    )  .or. &
+                    (PropertyX%ID%IDNumber == SeagrassesLeaves_) ) then
              
                     if((PropertyX%Evolution%WaterQuality)       .or. &
                        (PropertyX%Evolution%CEQUALW2    )       .or. &
                        (PropertyX%Evolution%Life        )       .or. &
                        (PropertyX%Evolution%MacroAlgae  )       .or. &
-                       (PropertyX%Evolution%WWTPQ  )) WQMYes = .true.
+                       (PropertyX%Evolution%WWTPQ       )       .or. &
+                       (PropertyX%Evolution%SeagrassesLeaves )) WQMYes = .true.
                     
                 end if
 
@@ -17865,7 +18841,41 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
     !--------------------------------------------------------------------------
 
+subroutine UngetWaterProperties2D(WaterPropertiesID, Array, STAT)
 
+        !Arguments-------------------------------------------------------------
+        integer                                     :: WaterPropertiesID
+        real, pointer, dimension(:,:)               :: Array
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_ 
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(WaterPropertiesID, ready_)    
+
+cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
+            nullify(Array)
+
+            call Read_UnLock(mWATERPROPERTIES_, Me%InstanceID, "UngetWaterProperties2D")
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine UngetWaterProperties2D
+
+    !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
     logical function WaterPropertyExists(WaterPropertiesID, PropIDNumber, STAT)
@@ -19181,6 +20191,47 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                     nullify(Me%MacroAlgae%Height    )
 
                 end if
+                
+                
+                if(Me%Coupled%SeagrassesLeaves%Yes) then
+                
+                 call KillInterface(Me%ObjSeagrassWaterInteraction, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'KillWaterProperties - ModuleWaterProperties - ERR424'
+                
+                 deallocate(Me%SeagrassesLeaves%Biomass                    ) 
+                 deallocate(Me%SeagrassesLeaves%Length                     )
+                 deallocate(Me%SeagrassesLeaves%Occupation                 )
+                 deallocate(Me%SeagrassesLeaves%NintFactor3D               )
+                 deallocate(Me%SeagrassesLeaves%NintFactor2D               )
+                 deallocate(Me%SeagrassesLeaves%PintFactor3D               )
+                 deallocate(Me%SeagrassesLeaves%SeagrassesL3D               )
+                 deallocate(Me%SeagrassesLeaves%PintFactor2D               )
+                 deallocate(Me%SeagrassesLeaves%UptakeNH4NO3w3D            )
+                 deallocate(Me%SeagrassesLeaves%UptakePO4w3D               )
+                 deallocate(Me%SeagrassesLeaves%LightFactor3D                )
+                 !deallocate(Me%SeagrassesLeaves%Volume                )
+
+                 
+
+
+            
+                 nullify(Me%SeagrassesLeaves%Biomass                    ) 
+                 nullify(Me%SeagrassesLeaves%Length                     )
+                 nullify(Me%SeagrassesLeaves%Occupation                 )
+                 nullify(Me%SeagrassesLeaves%NintFactor3D               )
+                 nullify(Me%SeagrassesLeaves%NintFactor2D               )
+                 nullify(Me%SeagrassesLeaves%PintFactor3D               )
+                 nullify(Me%SeagrassesLeaves%PintFactor2D               )
+                 nullify(Me%SeagrassesLeaves%UptakeNH4NO3w3D            )
+                 nullify(Me%SeagrassesLeaves%UptakePO4w3D               )
+                 nullify(Me%SeagrassesLeaves%LightFactor3D                )
+                 !nullify(Me%SeagrassesLeaves%Volume                )
+               
+                
+                endif
+
+                
 
                 if(Me%Coupled%HybridReferenceField)then
 
@@ -19531,6 +20582,22 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                     stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR180'
 
             end if
+            
+             if (Property%ID%IDNumber==SeagrassesLeaves_) then
+                
+                    call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                             &
+                                         WorkJLB, WorkJUB, WorkKLB, WorkKUB,                    &
+                                         STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR14'
+
+                    call HDF5WriteData  (ObjHDF5, "/Results/"//"seagrasses leaves biomass",       &
+                                         "seagrasses leaves biomass", "gdw/m2",                    &
+                                         Array2D = Me%SeagrassesLeaves%Biomass)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR15'
+                    
+
+               
+               endif 
             
             if(Property%Evolution%Filtration%On)then
             

@@ -44,6 +44,8 @@ Module ModuleInterface
     use ModuleEnterData, only: ReadFileName
     use ModuleBenthicEcology
     use ModuleWWTPQ
+    use ModuleSeagrassSedimInteraction
+    use ModuleSeagrassWaterInteraction
 
 #ifdef _PHREEQC_ 
     use ModulePhreeqC
@@ -164,6 +166,7 @@ Module ModuleInterface
         module procedure UnfoldMatrix2D_R
         module procedure UnfoldMatrix3D_I
         module procedure UnfoldMatrix3D_R
+        module procedure UnfoldMatrix3D_R8
     end interface  UnfoldMatrix
 
 
@@ -178,6 +181,7 @@ Module ModuleInterface
         integer, dimension(:, :, :), pointer    :: OpenPoints3D
         real,    dimension(:      ), pointer    :: DWZ1D
         real,    dimension(:, :, :), pointer    :: DWZ, ShearStress, SPMFlux
+        real(8),    dimension(:, :, :), pointer    :: SedimCellVol
         logical                                 :: Vertical1D = .false.
     end type T_External
 
@@ -239,10 +243,20 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: CellArea
         real,    pointer, dimension(:,:  )      :: MassInKgFromWater
         real,    pointer, dimension(:,:  )      :: WaterMassInKgIncrement
-        real,    pointer, dimension(:    )      :: Sediment
-        real,    pointer, dimension(:    )      :: BottomSWRadiationAverage
+        real,    pointer, dimension(:    )      :: Sediment    
+        real,    pointer, dimension(:    )      :: BottomSWRadiationAverage !Isabella
         real,    pointer, dimension(:    )      :: ShearStress2D
-
+        real,    pointer, dimension(:    )      :: UptakeNH4NO3w   
+        real,    pointer, dimension(:    )      :: UptakePO4w   
+        real,    pointer, dimension(:    )      :: UptakeNH4s   
+        real,    pointer, dimension(:    )      :: LightFactor  
+        real,    pointer, dimension(:    )      :: NintFactor   !Isabella
+        real,    pointer, dimension(:    )      :: NintFactorR   !Isabella
+        real,    pointer, dimension(:    )      :: PintFactor   !Isabella 
+        real,    pointer, dimension(:    )      :: RootsMort   !Isabella
+        real,    pointer, dimension(:    )      :: SeagrassesLength   !Isabella
+        real(8),    pointer, dimension(:    )      :: WaterCellVol  ! 3d   !Isabella
+        real(8),    pointer, dimension(:    )      :: SedimCellVol  ! 3d   !Isabella
         !Instance of ModuleTime
         integer                                 :: ObjTime              = 0
 
@@ -277,6 +291,15 @@ Module ModuleInterface
         
         !Instance of ModuleWWTPQ
         integer                                 :: ObjWWTPQ             = 0
+        
+                
+        !Instance of ModuleSeagrassesRoots
+        integer                                 :: ObjSeagrassSedimInteraction   = 0
+        
+       !Instance of ModuleSeagrassWaterInteraction
+        integer                                 :: ObjSeagrassWaterInteraction   = 0
+        
+        
 
         !Collection of instances                
         type(T_Interface),          pointer     :: Next        
@@ -881,13 +904,88 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 allocate(Me%ShearStress2D(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26.4'
+                
+                 allocate(Me%UptakeNH4NO3w(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR203'    
+        
+               allocate(Me%UptakePO4w(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR204'
+                
+               allocate(Me%UptakeNH4s(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR205'   
+ 
+               allocate(Me%LightFactor(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR206'              
+                
 
                 Me%WaterMassInKgIncrement         = FillValueReal
+                Me%MassinKgFromWater                 = FillValueReal
+                Me%Sediment                       = FillValueReal
                 Me%WaterVol                       = FillValueReal
                 Me%CellArea                       = FillValueReal
                 Me%BottomSWRadiationAverage       = FillValueReal
                 Me%ShearStress2D                  = FillValueReal
+                Me%UptakeNH4NO3w                  = FillValueReal
+                Me%UptakePO4w                     = FillValueReal
+                Me%UptakeNH4s                     = FillValueReal
+                Me%LightFactor                    = FillValueReal
+                
+             case (SeagrassSedimInteractionModel)
+                    
+              !Me%Temperature               = FillValueReal
+              
+              allocate(Me%SedimCellVol (ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR90'
+              
+            
+              allocate(Me%NintFactorR (ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR92'
+              
+              allocate(Me%RootsMort (ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR92'
+              
+            
+              Me%SedimCellVol      = FillValueReal
+              Me%NintFactorR       = FillValueReal
+              Me%RootsMort         = FillValueReal
 
+
+   case (SeagrassWaterInteractionModel)
+                    
+              !Me%Temperature               = FillValueReal
+              
+              allocate(Me%WaterCellVol (ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR90'
+              
+              allocate(Me%PintFactor (ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR91'
+            
+              allocate(Me%NintFactor (ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR92'
+              
+              allocate(Me%LightExtCoefField(ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR96'
+        
+              allocate(Me%ShortWaveTop(ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR97'
+
+              allocate(Me%Thickness(ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR98'
+              
+              allocate(Me%SeagrassesLength(ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR98' 
+            
+            
+              Me%WaterCellVol        = FillValueReal
+              Me%PintFactor          = FillValueReal
+              Me%NintFactor          = FillValueReal
+              Me%LightExtCoefField   = FillValueReal
+              Me%ShortWaveTop        = FillValueReal
+              Me%Thickness           = FillValueReal
+              Me%SeagrassesLength    = FillValueReal
+
+            
+            
             case (MacroAlgaeModel)
 
                 allocate(Me%Salinity (ArrayLB:ArrayUB), STAT = STAT_CALL)
@@ -1076,6 +1174,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 Message  = trim('Benthic Ecology Data File')
                 call ReadFileName('BENTHICECOLOGY_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR08.1'
+                
 
 #ifdef _PHREEQC_
                 
@@ -1091,6 +1190,20 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 Message  =trim('WWTPQ Data File')
                 call ReadFileName('WWTPQ_DATA', Me%FileName, Message = Message, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR10'
+                
+                
+          case(SeagrassSedimInteractionModel) ! Isabella
+
+                Message  = trim('SeagrassesRoots Data File')
+                call ReadFileName('SEAGRASSESROOTS_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR11'
+                
+           case(SeagrassWaterInteractionModel) ! Isabella
+
+                Message  = trim('SeagrassWaterInteraction Data File')
+                call ReadFileName('SEAGRASSESLEAVES_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR12'     
+    
 
             case default
             
@@ -1421,6 +1534,62 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 !Get DT from WaterQuality model to exit as argument to WaterProperties
                 call GetDTWWTPQM(Me%ObjWWTPQ, DTSecond = DT, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR26'
+                
+                
+            case(SeagrassSedimInteractionModel)
+
+                !Construct SeagrassSedimInteractionModel Model
+                
+                call StartSeagrassSedimInteraction (Me%ObjSeagrassSedimInteraction,                                 &
+                                      FileName = Me%FileName,                           &
+                                      ILB      = Me%Array%ILB,                          &
+                                      IUB      = Me%Array%IUB,                          &
+                                      STAT     = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR030'
+ 
+                !Number of properties involved
+                call GetSeagrassSedimInteractionSize (Me%ObjSeagrassSedimInteraction,                               &
+                                        PropLB = PropLB,                                &
+                                        PropUB = PropUB,                                &
+                                        STAT   = STAT_CALL)                            
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR031'
+
+                !Number of properties involved
+                Me%Prop%ILB = PropLB
+                Me%Prop%IUB = PropUB
+
+                !Get DT from SeagrassesRoots model to exit as argument to WaterProperties
+                call GetDTSeagrassSedimInteraction(Me%ObjSeagrassSedimInteraction, DTSecond = DT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR032'                
+                
+                
+                
+    case(SeagrassWaterInteractionModel)
+
+                !Construct SeagrassWaterInteraction Model
+                
+                call StartSeagrassWaterInteraction (Me%ObjSeagrassWaterInteraction,                                 &
+                                      FileName = Me%FileName,                           &
+                                      ILB      = Me%Array%ILB,                          &
+                                      IUB      = Me%Array%IUB,                          &
+                                      STAT     = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR033'
+ 
+                !Number of properties involved
+                call GetSeagrassWaterInteractionSize (Me%ObjSeagrassWaterInteraction,                               &
+                                        PropLB = PropLB,                                &
+                                        PropUB = PropUB,                                &
+                                        STAT   = STAT_CALL)                            
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR034'
+
+                !Number of properties involved
+                Me%Prop%ILB = PropLB
+                Me%Prop%IUB = PropUB
+
+                !Get DT from SeagrassWaterInteraction model to exit as argument to WaterProperties
+                call GetDTSeagrassWaterInteraction(Me%ObjSeagrassWaterInteraction, DTSecond = DT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR035'           
+                
 
             case default
                 write(*,*) 
@@ -1514,6 +1683,8 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         integer                                              :: i,PropLB, PropUB
         integer, dimension(:), pointer                       :: BenthosList, LifeList
         integer, dimension(:), pointer                       :: BenthicEcologyList
+        integer, dimension(:), pointer                       :: SeagrassSedimInteractionList
+        integer, dimension(:), pointer                       :: SeagrassWaterInteractionList
 #ifdef _BFM_  
         integer, dimension(:), pointer                       :: BFMList
 #endif
@@ -2101,6 +2272,87 @@ cd14 :          if (Phosphorus) then
                 if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR23'
 
 
+                case(SeagrassSedimInteractionModel)
+
+                !Get SeagrassSedimInteraction model time step
+                !call GetDTSeagrassSedimInteraction(Me%ObjSeagrassSedimInteraction, DTSecond = DT, STAT = STAT_CALL)
+                !if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR13' 
+        
+                !Run period in seconds
+                !RunPeriod = EndTime - Me%ExternalVar%Now
+
+                !The run period must be a multiple of the ? DT
+                !auxFactor = RunPeriod / DT
+
+                !ErrorAux  = auxFactor - int(auxFactor)
+                
+                !if (ErrorAux /= 0) then
+                !    Dtlag = int(ErrorAux * DT)
+                !    write(*,*) 
+                !    write(*,*) 'DTSECONDS is not multiple of the run period.'
+                !    write(*,*) 'SeagrassSedimInteraction wont be computed in the last', Dtlag, ' seconds.'
+                !    write(*,*) 'Check_Options - ModuleInterface - WRN08.'
+                !endif
+                
+                call GetSeagrassSedimInteractionPropertyList (Me%ObjSeagrassSedimInteraction, & 
+                     SeagrassSedimInteractionList, STAT=STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR214'
+                
+                !Number of properties involved
+                PropLB = Me%Prop%ILB
+                PropUB = Me%Prop%IUB
+
+                do i = PropLB, PropUB
+                    if (.not.FindProperty(PropertiesList, SeagrassSedimInteractionList(i))) then
+                        write(*,*) 'Property ',GetPropertyName(SeagrassSedimInteractionList(i)),' not found'
+                        stop 'Properties lists inconsistent  - Check_Options- ModuleInterface- ERR215'    
+                    end if
+                end do
+
+                call UngetSeagrassSedimInteraction (Me%ObjSeagrassSedimInteraction, SeagrassSedimInteractionList, STAT=STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR216'
+                
+
+              case(SeagrassWaterInteractionModel)
+
+                !Get SeagrassWaterInteraction model time step
+                !call GetDTSeagrassWaterInteraction(Me%ObjSeagrassWaterInteraction, DTSecond = DT, STAT = STAT_CALL)
+                !if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR217' 
+        
+                !Run period in seconds
+                !RunPeriod = EndTime - Me%ExternalVar%Now
+
+                !The run period must be a multiple of the ? DT
+                !auxFactor = RunPeriod / DT
+
+                !ErrorAux  = auxFactor - int(auxFactor)
+                
+                !if (ErrorAux /= 0) then
+                !    Dtlag = int(ErrorAux * DT)
+                !    write(*,*) 
+                !    write(*,*) 'DTSECONDS is not multiple of the run period.'
+                !    write(*,*) 'SeagrassWaterInteraction wont be computed in the last', Dtlag, ' seconds.'
+                !    write(*,*) 'Check_Options - ModuleInterface - WRN09.'
+                !endif
+                
+                call GetSeagrassWaterInteractionPropertyList (Me%ObjSeagrassWaterInteraction, &
+                     SeagrassWaterInteractionList, STAT=STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR218'
+                
+                !Number of properties involved
+                PropLB = Me%Prop%ILB
+                PropUB = Me%Prop%IUB
+
+                do i = PropLB, PropUB
+                    if (.not.FindProperty(PropertiesList, SeagrassWaterInteractionList(i))) then
+                        write(*,*) 'Property ',GetPropertyName(SeagrassWaterInteractionList(i)),' not found'
+                        stop 'Properties lists inconsistent  - Check_Options- ModuleInterface- ERR219'    
+                    end if
+                end do
+
+                call UnGetSeagrassWaterInteraction (Me%ObjSeagrassWaterInteraction, SeagrassWaterInteractionList, STAT=STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR220' 
+
 
 #ifdef _PHREEQC_
 
@@ -2493,6 +2745,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                                 nFirstProp, nSecondProp,                &
                                                 RateFlux, STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR04'
+                        
+                    case (SeagrassWaterInteractionModel)
+                          
+                        call GetSeagrassWaterInteractionRateFlux(Me%ObjSeagrassWaterInteraction,      &
+                                                   nFirstProp, nSecondProp,                   &
+                                                   RateFlux, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR06' 
+                    
+                    
+                    case (SeagrassSedimInteractionModel)
+           
+                        call GetSeagrassSedimInteractionRateFlux(Me%ObjSeagrassSedimInteraction,  &
+                                                   nFirstProp, nSecondProp,                   &
+                                                   RateFlux, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR07'
 
                 end select
 
@@ -2502,7 +2769,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                 call GetCEQUALW2RateFlux( Me%ObjCeQualW2,                               &
                                           RateIndex, RateFlux,                          &
                                           STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR09'
 
 
             endif
@@ -2568,6 +2835,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
                     call UnGetWWTPQPropRateFlux(Me%ObjWWTPQ, RateFlux, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR10' 
+                    
+                case (SeagrassSedimInteractionModel)
+                     
+                    call UnGetSeagrassSedimInteractionRateFlux(Me%ObjSeagrassSedimInteraction, RateFlux, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR11' 
+                
+                case (SeagrassWaterInteractionModel)
+                  
+                    call UnGetSeagrassWaterInteractionRateFlux(Me%ObjSeagrassWaterInteraction, RateFlux, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR12' 
                 
             end select
 
@@ -2648,12 +2925,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                     if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR01'
                     
                     
-                     !case (BenthicEcologyModel)  To be added
+                    case (BenthicEcologyModel)
 
-                    !call GetBenthosRateFlux(Me%ObjBenthicEcology,                              &
-                   !                         nFirstProp, nSecondProp,                    &
-                   !                         RateFlux, STAT_CALL)
-                    !if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR01' 
+                    call GetBenthicEcologyRateFlux(Me%ObjBenthicEcology,                              &
+                                            nFirstProp, nSecondProp,                    &
+                                            RateFlux, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR01.1'
                 
             end select
 
@@ -2696,10 +2973,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                     if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR02'
                     
                     
-                 !case (BenthicEcologyModel)
+              case (BenthicEcologyModel)
 
-                   ! call UnGetBenthicEcologyRateFlux(Me%ObjBenthicEcology, RateFlux, STAT_CALL) !To be added
-                    !if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR03'    
+                    call UnGetBenthicEcologyRateFlux(Me%ObjBenthicEcology, RateFlux, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR02.2'
                 
             end select
 
@@ -2733,6 +3010,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   LightExtCoefField, WaterPercentage,                   &
                                   DissolvedToParticulate3D, SoilDryDensity, Salinity,   &
                                   pH, IonicStrength, PhosphorusAdsortionIndex,          &
+                                  
+                                  NintFac3D, NintFac3DR, PintFac3D, RootsMort,          &
+                                  SeagrassesLength, WaterCellVol3D, SedimCellVol3D,     &
 #ifdef _PHREEQC_
                                   WaterVolume, WaterMass, SolidMass, pE, Temperature,   &
                                   PhreeqCID,                                             &
@@ -2750,7 +3030,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,    optional, dimension(:,:,:), pointer    :: DissolvedToParticulate3D
         real,    optional, dimension(:,:,:), pointer    :: SoilDryDensity
         real,    optional, dimension(:,:,:), pointer    :: Salinity
-        real,    optional, dimension(:,:,:), pointer    :: pH       
+        real,    optional, dimension(:,:,:), pointer    :: pH
+        
+        real,    optional, dimension(:,:,:), pointer    :: NintFac3D  !Isabella
+        real,    optional, dimension(:,:,:), pointer    :: NintFac3DR  !Isabella
+        real,    optional, dimension(:,:,:), pointer    :: PintFac3D  !Isabella
+        real(8),    optional, dimension(:,:,:), pointer    :: SedimCellVol3D  !Isabella
+        real(8),    optional, dimension(:,:,:), pointer    :: WaterCellVol3D  !Isabella
+        real,    optional, dimension(:,:,:), pointer    :: SeagrassesLength
+        real,    optional, dimension(:,:,:), pointer    :: RootsMort
+        
+               
 #ifdef _PHREEQC_
         real,    optional, dimension(:,:,:), pointer    :: WaterVolume
         real,    optional, dimension(:,:,:), pointer    :: WaterMass
@@ -2830,6 +3120,35 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if(present(DWZ          ))Me%ExternalVar%DWZ              => DWZ
             if(present(ShearStress  ))Me%ExternalVar%ShearStress      => ShearStress
             if(present(SPMFlux      ))Me%ExternalVar%SPMFlux          => SPMFlux
+            
+             if(present(SeagrassesLength))then
+                call UnfoldMatrix(SeagrassesLength, Me%SeagrassesLength)
+            end if
+            
+           
+            if(present(NintFac3D))then
+                call UnfoldMatrix(NintFac3D, Me%NintFactor)
+            end if
+            
+            if(present(NintFac3DR))then
+                call UnfoldMatrix(NintFac3DR, Me%NintFactorR)
+            end if
+            
+            if(present(RootsMort))then
+                call UnfoldMatrix(RootsMort, Me%RootsMort)
+            end if
+            
+            if(present(PintFac3D))then
+                call UnfoldMatrix(PintFac3D, Me%PintFactor)
+            end if
+                 
+            if(present(WaterCellVol3D))then
+                call UnfoldMatrix(WaterCellVol3D, Me%WaterCellVol) 
+            end if 
+            
+            if(present(SedimCellVol3D))then
+                call UnfoldMatrix(SedimCellVol3D, Me%SedimCellVol) 
+            end if  
             
             Me%ExternalVar%WaterPoints3D => WaterPoints3D
             
@@ -3089,6 +3408,41 @@ cd4 :           if (ReadyToCompute) then
                                               FishFood = Me%FishFood,               &
                                               STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR15'
+                            
+                         
+                      case(SeagrassSedimInteractionModel)
+                         !call UnfoldMatrix(Me%ExternalVar%SedimCellVol3D, Me%SedimCellVol)
+                         call ModifySeagrassSedimInteraction(ObjSeagrassSedimInteractionID  = Me%ObjSeagrassSedimInteraction,   &
+                                                  OpenPoints            = Me%OpenPoints,          &
+                                                  Mass                  = Me%Mass,                &
+                                                  NintFactorR           = Me%NintFactorR,          &
+                                                  SedimCellVol          = Me%SedimCellVol,         &
+                                                  RootsMort             = Me%RootsMort,            &
+                                                  STAT                  = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR09'
+
+                      case(SeagrassWaterInteractionModel)
+                      
+                      
+                      call UnfoldMatrix(ShortWaveTop,               Me%ShortWaveTop  )
+                      call UnfoldMatrix(LightExtCoefField,          Me%LightExtCoefField   )
+                      call UnfoldMatrix(Me%ExternalVar%DWZ,         Me%Thickness  )
+                     ! call UnfoldMatrix(SeagrassesLength,         Me%SeagrassesLength  )
+                      
+                            
+                            
+                      call ModifySeagrassWaterInteraction(ObjSeagrassWaterInteractionID= Me%ObjSeagrassWaterInteraction,  &
+                                                OpenPoints             = Me%OpenPoints,           &
+                                                Mass                   = Me%Mass,                 &
+                                                Temperature            = Me%Temperature,          &
+                                                NintFactor             = Me%NintFactor,           &
+                                                PintFactor             = Me%PintFactor,           &
+                                                SWRadiation            = Me%ShortWaveTop,         &
+                                                SWLightExctintionCoef  = Me%LightExtCoefField,    &
+                                                Thickness              = Me%Thickness,            &
+                                                SeagrassesLength       = Me%SeagrassesLength,     &
+                                                WaterCellVol           = Me%WaterCellVol  ,       &
+                                                STAT                   = STAT_CALL)
                         
                     end select
 
@@ -3185,7 +3539,8 @@ do6 :               do index = ArrayLB, ArrayUB
                                   WaterPoints2D, OpenPoints2D, Oxygen2D,                &
                                   MassInKgFromWater, Sediment,                          &
                                   WaterVolume2D,CellArea2D,ShortWave2D,                 &
-                                  ShearStress2D,                                        &
+                                  ShearStress2D,UptakeNH4s2D,UptakeNH4NO3w2D,           &
+                                  UptakePO4w2D,LightFactor2D,  &
                                   DTProp, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -3201,6 +3556,10 @@ do6 :               do index = ArrayLB, ArrayUB
         real   , optional, dimension(:,:  ), pointer    :: WaterVolume2D
         real   , optional, dimension(:,:  ), pointer    :: CellArea2D
         real   , optional, dimension(:,:  ), pointer    :: ShearStress2D
+        real   , optional, dimension(:,:  ), pointer    :: UptakeNH4s2D
+        real   , optional, dimension(:,:  ), pointer    :: UptakeNH4NO3w2D
+        real   , optional, dimension(:,:  ), pointer    :: UptakePO4w2D
+        real   , optional, dimension(:,:  ), pointer    :: LightFactor2D
         real   , optional, dimension(:,:  ), pointer    :: MassInKgFromWater
 
         integer, optional,  intent(OUT)                 :: STAT
@@ -3213,7 +3572,7 @@ do6 :               do index = ArrayLB, ArrayUB
         integer                                         :: STAT_
         integer                                         :: nProperty
         integer                                         :: Index 
-        integer                                         :: prop
+        integer                                         :: prop, JulDay
         !integer                                         :: ILB, IUB, JLB, JUB
         integer                                         :: i, j  
         integer                                         :: NLB, NUB
@@ -3278,6 +3637,23 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
             if(present(Sediment))then
                 call UnfoldMatrix(Sediment, Me%Sediment)
+            end if 
+            
+            if(present(UptakeNH4s2D))then
+                call UnfoldMatrix(UptakeNH4s2D, Me%UptakeNH4s)
+            end if   
+            
+            if(present(UptakeNH4NO3w2D))then
+                call UnfoldMatrix(UptakeNH4NO3w2D, Me%UptakeNH4NO3w)
+            end if   
+            
+           if(present(UptakePO4w2D))then
+                call UnfoldMatrix(UptakePO4w2D, Me%UptakePO4w)
+            end if   
+           
+           
+           if(present(LightFactor2D))then
+                call UnfoldMatrix(LightFactor2D, Me%LightFactor)
             end if                     
             
             Increment = OFF
@@ -3356,8 +3732,15 @@ cd4 :           if (ReadyToCompute) then
                             
                             
                         case(BenthicEcologyModel)
-                                                       
-
+                        
+                        call GetComputeCurrentTime(Me%ObjTime,                  &
+                                                       Me%ExternalVar%Now,          &
+                                                       STAT = STAT_CALL)                    
+                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface2D - ModuleInterface - ERRXX'  
+                        
+                        call JulianDay(Me%ExternalVar%Now, JulDay)
+                 
+                        
                             call ModifyBenthicEcology  (Me%ObjBenthicEcology,             &
                                                  Me%Temperature,                          &
                                                  Me%WaterVol,                             &
@@ -3366,9 +3749,17 @@ cd4 :           if (ReadyToCompute) then
                                                  Me%Sediment,                             &
                                                  Me%BottomSWRadiationAverage,             &
                                                  Me%ShearStress2D,                        &
+                                                 Me%UptakeNH4s,                           &
+                                                 Me%UptakeNH4NO3w,                        &
+                                                 Me%UptakePO4w,                           &
+                                                 Me%LightFactor,                          &
+                                                 JulDay,                                  &
                                                  Me%OpenPoints,                           &
                                                  Me%Mass,                                 &
                                                  STAT = STAT_CALL)
+                                                 
+                                                 
+                                   
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface2D - ModuleInterface - ERR03'
 
 
@@ -4975,6 +5366,60 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                  if (Ready) Me%AddedProperties = .FALSE.
              end if       
      
+     
+     case(SeagrassSedimInteractionModel)
+                
+                call GetSeagrassSedimInteractionPropIndex(Me%ObjSeagrassSedimInteraction,PropertyID,IndexNumber,STAT=STAT_CALL)
+                if (STAT_CALL==SUCCESS_) then
+                    call InputData(Concentration, IndexNumber)
+                    Me%AddedProperties(IndexNumber) =.TRUE.
+                else if (STAT_CALL.NE.SUCCESS_ .AND. STAT_CALL.NE.NOT_FOUND_ERR_) then
+                    stop 'FillMassTempSalinity3D - ModuleInterface - ERR010' 
+                end if
+              
+
+                    Ready = .TRUE.
+                    
+                    
+                    do i = PropLB, PropUB
+                    if (.NOT. Me%AddedProperties(i)) then
+                            Ready = .FALSE.
+                            exit 
+                    end if 
+                    end do 
+                    if (Ready) Me%AddedProperties = .FALSE.
+                
+
+        case(SeagrassWaterInteractionModel)
+                
+                call GetSeagrassWaterInteractionPropIndex(Me%ObjSeagrassWaterInteraction,PropertyID,IndexNumber,STAT=STAT_CALL)
+                if (STAT_CALL==SUCCESS_) then
+                    call InputData(Concentration, IndexNumber)
+                    Me%AddedProperties(IndexNumber) =.TRUE.
+                else if (STAT_CALL.NE.SUCCESS_ .AND. STAT_CALL.NE.NOT_FOUND_ERR_) then
+                    stop 'FillMassTempSalinity3D - ModuleInterface - ERR011' 
+                end if
+                     
+                              
+                
+                if (PropertyID== Temperature_) then
+                    call UnfoldMatrix(Concentration, Me%Temperature)
+                    TemperatureAdded    =.TRUE.
+                end if 
+
+       
+                if (TemperatureAdded) then
+                    Ready = .TRUE.
+
+                    do i = PropLB, PropUB
+                    if (.NOT. Me%AddedProperties(i)) then
+                            Ready = .FALSE.
+                            exit 
+                    end if 
+                    end do 
+                    if (Ready) Me%AddedProperties = .FALSE.
+                end if
+     
      end select
 
         !----------------------------------------------------------------------
@@ -5095,7 +5540,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         
         
         else if (STAT_CALL.NE.SUCCESS_ .AND. STAT_CALL.NE.NOT_FOUND_ERR_) then
-            stop 'FillMassTempSalinity3D - ModuleInterface - ERR05' 
+            stop 'FillMassTempSalinity2D - ModuleInterface - ERR05' 
         end if  
 
         !----------------------------------------------------------------------
@@ -6480,15 +6925,15 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     subroutine UnfoldMatrix3D_R (Matrix3D, Vector)
 
         !Arguments-------------------------------------------------------------
-        real, dimension(:,:,:), pointer     :: Matrix3D
-        real, dimension(:    ), pointer     :: Vector
+        real(4), dimension(:,:,:), pointer     :: Matrix3D
+        real(4), dimension(:    ), pointer     :: Vector
 
         !Local-----------------------------------------------------------------
         integer                             :: Index
         integer                             :: i, j, k
         integer                             :: NLB, NUB
         !$ integer                          :: CHUNK
-        real, dimension(:,:,:), pointer     :: LocalMatrix3D
+        real(4), dimension(:,:,:), pointer     :: LocalMatrix3D
 !        integer                             :: ILB, IUB      
 !        integer                             :: JLB, JUB     
 !        integer                             :: KLB, KUB    
@@ -6541,6 +6986,75 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !----------------------------------------------------------------------
 
     end subroutine UnfoldMatrix3D_R
+
+    !--------------------------------------------------------------------------
+    
+        !--------------------------------------------------------------------------
+
+    subroutine UnfoldMatrix3D_R8 (Matrix3D, Vector)
+
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:,:,:), pointer     :: Matrix3D
+        real(8), dimension(:    ), pointer        :: Vector
+
+        !Local-----------------------------------------------------------------
+        integer                             :: Index
+        integer                             :: i, j, k
+        integer                             :: NLB, NUB
+        !$ integer                          :: CHUNK
+        real(8), dimension(:,:,:), pointer     :: LocalMatrix3D
+!        integer                             :: ILB, IUB      
+!        integer                             :: JLB, JUB     
+!        integer                             :: KLB, KUB    
+!
+!        !----------------------------------------------------------------------
+!
+!        ILB = Me%Size3D%ILB     
+!        IUB = Me%Size3D%IUB     
+!
+!        JLB = Me%Size3D%JLB    
+!        JUB = Me%Size3D%JUB    
+!
+!        KLB = Me%Size3D%KLB   
+!        KUB = Me%Size3D%KUB   
+!        
+!        !Number indexed to 3D cell in the vector 
+!        Index = 0
+!
+!        do k = KLB, KUB
+!        do j = JLB, JUB
+!        do i = ILB, IUB
+!            if (Me%ExternalVar%WaterPoints3D(i,j,k)==1) then
+!                Index         = Index + 1
+!                Vector(Index) = Matrix3D(i,j,k)
+!            endif    
+!        enddo
+!        enddo
+!        enddo
+!
+!        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix3D_R - ModuleInterface - ERR01'
+        
+        !griflet: new way
+        !griflet: start
+        NLB = Me%Array%ILB
+        NUB = Me%Array%IUB
+        !$ CHUNK = CHUNK_I(NLB, NUB)
+        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalMatrix3D)
+        LocalMatrix3D => Matrix3D
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do Index = NLB, NUB
+            i = Me%Index2I(Index)
+            j = Me%Index2J(Index)
+            k = Me%Index2K(Index)
+            Vector(Index) = LocalMatrix3D(i,j,k)
+        enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+        !griflet: stop
+            
+        !----------------------------------------------------------------------
+
+    end subroutine UnfoldMatrix3D_R8
 
     !--------------------------------------------------------------------------
 
@@ -7317,10 +7831,71 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                 call GetBenthicEcologyPropIndex(Me%ObjBenthicEcology, PropertyID, nProperty, STAT_CALL)
                 
                 if (STAT_CALL.NE.SUCCESS_) then 
+                
+                select case(PropertyID)
+                        
+                        !if it's not a property it can be a rate ID number 
+                        case(NintFactor_, PintFactor_, NintFactorR_, RootsMort_) 
+
+                            nProperty = PropertyID 
+
+                        case default 
                     
+                        write(*,*) 
+                        write(*,*) 'Inconsistency between Interface and Benthic ecology Model.'
+                        stop       'PropertyIndexNumber - ModuleInterface - ERR22.1'
+                    
+               end select
+
+                end if
+                
+                
+                
+                 case(SeagrassSedimInteractionModel)
+                
+                call GetSeagrassSedimInteractionPropIndex(Me%ObjSeagrassSedimInteraction, PropertyID, nProperty, STAT_CALL)
+                
+                if (STAT_CALL.NE.SUCCESS_) then 
+
+                    select case(PropertyID)
+                        
+                        !if it's not a property it can be a rate ID number 
+                        case(RootsUptakeN_) 
+
+                            nProperty = PropertyID 
+
+                        case default 
+
+                            write(*,*) 
+                            write(*,*) 'Inconsistency between Interface and SeagrassSedimInteraction Model.'
+                            stop       'PropertyIndexNumber - ModuleInterface - ERR27'
+
+                    end select      
+                    
+                    
+                    
+                end if
+                
+                
+         case(SeagrassWaterInteractionModel)
+                   
+                call GetSeagrassWaterInteractionPropIndex(Me%ObjSeagrassWaterInteraction, PropertyID, nProperty, STAT_CALL)
+                
+                if (STAT_CALL.NE.SUCCESS_) then 
+               
+                        select case(PropertyID)
+                       !if it's not a property it can be a rate ID number 
+                        case(LeavesUptakeN_, LeavesUptakeP_, LeavesLightFactor_) 
+                        
+                        nProperty = PropertyID
+                        
+                        case default
                     write(*,*) 
-                    write(*,*) 'Inconsistency between Interface and Benthic ecology Model.'
-                    stop       'PropertyIndexNumber - ModuleInterface - ERR22.1'
+                    write(*,*) 'Inconsistency between Interface and SeagrassWaterInteraction Model.'
+                    stop       'PropertyIndexNumber - ModuleInterface - ERR26'
+                        end select
+                    
+
 
                 end if
                 
@@ -7577,7 +8152,8 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                 
             case(BenthicEcologyModel)
                 call GetDTBenthicEcology(Me%ObjBenthicEcology, DTSecond = InterfaceDT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR15'  
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR15' 
+                 
                                   
 #ifdef _PHREEQC_
             case(PhreeqcModel)                         
@@ -7586,7 +8162,16 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
 #endif                   
             case(WWTPQModel)                        
                 call GetDTWWTPQM(Me%ObjWWTPQ, DTSecond = InterfaceDT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR16'
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR17'
+           
+           
+           case(SeagrassSedimInteractionModel)
+                call GetDTSeagrassSedimInteraction(Me%ObjSeagrassSedimInteraction, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR18' 
+           
+         case(SeagrassWaterInteractionModel)
+                call GetDTSeagrassWaterInteraction(Me%ObjSeagrassWaterInteraction, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR19' 
                 
         end select
                 
@@ -7628,6 +8213,12 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
 #endif
             case (WWTPQModel)            
                 model_name = 'WWTPQ'
+            
+            case(SeagrassSedimInteractionModel)
+                 model_name = 'SeagrassSedimInteraction'
+            
+            case(SeagrassWaterInteractionModel)
+                 model_name = 'SeagrassWaterInteraction'
                 
         end select
         
@@ -7710,11 +8301,43 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         
                      case(BenthicEcologyModel)
                         
-                        call KillBenthicEcology(Me%ObjBenthicEcology, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.5'
+                       call KillBenthicEcology(Me%ObjBenthicEcology, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.7'
                         
                        deallocate(Me%WaterMassInKgIncrement, STAT = STAT_CALL)
-                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.5.1' 
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.8' 
+                        
+                       deallocate(Me%Sediment, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.10'
+                       
+                       deallocate(Me%WaterVol, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.11'
+                       
+                       deallocate(Me%CellArea, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.12'
+                       
+                       deallocate(Me%MassinKgFromWater, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.13'
+                       
+                       deallocate(Me%BottomSWRadiationAverage, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.14'
+                       
+                       deallocate(Me%ShearStress2D, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.15'
+                       
+                       deallocate(Me%UptakeNH4NO3w, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.16'
+                       
+                       deallocate(Me%UptakePO4w, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.17'      
+
+                       deallocate(Me%UptakeNH4s, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.18'  
+ 
+                       deallocate(Me%LightFactor, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.19'          
+
+   
                         
 #ifdef _PHREEQC_
                     case(PhreeqCModel)
@@ -7726,7 +8349,40 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                         call KillWWTPQ(Me%ObjWWTPQ, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR02'
-                    
+                   
+                   case(SeagrassSedimInteractionModel)  ! Isabella
+                        
+                   call KillSeagrassSedimInteraction(Me%ObjSeagrassSedimInteraction, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.21'
+                        
+                    deallocate(Me%SedimCellVol, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.22'
+                              
+                    deallocate(Me%NintFactorR, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.24'
+                       
+                   deallocate(Me%RootsMort, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.23'
+                                    
+                   
+                   case(SeagrassWaterInteractionModel)  ! Isabella
+                        
+                    call KillSeagrassWaterInteraction(Me%ObjSeagrassWaterInteraction, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.25'
+                        
+                    deallocate(Me%WaterCellVol, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.26'
+                              
+                    deallocate(Me%PintFactor, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.27'                        
+                        
+                    deallocate(Me%NintFactor, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.26'
+                                           
+                   deallocate(Me%SeagrassesLength, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.30'             
+
+                   
                 end select
 
                 if(associated(Me%Salinity))then
@@ -7793,26 +8449,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR13'
                 end if
                 
-                
-                 if(associated(Me%WaterVol))then
-                    deallocate(Me%WaterVol, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR14.1'
-                end if
-                
-                if(associated(Me%CellArea))then
-                    deallocate(Me%CellArea, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR14.1'
-                end if
-                
-                if(associated(Me%MassInKgFromWater))then
-                    deallocate(Me%MassInKgFromWater, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR14.2'
-                end if
-                
-                if(associated(Me%Sediment))then
-                    deallocate(Me%Sediment, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR14.3'
-                end if
+                              
+
                 
 #ifdef _PHREEQC_
 

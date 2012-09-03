@@ -132,7 +132,7 @@ Module ModuleLightExtinction
         real   , pointer, dimension(:,:,:)          :: Concentration3D
         real   , pointer, dimension(:,:,:)          :: PhytoConcentration3D
         real   , pointer, dimension(:,:,:)          :: SPMConcentration3D
-        real   , pointer, dimension(:,:,:)          :: MacroAlgaeOccupation
+        real   , pointer, dimension(:,:,:)          :: ProducerOccupation
         integer                                     :: PropertyID              
         real                                        :: UnitsCoef
         real                                        :: ExtinctionParameter
@@ -966,14 +966,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine ModifyLightExtinctionField3D(LightExtinctionID, WaterPoints3D,         &
                                             CurrentTime, PropertyID, Concentration,   &
                                             UnitsCoef, ExtinctionParameter,           &
-                                            MacroAlgaeOccupation, STAT)
+                                            ProducerOccupation, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: LightExtinctionID
         type(T_Time)                                    :: CurrentTime
         integer,    dimension(:,:,:), pointer           :: WaterPoints3D
         integer,                               optional :: PropertyID
-        real,       dimension(:,:,:), pointer, optional :: Concentration, MacroAlgaeOccupation
+        real,       dimension(:,:,:), pointer, optional :: Concentration, ProducerOccupation
         real,                                  optional :: UnitsCoef
         real,                                  optional :: ExtinctionParameter
         integer, intent(OUT),                  optional :: STAT
@@ -996,8 +996,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if(present(Concentration        )) Me%ExternalVar%Concentration3D     => Concentration
             if(present(UnitsCoef            )) Me%ExternalVar%UnitsCoef           =  UnitsCoef
             if(present(ExtinctionParameter  )) Me%ExternalVar%ExtinctionParameter =  ExtinctionParameter
-            if(present(MacroAlgaeOccupation )) then
-                if (associated(MacroAlgaeOccupation)) Me%ExternalVar%MacroAlgaeOccupation=> MacroAlgaeOccupation
+            if(present(ProducerOccupation )) then
+                if (associated(ProducerOccupation)) Me%ExternalVar%ProducerOccupation=> ProducerOccupation
             endif
             
 
@@ -1007,7 +1007,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ComputeLongWaveExtinction
 
             if(present(Concentration        )) nullify(Me%ExternalVar%Concentration3D     )
-            if(present(MacroAlgaeOccupation )) nullify(Me%ExternalVar%MacroAlgaeOccupation)
+            if(present(ProducerOccupation   )) nullify(Me%ExternalVar%ProducerOccupation  )
 
             Me%ExternalVar%PropertyID          =  null_int
             Me%ExternalVar%UnitsCoef           =  null_real
@@ -1432,7 +1432,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 if3D:   if (Me%Is3D) then
 
-            if(Me%ExternalVar%PropertyID .ne. MacroAlgae_)then
+             if((Me%ExternalVar%PropertyID == MacroAlgae_) .OR. (Me%ExternalVar%PropertyID == SeagrassesLeaves_) ) then  
 
                 do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -1440,10 +1440,11 @@ if3D:   if (Me%Is3D) then
 
                     if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then 
 
-                        Me%ShortWave%ExtinctionCoefField3D(i,j,k) =                     &
-                                            Me%ShortWave%ExtinctionCoefField3D(i,j,k) + &
-                                            Me%ExternalVar%ExtinctionParameter        * &
-                                           (Me%ExternalVar%Concentration3D(i, j, k)   * Me%UnitsCoef)
+                        Me%ShortWave%ExtinctionCoefField3D(i,j,k) =                           &
+                                            Me%ShortWave%ExtinctionCoefField3D(i,j,k)       + &
+                                            Me%ExternalVar%ExtinctionParameter              * &
+                                           (Me%ExternalVar%Concentration3D(i, j, k)         * &
+                                            Me%ExternalVar%ProducerOccupation(i, j, k)    * Me%UnitsCoef)
                     end if
 
                 enddo
@@ -1458,11 +1459,10 @@ if3D:   if (Me%Is3D) then
 
                     if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then 
 
-                        Me%ShortWave%ExtinctionCoefField3D(i,j,k) =                           &
-                                            Me%ShortWave%ExtinctionCoefField3D(i,j,k)       + &
-                                            Me%ExternalVar%ExtinctionParameter              * &
-                                           (Me%ExternalVar%Concentration3D(i, j, k)         * &
-                                            Me%ExternalVar%MacroAlgaeOccupation(i, j, k)    * Me%UnitsCoef)
+                        Me%ShortWave%ExtinctionCoefField3D(i,j,k) =                     &
+                                            Me%ShortWave%ExtinctionCoefField3D(i,j,k) + &
+                                            Me%ExternalVar%ExtinctionParameter        * &
+                                           (Me%ExternalVar%Concentration3D(i, j, k)   * Me%UnitsCoef)
                     end if
 
                 enddo

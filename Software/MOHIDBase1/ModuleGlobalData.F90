@@ -72,7 +72,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  80
+    integer, parameter  :: MaxModules           =  82
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -342,15 +342,28 @@ Module ModuleGlobalData
     !Drifting macroalgae
     integer, parameter :: DriftingMacroAlgae_               = 850
 
-    ! BenthicEcology
-    integer, parameter :: SuspensionFeedersN_               = 860 ! isab
+    ! BenthicEcology -isabella
+    integer, parameter :: DepositFeedersC_                  = 851
+    integer, parameter :: DepositFeedersN_                  = 852
+    integer, parameter :: DepositFeedersP_                  = 853
+    integer, parameter :: SuspensionFeedersN_               = 860 
     integer, parameter :: SuspensionFeedersC_               = 861
     integer, parameter :: SuspensionFeedersP_               = 862
-    integer, parameter :: DepositFeeders_                   = 863
-    integer, parameter :: MicroPhytoBenthosN_               = 864 ! isab
+    integer, parameter :: MicroPhytoBenthosN_               = 864 
     integer, parameter :: MicroPhytoBenthosC_               = 865
     integer, parameter :: MicroPhytoBenthosP_               = 866
-    
+    integer, parameter :: SeagrassesLeaves_                 = 867             
+    integer, parameter :: SeagrassesRoots_                  = 868             
+    integer, parameter :: SeagrassesN_                      = 869             
+    integer, parameter :: SeagrassesP_                      = 870             
+    integer, parameter :: LeavesUptakeN_                    = 871  
+    integer, parameter :: LeavesUptakeP_                    = 872
+    integer, parameter :: LeavesLightFactor_                = 873
+    integer, parameter :: RootsUptakeN_                     = 874
+    integer, parameter :: NintFactor_                       = 875
+    integer, parameter :: PintFactor_                       = 876
+    integer, parameter :: NintFactorR_                      = 877
+    integer, parameter :: RootsMort_                        = 878    
     
     !Hydrodynamic Properties
     integer, parameter :: WaterLevel_                       = 86
@@ -974,7 +987,21 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_MicroPhytoBenthosC    = 'microphytobenthos carbon'
     character(StringLength), private, parameter :: Char_MicroPhytoBenthosN    = 'microphytobenthos nitrogen'
     character(StringLength), private, parameter :: Char_MicroPhytoBenthosP    = 'microphytobenthos phosphorus'
-    character(StringLength), private, parameter :: Char_DepositFeeders        = 'deposit feeders'
+    character(StringLength), private, parameter :: Char_DepositFeedersC       = 'deposit feeders carbon'
+    character(StringLength), private, parameter :: Char_DepositFeedersN       = 'deposit feeders nitrogen'
+    character(StringLength), private, parameter :: Char_DepositFeedersP       = 'deposit feeders phosphorus'
+    character(StringLength), private, parameter :: Char_SeagrassesN           = 'seagrasses internal nitrogen'
+    character(StringLength), private, parameter :: Char_SeagrassesP           = 'seagrasses internal phosphorus'
+    character(StringLength), private, parameter :: Char_SeagrassesLeaves      = 'seagrasses leaves'
+    character(StringLength), private, parameter :: Char_SeagrassesRoots       = 'seagrasses roots'
+    character(StringLength), private, parameter :: Char_LeavesUptakeN         = 'leavesuptaken'    
+    character(StringLength), private, parameter :: Char_LeavesUptakeP         = 'leavesuptakep'   
+    character(StringLength), private, parameter :: Char_LeavesLightFactor     = 'leaveslightfactor'
+    character(StringLength), private, parameter :: Char_RootsUptakeN          = 'rootsuptaken'
+    character(StringLength), private, parameter :: Char_NintFactor            = 'internal nitrogen function leaves'
+    character(StringLength), private, parameter :: Char_NintFactorR           = 'internal nitrogen function roots'
+    character(StringLength), private, parameter :: Char_PintFactor            = 'internal phosphorus function leaves'
+    character(StringLength), private, parameter :: Char_RootsMort             = 'roots mortality'
 
     character(StringLength), private, parameter :: Char_GrossProd            = 'grossprod'
     character(StringLength), private, parameter :: Char_NutrientLim          = 'nutrientlim'
@@ -1225,6 +1252,8 @@ Module ModuleGlobalData
     character(StringLength), parameter          :: BoxDifModel              = 'BoxDifModel'
     character(StringLength), parameter          :: BenthicEcologyModel      = 'BenthicEcology'
     character(StringLength), parameter          :: WWTPQModel               = 'WWTPQ'
+    character(StringLength), parameter          :: SeagrassWaterInteractionModel  = 'SeagrassWaterInteraction'
+    character(StringLength), parameter          :: SeagrassSedimInteractionModel  = 'SeagrassSedimInteraction'
 
     !Water air interface
     character(StringLength), private, parameter :: Char_LatentHeat               = 'latent heat'
@@ -1583,6 +1612,8 @@ Module ModuleGlobalData
     integer, parameter ::  mField4D_                = 78
     integer, parameter ::  mBENTHICECOLOGY_         = 79
     integer, parameter ::  mWWTPQ_                  = 80
+    integer, parameter ::  mSEAGRASSSEDIMINTERAC_   = 81     ! Isabella
+    integer, parameter ::  mSEAGRASSWATERINTERAC_   = 82     ! Isabella
 
     type T_Size1D
         integer                 :: ILB            = null_int
@@ -1677,7 +1708,8 @@ Module ModuleGlobalData
         T_Module(mCUDA_                  , "Cuda"),                                                                                &
         T_Module(mRUNOFFPROPERTIES_      , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions"),        &
         T_Module(mField4D_               , "Field4D"),               T_Module(mBENTHICECOLOGY_         , "BenthicEcology"),        &        ! isab
-        T_Module(mWWTPQ_                  , "WWTPQ") /)
+        T_Module(mWWTPQ_                  , "WWTPQ") ,               T_Module(mSEAGRASSWATERINTERAC_   , "SeagrassWaterInteraction"),&
+        T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction")/)
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
@@ -2113,7 +2145,13 @@ Module ModuleGlobalData
             call AddPropList (MicroPhytoBenthosN_,      Char_MicroPhytoBenthosN,        ListNumber) ! isab
             call AddPropList (MicroPhytoBenthosC_,      Char_MicroPhytoBenthosC,        ListNumber)
             call AddPropList (MicroPhytoBenthosP_,      Char_MicroPhytoBenthosP,        ListNumber)
-            call AddPropList (DepositFeeders_,          Char_DepositFeeders,            ListNumber)
+            call AddPropList (DepositFeedersC_,         Char_DepositFeedersC,           ListNumber)
+            call AddPropList (DepositFeedersN_,         Char_DepositFeedersN,           ListNumber)
+            call AddPropList (DepositFeedersP_,         Char_DepositFeedersP,           ListNumber)
+            call AddPropList (SeagrassesN_,             Char_SeagrassesN,               ListNumber)
+            call AddPropList (SeagrassesP_,             Char_SeagrassesP,               ListNumber)
+            call AddPropList (SeagrassesRoots_,         Char_SeagrassesRoots,           ListNumber)
+            call AddPropList (SeagrassesLeaves_,        Char_SeagrassesLeaves,          ListNumber)
 
             call AddPropList (AdsorbedAmmonia_,         Char_AdsorbedAmmonia,           ListNumber)
             call AddPropList (RefreactaryOrganicN_,     Char_RefreactaryOrganicN,       ListNumber)
@@ -2184,6 +2222,16 @@ Module ModuleGlobalData
             call AddPropList (WaterColumn_,             Char_WaterColumn_,              ListNumber)
             call AddPropList (MeridionalVelocity_,      Char_MeridionalVelocity_,       ListNumber)
             call AddPropList (ZonalVelocity_,           Char_ZonalVelocity_,            ListNumber)
+            
+            !seagrasses rates and limiting functions
+            call AddPropList (LeavesUptakeN_ ,          Char_LeavesUptakeN ,            ListNumber)  !Isabella
+            call AddPropList (LeavesUptakeP_ ,          Char_LeavesUptakeP ,            ListNumber)
+            call AddPropList (LeavesLightFactor_ ,      Char_LeavesLightFactor ,        ListNumber)
+            call AddPropList (RootsUptakeN_ ,           Char_RootsUptakeN ,             ListNumber)
+            call AddPropList (NintFactor_ ,             Char_NintFactor ,               ListNumber)
+            call AddPropList (NintFactorR_ ,            Char_NintFactorR ,               ListNumber)
+            call AddPropList (PintFactor_ ,             Char_PintFactor ,               ListNumber)
+            call AddPropList (RootsMort_ ,              Char_RootsMort ,                ListNumber)
 
 !____POM pools (for aquaculture cages)__________________________________________    
     
@@ -2669,7 +2717,11 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == SolPop_                ) .OR.  (Property == IndividualsPerCell_    ) .OR.          &
             (Property == SuspensionFeedersC_    ) .OR.  (Property == SuspensionFeedersN_    ) .OR.          &   !isab    
             (Property == SuspensionFeedersP_    ) .OR.  (Property == MicroPhytoBenthosN_    ) .OR.          &   !isab    
-            (Property == MicroPhytoBenthosP_    ) .OR.  (Property == MicroPhytoBenthosC_)) then
+            (Property == MicroPhytoBenthosP_    ) .OR.  (Property == MicroPhytoBenthosC_    ) .OR.          &
+            (Property == SeagrassesN_           ) .OR.  (Property == SeagrassesP_           ) .OR.          &
+            (Property == SeagrassesLeaves_      ) .OR.  (Property == SeagrassesRoots_       ) .OR.          &
+            (Property == DepositFeedersN_       ) .OR.  (Property == DepositFeedersP_       ) .OR.          &
+            (Property == DepositFeedersC_       ) ) then
 
             Check_Particulate_Property = .TRUE.    
         
