@@ -247,6 +247,9 @@ Module ModuleFillMatrix
         logical                                     :: UseOriginalValues
         
         logical                                     :: Backtracking         = .false.
+        
+        character(len=StringLength)                 :: OverrideValueKeyword = null_str
+        logical                                     :: OverrideValueKeywordON = .false.
          
         real                                        :: MinForDTDecrease     = AllmostZero
         real                                        :: DefaultValue
@@ -292,7 +295,8 @@ Module ModuleFillMatrix
 
     subroutine ConstructFillMatrix2D(PropertyID, EnterDataID, TimeID,                   &
                                      HorizontalGridID, ExtractType, PointsToFill2D,     &
-                                     Matrix2D, TypeZUV, FileNameHDF, ObjFillMatrix, STAT)
+                                     Matrix2D, TypeZUV, FileNameHDF, ObjFillMatrix,     &
+                                     OverrideValueKeyword, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: EnterDataID
@@ -303,7 +307,7 @@ Module ModuleFillMatrix
         real, dimension(:, :), pointer                  :: Matrix2D
         integer                                         :: TypeZUV
         type (T_PropertyID)                             :: PropertyID
-        character(*), optional, intent(IN )             :: FileNameHDF
+        character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
         integer,      optional, intent(OUT)             :: STAT     
 
@@ -381,6 +385,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             endif
             
+            if(present(OverrideValueKeyword))then
+                Me%OverrideValueKeyword   = trim(adjustl(OverrideValueKeyword))
+                Me%OverrideValueKeywordON = .true.
+            else
+                Me%OverrideValueKeywordON = .false.
+            end if
+            
             call ReadOptions (ExtractType, PointsToFill2D = PointsToFill2D)
             
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
@@ -423,7 +434,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine ConstructFillMatrix3D(PropertyID, EnterDataID, TimeID,                   &
                                      HorizontalGridID, GeometryID, ExtractType,         &
                                      PointsToFill3D, Matrix3D, TypeZUV, FillMatrix,     &
-                                     FileNameHDF, ObjFillMatrix, STAT)
+                                     FileNameHDF, ObjFillMatrix,                        &
+                                     OverrideValueKeyword, STAT)
 
         !Arguments---------------------------------------------------------------
         type (T_PropertyID)                             :: PropertyID
@@ -436,7 +448,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real, dimension(:, :, :), pointer               :: Matrix3D
         integer                                         :: TypeZUV
         real        , optional, intent(IN )             :: FillMatrix
-        character(*), optional, intent(IN )             :: FileNameHDF
+        character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
         integer,      optional, intent(OUT)             :: STAT     
 
@@ -532,6 +544,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%HDF%ArgumentFileName = .false.
             
             endif
+            
+            if(present(OverrideValueKeyword))then
+                Me%OverrideValueKeyword   = trim(adjustl(OverrideValueKeyword))
+                Me%OverrideValueKeywordON = .true.
+            else
+                Me%OverrideValueKeywordON = .false.
+            end if
 
 
             call ReadOptions (ExtractType, PointsToFill3D = PointsToFill3D)
@@ -730,8 +749,46 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR070'
         
         if (iflag == 0 .and. .not. Me%HDF%ArgumentFileName) then
-            write(*,*)'Please define default value for property '//trim(Me%PropertyID%Name)
-            stop 'ReadOptions - ModuleFillMatrix - ERR080'
+        
+            if(Me%OverrideValueKeywordON .and. Me%InitializationMethod == Constant)then
+            
+                call GetData(Me%DefaultValue, Me%ObjEnterData,  iflag,                 &
+                             SearchType     = ExtractType,                             &
+                             keyword        = trim(Me%OverrideValueKeyword),           &
+                             ClientModule   = 'ModuleFillMatrix',                      &
+                             default        = FillValueReal,                           &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR071'
+                
+                if(iflag == 0)then
+                    
+                    write(*,*)'Please define override keyword '//trim(Me%OverrideValueKeyword)
+                    write(*,*)'to give a default value for property '//trim(Me%PropertyID%Name)
+                    stop 'ReadOptions - ModuleFillMatrix - ERR071'
+                    
+                end if
+                
+            elseif(Me%OverrideValueKeywordON .and. Me%InitializationMethod == Boxes)then
+            
+                Me%DefaultValue = null_real
+                
+            elseif((Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == Boxes   ) .or. &
+                   (Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == Constant))then
+                   
+                write(*,*)'Initialization method for property '//trim(Me%PropertyID%Name)
+                write(*,*)'can only be CONSTANT or BOXES'
+                stop 'ReadOptions - ModuleFillMatrix - ERR072'
+     
+            
+            else
+
+                write(*,*)'Please define default value for property '//trim(Me%PropertyID%Name)
+                stop 'ReadOptions - ModuleFillMatrix - ERR080'
+
+            end if
+        
+        
+        
         end if
        
         !Keywords that define how to "work" values (interpolate, accumulate, nothing)
@@ -2153,6 +2210,10 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceBox - ModuleFillMatrix - ERR09'
 
         endif
+        
+        if(Me%OverrideValueKeywordON)then
+            BoxesNumber = BoxesNumber + 1  !to account for box 0 
+        endif
 
         !Gets boxes Values
         allocate (Me%Boxes%Values(BoxesNumber))
@@ -2170,10 +2231,45 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
             stop 'ConstructSpaceBox - ModuleFillMatrix - ERR11'
         else if ((STAT_CALL .NE. SIZE_ERR_) .AND.  (STAT_CALL .NE. SUCCESS_)) then
             stop 'ConstructSpaceBox - ModuleFillMatrix - ERR12'
-        end if           
+        end if 
+                  
         if (iflag==0) then
-            write(*,*) 'Boxes Values not given'           
-            stop       'ConstructSpaceBox - ModuleFillMatrix - ERR13'
+        
+            if(Me%OverrideValueKeywordON)then
+                
+                call GetData(Me%Boxes%Values, Me%ObjEnterData,  iflag,             &
+                             SearchType     = ExtractType,                         &
+                             keyword        = trim(Me%OverrideValueKeyword),       &
+                             ClientModule   = 'ModuleFillMatrix',                  &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceBox - ModuleFillMatrix - ERR12a'
+                
+                if       (STAT_CALL .EQ. SIZE_ERR_)  then
+                    write(*,*) 'Incorrect number of boxes for property '//trim(Me%PropertyID%Name) 
+                    stop 'ConstructSpaceBox - ModuleFillMatrix - ERR12b'
+                else if ((STAT_CALL .NE. SIZE_ERR_) .AND.  (STAT_CALL .NE. SUCCESS_)) then
+                    stop 'ConstructSpaceBox - ModuleFillMatrix - ERR12c'
+                end if           
+                
+                if(iflag == 0)then
+                    write(*,*)'Please define override keyword '//trim(Me%OverrideValueKeyword)
+                    write(*,*)'to give a boxes values for property '//trim(Me%PropertyID%Name)
+                    stop 'ConstructSpaceBox - ModuleFillMatrix - ERR12d'
+                end if
+                
+                if (Me%Dim == Dim2D) then
+                    Boxes2D = Boxes2D + 1
+                else
+                    Boxes3D = Boxes3D + 1
+                endif
+            
+            else
+
+                write(*,*) 'Boxes Values not given for property '//trim(Me%PropertyID%Name)           
+                stop       'ConstructSpaceBox - ModuleFillMatrix - ERR13'
+
+            end if
+        
         end if
 
         !Fills Matrix
