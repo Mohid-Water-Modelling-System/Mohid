@@ -488,6 +488,9 @@ Module ModuleLagrangianGlobal
     !Online Emission options 
     integer, parameter                          :: ParticleOne              = 1
     integer, parameter                          :: Particle100              = 2
+    ! Monitorization
+    integer, parameter                          :: Arithmetic               = 1
+    integer, parameter                          :: Geometric                = 2
 
     character(LEN = StringLength), parameter    :: block_begin              = '<BeginOrigin>'
     character(LEN = StringLength), parameter    :: block_end                = '<EndOrigin>'
@@ -560,6 +563,7 @@ Module ModuleLagrangianGlobal
     end type T_EulerianMonitor
 
     type T_Monitorization
+        real(8), dimension(:),    pointer       :: SurfaceBoxVolume
         real(8), dimension(:),    pointer       :: InstBoxVolume
         real(8), dimension(:),    pointer       :: InstBoxMass
         real(8), dimension(:, :), pointer       :: InstMassByOrigin
@@ -572,6 +576,17 @@ Module ModuleLagrangianGlobal
                            !i,j,k
         integer, dimension(:,:,:), pointer      :: Boxes
         integer                                 :: NumberOfBoxes
+        real(8), dimension(:),    pointer       :: InstBoxLogMass
+        real(8), dimension(:),    pointer       :: InstBoxConc
+        integer, dimension(:), pointer          :: NumberOfTracers
+        real(8), dimension(:, :), pointer       :: InstBoxMassFractionByOrigin
+        real(8), dimension(:, :), pointer       :: InstLogMassByOrigin
+        integer, dimension(:, :), pointer       :: NumberOfTracersFromOrigin
+        integer                                 :: EulerianMonitorBoxType   = Arithmetic
+        real(8), dimension(:), pointer          :: ContaminationProbability 
+        real(8), dimension(:), pointer          :: AverageBoxContaminatedConc  
+        integer, dimension(:), pointer          :: NbrBoxContaminatedTracers 
+        real(8), dimension(:), pointer          :: VolBoxContaminatedTracers 
     end type T_Monitorization
 
 
@@ -774,6 +789,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: FloatingObject       = OFF 
         logical                                 :: MeteoOcean           = OFF
         logical                                 :: Density              = OFF
+        logical                                 :: OutputTracerInfo     = OFF
     end type T_State
 
     !IO
@@ -1204,6 +1220,9 @@ Module ModuleLagrangianGlobal
 
         character(StringLength)                 :: MonitorProperty
         integer                                 :: MonitorPropertyID           = null_int
+        integer                                 :: MonitorMassFractionType     = Arithmetic
+        real                                    :: MonitorBox_TracerMinConc    = null_real
+        real                                    :: MonitorContaminationDepth   = null_real
 
         real                                    :: DT_Partic
         integer                                 :: Vert_Steps
@@ -1548,7 +1567,7 @@ em2:            do em =1, Me%EulerModelNumber
 
             !Constructs the Monitoring 
             call ConstructMonitoring
-            
+                       
             !Allocates all the necessary matrix for integrate lag data in eulerian grids
             call ConstructLag2Euler      
             
@@ -3376,7 +3395,7 @@ iDF:                if (.not. NewOrigin%Default) then
 
         if (NewOrigin%EmissionSpatial  == Accident_      .or.                           &
            (NewOrigin%EmissionSpatial  == Point_         .and.                          &
-           (NewOrigin%EmissionTemporal == Instantaneous_ .or. NewOrigin%FlowVariable    &
+           (NewOrigin%EmissionTemporal == Instantaneous_                                &
            .or. NewOrigin%MovingOriginCloudEmission))) then
             call GetData(NewOrigin%PointVolume,                                         &
                          Me%ObjEnterData,                                               &
@@ -5402,6 +5421,44 @@ NDF:    if (.not. Default .and. trim(adjustl(EmissionSpatial)) /= trim(Char_Box)
 
                 Me%State%MonitorPropMass = .true.
             end if
+            if (Me%State%MonitorPropMass) then
+            
+                !Output Concentration Type
+                call GetData(Me%MonitorMassFractionType,                                        &
+                             Me%ObjEnterData,                                                   &
+                             flag,                                                              &
+                             SearchType   = FromFile,                                           &
+                             keyword      ='MONITOR_BOX_MASS_FRACTION',                         &
+                             ClientModule ='ModuleLagrangian',                                  &
+                             Default      = Arithmetic,                                         &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR175'
+
+                ! Minimum Tracer Concentration Value for Average Concentration 
+                !and Contamination Probability in Each Monitoring Box
+
+                call GetData(Me%MonitorBox_TracerMinConc,                                   &
+                             Me%ObjEnterData,                                               &
+                             flag,                                                          &
+                             SearchType   = FromFile,                                       &
+                             keyword      ='MONITOR_BOX_MIN_CONC',                          &
+                             ClientModule ='ModuleLagrangian',                              &
+                             Default      = 1.,                                             &
+                             STAT         = STAT_CALL)
+               if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR176'
+
+               ! Depth considered to contamination probability
+                call GetData(Me%MonitorContaminationDepth,                                  &
+                             Me%ObjEnterData,                                               &
+                             flag,                                                          &
+                             SearchType   = FromFile,                                       &
+                             keyword      ='MONITOR_BOX_CONT_DEPTH',                        &
+                             ClientModule ='ModuleLagrangian',                              &
+                             Default      = null_real,                                      &
+                             STAT         = STAT_CALL)
+               if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR177'
+            
+            end if
 
         endif
 
@@ -6212,7 +6269,7 @@ em1:    do em =1, Me%EulerModelNumber
         integer                                         :: ILB, IUB
         integer                                         :: JLB, JUB
         integer                                         :: KLB, KUB, em, NumberOfBoxes
- 
+
         !Begin-----------------------------------------------------------------
 
 d1:     do em =1, Me%EulerModelNumber
@@ -6228,25 +6285,55 @@ d1:     do em =1, Me%EulerModelNumber
 
                 NumberOfBoxes   = EulerModel%Monitor%NumberOfBoxes
 
-                allocate (EulerModel%Monitor%InstBoxVolume           (NumberOfBoxes                  ))
-                allocate (EulerModel%Monitor%InstVolumeByOrigin      (NumberOfBoxes, NumberOfOrigins ))
-                allocate (EulerModel%Monitor%IntgBoxVolume           (NumberOfBoxes                  ))
-                allocate (EulerModel%Monitor%IntgVolumeByOrigin      (NumberOfBoxes, NumberOfOrigins ))
-                allocate (EulerModel%Monitor%InstBoxMass             (NumberOfBoxes                  ))
-                allocate (EulerModel%Monitor%InstMassByOrigin        (NumberOfBoxes, NumberOfOrigins ))
-                allocate (EulerModel%Monitor%NumberOfCellsPerBox     (NumberOfBoxes                  ))
-                allocate (EulerModel%Monitor%NumberOfCellsFromOrigin (NumberOfBoxes, NumberOfOrigins ))
-                allocate (EulerModel%Monitor%ObjTimeSerie            (NumberOfBoxes                  ))            
+                allocate (EulerModel%Monitor%SurfaceBoxVolume           (NumberOfBoxes                  ))
+                allocate (EulerModel%Monitor%InstBoxVolume              (NumberOfBoxes                  ))
+                allocate (EulerModel%Monitor%InstVolumeByOrigin         (NumberOfBoxes, NumberOfOrigins ))
+                allocate (EulerModel%Monitor%IntgBoxVolume              (NumberOfBoxes                  ))
+                allocate (EulerModel%Monitor%IntgVolumeByOrigin         (NumberOfBoxes, NumberOfOrigins ))
+                allocate (EulerModel%Monitor%InstBoxMass                (NumberOfBoxes                  ))
+                allocate (EulerModel%Monitor%InstMassByOrigin           (NumberOfBoxes, NumberOfOrigins ))
+                allocate (EulerModel%Monitor%NumberOfCellsPerBox        (NumberOfBoxes                  ))
+                allocate (EulerModel%Monitor%NumberOfCellsFromOrigin    (NumberOfBoxes, NumberOfOrigins ))
+                allocate (EulerModel%Monitor%ObjTimeSerie               (NumberOfBoxes                  ))            
 
+                allocate (EulerModel%Monitor%InstBoxLogMass             (NumberOfBoxes                  ))
+                allocate (EulerModel%Monitor%InstBoxConc                (NumberOfBoxes                  ))
+                allocate (EulerModel%Monitor%NumberOfTracers            (NumberOfBoxes                  ))
+                allocate (EulerModel%Monitor%InstLogMassByOrigin        (NumberOfBoxes, NumberOfOrigins ))
+                allocate (EulerModel%Monitor%NumberOfTracersFromOrigin  (NumberOfBoxes, NumberOfOrigins ))
+                allocate (EulerModel%Monitor%InstBoxMassFractionByOrigin(NumberOfBoxes, NumberOfOrigins ))
+                allocate (EulerModel%Monitor%NbrBoxContaminatedTracers  (NumberOfBoxes                  ))
+                allocate (EulerModel%Monitor%VolBoxContaminatedTracers  (NumberOfBoxes                  ))
+                allocate (EulerModel%Monitor%AverageBoxContaminatedConc (NumberOfBoxes                  ))
+                allocate (EulerModel%Monitor%ContaminationProbability   (NumberOfBoxes                  ))
                 EulerModel%Monitor%IntgBoxVolume      = 0.
                 EulerModel%Monitor%IntgVolumeByOrigin = 0.
                 EulerModel%Monitor%ObjTimeSerie       = 0
             
+            !Shorten
+            ILB    = Me%EulerModel(em)%WorkSize%ILB
+            IUB    = Me%EulerModel(em)%WorkSize%IUB
+            JLB    = Me%EulerModel(em)%WorkSize%JLB
+            JUB    = Me%EulerModel(em)%WorkSize%JUB
+            KLB    = Me%EulerModel(em)%WorkSize%KLB
+            KUB    = Me%EulerModel(em)%WorkSize%KUB
 
+            !Get the boxes
+            call GetBoxes(Me%EulerModel(em)%ObjMonBox, Me%EulerModel(em)%Monitor%Boxes, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'MonitorParticle - ModuleLagrangianGlobal - ERR01'
 
+            !Calculates the volume of each monitoring boxes
+            Me%EulerModel(em)%Monitor%InstBoxVolume = 0.
+ 
+             Me%EulerModel(em)%Monitor%InstVolumeByOrigin = 0.
 
+ 
                 If (Me%State%MonitorPropMass) then
-                    allocate (PropertyList (3*(NumberOfOrigins + 1)))
+                allocate (PropertyList (2 + 4*(NumberOfOrigins + 1)))
+                    
+                    Me%EulerModel(em)%Monitor%InstBoxMass                 (:)   = 0.
+                    Me%EulerModel(em)%Monitor%InstMassByOrigin                  = 0.
+
                 Else
                     allocate (PropertyList (2*(NumberOfOrigins + 1)))
                 End If
@@ -6273,6 +6360,20 @@ d1:     do em =1, Me%EulerModelNumber
                             PropertyList (2 * (NumberOfOrigins + 1) + 1 + iO) = "Inst. MassFrOrigin_"//trim(adjustl(AuxChar))
                         enddo
 
+                    if (Me%MonitorMassFractionType .EQ. Arithmetic) then
+                        PropertyList (3 * (NumberOfOrigins + 1) + 1) = "Inst. Arit. Conc."
+                        PropertyList (3 * (NumberOfOrigins + 1) + 2) = "Cont. Arit. Conc."
+                    else
+                        PropertyList (3 * (NumberOfOrigins + 1) + 1) = "Inst. Geom. Conc."
+                        PropertyList (3 * (NumberOfOrigins + 1) + 2) = "Cont. Geom. Conc."
+                    end if
+                        PropertyList (3 * (NumberOfOrigins + 1) + 3) = "Contam. Prob."
+
+                    do iO = 1, NumberOfOrigins
+                        write(AuxChar, fmt=*)iO
+                        PropertyList (3 * (NumberOfOrigins + 1) + 3 + iO) = "Inst. RelMassFrOrigin_"//trim(adjustl(AuxChar))
+                    enddo
+
                     End If
 
                     write(AuxChar, fmt=*)nB
@@ -6285,21 +6386,37 @@ d1:     do em =1, Me%EulerModelNumber
                                                             //"_"//trim(EulerModel%Name),       &
                                          STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMonitoring - ModuleLagrangianGlobal - ERR02'
+                    
+                                       
 
                 enddo
                 deallocate (PropertyList)
 
             else
 
-                nullify  (EulerModel%Monitor%InstBoxVolume            )
-                nullify  (EulerModel%Monitor%InstVolumeByOrigin       )
-                nullify  (EulerModel%Monitor%IntgBoxVolume            )
-                nullify  (EulerModel%Monitor%IntgVolumeByOrigin       )
-                nullify  (EulerModel%Monitor%InstBoxMass              )
-                nullify  (EulerModel%Monitor%InstMassByOrigin         )
-                nullify  (EulerModel%Monitor%NumberOfCellsPerBox      )   
-                nullify  (EulerModel%Monitor%NumberOfCellsFromOrigin  )
-                nullify  (EulerModel%Monitor%ObjTimeSerie             )
+                nullify  (EulerModel%Monitor%SurfaceBoxVolume           )
+                nullify  (EulerModel%Monitor%InstBoxVolume              )
+                nullify  (EulerModel%Monitor%InstVolumeByOrigin         )
+                nullify  (EulerModel%Monitor%IntgBoxVolume              )
+                nullify  (EulerModel%Monitor%IntgVolumeByOrigin         )
+                nullify  (EulerModel%Monitor%InstBoxMass                )
+                nullify  (EulerModel%Monitor%InstMassByOrigin           )
+                nullify  (EulerModel%Monitor%NumberOfCellsPerBox        )   
+                nullify  (EulerModel%Monitor%NumberOfCellsFromOrigin    )
+                nullify  (EulerModel%Monitor%ObjTimeSerie               )
+                nullify  (EulerModel%Monitor%InstLogMassByOrigin        )
+                nullify  (EulerModel%Monitor%NumberOfTracersFromOrigin  )
+                nullify  (EulerModel%Monitor%InstBoxMassFractionByOrigin)
+                nullify  (EulerModel%Monitor%InstBoxLogMass             )         
+                nullify  (EulerModel%Monitor%InstBoxConc                )
+                nullify  (EulerModel%Monitor%NumberOfTracers            )
+                nullify  (EulerModel%Monitor%InstBoxMassFractionByOrigin)
+                nullify  (EulerModel%Monitor%InstLogMassByOrigin        )
+                nullify  (EulerModel%Monitor%NumberOfTracersFromOrigin  )
+                nullify  (EulerModel%Monitor%ContaminationProbability   )    
+                nullify  (EulerModel%Monitor%AverageBoxContaminatedConc )
+                nullify  (EulerModel%Monitor%NbrBoxContaminatedTracers  )
+                nullify  (EulerModel%Monitor%VolBoxContaminatedTracers  )
 
             endif
 
@@ -6359,6 +6476,7 @@ d1:     do em =1, Me%EulerModelNumber
             end if
 
         enddo d1
+        
 
         nullify(EulerModel)
 
@@ -14513,6 +14631,10 @@ CurrOr: do while (associated(CurrentOrigin))
         integer                                     :: STAT_CALL
         real, dimension(:), pointer                 :: AuxReal
         integer                                     :: nProp, em 
+        real(8)                                     :: AuxReal2
+        real(8), dimension(:), pointer              :: SumContaminatedTracerConc
+        real(8), dimension(:,:), pointer            :: SumNegativeLogMassByOrigin
+        real(8), dimension(:), pointer              :: SumNegativeLogMass
 
         !Begin--------------------------------------------------------------------------
 
@@ -14531,7 +14653,24 @@ d1:     do em =1, Me%EulerModelNumber
             !Get the boxes
             call GetBoxes(Me%EulerModel(em)%ObjMonBox, Me%EulerModel(em)%Monitor%Boxes, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'MonitorParticle - ModuleLagrangianGlobal - ERR01'
+           
+            call GetNumberOfBoxes(Me%EulerModel(em)%ObjMonBox, NumberOfBoxes3D = Me%EulerModel(em)%Monitor%NumberOfBoxes,       & 
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructMonitoring - ModuleLagrangianGlobal - ERR01'
 
+            Me%EulerModel(em)%Monitor%SurfaceBoxVolume = 0.
+            do j = JLB, JUB
+            do i = ILB, IUB
+                Box = Me%EulerModel(em)%Monitor%Boxes(i, j, KUB)
+                if (Box > 0 .and. Me%EulerModel(em)%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                Me%EulerModel(em)%Monitor%SurfaceBoxVolume (Box) = Me%EulerModel(em)%Monitor%SurfaceBoxVolume (Box)              &
+                                                    + (min(Me%EulerModel(em)%DWZ(i, j, KUB), Me%MonitorContaminationDepth)       &
+                                                    * (Me%EulerModel(em)%VolumeZ   (i, j, KUB) /                                 &
+                                                    Me%EulerModel(em)%DWZ(i, j, KUB))) 
+                endif
+            enddo
+            enddo
             !Calculates the volume of each monitoring boxes
             Me%EulerModel(em)%Monitor%InstBoxVolume = 0.
             do k = KLB, KUB
@@ -14600,6 +14739,21 @@ d3:         do em =1, Me%EulerModelNumber
                 ! monitoring group of cells
 
                 Me%EulerModel(em)%Monitor%InstMassByOrigin = 0.
+                Me%EulerModel(em)%Monitor%InstLogMassByOrigin               = 0.
+                Me%EulerModel(em)%Monitor%NumberOfTracersFromOrigin         = 0
+                Me%EulerModel(em)%Monitor%ContaminationProbability    (:)   = 0.
+                Me%EulerModel(em)%Monitor%AverageBoxContaminatedConc  (:)   = 0.
+                Me%EulerModel(em)%Monitor%NbrBoxContaminatedTracers   (:)   = 0
+                Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers   (:)   = 0.
+                
+                allocate (SumContaminatedTracerConc (Me%EulerModel(em)%Monitor%NumberOfBoxes))            
+                !ROD to do : if geometric
+                allocate (SumNegativeLogMassByOrigin (Me%EulerModel(em)%Monitor%NumberOfBoxes, NumberOfOrigins))            
+                allocate (SumNegativeLogMass (Me%EulerModel(em)%Monitor%NumberOfBoxes))
+
+                SumContaminatedTracerConc            = 0.            
+                SumNegativeLogMassByOrigin           = 0.
+                SumNegativeLogMass                   = 0.
                 CurrentOrigin => Me%FirstOrigin
                 do while (associated(CurrentOrigin))
 
@@ -14626,6 +14780,39 @@ d3:         do em =1, Me%EulerModelNumber
                                     Me%EulerModel(em)%Monitor%InstMassByOrigin (Box, CurrentOrigin%ID) =     &
                                     Me%EulerModel(em)%Monitor%InstMassByOrigin (Box, CurrentOrigin%ID) + &
                                     (CurrentPartic%Concentration(nProp) * dble(CurrentPartic%Geometry%Volume)) 
+                                    !ROD to do : if geometric
+                                    AuxReal2 = CurrentPartic%Concentration(nProp) * dble(CurrentPartic%Geometry%Volume)
+                                    
+                                    if (AuxReal2 .GT. 1.) then
+                                        Me%EulerModel(em)%Monitor%InstLogMassByOrigin (Box, CurrentOrigin%ID) =     &
+                                        Me%EulerModel(em)%Monitor%InstLogMassByOrigin (Box, CurrentOrigin%ID) + log10(AuxReal2)
+                                    elseif (AuxReal2 .GT. 0. .and. AuxReal2 .LT.1) then
+                                        SumNegativeLogMass(CurrentOrigin%ID) =                       &
+                                        SumNegativeLogMassByOrigin(Box, CurrentOrigin%ID) + dabs(AuxReal2) 
+                                    end if
+                                
+                                
+                                    Me%EulerModel(em)%Monitor%NumberOfTracersFromOrigin(Box, CurrentOrigin%ID) =           &
+                                    Me%EulerModel(em)%Monitor%NumberOfTracersFromOrigin(Box, CurrentOrigin%ID) + 1 
+                                    
+                            
+                                    If ( CurrentPartic%Concentration(nProp) .GE. Me%MonitorBox_TracerMinConc) then
+                                        If (Me%MonitorMassFractionType .EQ. Arithmetic) then
+                                                SumContaminatedTracerConc(Box)=                                 &
+                                                SumContaminatedTracerConc(Box) + CurrentPartic%Concentration(nProp)
+                                            else
+                                                SumContaminatedTracerConc(Box) =                                &
+                                                SumContaminatedTracerConc(Box) +                                &
+                                                log10(CurrentPartic%Concentration(nProp))                                           
+                                        end if
+                                        
+                                        Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers(Box) =                             &
+                                        Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers(Box) +                             &
+                                        dble(CurrentPartic%Geometry%Volume)                              
+                                        
+                                        Me%EulerModel(em)%Monitor%NbrBoxContaminatedTracers(Box) =                             &
+                                        Me%EulerModel(em)%Monitor%NbrBoxContaminatedTracers(Box) + 1
+                                    End If
                                 endif
 
                                 CurrentPartic => CurrentPartic%Next
@@ -14641,7 +14828,12 @@ d3:         do em =1, Me%EulerModelNumber
                 enddo
 
                 !Calculates Box Mass
-                Me%EulerModel(em)%Monitor%InstBoxMass (:) = 0.
+                Me%EulerModel(em)%Monitor%NumberOfTracers             (:)   = 0
+                Me%EulerModel(em)%Monitor%InstBoxMass                 (:)   = 0.
+                Me%EulerModel(em)%Monitor%InstBoxLogMass              (:)   = 0.
+                Me%EulerModel(em)%Monitor%InstBoxConc                 (:)   = 0.
+                Me%EulerModel(em)%Monitor%InstBoxMassFractionByOrigin (:,:) = 0.
+                SumNegativeLogMass                                    (:)   = 0.
                 do Box = 1, Me%EulerModel(em)%Monitor%NumberOfBoxes
                     CurrentOrigin => Me%FirstOrigin
                     do while (associated(CurrentOrigin))
@@ -14651,12 +14843,70 @@ d3:         do em =1, Me%EulerModelNumber
                             cycle
                         endif
 
+                        Me%EulerModel(em)%Monitor%InstBoxLogMass(Box) =       &
+                        Me%EulerModel(em)%Monitor%InstBoxLogMass(Box) +   &
+                        Me%EulerModel(em)%Monitor%InstLogMassByOrigin (Box, CurrentOrigin%ID)
                         Me%EulerModel(em)%Monitor%InstBoxMass(Box) =       &
                         Me%EulerModel(em)%Monitor%InstBoxMass(Box) +   &
                         Me%EulerModel(em)%Monitor%InstMassByOrigin (Box, CurrentOrigin%ID)
 
+                        Me%EulerModel(em)%Monitor%NumberOfTracers(Box) =       &
+                        Me%EulerModel(em)%Monitor%NumberOfTracers(Box) +       &
+                        Me%EulerModel(em)%Monitor%NumberOfTracersFromOrigin (Box, CurrentOrigin%ID)
+
+                        SumNegativeLogMass(Box) =               &
+                        SumNegativeLogMass(Box) +               &
+                        SumNegativeLogMassByOrigin(Box, CurrentOrigin%ID)
                         CurrentOrigin => CurrentOrigin%Next
                     enddo
+                    ! Computes the Fraction of mass in a box from each origin
+                    CurrentOrigin => Me%FirstOrigin
+                    do while (associated(CurrentOrigin))
+
+                        if (Me%MonitorMassFractionType .EQ. Arithmetic .and. Me%EulerModel(em)%Monitor%InstBoxMass(Box) .GT. 0) then
+                            Me%EulerModel(em)%Monitor%InstBoxMassFractionByOrigin (Box, CurrentOrigin%ID) =     &
+                            Me%EulerModel(em)%Monitor%InstMassByOrigin (Box, CurrentOrigin%ID) /                &
+                            Me%EulerModel(em)%Monitor%InstBoxMass(Box)                 
+                        elseif (Me%MonitorMassFractionType .EQ. Geometric .and.                                 &
+                        Me%EulerModel(em)%Monitor%InstBoxLogMass(Box) .GT. 0) then
+                            Me%EulerModel(em)%Monitor%InstBoxMassFractionByOrigin (Box, CurrentOrigin%ID) =     &
+                            Me%EulerModel(em)%Monitor%InstLogMassByOrigin (Box, CurrentOrigin%ID) /             &
+                            Me%EulerModel(em)%Monitor%InstBoxLogMass(Box)                   
+                        end if
+     
+                       CurrentOrigin => CurrentOrigin%Next
+                    enddo
+
+                    if (Me%MonitorMassFractionType .EQ. Arithmetic) then
+                        Me%EulerModel(em)%Monitor%InstBoxConc (Box) =                                           &
+                        Me%EulerModel(em)%Monitor%InstBoxMass(Box) / Me%EulerModel(em)%Monitor%InstBoxVolume (Box)
+
+                        Me%EulerModel(em)%Monitor%AverageBoxContaminatedConc (Box) =                            &
+                        SumContaminatedTracerConc(Box) / Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers(Box)
+                        
+                    elseif (Me%MonitorMassFractionType .EQ. Geometric) then
+                        if (Me%EulerModel(em)%Monitor%NumberOfTracers(Box) .GT. 0) then
+                            Me%EulerModel(em)%Monitor%InstBoxConc (Box) =                                      &
+                            10**((Me%EulerModel(em)%Monitor%InstBoxLogMass(Box) - SumNegativeLogMass(Box)) /   &
+                            dble(Me%EulerModel(em)%Monitor%NumberOfTracers(Box)))                              &
+                            * dble(Me%EulerModel(em)%Monitor%NumberOfTracers(Box)) /                           &
+                            Me%EulerModel(em)%Monitor%InstBoxVolume (Box)
+                        end if
+                        if (Me%EulerModel(em)%Monitor%NbrBoxContaminatedTracers(Box) .GT. 0) then
+                            Me%EulerModel(em)%Monitor%AverageBoxContaminatedConc (Box) =                       &
+                            10**(SumContaminatedTracerConc(Box)/dble(Me%EulerModel(em)%Monitor%NbrBoxContaminatedTracers(Box)))     
+                        end if                                             
+                    end if
+
+                    If (Me%MonitorContaminationDepth .GT. 0.) then
+                        Me%EulerModel(em)%Monitor%ContaminationProbability(Box) =                              &
+                        Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers(Box) /                             &
+                                                                   Me%EulerModel(em)%Monitor%SurfaceBoxVolume (Box)
+                    Else
+                        Me%EulerModel(em)%Monitor%ContaminationProbability(Box) =                              &
+                        Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers(Box) /                             &
+                                                                   Me%EulerModel(em)%Monitor%InstBoxVolume (Box)                    
+                    End If
                 enddo
 
             enddo d3
@@ -14687,7 +14937,7 @@ d4:     do em =1, Me%EulerModelNumber
 
 
         If (Me%State%MonitorPropMass) then
-            allocate (AuxReal (3*(NumberOfOrigins + 1)))
+            allocate (AuxReal (2 + 4*(NumberOfOrigins + 1)))
         Else
             allocate (AuxReal (2*(NumberOfOrigins + 1)))
         End If
@@ -14734,6 +14984,20 @@ d5:     do em =1, Me%EulerModelNumber
                     CurrentOrigin => CurrentOrigin%Next
                 enddo
 
+                    !Instant Geometric Concentration Values and Relative Mass values
+                    AuxReal(3 * (NumberOfOrigins + 1) + 1) = Me%EulerModel(em)%Monitor%InstBoxConc (Box)
+                    AuxReal(3 * (NumberOfOrigins + 1) + 2) = Me%EulerModel(em)%Monitor%AverageBoxContaminatedConc (Box)
+                    AuxReal(3 * (NumberOfOrigins + 1) + 3) = Me%EulerModel(em)%Monitor%ContaminationProbability(Box)
+                    CurrentOrigin => Me%FirstOrigin
+                    iO = 1
+                    do while (associated(CurrentOrigin))
+                        AuxReal(3 * (NumberOfOrigins + 1) + 3 + iO) =                               &
+                        Me%EulerModel(em)%Monitor%InstBoxMassFractionByOrigin (Box, CurrentOrigin%ID)
+
+                        iO = iO + 1
+                        CurrentOrigin => CurrentOrigin%Next
+                    enddo
+
                 End If
 
                 call WriteTimeSerieLine (Me%EulerModel(em)%Monitor%ObjTimeSerie(Box), DataLine = AuxReal, STAT = STAT_CALL)
@@ -14749,6 +15013,11 @@ d5:     do em =1, Me%EulerModelNumber
         
         deallocate (AuxReal)
         
+        If (Me%State%MonitorPropMass) then
+            deallocate (SumContaminatedTracerConc)            
+            deallocate (SumNegativeLogMassByOrigin)             
+            deallocate (SumNegativeLogMass)
+        end if
 
     end subroutine MonitorParticle
     
@@ -19116,7 +19385,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                 Box = MonitorBoxes(i, j, k)
                 if (Box > 0) then
                     OutputMatrix(i, j, k) = Me%EulerModel(em)%Monitor%InstVolumeByOrigin (Box, CurrentOrigin%ID) / &
-                                            Me%EulerModel(em)%Monitor%InstBoxVolume      (Box) * 100.
+                                            (max(dble(AllmostZero),Me%EulerModel(em)%Monitor%InstBoxVolume      (Box) * 100.))
                 endif
             enddo
             enddo
@@ -19146,7 +19415,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                 Box = MonitorBoxes(i, j, k)
                 if (Box > 0) then
                     OutputMatrix(i, j, k) = Me%EulerModel(em)%Monitor%IntgVolumeByOrigin (Box, CurrentOrigin%ID) / &
-                                            Me%EulerModel(em)%Monitor%IntgBoxVolume      (Box) * 100.
+                                             (max(dble(AllmostZero),Me%EulerModel(em)%Monitor%IntgBoxVolume      (Box) * 100.))
                 endif
             enddo
             enddo
@@ -19179,7 +19448,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                 Box = MonitorBoxes(i, j, k)
                 if (Box > 0) then
                     OutputMatrix(i, j, k) = Me%EulerModel(em)%Monitor%InstMassByOrigin (Box, CurrentOrigin%ID) / &
-                                            Me%EulerModel(em)%Monitor%InstBoxMass      (Box) * 100.
+                                            (max(dble(AllmostZero),Me%EulerModel(em)%Monitor%InstBoxMass      (Box) * 100.))
                 endif
             enddo
             enddo
@@ -19228,7 +19497,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                     Me%EulerModel(em)%Monitor%NumberOfCellsFromOrigin    (Box, CurrentOrigin%ID) = &
                         int(Me%EulerModel(em)%Monitor%NumberOfCellsPerBox(Box) *                   &
                             Me%EulerModel(em)%Monitor%InstVolumeByOrigin (Box, CurrentOrigin%ID) / &
-                            Me%EulerModel(em)%Monitor%InstBoxVolume      (Box))
+                            max(dble(AllmostZero),Me%EulerModel(em)%Monitor%InstBoxVolume      (Box)))
                 endif
             enddo
             enddo
@@ -19427,12 +19696,25 @@ d1:         do em = 1, Me%EulerModelNumber
                         if (STAT_CALL /= SUCCESS_) stop 'DeallocateLagrangianGlobal - ModuleLagrangianGlobal - ERR30'
                     enddo
 
-                    deallocate (Me%EulerModel(em)%Monitor%InstBoxVolume      )
-                    deallocate (Me%EulerModel(em)%Monitor%InstVolumeByOrigin )
-                    deallocate (Me%EulerModel(em)%Monitor%InstBoxMass        )
-                    deallocate (Me%EulerModel(em)%Monitor%InstMassByOrigin   )
-                    deallocate (Me%EulerModel(em)%Monitor%IntgBoxVolume      )
-                    deallocate (Me%EulerModel(em)%Monitor%IntgVolumeByOrigin )
+                    deallocate (Me%EulerModel(em)%Monitor%SurfaceBoxVolume           )
+                    deallocate (Me%EulerModel(em)%Monitor%InstBoxVolume              )
+                    deallocate (Me%EulerModel(em)%Monitor%InstVolumeByOrigin         )
+                    deallocate (Me%EulerModel(em)%Monitor%InstBoxMass                )
+                    deallocate (Me%EulerModel(em)%Monitor%InstMassByOrigin           )
+                    deallocate (Me%EulerModel(em)%Monitor%IntgBoxVolume              )
+                    deallocate (Me%EulerModel(em)%Monitor%IntgVolumeByOrigin         )
+                    deallocate (Me%EulerModel(em)%Monitor%NumberOfCellsPerBox        )
+                    deallocate (Me%EulerModel(em)%Monitor%NumberOfCellsFromOrigin    )
+                    deallocate (Me%EulerModel(em)%Monitor%InstBoxLogMass             )         
+                    deallocate (Me%EulerModel(em)%Monitor%InstBoxConc                )
+                    deallocate (Me%EulerModel(em)%Monitor%NumberOfTracers            )
+                    deallocate (Me%EulerModel(em)%Monitor%InstBoxMassFractionByOrigin)
+                    deallocate (Me%EulerModel(em)%Monitor%InstLogMassByOrigin        )
+                    deallocate (Me%EulerModel(em)%Monitor%NumberOfTracersFromOrigin  )
+                    deallocate (Me%EulerModel(em)%Monitor%ContaminationProbability   )    
+                    deallocate (Me%EulerModel(em)%Monitor%AverageBoxContaminatedConc )
+                    deallocate (Me%EulerModel(em)%Monitor%NbrBoxContaminatedTracers  )
+                    deallocate (Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers  )
 
                     call KillBoxDif (Me%EulerModel(em)%ObjMonBox, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'DeallocateLagrangianGlobal - ModuleLagrangianGlobal - ERR40'
