@@ -2799,7 +2799,7 @@ doIter:         do while (iter <= Niter)
 
             !Calculates flow from channels to land and the other way round. New approach
             if (Me%ObjDrainageNetwork /=0 .and. Me%SimpleChannelInteraction) then
-                call OverLandChannelInteraction
+                call OverLandChannelInteraction_New
             endif
             
             !Routes Ponded levels which occour due to X/Y direction (Runoff does not route in D8)
@@ -5117,6 +5117,105 @@ doIter:         do while (iter <= Niter)
 
     
     end subroutine OverLandChannelInteraction
+    
+    !--------------------------------------------------------------------------
+
+    subroutine OverLandChannelInteraction_New
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j
+        integer                                     :: ILB, IUB, JLB, JUB, STAT_CALL
+        real                                        :: Flow, MaxFlow
+        real   , dimension(:, :), pointer           :: ChannelsVolume
+        real   , dimension(:, :), pointer           :: ChannelsMaxVolume
+        real   , dimension(:, :), pointer           :: ChannelsWaterLevel 
+        real   , dimension(:, :), pointer           :: ChannelsNodeLength
+        real                                        :: dh, WaveHeight
+        integer, dimension(:, :), pointer           :: ChannelsActiveState
+        
+
+        call GetChannelsVolume      (Me%ObjDrainageNetwork, ChannelsVolume, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR04'     
+
+        call GetChannelsMaxVolume   (Me%ObjDrainageNetwork, ChannelsMaxVolume, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR05'   
+
+        call GetChannelsWaterLevel  (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowFromChannels - ModuleRunOff - ERR01'     
+
+        call GetChannelsNodeLength  (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowFromChannels - ModuleRunOff - ERR02'
+
+        call GetChannelsActiveState (Me%ObjDrainageNetwork, ChannelsActiveState, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowFromChannels - ModuleRunOff - ERR06'        
+
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%ExtVar%RiverPoints(i, j) == BasinPoint .and. &   !RiverPoint
+                ChannelsActiveState  (i, j) == BasinPoint .and. &   !Active
+                ChannelsMaxVolume    (i, j) > 0.0) then             !Not the outlet
+
+
+                !dh > 0, flow to channels, dh < 0, flow from channels
+                dh         =  Me%myWaterLevel(i, j) - ChannelsWaterLevel(i, j)
+                WaveHeight =  max(Me%myWaterLevel(i, j), ChannelsWaterLevel(i, j)) - Me%ExtVar%Topography(i,j)
+
+                !flux is occuring between dh and with celerity (with wave height)
+                !m3/s = m/s (celerity) * m2 (Area = (dh * L) * 2)
+                Flow = sqrt(Gravity * WaveHeight) * 2.0 * ChannelsNodeLength(i, j) * dh
+
+                if (dh > 0) then
+                    MaxFlow = Me%myWaterVolume (i, j) / Me%ExtVar%DT
+                else
+                    MaxFlow = -1. * ChannelsVolume(i,j) / Me%ExtVar%DT
+                endif
+
+                if (abs(Flow) > abs(MaxFlow)) then
+                    Flow = MaxFlow
+                endif   
+                    
+                !!Important!! flow to channel may have other sources than this, so a sum is needed
+                Me%iFlowToChannels(i, j) = Me%iFlowToChannels(i, j) + Flow
+
+                !Updates Volumes
+                !Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - Me%iFlowToChannels    (i, j) * Me%ExtVar%DT
+                Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)
+                
+                Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+
+                Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+                           
+            endif
+
+        enddo
+        enddo        
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsVolume, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowFromChannels - ModuleRunOff - ERR06'
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsMaxVolume, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowFromChannels - ModuleRunOff - ERR06'
+
+        
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowFromChannels - ModuleRunOff - ERR06'
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowFromChannels - ModuleRunOff - ERR07'        
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsActiveState, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowFromChannels - ModuleRunOff - ERR010'        
+
+    
+    end subroutine OverLandChannelInteraction_New
     
     !--------------------------------------------------------------------------
 

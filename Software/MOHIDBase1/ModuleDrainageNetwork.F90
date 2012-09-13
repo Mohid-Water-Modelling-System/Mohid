@@ -7770,7 +7770,6 @@ do2 :   do while (associated(PropertyX))
             endif
             
             call UpdateAreasAndMappings
-            
          
             !Runs Hydrodynamic
             call ModifyHydrodynamics        (LocalDT, Restart, Niter)
@@ -7794,6 +7793,9 @@ do2 :   do while (associated(PropertyX))
                 iter    = 1
 
             else
+
+                !needs update after all computation (so that modules get the last level)
+                call UpdateAreasAndMappings
                 
                 !Runs Advection / Diffusion
                 if (Me%ComputeOptions%AdvectionDiffusion) call TransportProperties      (LocalDT)
@@ -7817,7 +7819,7 @@ do2 :   do while (associated(PropertyX))
             endif
 
         enddo
-
+                
         !DB
         if (Niter <= Me%LastGoodNiter) then
             Me%NextNiter = max (int(Niter / 2.0), 1)
