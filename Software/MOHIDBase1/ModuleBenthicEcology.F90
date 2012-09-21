@@ -61,12 +61,12 @@
 !MORTALITY_RATE      User defined   [1/day]              Consumer Mortality rate
 !NCRATIO             User Defined   [-]                  Consumer N/C ratio
 !VMAX                User defined   [1/day]              maximum specific uptake at 10ºC
-!KS                  User defined   [KgN/m3]             Half saturation Constant for prey Uptake (pelagic prey)
-!                                   [KgN/m2]             Half saturation Constant for prey Uptake (benthic Prey)
+!KS                  User defined   [KgN/m3]             Half saturation Constant for food Uptake (pelagic food)
+!                                   [KgN/m2]             Half saturation Constant for food Uptake (benthic food)
 !ASS_EFIC            User defined   [-]                  Assimilation efficiency
-!---------------------------------Prey parameters  -----------------------------------------------------------------
-!NCRATIO             User Defined   [-]                           Prey N/C ratio
-!NAME                User Defined   [-]                           Prey Name
+!---------------------------------food parameters  -----------------------------------------------------------------
+!NCRATIO             User Defined   [-]                           food N/C ratio
+!NAME                User Defined   [-]                           food Name
 
 Module ModuleBenthicEcology
 
@@ -101,8 +101,8 @@ Module ModuleBenthicEcology
    ! private ::              AddDecomposer
    ! private ::              ConstructDecomposerParameters
     private ::              ConstructGrazing
-    private ::                  AddPrey
-    private ::                  ConstructPrey
+    private ::                  AddFood
+    private ::                  ConstructFood
     private ::          PropertyIndexNumber
     private ::          ConstructPropertyList
         
@@ -200,6 +200,7 @@ Module ModuleBenthicEcology
             real                                :: TMin             = null_real
             real                                :: TMax             = null_real
             real                                :: Lat              = null_real
+            logical                             :: SpaceCompetition = .false.
        end type T_Leaves
 
       type      T_Roots
@@ -240,7 +241,7 @@ Module ModuleBenthicEcology
         real, pointer, dimension(:  )       :: UptakeNH4NO3w
         real, pointer, dimension(:  )       :: UptakeNH4s
         real, pointer, dimension(:  )       :: UptakePO4w
-        real, pointer, dimension(:  )       :: LightFactor    
+        real, pointer, dimension(:  )       :: LightFactor   
     end type T_External
   
   
@@ -350,6 +351,7 @@ Module ModuleBenthicEcology
         real                                        :: RespirationRate  = null_real   
         real                                        :: MortalityRate    = null_real 
         real                                        :: Vmax             = null_real  
+        real                                        :: RespFrac         = null_real
         real                                        :: alpha            = null_real
         real                                        :: KN               = null_real 
         real                                        :: KP               = null_real 
@@ -370,47 +372,40 @@ Module ModuleBenthicEcology
    type(T_Producer    ), pointer                    :: Next 
     end type T_Producer
  
- private :: T_Prey
-        type   T_Prey
+ private :: T_Food
+        type   T_Food
             type(T_ID)                  :: ID
-            type(T_Prey), pointer       :: Next
+            type(T_Food), pointer       :: Next
             real                        :: NCratio
             real                        :: PCratio
             logical                     :: Use_Carbon
             logical                     :: Use_Nitrogen
             logical                     :: Use_Phosphorus
             logical                     :: ParticulateWaterFood
-        end type T_Prey
+        end type T_Food
 
 
     private :: T_Grazing
         type   T_Grazing
-            real                        :: Vmax             = FillValueReal         !maximum specific uptake at 10ºC
-            real                        :: Ks               = FillValueReal         !half saturation value for uptake
-            real                        :: Ass_Efic         = FillValueReal         !assimilation efficiency
+            real                        :: Ass_Efic         = FillValueReal !assimilation efficiency
             real                        :: NCRatio          = FillValueReal
             logical                     :: Cohesivesed                   ! 1 effect of cohesivesed on grazing 
-            real                        :: KFoodP           = FillValueReal
             real                        :: KFoodC           = FillValueReal
-            real                        :: KFoodN           = FillValueReal
-            type(T_Prey), pointer       :: FirstPrey
+            type(T_Food), pointer       :: FirstFood
         end type T_Grazing
  
    private :: T_Consumer 
    type     T_Consumer
         type(T_ID)                                       :: ID
-        type(T_Prey), pointer                            :: FirstPrey 
+        type(T_Food), pointer                            :: FirstFood 
         type(T_PoolIndex)                                :: PoolIndex
         type(T_Consumer    ), pointer                    :: Next 
         type(T_Grazing     )                             :: Grazing
         real                                             :: RespirationRate  = null_real  
-        real                                             :: O2HX             = null_real 
-        real                                             :: O2QX             = null_real
         real                                             :: MortalityRate    = null_real
-        real                                             :: Td               = null_real ! Time for death of 99% individuals
         real                                             :: BETA20           = null_real
         real                                             :: TemperatureFactor= null_real
-        real                                             :: FILT20           = null_real ! l/day/gC
+        real                                             :: GRMAX           = null_real ! l/day/gC
         real                                             :: RESP20           = null_real  ! [1/day]
         real                                             :: NCratio          = null_real
         real                                             :: PCratio          = null_real    
@@ -1116,7 +1111,7 @@ subroutine ReadData
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'RESPL0',                                           &
-                     Default      = 0.0041,                                              &
+                     Default      = 0.041,                                              &
                      ClientModule = 'ModuleBenthicEcology',                                 &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR02'
@@ -1391,7 +1386,18 @@ subroutine ReadData
                      Default      = 40.5,                                                 &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR30'
+        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR31'
+        
+                call GetData(Me%Leaves%SpaceCompetition,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'SPACECOMPETITION',                                           &
+                     Default      = .False.,                                                 &
+                     ClientModule = 'ModuleBenthicEcology',                             &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR32'
+   
+
 
    
     end subroutine ReadSeagrassesParameters
@@ -1805,7 +1811,13 @@ subroutine AddProducer (ObjProducer)
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #20'         
 
-
+        call GetData(NewProducer%RespFrac,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'RESPFRAC',               &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #5'
     end subroutine ConstructProducerParameters
 
 
@@ -1936,29 +1948,8 @@ cd2 :           if (BlockFound) then
         if(.not. CheckPropertyName(trim(NewConsumer%ID%Name)//" carbon"))&
        stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #2'
  
-        call GetData(NewConsumer%O2HX,                              &
-                     Me%ObjEnterData, iflag,                        &
-                     SearchType   = FromBlock,                      &
-                     keyword      = 'O2HX',                &   ! mgO2/l
-                     ClientModule = MohidModules(mBenthicEcology_)%Name,      &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #2'
-
-       call GetData(NewConsumer%O2QX,                              &
-                     Me%ObjEnterData, iflag,                        &
-                     SearchType   = FromBlock,                      &
-                     keyword      = 'O2QX',                &   ! mgO2/l
-                     ClientModule = MohidModules(mBenthicEcology_)%Name,      &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #3'
-
-       call GetData(NewConsumer%Td,                              &
-                     Me%ObjEnterData, iflag,                        &
-                     SearchType   = FromBlock,                      &
-                     keyword      = 'TD',                &   ! days
-                     ClientModule = MohidModules(mBenthicEcology_)%Name,      &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #4'
+     
+ 
 
        call GetData(NewConsumer%BETA20,                              &
                      Me%ObjEnterData, iflag,                        &
@@ -1968,10 +1959,10 @@ cd2 :           if (BlockFound) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #5'
       
-       call GetData(NewConsumer%FILT20,                              &
+       call GetData(NewConsumer%GRMAX,                              &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
-                     keyword      = 'FILT20',                &   
+                     keyword      = 'GRMAX',                &   
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #6'
@@ -2103,28 +2094,11 @@ subroutine ConstructGrazing (Grazing, ClientNumber)
         !Local-----------------------------------------------------------------
         integer                                         :: FromBlock 
         integer                                         :: FirstLine, LastLine
-        type (T_Prey), pointer                          :: NewPrey
+        type (T_Food), pointer                          :: NewFood
 
         !Begin-----------------------------------------------------------------
 
         call GetExtractType    (FromBlock = FromBlock)
-
-        call GetData(Grazing%Vmax,                                  &
-                     Me%ObjEnterData, iflag,                        &
-                     SearchType   = FromBlock,                      &
-                     keyword      = 'VMAX',             &
-                     ClientModule = MohidModules(mBenthicEcology_)%Name,      &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGrazing - ModuleBenthicEcology - ERROR #1'
-
-
-        call GetData(Grazing%Ks,                                    &
-                     Me%ObjEnterData, iflag,                        &
-                     SearchType   = FromBlock,                      &
-                     keyword      = 'KS',                   &
-                     ClientModule = MohidModules(mBenthicEcology_)%Name,      &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGrazing - ModuleBenthicEcology - ERROR #2'
 
 
         call GetData(Grazing%Ass_Efic,                              &
@@ -2143,14 +2117,6 @@ subroutine ConstructGrazing (Grazing, ClientNumber)
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGrazing - ModuleBenthicEcology - ERROR #4'
         
-      
-        call GetData(Grazing%KFoodP,                              &
-                     Me%ObjEnterData, iflag,                        &
-                     SearchType   = FromBlock,                      &
-                     keyword      = 'KFOODP',                &
-                     ClientModule = MohidModules(mBenthicEcology_)%Name,      &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGrazing - ModuleBenthicEcology - ERROR #5'
         
          call GetData(Grazing%KFoodC,                              &
                      Me%ObjEnterData, iflag,                        &
@@ -2160,13 +2126,7 @@ subroutine ConstructGrazing (Grazing, ClientNumber)
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGrazing - ModuleBenthicEcology - ERROR #6'
        
-                call GetData(Grazing%KFoodN,                              &
-                     Me%ObjEnterData, iflag,                        &
-                     SearchType   = FromBlock,                      &
-                     keyword      = 'KFOODN',                &
-                     ClientModule = MohidModules(mBenthicEcology_)%Name,      &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGrazing - ModuleBenthicEcology - ERROR #7'
+  
         
         
 
@@ -2183,15 +2143,15 @@ subroutine ConstructGrazing (Grazing, ClientNumber)
             
                     if     (((LastLine + 1) - (FirstLine - 1)) .GE. 1) then
 
-                        call AddPrey        (Grazing, NewPrey)
+                        call AddFood        (Grazing, NewFood)
 
-                        call ConstructPrey  (NewPrey)
+                        call ConstructFood  (NewFood)
 
-                        nullify(NewPrey)
+                        nullify(NewFood)
 
                     else
                         write(*,*)  
-                        write(*,*) 'Error counting preys. '
+                        write(*,*) 'Error counting Foods. '
                         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGrazing - ModuleBenthicEcology - ERROR #4'
                     end if
                 else
@@ -2215,53 +2175,53 @@ subroutine ConstructGrazing (Grazing, ClientNumber)
     
     
     ! -----------------------------------------------------------------------------------------
-    subroutine AddPrey (Grazing, Prey)
+    subroutine AddFood (Grazing, Food)
 
         !Arguments-------------------------------------------------------------
         type (T_Grazing)                          :: Grazing
-        type (T_Prey),          pointer           :: Prey
+        type (T_Food),          pointer           :: Food
 
         !Local-----------------------------------------------------------------
-        type (T_Prey),          pointer           :: PreviousPrey
-        type (T_Prey),          pointer           :: NewPrey
-        integer, save                             :: NextPreyID = 1
+        type (T_Food),          pointer           :: PreviousFood
+        type (T_Food),          pointer           :: NewFood
+        integer, save                             :: NextFoodID = 1
 
         !Allocates new Producer
-        allocate (NewPrey)
-        nullify  (NewPrey%Next)
+        allocate (NewFood)
+        nullify  (NewFood%Next)
 
-        !Insert new Prey into list and makes current algae point to it
-        if (.not. associated(Grazing%FirstPrey)) then
-            NextPreyID              = 1
-            Grazing%FirstPrey       => NewPrey
-            Prey                    => NewPrey
+        !Insert new Food into list and makes current algae point to it
+        if (.not. associated(Grazing%FirstFood)) then
+            NextFoodID              = 1
+            Grazing%FirstFood       => NewFood
+            Food                    => NewFood
         else
-            PreviousPrey            => Grazing%FirstPrey
-            Prey                    => Grazing%FirstPrey%Next
+            PreviousFood            => Grazing%FirstFood
+            Food                    => Grazing%FirstFood%Next
 
-            do while (associated(Prey))
-                PreviousPrey        => Prey
-                Prey                => Prey%Next
+            do while (associated(Food))
+                PreviousFood        => Food
+                Food                => Food%Next
             enddo
-            Prey                    => NewPrey
-            PreviousPrey%Next       => NewPrey
+            Food                    => NewFood
+            PreviousFood%Next       => NewFood
         endif
 
         !Attributes ID
-        Prey%ID%ID               = NextPreyID
+        Food%ID%ID               = NextFoodID
 
-        NextPreyID               = NextPreyID + 1
+        NextFoodID               = NextFoodID + 1
 
 
-    end subroutine AddPrey
+    end subroutine AddFood
 !--------------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
 
-    subroutine ConstructPrey (NewPrey)
+    subroutine ConstructFood (NewFood)
 
         !Arguments-------------------------------------------------------------
-        type (T_Prey), pointer                          :: NewPrey
+        type (T_Food), pointer                          :: NewFood
 
         !External--------------------------------------------------------------
         integer                                         :: STAT_CALL, iflag
@@ -2274,75 +2234,75 @@ subroutine ConstructGrazing (Grazing, ClientNumber)
 
         call GetExtractType    (FromBlockInBlock = FromBlockInBlock)
 
-        call GetData(NewPrey%ID%Name,                               &
+        call GetData(NewFood%ID%Name,                               &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlockInBlock,               &
                      keyword      = 'NAME',                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructPrey - ModuleBenthicEcology - ERROR #1'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFood - ModuleBenthicEcology - ERROR #1'
         
-                call GetData(NewPrey%NCRatio,                               &
+                call GetData(NewFood%NCRatio,                               &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlockInBlock,               &
                      keyword      = 'NCRATIO',                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructPrey - ModuleBenthicEcology - ERROR #2'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFood - ModuleBenthicEcology - ERROR #2'
                  
-                 call GetData(NewPrey%PCRatio,                               &
+                 call GetData(NewFood%PCRatio,                               &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlockInBlock,               &
                      keyword      = 'PCRATIO',                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructPrey - ModuleBenthicEcology - ERROR #3'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFood - ModuleBenthicEcology - ERROR #3'
         
-        call GetData(NewPrey%Use_Carbon,                    &
+        call GetData(NewFood%Use_Carbon,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlockInBlock,                  &
                      keyword      = 'CARBON_USE',               &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructPrey - ModuleBenthicEcology - ERROR #4'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFood - ModuleBenthicEcology - ERROR #4'
         
-        call GetData(NewPrey%Use_Nitrogen,                    &
+        call GetData(NewFood%Use_Nitrogen,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlockInBlock,                  &
                      keyword      = 'NITROGEN_USE',               &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructPrey - ModuleBenthicEcology - ERROR #5'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFood - ModuleBenthicEcology - ERROR #5'
         
-                call GetData(NewPrey%Use_Phosphorus,                    &
+                call GetData(NewFood%Use_Phosphorus,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlockInBlock,                  &
                      keyword      = 'PHOSPHORUS_USE',               &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructPrey - ModuleBenthicEcology - ERROR #6'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFood - ModuleBenthicEcology - ERROR #6'
         
-        call GetData(NewPrey%ParticulateWaterFood,                    &
+        call GetData(NewFood%ParticulateWaterFood,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlockInBlock,                  &
                      keyword      = 'PARTICWATERFOOD',               &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructPrey - ModuleBenthicEcology - ERROR #7'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFood - ModuleBenthicEcology - ERROR #7'
         
         if((Me%PelagicModel == LifeModel))then
-        if(.not. CheckPropertyName(trim(NewPrey%ID%Name)//" nitrogen"))&
-        stop 'ConstructPrey - ModuleBenthicEcology - ERROR #7'
+        if(.not. CheckPropertyName(trim(NewFood%ID%Name)//" nitrogen"))&
+        stop 'ConstructFood - ModuleBenthicEcology - ERROR #7'
         endif        
 
         Producer => Me%FirstProducer
         do while(associated(Producer))
 
-            !if(NewPrey%ID%Name == trim(Producer%ID%Name))then
+            !if(NewFood%ID%Name == trim(Producer%ID%Name))then
 
-             !   NewPrey%Use_Chl = .true.
+             !   NewFood%Use_Chl = .true.
 
-              !  if(Producer%Use_Silica)NewPrey%Use_Silica = .true.
+              !  if(Producer%Use_Silica)NewFood%Use_Silica = .true.
 
             !end if
 
@@ -2351,7 +2311,7 @@ subroutine ConstructGrazing (Grazing, ClientNumber)
             Producer => Producer%Next
         end do
 
-    end subroutine ConstructPrey
+    end subroutine ConstructFood
   
    
     !--------------------------------------------------------------------------
@@ -2779,7 +2739,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             
             Me%ExternalVar%LightFactor  => LightFactor
            if (.not. associated(Me%ExternalVar%LightFactor))       &
-               stop 'ModifyBenthicEcology - ModuleBenthicEcology - ERR11'  
+               stop 'ModifyBenthicEcology - ModuleBenthicEcology - ERR11' 
+              
               
             Me%ExternalVar%Mass         => Mass
             if (.not. associated(Me%ExternalVar%Mass))              &
@@ -2848,13 +2809,13 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer             :: PON, POP, POC
         real                :: AverageRadiation
         real                :: Lightlim, NLim, PLim, NutLim, GrowthRate
-        real                :: UptakeNA, UptakeAM, UptakeP
+        real                :: UptakeNA, UptakeAM, UptakeP, RespirationRate
         real                :: RespirationC, RespirationN, RespirationP
         real                :: MortalityC, MortalityN, MortalityP
         real                :: FluxToPON, FluxToPOP, FluxToPOC
         real                :: x1,x2,x3,x4, AmmoniaPreferenceFactor
         real                :: s1, s2, xa,xb,ya,yb, TemperatureLim
-        real                :: ConcAM, ConcNA
+        real                :: ConcAM, ConcNA, ConcIP, ConcO2
         integer             :: Zone
         integer, parameter  :: NoLimitation = 1
         integer, parameter  :: Erosion      = 2
@@ -2920,25 +2881,37 @@ d1:     do while(associated(Producer))
         Producer_C   = Producer%PoolIndex%Carbon
         Producer_P   = Producer%PoolIndex%Phosphorus
         
+        ! Calculate concentrations only once to reduce number of calculations
+                
+        ConcAM=Me%ExternalVar%MassInKgFromWater(AM, index)/Me%ExternalVar%WaterVolume(Index)
+        ConcNA=Me%ExternalVar%MassInKgFromWater(NA, index)/Me%ExternalVar%WaterVolume(Index)
+        ConcIP=Me%ExternalVar%MassInKgFromWater(IP,Index)/Me%ExternalVar%WaterVolume(Index)
+        ConcO2=Me%ExternalVar%MassInKgFromWater(O2,Index)/Me%ExternalVar%WaterVolume(Index)
+        
         ! Evans and Parslow model (1985) model 
+        ! Producer%alpha has units of 1/(day*(W/m2))
+        ! AverageRadiation has units of W/m2
+        ! Producer%Vmax has units of 1/day 
+        ! Lightlim is dimensionless
         Lightlim =  Producer%alpha* AverageRadiation / &
                     sqrt(Producer%Vmax*Producer%Vmax + (Producer%alpha**2) * ( AverageRadiation**2))
         
-        ! Nutrients Limitation
-        NLim =   (Me%ExternalVar%MassInKgFromWater(AM,Index)/Me%ExternalVar%WaterVolume(Index)                  + &
-                 Me%ExternalVar%MassInKgFromWater(NA,Index)/Me%ExternalVar%WaterVolume(Index) )                 / &
-                (Producer%KN + Me%ExternalVar%MassInKgFromWater(AM, Index)/Me%ExternalVar%WaterVolume(index)    + &
-                 Me%ExternalVar%MassInKgFromWater(NA, Index)/Me%ExternalVar%WaterVolume(index))
+        ! Nutrients Limitation (the same as for Phytoplankton in ModuleWaterQuality)
+        ! Nlim is dimensionless ; Producer%KN is in Kg N/m3 (that is the same as g N /L)
+        NLim =   (ConcAM+ ConcNA )                 /  &
+                 (Producer%KN + ConcAM + ConcNA)
+       
+        ! Plim is dimensionless
+        ! Producer%KP is in Kg P/m3 (that is the same as g P /L)
+        Plim =  ConcIP                             /  &
+               (Producer%KP + ConcIP)
         
-        Plim = (Me%ExternalVar%MassInKgFromWater(IP,Index)/Me%ExternalVar%WaterVolume(Index))                 /   &
-               (Producer%KP + Me%ExternalVar%MassInKgFromWater(IP, Index)/Me%ExternalVar%WaterVolume(Index)    )
+        ! NutLim is dimensionless
         
         NutLim = min(NLim,PLim)
         
         ! ammonia preference factor (AmmoniaPreferenceFactor,dimensionless)
         ! following the same calculations made in module WaterQuality for phytoplankton
-        ConcAM=Me%ExternalVar%MassInKgFromWater(AM, index)/Me%ExternalVar%WaterVolume(Index)
-        ConcNA=Me%ExternalVar%MassInKgFromWater(NA, index)/Me%ExternalVar%WaterVolume(Index)
         
             x1 = ConcAM * ConcNA
 
@@ -2963,10 +2936,11 @@ d1:     do while(associated(Producer))
         
         case(NoLimitation)
         
+      
         ! growth rate 1/day
-        GrowthRate=Producer%Vmax*LightLim*NutLim*TemperatureLim
+        GrowthRate=(1.-Producer%RespFrac)*Producer%Vmax*LightLim*NutLim*TemperatureLim
         
-        ! uptake of ammonia (Michaelis Menten kinetics)
+        ! uptake of ammonia 
         ! KgN     = 1/day  * (KgN/KgC) * KgC*day
         UptakeAM = AmmoniaPreferenceFactor * GrowthRate * Producer%NCRatio * &
                   Me%ExternalVar%Mass(Producer_C, Index)* Me%DTDay ! KgN
@@ -2977,13 +2951,26 @@ d1:     do while(associated(Producer))
         UptakeP = GrowthRate * Producer%PCRatio * Me%ExternalVar%Mass(Producer_C, Index)* Me%DTDay ! KgP
         
         
-        !KgC = KgC *day * 1/day * [-]                                                                                       
-        MortalityC = Me%ExternalVar%Mass(Producer_C, Index) * Me%DTDay * Producer%MortalityRate*TemperatureLim 
+        !KgC = KgC *day * 1/day * [-]     
+        
+        
+                                                                                          
+        MortalityC = Me%ExternalVar%Mass(Producer_C, Index) * Me%DTDay * Producer%MortalityRate 
         MortalityN = MortalityC*Producer%NCRatio  ! KgN
         MortalityP = MortalityC*Producer%PCRatio  ! KgP
         
         ! units of mass
-        RespirationC = Me%ExternalVar%Mass(Producer_C, Index) * Producer%RespirationRate*TemperatureLim * Me%DTDay !KgC
+        
+
+       ! RespirationRate = Producer%RespirationRate * exp(0.069 * Me%ExternalVar%Temperature(index)) ! 1/day
+        RespirationRate=Producer%RespFrac*GrowthRate
+         
+        if (MAX( ConcO2 * 1000., Me%Oxygen%Minimum).eq.Me%Oxygen%Minimum) then
+                RespirationRate = -1.0 / null_real
+        endif
+        
+        
+        RespirationC = Me%ExternalVar%Mass(Producer_C, Index) * RespirationRate * Me%DTDay  !KgC
         RespirationN = RespirationC*Producer%NCRatio  ! KgN
         RespirationP = RespirationC*Producer%PCRatio  ! KgP
         
@@ -3034,14 +3021,19 @@ d1:     do while(associated(Producer))
             Me%ExternalVar%MassInKgFromWater(IP,     Index) = Me%ExternalVar%MassInKgFromWater(IP,     Index) - UptakeP
        end if
        
-       Me%ExternalVar%MassInKgFromWater(O2, Index)=Me%ExternalVar%MassInKgFromWater(O2, Index) + &
-                                                   (GrowthRate                                 * &
-                                                    Me%ExternalVar%Mass(Producer_C, Index)     * &
-                                                    Me%DTDay                                   - &
-                                                    RespirationC)*32./12.
+       Me%ExternalVar%MassInKgFromWater(O2, Index)=Me%ExternalVar%MassInKgFromWater(O2, Index) + &   ! Kg O2 +
+                                                   (GrowthRate                                 * &   ! (1/day *
+                                                    Me%ExternalVar%Mass(Producer_C, Index)     * &   !  Kg C  *
+                                                    Me%DTDay                                   - &   !  day   -
+                                                    RespirationC)*32./12.                            !  Kg C) * KgO2/KgC
+       
+       ! the ratio 32/12 is the ratio between grams of O2 produced and grams of Carbon in the photosynthesis reaction
+       ! the same ratio is applied in the ModuleWaterquality for phytoplankton, and in the ModuleMacroalgae for macroalgae
+       ! the same ratio is applied to calculate the oxygen consumed by benthic algae
 
         if(Me%PelagicModel == LifeModel) then
-        !what passes from The benthic producer to POC (only if ModuleLife is active)
+       ! What passes from The benthic producer to POC (only if ModuleLife is active, 
+       ! because ModuleWaterQuality does not account for POC)
         Me%ExternalVar%Mass(POC,     Index) = Me%ExternalVar%Mass(POC,     Index) + MortalityC
         endif
         
@@ -3051,12 +3043,12 @@ d1:     do while(associated(Producer))
         
          !Not all benthic producers mass is eroded. to make sure 
          !there's always enough to grow back again (minimum concentration)
-         ! This is similar to macroalgae module
+         ! This is similar to ModuleMacroalgae
                    
                      if(Me%ExternalVar%Mass(Producer_C, Index) > Producer%MinimumBiomass)then
                     
                     
-                     !what passes from benthic producer to POM
+                      ! what passes from benthic producer to POM
 
                       ! KgC  (MinimumBiomass is expressed as KgC/m2, so it is necessary to multiply by
                       ! the cell area to get the value in KgC)
@@ -3125,7 +3117,7 @@ d1:     do while(associated(Producer))
 
     !Local-------------------------------------------------------------------
         type(T_Consumer),      pointer             :: Consumer
-        type(T_Prey),          pointer             :: Prey
+        type(T_Food),          pointer             :: Food
         integer                                    :: PON
         integer                                    :: POP
         integer                                    :: POC
@@ -3136,10 +3128,11 @@ d1:     do while(associated(Producer))
         integer                                    :: Consumer_N
         integer                                    :: Consumer_C
         integer                                    :: Consumer_P
-        integer                                    :: PreyIndexC
-        integer                                    :: PreyIndexN
-        integer                                    :: PreyIndexP
+        integer                                    :: FoodIndexC
+        integer                                    :: FoodIndexN
+        integer                                    :: FoodIndexP
         real                                       :: TemperatureDependence
+        real                                       :: TemperatureFDecay
         real                                       :: Mortality
         real                                       :: MortalityRate
         real                                       :: Respiration
@@ -3160,9 +3153,8 @@ d1:     do while(associated(Producer))
         real                                       :: EgestionC_tot
         real                                       :: EgestionN_tot
         real                                       :: EgestionP_tot
-        real                                       :: FiltrationRate
-        real, parameter                            :: atss = 81.
-        real, parameter                            :: btsss = 24.
+        real                                       :: IngestionRate
+        real                                       :: FoodDens
         real                                       :: s1, s2, xa, xb, ya, yb
         
         
@@ -3197,12 +3189,12 @@ d1:     do while(associated(Consumer))
 
         xa = (Consumer%K1 * ya) / (1.0 + Consumer%K1 * (ya - 1.0))
         xb = (Consumer%K4 * yb) / (1.0 + Consumer%K4 * (yb - 1.0))
-
+        ! temperature dependence follows a bell shaped function when multiplied by the maximum growth rate
         TemperatureDependence = xa * xb
         
-        ! not tried yet           2^((T-30)/10) dimensionless                   
-        !TemperatureDependence = min(1., Consumer%TemperatureFactor**((Me%ExternalVar%Temperature(Index)-30.)/10.))
+        !  respiration and mortality increase with temperature, similarly to mineralization 
         
+        TemperatureFDecay = Consumer%TemperatureFactor ** (Me%ExternalVar%Temperature(index)-20.)
         
         Consumer_N   = Consumer%PoolIndex%Nitrogen
         Consumer_C   = Consumer%PoolIndex%Carbon
@@ -3222,35 +3214,36 @@ d1:     do while(associated(Consumer))
         !OxygenLimitation = 0 when Oxygen levels are low 
         OxygenLimitation = OxygenLimitation / (OxygenLimitation + 0.5)
         
-        MortalityRate=(1.-OxygenLimitation)*Consumer%BETA20*TemperatureDependence
+        MortalityRate=(1.-OxygenLimitation)*Consumer%BETA20*TemperatureFDecay
          ! 1/day
         
         !
         ! 
         if (Consumer%Grazing%Cohesivesed) then
         
-        ! m3/day/KgC =      m3/day /KgC    *  [-]                                                                                                                
-        FiltrationRate=Consumer%FILT20*  TemperatureDependence* &
+        ! if the user provided the maximum growth rate as a filtration rate, the units will be:
+        ! IngestionRate = m3/day/KgC =      m3/day /KgC    *  [-]      
+        ! if the user provided the maximum growth rate as a grazing rate, the units will be:
+        ! 1/day/=      1/day     *  [-]                                                                                                            
+        IngestionRate=Consumer%GRMAX*  TemperatureDependence * &
                                           OxygenLimitation     * &
                                           SedimentLimitation
                                           
         else 
-             FiltrationRate=Consumer%FILT20*  TemperatureDependence* &
+        
+        IngestionRate=Consumer%GRMAX*  TemperatureDependence* &
                                           OxygenLimitation
         endif                                  
         
         !  1/day =           l/day     *[-]                                                                     
-        RespirationRate=Consumer%RESP20*TemperatureDependence* &
-                                         OxygenLimitation 
+        RespirationRate=Consumer%RESP20*TemperatureFDecay
         
        
       !     KgC   =          1/day      * KgC                                 *day
         Respiration=RespirationRate*Me%ExternalVar%Mass(Consumer_C, Index)* Me%DTDay  
         
         !     KgC   =          1/day      * KgC                                 *day
-        Mortality =  MortalityRate*Me%ExternalVar%Mass(Consumer_C, Index) * Me%DTDay  ! KgC
-        !     KgC   =     1/KgC*day      * KgC*KgC                                 *day
-        !Predation = PredationRate*(Me%ExternalVar%Mass(Consumer_C, Index)**2) * Me%DTDay    
+        Mortality =  MortalityRate*Me%ExternalVar%Mass(Consumer_C, Index) * Me%DTDay  ! KgC  
        
 
        IngestionC_tot=0.
@@ -3261,37 +3254,47 @@ d1:     do while(associated(Consumer))
        EgestionP_tot=0.
        
        
-       Prey => Consumer%Grazing%FirstPrey
+       Food => Consumer%Grazing%FirstFood
   
   
-       d2:   do while(associated(Prey))
+       d2:   do while(associated(Food))
 
-
-          if ((Prey%ID%Name=='phytoplankton').AND.(Me%PelagicModel == WaterQualityModel)) then
+          ! In this part of the code, the properties which are sources of food are identified on the basis of :
+          ! 1) the name
+          ! 2) the element (N,C,P) : if coupled with module waterquality, the particulate organic matter
+          !    is expressed only as N and P, and the phytoplankton is expressed only as C. 
+          !    If coupled with module Life, POM and phytoplankton will be expressed in terms of C,N, and P
+          !    This could create confusion when expressing the grazing over the food when a different model is used
+          !    for water column biogeochemistry
+          !    So it is necessary to identify if the Food is expressed as C, N, P , or only one or two of 
+          !    these three elements. 
+          !    The keywords USE_CARBON, USE_NITROGEN and USE_PHOSPHORUS are meant to enable this identification
+          !
+          if ((Food%ID%Name=='phytoplankton').AND.(Me%PelagicModel == WaterQualityModel)) then
                
-               PreyIndexC  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)))
+               FoodIndexC  = SearchPropIndex(GetPropertyIDNumber(trim(Food%ID%Name)))
           
-          else if ((Prey%ID%Name=='particulate organic').AND.(Me%PelagicModel == WaterQualityModel)) then
+          else if ((Food%ID%Name=='particulate organic').AND.(Me%PelagicModel == WaterQualityModel)) then
                
-               if(Prey%Use_Nitrogen) then
-               PreyIndexN  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" nitrogen"))
+               if(Food%Use_Nitrogen) then
+               FoodIndexN  = SearchPropIndex(GetPropertyIDNumber(trim(Food%ID%Name)//" nitrogen"))
                endif
-               if(Prey%Use_Phosphorus) then
-               PreyIndexP  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" phosphorus"))
+               if(Food%Use_Phosphorus) then
+               FoodIndexP  = SearchPropIndex(GetPropertyIDNumber(trim(Food%ID%Name)//" phosphorus"))
                endif
          else     
                
-             if(Prey%Use_Carbon)  then
+             if(Food%Use_Carbon)  then
              
-                  PreyIndexC  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" carbon"))
+                  FoodIndexC  = SearchPropIndex(GetPropertyIDNumber(trim(Food%ID%Name)//" carbon"))
              endif
                   
-             if(Prey%Use_Nitrogen)  then
-                  PreyIndexN  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" nitrogen"))
+             if(Food%Use_Nitrogen)  then
+                  FoodIndexN  = SearchPropIndex(GetPropertyIDNumber(trim(Food%ID%Name)//" nitrogen"))
              endif     
              
-             if(Prey%Use_Phosphorus)  then
-                  PreyIndexP  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" phosphorus"))
+             if(Food%Use_Phosphorus)  then
+                  FoodIndexP  = SearchPropIndex(GetPropertyIDNumber(trim(Food%ID%Name)//" phosphorus"))
              endif
          
          endif
@@ -3299,85 +3302,120 @@ d1:     do while(associated(Consumer))
            
         
                          
-        if(Prey%Use_Nitrogen)  then
-            if((Prey%ID%Name=='particulate organic') .and. (Prey%ParticulateWaterFood)) then
+        if(Food%Use_Nitrogen)  then
+        
+        ! In this part of the code, more information is used for the identification of the source of food
+        ! In MOhid, at the interface sediment-water, the same property (with the same ID and the same name) 
+        ! can be on the bottom surface or in the water. 
+        ! The benthic feeder needs to know if it will feed on food that is on the bottom surface or in the water
+        ! the keyword PARTICULATEWATERFOOD  provides such information 
+        ! (1=food is in water, 0 = food is on the bottom surface)
+            if((Food%ID%Name=='particulate organic') .and. (Food%ParticulateWaterFood)) then
                 ! the food is eaten  from the water (filter feeder) 
-                Me%Matrix(Index, PreyIndexN, Consumer_N) = (FiltrationRate/Prey%NCRatio)*Me%ExternalVar%Mass(Consumer_N, Index)* &
-                                                          (Me%ExternalVar%MassInKgFromWater(PreyIndexN, Index)                / &
-                                                          Me%ExternalVar%WaterVolume(index))* Me%DTDay ! kgN 
+                ! In this case Ingestion rate is a filtration rate given as m3/Kg C /day  (or liters/g C/day)
+                ! 
+                Me%Matrix(Index, FoodIndexN, Consumer_N) = (IngestionRate/Food%NCRatio)                         *  &  ! m3/Kg N /day (divide by NC ratio to obtain right units)
+                                                            Me%ExternalVar%Mass(Consumer_N, Index)               *  &  ! Kg N
+                                                          (Me%ExternalVar%MassInKgFromWater(FoodIndexN, Index)   /  &  ! Kg N
+                                                          Me%ExternalVar%WaterVolume(index))                     *  &  ! m3
+                                                          Me%DTDay                                                     ! day
                                                            
-                Me%ExternalVar%MassInKgFromWater(PreyIndexN, Index)= Me%ExternalVar%MassInKgFromWater(PreyIndexN, Index)      - &
-                                                                     Me%Matrix(Index, PreyIndexN, Consumer_N)
+                Me%ExternalVar%MassInKgFromWater(FoodIndexN, Index)= Me%ExternalVar%MassInKgFromWater(FoodIndexN, Index)      - &
+                                                                     Me%Matrix(Index, FoodIndexN, Consumer_N)
                 else
                 ! the food is eaten  from the bottom (deposit feeder)
-               Me%Matrix(Index, PreyIndexN, Consumer_N) =FiltrationRate*Me%ExternalVar%Mass(Consumer_N, Index)         *   &
-                                                          Me%DTDay                                                   * &
-                                                         (Me%ExternalVar%Mass(PreyIndexN, Index)/ Me%ExternalVar%CellArea(Index)) * &
-                                                          ( Me%ExternalVar%Mass(PreyIndexN, Index)/ Me%ExternalVar%CellArea(Index) + Consumer%Grazing%KFoodN) 
+                ! In this case the ingestion rate is in 1/day
                 
-                Me%ExternalVar%Mass(PreyIndexN, Index)   = Me%ExternalVar%Mass(PreyIndexN, Index)- &
-                                                           Me%Matrix(Index, PreyIndexN, Consumer_N)  ! kgN
+               FoodDens=Me%ExternalVar%Mass(FoodIndexN, Index)/ Me%ExternalVar%CellArea(Index)
+                ! Kg N = 1/day * Kg N * day * [-]
+               Me%Matrix(Index, FoodIndexN, Consumer_N) = IngestionRate*Me%ExternalVar%Mass(Consumer_N, Index)         *   &  ! 1/day * Kg N
+                                                          Me%DTDay                                                    *   &  ! day
+                                                          FoodDens / ( FoodDens + (Consumer%Grazing%KFoodC*Food%NCRatio))                   ! [-]
+                
+                Me%ExternalVar%Mass(FoodIndexN, Index)  = Me%ExternalVar%Mass(FoodIndexN, Index)- &
+                                                           Me%Matrix(Index, FoodIndexN, Consumer_N)  ! kgN
+                                            
+                
+
             endif
         
-        IngestionN=Consumer%Grazing%Ass_Efic*Me%Matrix(Index, PreyIndexN, Consumer_N)  ! kgN
-        EgestionN=(1.-Consumer%Grazing%Ass_Efic)*Me%Matrix(Index, PreyIndexN, Consumer_N) ! ! kgN
+        IngestionN=Consumer%Grazing%Ass_Efic*Me%Matrix(Index, FoodIndexN, Consumer_N)  ! kgN
+        EgestionN=(1.-Consumer%Grazing%Ass_Efic)*Me%Matrix(Index, FoodIndexN, Consumer_N) ! ! kgN
         endif
         
-        if(Prey%Use_Carbon)  then
+        if(Food%Use_Carbon)  then
         
-            if(Prey%ParticulateWaterFood)then
+            if(Food%ParticulateWaterFood)then
                 ! the food is eaten  from the water. 
-                Me%Matrix(Index, PreyIndexC, Consumer_C) = FiltrationRate*Me%ExternalVar%Mass(Consumer_C, Index)  * &
-                                                          (Me%ExternalVar%MassInKgFromWater(PreyIndexC, Index)    / &
-                                                          Me%ExternalVar%WaterVolume(index))* Me%DTDay ! kgN
+                Me%Matrix(Index, FoodIndexC, Consumer_C) = IngestionRate*Me%ExternalVar%Mass(Consumer_C, Index)  * &
+                                                          (Me%ExternalVar%MassInKgFromWater(FoodIndexC, Index)    / &
+                                                          Me%ExternalVar%WaterVolume(index))* Me%DTDay  
                 
-                Me%ExternalVar%MassInKgFromWater(PreyIndexC, Index)= Me%ExternalVar%MassInKgFromWater(PreyIndexC, Index)- &
-                                                                    Me%Matrix(Index, PreyIndexC, Consumer_C)
+                Me%ExternalVar%MassInKgFromWater(FoodIndexC, Index)= Me%ExternalVar%MassInKgFromWater(FoodIndexC, Index)- &
+                                                                    Me%Matrix(Index, FoodIndexC, Consumer_C)
                 else
-                ! the food is eaten  on the bottom
-                Me%Matrix(Index, PreyIndexC, Consumer_C) =FiltrationRate*Me%ExternalVar%Mass(Consumer_C, Index)         *   &
-                                                          Me%DTDay                                                    * &
-                                                         (Me%ExternalVar%Mass(PreyIndexC, Index)/ Me%ExternalVar%CellArea(Index)) * &
-                                                          ( Me%ExternalVar%Mass(PreyIndexC, Index)/ Me%ExternalVar%CellArea(Index) + Consumer%Grazing%KFoodC) 
+                ! the food is eaten  from the bottom (deposit feeder)
+                ! Consumer%Grazing%KFoodC has units of kg C /m2
                 
-                Me%ExternalVar%Mass(PreyIndexC, Index)= Me%ExternalVar%Mass(PreyIndexC, Index)                          - &
-                                                        Me%Matrix(Index, PreyIndexC, Consumer_C)
+                FoodDens=Me%ExternalVar%Mass(FoodIndexC, Index)/ Me%ExternalVar%CellArea(Index)
+                
+                ! for deposit feeders, the Michaelis-Menten kinetic was used
+                ! IngestionRate has dimension of 1/day
+                ! Kg C
+                Me%Matrix(Index, FoodIndexC, Consumer_C) =IngestionRate*Me%ExternalVar%Mass(Consumer_C, Index)      *  & ! 1/day * Kg C
+                                                          Me%DTDay                                                  *  & ! day
+                                                          FoodDens/ ( FoodDens + Consumer%Grazing%KFoodC)                ! [-]
+                                                        
+                
+                Me%ExternalVar%Mass(FoodIndexC, Index)= Me%ExternalVar%Mass(FoodIndexC, Index)                      - &
+                                                        Me%Matrix(Index, FoodIndexC, Consumer_C)
+
             endif
         
-        IngestionC=Consumer%Grazing%Ass_Efic*Me%Matrix(Index, PreyIndexC, Consumer_C)
-        EgestionC=(1.-Consumer%Grazing%Ass_Efic)*Me%Matrix(Index, PreyIndexC, Consumer_C)
+        IngestionC=Consumer%Grazing%Ass_Efic*Me%Matrix(Index, FoodIndexC, Consumer_C)
+        EgestionC=(1.-Consumer%Grazing%Ass_Efic)*Me%Matrix(Index, FoodIndexC, Consumer_C)
         
         endif
         
-        if(Prey%Use_Phosphorus)  then
+        if(Food%Use_Phosphorus)  then
         
-            if((Prey%ID%Name=='particulate organic') .and. (Prey%ParticulateWaterFood)) then
+            if((Food%ID%Name=='particulate organic') .and. (Food%ParticulateWaterFood)) then
                 ! food eaten from the water
-                Me%Matrix(Index, PreyIndexP, Consumer_P) =(FiltrationRate/Prey%PCRatio)                         * &
+                Me%Matrix(Index, FoodIndexP, Consumer_P) =(IngestionRate/Food%PCRatio)                         * &
                                                           Me%ExternalVar%Mass(Consumer_P, Index)                * &
-                                                         (Me%ExternalVar%MassInKgFromWater(PreyIndexP, Index)  / &
+                                                         (Me%ExternalVar%MassInKgFromWater(FoodIndexP, Index)  / &
                                                            Me%ExternalVar%WaterVolume(index))* Me%DTDay ! kgP
                 
-                Me%ExternalVar%MassInKgFromWater(PreyIndexP, Index)= Me%ExternalVar%MassInKgFromWater(PreyIndexP, Index)- &
-                                                                     Me%Matrix(Index, PreyIndexP, Consumer_P)
+                Me%ExternalVar%MassInKgFromWater(FoodIndexP, Index)= Me%ExternalVar%MassInKgFromWater(FoodIndexP, Index)- &
+                                                                     Me%Matrix(Index, FoodIndexP, Consumer_P)
                 else
-                ! food eaten from the bottom 
-                  Me%Matrix(Index, PreyIndexP, Consumer_P) =FiltrationRate*Me%ExternalVar%Mass(Consumer_P, Index)         *   &
-                                                           Me%DTDay  * &
-                                                         (Me%ExternalVar%Mass(PreyIndexP, Index)/ Me%ExternalVar%CellArea(Index)) * &
-                                                          ( Me%ExternalVar%Mass(PreyIndexP, Index)/ Me%ExternalVar%CellArea(Index) + Consumer%Grazing%KFoodP) 
+               ! the food is eaten  from the bottom (deposit feeder)
+               ! Consumer%Grazing%KFoodP has units of kg P /m2
+               ! the food limitation is calculated by using food biomass (FoodDens, in kg P/m2) 
+                
+                FoodDens=Me%ExternalVar%Mass(FoodIndexP, Index)/ Me%ExternalVar%CellArea(Index)
+                
+                ! for deposit feeders, the Michaelis-Menten kinetic was used
+                ! IngestionRate has dimension of 1/day
                 
                 
-                Me%ExternalVar%Mass(PreyIndexP, Index)= Me%ExternalVar%Mass(PreyIndexP, Index)                  - &
-                                                        Me%Matrix(Index, PreyIndexP, Consumer_P)
+                ! Kg P
+                Me%Matrix(Index, FoodIndexP, Consumer_P) =IngestionRate*Me%ExternalVar%Mass(Consumer_P, Index)     *   &  ! 1/day * Kg P
+                                                           Me%DTDay                                                *   &  ! day
+                                                           FoodDens /( FoodDens + (Consumer%Grazing%KFoodC*Food%PCRatio))                ! [-]
+                
+                
+                Me%ExternalVar%Mass(FoodIndexP, Index)= Me%ExternalVar%Mass(FoodIndexP, Index)                  - &
+                                                        Me%Matrix(Index, FoodIndexP, Consumer_P)
+
             
             endif
             
-        IngestionP=Consumer%Grazing%Ass_Efic*Me%Matrix(Index, PreyIndexP, Consumer_P)
-        EgestionP=(1.-Consumer%Grazing%Ass_Efic)*Me%Matrix(Index, PreyIndexP, Consumer_P)
+        IngestionP=Consumer%Grazing%Ass_Efic*Me%Matrix(Index, FoodIndexP, Consumer_P)
+        EgestionP=(1.-Consumer%Grazing%Ass_Efic)*Me%Matrix(Index, FoodIndexP, Consumer_P)
         endif
        
-       if ((Prey%ID%Name=='phytoplankton').AND.(Me%PelagicModel == WaterQualityModel)) then
+       if ((Food%ID%Name=='phytoplankton').AND.(Me%PelagicModel == WaterQualityModel)) then
            IngestionN=IngestionC*Consumer%NCRatio 
            IngestionP=IngestionC*Consumer%PCRatio
            EgestionN=EgestionC*Consumer%NCRatio
@@ -3385,9 +3423,9 @@ d1:     do while(associated(Consumer))
        endif
        
        
-       if ((Prey%ID%Name=='particulate organic').AND.(Me%PelagicModel == WaterQualityModel)) then
+       if ((Food%ID%Name=='particulate organic').AND.(Me%PelagicModel == WaterQualityModel)) then
        
-            if(Prey%Use_Nitrogen) then
+            if(Food%Use_Nitrogen) then
                  ! particulate organic nitrogen
                IngestionC=IngestionN/Consumer%NCRatio
                EgestionC=EgestionN/Consumer%NCRatio
@@ -3395,28 +3433,28 @@ d1:     do while(associated(Consumer))
                EgestionP=EgestionN*(Consumer%PCRatio/Consumer%NCRatio)
            endif
            
-           if(Prey%Use_Phosphorus) then
+           if(Food%Use_Phosphorus) then
                ! particulate organic phosphorus
-               IngestionC=IngestionP/Prey%PCRatio
-               EgestionC=EgestionP/Prey%PCRatio
+               IngestionC=IngestionP/Food%PCRatio
+               EgestionC=EgestionP/Food%PCRatio
                
-               IngestionN=IngestionP*(Prey%NCRatio/Prey%PCRatio)
-               EgestionN=EgestionP*(Prey%NCRatio/Prey%PCRatio)
+               IngestionN=IngestionP*(Food%NCRatio/Food%PCRatio)
+               EgestionN=EgestionP*(Food%NCRatio/Food%PCRatio)
            endif
          endif
         
-           IngestionC_tot=IngestionC_tot+IngestionC   ! Ingestion of each prey is added to the total. 
+           IngestionC_tot=IngestionC_tot+IngestionC   ! Ingestion of each Food is added to the total. 
            IngestionN_tot=IngestionN_tot+IngestionN
            IngestionP_tot=IngestionP_tot+IngestionP
            
            
-           EgestionC_tot=EgestionC_tot+EgestionC      ! egestion of each prey is added to the total.
+           EgestionC_tot=EgestionC_tot+EgestionC      ! egestion of each Food is added to the total.
            EgestionN_tot=EgestionN_tot+EgestionN
            EgestionP_tot=EgestionP_tot+EgestionP
            
      
        
-       Prey => Prey%Next
+       Food => Food%Next
         end do d2
             
         Me%ExternalVar%Mass(Consumer_C, Index) = Me%ExternalVar%Mass(Consumer_C, Index)+IngestionC_tot &
@@ -3436,7 +3474,7 @@ d1:     do while(associated(Consumer))
     
       Me%ExternalVar%Mass(PON, Index)=Me%ExternalVar%Mass(PON, Index)+EgestionN_tot + &
                                      Mortality *Me%OrganicMatter%NC_Ratio 
-      ! PON e POP are preys, so the predation was calculated already before
+      ! PON e POP are Foods, so the predation was calculated already before
       Me%ExternalVar%Mass(POP, Index)=Me%ExternalVar%Mass(POP, Index)+EgestionP_tot + &
                                       Mortality*Me%OrganicMatter%PC_Ratio
       if (Me%PelagicModel == LifeModel) then
@@ -3559,7 +3597,8 @@ d1:     do while(associated(Consumer))
         
         
 
-        Me%ExternalVar%MassInKgFromWater(O2, Index ) = Me%ExternalVar%MassInKgFromWater(O2, Index ) - OxygenConsumption
+        Me%ExternalVar%MassInKgFromWater(O2, Index ) = Me%ExternalVar%MassInKgFromWater(O2, Index ) - &
+                                                       OxygenConsumption
 
 
     end subroutine ComputeBenthicNitrogen
@@ -3637,7 +3676,8 @@ d1:     do while(associated(Consumer))
 
         if(.NOT. Me%ComputeOptions%Pompools)then
         
-            Me%ExternalVar%MassInKgFromWater(IP,  Index) = Me%ExternalVar%MassInKgFromWater(IP , Index) + Me%Matrix(Index, POP, IP)
+            Me%ExternalVar%MassInKgFromWater(IP,  Index) = Me%ExternalVar%MassInKgFromWater(IP , Index) +  &
+                                                           Me%Matrix(Index, POP, IP)
 
             Me%ExternalVar%Mass(POP, Index) = Me%ExternalVar%Mass(POP, Index) - Me%Matrix(Index, POP, IP)
 
@@ -3668,8 +3708,10 @@ d1:     do while(associated(Consumer))
 
         end if
         
-        !if(.NOT.Me%ComputeOptions%Nitrogen)then ! if N is activated, O2 consumption was already calculated for PON decomposition
-        Me%ExternalVar%MassInKgFromWater(O2, Index ) = Me%ExternalVar%MassInKgFromWater(O2, Index ) - OxygenConsumption 
+        !if(.NOT.Me%ComputeOptions%Nitrogen)then ! if N is activated, O2 consumption was already calculated 
+        ! for PON decomposition
+        Me%ExternalVar%MassInKgFromWater(O2, Index ) = Me%ExternalVar%MassInKgFromWater(O2, Index ) - &
+                                                       OxygenConsumption 
         !endif                 
                          
     end subroutine ComputeBenthicPhosphorus
@@ -3714,10 +3756,11 @@ d1:     do while(associated(Consumer))
         integer                                     :: PO4,AM,O2
         integer                                     :: Zone
         real                                        :: LeavesMortality
+        real                                        :: LeavesBioMass
         real                                        :: LeavesRespiration
         real                                        :: RootsMortality
         real                                        :: Respiration
-        real                                        :: TemperatureLim, FTdec
+        real                                        :: TemperatureLim
         real                                        :: SpaceLimitation
         real                                        :: InternalNitrogen
         real                                        :: InternalNitrogenFunction
@@ -3788,7 +3831,8 @@ d1:     do while(associated(Consumer))
         case(NoLimitation)
         !
         phi=asin(.39795*cos(.2163108 + 2*atan(.9671396*tan(.00860*(Me%JulianDay-186)))))
-        Daylight=24-(24/pi)*acos((sin(0.8333*pi/180) + sin(Me%Leaves%Lat*pi/180)*sin(phi))/(cos(Me%Leaves%Lat*pi/180)*cos(phi)))
+        Daylight=24-(24/pi)*acos((sin(0.8333*pi/180) + sin(Me%Leaves%Lat*pi/180)*sin(phi))/ &
+                  (cos(Me%Leaves%Lat*pi/180)*cos(phi)))
         fm=exp(9.5-Daylight)
         
         ! Leaves uptake nutrients from the water column.
@@ -3851,8 +3895,7 @@ d1:     do while(associated(Consumer))
         TemperatureLim = xa * xb
         
         
-        ! Temperature effect on plant death and respiration
-        FTdec=0.098+exp(-4.690+0.2317*Me%ExternalVar%Temperature(index))
+
 
         ! Total plant mass in KgDW
         TotalPlantMass = max(0.0000001, (Me%ExternalVar%Mass(L, Index)+Me%ExternalVar%Mass(R, Index)))
@@ -3866,7 +3909,8 @@ d1:     do while(associated(Consumer))
         InternalNitrogen=(Me%ExternalVar%Mass(NINT, Index)*1000.)/TotalPlantMass
         
         
-        ! InternalNitrogenFunction is a dimensionless factor which limits the uptake of nutrients(ammonia and nitrate)
+        ! InternalNitrogenFunction is a dimensionless factor which limits the uptake of nutrients
+        ! (ammonia and nitrate)
         ! Me%Nint%Nmax is the maximum internal nitrogen content in gN/KgDW
         ! Me%Nint%Nmin is the minimum internal nitrogen content in gN/KgDW
         InternalNitrogenFunction=max(0., min(1.,(Me%Nint%Nmax-InternalNitrogen)/(Me%Nint%Nmax-Me%Nint%Nmin)))
@@ -3908,11 +3952,13 @@ d1:     do while(associated(Consumer))
         PhosphorusLimitation = 1.
         endif
         
-        
-        SpaceLimitation= max(0., (1.- (TotalPlantMass/Me%ExternalVar%CellArea(Index))/0.22))
-        
+        LeavesBioMass=max(0., (Me%ExternalVar%Mass(L, Index)/Me%ExternalVar%CellArea(Index)))
         
 
+         ! If there are onlly seagrasses
+        
+        SpaceLimitation= 1.- max(0., min(1., (LeavesBioMass/0.22)))
+        
         
 
         NutrientsLimitation = min(NitrogenLimitation,PhosphorusLimitation)
@@ -3931,7 +3977,7 @@ d1:     do while(associated(Consumer))
       ! KgDW * day-1
        RootsMortality  =   Me%ExternalVar%Mass(R, Index)      * &  ! KgDW   *
                            fm                                 * &  ! [-]   *
-                           Me%Roots%RespirationRate                  ! 1/day 
+                           Me%Roots%RespirationRate                ! 1/day 
              !day 
                           
 
@@ -3948,32 +3994,50 @@ d1:     do while(associated(Consumer))
                           
        
                                  
-
-          
+      if (LightFactor .LT. 0) then
+          write(*,*), 'LightFactor is lower than 0, LightFactor = ', LightFactor
+          write(*,*), 'Growth rate = ', Growth
+      endif
+      
+     if (TemperatureLim .LT. 0) then
+          write(*,*), 'TemperatureLim is lower than 0, TemperatureLim = ', LightFactor
+          write(*,*), 'Growth rate = ', Growth
+      endif
+     
+     if (SpaceLimitation .LT. 0) then
+          write(*,*), 'SpaceLimitation is lower than 0, SpaceLimitation = ', LightFactor
+          write(*,*), 'Growth rate = ', Growth
+      endif
+      
+      if (NutrientsLimitation .LT. 0) then
+          write(*,*), 'NutrientsLimitation is lower than 0, NutrientsLimitation = ', LightFactor
+          write(*,*), 'Growth rate = ', Growth
+      endif
+      
         
         if(Me%ComputeOptions%Nitrogen)then
             
          !what passes from Leaves to PON (KgN)  =  KgDW/day      * gN/kgDW /1000             * day
             Me%Matrix(Index, L, PON)          = LeavesMortality * (Me%Leaves%gNKgDW/1000)*Me%DTDay
 
-            Me%ExternalVar%Mass(PON,   Index) = Me%ExternalVar%Mass(PON,   Index) + &
+            Me%ExternalVar%MassInKgFromWater(PON,   Index) = Me%ExternalVar%MassInKgFromWater(PON,   Index) + &
                                                 Me%Matrix(Index, L, PON)
           ! mortality of roots is not transfered to PON at the interface sediment-water, but at PON
-          ! in the sediment column
+          ! in the sediment column (see below)
             
         end if
 
         if(Me%ComputeOptions%Phosphorus)then
 
             !what passes from Leaves to POP
-            !                                   kgC            *gP/gC              *day
+            !                                   kg DW            *gP/gDW              *day
            Me%Matrix(Index, L, POP)          = LeavesMortality * (Me%Leaves%gPKgDW/1000)*Me%DTDay
 
-           Me%ExternalVar%Mass(POP,   Index) = Me%ExternalVar%Mass(POP,   Index) + &
+           Me%ExternalVar%MassInKgFromWater(POP,   Index) = Me%ExternalVar%MassInKgFromWater(POP,   Index) + &
                                                 Me%Matrix(Index, L, POP)
                                                 
-                    ! mortality of roots is not transfered to POP at the interface sediment-water, but at POP
-          ! in the sediment column
+          ! mortality of roots is not transfered to POP at the interface sediment-water, but at POP
+          ! in the sediment column (see below)
 
         end if
 
@@ -3986,7 +4050,7 @@ d1:     do while(associated(Consumer))
           ! divide by 1000. to convert g to Kg
          Me%ExternalVar%Mass(PINT, Index)     = Me%ExternalVar%Mass(PINT, Index)          + &  ! KgP            
                                                (UptakeP/1000.                             - &  !(KgP/day         
-                                                Growth*(Me%Leaves%gPKgDW/1000.)   )      * &    ! kgdW/day * gP/KgdW/1000  
+                                                Growth*(Me%Leaves%gPKgDW/1000.)   )      * &   ! kgdW/day * gP/KgdW/1000  
                                                  Me%DTDay                                      ! day 
 
          Me%ExternalVar%Mass(L, Index)  =     Me%ExternalVar%Mass(L, Index)               + &  ! kgdw     +
@@ -4018,11 +4082,11 @@ d1:     do while(associated(Consumer))
                     
                     
                      !what passes from seagrasses to POM
-                     Me%Matrix(Index, L, PON)   = Me%ExternalVar%Mass(L, Index) - &
-                                                  Me%Leaves%MinimumBiomass*(Me%Leaves%gNKgDW/1000.)
+                     Me%Matrix(Index, L, PON)   = (Me%ExternalVar%Mass(L, Index) - &
+                                                  Me%Leaves%MinimumBiomass)*(Me%Leaves%gNKgDW/1000.)
                                                   
-                     Me%Matrix(Index, L, POP)   = Me%ExternalVar%Mass(L, Index) - &
-                                                  Me%Leaves%MinimumBiomass*(Me%Leaves%gPKgDW/1000.)
+                     Me%Matrix(Index, L, POP)   = (Me%ExternalVar%Mass(L, Index) - &
+                                                  Me%Leaves%MinimumBiomass)*(Me%Leaves%gPKgDW/1000.)
                                                
                      else
                      !what passes from seagrasses to POM
@@ -4033,11 +4097,14 @@ d1:     do while(associated(Consumer))
                     
                     if(Me%ExternalVar%Mass(R, Index) > Me%Roots%MinimumBiomass) then 
                      
-                     Me%Matrix(Index,R, PON)   = Me%ExternalVar%Mass(L, Index) - &
-                                                  Me%Roots%MinimumBiomass*(Me%Leaves%gNKgDW/1000.)
+                    ! This is not a loss from the system:
+                    ! Roots mortality will be stored in the array Me%StoredArray (see below)
+                    ! and transferred to sediment properties
+                     
+                     RootsMortality   = Me%ExternalVar%Mass(R, Index) - &
+                                                  Me%Roots%MinimumBiomass
                                                   
-                     Me%Matrix(Index, R, POP)   = Me%ExternalVar%Mass(R, Index) - &
-                                                  Me%Roots%MinimumBiomass*(Me%Leaves%gPKgDW/1000.)
+
                     else
                      Me%Matrix(Index, R, PON)   = 0.
                      Me%Matrix(Index, R, POP)   = 0.
@@ -4046,16 +4113,13 @@ d1:     do while(associated(Consumer))
                     Me%ExternalVar%Mass(L, Index)  = Me%Leaves%MinimumBiomass
                     
                     Me%ExternalVar%Mass(R, Index)  = Me%Roots%MinimumBiomass
+                         
                     
-                    
-                    Me%ExternalVar%Mass(PON, Index) = Me%ExternalVar%Mass(PON, Index) + &
-                                                      Me%Matrix(Index, L, PON)        + &
-                                                      Me%Matrix(Index, R, PON) 
+                    Me%ExternalVar%MassInKgFromWater(PON, Index) = Me%ExternalVar%MassInKgFromWater(PON, Index) + &
+                                                      Me%Matrix(Index, L, PON)   
                                                       
-                    Me%ExternalVar%Mass(POP, Index) = Me%ExternalVar%Mass(POP, Index) + &
-                                                      Me%Matrix(Index, L, POP)        + &
-                                                      Me%Matrix(Index, R, POP) 
-          
+                    Me%ExternalVar%MassInKgFromWater(POP, Index) = Me%ExternalVar%MassInKgFromWater(POP, Index) + &
+                                                      Me%Matrix(Index, L, POP)
 
           end select
           ! END  -----This part of the algorithm is the same as in the macroalgae module--------

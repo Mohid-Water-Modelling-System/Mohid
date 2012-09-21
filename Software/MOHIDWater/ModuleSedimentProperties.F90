@@ -3336,17 +3336,20 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                         do k=KLB, KUB
                         
                         
-                        
-                        if (Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) then
-                       
-                        !factors assumed to be the constant over the sediment column 
-                        Me%SeagrassesRoots%NintFactor3DR(i,j,k)=Me%SeagrassesRoots%NintFactor2DR(i,j)
-                        !kgrams of dry weight per day divided by total mass 
-                        Me%SeagrassesRoots%RootsMort3DR(i,j,k)=Me%SeagrassesRoots%RootsMort2DR(i,j) / &
-                                                               ( (Me%SeagrassesRoots%Biomass(i,j)/1000.) * Me%ExternalVar%GridCellArea(i,j) )
-                                                               
-                        
-                        endif        
+                             if (Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) then
+                           
+                                !factors assumed to be the constant over the sediment column 
+                                Me%SeagrassesRoots%NintFactor3DR(i,j,k)=Me%SeagrassesRoots%NintFactor2DR(i,j)
+                                ! Roots mortality was calculated in ModuleBenthicEcology
+                                ! the roots mortality is a flux that will be added to the bottom cell of the sediment column
+                                ! in module SeagrassSedimentInteraction
+                                if (k==KLB) then
+                                Me%SeagrassesRoots%RootsMort3DR(i,j,k)=Me%SeagrassesRoots%RootsMort2DR(i,j)  !Kg DW/day
+                                else                                      
+                                Me%SeagrassesRoots%RootsMort3DR(i,j,k)= 0.   !Kg DW/day
+                                endif     
+                            
+                            endif   
                         
                         enddo
                         enddo
@@ -3364,7 +3367,8 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                        
                         !factors assumed to be the constant over the sediment column 
                         Me%SeagrassesRoots%NintFactor3DR(i,j,KTop)=Me%SeagrassesRoots%NintFactor2DR(i,j)
-                        !kgrams of dry weight per day divided by total mass 
+                        !kgrams of dry weight per day
+                        ! if 2d, it can only be added to the top layer of the sediment
                         Me%SeagrassesRoots%RootsMort3DR(i,j,KTop)=Me%SeagrassesRoots%RootsMort2DR(i,j) 
                                                                
                         

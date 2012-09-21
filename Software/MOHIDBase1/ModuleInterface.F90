@@ -915,7 +915,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR205'   
  
                allocate(Me%LightFactor(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR206'              
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR206'
+                    
                 
 
                 Me%WaterMassInKgIncrement         = FillValueReal
@@ -929,6 +930,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%UptakePO4w                     = FillValueReal
                 Me%UptakeNH4s                     = FillValueReal
                 Me%LightFactor                    = FillValueReal
+
                 
              case (SeagrassSedimInteractionModel)
                     
@@ -3540,7 +3542,7 @@ do6 :               do index = ArrayLB, ArrayUB
                                   MassInKgFromWater, Sediment,                          &
                                   WaterVolume2D,CellArea2D,ShortWave2D,                 &
                                   ShearStress2D,UptakeNH4s2D,UptakeNH4NO3w2D,           &
-                                  UptakePO4w2D,LightFactor2D,  &
+                                  UptakePO4w2D,LightFactor2D,                           &
                                   DTProp, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -3654,7 +3656,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
            
            if(present(LightFactor2D))then
                 call UnfoldMatrix(LightFactor2D, Me%LightFactor)
-            end if                     
+            end if    
+            
+            
+                         
             
             Increment = OFF
             ReadyToCompute = .false.
@@ -8335,7 +8340,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.18'  
  
                        deallocate(Me%LightFactor, STAT = STAT_CALL)
-                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.19'          
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.19'      
+                        
 
    
                         

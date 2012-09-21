@@ -522,6 +522,7 @@ Module ModuleInterfaceSedimentWater
         real                                    :: PintInit
         real, pointer, dimension(:,:  )         :: Array2D
    end type T_Seagrasses
+  
 
     type       T_Shear
          real, pointer, dimension (:,:)             :: CurrentVel, CurrentU, CurrentV
@@ -592,6 +593,7 @@ Module ModuleInterfaceSedimentWater
         integer                                     :: BenthicRatesNumber       = 0
         type(T_Consolidation)                       :: Consolidation
         type(T_Seagrasses )                         :: Seagrasses   ! Isabella
+  
 
         !Instance of ModuleBoxDif                   
         integer                                     :: ObjBoxDif                = 0
@@ -1799,11 +1801,15 @@ cd2 :           if (BlockFound) then
                 
                  if (NewProperty%ID%IDNumber== SeagrassesN_ ) then
              
-                 !KgN/m2
+                 !kg N/m2
+                 ! this value is established on the basis of the initial plant's biomass and on the basis of
+                 ! the ratio gN/kgDW
+                 ! if the initial plant's biomass is (Leaves+Roots)=90 gdw and the ratio gN/kgDW = 19 the value 
+                 ! of NINTINIT must be (90/1000) * 19/1000 = 0.0017 kg N/m2
                call GetData(Me%Seagrasses%NintInit,                       &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'NINTINIT',                                &
-                     Default        = 0.15,                       &  ! kgN
+                     Default        = 0.0017,                       &  ! kgN/m2
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleInterfaceSedimentWater',                          &
                       STAT           = STAT_CALL)
@@ -1816,7 +1822,7 @@ cd2 :           if (BlockFound) then
                do i=ILB,IUB
                do j=JLB,JUB             
                 if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
-                ! kg =                   Kg/m2  * m2
+                ! kg =                   kg N/m2  * m2
                NewProperty%MassInKg(i,j) = NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
                 endif
                enddo
@@ -1827,11 +1833,15 @@ cd2 :           if (BlockFound) then
              
             if (NewProperty%ID%IDNumber== SeagrassesP_) then
              
-                          !KgP/m2
+                 ! kg P/m2
+                 ! this value is established on the basis of the initial plant's biomass and on the basis of
+                 ! the ratio gP/kgDW
+                 ! if the initial plant's biomass is (Leaves+Roots)=90 gdw and the ratio gP/kgDW = 1.8 the value 
+                 ! of PINTINIT must be (90/1000) * 1.8/1000 = 0.00016 kg P/m2
                         call GetData(Me%Seagrasses%PintInit,                       &
                                  Me%ObjEnterData, iflag,                                            &
                                  Keyword        = 'PINTINIT',                                &
-                                 Default        = 0.001,                                            &
+                                 Default        = 0.0001,                                            &
                                  SearchType     = FromFile,                                         &
                                  ClientModule   = 'ModuleInterfaceSedimentWater',                          &
                                   STAT           = STAT_CALL)
@@ -1869,11 +1879,11 @@ cd2 :           if (BlockFound) then
                        do j=JLB,JUB             
                         if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then 
                         
-                        ! gets the mass  in g/m2 and convert to kg/m2
-                       NewProperty%Mass_Available(i,j)=Biomass(i,j)/1000.  ! convert to kg/m2
+                        ! gets the mass  in gDW/m2 and convert to kg DW/m2
+                       NewProperty%Mass_Available(i,j)=Biomass(i,j)/1000.  ! convert to kg DW/m2
                        
                        
-                        ! kg =                   Kg/m2  * m2
+                        ! kg DW=                   kg DW/m2  * m2
                        NewProperty%MassInKg(i,j)=NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
                         endif
                        enddo
@@ -1896,18 +1906,18 @@ cd2 :           if (BlockFound) then
                 if (STAT_CALL .NE. SUCCESS_)                                            &
                 stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR11'
               
-              ! gets the mass from the water column in g/m2
+              ! gets the mass from the water column in g DW/m2
                
-               NewProperty%Mass_Available=Biomass/1000.  ! convert to kg/m2
+               NewProperty%Mass_Available=Biomass/1000.  ! convert to kg DW/m2
                
-               ! get the value in kg (this is necessary to initialize the roots when running modulebenthicEcology)
+               ! get the value in kg DW(this is necessary to initialize the roots when running modulebenthicEcology)
                do i=ILB,IUB
                do j=JLB,JUB   
                 if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then  ! not sure what to put here   
                 !if(Me%ExtSed%OpenPoints2D(i,j) == OpenPoint)
                   ! i put the waterpoints to say that i have roots where i have leaves                                                
                  
-                 ! kg =                   Kg/m2  * m2
+                 ! kg DW =                   Kg DW/m2  * m2
                   NewProperty%MassInKg(i,j)=NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
                 endif
                enddo
@@ -2087,8 +2097,7 @@ cd2 :           if (BlockFound) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR25'
-            
-            
+          
             
             
        
@@ -3376,11 +3385,14 @@ do1 :   do while (associated(PropertyX))
         allocate(Me%Seagrasses%LightFactor2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
                 if(STAT_CALL .ne. SUCCESS_)&
                     stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR12'
+                    
+        
         
         Me%Seagrasses%UptakeNH4s2D  = 0.
         Me%Seagrasses%LightFactor2D = 0.
         Me%Seagrasses%UptakePO4w2D  = 0.
         Me%Seagrasses%UptakeNH4NO3w2D =0.
+      
         
         deallocate(BenthicEcologyPropertyList)
         nullify   (BenthicEcologyPropertyList)
@@ -6234,6 +6246,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     
                         if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
 
+                       !if (Me%Consolidation%Yes) then
+                            
                             if    (Me%Consolidation%Flux(i,j) > 0.)then !consolidation
 
                                 PropertyX%FluxToSediment(i,j) = PropertyX%FluxToSediment(i,j)        + &
@@ -6260,7 +6274,11 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                 PropertyX%FluxToSediment(i,j) = 0. 
 
                             end if
-
+                            
+                        !else   ! no consolidation   
+                        !PropertyX%FluxToSediment(i,j) = 0.
+                        !endif
+ 
                             PropertyX%Mass_Available(i,j) = PropertyX%Mass_Available(i,j)        - &
                                                             PropertyX%FluxToSediment(i,j)        * &
                                                             PropertyX%Evolution%DTInterval
@@ -7020,6 +7038,7 @@ subroutine BenthicEcology_Processes
                             Me%Seagrasses%UptakeNH4NO3w2D =0.
                             Me%Seagrasses%UptakePO4w2D    =0.
                             Me%Seagrasses%LightFactor2D     =0.
+                           
                 
                           call GetSeagrassesLeavesRates(Me%ObjWaterProperties, LeavesUptakeN_, UptakeNH4NO3w3D, STAT = STAT_CALL)
                          if (STAT_CALL .NE. SUCCESS_)                                            &
@@ -7076,6 +7095,10 @@ subroutine BenthicEcology_Processes
                               endif
                             enddo
                             enddo
+                            
+                     
+                            
+                            
                       
                       ! The BenthicEcology modifier is called and the 
                   
@@ -7143,7 +7166,7 @@ subroutine BenthicEcology_Processes
                             if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
 
                                 kbottom = Me%ExtWater%KFloor_Z(i, j)
-                                !For particulate properties, MassInkg and Mass_FromWater are the same
+                                !For dissolved properties, MassInkg and Mass_FromWater are the same
                                 !PropertyX%MassInKg(i,j) = PropertyX%WaterConcentration(i,j) * &  
                                 !                          Me%ExtWater%VolumeZ(i,j,kbottom)
                                 PropertyX%Mass_FromWater(i,j) = PropertyX%WaterConcentration(i,j) * & 
@@ -7403,7 +7426,7 @@ subroutine BenthicEcology_Processes
                                 ! if property is seagrassesleaves get the  value
                                ! of their biomass and put it in the water property:
                                ! 1. get seagrassesleaves%biomass from waterproperty
-                               ! 2. change seagrassesleaves%biomass equal to to the value of PropertyX%MassInKg/area/1000.
+                               ! 2. change seagrassesleaves%biomass equal to to the value of PropertyX%MassInKg/area*1000.
                                ! 3. unget the seagrassesleaves%biomass
      
                                         call GetSeagrassArray2D(Me%ObjWaterProperties, Biomass, ArrayID=SeagrassesLeaves_ , STAT = STAT_CALL)
@@ -7411,7 +7434,7 @@ subroutine BenthicEcology_Processes
                                         stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
 
                                             
-                                      ! get the value in kg 
+                                      ! get the value in g 
                                        do i=WILB,WIUB
                                        do j=WJLB,WJUB             
                                         if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
@@ -7433,12 +7456,18 @@ subroutine BenthicEcology_Processes
                                         stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
 
                                             
-                                      ! get the value in kg 
+                                      ! get the value in g from waterproperties
                                        do i=WILB,WIUB
                                        do j=WJLB,WJUB             
                                         if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
                                         ! g/m2 =                   Kg       * 1000/m2
                                        Biomass(i,j) = PropertyX%MassInKg(i,j)*1000./Me%ExternalVar%Gridcellarea(i,j)
+                                      if( Biomass(i,j)==0. ) then 
+                                      !write(*,*), 'Zero biomass', i, j ,'reset to minval'
+                                      Biomass(i,j)=0.000001
+                                      endif
+                                      
+                                      
                                         endif
                                        enddo
                                        enddo
@@ -8672,6 +8701,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%Seagrasses%LightFactor2D, STAT = STAT_CALL) 
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR608'
+                
+               
                                
                 endif
 

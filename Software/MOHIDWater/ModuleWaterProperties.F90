@@ -365,6 +365,7 @@ Module ModuleWaterProperties
     public  :: GetShortWaveRadiationAverage
     public  :: GetSeagrassArray2D
     public  :: GetSeagrassesLeavesRates
+    public  :: GetMacroalgaeBiomass
 #ifdef _USE_SEQASSIMILATION
     public  :: GetWaterPropertiesIDArray
     public  :: GetWaterSeqAssimilation
@@ -18183,6 +18184,45 @@ cd2 :           if (PropertyX%SubModel%ON) then
     end subroutine GetFiltrationRate
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    
+    
+    subroutine GetMacroalgaeBiomass(WaterPropertiesID, MacroalgaeBiomass, STAT)  
+    !
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: WaterPropertiesID
+        real, pointer, dimension(:,:)               :: MacroalgaeBiomass
+        integer,            optional, intent(OUT)   :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(WaterPropertiesID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mWATERPROPERTIES_, Me%InstanceID) 
+
+            MacroalgaeBiomass => Me%Macroalgae%Distribution
+
+            STAT_ = SUCCESS_
+            
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetMacroalgaeBiomass
+    !------------------------------------------------------------------------
 
     subroutine GetDensity(WaterPropertiesID, Density, CurrentTime, STAT)
 

@@ -1073,9 +1073,11 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         ! uptake limitation due to internal nitrogen content
         ! (dimensionless)   
         NintFactorR=Me%ExternalVar%NintFactorR(index) 
-        !  gN/m3/day =         kgDW/kgDW/day or gDW/gDW/day                         *  gDW/m3            * gN/gDW
-        MortalityN=Me%ExternalVar%RootsMort(index) * Me%ExternalVar%Mass(R, Index) * (Me%Parameters%gNKgdw/1000.) 
-        MortalityP=Me%ExternalVar%RootsMort(index) * Me%ExternalVar%Mass(R, Index) * (Me%Parameters%gPKgdw/1000.) ! convert  in gP/day
+        !  gN/m3/day =        KgDW/day             * gN/kgDW                   / m3
+        MortalityN=Me%ExternalVar%RootsMort(index) * (Me%Parameters%gNKgdw) /Me%ExternalVar%SedimCellVol(index) 
+        
+        !  gP/m3/day =        KgDW/day             * gP/kgDW                   / m3
+        MortalityP=Me%ExternalVar%RootsMort(index) * (Me%Parameters%gPKgdw) /Me%ExternalVar%SedimCellVol(index) 
         
         !
         !  uptake limitation due to 
