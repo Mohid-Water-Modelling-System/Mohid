@@ -76,6 +76,8 @@ Module ModuleLagrangianGlobal
 !   OUTPUT_MAX_TRACER       : 0/1                       [0]                     !Checks if the users wants to output the maximum 
                                                                                  ! tracer concentration in each cell
 !   OVERLAY_VELOCITY        : 0/1                       [0]                     !If a adicional velocity field is to be added
+!   OUTPUT_TRACER_INFO      : logical                   [0]                     !Output a file with detailed information for 
+!                                                                               !each tracer (extension .tro)
 !                                                                                1 - Maximum 2 - Mean
 !
 !
@@ -390,6 +392,8 @@ Module ModuleLagrangianGlobal
     private ::      ComputeAreaVolume
     private ::      InternalParticOil
     private ::          OilGridConcentration
+    private ::          OilGridConcentration3D
+    private ::          OilGridDissolution3D
     private ::      NewParticleMass
     private ::      NewParticleAge
     private ::      MonitorParticle
@@ -628,6 +632,8 @@ Module ModuleLagrangianGlobal
                           !i, j 
         real,    dimension(:, :),       pointer          :: GridThickness
         real,    dimension(:, :),       pointer          :: OilGridConcentration
+        real,    dimension(:, :, :), pointer             :: OilGridConcentration3D
+        real,    dimension(:, :, :), pointer             :: OilGridDissolution3D        
 
         logical, dimension(:,:), pointer        :: AreaFlag
 
@@ -790,6 +796,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: MeteoOcean           = OFF
         logical                                 :: Density              = OFF
         logical                                 :: OutputTracerInfo     = OFF
+        logical                                 :: OilSedimentation     = OFF
     end type T_State
 
     !IO
@@ -845,11 +852,14 @@ Module ModuleLagrangianGlobal
         real                                    :: CellJ                    = null_real
         real                                    :: CellK                    = null_real
         integer                                 :: DepthDefinition          = null_int
+        logical                                 :: MaintainDepth            = .false.       
         logical                                 :: MaintainRelative         = .false.
         real                                    :: Depth                    = null_real
+        real                                    :: DepthWithWaterLevel      = null_real       
         !Each particle has the eulerian grid index 
         integer                                 :: ModelID                  = null_int
         logical                                 :: Surface                  = .false. 
+        logical                                 :: SurfaceEmission          = .false.
     end type T_Position
 
     !Defines the movement of a particle
@@ -925,6 +935,7 @@ Module ModuleLagrangianGlobal
         real                                    :: InitialVolume            = null_real
         real                                    :: VolVar                   = null_real
         real                                    :: Thickness                = null_real
+        real                                    :: OilDropletsD50           = null_real       
     end type T_ParticleGeometry
 
     !Defines the parameters necessary to compute the fluxes associated to a 
@@ -1018,6 +1029,9 @@ Module ModuleLagrangianGlobal
         real                                    :: Radiation                = 0.
         real                                    :: ShortWaveExt             = null_real
         real                                    :: T90                      = null_real
+        real                                    :: OilMass                  = null_real
+        real                                    :: OilDissolvedMass         = null_real
+        real                                    :: OilDensity               = null_real
         real                                    :: AccidentProbability      = null_real
         logical                                 :: ComputeAccidentProb      = .false.
         type (T_Time)                           :: EmissionTime
@@ -1092,7 +1106,7 @@ Module ModuleLagrangianGlobal
         type (T_Position)                       :: Position
         real, dimension(:), pointer             :: x, y, z
         integer                                 :: nParticle
-        integer                                 :: NbrSubmerged
+        integer                                 :: NbrSubmerged             = 0
         integer                                 :: nProperties
         integer                                 :: nPropT90
         integer                                 :: NextParticID
@@ -1132,8 +1146,12 @@ Module ModuleLagrangianGlobal
         real                                    :: AgeLimit
         real                                    :: AccidentProbDefault = FillValueReal
         logical                                 :: AreaVTS           = .true.
-        real                                    :: Fdisp             = 1
         type (T_FloatingObject)                 :: FloatingObject        
+        character(PathLength)                   :: OutputTracerInfoFileName  
+        integer                                 :: troUnit  
+        integer                                 :: NbrParticlesBeached = 0
+        real                                    :: Fdisp               = 0
+        real                                    :: Fblowout            = 1
     end type T_Origin
 
     type T_OptionsStat
@@ -1184,13 +1202,14 @@ Module ModuleLagrangianGlobal
         real                                    :: MWaterContent
         real                                    :: AreaTotal
         real                                    :: OilDensity
+        real                                    :: MassINI     
         real                                    :: OilViscosity
         real                                    :: FMDispersed
         real                                    :: FMEvaporated
         real                                    :: MDispersed
         integer                                 :: ThicknessGradient, Fay, SpreadingMethod
         real                                    :: MDissolvedDT
-
+        
         !Time - by default is used the time object of the model with higher priority 
         integer                                 :: ObjTime              = 0
         type(T_Time)                            :: Now
@@ -1540,6 +1559,11 @@ em2:            do em =1, Me%EulerModelNumber
                 call ConstructTimeSeries  
             endif
 
+            ! Opens Output Tracer Info File, if Needed
+            if (Me%State%OutputTracerInfo) then
+                call ConstructOutputTracerTimeSeries
+            end if
+
             call ReadParticStatisticOptions   
 
             call ReadMeteoOceanFields   
@@ -1582,7 +1606,8 @@ em2:            do em =1, Me%EulerModelNumber
 
             if (Me%State%Oil) then
                 call AllocateOil
-                call FillGridThickness      ()                             
+                call FillGridThickness      ()  
+                call GetOilOptions                           
             endif
             
             call LagrangianOutput            
@@ -1616,6 +1641,33 @@ em2:            do em =1, Me%EulerModelNumber
 
 
     end subroutine ConstructLagrangianGlobal
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetOilOptions
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: STAT_CALL                          
+        logical                                     :: OilSedimentation
+        !Begin-----------------------------------------------------------------
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+             Call GetOilSedimentation(OilID                   = CurrentOrigin%ObjOil,    & 
+                                      OilSedimentation        = OilSedimentation,        & 
+                                      STAT = STAT_CALL)
+            
+            CurrentOrigin%State%OilSedimentation = OilSedimentation
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+end subroutine
 
     !--------------------------------------------------------------------------
 
@@ -1688,6 +1740,32 @@ d2:         do ig = 1, Me%NGroups
             if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR30'
             
             Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration(:,:) = 0.
+
+            !Allocates OilGridConcentration3D
+            allocate (Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D(Me%EulerModel(em)%Size%ILB: &
+                                                                              Me%EulerModel(em)%Size%IUB, &
+                                                                              Me%EulerModel(em)%Size%JLB: &
+                                                                              Me%EulerModel(em)%Size%JUB,&
+                                                                              Me%EulerModel(em)%Size%KLB: &
+                                                                              Me%EulerModel(em)%Size%KUB),&
+                                                                              STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR31'
+            
+            Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D(:,:,:) = 0.
+
+            !Allocates OilGridDissolution3D
+            allocate (Me%EulerModel(em)%OilSpreading(ig)%OilGridDissolution3D(Me%EulerModel(em)%Size%ILB: &
+                                                                              Me%EulerModel(em)%Size%IUB, &
+                                                                              Me%EulerModel(em)%Size%JLB: &
+                                                                              Me%EulerModel(em)%Size%JUB,&
+                                                                              Me%EulerModel(em)%Size%KLB: &
+                                                                              Me%EulerModel(em)%Size%KUB),&
+                                                                              STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR32'
+            
+            Me%EulerModel(em)%OilSpreading(ig)%OilGridDissolution3D(:,:,:) = 0.
 
             allocate (Me%EulerModel(em)%OilSpreading(ig)%VelocityX(Me%EulerModel(em)%Size%ILB: &
                                                                    Me%EulerModel(em)%Size%IUB, &
@@ -2790,6 +2868,16 @@ d2:     do em =1, Me%EulerModelNumber
         
         call BoxTypeVariablesDefiniton
 
+        !OutputTracerInfo
+        call GetData(Me%State%OutputTracerInfo,                                     &
+                     Me%ObjEnterData,                                               &
+                     flag,                                                          &
+                     SearchType   = FromFile,                                       &
+                     keyword      ='OUTPUT_TRACER_INFO',                            &
+                     ClientModule ='ModuleLagrangian',                              &
+                     Default      = .false.,                                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR235'
 
         !OVERLAY_VELOCITY
         call GetData(Me%Overlay,                                                        &
@@ -3573,7 +3661,6 @@ AC:             if (NewOrigin%EmissionSpatial == Accident_) then
 
         !Particle Thickness                
         if (NewOrigin%Movement%Float) then
-            Me%State%Wind = ON
 
             if (NewOrigin%EmissionSpatial == Accident_ .and.                           &
                  NewOrigin%AccidentMethod == Thickness_) then                         
@@ -3796,8 +3883,6 @@ TURB_V:                 if (flag == 1) then
                      Default      = 0.03,                                        &
                      STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR840'
-
-        if (flag /=0) Me%State%Wind = .true. 
 
         allocate(Aux2(2))
 
@@ -4116,18 +4201,19 @@ NDF:        if (.not. NewOrigin%Default) then
                 !Vertical position
                 Depth      = null_real
                 HaveOrigin = .false.
-                call GetData(Depth,                                                 &
-                             Me%ObjEnterData,                                       &
-                             flag,                                                  &
-                             SearchType   = FromBlock,                              &
-                             keyword      ='DEPTH_METERS',                          &
-                             ClientModule ='ModuleLagrangianGlobal',                &
+                call GetData(NewOrigin%Position%SurfaceEmission,                               &
+                             Me%ObjEnterData,                                        &
+                             flag,                                                   &
+                             SearchType   = FromBlock,                               &
+                             keyword      ='SURFACE_EMISSION',                       &
+                             Default      = OFF,                                     &
+                             ClientModule ='ModuleLagrangian',                       &
                              STAT         = STAT_CALL)             
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1040'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1035'
 
-                if (flag == 1) then
+                if (NewOrigin%Position%SurfaceEmission) then
 
-                    NewOrigin%Position%Z = Depth
+                    NewOrigin%Position%Z = Me%EulerModel(em)%SZZ(i, j, k)
 
                     call Convert_Z_CellK (NewOrigin, Me%EulerModel(em), NewOrigin%Position)
                     call Convert_CellK_K (NewOrigin%Position)
@@ -4138,29 +4224,90 @@ NDF:        if (.not. NewOrigin%Default) then
 
                 else
 
-                    call GetData(Depth,                                              &
-                                 Me%ObjEnterData,                                    &
-                                 flag,                                               &
-                                 SearchType   = FromBlock,                           &
-                                 keyword      ='DEPTH_CELLS',                        &
-                                 ClientModule ='ModuleLagrangianGlobal',             &
+                    call GetData(Depth,                                                  &
+                                 Me%ObjEnterData,                                        &
+                                 flag,                                                   &
+                                 SearchType   = FromBlock,                               &
+                                 keyword      ='DEPTH_FROM_FREE_SURFACE',                &
+                                 ClientModule ='ModuleLagrangian',                       &
                                  STAT         = STAT_CALL)             
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1050'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1040'
 
                     if (flag == 1) then
 
-                        NewOrigin%Position%CellK = Depth
+                        NewOrigin%Position%Z = Me%EulerModel(em)%SZZ(i, j, k) + Depth
 
-                        call Convert_CellK_Z (Me%EulerModel(em),NewOrigin%Position)
+                        call Convert_Z_CellK (NewOrigin, Me%EulerModel(em), NewOrigin%Position)
                         call Convert_CellK_K (NewOrigin%Position)
-                
+
+                        NewOrigin%Position%DepthDefinition = Meters
+
                         HaveOrigin                      = .true.
 
-                        NewOrigin%Position%DepthDefinition = Cells
+                    else
 
+                        call GetData(Depth,                                                  &
+                                     Me%ObjEnterData,                             &
+                                     flag,                                                   &
+                                     SearchType   = FromBlock,                               &
+                                     keyword      ='DEPTH_METERS',                           &
+                                     ClientModule ='ModuleLagrangian',                       &
+                                     STAT         = STAT_CALL)             
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1040'
+
+                        if (flag == 1) then
+
+                            NewOrigin%Position%Z = Depth
+
+                            call Convert_Z_CellK (NewOrigin, Me%EulerModel(em), NewOrigin%Position)
+                            call Convert_CellK_K (NewOrigin%Position)
+
+                            NewOrigin%Position%DepthDefinition = Meters
+
+                            HaveOrigin                      = .true.
+
+                        else
+
+                            call GetData(Depth,                                              &
+                                         Me%ObjEnterData,                         &
+                                         flag,                                               &
+                                         SearchType   = FromBlock,                           &
+                                         keyword      ='DEPTH_CELLS',                        &
+                                         ClientModule ='ModuleLagrangian',                   &
+                                         STAT         = STAT_CALL)             
+                            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1050'
+
+                            if (flag == 1) then
+        
+                                NewOrigin%Position%CellK = Depth
+
+                                call Convert_CellK_Z (Me%EulerModel(em),NewOrigin%Position)
+                                call Convert_CellK_K (NewOrigin%Position)
+                            
+                                HaveOrigin                      = .true.
+
+                                NewOrigin%Position%DepthDefinition = Cells
+
+                            endif
+
+                        endif
                     endif
-
                 endif
+
+                call GetData(NewOrigin%Position%MaintainDepth,                    &
+                             Me%ObjEnterData,                                        &
+                             flag,                                                   &
+                             SearchType   = FromBlock,                               &
+                             keyword      ='MAINTAIN_DEPTH',             &
+                             Default      = .false.,                                 &
+                             ClientModule ='ModuleLagrangian',                       &
+                             STAT         = STAT_CALL)             
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1060'
+
+                if (NewOrigin%Position%MaintainDepth) then
+                    NewOrigin%Position%DepthWithWaterLevel = NewOrigin%Position%Z - Me%EulerModel(em)%SZZ(i, j, k)
+                endif
+
 
                 call GetData(NewOrigin%Position%MaintainRelative,                    &
                              Me%ObjEnterData,                                        &
@@ -4168,12 +4315,12 @@ NDF:        if (.not. NewOrigin%Default) then
                              SearchType   = FromBlock,                               &
                              keyword      ='MAINTAIN_RELATIVE_POSITION',             &
                              Default      = .false.,                                 &
-                             ClientModule ='ModuleLagrangianGlobal',                       &
+                             ClientModule ='ModuleLagrangian',                       &
                              STAT         = STAT_CALL)             
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1060'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1060'
 
                 if (NewOrigin%Position%MaintainRelative) then
-            
+                
                     NewOrigin%Position%Depth = Depth
 
                 endif
@@ -5032,7 +5179,6 @@ SP:             if (NewProperty%SedimentPartition%ON) then
 
         !If neceassary Starts The Oil module for this origin
         if (NewOrigin%State%Oil) then
-
             call GetData(NewOrigin%UseTheoricArea,                               &
                          Me%ObjEnterData,                             &
                          flag,                                                   &
@@ -5184,7 +5330,6 @@ SP:             if (NewProperty%SedimentPartition%ON) then
 
         endif
 
-
         call GetData(NewOrigin%Beaching,                                        &
                      Me%ObjEnterData,                                           &
                      flag,                                                      &
@@ -5201,17 +5346,22 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             Me%State%Waves        = .true.
         endif
         
+        if (Me%State%OutputTracerInfo) then
+            call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
+            NewOrigin%OutputTracerInfoFileName = trim(RootPath)//trim(NewOrigin%Name)//".tro"
+        endif
+
 
         !model the tracers as if they were solid floating objects (containers, e.g.)
-        call GetData(NewOrigin%State%FloatingObject,                             &
-                     Me%ObjEnterData,                                            &
-                     flag,                                                       &
-                     SearchType   = FromBlock,                                   &
-                     keyword      ='FLOATING_OBJECT',                            &
-                     Default      = OFF,                                         &
-                     ClientModule ='ModuleLagrangianGlobal',                     &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1660'
+!        call GetData(NewOrigin%State%FloatingObject,                             &
+!                     Me%ObjEnterData,                                            &
+!                     flag,                                                       &
+!                     SearchType   = FromBlock,                                   &
+!                     keyword      ='FLOATING_OBJECT',                            &
+!                     Default      = OFF,                                         &
+!                     ClientModule ='ModuleLagrangianGlobal',                     &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1660'
 
         if (NewOrigin%State%FloatingObject) then
             call GetData(NewOrigin%FloatingObject%AirDragCoef,                &
@@ -6618,6 +6768,79 @@ d1:     do em = 1, Me%EulerModelNumber
 
 
     end subroutine ConstructTimeSeries
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructOutputTracerTimeSeries
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                                :: CurrentOrigin
+        integer                                                 :: STAT_CALL
+
+
+        if (Me%nGroups > 1) then
+            write(*,*)'Cannot write Time Series for simulation with more then one Group'
+            stop 'ConstructOutputTracerTimeSeries - ModuleLagrangianGlobal - ERR999'
+        endif
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+                    call UnitsManager(CurrentOrigin%troUnit, OPEN_FILE,             &
+                                      STAT = STAT_CALL)
+
+            OPEN (FILE  = trim(CurrentOrigin%OutputTracerInfoFileName), &
+                  UNIT  = CurrentOrigin%troUnit, &
+                  STATUS= "unknown", &
+                  FORM  = "formatted", IOSTAT = STAT_CALL)
+
+            If (CurrentOrigin%State%Oil) then
+            151 format(4X, A6,4X,A12, 4X, A12, 4X, A12, 4X, A3, 4X, A6, 4X, A7, 4X,  &
+                       A3, 4X, A3, 4X, A3, 4X, A12, 4X, A12, 4X, A6, 4X, A6, 4X, A3, 4X, A3, 4X, A6)
+                Write(CurrentOrigin%troUnit,151) "Number", &
+                        "Time",     &
+                        "Lat",      &   
+                        "Lon",      &
+                        "Status",   &
+                        "Type",     &
+                        "Mass",     &   
+                        "%ev",      &
+                        "%em",      &
+                        "%di",      &
+                        "visc",     &
+                        "dens",     &
+                        "Wd",       &
+                        "Cur",      &
+                        "SST",      &
+                        "Err",      &
+                        "Depth"
+            Else
+            152 format(4X, A6,4X,A12, 4X, A12, 4X, A12, 4X, A3, 4X, A6, 4X, &
+                       A6, 4X, A3, 4X, A3, 4X, A6)
+                Write(CurrentOrigin%troUnit,152) "Number", &
+                        "Time",     &
+                        "Lat",      &   
+                        "Lon",      &
+                        "Status",   &
+                        "Wd",       &
+                        "Cur",      &
+                        "SST",      &
+                        "Err",      &
+                        "Depth"
+            
+
+                  if (STAT_CALL /= SUCCESS_) then
+                      write(*,*) 'Error opening ouput tracers info file ', &
+                                  trim(CurrentOrigin%OutputTracerInfoFileName)
+                      stop 'ConstructOutputTracerTimeSeries - ModuleLagrangian - ERR978'
+                  endif
+            endif 
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+     end subroutine ConstructOutputTracerTimeSeries
 
     !--------------------------------------------------------------------------
 
@@ -8533,6 +8756,12 @@ CurrOr: do while (associated(CurrentOrigin))
                     if (STAT_CALL /= SUCCESS_) stop 'DeleteOrigin - ModuleLagrangianGlobal - ERR20'
                 endif
 
+                ! Closes Output Tracer Info File
+                if (Me%State%OutputTracerInfo) then
+                    call UnitsManager(OriginToDelete%troUnit, CLOSE_FILE, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'DeleteOrigin - ModuleLagrangian - ERR02.5'
+                end if
+
                 !Kill TimeSerie
                 if (OriginToDelete%MovingOrigin) then
                     call KillTimeSerie(OriginToDelete%ObjTimeSerie, STAT = STAT_CALL)
@@ -8744,6 +8973,15 @@ CurrOr: do while (associated(CurrentOrigin))
                 Me%State%Oil            = ON
                 Me%State%Density        = ON
                 Origin%State%Density    = ON
+                Me%State%Wind           = ON
+                
+            case (FloatingObject_                 )
+                Me%State%FloatingObject = ON
+                Origin%State%FloatingObject    = ON
+                Origin%Movement%Float   = ON
+                Me%State%Density        = ON
+                Origin%State%Density    = ON
+                Me%State%Wind           = ON
 
             case (Fecal_Coliforms_                )
                 Origin%State%FCF        = ON
@@ -9411,6 +9649,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                     call ActualizesTauErosionGrid()
                 endif
                 
+                !Writes Time Series
+                if (Me%State%OutputTracerInfo) then
+                    call WriteIndividualTracerOutput()
+                endif
+
                 call LagrangianOutput
 
                 Me%NextCompute = Me%NextCompute + Me%DT_Partic
@@ -9488,13 +9731,12 @@ d2:         do while (associated (CurrentPartic))
                 CurrentPartic => CurrentPartic%Next              
 
             enddo d2
-            
+                      
             if (CurrentOrigin%NParticle > 0) then
-                CurrentOrigin%Fdisp = real(CurrentOrigin%NbrSubmerged)/ real(CurrentOrigin%NParticle)
+                CurrentOrigin%Fblowout = real(CurrentOrigin%NbrSubmerged)/ real(CurrentOrigin%NParticle)
             else
-                CurrentOrigin%Fdisp = 1.
+                CurrentOrigin%Fblowout = 1.
             endif
-            
 
             CurrentOrigin => CurrentOrigin%Next
 
@@ -10197,6 +10439,138 @@ i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) th
 
 
     end subroutine OilGridConcentration
+
+    !--------------------------------------------------------------------------
+    
+    subroutine OilGridConcentration3D (CurrentOrigin)
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic
+        real, dimension(:, :, :), pointer           :: MassSumParticCell
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: i, j, k, STAT_CALL, em, ig
+
+        !Begin-----------------------------------------------------------------
+        
+        em = CurrentOrigin%Position%ModelID
+        ig = CurrentOrigin%GroupID
+
+        ILB = Me%EulerModel(em)%WorkSize%ILB
+        JLB = Me%EulerModel(em)%WorkSize%JLB
+        KLB = Me%EulerModel(em)%WorkSize%KLB
+        IUB = Me%EulerModel(em)%WorkSize%IUB
+        JUB = Me%EulerModel(em)%WorkSize%JUB
+        KUB = Me%EulerModel(em)%WorkSize%KUB
+
+        allocate (MassSumParticCell (ILB:IUB,                &
+                                     JLB:JUB,                &
+                                     KLB:KUB),               &                                 
+                                     STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR01'
+
+               
+        !Adds the mass of all particles in the every cell
+        MassSumParticCell = 0.
+        CurrentPartic => CurrentOrigin%FirstPartic
+        do while (associated(CurrentPartic))
+
+            i = CurrentPartic%Position%I
+            j = CurrentPartic%Position%J
+            k = CurrentPartic%Position%k
+
+            MassSumParticCell(i, j, k) = MassSumParticCell(i, j, k) +              & 
+                                               CurrentPartic%OilMass
+
+            CurrentPartic => CurrentPartic%Next
+        enddo
+
+        !Calculates the OilGridConcentration3D
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+           if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+                 Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D(i, j,k) =     &
+                 MassSumParticCell(i,j,k) / Me%EulerModel(em)%VolumeZ(i,j,k)  
+            end if
+        enddo
+        enddo
+        enddo
+
+
+        deallocate (MassSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR02'
+
+    end subroutine OilGridConcentration3D
+
+  !--------------------------------------------------------------------------
+    
+    subroutine OilGridDissolution3D (CurrentOrigin)
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic
+        real, dimension(:, :, :), pointer           :: MassDissolvedSumParticCell
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: i, j, k, STAT_CALL, em, ig
+        
+        !Begin-----------------------------------------------------------------
+        
+        em = CurrentOrigin%Position%ModelID
+        ig = CurrentOrigin%GroupID
+
+        ILB = Me%EulerModel(em)%WorkSize%ILB
+        JLB = Me%EulerModel(em)%WorkSize%JLB
+        KLB = Me%EulerModel(em)%WorkSize%KLB
+        IUB = Me%EulerModel(em)%WorkSize%IUB
+        JUB = Me%EulerModel(em)%WorkSize%JUB
+        KUB = Me%EulerModel(em)%WorkSize%KUB
+        
+        allocate (MassDissolvedSumParticCell (ILB:IUB,                &
+                                              JLB:JUB,                &
+                                              KLB:KUB),               &                                 
+                                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR01'
+
+
+        !Adds the mass of all particles in the every cell
+        MassDissolvedSumParticCell = 0.
+        CurrentPartic => CurrentOrigin%FirstPartic
+        do while (associated(CurrentPartic))
+
+            i = CurrentPartic%Position%I
+            j = CurrentPartic%Position%J
+            k = CurrentPartic%Position%k
+
+            MassDissolvedSumParticCell(i, j, k) = MassDissolvedSumParticCell(i, j, k) +              & 
+                                               CurrentPartic%OilDissolvedMass
+
+            CurrentPartic => CurrentPartic%Next
+        enddo
+        
+        !Calculates the OilGridDissolution3D
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB               
+           if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+                Me%EulerModel(em)%OilSpreading(ig)%OilGridDissolution3D(i,j,k) =                &
+                MassDissolvedSumParticCell(i,j,k) /     &
+                Me%EulerModel(em)%VolumeZ(i,j,k) 
+            end if
+        enddo
+        enddo
+        enddo
+
+
+        deallocate (MassDissolvedSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR02'
+
+
+    end subroutine OilGridDissolution3D
 
     !--------------------------------------------------------------------------
 
@@ -11187,12 +11561,12 @@ MF:             if (CurrentPartic%Position%Surface) then
                         AngFrequency        = 2 * Pi / WavePeriodAux
                         WaveNumber          = AngFrequency * AngFrequency / gravity
                         
-                        Depth               = CurrentOrigin%FirstPartic%Position%Z-             &
+                        Depth               = CurrentPartic%Position%Z -             &
                             Me%EulerModel(emp)%SZZ(i, j, WS_KUB)
-                        if (Depth >0)       Depth = 0
+                        if (Depth <0)       Depth = 0
                         
                         VelStokesDrift      = 0.5 * (WaveHeight /  2 )**2 * WaveNumber * AngFrequency * & 
-                                              exp(2* WaveNumber * Depth)
+                                              exp(2* WaveNumber * (-Depth))
                                               
                         VelStokesDrift      = CurrentOrigin%Movement%R_ice * VelStokesDrift
                                               
@@ -11493,9 +11867,12 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         !large scale turbulence
                         DX = DX + UD *  Me%DT_Partic
                         DY = DY + VD *  Me%DT_Partic
+                    elseif (CurrentOrigin%State%FloatingObject) then
+                        DX = (UDrift + UD) * Me%DT_Partic
+                        DY = (VDrift + VD) * Me%DT_Partic
                     else
-                        DX = (UINT + UD + UWIND + UOIL + UStokesDrift + UDrift) * Me%DT_Partic
-                        DY = (VINT + VD + VWIND + VOIL + VStokesDrift + VDrift) * Me%DT_Partic
+                        DX = (UINT + UD + UWIND + UOIL + UStokesDrift) * Me%DT_Partic
+                        DY = (VINT + VD + VWIND + VOIL + VStokesDrift) * Me%DT_Partic
                     endif
                 else
                     DX =         UD                 * Me%DT_Partic
@@ -11920,20 +12297,24 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         real, intent (IN )                          :: VelModH
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j, k, KUB, emp
+        integer                                     :: i, j, k, KUB, emp, kFloor
         real                                        :: CellK, BALZ
         real                                        :: CompZ_Up, CompZ_Down
         real                                        :: CompZ1_Up, CompZ1_Down
         real                                        :: AuxCompMisturaZ_Up, AuxCompMisturaZ_Down
         real                                        :: EspSup, Esp, EspInf
-        real                                        :: VELQZ, D50M, VQ1, VELLARVAE
+        real                                        :: VELQZ, D50M, VQ1, VELFLOAT, VELLARVAE
         real                                        :: WStandardDeviation
         real                                        :: W, WD
         real                                        :: Radius, Area, VolOld, VolNew, dVol
         real                                        :: ai, dw, Cd, DeltaD, AuxW
+        real                                        :: r1, r2, correction
+        real                                        :: WaveHeight
         real                                        :: DT_Vert        
         real(8)                                     :: DensRel, dc, dpx
         integer                                     :: Light_Index 
+        real                                        :: BottomDepth, SurfaceDepth
+        real                                        :: BreakingWaveHeight
         type(T_Larvae), pointer                     :: LarvaePtr
 
         !------------------------------------------------------------------------
@@ -11950,333 +12331,389 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         
         DT_Vert = Me%DT_Partic / real(Me%Vert_Steps)
 
+        kFloor          =   Me%EulerModel(emp)%kFloor(i, j)
+        BottomDepth     =   Me%EulerModel(emp)%SZZ(I, J, kFloor-1)
+        SurfaceDepth    =   Me%EulerModel(emp)%SZZ(i, j, KUB)
 
-MF:     if (CurrentOrigin%Movement%Float) then
+MD:     if (CurrentOrigin%Position%MaintainDepth) then
+            NewPosition%Z = SurfaceDepth + CurrentOrigin%Position%DepthWithWaterLevel
+        else MD
+    MF:     if (CurrentOrigin%Movement%Float) then
 
-            NewPosition%Z = Me%EulerModel(emp)%SZZ(i, j, KUB)
+                NewPosition%Z = Me%EulerModel(emp)%SZZ(i, j, KUB)
 
-        else MF
+            else MF
 
-SA:         if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
+    SA:         if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
 
-                CompZ_Up   = Me%EulerModel(emp)%Lupward  (i, j, k)
-                CompZ_Down = Me%EulerModel(emp)%Ldownward(i, j, k)
+                    CompZ_Up   = Me%EulerModel(emp)%Lupward  (i, j, k)
+                    CompZ_Down = Me%EulerModel(emp)%Ldownward(i, j, k)
 
-                if ((CompZ_Up < 0.0) .OR. (CompZ_Down < 0.0)) then
-                    CompZ_Up   = 0.0
-                    CompZ_Down = 0.0
-                end if
-    
-                if ((Me%EulerModel(emp)%WorkSize%KUB -                                     &
-                     Me%EulerModel(emp)%WorkSize%KLB + 1) > 1) then 
+                    if ((CompZ_Up < 0.0) .OR. (CompZ_Down < 0.0)) then
+                        CompZ_Up   = 0.0
+                        CompZ_Down = 0.0
+                    end if
+        
+                    if ((Me%EulerModel(emp)%WorkSize%KUB -                                     &
+                         Me%EulerModel(emp)%WorkSize%KLB + 1) > 1) then 
 
-                    EspSup = Me%EulerModel(emp)%DWZ(i, j, k+1)
-                    Esp    = Me%EulerModel(emp)%DWZ(i, j, k  )
-                    EspInf = Me%EulerModel(emp)%DWZ(i, j, k-1)
+                        EspSup = Me%EulerModel(emp)%DWZ(i, j, k+1)
+                        Esp    = Me%EulerModel(emp)%DWZ(i, j, k  )
+                        EspInf = Me%EulerModel(emp)%DWZ(i, j, k-1)
 
-                    if ((K /= Me%EulerModel(emp)%WorkSize%KLB) .AND.              &
-                        (BALZ < 0.5)) then       !Close to the bottom
+                        if ((K /= Me%EulerModel(emp)%WorkSize%KLB) .AND.              &
+                            (BALZ < 0.5)) then       !Close to the bottom
 
-                        CompZ1_Up   = Me%EulerModel(emp)%Lupward  (i, j, k-1)
-                        CompZ1_Down = Me%EulerModel(emp)%Ldownward(i, j, k-1)
+                            CompZ1_Up   = Me%EulerModel(emp)%Lupward  (i, j, k-1)
+                            CompZ1_Down = Me%EulerModel(emp)%Ldownward(i, j, k-1)
 
-                        AuxCompMisturaZ_Up   = 2.0 * (CompZ1_Up * (0.5 - BALZ) * Esp +   &
-                                               CompZ_Up * BALZ * Esp + CompZ_Up * 0.5 *  &
-                                               EspInf) / (Esp + EspInf)
+                            AuxCompMisturaZ_Up   = 2.0 * (CompZ1_Up * (0.5 - BALZ) * Esp +   &
+                                                   CompZ_Up * BALZ * Esp + CompZ_Up * 0.5 *  &
+                                                   EspInf) / (Esp + EspInf)
 
-                        AuxCompMisturaZ_Down = 2.0 * (CompZ1_Down * (0.5 - BALZ) * Esp + &
-                                               CompZ_Down * BALZ * Esp + CompZ_Down *    &
-                                               0.5 * EspInf) / (Esp + EspInf)
-                 
-                    else if ((K /= Me%EulerModel(emp)%WorkSize%KUB) .AND.                  &
-                             (BALZ .GT. 0.5 )) then !Close to the surface
+                            AuxCompMisturaZ_Down = 2.0 * (CompZ1_Down * (0.5 - BALZ) * Esp + &
+                                                   CompZ_Down * BALZ * Esp + CompZ_Down *    &
+                                                   0.5 * EspInf) / (Esp + EspInf)
+                     
+                        else if ((K /= Me%EulerModel(emp)%WorkSize%KUB) .AND.                  &
+                                 (BALZ .GT. 0.5 )) then !Close to the surface
 
-                        CompZ1_Up   = Me%EulerModel(emp)%Lupward  (i, j, k+1)
-                        CompZ1_Down = Me%EulerModel(emp)%Ldownward(i, j, k+1)
+                            CompZ1_Up   = Me%EulerModel(emp)%Lupward  (i, j, k+1)
+                            CompZ1_Down = Me%EulerModel(emp)%Ldownward(i, j, k+1)
 
-                        AuxCompMisturaZ_Up   = 2.0 * (CompZ1_Up * (0.5 - BALZ) * Esp +   &
-                                               CompZ_Up * BALZ * Esp + CompZ_Up * 0.5 *  &
-                                               EspInf) / (Esp + EspInf)
+                            AuxCompMisturaZ_Up   = 2.0 * (CompZ1_Up * (0.5 - BALZ) * Esp +   &
+                                                   CompZ_Up * BALZ * Esp + CompZ_Up * 0.5 *  &
+                                                   EspInf) / (Esp + EspInf)
 
-                        AuxCompMisturaZ_Down = 2.0 * (CompZ1_Down * (0.5 - BALZ) * Esp + &
-                                               CompZ_Down * BALZ * Esp + CompZ_Down *    &
-                                               0.5 * EspInf) / (Esp + EspInf)
-                    else
+                            AuxCompMisturaZ_Down = 2.0 * (CompZ1_Down * (0.5 - BALZ) * Esp + &
+                                                   CompZ_Down * BALZ * Esp + CompZ_Down *    &
+                                                   0.5 * EspInf) / (Esp + EspInf)
+                        else
+
+                            AuxCompMisturaZ_Up   = CompZ_Up
+                            AuxCompMisturaZ_Down = CompZ_Down           
+
+                        endif
+
+                    else !1 Layer
 
                         AuxCompMisturaZ_Up   = CompZ_Up
                         AuxCompMisturaZ_Down = CompZ_Down           
 
                     endif
 
-                else !1 Layer
-
-                    AuxCompMisturaZ_Up   = CompZ_Up
-                    AuxCompMisturaZ_Down = CompZ_Down           
-
-                endif
-
-            endif SA
+                endif SA
 
 
 
-DP:         if (CurrentOrigin%State%Sedimentation) then
+    DP:         if (CurrentOrigin%State%Sedimentation) then
 
-                if (CurrentOrigin%Movement%SedimentationType .EQ. Stokes_ ) then
+                    if (CurrentOrigin%Movement%SedimentationType .EQ. Stokes_ ) then
 
-                    D50M  =  CurrentOrigin%Movement%D50 / 1000.0 ! passagem para metros 
-                    VQ1   =  0.4949 * LOG10(D50M)**2.0 + 2.1795 * LOG10(D50M) + 3.7394  
-                    VELQZ =  -1.0 / (10.0**VQ1)                                          
+                        D50M  =  CurrentOrigin%Movement%D50 / 1000.0 ! passagem para metros 
+                        VQ1   =  0.4949 * LOG10(D50M)**2.0 + 2.1795 * LOG10(D50M) + 3.7394  
+                        VELQZ =  -1.0 / (10.0**VQ1)                                          
 
-                    if (abs(CurrentOrigin%Movement%MinSedVel) > ABS(VELQZ))              &
-                        VELQZ =  -1. * CurrentOrigin%Movement%MinSedVel
+                        if (abs(CurrentOrigin%Movement%MinSedVel) > ABS(VELQZ))              &
+                            VELQZ =  -1. * CurrentOrigin%Movement%MinSedVel
 
-                else if (CurrentOrigin%Movement%SedimentationType .EQ. Imposed_) then
+                    else if (CurrentOrigin%Movement%SedimentationType .EQ. Imposed_) then
 
-                    VELQZ =  -1. * CurrentOrigin%Movement%SedVel
+                        VELQZ =  -1. * CurrentOrigin%Movement%SedVel
+                        
+                    else if (CurrentOrigin%Movement%SedimentationType .EQ. DensDynamic_) then   
                     
-                else if (CurrentOrigin%Movement%SedimentationType .EQ. DensDynamic_) then   
-                
-                    DensRel = CurrentOrigin%Movement%Density/(Me%EulerModel(emp)%Density(i, j, k))
-                    
-                    dc = ((9.62 * WaterCinematicVisc**2)/(Gravity*(1-DensRel)))**0.333
-                    
-                    dpx = CurrentOrigin%Movement%D50
-                    
-                    if (dpx < dc) then
-                        VELQZ = Gravity*dpx**2*(1-DensRel)/18./WaterCinematicVisc
+                        DensRel = CurrentOrigin%Movement%Density/(Me%EulerModel(emp)%Density(i, j, k))
+                        
+                        dc = ((9.62 * WaterCinematicVisc**2)/(Gravity*(1-DensRel)))**0.333
+                        
+                        dpx = CurrentOrigin%Movement%D50
+                        
+                        if (dpx < dc) then
+                            VELQZ = Gravity*dpx**2*(1-DensRel)/18./WaterCinematicVisc
+                        else
+                            VELQZ = sqrt(8./3.*Gravity*dpx*(1-DensRel))
+                        endif
+                        
+                        if (DensRel>1) VELQZ = - VELQZ
+                        
+                        CurrentPartic%D50vel = VELQZ                 
+                        
                     else
-                        VELQZ = sqrt(8./3.*Gravity*dpx*(1-DensRel))
-                    endif
-                    
-                    if (DensRel>1) VELQZ = - VELQZ
-                    
-                    CurrentPartic%D50vel = VELQZ                 
-                    
+
+                        VELQZ = 0.0
+
+                    end if
+
                 else
 
                     VELQZ = 0.0
 
+                end if DP
+
+
+    MT:         if (CurrentOrigin%Movement%MovType .EQ. SullivanAllen_) then
+
+                    select case (CurrentOrigin%Movement%StandardDeviationType)
+                    
+                    case (VerticalTurbConstant) 
+
+                        WStandardDeviation = CurrentOrigin%Movement%VarVelVX * VelModH +     &
+                                             CurrentOrigin%Movement%VarVelV
+
+                        WD = WD_(CurrentPartic, WStandardDeviation, AuxCompMisturaZ_Up,      &
+                                 AuxCompMisturaZ_Down, DT_Vert)
+
+                    case (VerticalTurb)
+
+                        WStandardDeviation = 1.0975 * Me%EulerModel(emp)%ShearVelocity(i, j) 
+
+                        WD = WD_(CurrentPartic, WStandardDeviation, AuxCompMisturaZ_Up,      &
+                                 AuxCompMisturaZ_Down, DT_Vert)
+
+                    end select
+
+                else if (CurrentOrigin%Movement%MovType .EQ. NotRandom_    ) then MT
+
+                    WD = 0.0
+
+                end if MT
+
+
+                if (CurrentOrigin%Movement%AdvectionZ) then
+
+                    if (Me%EulerModel(emp)%WorkSize%KUB -                             &
+                        Me%EulerModel(emp)%WorkSize%KLB + 1 == 1) then
+
+                        W = 0.
+
+                    else
+
+                        W = Me%EulerModel(emp)%Velocity_W(i, j, k  ) * (1.0 - BALZ) + &
+                            Me%EulerModel(emp)%Velocity_W(i, j, k+1) * BALZ 
+
+                    endif
+
+                else
+                    
+                    W = 0.0
+
                 end if
 
-            else
-
-                VELQZ = 0.0
-
-            end if DP
-
-
-MT:         if (CurrentOrigin%Movement%MovType .EQ. SullivanAllen_) then
-
-                select case (CurrentOrigin%Movement%StandardDeviationType)
+                VELLARVAE = 0.0
                 
-                case (VerticalTurbConstant) 
+                nullify(LarvaePtr)
 
-                    WStandardDeviation = CurrentOrigin%Movement%VarVelVX * VelModH +     &
-                                         CurrentOrigin%Movement%VarVelV
+                if ( findLarvaeInOrigin(CurrentOrigin, LarvaePtr) ) then
+                                                      
+                    if(LarvaePtr%Vertical_Migration) then
+                           
+                        if (LarvaePtr%Compute_Larvae_Velocity) then
+                    
+                            VELLARVAE = (LarvaePtr%Larvae_Max_Depth - LarvaePtr%Larvae_Min_Depth)/LarvaePtr%Migration_Time
+                   
+                        else
+                    
+                            VELLARVAE = LarvaePtr%Larvae_Velocity
+                        
+                        endif
+                        
+                        !Are we between the depth max and min limits?
+                        if (CurrentPartic%Position%Z.GE.LarvaePtr%Larvae_Min_Depth .AND. &
+                            CurrentPartic%Position%Z.LE.LarvaePtr%Larvae_Max_Depth) then
+                            
+                            !We are? Then check the radiation limits and light relation
+                            
+                            if (LarvaePtr%Light_Relation) then 
+                            
+                                Light_Index = 2
+                                
+                            else
+                            
+                                Light_Index = 1
+                                
+                            endif
+                            
+                            !Are we above the maximum radiation?
+                            if (CurrentPartic%Radiation.GE.LarvaePtr%Radiation_Limit) then
+                        
+                                !We are? Then go down, run away from too much radiation.
+                                VELLARVAE = -1*ABS(VELLARVAE)*(-1)**(Light_Index)
+                            
+                            else 
+                                
+                                !We're not? Then we can go up, closer to the minimum depth
+                                !because we like being closest to the surface.
+                                VELLARVAE = ABS(VELLARVAE)*(-1)**(Light_Index)   
+                                
+                            endif                 
+                        
+                        !We're not? Then move towards the nearest limit.
+                        else
+                            
+                            !Are we above min depth? 
+                            if (CurrentPartic%Position%Z.LT.LarvaePtr%Larvae_Min_Depth) then
+                        
+                                !Yes we are, so please go down.
+                                VELLARVAE = -1*ABS(VELLARVAE)
+                        
+                            else
+                                
+                                !No we're not. Hence we must be
+                                !below max depth, so please go up.
+                                VELLARVAE = ABS(VELLARVAE)
+                        
+                            endif
+                        
+                        endif
+                                                                                                   
+                    endif     
+                    ! If radiation has a low value Larvae goes up to a higher deep
+    !                   if (CurrentPartic%Radiation.GE.RADIATION_LIMIT) then
+    !                        w(t)=LARVAE_VELOCITY
+    !                    else
+    !                        w(t)=-1*LARVAE_VELOCITY
+    !                    endif
+                    ! If radiation has a higth value Larvae goes down to a lower deep
+                    ! If Larvae goes out the fixed deep values vertical velocity take an oposite value 
+    !                    if (CurrentPartic%Position%Z.LT.LarvaePtr%Larvae_Min_Depth) then
+    !                         w(t)=LARVAE_VELOCITY
+    !                    endif
+    !                    if (CurrentPartic%Position%Z.GT.LarvaePtr%Larvae_Max_Depth) then
+    !                         w(t)=-1*LARVAE_VELOCITY
+    !                    endif
 
-                    WD = WD_(CurrentPartic, WStandardDeviation, AuxCompMisturaZ_Up,      &
-                             AuxCompMisturaZ_Down, DT_Vert)
-
-                case (VerticalTurb)
-
-                    WStandardDeviation = 1.0975 * Me%EulerModel(emp)%ShearVelocity(i, j) 
-
-                    WD = WD_(CurrentPartic, WStandardDeviation, AuxCompMisturaZ_Up,      &
-                             AuxCompMisturaZ_Down, DT_Vert)
-
-                end select
-
-            else if (CurrentOrigin%Movement%MovType .EQ. NotRandom_    ) then MT
-
-                WD = 0.0
-
-            end if MT
-
-
-            if (CurrentOrigin%Movement%AdvectionZ) then
-
-                if (Me%EulerModel(emp)%WorkSize%KUB -                             &
-                    Me%EulerModel(emp)%WorkSize%KLB + 1 == 1) then
-
-                    W = 0.
-
-                else
-
-                    W = Me%EulerModel(emp)%Velocity_W(i, j, k  ) * (1.0 - BALZ) + &
-                        Me%EulerModel(emp)%Velocity_W(i, j, k+1) * BALZ 
 
                 endif
 
-            else
-                
-                W = 0.0
 
-            end if
-
-            VELLARVAE = 0.0
-            
-            nullify(LarvaePtr)
-
-            if ( findLarvaeInOrigin(CurrentOrigin, LarvaePtr) ) then
-                                                  
-                if(LarvaePtr%Vertical_Migration) then
-                       
-                    if (LarvaePtr%Compute_Larvae_Velocity) then
-                
-                        VELLARVAE = (LarvaePtr%Larvae_Max_Depth - LarvaePtr%Larvae_Min_Depth)/LarvaePtr%Migration_Time
+                if (CurrentOrigin%State%Oil) then    
                
-                    else
-                
-                        VELLARVAE = LarvaePtr%Larvae_Velocity
+                    !correction number of particle submerged
+                    CurrentOrigin%Fdisp = dble(CurrentOrigin%Nbrsubmerged) / dble(CurrentOrigin%NbrParticlesIteration);
+                    correction = Me%ExternalVar%FMdispersed - CurrentOrigin%Fdisp;
                     
-                    endif
-                    
-                    !Are we between the depth max and min limits?
-                    if (CurrentPartic%Position%Z.GE.LarvaePtr%Larvae_Min_Depth .AND. &
-                        CurrentPartic%Position%Z.LE.LarvaePtr%Larvae_Max_Depth) then
                         
-                        !We are? Then check the radiation limits and light relation
+    SU1:                 if (CurrentPartic%Position%Surface) then 
+    !                                CurrentPartic%Position%Z = SurfaceDepth
+                                
+                                WaveHeight       = Me%EulerModel(emp)%WaveHeight2D(i, j)
+
+
+                                !It is assumed that there is no vertical advection for surface oil particles
+                                W = 0.0
                         
-                        if (LarvaePtr%Light_Relation) then 
-                        
-                            Light_Index = 2
+                                call random_number(r1)
                             
-                        else
-                        
-                            Light_Index = 1
-                            
-                        endif
-                        
-                        !Are we above the maximum radiation?
-                        if (CurrentPartic%Radiation.GE.LarvaePtr%Radiation_Limit) then
-                    
-                            !We are? Then go down, run away from too much radiation.
-                            VELLARVAE = -1*ABS(VELLARVAE)*(-1)**(Light_Index)
-                        
-                        else 
-                            
-                            !We're not? Then we can go up, closer to the minimum depth
-                            !because we like being closest to the surface.
-                            VELLARVAE = ABS(VELLARVAE)*(-1)**(Light_Index)   
-                            
-                        endif                 
-                    
-                    !We're not? Then move towards the nearest limit.
-                    else
-                        
-                        !Are we above min depth? 
-                        if (CurrentPartic%Position%Z.LT.LarvaePtr%Larvae_Min_Depth) then
-                    
-                            !Yes we are, so please go down.
-                            VELLARVAE = -1*ABS(VELLARVAE)
-                    
-                        else
-                            
-                            !No we're not. Hence we must be
-                            !below max depth, so please go up.
-                            VELLARVAE = ABS(VELLARVAE)
-                    
-                        endif
-                    
-                    endif
-                                                                                               
-                endif     
-                ! If radiation has a low value Larvae goes up to a higher deep
-!                   if (CurrentPartic%Radiation.GE.RADIATION_LIMIT) then
-!                        w(t)=LARVAE_VELOCITY
-!                    else
-!                        w(t)=-1*LARVAE_VELOCITY
-!                    endif
-                ! If radiation has a higth value Larvae goes down to a lower deep
-                ! If Larvae goes out the fixed deep values vertical velocity take an oposite value 
-!                    if (CurrentPartic%Position%Z.LT.LarvaePtr%Larvae_Min_Depth) then
-!                         w(t)=LARVAE_VELOCITY
-!                    endif
-!                    if (CurrentPartic%Position%Z.GT.LarvaePtr%Larvae_Max_Depth) then
-!                         w(t)=-1*LARVAE_VELOCITY
-!                    endif
+                            ! submerged particle aleatorie and position of particle
+                                
+                                if (r1 .LT. correction) then
+                                    call random_number(r2)
+                                    BreakingWaveHeight = 1.5 * WaveHeight
+                                    NewPosition%Z = min(r2 * 1.5 * BreakingWaveHeight + SurfaceDepth, BottomDepth)
+                                    
+                                    !ROD TO DO: D50 SHOULD BE COMPUTED IN THE FUTURE
+                                    CurrentPartic%Geometry%OilDropletsD50 = 0.000050
 
-
-            endif
-
-
-            !Velocity due plume
-PL:         if (CurrentOrigin%State%FarFieldBuoyancy) then    
-                Radius = (0.75 * CurrentPartic%Geometry%Volume/Pi) ** 0.33333
-                Area   = 4 * Pi * Radius ** 2.
-                VolOld = CurrentPartic%Geometry%Volume - CurrentPartic%Geometry%VolVar
-                VolNew = CurrentPartic%Geometry%Volume
-                dVol   = CurrentPartic%Geometry%VolVar
-                
-
-                if (CurrentPartic%SigmaDensity > 0) then
-                    CurrentPartic%SigmaDensity = CurrentPartic%SigmaDensity                          + & 
-                                                 DT_Vert * (Me%EulerModel(emp)%SigmaDensity(i, j, k) - &
-                                                 CurrentPartic%SigmaDensity)  / (172800.+86400.)
-                else
-                    CurrentPartic%SigmaDensity = SigmaUNESCO(CurrentPartic%Concentration (1), CurrentPartic%Concentration (2))
-                endif    
-
-                !Acceleration due density gradient
-                DeltaD = Me%EulerModel(emp)%SigmaDensity(i, j, k) - CurrentPartic%SigmaDensity
-
-            
-
-                !Buoyancy is consider null for low density gradients 
-                if (abs(DeltaD) > 0.1) then
-                    ai     = Gravity * DeltaD / (Me%EulerModel(emp)%SigmaDensity(i, j, k) + &
-                                                 SigmaDensityReference)
-                                                 
-                    dw     = CurrentPartic%W - W
-
-                    ! Taken from CORMIX
-                    Cd = 0.055 
-                    
-                    ![T-1] = [] * [L/T] * [L^2]/[L^3]    
-                    AuxW = Cd * abs(dw) * Area / VolNew
-                    
-                                       !Momentum diffusion by small scale turbulence
-
-                    if (CurrentPartic%W > 0) then
-                        CurrentPartic%W =  (CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
-                                            !buoyancy + shear friction 
-                                            DT_Vert * (ai + W * AuxW)) / (1 + DT_Vert * AuxW)
-                    else
-                        CurrentPartic%W =   CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
-                                            !buoyancy + shear friction 
-                                            DT_Vert * (ai - dw * AuxW)
-                    endif
-
-                    !dwt = Me%EulerModel(emp)%DWZ(i, j, k) / DT_Vert
-
-                    !if (abs(CurrentPartic%W) > dwt  .and. abs(CurrentPartic%W) > 10. * WD) then
-                    
-                    !    CurrentPartic%W = CurrentPartic%W * 10. * abs(WD) / abs(CurrentPartic%W) 
-
-                    !endif
-                    
-                                                
-                else                
-                    ai              = 0.
-                    CurrentPartic%W = W
+                                    VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 & 
+                                               * CurrentPartic%Geometry%OilDropletsD50 & 
+                                               * (1. - (CurrentPartic%OilDensity/Me%EulerModel(emp)%Density (i, j, k)) ) &
+                                               / (18. * WaterCinematicVisc)
+                                    
+                                else
+                                     NewPosition%Z = SurfaceDepth
+                                     VELFLOAT      = 0
+                               end if
+                               CurrentPartic%Position%Z = NewPosition%Z
+                           
+                            CurrentPartic%W    = 0.
+                        else SU1
+                            CurrentPartic%W    = 0.                  
+                            VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 * CurrentPartic%Geometry%OilDropletsD50 &
+                                       * (1. - (CurrentPartic%OilDensity/Me%EulerModel(emp)%Density (i, j, k)) ) &
+                                       / (18. * WaterCinematicVisc)
+                        endif SU1                       
+                                      
                 endif
 
-                CurrentPartic%W = sqrt(ai * 0.0004) + W
+                !Velocity due plume
+    PL:         if (CurrentOrigin%State%FarFieldBuoyancy) then    
+                    Radius = (0.75 * CurrentPartic%Geometry%Volume/Pi) ** 0.33333
+                    Area   = 4 * Pi * Radius ** 2.
+                    VolOld = CurrentPartic%Geometry%Volume - CurrentPartic%Geometry%VolVar
+                    VolNew = CurrentPartic%Geometry%Volume
+                    dVol   = CurrentPartic%Geometry%VolVar
+                    
+
+                    if (CurrentPartic%SigmaDensity > 0) then
+                        CurrentPartic%SigmaDensity = CurrentPartic%SigmaDensity                          + & 
+                                                     DT_Vert * (Me%EulerModel(emp)%SigmaDensity(i, j, k) - &
+                                                     CurrentPartic%SigmaDensity)  / (172800.+86400.)
+                    else
+                        CurrentPartic%SigmaDensity = SigmaUNESCO(CurrentPartic%Concentration (1), CurrentPartic%Concentration (2))
+                    endif    
+
+                    !Acceleration due density gradient
+                    DeltaD = Me%EulerModel(emp)%SigmaDensity(i, j, k) - CurrentPartic%SigmaDensity
+
+                
+
+                    !Buoyancy is consider null for low density gradients 
+                    if (abs(DeltaD) > 0.1) then
+                        ai     = Gravity * DeltaD / (Me%EulerModel(emp)%SigmaDensity(i, j, k) + &
+                                                     SigmaDensityReference)
+                                                     
+                        dw     = CurrentPartic%W - W
+
+                        ! Taken from CORMIX
+                        Cd = 0.055 
+                        
+                        ![T-1] = [] * [L/T] * [L^2]/[L^3]    
+                        AuxW = Cd * abs(dw) * Area / VolNew
+                        
+                                           !Momentum diffusion by small scale turbulence
+
+                        if (CurrentPartic%W > 0) then
+                            CurrentPartic%W =  (CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
+                                                !buoyancy + shear friction 
+                                                DT_Vert * (ai + W * AuxW)) / (1 + DT_Vert * AuxW)
+                        else
+                            CurrentPartic%W =   CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
+                                                !buoyancy + shear friction 
+                                                DT_Vert * (ai - dw * AuxW)
+                        endif
+
+                        !dwt = Me%EulerModel(emp)%DWZ(i, j, k) / DT_Vert
+
+                        !if (abs(CurrentPartic%W) > dwt  .and. abs(CurrentPartic%W) > 10. * WD) then
+                        
+                        !    CurrentPartic%W = CurrentPartic%W * 10. * abs(WD) / abs(CurrentPartic%W) 
+
+                        !endif
+                        
+                                                    
+                    else                
+                        ai              = 0.
+                        CurrentPartic%W = W
+                    endif
+
+                    CurrentPartic%W = sqrt(ai * 0.0004) + W
 
 
 
-                                                          !tracer vel. + large scale turbulence 
-                NewPosition%Z = CurrentPartic%Position%Z - (CurrentPartic%W + WD) *  DT_Vert
+                                                              !tracer vel. + large scale turbulence 
+                    NewPosition%Z = CurrentPartic%Position%Z - (CurrentPartic%W + WD) *  DT_Vert
 
-            else PL
+                else PL
 
-                CurrentPartic%W    = 0.
+                    CurrentPartic%W    = 0.
 
-                NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELLARVAE) *  DT_Vert
+                    NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT + VELLARVAE) *  DT_Vert
+                endif PL
 
-            endif PL
+            endif MF
 
-        endif MF
+        endif MD
 
         !------------------------------------------------------------------------
 
@@ -13973,6 +14410,7 @@ CurrOr: do while (associated(CurrentOrigin))
         integer                                     :: STAT_CALL
         real                                        :: MassINI
         real                                        :: MDissolvedDT
+        integer                                     :: NbrParticlesNotBeached
         type (T_Time)                               :: LagrangianTime
 
  
@@ -13982,7 +14420,7 @@ CurrOr: do while (associated(CurrentOrigin))
 CurrOr: do while (associated(CurrentOrigin))
             
 i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and.         &
-                CurrentOrigin%Fdisp < 0.5) then
+                CurrentOrigin%Fblowout < 0.5) then
 
                 i       = CurrentOrigin%FirstPartic%Position%I
                 j       = CurrentOrigin%FirstPartic%Position%J
@@ -13998,27 +14436,39 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR01'
 
-                call GetSPM          (Me%EulerModel(emp)%ObjWaterProperties,             &
-                                      SPM               = SPM3D,                        &
-                                      STAT              = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR02'
+                if (CurrentOrigin%State%OilSedimentation) then
+                    call GetSPM          (Me%EulerModel(emp)%ObjWaterProperties,             &
+                                          SPM               = SPM3D,                        &
+                                          STAT              = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR02'
+                    SPM = SPM3D                     (i, j, k)
+                else
+                    SPM = FillValueReal
+                end if                 
 
-       
-                if (CurrentOrigin%FirstPartic%WindX == FillValueReal) then
-                    CurrentOrigin%FirstPartic%WindX = Me%EulerModel(emp)%WindX (i, j)  
+               if (CurrentOrigin%FirstPartic%WindX == FillValueReal) then
+                        if (associated(Me%EulerModel(emp)%WindX)) then
+                            CurrentOrigin%FirstPartic%WindX = Me%EulerModel(emp)%WindX(i,j)
+                        else
+                            CurrentOrigin%FirstPartic%WindX = 0.
+                        end if
                 endif
 
-                if (CurrentOrigin%FirstPartic%WindY == FillValueReal) then
-                    CurrentOrigin%FirstPartic%WindY = Me%EulerModel(emp)%WindY (i, j)  
+               if (CurrentOrigin%FirstPartic%WindY == FillValueReal) then
+                        if (associated(Me%EulerModel(emp)%WindY)) then
+                            CurrentOrigin%FirstPartic%WindY = Me%EulerModel(emp)%WindY(i,j)
+                        else
+                            CurrentOrigin%FirstPartic%WindY = 0.
+                        end if
                 endif
                 
                 UWIND = CurrentOrigin%FirstPartic%WindX
                 VWIND = CurrentOrigin%FirstPartic%WindY
 
                 Wind    = abs(cmplx(UWIND, VWIND))
-
+               
                 AtmPressure         = Me%EulerModel(emp)%AtmPressure(i, j)
-                
+
                 if (CurrentOrigin%FirstPartic%WaveHeight == FillValueReal) then
                     CurrentOrigin%FirstPartic%WaveHeight = Me%EulerModel(emp)%WaveHeight2D (i, j)  
                 endif
@@ -14032,12 +14482,12 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                 WavePeriod = CurrentOrigin%FirstPartic%WavePeriod
 
 
-                !WaterTemperature    = Temperature3D             (i, j, k)
+                WaterTemperature    = Temperature3D             (i, j, k)
 
-                WaterTemperature = GetConcPartic (CurrentOrigin, CurrentOrigin%FirstPartic, Temperature_)
+                !WaterTemperature = GetConcPartic (CurrentOrigin, CurrentOrigin%FirstPartic, Temperature_)
                 
                 WaterDensity        = Me%EulerModel(emp)%Density (i, j, k)
-                SPM                 = SPM3D                     (i, j, k)
+                !SPM                 = SPM3D                     (i, j, k)
 
                 if (CurrentOrigin%UseTheoricArea) then
                     CurrentOrigin%AreaTotal = -1.
@@ -14083,7 +14533,38 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                 Me%ExternalVar%AreaTotal     = AreaTotalOUT
                 Me%ExternalVar%MDissolvedDT  = MDissolvedDT
 
-                call OilGridConcentration  (CurrentOrigin, WaveHeight, WaterDensity)       
+                If (Me%ExternalVar%MassINI /= MassINI) then
+                    !When it's the first step
+                    Me%ExternalVar%MassINI = MassINI
+    
+                    CurrentPartic                           => CurrentOrigin%FirstPartic
+                    do while (associated(CurrentPartic))
+
+                            !Particle Mass
+                            !É necessário depois acrescentar CurrentOrigin%NbrParticlesIteration para ser atribuido
+                            !também na subrotina EmissionBox
+                              
+                            CurrentPartic%OilMass          = Me%ExternalVar%MassINI / CurrentOrigin%NbrParticlesIteration
+                            CurrentPartic%OilDissolvedMass = 0.
+                            CurrentPartic%OilDensity       = Me%ExternalVar%OilDensity
+                            
+                        CurrentPartic => CurrentPartic%Next
+
+                    enddo
+                   
+                End If
+
+                ! Count Number of particles beached
+                CurrentOrigin%NbrParticlesBeached           = 0
+                CurrentPartic                               => CurrentOrigin%FirstPartic
+                do while (associated(CurrentPartic))
+                    If (CurrentPartic%Beached) then
+                        CurrentOrigin%NbrParticlesBeached   = CurrentOrigin%NbrParticlesBeached + 1                      
+                    End if
+                        CurrentPartic                       => CurrentPartic%Next
+                enddo
+                NbrParticlesNotBeached                      = CurrentOrigin%NbrParticlesIteration - &
+                                                              CurrentOrigin%NbrParticlesBeached
 
                 !Modifies OilVolume
                 if (CurrentOrigin%VolumeOilTotal > 0) then
@@ -14111,6 +14592,24 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                         !Volume Variation
                         CurrentPartic%Geometry%VolVar = CurrentPartic%Geometry%Volume - VolOld
                         
+                         if (CurrentPartic%Position%Surface) then
+
+                            !Particle Mass 
+                            CurrentPartic%OilMass = CurrentPartic%Geometry%Volume*Me%ExternalVar%OilDensity
+                            
+                            ! Atenção falta Corrects Density to include only evaporation (excludes water content, which is at water column)
+                            CurrentPartic%OilDensity = Me%ExternalVar%OilDensity
+                         else       
+ 
+                            ! Atenção falta Corrects Density to include only water content (wxcludes evaporation, which is at surface)
+                            CurrentPartic%OilDensity = Me%ExternalVar%OilDensity
+
+                         end if
+
+                         If (Me%ExternalVar%MDissolvedDT > 0. .and. NbrParticlesNotBeached > 0) then
+                             CurrentPartic%OilDissolvedMass = CurrentPartic%OilDissolvedMass + &
+                                                              (Me%ExternalVar%MDissolvedDT / NbrParticlesNotBeached)
+                         End If
 
                     else if (CurrentPartic%Beached) then
 
@@ -14122,13 +14621,22 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
 
                 enddo
 
+                call OilGridConcentration  (CurrentOrigin, WaveHeight, WaterDensity)       
+
+                !Calculates the OilConcentration3D
+                call OilGridConcentration3D (CurrentOrigin) 
+                    
+                !Calculate the dillution concentration
+                call OilGridDissolution3D   (CurrentOrigin)
+
                 !Ungets Concentration from the eulerian module
                 call UngetWaterProperties (Me%EulerModel(emp)%ObjWaterProperties, Temperature3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR10'
 
-                call UngetWaterProperties (Me%EulerModel(emp)%ObjWaterProperties,  SPM3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR11'
-
+                if (CurrentOrigin%State%OilSedimentation) then
+                    call UngetWaterProperties (Me%EulerModel(emp)%ObjWaterProperties,  SPM3D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR11'
+                end if
 
             endif i1
 
@@ -15975,6 +16483,7 @@ d1:     do em =1, Me%EulerModelNumber
         integer                                     :: OutPutLines, JetTotalParticles, em, em1, emMax, emp
         type (T_Position)                           :: Position
         real(8)                                     :: AverageX, AverageY, Stdv, RadiusOfInfluence,AuxPeriod,TotalTime
+        integer                                     :: ParticSurface
 
         !Begin--------------------------------------------------------------------------
 
@@ -16095,6 +16604,8 @@ i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTempo
                 if (Me%State%Oil) then
                     call WriteOilGridThickness     (em, OutputNumber) 
                     call WriteOilGridConcentration (em, OutputNumber)
+                    call WriteOilGridConcentration3D (em, OutputNumber)
+                    call WriteOilGridDissolution3D (em, OutputNumber)
                 endif
 
 i1:             if (nP>0) then
@@ -16551,6 +17062,36 @@ i1:             if (nP>0) then
                                                     "Volume",  "m3", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
                                                      STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR290'
+                            endif
+                    
+                        endif
+
+                       if (CurrentOrigin%State%Oil) then
+
+                            CurrentPartic   => CurrentOrigin%FirstPartic
+                            nP = 0
+                            do while (associated(CurrentPartic))
+                                nP = nP + 1
+                                if (CurrentPartic%Position%Surface) then 
+
+                                    ParticSurface  = 1
+
+                                else
+
+                                    ParticSurface  = 2
+
+                                end if
+
+
+                                Matrix1D(nP) = ParticSurface
+                                CurrentPartic => CurrentPartic%Next
+                            enddo            
+                            if (nP > 0) then
+                                !HDF 5
+                                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Surface State", &
+                                                    "State",  "ON/OFF", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR295'
                             endif
                     
                         endif
@@ -19292,6 +19833,167 @@ CurrOr:     do while (associated(CurrentOrigin))
 
     end subroutine WriteOilGridConcentration
 
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    subroutine WriteOilGridConcentration3D (em, OutputNumber)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: em, OutputNumber
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: ig
+        real, dimension(:, :, :), pointer           :: OilGridConc3D 
+        character(StringLength)                     :: AuxChar
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
+        integer                                     :: WS_KLB, WS_KUB
+
+        !Shorten
+        ILB    = Me%EulerModel(em)%Size%ILB
+        IUB    = Me%EulerModel(em)%Size%IUB
+        JLB    = Me%EulerModel(em)%Size%JLB
+        JUB    = Me%EulerModel(em)%Size%JUB
+        KLB    = Me%EulerModel(em)%Size%KLB
+        KUB    = Me%EulerModel(em)%Size%KUB
+
+        WS_ILB = Me%EulerModel(em)%WorkSize%ILB
+        WS_IUB = Me%EulerModel(em)%WorkSize%IUB
+        WS_JLB = Me%EulerModel(em)%WorkSize%JLB
+        WS_JUB = Me%EulerModel(em)%WorkSize%JUB
+        WS_KLB = Me%EulerModel(em)%WorkSize%KLB
+        WS_KUB = Me%EulerModel(em)%WorkSize%KUB
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (Me%ObjHDF5(em), WS_ILB, WS_IUB, WS_JLB, WS_JUB,     &
+                              WS_KLB, WS_KUB)
+
+
+        !Allocate GridVolume, GridMass
+        allocate (OilGridConc3D (ILB:IUB, JLB:JUB, KLB:KUB))
+
+Group:  do ig = 1, Me%nGroups
+
+            !Writes the Group to an auxiliar string
+            write (AuxChar, fmt='(i3)') ig
+
+            CurrentOrigin => Me%FirstOrigin
+CurrOr:     do while (associated(CurrentOrigin))
+
+                if (CurrentOrigin%GroupID /= ig) then
+                    CurrentOrigin => CurrentOrigin%Next
+                    cycle
+                endif
+
+                !Just writes the output if there are particle
+!                if (CurrentOrigin%nParticle > 0) then
+!                   OilGridConc3D = CurrentOrigin%OilGridConcentration3D
+                    OilGridConc3D = Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D
+
+                    !HDF 5
+                    call HDF5WriteData        (Me%ObjHDF5(em),                              &
+                                               "/Results/"//trim(CurrentOrigin%Name)        &
+                                               //"/Data_3D/OilConcentration_3D",            &
+                                               "OilConcentration_3D",                       &
+                                               "Kg/m3",                                     &
+                                               Array3D = OilGridConc3D,                     &
+                                               OutputNumber = OutputNumber)
+
+
+!                endif
+
+            CurrentOrigin => CurrentOrigin%Next
+            enddo CurrOr
+
+        enddo Group
+
+        deallocate (OilGridConc3D )
+
+
+    end subroutine WriteOilGridConcentration3D
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+   
+    subroutine WriteOilGridDissolution3D (em, OutputNumber)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: em, OutputNumber
+  
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: ig
+        real, dimension(:, :, :), pointer           :: OilDissolution3D 
+        character(StringLength)                     :: AuxChar
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
+        integer                                     :: WS_KLB, WS_KUB
+
+
+        !Shorten
+        ILB    = Me%EulerModel(em)%Size%ILB
+        IUB    = Me%EulerModel(em)%Size%IUB
+        JLB    = Me%EulerModel(em)%Size%JLB
+        JUB    = Me%EulerModel(em)%Size%JUB
+        KLB    = Me%EulerModel(em)%Size%KLB
+        KUB    = Me%EulerModel(em)%Size%KUB
+
+        WS_ILB = Me%EulerModel(em)%WorkSize%ILB
+        WS_IUB = Me%EulerModel(em)%WorkSize%IUB
+        WS_JLB = Me%EulerModel(em)%WorkSize%JLB
+        WS_JUB = Me%EulerModel(em)%WorkSize%JUB
+        WS_KLB = Me%EulerModel(em)%WorkSize%KLB
+        WS_KUB = Me%EulerModel(em)%WorkSize%KUB
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (Me%ObjHDF5(em), WS_ILB, WS_IUB, WS_JLB, WS_JUB,     &
+                              WS_KLB, WS_KUB)
+
+
+        !Allocate GridVolume, GridMass
+        allocate (OilDissolution3D (ILB:IUB, JLB:JUB, KLB:KUB))
+
+Group:  do ig = 1, Me%nGroups
+
+            !Writes the Group to an auxiliar string
+            write (AuxChar, fmt='(i3)') ig
+
+            CurrentOrigin => Me%FirstOrigin
+CurrOr:     do while (associated(CurrentOrigin))
+
+                if (CurrentOrigin%GroupID /= ig) then
+                    CurrentOrigin => CurrentOrigin%Next
+                    cycle
+                endif
+
+                !Just writes the output if there are particle
+!               if (CurrentOrigin%nParticle > 0) then
+                    OilDissolution3D = Me%EulerModel(em)%OilSpreading(ig)%OilGridDissolution3D
+
+                    !HDF 5
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_3D/Dissolution_3D",                    &
+                                               "Dissolution_3D",                               &
+                                               "Kg/m3",                                        &
+                                               Array3D = OilDissolution3D,                     &
+                                               OutputNumber = OutputNumber)
+
+
+!                endif
+
+            CurrentOrigin => CurrentOrigin%Next
+            enddo CurrOr
+
+        enddo Group
+
+        deallocate (OilDissolution3D )
+
+
+    end subroutine WriteOilGridDissolution3D
 
     !--------------------------------------------------------------------------
 
@@ -19328,6 +20030,232 @@ CurrOr:     do while (associated(CurrentOrigin))
 
     end function GeographicCoordinates 
 
+    !--------------------------------------------------------------------------
+
+    subroutine WriteIndividualTracerOutput
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Partic), pointer                    :: CurrentPartic
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: i, j, k, n, OutPutNumber
+        integer                                     :: STAT_CALL
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
+        integer                                     :: WS_KLB, WS_KUB
+        integer                                     :: em, ig
+        real, dimension(:, :), pointer              :: OilGridThick2D 
+        real                                        :: RunPeriod
+        integer                                     :: TracerStatus
+        real, dimension(:, :, :), pointer           :: Temperature3D
+        real                                        :: WaterTemperature
+        real, dimension(:, :, :), pointer           :: Velocity_U, Velocity_V
+        real                                        :: CellI, CellJ
+        real                                        :: BalX, BalY
+        real                                        :: U, V
+        real                                        :: WindX, WindY, WindIntensityInKnots, CurrentsIntensityInKnots
+        real                                        :: CurrentsDirection, WindDirection
+        real                                        :: MassOil
+        integer                                     :: kbottom        
+        
+        WaterTemperature = -99
+       
+        RunPeriod = (Me%ExternalVar%Now - Me%ExternalVar%BeginTime) / 3600
+        
+        OutPutNumber = Me%OutPut%NextOutPut
+if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then 
+
+            CurrentOrigin => Me%FirstOrigin
+    CurrOr: do while (associated(CurrentOrigin))
+                em = CurrentOrigin%Position%ModelID
+                ig = CurrentOrigin%GroupID
+   
+                ILB    = Me%EulerModel(em)%Size%ILB
+                IUB    = Me%EulerModel(em)%Size%IUB
+                JLB    = Me%EulerModel(em)%Size%JLB
+                JUB    = Me%EulerModel(em)%Size%JUB
+                KLB    = Me%EulerModel(em)%Size%KLB
+                KUB    = Me%EulerModel(em)%Size%KUB
+
+                !Allocate GridVolume, GridMass
+                allocate (OilGridThick2D (ILB:IUB, JLB:JUB))
+
+                WS_ILB = Me%EulerModel(em)%WorkSize%ILB
+                WS_IUB = Me%EulerModel(em)%WorkSize%IUB
+                WS_JLB = Me%EulerModel(em)%WorkSize%JLB
+                WS_JUB = Me%EulerModel(em)%WorkSize%JUB
+                WS_KLB = Me%EulerModel(em)%WorkSize%KLB
+                WS_KUB = Me%EulerModel(em)%WorkSize%KUB
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%ObjHDF5(em), WS_ILB, WS_IUB, WS_JLB, WS_JUB,     &
+                                  WS_KLB, WS_KUB)
+
+                !Shorten Var
+                if (Me%OverLay) then
+                    Velocity_U => Me%EulerModel(em)%OverLay%VelUFinal
+                    Velocity_V => Me%EulerModel(em)%OverLay%VelVFinal
+                else
+                    Velocity_U => Me%EulerModel(em)%Velocity_U
+                    Velocity_V => Me%EulerModel(em)%Velocity_V
+                endif
+
+                !Gets the temperature from the Eulerian model
+                call GetConcentration(Me%EulerModel(em)%ObjWaterProperties,             &
+                                      ConcentrationX    = Temperature3D,                &
+                                      PropertyXIDNumber = Temperature_,                 &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteIndividualTracerOutput - ModuleLagrangian - ERR01'
+
+                If (CurrentOrigin%State%Oil)   then
+                    !Just writes the output if there are particle
+                    if (CurrentOrigin%nParticle > 0) then
+                        !thickness in um
+                        OilGridThick2D = Me%EulerModel(em)%OilSpreading(ig)%GridThickness * 1e6 &
+                                         * (1 - Me%ExternalVar%VWaterContent)
+                    endif
+                end if
+
+
+                Write(CurrentOrigin%troUnit,"(4X, i6)") CurrentOrigin%nParticle
+
+                 !Compute the total volume tracer by cell 
+                CurrentPartic => CurrentOrigin%FirstPartic
+                n = 0
+    CurrPartic: do while (associated(CurrentPartic))
+                    n = n + 1
+                    MassOil               = CurrentPartic%Geometry%VolumeOil * Me%ExternalVar%OilDensity
+                                   
+
+                    i  = CurrentPartic%Position%I
+                    j  = CurrentPartic%Position%J
+                    k  = CurrentPartic%Position%K
+
+                    !default tracer status = on water column
+                    TracerStatus = 1 
+
+                    !tracer status = on sea surface
+                    If (CurrentPartic%Position%Surface)     TracerStatus = 5             
+
+                    !tracer status = beached
+                    If (CurrentPartic%Beached)              TracerStatus = 10             
+
+                    !tracer status = at the bottom
+                    kbottom = Me%EulerModel(em)%KFloor(i, j)
+                    
+                    if (CurrentOrigin%State%FloatingObject) then
+                        TracerStatus = nint(CurrentOrigin%FloatingObject%ImmersionRatio * 0.1)
+                    end if
+                    
+                    if (CurrentOrigin%State%Deposition) then
+                        if (CurrentPartic%Position%Z >=         &
+                        (Me%EulerModel(em)%SZZ(i, j, kbottom -1)- CurrentOrigin%Deposition%BottomDistance)) TracerStatus = 00
+                    else
+                        if (CurrentPartic%Position%Z >= Me%EulerModel(em)%SZZ(i, j, kbottom -1)) TracerStatus = 00
+                    endif
+                    
+
+
+                    !Cell Postition
+                    CellI = CurrentPartic%Position%CellI
+                    CellJ = CurrentPartic%Position%CellJ
+
+                    !Fraction of the cell
+                    BALX  = CellJ - int(CellJ)
+                    BALY  = CellI - int(CellI)
+
+                    !Linear Interpolation to obtain the velocity of the Water
+                    U = LinearInterpolation(Velocity_U(i,  j  ,k), Velocity_U(i,  j+1,k), BALX)
+                    V = LinearInterpolation(Velocity_V(i,  j  ,k), Velocity_V(i+1,j  ,k), BALY)
+
+                    !Velocity due wind                      
+                    if (CurrentOrigin%Movement%WindOriginON) then
+                        WindX = CurrentOrigin%Movement%WindX
+                        WindY = CurrentOrigin%Movement%WindY
+                    else
+                        if (associated(Me%EulerModel(em)%WindX)) then
+                            WindX = Me%EulerModel(em)%WindX(i,j)
+                        else
+                            WindX = 0.
+                        end if
+                        if (associated(Me%EulerModel(em)%WindY)) then
+                            WindY = Me%EulerModel(em)%WindY(i,j)
+                        else
+                            WindY = 0.
+                        end if
+                    endif
+                    
+                    WindIntensityInKnots    = sqrt((WindX)**2. + (WindY)**2.) * 19.4384449411995
+                    CurrentsIntensityInKnots= sqrt((U)**2. + (V)**2.) * 19.4384449411995
+                    CurrentsDirection       = atan2(u,v) * 180. / Pi + 180
+                    WindDirection           = atan2(WindX,WindY) * 180. / Pi + 180
+                    
+                    WaterTemperature        = Temperature3D             (i, j, k)
+
+
+                100 format(4X, i6,4X,f12.2, 4X, f12.2, 4X, f12.2, 4X, i3, 4X, i6, 4X,   &
+                           i7, 4X,  i3, 4X, i3, 4X, i3, 4X, f12.2, 4X, f12.2, 4X, i3.3, &
+                           i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
+                110 format(4X, i6,4X,f12.2, 4X, f12.2, 4X, f12.2, 4X, i3, 4X,   &
+                           i3.3, i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
+
+                   
+                    If (CurrentOrigin%State%Oil) then
+                        Write(CurrentOrigin%troUnit,100) n, &
+                        RunPeriod, &
+                        GeographicCoordinates(em, CurrentPartic%Position, 1), &
+                        GeographicCoordinates(em, CurrentPartic%Position, 2), &
+                        TracerStatus, &
+                        nint(OilGridThick2D(i,j)), &
+                        nint(MassOil), &
+                        nint(Me%ExternalVar%FMEvaporated  * 100), &
+                        nint(Me%ExternalVar%VWaterContent * 100), &
+                        nint(Me%ExternalVar%FMDispersed   * 100), &
+                        Me%ExternalVar%OilViscosity, &
+                        Me%ExternalVar%OilDensity, &
+                        nint(WindDirection), &
+                        nint(WindIntensityInKnots), &
+                        nint(CurrentsDirection), &
+                        nint(CurrentsIntensityInKnots), &
+                        nint(WaterTemperature), &
+                        -99, &
+                        - CurrentPartic%Position%Z
+
+                    Else                 
+                    
+                        Write(CurrentOrigin%troUnit,110) n, &
+                        RunPeriod, &
+                        GeographicCoordinates(em, CurrentPartic%Position, 1), &
+                        GeographicCoordinates(em, CurrentPartic%Position, 2), &
+                        TracerStatus, &                  
+                        nint(WindDirection), &
+                        nint(WindIntensityInKnots), &
+                        nint(CurrentsDirection), &
+                        nint(CurrentsIntensityInKnots), &
+                        nint(WaterTemperature), &
+                        -99, &
+                        - CurrentPartic%Position%Z
+                    End if
+
+                    CurrentPartic => CurrentPartic%Next
+    
+                enddo CurrPartic
+    
+            deallocate (OilGridThick2D )
+       
+            !Ungets Concentration from the eulerian module
+            call UngetWaterProperties (Me%EulerModel(em)%ObjWaterProperties, Temperature3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteIndividualTracerOutput - ModuleLagrangian - ERR10'
+
+            CurrentOrigin => CurrentOrigin%Next
+            enddo CurrOr
+
+        endif if1
+
+
+    end subroutine WriteIndividualTracerOutput
+    
     !--------------------------------------------------------------------------
 
     subroutine WriteMonitorOutput(OutputNumber)
@@ -20471,6 +21399,14 @@ d2:         do ig = 1, Me%NGroups
 
             if (STAT_CALL /= SUCCESS_) stop 'DeAllocateOil - ModuleLagrangianGlobal - ERR30'
 
+            deallocate (Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'DeAllocateOil - ModuleLagrangianGlobal - ERR31'
+
+            deallocate (Me%EulerModel(em)%OilSpreading(ig)%OilGridDissolution3D, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'DeAllocateOil - ModuleLagrangianGlobal - ERR32'
+
             deallocate (Me%EulerModel(em)%OilSpreading(ig)%VelocityX, STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) stop 'DeAllocateOil - ModuleLagrangianGlobal - ERR40'
@@ -20730,8 +21666,12 @@ em1:    do em =1, Me%EulerModelNumber
                                    WaveHeight   = EulerModel%WaveHeight2D,                &
                                    WaveDirection= EulerModel%WaveDirection2D,             &
                                    STAT       = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR160'
-                
+                    if (STAT_CALL /= SUCCESS_) then
+                        write(*,*) 
+                        write(*,*) 'Error opening Wave properties'
+                        write(*,*) 'Check if Wave module is properly configured'                   
+                        stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR160'
+                    end if
                 endif      
 #endif          
 

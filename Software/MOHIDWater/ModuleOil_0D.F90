@@ -178,6 +178,7 @@ Module ModuleOil_0D
     private :: ReadTimeSerieFile
 
     !Selector
+    public  :: GetOilSedimentation
     public  :: GetOilDensityOil
     public  :: GetOilAPI
     public  :: GetOilSpreadingVelocity
@@ -1729,6 +1730,38 @@ do1 :       do Prop = (ColNbr+1), aux
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetOilSedimentation(OilID, OilSedimentation, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: OilID
+        logical,              intent(OUT)           :: OilSedimentation
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_, STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(OilID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                               &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            OilSedimentation = Me%Var%OilSedimentation          
+            STAT_ = SUCCESS_
+        else cd1
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetOilSedimentation
 
     !--------------------------------------------------------------------------
 
