@@ -2224,7 +2224,6 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
                      keyword      = 'BOXES_VALUES',                              &
                      ClientModule = 'ModuleFillMatrix',                          &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceBox - ModuleFillMatrix - ERR10'
 
         if       (STAT_CALL .EQ. SIZE_ERR_)  then
             write(*,*) 'Incorrect number of boxes'
@@ -2242,17 +2241,17 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
                              keyword        = trim(Me%OverrideValueKeyword),       &
                              ClientModule   = 'ModuleFillMatrix',                  &
                              STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceBox - ModuleFillMatrix - ERR12a'
                 
                 if       (STAT_CALL .EQ. SIZE_ERR_)  then
-                    write(*,*) 'Incorrect number of boxes for property '//trim(Me%PropertyID%Name) 
+                    write(*,*) 'Incorrect number of boxes for property '
+                    write(*,*)trim(Me%PropertyID%Name)//', '//trim(Me%OverrideValueKeyword) 
                     stop 'ConstructSpaceBox - ModuleFillMatrix - ERR12b'
                 else if ((STAT_CALL .NE. SIZE_ERR_) .AND.  (STAT_CALL .NE. SUCCESS_)) then
                     stop 'ConstructSpaceBox - ModuleFillMatrix - ERR12c'
                 end if           
                 
                 if(iflag == 0)then
-                    write(*,*)'Please define override keyword '//trim(Me%OverrideValueKeyword)
+                    write(*,*)'Please define override keyword '//trim(Me%PropertyID%Name)
                     write(*,*)'to give a boxes values for property '//trim(Me%PropertyID%Name)
                     stop 'ConstructSpaceBox - ModuleFillMatrix - ERR12d'
                 end if

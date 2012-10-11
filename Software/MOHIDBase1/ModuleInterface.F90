@@ -46,6 +46,7 @@ Module ModuleInterface
     use ModuleWWTPQ
     use ModuleSeagrassSedimInteraction
     use ModuleSeagrassWaterInteraction
+    use ModuleBivalve
 
 #ifdef _PHREEQC_ 
     use ModulePhreeqC
@@ -80,6 +81,7 @@ Module ModuleInterface
     private ::      PropertyIndexNumber
     private ::      UnfoldMatrix
     public  :: SetSOD
+    public  :: UpdateMassDimensions
 
     !Selector
     public  :: GetRateFlux
@@ -228,8 +230,8 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: SoilDryDensity
         real,    pointer, dimension(:    )      :: pH
 #ifdef _PHREEQC_        
-        real,    pointer, dimension(:    )      :: pE
         real,    pointer, dimension(:    )      :: WaterVolume  
+        real,    pointer, dimension(:    )      :: pE
         real,    pointer, dimension(:    )      :: WaterMass  
         real,    pointer, dimension(:    )      :: SolidMass   
         integer, pointer, dimension(:    )      :: PhreeqCID
@@ -240,7 +242,6 @@ Module ModuleInterface
         integer, pointer, dimension(:    )      :: OpenPoints
         logical, pointer, dimension(:    )      :: AddedProperties
         real,    pointer, dimension(:    )      :: WaterVol
-        real,    pointer, dimension(:    )      :: CellArea
         real,    pointer, dimension(:,:  )      :: MassInKgFromWater
         real,    pointer, dimension(:,:  )      :: WaterMassInKgIncrement
         real,    pointer, dimension(:    )      :: Sediment    
@@ -257,6 +258,8 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: SeagrassesLength   !Isabella
         real(8),    pointer, dimension(:    )      :: WaterCellVol  ! 3d   !Isabella
         real(8),    pointer, dimension(:    )      :: SedimCellVol  ! 3d   !Isabella
+        real,    pointer, dimension(:    )      :: CellArea
+      
         !Instance of ModuleTime
         integer                                 :: ObjTime              = 0
 
@@ -299,7 +302,8 @@ Module ModuleInterface
        !Instance of ModuleSeagrassWaterInteraction
         integer                                 :: ObjSeagrassWaterInteraction   = 0
         
-        
+        !Instance of ModuleBivalve
+        integer                                 :: ObjBivalve           = 0
 
         !Collection of instances                
         type(T_Interface),          pointer     :: Next        
@@ -335,6 +339,7 @@ Module ModuleInterface
 #endif
                                     Size3D,                                &
                                     Vertical1D,                            &
+                                    BivalveID,                             &
                                     STAT)
 
         !Arguments-------------------------------------------------------------
@@ -353,6 +358,7 @@ Module ModuleInterface
 
         type(T_Size3D)                                          :: Size3D
         logical,intent (IN),  optional                          :: Vertical1D
+        integer,intent (OUT), optional                          :: BivalveID
         integer,intent (OUT), optional                          :: STAT     
 
         !External--------------------------------------------------------------
@@ -405,6 +411,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 !            !Start sinks and sources model
 !            call StartSinksSourcesModel(DT)
+
+            if (present(BivalveID)) then
+                BivalveID = Me%ObjBivalve
+            endif
 
             !Verify model DT's
             call CheckDT
@@ -534,6 +544,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                     DT,PropertiesList,                     &
                                     RiverPoints1D,                         &
                                     Size1D,                                &
+                                    BivalveID,                             &
                                     STAT)
 
         !Arguments-------------------------------------------------------------
@@ -544,6 +555,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real,   intent (OUT)                                    :: DT
         integer, dimension(:), pointer                          :: RiverPoints1D
         type(T_Size1D)                                          :: Size1D
+        integer,intent (OUT), optional                          :: BivalveID
         integer,intent (OUT), optional                          :: STAT     
 
         !External--------------------------------------------------------------
@@ -582,6 +594,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Start sinks and sources model
             call StartSinksSourcesModel(DT)
+            
+            if (present(BivalveID)) then
+                BivalveID = Me%ObjBivalve
+            endif
+
 
             !Verify model DT's
             call CheckDT
@@ -723,7 +740,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         allocate(Me%AddedProperties(PropLB:PropUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR05'
-        
         
         select case (Me%SinksSourcesModel)
 
@@ -1073,6 +1089,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ShortWaveTop       = FillValueReal
                 Me%Thickness          = FillValueReal
             
+            case (BivalveModel)
+
+                allocate(Me%Salinity (ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR20'
+
+                allocate(Me%WaterCellVol (ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR90'
+
+                allocate(Me%CellArea(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR22'
+
+                Me%Salinity           = FillValueReal
+                Me%WaterCellVol           = FillValueReal
+                Me%CellArea           = FillValueReal
+                
             case default
                 write(*,*) 
                 write(*,*) 'Defined sinks and sources model was not recognised.'
@@ -1192,26 +1223,30 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 Message  =trim('WWTPQ Data File')
                 call ReadFileName('WWTPQ_DATA', Me%FileName, Message = Message, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR10'
-                
-                
-          case(SeagrassSedimInteractionModel) ! Isabella
+                                
+            case(SeagrassSedimInteractionModel) ! Isabella
 
                 Message  = trim('SeagrassesRoots Data File')
                 call ReadFileName('SEAGRASSESROOTS_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR11'
                 
-           case(SeagrassWaterInteractionModel) ! Isabella
+            case(SeagrassWaterInteractionModel) ! Isabella
 
                 Message  = trim('SeagrassWaterInteraction Data File')
                 call ReadFileName('SEAGRASSESLEAVES_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR12'     
     
-
+            case(BivalveModel) 
+                
+                Message  = trim('Bivalve Data File')
+                call ReadFileName('BIVALVE_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR13' 
+                
             case default
             
                 write(*,*) 
                 write(*,*) 'Defined sinks and sources model was not recognised.'
-                stop 'ReadInterfaceFilesName - ModuleInterface - ERR99' 
+                stop 'ReadInterfaceFilesName - Module Interface - ERR14' 
                 
         end select
 
@@ -1296,7 +1331,6 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                                             PropUB = PropUB,                   &
                                             STAT   = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR07'
-
                 
                 !Number of properties involved
                 Me%Prop%ILB     = PropLB
@@ -1305,7 +1339,6 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 !Get DT from SedimentQuality model to exit as argument to SedimentProperties
                 call GetDTSedimentQuality(Me%ObjSedimentQuality, DTSecond = DT, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR08'
-
 
             case(LifeModel)
 
@@ -1566,7 +1599,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 
                 
                 
-    case(SeagrassWaterInteractionModel)
+            case(SeagrassWaterInteractionModel)
 
                 !Construct SeagrassWaterInteraction Model
                 
@@ -1593,20 +1626,38 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR035'           
                 
 
+            case(BivalveModel) 
+
+                !Construct Bivalve Model
+                call ConstructBivalve(Me%ObjBivalve,                            &
+                                   FileName = Me%FileName,                      &
+                                   STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR120'
+ 
+                !Number of properties involved
+                call GetBivalveSize(Me%ObjBivalve,                              &
+                                     PropLB = PropLB,                           &
+                                     PropUB = PropUB,                           &
+                                     STAT   = STAT_CALL)                            
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR121'
+
+                !Number of properties involved
+                Me%Prop%ILB = PropLB
+                Me%Prop%IUB = PropUB
+
+                !Get DT from Bivalve model to exit as argument to WaterProperties
+                call GetDTBivalve(Me%ObjBivalve, DTSecond = DT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR122'
+
             case default
                 write(*,*) 
                 write(*,*) 'Defined sinks and sources model was not recognised.'
                 stop 'StartSinksSourcesModel - ModuleInterface - ERR00' 
         end select
 
-        !----------------------------------------------------------------------
-
-
     end subroutine StartSinksSourcesModel    
     
-    
     !--------------------------------------------------------------------------
-     
 
     subroutine CheckDT
     
@@ -1680,10 +1731,11 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         !Local-----------------------------------------------------------------
 !        real                                                 :: ErrorAux, auxFactor 
 !        real                                                 :: RunPeriod, Dtlag
+        type(T_Size1D)                                       :: Size 
         integer, dimension(:), pointer                       :: CEQUALW2List
         integer, dimension(:), pointer                       :: MacroAlgaeList
         integer                                              :: i,PropLB, PropUB
-        integer, dimension(:), pointer                       :: BenthosList, LifeList
+        integer, dimension(:), pointer                       :: BenthosList, LifeList, BivalveList
         integer, dimension(:), pointer                       :: BenthicEcologyList
         integer, dimension(:), pointer                       :: SeagrassSedimInteractionList
         integer, dimension(:), pointer                       :: SeagrassWaterInteractionList
@@ -2234,7 +2286,7 @@ cd14 :          if (Phosphorus) then
                 call UngetMacroAlgae (Me%ObjMacroAlgae, MacroAlgaeList, STAT=STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR20'
 
-  case(BenthicEcologyModel)
+                case(BenthicEcologyModel)
 
 !                !Get Benthos model time step
 !                call GetDTBenthos(Me%ObjBenthos, DTSecond = DT, STAT = STAT_CALL)
@@ -2561,11 +2613,37 @@ cd14 :          if (Phosphorus) then
                   end if 
 
                 end if
+                
+            case(BivalveModel) 
+                
+                Size%ILB = 1; Size%IUB = 1
+                
+                !Get number of simulated properties 
+                call GetBivalveSize(Me%ObjBivalve, PropLB, PropUB, STAT = STAT_CALL)
+                if(STAT_CALL .NE. SUCCESS_) stop 'Check_Options - ModuleInterface - ERR40'
+
+                call GetBivalvePropertyList(Me%ObjBivalve, BivalveList, STAT_CALL)
+                if(STAT_CALL .NE. SUCCESS_) stop 'Check_Options - ModuleInterface - ERR50'
+                              
+                !Number of properties involved
+                PropLB = Me%Prop%ILB
+                PropUB = Me%Prop%IUB
+
+                do i = PropLB, PropUB
+                    if (.not.FindProperty(PropertiesList, BivalveList(i))) then
+                        write(*,*) 'Property ',GetPropertyName(BivalveList(i)),' not found in the Bivalve list'
+                        write(*,*) 'Please check (Water Properties file) if keyword BIVALVE should be on.'
+                              stop 'Properties lists inconsistent  - Check_Options- ModuleInterface- ERR60'    
+                    end if
+                end do
+
+                call UngetBivalve (Me%ObjBivalve, BivalveList, STAT=STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR70'
 
            case default
                 write(*,*) 
                 write(*,*) 'Defined sinks and sources model was not recognised.'
-                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR50'
+                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR80'
 
         end select
 
@@ -2733,7 +2811,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 #ifdef _BFM_  
                     case(BFMModel)
 #endif  
-
                     case (MacroAlgaeModel)
                     
                         call GetMacroAlgaeRateFlux(Me%ObjMacroAlgae,                          &
@@ -3015,11 +3092,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   
                                   NintFac3D, NintFac3DR, PintFac3D, RootsMort,          &
                                   SeagrassesLength, WaterCellVol3D, SedimCellVol3D,     &
+                                  CellArea,                                             &
 #ifdef _PHREEQC_
-                                  WaterVolume, WaterMass, SolidMass, pE, Temperature,   &
-                                  PhreeqCID,                                             &
+                                  WaterVolume, WaterMass, SolidMass, pE, Temperature,   & 
+                                  PhreeqCID,                                            &
 #endif
-                                  WindVelocity,  Oxygen, DTProp, STAT)
+                                  WindVelocity,  Oxygen, DTProp,STAT)
                                  
         !Arguments-------------------------------------------------------------
         integer                                         :: InterfaceID
@@ -3041,7 +3119,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real(8),    optional, dimension(:,:,:), pointer    :: WaterCellVol3D  !Isabella
         real,    optional, dimension(:,:,:), pointer    :: SeagrassesLength
         real,    optional, dimension(:,:,:), pointer    :: RootsMort
-        
+        real,    optional, dimension(:,:  ), pointer    :: CellArea
                
 #ifdef _PHREEQC_
         real,    optional, dimension(:,:,:), pointer    :: WaterVolume
@@ -3058,8 +3136,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         integer,           dimension(:,:,:), pointer    :: WaterPoints3D
         integer, optional, dimension(:,:,:), pointer    :: OpenPoints3D
         real,    optional, dimension(:,:,:), pointer    :: DWZ, ShearStress, SPMFlux
-        real,    optional,  intent(IN)                  :: DTProp
-        integer, optional,  intent(OUT)                 :: STAT
+        real,    optional, intent(IN)                   :: DTProp
+        integer, optional, intent(OUT)                  :: STAT
 
         !External--------------------------------------------------------------
         real                                            :: DT
@@ -3445,7 +3523,22 @@ cd4 :           if (ReadyToCompute) then
                                                 SeagrassesLength       = Me%SeagrassesLength,     &
                                                 WaterCellVol           = Me%WaterCellVol  ,       &
                                                 STAT                   = STAT_CALL)
+                            
+                        case(BivalveModel) 
                         
+                            call UnfoldMatrix(CellArea, Me%CellArea) 
+                           
+                            call ModifyBivalve(Me%ObjBivalve,                        &
+                                               Me%Temperature,                       &
+                                               Me%Salinity,                          &
+                                               Me%Mass,                              &
+                                               Me%Array,                             &
+                                               Me%OpenPoints,                        &
+                                               WaterVolumeIN = Me%WaterCellVol,      &
+                                               CellAreaIN    = Me%CellArea,          &
+                                    STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR17'
+                            
                     end select
 
                     !griflet
@@ -3497,28 +3590,69 @@ do6 :               do index = ArrayLB, ArrayUB
 !               end do do1
 !               !$OMP END PARALLEL
 
-                !griflet: start
-                NLB = Me%Array%ILB
-                NUB = Me%Array%IUB
-                !$ CHUNK = CHUNK_I(NLB, NUB)
-                !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalnProperty,LocalConcInc,LocalConcentration)
-                LocalnProperty = nProperty
-                LocalConcInc => Me%ConcentrationIncrement
-                LocalConcentration => Concentration
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do Index = NLB, NUB
-                    i = Me%Index2I(Index)
-                    j = Me%Index2J(Index)
-                    k = Me%Index2K(Index)
-                    if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
-                        LocalConcentration(i, j, k) = LocalConcentration( i, j, k)      + &
-                                LocalConcInc(LocalnProperty, Index) * DTProp / DT 
-                    end if
-                enddo
-                !$OMP END DO NOWAIT
-                !$OMP END PARALLEL
-                !griflet: stop
-                            
+                select case (Me%SinksSourcesModel)
+                
+                    case (BivalveModel)
+                    
+                        !griflet: start
+                        NLB = Me%Array%ILB
+                        NUB = Me%Array%IUB
+                        !$ CHUNK = CHUNK_I(NLB, NUB)
+                        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalnProperty,LocalConcInc,LocalConcentration)
+                        LocalnProperty = nProperty
+                        LocalConcInc => Me%ConcentrationIncrement
+                        LocalConcentration => Concentration
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+
+                        do Index = NLB, NUB
+                            i = Me%Index2I(Index)
+                            j = Me%Index2J(Index)
+                            k = Me%Index2K(Index)
+
+                                LocalConcentration(i, j, k) = LocalConcentration( i, j, k)      + &
+                                                        LocalConcInc(LocalnProperty, Index) * DTProp / DT 
+                                                        
+                                if(abs(LocalConcentration(i, j, k)) .le. AlmostZero)then
+                                    LocalConcentration(i,j,k) = 0.0
+                                end if                       
+
+                        enddo
+                        !$OMP END DO NOWAIT
+                        !$OMP END PARALLEL
+                        !griflet: stop
+                    
+                    case default
+                    
+                        !griflet: start
+                        NLB = Me%Array%ILB
+                        NUB = Me%Array%IUB
+                        !$ CHUNK = CHUNK_I(NLB, NUB)
+                        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalnProperty,LocalConcInc,LocalConcentration)
+                        LocalnProperty = nProperty
+                        LocalConcInc => Me%ConcentrationIncrement
+                        LocalConcentration => Concentration
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+
+                        do Index = NLB, NUB
+                            i = Me%Index2I(Index)
+                            j = Me%Index2J(Index)
+                            k = Me%Index2K(Index)
+                            if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
+                                LocalConcentration(i, j, k) = LocalConcentration( i, j, k)      + &
+                                        LocalConcInc(LocalnProperty, Index) * DTProp / DT 
+                                        
+                                if(abs(LocalConcentration(i, j, k)) .le. AlmostZero)then
+                                    LocalConcentration(i,j,k) = 0.0
+                                end if
+
+                            end if
+                        enddo
+                        !$OMP END DO NOWAIT
+                        !$OMP END PARALLEL
+                        !griflet: stop
+
+                end select
+                       
             end if cd5
 
             STAT_ = SUCCESS_
@@ -3882,13 +4016,14 @@ do6 :               do index = ArrayLB, ArrayUB
     
     !--------------------------------------------------------------------------
 
-    subroutine Modify_Interface1D(InterfaceID, PropertyID, Concentration,         &
-                                  RiverPoints1D, OpenPoints1D, DWZ,               &
+    subroutine Modify_Interface1D(InterfaceID, PropertyID, Concentration,            &
+                                  RiverPoints1D, OpenPoints1D, DWZ,                  &
                                   ShortWaveAverage, ShortWaveTop, LightExtCoefField, &
-                                  WaterPercentage, DissolvedToParticulate1D,      &
-                                  SoilDryDensity, Salinity, pH, IonicStrength,    &
-                                  PhosphorusAdsortionIndex, WindVelocity,         &
-                                  Oxygen1D, WaterVolume, DTProp, STAT)
+                                  WaterPercentage, DissolvedToParticulate1D,         &
+                                  SoilDryDensity, Salinity, pH, IonicStrength,       &
+                                  PhosphorusAdsortionIndex, WindVelocity,            &
+                                  Oxygen1D, WaterVolume,                             &
+                                  DTProp, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: InterfaceID
@@ -4157,7 +4292,7 @@ cd4 :           if (ReadyToCompute) then
                                               FishFood = Me%FishFood,               &
                                               STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR10'
-                        
+                            
                     end select
 
 do7 :               do prop  = PropLB,  PropUB
@@ -4191,29 +4326,28 @@ do6 :               do index = ArrayLB, ArrayUB
 !                                end if
 !                   end if cd2
 !               end do do3
+                        !griflet: start
+                        NLB = Me%Array%ILB
+                        NUB = Me%Array%IUB
+                        !$ CHUNK = CHUNK_I(NLB,NUB)
+                        !$OMP PARALLEL PRIVATE(Index,i,LocalConcentration,LocalConcInc,LocalnProperty)
+                        LocalConcentration => Concentration
+                        LocalConcInc => Me%ConcentrationIncrement
+                        LocalnProperty = nProperty
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do Index = NLB, NUB
+                            i = Me%Index2I(Index)
+                            !Concentrations are only actualized in OpenPoints because of instability
+                            !in waterpoints that are not openpoints
+                            if (Me%ExternalVar%OpenPoints1D(i) == 1) then
+                                LocalConcentration(i) = LocalConcentration( i)      + &
+                                LocalConcInc(LocalnProperty, Index) * DTProp / DT 
+                            end if
+                        enddo
+                        !$OMP END DO NOWAIT
+                        !$OMP END PARALLEL
+                        !griflet: stop
 
-                !griflet: start
-                NLB = Me%Array%ILB
-                NUB = Me%Array%IUB
-                !$ CHUNK = CHUNK_I(NLB,NUB)
-                !$OMP PARALLEL PRIVATE(Index,i,LocalConcentration,LocalConcInc,LocalnProperty)
-                LocalConcentration => Concentration
-                LocalConcInc => Me%ConcentrationIncrement
-                LocalnProperty = nProperty
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do Index = NLB, NUB
-                    i = Me%Index2I(Index)
-                    !Concentrations are only actualized in OpenPoints because of instability
-                    !in waterpoints that are not openpoints
-                    if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-                        LocalConcentration(i) = LocalConcentration( i)      + &
-                        LocalConcInc(LocalnProperty, Index) * DTProp / DT 
-                    end if
-                enddo
-                !$OMP END DO NOWAIT
-                !$OMP END PARALLEL
-                !griflet: stop
-                        
             end if cd5
 
             STAT_ = SUCCESS_
@@ -4232,7 +4366,84 @@ do6 :               do index = ArrayLB, ArrayUB
 
     !--------------------------------------------------------------------------
     
+    subroutine UpdateMassDimensions(InterfaceID, PropertiesList, STAT)
+    
+        !Arguments-------------------------------------------------------------        
+        integer                                 :: InterfaceID
+        integer, dimension(:), pointer          :: PropertiesList
+        integer, optional                       :: STAT
         
+        !External--------------------------------------------------------------        
+        integer                                 :: STAT_, ready_,STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: i
+        integer                                 :: PropLB, PropUB
+        integer                                 :: ArrayLB, ArrayUB
+        integer, dimension(:), pointer          :: BivalveList
+
+        !----------------------------------------------------------------------
+        if (MonitorPerformance) call StartWatch ("ModuleInterface", "UpdateMass")
+
+        STAT_ = UNKNOWN_
+
+        call Ready(InterfaceID, ready_)    
+
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            ArrayLB = Me%Array%ILB
+            ArrayUB = Me%Array%IUB
+
+            !Get number of simulated properties 
+            call GetBivalveSize(Me%ObjBivalve, PropLB, PropUB, STAT = STAT_CALL)
+            if(STAT_CALL .NE. SUCCESS_) stop 'UpdateMassDimensions - ModuleInterface - ERR01'
+
+            call GetBivalvePropertyList(Me%ObjBivalve, BivalveList, STAT_CALL)
+            if(STAT_CALL .NE. SUCCESS_) stop 'UpdateMassDimensions - ModuleInterface - ERR02'
+                          
+            !Number of properties involved
+            Me%Prop%ILB = PropLB 
+            Me%Prop%IUB = PropUB
+
+            do i = PropLB, PropUB
+                if (.not.FindProperty(PropertiesList, BivalveList(i))) then
+                    write(*,*) 'Property ',GetPropertyName(BivalveList(i)),' not found in the Bivalve list'
+                    write(*,*) 'Please check subroutine Construct_CohortPropertiesFromCohort if BIVALVE is on.'
+                          stop 'Properties lists inconsistent  - UpdateMassDimensions - ModuleInterface - ERR03'    
+                end if
+            end do
+
+            call UngetBivalve (Me%ObjBivalve, BivalveList, STAT=STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'UpdateMassDimensions - ModuleInterface - ERR04'
+            
+            deallocate(Me%Mass)
+            allocate(Me%Mass(PropLB:PropUB, ArrayLB:ArrayUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)stop 'UpdateMassDimensions - ModuleInterface - ERR05'
+
+            deallocate(Me%ConcentrationIncrement)
+            allocate(Me%ConcentrationIncrement(PropLB:PropUB, ArrayLB:ArrayUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)stop 'UpdateMassDimensions - ModuleInterface - ERR06'
+            
+            deallocate(Me%AddedProperties)
+            allocate(Me%AddedProperties(PropLB:PropUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)stop 'UpdateMassDimensions - ModuleInterface - ERR07'
+            
+            Me%Mass                       = FillValueReal
+            Me%ConcentrationIncrement     = FillValueReal
+            Me%AddedProperties            = .false.
+              
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT))STAT = STAT_
+            
+        if (MonitorPerformance) call StopWatch ("ModuleInterface", "UpdateMass")
+
+    end subroutine UpdateMassDimensions
+
+    !--------------------------------------------------------------------------
     subroutine SetSOD (SOD, OpenPoints2D, WaterPoints2D )
     
         !Arguments-------------------------------------------------------------        
@@ -4460,7 +4671,7 @@ cd1126 :            if (PropertyID== Nitrite_) then
                 end if cd9
 
 
-cd1110 :       if (lPompools) then
+cd1110 :        if (lPompools) then
 
 cd1111 :         if (lNitrogen) then
                     
@@ -4612,119 +4823,118 @@ cd1 :               if (.NOT. Me%AddedProperties(i)) then
                     if (Ready) Me%AddedProperties = .FALSE.
                 end if cd2        
         
-        case (SedimentQualityModel)
+            case (SedimentQualityModel)
 
-            call GetPropIndex(  Me%ObjSedimentQuality,                                      & 
-                                HeterotrophicN                  = numHeterotrophicN,         &
-                                HeterotrophicC                  = numHeterotrophicC,         &
-                                AutotrophicN                    = numAutotrophicN,          &
-                                AutotrophicC                    = numAutotrophicC,          &
-                                AnaerobicN                      = numAnaerobicN,            &
-                                AnaerobicC                      = numAnaerobicC,            &
-                                Labil_OM_C                      = numLabil_OM_C,            &
-                                Labil_OM_N                      = numLabil_OM_N,            &
-                                RefractOM_C                     = numRefractOM_C,           &
-                                RefractOM_N                     = numRefractOM_N,           &
-                                Ammonia                         = numAmmonia,               &
-                                Nitrate                         = numNitrate,               &
-                                Ngas                            = numNgas,                  &
-                                Oxygen                          = numOxygen,                &
-                                HeterotrophicP                  = numHeterotrophicP,         &  
-                                AutotrophicP                    = numAutotrophicP,          &
-                                AnaerobicP                      = numAnaerobicP,            &
-                                Labil_OM_P                      = numLabil_OM_P,            &
-                                RefractOM_P                     = numRefractOM_P,           &
-                                Inorganic_P_soluble             = numInorganicP_soluble,    &
-                                Inorganic_P_fix                 = numInorganicP_fix,        &
-                                SolC                            = numSol_C,                 &
-                                SolN                            = numSol_N,                 &
-                                SolP                            = numSol_P,                 &
-                                CO2                             = numCO2,                   &
-                                Urea                            = numUrea,                  &
-!                                AmmoniaGas                      = numAmmoniaGas,            &
-!                                Methane                         = numMethane,               &
-                                AutotrophicPop                  = numAutotrophicPop,        &
-                                HeterotrophicPop                = numHeterotrophicPop,      &
-                                AnaerobicPop                    = numAnaerobicPop,          &
-                                SolPop                          = numSolPop,                & 
-                                STAT                            = STAT_CALL )          
-             if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity3D - ModuleInterface - ERR03' 
-
-
-             call GetSQOptions( Me%ObjSedimentQuality,                                      &
-                                Nitrogen                        = lNitrogen,                &
-                                Carbon                          = lCarbon,                  &
-                                Phosphorus                      = lPhosphorus,              &
-                                Sol_Bacteria                    = lSol_Bacteria,            &
-                                Oxygen                          = lOxygen,                  &
-                                STAT                            = STAT_CALL  )
-
-             if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity - ModuleInterface - ERR04' 
+                call GetPropIndex(  Me%ObjSedimentQuality,                                      & 
+                                    HeterotrophicN                  = numHeterotrophicN,         &
+                                    HeterotrophicC                  = numHeterotrophicC,         &
+                                    AutotrophicN                    = numAutotrophicN,          &
+                                    AutotrophicC                    = numAutotrophicC,          &
+                                    AnaerobicN                      = numAnaerobicN,            &
+                                    AnaerobicC                      = numAnaerobicC,            &
+                                    Labil_OM_C                      = numLabil_OM_C,            &
+                                    Labil_OM_N                      = numLabil_OM_N,            &
+                                    RefractOM_C                     = numRefractOM_C,           &
+                                    RefractOM_N                     = numRefractOM_N,           &
+                                    Ammonia                         = numAmmonia,               &
+                                    Nitrate                         = numNitrate,               &
+                                    Ngas                            = numNgas,                  &
+                                    Oxygen                          = numOxygen,                &
+                                    HeterotrophicP                  = numHeterotrophicP,         &  
+                                    AutotrophicP                    = numAutotrophicP,          &
+                                    AnaerobicP                      = numAnaerobicP,            &
+                                    Labil_OM_P                      = numLabil_OM_P,            &
+                                    RefractOM_P                     = numRefractOM_P,           &
+                                    Inorganic_P_soluble             = numInorganicP_soluble,    &
+                                    Inorganic_P_fix                 = numInorganicP_fix,        &
+                                    SolC                            = numSol_C,                 &
+                                    SolN                            = numSol_N,                 &
+                                    SolP                            = numSol_P,                 &
+                                    CO2                             = numCO2,                   &
+                                    Urea                            = numUrea,                  &
+    !                                AmmoniaGas                      = numAmmoniaGas,            &
+    !                                Methane                         = numMethane,               &
+                                    AutotrophicPop                  = numAutotrophicPop,        &
+                                    HeterotrophicPop                = numHeterotrophicPop,      &
+                                    AnaerobicPop                    = numAnaerobicPop,          &
+                                    SolPop                          = numSolPop,                & 
+                                    STAT                            = STAT_CALL )          
+                if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity3D - ModuleInterface - ERR03' 
 
 
+                call GetSQOptions( Me%ObjSedimentQuality,                                      &
+                                    Nitrogen                        = lNitrogen,                &
+                                    Carbon                          = lCarbon,                  &
+                                    Phosphorus                      = lPhosphorus,              &
+                                    Sol_Bacteria                    = lSol_Bacteria,            &
+                                    Oxygen                          = lOxygen,                  &
+                                    STAT                            = STAT_CALL  )
 
-cd27 :          if (lNitrogen) then
+                if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity - ModuleInterface - ERR04' 
 
-cd28 :              if (PropertyID== PON_                  ) then
+
+
+    cd27 :      if (lNitrogen) then
+
+    cd28 :          if (PropertyID== PON_                  ) then
                         call InputData(Concentration, numLabil_OM_N)
                         Me%AddedProperties(numLabil_OM_N)         = .TRUE.
                     end if cd28
 
-cd29 :              if (PropertyID== RefreactaryOrganicN_  ) then
+    cd29 :          if (PropertyID== RefreactaryOrganicN_  ) then
                         call InputData(Concentration, numRefractOM_N)
                         Me%AddedProperties(numRefractOM_N)        = .TRUE.
                     end if cd29
 
-cd30 :              if (PropertyID== Ammonia_              ) then
+    cd30 :          if (PropertyID== Ammonia_              ) then
                         call InputData(Concentration,numAmmonia)
                         Me%AddedProperties(numAmmonia)            = .TRUE.
                     end if cd30
 
-cd31 :              if (PropertyID== Nitrate_              ) then
+    cd31 :          if (PropertyID== Nitrate_              ) then
                         call InputData(Concentration,numNitrate)
                         Me%AddedProperties(numNitrate)            = .TRUE.
                     end if cd31
 
-cd32 :              if (PropertyID== Ngas_                 ) then
+    cd32 :          if (PropertyID== Ngas_                 ) then
                         call InputData(Concentration,numNgas)
                         Me%AddedProperties(numNgas)               = .TRUE.
                     end if cd32
 
-cd33 :              if (PropertyID== HeterotrophicN_       ) then
+    cd33 :          if (PropertyID== HeterotrophicN_       ) then
                         call InputData(Concentration,numHeterotrophicN)
                         Me%AddedProperties(numHeterotrophicN)      = .TRUE.
                     end if cd33
 
-cd34 :              if (PropertyID== AutotrophicN_         ) then
+    cd34 :          if (PropertyID== AutotrophicN_         ) then
                         call InputData(Concentration,numAutotrophicN)
                         Me%AddedProperties(numAutotrophicN)    = .TRUE.
                     end if cd34
 
-cd35 :              if (PropertyID== AnaerobicN_           ) then
+    cd35 :          if (PropertyID== AnaerobicN_           ) then
                         call InputData(Concentration,numAnaerobicN)
                         Me%AddedProperties(numAnaerobicN)         = .TRUE.
                     end if cd35
 
-cd350 :             if (PropertyID== Urea_                 ) then
+    cd350 :         if (PropertyID== Urea_                 ) then
                         call InputData(Concentration,numUrea)
                         Me%AddedProperties(numUrea)               = .TRUE.
                     end if cd350
 
-!cd351 :             if (PropertyID== AmmoniaGas_           ) then
-!                        call InputData(Concentration,numAmmoniaGas)
-!                        Me%AddedProperties(numAmmoniaGas)         = .TRUE.
-!                    end if cd351
+    !cd351 :         if (PropertyID== AmmoniaGas_           ) then
+    !                    call InputData(Concentration,numAmmoniaGas)
+    !                    Me%AddedProperties(numAmmoniaGas)         = .TRUE.
+    !                end if cd351
 
-cd352 :             if (lSol_Bacteria) then
+    cd352 :         if (lSol_Bacteria) then
 
-cd353 :                 if (PropertyID== SolubilizingN_   ) then
+    cd353 :             if (PropertyID== SolubilizingN_   ) then
                             call InputData(Concentration,numSol_N)
                             Me%AddedProperties(numSol_N)          = .TRUE.
                         end if cd353                    
                     
                     end if cd352
                     
-                
                 end if cd27
 
 
@@ -4775,7 +4985,6 @@ cd413 :                 if (PropertyID== SolubilizingC_   ) then
                     end if cd412
 
                 end if cd36
-
 
 cd512 :         if (lPhosphorus) then
 
@@ -4859,7 +5068,6 @@ cd43 :          if (PropertyID== Temperature_)then
                     TemperatureAdded =.TRUE.
                 end if cd43
 
-
 cd44 :          if (TemperatureAdded) then
                     Ready = .TRUE.
 
@@ -4883,7 +5091,6 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                     stop 'FillMassTempSalinity3D - ModuleInterface - ERR05' 
                 end if
                      
-                               
                 if (PropertyID== Salinity_) then
                     call UnfoldMatrix(Concentration, Me%Salinity)
                     SalinityAdded       =.TRUE.
@@ -4894,7 +5101,6 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                     TemperatureAdded    =.TRUE.
                 end if 
 
-       
                 if (SalinityAdded .AND. TemperatureAdded) then
                     Ready = .TRUE.
 
@@ -4941,7 +5147,6 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                     if (Ready) Me%AddedProperties = .FALSE.
                 end if
 #endif
- 
             case(CEQUALW2Model) 
                 
                 call GetCEQUALW2PropIndex(Me%ObjCEQUALW2,PropertyID,IndexNumber,STAT=STAT_CALL)
@@ -5135,244 +5340,240 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                                    STAT           = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity3D - ModuleInterface - ERR09'
 
-             if (lPhyto) then 
-             if (PropertyID == Phytoplankton_) then
-                 call InputData(Concentration,numPhyto)
-                 Me%AddedProperties(numPhyto)    = .TRUE.
-             end if 
-             end if 
+                 if (lPhyto) then 
+                 if (PropertyID == Phytoplankton_) then
+                     call InputData(Concentration,numPhyto)
+                     Me%AddedProperties(numPhyto)    = .TRUE.
+                 end if 
+                 end if 
 
-             if (lZoo) then
-             if (PropertyID == Zooplankton_) then
-                 call InputData(Concentration,numZoo)
-                 Me%AddedProperties(numZoo)      = .TRUE.
-             end if 
-             end if 
+                 if (lZoo) then
+                 if (PropertyID == Zooplankton_) then
+                     call InputData(Concentration,numZoo)
+                     Me%AddedProperties(numZoo)      = .TRUE.
+                 end if 
+                 end if 
 
-             if (lLarvae) then
-             if (PropertyID == Larvae_) then
-                 call InputData(Concentration,numLarvae)
-                 Me%AddedProperties(numLarvae)   = .TRUE.
-             end if 
-             end if 
+                 if (lLarvae) then
+                 if (PropertyID == Larvae_) then
+                     call InputData(Concentration,numLarvae)
+                     Me%AddedProperties(numLarvae)   = .TRUE.
+                 end if 
+                 end if 
 
-             if (lPhosphorus) then
+                 if (lPhosphorus) then
 
-                 if (PropertyID == POP_) then
-                     call InputData(Concentration, numPartOrganicPhosphorus)
-                     Me%AddedProperties(numPartOrganicPhosphorus)    = .TRUE.
+                     if (PropertyID == POP_) then
+                         call InputData(Concentration, numPartOrganicPhosphorus)
+                         Me%AddedProperties(numPartOrganicPhosphorus)    = .TRUE.
+                     end if
+
+                     if (PropertyID== DOPRefractory_) then
+                         call InputData(Concentration, numDOPRefractory)
+                         Me%AddedProperties(numDOPRefractory)            = .TRUE.
+                     end if
+
+                     if (PropertyID== DOPNon_Refractory_) then
+                         call InputData(Concentration, numDOPNonRefractory)
+                         Me%AddedProperties(numDOPNonRefractory)         = .TRUE.
+                     end if
+
+                     if (PropertyID== Inorganic_Phosphorus_) then
+                         call InputData(Concentration, numInorganicPhosphorus)
+                         Me%AddedProperties(numInorganicPhosphorus)      = .TRUE.
+                     end if
+                     
                  end if
 
-                 if (PropertyID== DOPRefractory_) then
-                     call InputData(Concentration, numDOPRefractory)
-                     Me%AddedProperties(numDOPRefractory)            = .TRUE.
-                 end if
 
-                 if (PropertyID== DOPNon_Refractory_) then
-                     call InputData(Concentration, numDOPNonRefractory)
-                     Me%AddedProperties(numDOPNonRefractory)         = .TRUE.
-                 end if
+                 if (lNitrogen) then
+                     if (PropertyID== PON_) then
+                         call InputData(Concentration, numPartOrganicNitrogen)
+                         Me%AddedProperties(numPartOrganicNitrogen)      = .TRUE.
+                     end if
 
-                 if (PropertyID== Inorganic_Phosphorus_) then
-                     call InputData(Concentration, numInorganicPhosphorus)
-                     Me%AddedProperties(numInorganicPhosphorus)      = .TRUE.
-                 end if
-                 
-             end if
+                     if (PropertyID== PONRefractory_) then
+                         call InputData(Concentration, numPartOrganicNitrogenRef)
+                         Me%AddedProperties(numPartOrganicNitrogenRef)   = .TRUE.
+                     end if
 
+                     if (PropertyID== DONRefractory_) then
+                         call InputData(Concentration, numDONRefractory)
+                         Me%AddedProperties(numDONRefractory)            = .TRUE.
+                     end if
 
-             if (lNitrogen) then
-                 if (PropertyID== PON_) then
-                     call InputData(Concentration, numPartOrganicNitrogen)
-                     Me%AddedProperties(numPartOrganicNitrogen)      = .TRUE.
-                 end if
+                     if (PropertyID== DONNon_Refractory_) then
+                         call InputData(Concentration,numDONNonRefractory)
+                         Me%AddedProperties(numDONNonRefractory)         = .TRUE.
+                     end if
 
-                 if (PropertyID== PONRefractory_) then
-                     call InputData(Concentration, numPartOrganicNitrogenRef)
-                     Me%AddedProperties(numPartOrganicNitrogenRef)   = .TRUE.
-                 end if
+                     if (PropertyID== Ammonia_) then
+                         call InputData(Concentration,numAmmonia)
+                         Me%AddedProperties(numAmmonia)                  = .TRUE.
+                     end if
 
-                 if (PropertyID== DONRefractory_) then
-                     call InputData(Concentration, numDONRefractory)
-                     Me%AddedProperties(numDONRefractory)            = .TRUE.
-                 end if
+                     if (PropertyID== Nitrate_) then
+                         call InputData(Concentration,numNitrate)
+                         Me%AddedProperties(numNitrate)                  = .TRUE.
+                     end if                                                              
 
-                 if (PropertyID== DONNon_Refractory_) then
-                     call InputData(Concentration,numDONNonRefractory)
-                     Me%AddedProperties(numDONNonRefractory)         = .TRUE.
-                 end if
-
-                 if (PropertyID== Ammonia_) then
-                     call InputData(Concentration,numAmmonia)
-                     Me%AddedProperties(numAmmonia)                  = .TRUE.
-                 end if
-
-                 if (PropertyID== Nitrate_) then
-                     call InputData(Concentration,numNitrate)
-                     Me%AddedProperties(numNitrate)                  = .TRUE.
-                 end if                                                              
-
-              if (PropertyID== Nitrite_) then
-                  call InputData(Concentration,numNitrite)
-                  Me%AddedProperties(numNitrite)                  = .TRUE.
+                  if (PropertyID== Nitrite_) then
+                      call InputData(Concentration,numNitrite)
+                      Me%AddedProperties(numNitrite)                  = .TRUE.
+                  end if
               end if
-          end if
 
 
-         if (lPompools) then
+             if (lPompools) then
 
-           if (lNitrogen) then
-              
-              if (PropertyID== PON1_) then
-                  call InputData(Concentration, numPONitrogen1)
-                  Me%AddedProperties(numPONitrogen1)              = .TRUE.
-              end if                   
+               if (lNitrogen) then
+                  
+                  if (PropertyID== PON1_) then
+                      call InputData(Concentration, numPONitrogen1)
+                      Me%AddedProperties(numPONitrogen1)              = .TRUE.
+                  end if                   
 
-               if (PropertyID== PON2_) then
-                  call InputData(Concentration, numPONitrogen2)
-                  Me%AddedProperties(numPONitrogen2)              = .TRUE.
-              end if 
-              
-              if (PropertyID== PON3_) then
-                  call InputData(Concentration, numPONitrogen3)
-                  Me%AddedProperties(numPONitrogen3)              = .TRUE.
+                   if (PropertyID== PON2_) then
+                      call InputData(Concentration, numPONitrogen2)
+                      Me%AddedProperties(numPONitrogen2)              = .TRUE.
+                  end if 
+                  
+                  if (PropertyID== PON3_) then
+                      call InputData(Concentration, numPONitrogen3)
+                      Me%AddedProperties(numPONitrogen3)              = .TRUE.
+                  end if
+                  
+                   if (PropertyID== PON4_) then
+                      call InputData(Concentration, numPONitrogen4)
+                      Me%AddedProperties(numPONitrogen4)              = .TRUE.
+                  end if                                                            
+
+                   if (PropertyID== PON5_) then
+                      call InputData(Concentration, numPONitrogen5)
+                      Me%AddedProperties(numPONitrogen5)              = .TRUE.
+                  end if    
+               
+               end if  
+
+               if (lPhosphorus) then
+               
+                   if (PropertyID== POP1_) then
+                      call InputData(Concentration, numPOPhosphorus1)
+                      Me%AddedProperties(numPOPhosphorus1)            = .TRUE.
+                  end if                    
+
+                   if (PropertyID== POP2_) then
+                      call InputData(Concentration, numPOPhosphorus2)
+                      Me%AddedProperties(numPOPhosphorus2)            = .TRUE.
+                  end if 
+                  
+                   if (PropertyID== POP3_) then
+                      call InputData(Concentration, numPOPhosphorus3)
+                      Me%AddedProperties(numPOPhosphorus3)            = .TRUE.
+                  end if 
+                  
+                   if (PropertyID== POP4_) then
+                      call InputData(Concentration, numPOPhosphorus4)
+                      Me%AddedProperties(numPOPhosphorus4)            = .TRUE.
+                  end if                                                             
+
+                   if (PropertyID== POP5_) then
+                      call InputData(Concentration, numPOPhosphorus5)
+                      Me%AddedProperties(numPOPhosphorus5)            = .TRUE.
+                  end if                 
+               
+               end if
+                                                         
               end if
-              
-               if (PropertyID== PON4_) then
-                  call InputData(Concentration, numPONitrogen4)
-                  Me%AddedProperties(numPONitrogen4)              = .TRUE.
-              end if                                                            
-
-               if (PropertyID== PON5_) then
-                  call InputData(Concentration, numPONitrogen5)
-                  Me%AddedProperties(numPONitrogen5)              = .TRUE.
-              end if    
-           
-           end if  
-
-           if (lPhosphorus) then
-           
-               if (PropertyID== POP1_) then
-                  call InputData(Concentration, numPOPhosphorus1)
-                  Me%AddedProperties(numPOPhosphorus1)            = .TRUE.
-              end if                    
-
-               if (PropertyID== POP2_) then
-                  call InputData(Concentration, numPOPhosphorus2)
-                  Me%AddedProperties(numPOPhosphorus2)            = .TRUE.
-              end if 
-              
-               if (PropertyID== POP3_) then
-                  call InputData(Concentration, numPOPhosphorus3)
-                  Me%AddedProperties(numPOPhosphorus3)            = .TRUE.
-              end if 
-              
-               if (PropertyID== POP4_) then
-                  call InputData(Concentration, numPOPhosphorus4)
-                  Me%AddedProperties(numPOPhosphorus4)            = .TRUE.
-              end if                                                             
-
-               if (PropertyID== POP5_) then
-                  call InputData(Concentration, numPOPhosphorus5)
-                  Me%AddedProperties(numPOPhosphorus5)            = .TRUE.
-              end if                 
-           
-           end if
-                                                     
-          end if
 
 
-          if (lBOD) then
-          if (PropertyID== BOD_) then
-              call InputData(Concentration,numBOD)
-              Me%AddedProperties(numBOD)      = .TRUE.
-          end if
-          end if
-
-
-
-          if (lBacteria) then
-          if (PropertyID== Bacteria_) then
-              call InputData(Concentration,numBacteria)
-              Me%AddedProperties(numBacteria) = .TRUE.
-          end if
-          end if
-
-
-
-          if (lCiliate) then
-          if (PropertyID== Ciliate_) then
-              call InputData(Concentration,numCiliate)
-              Me%AddedProperties(numCiliate)  = .TRUE.
-          end if
-          end if
-
-
-          !The oxygen is always compute. If it's not defined in the waterproperties 
-          ! module then the saturation value is compute
-          if (PropertyID== Oxygen_) then
-              call InputData(Concentration,numOxygen)
-              Me%AddedProperties(numOxygen)   = .TRUE.
-          end if
-
-          if (lSalinity) then
-          
-          if (PropertyID== Salinity_) then
-                  call UnfoldMatrix(Concentration, Me%Salinity)
-                  SalinityAdded       =.TRUE.
+              if (lBOD) then
+              if (PropertyID== BOD_) then
+                  call InputData(Concentration,numBOD)
+                  Me%AddedProperties(numBOD)      = .TRUE.
               end if
-          end if
-
-          if (PropertyID== Temperature_) then
-              call UnfoldMatrix(Concentration, Me%Temperature)
-              TemperatureAdded    =.TRUE.
-          end if
-
-          if (PropertyID== FishFood_) then
-              call UnfoldMatrix(Concentration, Me%FishFood)
-              FishFoodAdded       =.TRUE.
-          end if
-
-          if (lDiatoms) then 
-          if (PropertyID == Diatoms_) then
-              call InputData(Concentration,numDiatoms)
-              Me%AddedProperties(numDiatoms)    = .TRUE.
-          end if
-          end if
+              end if
 
 
-           if (lSilica) then
 
-            if (PropertyID == DSilica_) then
-                call InputData(Concentration, numSiDiss)
-                Me%AddedProperties(numSiDiss)    = .TRUE.
+              if (lBacteria) then
+              if (PropertyID== Bacteria_) then
+                  call InputData(Concentration,numBacteria)
+                  Me%AddedProperties(numBacteria) = .TRUE.
+              end if
+              end if
+
+
+
+              if (lCiliate) then
+              if (PropertyID== Ciliate_) then
+                  call InputData(Concentration,numCiliate)
+                  Me%AddedProperties(numCiliate)  = .TRUE.
+              end if
+              end if
+
+              !The oxygen is always compute. If it's not defined in the waterproperties 
+              ! module then the saturation value is compute
+              if (PropertyID== Oxygen_) then
+                  call InputData(Concentration,numOxygen)
+                  Me%AddedProperties(numOxygen)   = .TRUE.
+              end if
+
+              if (lSalinity) then
+              
+              if (PropertyID== Salinity_) then
+                      call UnfoldMatrix(Concentration, Me%Salinity)
+                      SalinityAdded       =.TRUE.
+                  end if
+              end if
+
+              if (PropertyID== Temperature_) then
+                  call UnfoldMatrix(Concentration, Me%Temperature)
+                  TemperatureAdded    =.TRUE.
+              end if
+
+              if (PropertyID== FishFood_) then
+                  call UnfoldMatrix(Concentration, Me%FishFood)
+                  FishFoodAdded       =.TRUE.
+              end if
+
+              if (lDiatoms) then 
+              if (PropertyID == Diatoms_) then
+                  call InputData(Concentration,numDiatoms)
+                  Me%AddedProperties(numDiatoms)    = .TRUE.
+              end if
+              end if
+
+
+               if (lSilica) then
+
+                if (PropertyID == DSilica_) then
+                    call InputData(Concentration, numSiDiss)
+                    Me%AddedProperties(numSiDiss)    = .TRUE.
+                end if
+
+                if (PropertyID== BioSilica_) then
+                    call InputData(Concentration, numSiBio)
+                    Me%AddedProperties(numSiBio)            = .TRUE.
+                end if
+
             end if
 
-            if (PropertyID== BioSilica_) then
-                call InputData(Concentration, numSiBio)
-                Me%AddedProperties(numSiBio)            = .TRUE.
-            end if
+            if ((SalinityAdded .or. (.not. lSalinity)) .AND. TemperatureAdded) then
+                Ready = .TRUE.
 
-        end if
+                do i = PropLB, PropUB
+                if (.NOT. Me%AddedProperties(i)) then
+                         Ready = .FALSE.
+                         exit
+                     end if
+                     end do
 
-
-
-
-        if ((SalinityAdded .or. (.not. lSalinity)) .AND. TemperatureAdded) then
-            Ready = .TRUE.
-
-            do i = PropLB, PropUB
-            if (.NOT. Me%AddedProperties(i)) then
-                     Ready = .FALSE.
-                     exit
-                 end if
-                 end do
-
-                 if (Ready) Me%AddedProperties = .FALSE.
-             end if       
+                     if (Ready) Me%AddedProperties = .FALSE.
+                 end if       
      
      
-     case(SeagrassSedimInteractionModel)
+            case(SeagrassSedimInteractionModel)
                 
                 call GetSeagrassSedimInteractionPropIndex(Me%ObjSeagrassSedimInteraction,PropertyID,IndexNumber,STAT=STAT_CALL)
                 if (STAT_CALL==SUCCESS_) then
@@ -5383,19 +5584,18 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                 end if
               
 
-                    Ready = .TRUE.
-                    
-                    
-                    do i = PropLB, PropUB
-                    if (.NOT. Me%AddedProperties(i)) then
-                            Ready = .FALSE.
-                            exit 
-                    end if 
-                    end do 
-                    if (Ready) Me%AddedProperties = .FALSE.
+                Ready = .TRUE.
                 
-
-        case(SeagrassWaterInteractionModel)
+                
+                do i = PropLB, PropUB
+                if (.NOT. Me%AddedProperties(i)) then
+                        Ready = .FALSE.
+                        exit 
+                end if 
+                end do 
+                if (Ready) Me%AddedProperties = .FALSE.
+                
+            case(SeagrassWaterInteractionModel)
                 
                 call GetSeagrassWaterInteractionPropIndex(Me%ObjSeagrassWaterInteraction,PropertyID,IndexNumber,STAT=STAT_CALL)
                 if (STAT_CALL==SUCCESS_) then
@@ -5404,15 +5604,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                 else if (STAT_CALL.NE.SUCCESS_ .AND. STAT_CALL.NE.NOT_FOUND_ERR_) then
                     stop 'FillMassTempSalinity3D - ModuleInterface - ERR011' 
                 end if
-                     
-                              
-                
+                                     
                 if (PropertyID== Temperature_) then
                     call UnfoldMatrix(Concentration, Me%Temperature)
                     TemperatureAdded    =.TRUE.
                 end if 
 
-       
                 if (TemperatureAdded) then
                     Ready = .TRUE.
 
@@ -5424,7 +5621,47 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                     end do 
                     if (Ready) Me%AddedProperties = .FALSE.
                 end if
-     
+                
+            case(BivalveModel)
+                            
+                call GetBivalvePropIndex(Me%ObjBivalve,PropertyID,IndexNumber,STAT=STAT_CALL)
+                
+                if (STAT_CALL==SUCCESS_) then
+                
+                    call InputData(Concentration, IndexNumber)
+                    Me%AddedProperties(IndexNumber) =.TRUE.
+                    
+                else if (STAT_CALL.NE.SUCCESS_ .AND. STAT_CALL.NE.NOT_FOUND_ERR_) then
+                    stop 'FillMassTempSalinity3D - ModuleInterface - ERR12' 
+                end if
+                               
+                if (PropertyID== Salinity_) then
+                    call UnfoldMatrix(Concentration, Me%Salinity)
+                    SalinityAdded       =.TRUE.
+                end if 
+
+                if (PropertyID== Temperature_) then
+                    call UnfoldMatrix(Concentration, Me%Temperature)
+                    TemperatureAdded    =.TRUE.
+                end if 
+
+                if (SalinityAdded .AND. TemperatureAdded) then
+                    Ready = .TRUE.
+
+                    do i = PropLB, PropUB
+                    if (.NOT. Me%AddedProperties(i)) then
+                            Ready = .FALSE.
+                            exit 
+                    end if 
+                    end do 
+                    if (Ready) Me%AddedProperties = .FALSE.
+                end if
+
+            case default
+                write(*,*) 
+                write(*,*) 'Defined sinks and sources model was not recognised.'
+                stop 'FillMassTempSalinity3D - ModuleInterface - ERR13'
+
      end select
 
         !----------------------------------------------------------------------
@@ -6588,6 +6825,46 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
                     if (Ready) Me%AddedProperties = .FALSE.
                 end if      
+        
+            case(BivalveModel)
+                            
+                call GetBivalvePropIndex(Me%ObjBivalve,PropertyID,IndexNumber,STAT=STAT_CALL)
+                
+                if (STAT_CALL==SUCCESS_) then
+                
+                    call InputData(Concentration, IndexNumber)
+                    Me%AddedProperties(IndexNumber) =.TRUE.
+                    
+                else if (STAT_CALL.NE.SUCCESS_ .AND. STAT_CALL.NE.NOT_FOUND_ERR_) then
+                    stop 'FillMassTempSalinity1D - ModuleInterface - ERR10' 
+                end if
+                     
+                if (PropertyID== Salinity_) then
+                    call UnfoldMatrix(Concentration, Me%Salinity)
+                    SalinityAdded       =.TRUE.
+                end if 
+
+                if (PropertyID== Temperature_) then
+                    call UnfoldMatrix(Concentration, Me%Temperature)
+                    TemperatureAdded    =.TRUE.
+                end if 
+
+                if (SalinityAdded .AND. TemperatureAdded) then
+                    Ready = .TRUE.
+
+                    do i = PropLB, PropUB
+                    if (.NOT. Me%AddedProperties(i)) then
+                            Ready = .FALSE.
+                            exit 
+                    end if 
+                    end do 
+                    if (Ready) Me%AddedProperties = .FALSE.
+                end if
+
+            case default
+                write(*,*) 
+                write(*,*) 'Defined sinks and sources model was not recognised.'
+                stop 'FillMassTempSalinity1D - ModuleInterface - ERR11'
         
         end select
 
@@ -8111,6 +8388,24 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                     stop       'PropertyIndexNumber - ModuleInterface - ERR46'
                 end if
                 
+        case(BivalveModel)
+         
+                call GetBivalvePropIndex(Me%ObjBivalve,PropertyID,nProperty,STAT_CALL)
+                
+                if (STAT_CALL.NE.SUCCESS_) then 
+                    
+                    write(*,*) 
+                    write(*,*) 'Inconsistency between Interface and Bivalve.'
+                    stop       'PropertyIndexNumber - ModuleInterface - ERR47'
+
+                end if  
+                
+        case default
+
+            write(*,*) 
+            write(*,*) 'Defined sinks and sources model was not recognised.'
+            stop 'ReadInterfaceFilesName - Module Interface - ERR48' 
+
         end select
 
         PropertyIndexNumber = nProperty
@@ -8170,14 +8465,23 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                 if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR17'
            
            
-           case(SeagrassSedimInteractionModel)
+            case(SeagrassSedimInteractionModel)
                 call GetDTSeagrassSedimInteraction(Me%ObjSeagrassSedimInteraction, DTSecond = InterfaceDT, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR18' 
            
-         case(SeagrassWaterInteractionModel)
+            case(SeagrassWaterInteractionModel)
                 call GetDTSeagrassWaterInteraction(Me%ObjSeagrassWaterInteraction, DTSecond = InterfaceDT, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR19' 
-                
+
+            case(BivalveModel)
+                call GetDTBivalve(Me%ObjBivalve, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR20' 
+
+            case default
+                write(*,*) 
+                write(*,*) 'Defined sinks and sources model was not recognised.'
+                stop 'InterfaceDT - ModuleInterface - ERR21'
+
         end select
                 
     end function InterfaceDT
@@ -8224,7 +8528,10 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
             
             case(SeagrassWaterInteractionModel)
                  model_name = 'SeagrassWaterInteraction'
-                
+
+            case(BivalveModel)
+                 model_name = 'Bivalve'
+                 
         end select
         
     end function     
@@ -8272,37 +8579,37 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     case(WaterQualityModel)
 
                         call KillWaterQuality(Me%ObjWaterQuality, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR02'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR10'
                     
                     case(SedimentQualityModel)
 
                         call KillSedimentQuality(Me%ObjSedimentQuality, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR03'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR20'
 
                     case(LifeModel)
 
                         call KillLife(Me%ObjLife, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.1'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR30'
 #ifdef _BFM_  
                     case(BFMModel)
 
                         call KillBFM(Me%ObjBFM, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.15'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR40'
 #endif  
                     case(CEQUALW2Model, BenthicCEQUALW2Model)
 
                         call KillCEQUALW2(Me%ObjCEQUALW2, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.2'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR50'
 
                     case(BenthosModel)
                         
                         call KillBenthos(Me%ObjBenthos, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.3'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR60'
                     
                     case(MacroAlgaeModel)
                         
                         call KillMacroAlgae(Me%ObjMacroAlgae, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.4'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR70'
                         
                      case(BenthicEcologyModel)
                         
@@ -8343,18 +8650,16 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.19'      
                         
 
-   
-                        
 #ifdef _PHREEQC_
                     case(PhreeqCModel)
                     
                         call KillPhreeqC (Me%ObjPhreeqC, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.5'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR100'
 #endif
                     case(WWTPQModel)
 
                         call KillWWTPQ(Me%ObjWWTPQ, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR02'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR110'
                    
                    case(SeagrassSedimInteractionModel)  ! Isabella
                         
@@ -8389,6 +8694,21 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.30'             
 
                    
+                   case(BivalveModel)
+                   
+                        if(associated(Me%WaterCellVol))then
+                            deallocate(Me%WaterCellVol, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR80'
+                        end if
+
+                        if(associated(Me%CellArea))then
+                            deallocate(Me%CellArea, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR81'
+                        end if
+                            
+                        call KillBivalve(Me%ObjBivalve, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR82'
+
                 end select
 
                 if(associated(Me%Salinity))then
@@ -8455,16 +8775,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR13'
                 end if
                 
-                              
 
-                
 #ifdef _PHREEQC_
 
                 if(associated(Me%WaterVolume))then
                     deallocate(Me%WaterVolume, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR16'
                 end if
-             
+                
                 if(associated(Me%WaterMass))then
                     deallocate(Me%WaterMass, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR16'

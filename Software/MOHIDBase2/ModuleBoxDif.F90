@@ -80,6 +80,8 @@ Module ModuleBoxDif
     private ::          ScalarTimeSerieHeader2D
     private ::          ScalarTimeSerieHeader3D
     private ::          AddScalarTimeSerie
+    public  :: UpdateBoxDif !soffs
+
 
     !Selector
     public  :: GetBoxes
@@ -120,8 +122,6 @@ Module ModuleBoxDif
         module procedure ConvertBoxesToMap2D_2D
         module procedure ConvertBoxesToMap2D_3D
     end interface  ConvertBoxesToMap2D
-
-    
     
     private :: BoxDifFluxes3D
     private :: BoxDifFluxes2D
@@ -425,6 +425,49 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine StartBoxDif3D
 
     !--------------------------------------------------------------------------
+
+    subroutine UpdateBoxDif (BoxDifID, NewFluxesOutputList, NewScalarOutputList, nDimensions,STAT)
+                           
+        !Arguments---------------------------------------------------------------
+        integer                                                 :: BoxDifID
+        character(LEN = *), optional, pointer, dimension(:  )   :: NewFluxesOutputList
+        character(LEN = *), optional, pointer, dimension(:  )   :: NewScalarOutputList
+        integer, intent(IN)                                     :: nDimensions
+        integer,            optional, intent(OUT)               :: STAT     
+
+        !External----------------------------------------------------------------
+
+        !Local-------------------------------------------------------------------
+        integer                                                 :: STAT_, ready_
+
+        !------------------------------------------------------------------------
+        
+        call Ready(BoxDifID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            STAT_ = UNKNOWN_
+            
+            if (nDimensions .eq. 2) then
+                call ConstructOutputScalar2D (NewScalarOutputList)
+                call ConstructOutputFluxes2D (NewFluxesOutputList)
+            else 
+                call ConstructOutputScalar3D (NewScalarOutputList)
+                call ConstructOutputFluxes3D (NewFluxesOutputList)
+            end if
+            
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine UpdateBoxDif
+    
+    !----------------------------------------------------------------------
     
     subroutine AllocateInstance
 

@@ -42,6 +42,9 @@ Module ModuleGlobalData
     public  ::  GetPropertyIDNumber
     private ::      ConstructPropList
     private ::          AddPropList
+    public  ::  RegisterDynamicProperty
+    public  ::  GetDynamicPropertyIDNumber
+
     public  ::  Check_Particulate_Property
     public  ::  TranslateTypeZUV
     
@@ -72,7 +75,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  82
+    integer, parameter  :: MaxModules           =  83
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -234,6 +237,19 @@ Module ModuleGlobalData
     integer, parameter :: Oxygen_                           = 25 
     integer, parameter :: DissolO2PercentSat_               = 26
     integer, parameter :: CO2PartialPressure_               = 27
+
+    !Bivalve species
+    integer, parameter :: Bivalve1_                         = 28
+    integer, parameter :: Bivalve2_                         = 29
+    integer, parameter :: Bivalve3_                         = 30
+    integer, parameter :: Bivalve4_                         = 31
+
+    !Bivalve predators
+    integer, parameter :: Shrimp_                           = 32
+    integer, parameter :: Crab_                             = 33
+    integer, parameter :: OysterCatcher_                    = 34
+    integer, parameter :: EiderDuck_                        = 35
+    integer, parameter :: HerringGull_                      = 36
 
     integer, parameter :: PhytoChla_                        = 49
     integer, parameter :: OilThickness_                     = 50
@@ -944,6 +960,20 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_Het_Bacteria_P       = 'heterotrophic bacteria phosphorus'
 !___________________________________________________________________________________________________________________
 
+    !Name of Bivalve
+    character(StringLength), private, parameter :: Char_Bivalve1             = 'bivalve1'
+    character(StringLength), private, parameter :: Char_Bivalve2             = 'bivalve2'
+    character(StringLength), private, parameter :: Char_Bivalve3             = 'bivalve3'
+    character(StringLength), private, parameter :: Char_Bivalve4             = 'bivalve4'
+
+    !Name of Bivalve Predators
+    character(StringLength), private, parameter :: Char_Shrimp               = 'shrimp'
+    character(StringLength), private, parameter :: Char_Crab                 = 'crab'
+    character(StringLength), private, parameter :: Char_OysterCatcher        = 'oystercatcher'
+    character(StringLength), private, parameter :: Char_EiderDuck            = 'eider duck'
+    character(StringLength), private, parameter :: Char_HerringGull          = 'herring gull'
+
+    character(StringLength), private, parameter :: Char_POM                  = 'particulate organic matter'
 
     character(StringLength), private, parameter :: Char_Nitrite              = 'nitrite'
     character(StringLength), private, parameter :: Char_BOD                  = 'biochemical oxygen demand'
@@ -1257,6 +1287,7 @@ Module ModuleGlobalData
     character(StringLength), parameter          :: WWTPQModel               = 'WWTPQ'
     character(StringLength), parameter          :: SeagrassWaterInteractionModel  = 'SeagrassWaterInteraction'
     character(StringLength), parameter          :: SeagrassSedimInteractionModel  = 'SeagrassSedimInteraction'
+    character(StringLength), parameter          :: BivalveModel             = 'BivalveModel'
 
     !Water air interface
     character(StringLength), private, parameter :: Char_LatentHeat               = 'latent heat'
@@ -1617,6 +1648,7 @@ Module ModuleGlobalData
     integer, parameter ::  mWWTPQ_                  = 80
     integer, parameter ::  mSEAGRASSSEDIMINTERAC_   = 81     ! Isabella
     integer, parameter ::  mSEAGRASSWATERINTERAC_   = 82     ! Isabella
+    integer, parameter ::  mBivalve_                = 83
 
     type T_Size1D
         integer                 :: ILB            = null_int
@@ -1710,9 +1742,9 @@ Module ModuleGlobalData
         T_Module(mPOROUSMEDIAPROPERTIES_ , "PorousMediaProperties"), T_Module(mPHREEQC_                , "PhreeqC"),               &
         T_Module(mCUDA_                  , "Cuda"),                                                                                &
         T_Module(mRUNOFFPROPERTIES_      , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions"),        &
-        T_Module(mField4D_               , "Field4D"),               T_Module(mBENTHICECOLOGY_         , "BenthicEcology"),        &        ! isab
+        T_Module(mField4D_               , "Field4D"),               T_Module(mBENTHICECOLOGY_         , "BenthicEcology"),        &! isab
         T_Module(mWWTPQ_                  , "WWTPQ") ,               T_Module(mSEAGRASSWATERINTERAC_   , "SeagrassWaterInteraction"),&
-        T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction")/)
+        T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel")          /)
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
@@ -1720,9 +1752,9 @@ Module ModuleGlobalData
     logical                                                         :: MonitorPerformance
     logical                                                         :: MonitorDT
     integer                                                         :: UnitDT
-    character(LEN=StringLength), dimension(:), pointer              :: PropNameList
-    integer,                     dimension(:), pointer              :: PropNumberList
-    integer                                                         :: PropertiesNumber
+    character(LEN=StringLength), dimension(:), pointer              :: PropNameList,     DynamicPropNameList
+    integer,                     dimension(:), pointer              :: PropNumberList,   DynamicPropNumberList
+    integer                                                         :: PropertiesNumber, DynamicPropertiesNumber
     integer, private                                                :: ErrorFileID     = 0
     integer, private                                                :: UsedKeyFileID   = 0
     integer, private                                                :: LogFileID       = 0
@@ -1966,6 +1998,92 @@ Module ModuleGlobalData
     end function  CheckPropertyName
 
     !--------------------------------------------------------------------------
+ 
+    integer function RegisterDynamicProperty(PropertyName) !soffs
+      
+        !Arguments-------------------------------------------------------------
+        character(len=*), intent (IN)                       :: PropertyName
+        
+        !Local-----------------------------------------------------------------
+        integer, save                                       :: UniqueIDNumber
+        character(LEN=StringLength), dimension(:), pointer  :: TempPropNameList
+        integer,                     dimension(:), pointer  :: TempPropNumberList
+        
+        !----------------------------------------------------------------------
+        
+        if(.not. associated(DynamicPropNameList))then
+        
+            DynamicPropertiesNumber = 1
+            allocate(DynamicPropNameList  (DynamicPropertiesNumber))
+            allocate(DynamicPropNumberList(DynamicPropertiesNumber))
+            UniqueIDNumber         = 30001
+
+            DynamicPropNameList(1)      = trim(PropertyName)
+            DynamicPropNumberList(1)    = UniqueIDNumber
+            
+        else
+            allocate(TempPropNameList     (DynamicPropertiesNumber))
+            allocate(TempPropNumberList   (DynamicPropertiesNumber))
+            
+            TempPropNameList    = DynamicPropNameList
+            TempPropNumberList  = DynamicPropNumberList
+            
+            deallocate(DynamicPropNameList, DynamicPropNumberList)
+            
+            UniqueIDNumber          = UniqueIDNumber + 1
+            DynamicPropertiesNumber = DynamicPropertiesNumber + 1
+
+            allocate(DynamicPropNameList  (DynamicPropertiesNumber))
+            allocate(DynamicPropNumberList(DynamicPropertiesNumber))
+            
+            DynamicPropNameList  (1:DynamicPropertiesNumber-1) = TempPropNameList  (1:DynamicPropertiesNumber)
+            DynamicPropNumberList(1:DynamicPropertiesNumber-1) = TempPropNumberList(1:DynamicPropertiesNumber)
+           
+            DynamicPropNameList  (DynamicPropertiesNumber) = trim(PropertyName)
+            DynamicPropNumberList(DynamicPropertiesNumber) = UniqueIDNumber
+            
+            deallocate(TempPropNameList, TempPropNumberList)
+
+        endif
+        
+        RegisterDynamicProperty = UniqueIDNumber       
+
+    end function
+
+    !----------------------------------------------------------------------
+    
+    integer function GetDynamicPropertyIDNumber (DynamicPropertyName) !soffs
+
+        !Arguments-------------------------------------------------------------
+        character(len=*), intent (IN )              :: DynamicPropertyName
+
+        !Local-----------------------------------------------------------------
+        integer :: i
+
+        !----------------------------------------------------------------------
+        
+        GetDynamicPropertyIDNumber = UNKNOWN_
+
+        do i=1, DynamicPropertiesNumber
+
+            if (trim(DynamicPropertyName) == trim(DynamicPropNameList(i))) then
+
+                GetDynamicPropertyIDNumber = DynamicPropNumberList(i)
+
+            endif
+
+        enddo
+
+        if(GetDynamicPropertyIDNumber == UNKNOWN_)then
+            write(*,*)'Unknown property'
+            stop 'GetDynamicPropertyIDNumber - ModuleGlobalData - ERR01'
+        end if
+
+    !----------------------------------------------------------------------
+
+    end function GetDynamicPropertyIDNumber
+
+    !--------------------------------------------------------------------------
 
     character (len=StringLength) function GetPropertyName (Number)
 
@@ -2108,6 +2226,17 @@ Module ModuleGlobalData
             call AddPropList (Het_Bacteria_N_,          Char_Het_Bacteria_N,            ListNumber)                 
             call AddPropList (Het_Bacteria_P_,          Char_Het_Bacteria_P,            ListNumber)                          
          
+            call AddPropList (Bivalve1_,                Char_Bivalve1,                  ListNumber) !soffs
+            call AddPropList (Bivalve2_,                Char_Bivalve2,                  ListNumber)
+            call AddPropList (Bivalve3_,                Char_Bivalve3,                  ListNumber)
+            call AddPropList (Bivalve4_,                Char_Bivalve4,                  ListNumber)
+
+            call AddPropList (Shrimp_,                  Char_Shrimp,                    ListNumber) !soffs
+            call AddPropList (Crab_,                    Char_Crab,                      ListNumber)
+            call AddPropList (OysterCatcher_,           Char_OysterCatcher,             ListNumber)
+            call AddPropList (EiderDuck_,               Char_EiderDuck,                 ListNumber)
+            call AddPropList (HerringGull_,             Char_HerringGull,               ListNumber)
+
             call AddPropList (Nitrite_,                 Char_Nitrite,                   ListNumber)
             call AddPropList (BOD_,                     Char_BOD,                       ListNumber)
             call AddPropList (Cohesive_Sediment_,       Char_Cohesive_Sediment,         ListNumber)
