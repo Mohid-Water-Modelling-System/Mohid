@@ -391,9 +391,12 @@ Module ModuleSedimentProperties
         real,    pointer, dimension(:,:,:)      :: Occupation
         real,    pointer, dimension(:,:,:)      :: NintFactor3DR
         real,    pointer, dimension(:,:  )      :: NintFactor2DR
+        real,    pointer, dimension(:,:,:)      :: PintFactor3DR
+        real,    pointer, dimension(:,:  )      :: PintFactor2DR
         real,    pointer, dimension(:,:,:)      :: RootsMort3DR
         real,    pointer, dimension(:,:  )      :: RootsMort2DR
         real,    pointer, dimension(:,:,:)      :: UptakeNH4s3D  
+        real,    pointer, dimension(:,:,:)      :: UptakePO4s3D 
         real                                    :: DefaultValue, LBRatio
         real(8), pointer, dimension(:,:,:)      :: Volume
     end type   T_SeagrassesRoots
@@ -1531,10 +1534,19 @@ do1 :   do
         
         allocate (Me%SeagrassesRoots%NintFactor2DR(ILB:IUB,JLB:JUB))
         Me%SeagrassesRoots%NintFactor2DR(:,:) =0.
+        
+        allocate (Me%SeagrassesRoots%PintFactor3DR(ILB:IUB,JLB:JUB,KLB:KUB))
+        Me%SeagrassesRoots%PintFactor3DR(:,:,:) =0.
+        
+        allocate (Me%SeagrassesRoots%PintFactor2DR(ILB:IUB,JLB:JUB))
+        Me%SeagrassesRoots%PintFactor2DR(:,:) =0.
 
         
         allocate (Me%SeagrassesRoots%UptakeNH4s3D(ILB:IUB,JLB:JUB,KLB:KUB))
         Me%SeagrassesRoots%UptakeNH4s3D(:,:,:) =0.
+        
+        allocate (Me%SeagrassesRoots%UptakePO4s3D(ILB:IUB,JLB:JUB,KLB:KUB))
+        Me%SeagrassesRoots%UptakePO4s3D(:,:,:) =0.
         
         allocate(Me%SeagrassesRoots%Volume(ILB:IUB,JLB:JUB,KLB:KUB))
         Me%SeagrassesRoots%Volume(:,:,:) =0.
@@ -3340,6 +3352,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                            
                                 !factors assumed to be the constant over the sediment column 
                                 Me%SeagrassesRoots%NintFactor3DR(i,j,k)=Me%SeagrassesRoots%NintFactor2DR(i,j)
+                                Me%SeagrassesRoots%PintFactor3DR(i,j,k)=Me%SeagrassesRoots%PintFactor2DR(i,j)
                                 ! Roots mortality was calculated in ModuleBenthicEcology
                                 ! the roots mortality is a flux that will be added to the bottom cell of the sediment column
                                 ! in module SeagrassSedimentInteraction
@@ -3367,6 +3380,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                        
                         !factors assumed to be the constant over the sediment column 
                         Me%SeagrassesRoots%NintFactor3DR(i,j,KTop)=Me%SeagrassesRoots%NintFactor2DR(i,j)
+                        Me%SeagrassesRoots%PintFactor3DR(i,j,KTop)=Me%SeagrassesRoots%PintFactor2DR(i,j)
                         !kgrams of dry weight per day
                         ! if 2d, it can only be added to the top layer of the sediment
                         Me%SeagrassesRoots%RootsMort3DR(i,j,KTop)=Me%SeagrassesRoots%RootsMort2DR(i,j) 
@@ -3403,7 +3417,8 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                                       OpenPoints3D      = Me%ExternalVar%OpenPoints3D,           &
                                       DWZ               = Me%ExternalVar%DWZ,                    &
                                       NintFac3DR        = Me%SeagrassesRoots%NintFactor3DR,      & 
-                                      SedimCellVol3D    = Me%SeagrassesRoots%Volume,                &
+                                      PintFac3DR        = Me%SeagrassesRoots%PintFactor3DR,      & 
+                                      SedimCellVol3D    = Me%SeagrassesRoots%Volume,             &
                                       RootsMort         = Me%SeagrassesRoots%RootsMort3DR,      &
                                       STAT              = STAT_CALL)
                      if (STAT_CALL .NE. SUCCESS_)                                                &
@@ -3487,9 +3502,13 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
           if (SedimentRateX%FirstProp%IDNumber==RootsUptakeN_) then
              
              
-                         Me%SeagrassesRoots%UptakeNH4s3D =SedimentRateX%Field  !gN/day 
+          Me%SeagrassesRoots%UptakeNH4s3D =SedimentRateX%Field  !gN/day 
                          
-                    else
+          elseif (SedimentRateX%FirstProp%IDNumber==RootsUptakeP_) then
+          
+                  Me%SeagrassesRoots%UptakePO4s3D =SedimentRateX%Field  !gN/day 
+          else
+                    
                 where (Me%ExternalVar%WaterPoints3D == WaterPoint) &
                      SedimentRateX%Field =  SedimentRateX%Field * Me%ExternalVar%VolumeZ / &
                                     Me%Coupled%SeagrassesRoots%DT_Compute
@@ -3503,6 +3522,10 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                     stop 'SeagrassesRoots_Processes - ModuleSedimentProperties - ERR05'
 
             end if  
+            
+            
+            
+            
         !endif
              SedimentRateX=> SedimentRateX%Next
 
@@ -5166,6 +5189,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
            
             Rateflux => Me%SeagrassesRoots%UptakeNH4s3D ! gN/day  
          
+           case(RootsUptakeP_)
+           
+            Rateflux => Me%SeagrassesRoots%UptakePO4s3D ! gN/day  
            
             end select
 
@@ -5736,8 +5762,10 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                  deallocate(Me%SeagrassesRoots%Length                     )
                  deallocate(Me%SeagrassesRoots%Occupation                 )
                  deallocate(Me%SeagrassesRoots%NintFactor3DR              )
+                 deallocate(Me%SeagrassesRoots%PintFactor3DR              )
                  deallocate(Me%SeagrassesRoots%NintFactor2DR              )
                  deallocate(Me%SeagrassesRoots%UptakeNH4s3D               )
+                 deallocate(Me%SeagrassesRoots%UptakePO4s3D               )
                  deallocate(Me%SeagrassesRoots%RootsMort3DR               )
                  deallocate(Me%SeagrassesRoots%RootsMort2DR               )
                  !deallocate(Me%SeagrassesRoots%Volume                     )
@@ -5747,8 +5775,10 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                  nullify(Me%SeagrassesRoots%Length                        )
                  nullify(Me%SeagrassesRoots%Occupation                    )
                  nullify(Me%SeagrassesRoots%NintFactor3DR                 )
+                 nullify(Me%SeagrassesRoots%PintFactor3DR                 )
                  nullify(Me%SeagrassesRoots%NintFactor2DR                 )
                  nullify(Me%SeagrassesRoots%UptakeNH4s3D                  )
+                 nullify(Me%SeagrassesRoots%UptakePO4s3D                  )
                  nullify(Me%SeagrassesRoots%RootsMort3DR                  )
                  nullify(Me%SeagrassesRoots%RootsMort2DR                  )
                 ! nullify(Me%SeagrassesRoots%Volume                        )

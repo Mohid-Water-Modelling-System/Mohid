@@ -8,7 +8,7 @@
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
 ! DATE          : May 2012
-! REVISION      : Isabella
+! REVISION      : Isabella Ascione Kenov
 ! DESCRIPTION   : Module to compute simple benthic ecology processes
 !
 !------------------------------------------------------------------------------
@@ -28,45 +28,162 @@
 ! 
 !------------------------------------------------------------------------------
 !DataFile
-!   DT                          : real           [3600]         !Time step compute biogeochemical processes
-!   PELAGIC_MODEL               : string                        Name of the pelagic model coupled with benthicecology 
-!---------------------------------Biochemical processes parameters  --------------------------------------------------   
-!Type and Name                    Label (from file)   value         unit                 Description
-!KMAXNIT             0.1           [1/day]              Maximum nitrification rate
-!KNITINI             0.1           [-]                  Nitrification Inibition factor
-!KMIN                0.1           [1/day]              Mineralisation rate
-!MIN_ON_CONV         0.06          [-]                  Ratio Oxygen/Nitrogen in mineralization
-!NIT_ON_CONV         4.57          [-]                  Ratio Oxygen to Nitrogen in nitrification
-!---------------------------------Producer parameters  ----------------------------------------------------------------------------
-!RESPIRATION_RATE    User defined   [1/day]              Producer Respiration rate       
-!MORTALITY_RATE      User defined   [1/day]              Producer Mortality rate  
-!VMAX                User defined   [1/day]              Producer Uptake rate
-!ALPHA               User defined   [m2/(Watt*day)]      Producer slope of the PI curve    
-!KN                  User defined   [KgN/m3]             Half saturation Constant for N Uptake
-!KP                  User defined   [KgP/m3]             Half saturation Constant for P Uptake
-!NCRATIO             User Defined   [-]                  Producer N/C ratio
-!PCRATIO             User Defined   [-]                  Producer P/C ratio
-!TOPTFMIN            User Defined   [ºC]                 Minimum temperature of the optimal interval for the microphytobenthos
-!TOPTFMAX            User Defined   [ºC]                 Maximum temperature of the optimal interval for the microphytobenthos
-!TFMIN               User Defined   [ºC]                 Minimum tolerable temperature of the  interval for the microphytobenthos 
-!TFMAX               User Defined   [ºC]                 Maximum tolerable temperature of the  interval for the microphytobenthos
-!TFCONST1            User Defined   [ºC]                 Constant to control temperature response curve shape              
-!TFCONST2            User Defined   [ºC]                 Constant to control temperature response curve shape                 
-!TFCONST3            User Defined   [ºC]                 Constant to control temperature response curve shape                 
-!TFCONST4            User Defined   [ºC]                 Constant to control temperature response curve shape 
-!EROCRIT             User Defined   [Pa]                 Shear stress above which producers are eroded 
-!MINBIOMASS          User Defined   [KgC/m2]             minimum biomass       
-!---------------------------------Consumer parameters  -----------------------------------------------------------
-!RESPIRATION_RATE    User defined   [1/day]              Consumer Respiration rate
-!MORTALITY_RATE      User defined   [1/day]              Consumer Mortality rate
-!NCRATIO             User Defined   [-]                  Consumer N/C ratio
-!VMAX                User defined   [1/day]              maximum specific uptake at 10ºC
-!KS                  User defined   [KgN/m3]             Half saturation Constant for food Uptake (pelagic food)
-!                                   [KgN/m2]             Half saturation Constant for food Uptake (benthic food)
-!ASS_EFIC            User defined   [-]                  Assimilation efficiency
-!---------------------------------food parameters  -----------------------------------------------------------------
-!NCRATIO             User Defined   [-]                           food N/C ratio
-!NAME                User Defined   [-]                           food Name
+! ==================MINERALIZATION ====================================
+!OUTPUT_TIME              : 0  3600.
+!DT_OUTPUT_TIME           : 3600.
+
+!DT                : 120.
+!PELAGIC_MODEL     : WaterQuality
+
+!NITROGEN          : 1
+!PHOSPHORUS        : 1
+!SILICA            : 0
+!OXYGEN            : 1
+!PHYTOFILT         : 1
+!PON_DECAY_RATE    : 0.01
+!PON_DECAY_TFACTOR : 1.02
+!NC_RATIO          : 0.18
+!POP_DECAY_RATE    : 0.01
+!POP_DECAY_TFACTOR : 1.08
+!PC_RATIO          : 0.024
+! ========CONSUMERS: Suspension feeders========================================================
+!<begin_consumer>
+!NAME              : suspension feeders  
+!BETA20            : 0.002     ! mortality rate in 1/day
+!GRMAX             : 0.216E3  ! GRMAX = 0.216E3 l/d/g C = filtration rate for suspension feedrs 
+!RESP20            : 0.013     ! suspension feeder respiration rate in d-1
+!ASS_EFIC          : 0.8       ! assimilation efficiency (dimensionless) 0.8 for suspension feeders, 0.25 for deposit feeders
+!TFAC              : 1.08      ! dimensionless temperature decay factor
+!NCRATIO           : 0.18      ! Ratio N:C in consumer
+!PCRATIO           : 0.024     ! Ratio P:C in consumer
+!TOPTMIN           : 13.       ! Minimum temperature of the optimal interval for consumer growth ºC 
+!TOPTMAX           : 28.       ! Maximum temperature of the optimal interval for suspension feeders growth ºC 
+!TMIN              : 6.        ! Minimum temparature filter feeders growth ºC
+!TMAX              : 37.       ! Maximum temparature filter feeders growth ºC 
+!K1                : 0.3       ! Constant to control temperature response curve shape
+!K2                : 0.98      ! Constant to control temperature response curve shape 
+!K3                : 0.98      ! Constant to control temperature response curve shape 
+!K4                : 0.02      ! Constant to control temperature response curve shape 
+!COHESIVESED       : 1         ! ! Effect of cohesive sediment on filtration.  1 for suspension feeders, 0 for deposit feeders
+!SEDMAX            : 0.1       ! Max Sediment concentration tolerated by suspension feeders g/l (only used for suspension feeders
+!SMIN              : 0.005     ! Min consumer density that limits the growth rate (kgC/m2) 0.005 for suspension feeders, 0.002 for deposit feeders
+!SMAX              : 0.020     ! Max consumer density that limits the growth rate (kgC/m2) 0.020 for suspension feeders, 0.006 for deposit feeders
+
+!=========== food for suspension feeders:============
+!<begin_food>
+!NAME              : phytoplankton
+!NCRATIO           : 0.18
+!PCRATIO           : 0.024
+!NITROGEN_USE      : 0
+!CARBON_USE        : 1
+!PHOSPHORUS_USE    : 0
+!PARTICWATERFOOD   : 1
+!<end_food>
+
+!<begin_food>
+!NAME              : particulate organic
+!NCRATIO           : 0.18
+!PCRATIO           : 0.024
+!NITROGEN_USE      : 1
+!CARBON_USE        : 0
+!PHOSPHORUS_USE    : 1
+!PARTICWATERFOOD   : 1
+!<end_food>
+
+!<end_consumer>
+!! ========CONSUMERS: Deposit feeders========================================================
+!<begin_consumer>
+!NAME              : deposit feeders
+!BETA20            : 0.002    ! mortality rate in 1/day
+!GRMAX             : 0.05     ! maximum ingestion rate 1/day
+!RESP20            : 0.0018   ! respiration rate in day^-1
+!ASS_EFIC          : 0.25     ! assimilation efficiency (-)
+!TFAC              : 1.08     ! dimensionless temperature decay factor
+!NCRATIO           : 0.18     ! ratio N:C in benthic feeder
+!PCRATIO           : 0.024    ! ratio P:C in benthic feeder
+!TOPTMIN           : 13.      ! Minimum temperature of the optimal interval for benthic feeders growth ºC 
+!TOPTMAX           : 28.      ! Maximum temperature of the optimal interval for benthic feeders growth ºC 
+!TMIN              : 6.       ! Minimum temparature benthic feeders growth ºC 
+!TMAX              : 37.      ! Maximum temparature benthic feeders growth ºC 
+!K1                : 0.3      ! Constant to control temperature response curve shape 
+!K2                : 0.98     ! Constant to control temperature response curve shape 
+!K3                : 0.98     ! Constant to control temperature response curve shape 
+!K4                : 0.02     ! Constant to control temperature response curve shape 
+!COHESIVESED       : 0        ! is the grazing affected by cohesive sediment in water? 0 (for deposit feeders) , 1 for suspension feeders 
+!KFOODC            : 0.001    !  half saturation constant for Carbon uptake by benthic feeder (Kg C/m2)   
+!SMIN              : 0.002    ! Minimum consumer's biomass that limits the growth rate (Kg C/m2)
+!SMAX              : 0.006    ! Maximum consumer's biomass that limits the growth rate (Kg C/m2)  
+
+! food for deposit feeders:
+!<begin_food>
+!NAME              : microphytobenthos
+!NCRATIO           : 0.18     ! 0.18     ratio N:C in the food
+!PCRATIO           : 0.024    ! 0.024    ratio P:C in the food
+!NITROGEN_USE      : 1        !          is the food expressed as N ? yes =1 No =0 
+!CARBON_USE        : 1        !          is the food expressed as C ? yes =1 No =0 
+!PHOSPHORUS_USE    : 1        !          is the food expressed as P ? yes =1 No =0 
+!PARTICWATERFOOD   : 0        !          is the food particulate water property ? yes =1 No =0
+!MINVAL            : 0.2e-3   ! 0.2e-3   minimum biomass for grazing over food
+!<end_food>
+!<end_consumer>
+
+
+! Producers
+!<begin_producer>
+!NAME             : microphytobenthos
+!DESCRIPTION      : microphytobenthos
+!MORTALITY_RATE   : 0.02      ! 0.02     producer mortality rate 1/day
+!RESPFRAC         : 0.05      ! 0.05     producer respiration fraction [-]
+!VMAX             : 2.        ! 2.       producer maximum growth rate (1/day)
+!ALPHA            : 0.025     ! 0.025    Slope of P/I curve 1/[day*(W/m2)] 
+!KN               : 0.014e-3  ! 0.014e-3 Producer half saturation constant for N uptake g N/l
+!KP               : 0.001e-3  ! 0.001e-3 Producer half saturation constant for P uptake g P/l
+!NCRATIO          : 0.18      ! 0.18     ratio N:C in producer (gN/gC)
+!PCRATIO          : 0.024     ! 0.024    ratio P:C in producer (gN/gC)
+!TOPTFMIN         : 25.       ! 25       Minimum temperature of the optimal interval for microphytobenthos photosynthesis (ºC)
+!TOPTFMAX         : 26.5      ! 26.5     Maximum temperature of the optimal interval for microphytobenthos photosynthesis (ºC)
+!TFMIN            : 10.       ! 4        Minimum tolerable temperature for microphytobenthos photosynthesis (ºC)
+!TFMAX            : 30.       ! 37       Maximum tolerable temperature for microphytobenthos photosynthesis (ºC)
+!TFCONST1         : 0.05      ! 0.05     Constant to control temperature response curve shape on microphytobenthos [-]
+!TFCONST2         : 0.98      ! 0.98     Constant to control temperature response curve shape on microphytobenthos [-]
+!TFCONST3         : 0.98      ! 0.98     Constant to control temperature response curve shape on microphytobenthos [-]
+!TFCONST4         : 0.02      ! 0.02     Constant to control temperature response curve shape on microphytobenthos [-]
+!MINBIOMASS       : 0.0000001 ! 0.000001  Minimum producer biomass (kg C/m2) 
+!EROCRIT          : 2.        ! 2.       Critical shear erosion for benthic producers bed (Pa)
+!MINP             : 0.001     ! Minimum producer's biomass that limits the growth rate (Kg C/m2)
+!MINP             : 0.005     ! Maximum producer's biomass that limits the growth rate (Kg C/m2)
+!<end_producer>
+
+
+! Seagrasses=========================================
+
+! Seagrasses parameters
+!GMAX              : 0.23      ! maximum growth rate 1/day
+!MORTL0            : 0.064     ! Mortality rate 1/day
+!MORTR0            : 0.035     ! Mortality rate 1/day
+!KMAX              : 0.23      ! Maximum leaves density (kg DW/m2)
+!NMAX              : 31.       ! Maximum internal nitrogen content (mgN/gdw)
+!NMIN              : 5.        ! Minimum internal nitrogen content (mgN/gdw)
+!NCRIT             : 16        ! Critical internal nitrogen content (mgN/gdw)
+!PMAX              : 3.14      ! Maximum internal phosphorus content (mgP/gdw)
+!PMIN              : 0.14      ! Minimum internal phosphorus content (mgP/gdw)
+!PCRIT             : 0.8       ! Critical internal phosphorus content (mgP/gdw)
+!KTR               : 0.28      ! Transfer coefficient from leaves o roots [%]
+!MINLEAVES         : 0.000005  ! Minimum Leaves biomass (Kgdw/m2)
+!MINROOTS          : 0.000005  ! Minimum Roots biomass (Kgdw/m2)
+!EROCRIT           : 2.        ! Critical shear stress erosion (Pa) (tentative)
+!GPKGDW            : 1.8       ! Ratio between gP/Kgdw in seagrasses 
+!GNKGDW            : 16.       ! Ratio between gN/Kgdw in seagrasses 
+!GCKGDW            : 330.      ! Ratio between gC/Kgdw in seagrasses 
+!TOPTMIN           : 13.       ! Minimum temperature of the optimal interval for seagrasses growth ºC 
+!TOPTMAX           : 28.       ! Maximum temperature of the optimal interval for seagrasses growth ºC 
+!TMIN              : 6.        ! Minimum temparature Seagrasses growth ºC 
+!TMAX              : 37.       ! Maximum temparature Seagrasses growth ºC 
+!K1                : 0.3       ! Constant to control temperature response curve shape 
+!K2                : 0.98      ! Constant to control temperature response curve shape 
+!K3                : 0.98      ! Constant to control temperature response curve shape 
+!K4                : 0.02      ! Constant to control temperature response curve shape 
+!LAT               : 40.5      ! Average latitude of the geographic location (used to calculate the daylight)
 
 Module ModuleBenthicEcology
 
@@ -177,12 +294,12 @@ Module ModuleBenthicEcology
             integer                             :: PintFactor      = 2
             integer                             :: NintFactorR     = 3
             integer                             :: RootsMort       = 4
+            integer                             :: PintFactorR     = 5
        end type T_StoredIndex
 
        type      T_Leaves
             real                                :: NC_Ratio         = null_real 
             real                                :: PC_Ratio         = null_real
-            real                                :: RespirationRate  = null_real
             real                                :: MortalityRate    = null_real
             real                                :: MaxGrowthRate    = null_real
             real                                :: Ktr              = null_real
@@ -200,13 +317,10 @@ Module ModuleBenthicEcology
             real                                :: TMin             = null_real
             real                                :: TMax             = null_real
             real                                :: Lat              = null_real
-            logical                             :: SpaceCompetition = .false.
+            real                                :: KMAX             = null_real
        end type T_Leaves
 
       type      T_Roots
-            real                                :: NC_Ratio         = null_real 
-            real                                :: PC_Ratio         = null_real
-            real                                :: RespirationRate  = null_real
             real                                :: MortalityRate    = null_real
             real                                :: MinimumBiomass   = null_real
        end type T_Roots
@@ -241,6 +355,7 @@ Module ModuleBenthicEcology
         real, pointer, dimension(:  )       :: UptakeNH4NO3w
         real, pointer, dimension(:  )       :: UptakeNH4s
         real, pointer, dimension(:  )       :: UptakePO4w
+        real, pointer, dimension(:  )       :: UptakePO4s
         real, pointer, dimension(:  )       :: LightFactor   
     end type T_External
   
@@ -367,6 +482,8 @@ Module ModuleBenthicEcology
         real                                        :: FK2              = null_real
         real                                        :: FK3              = null_real
         real                                        :: FK4              = null_real
+        real                                        :: MINP             = null_real
+        real                                        :: MAXP             = null_real
         real                                        :: EroCritShear     = null_real
         real                                        :: MinimumBiomass   = null_real
    type(T_Producer    ), pointer                    :: Next 
@@ -378,6 +495,7 @@ Module ModuleBenthicEcology
             type(T_Food), pointer       :: Next
             real                        :: NCratio
             real                        :: PCratio
+            real                        :: Minval
             logical                     :: Use_Carbon
             logical                     :: Use_Nitrogen
             logical                     :: Use_Phosphorus
@@ -389,7 +507,8 @@ Module ModuleBenthicEcology
         type   T_Grazing
             real                        :: Ass_Efic         = FillValueReal !assimilation efficiency
             real                        :: NCRatio          = FillValueReal
-            logical                     :: Cohesivesed                   ! 1 effect of cohesivesed on grazing 
+            logical                     :: Cohesivesed                   ! 1 effect of cohesivesed on grazing
+            real                        :: MaxSediment      = null_real 
             real                        :: KFoodC           = FillValueReal
             type(T_Food), pointer       :: FirstFood
         end type T_Grazing
@@ -405,7 +524,7 @@ Module ModuleBenthicEcology
         real                                             :: MortalityRate    = null_real
         real                                             :: BETA20           = null_real
         real                                             :: TemperatureFactor= null_real
-        real                                             :: GRMAX           = null_real ! l/day/gC
+        real                                             :: GRMAX            = null_real 
         real                                             :: RESP20           = null_real  ! [1/day]
         real                                             :: NCratio          = null_real
         real                                             :: PCratio          = null_real    
@@ -417,6 +536,9 @@ Module ModuleBenthicEcology
         real                                             :: K2               = null_real
         real                                             :: K3               = null_real
         real                                             :: K4               = null_real
+        real                                             :: SMIN             = null_real
+        real                                             :: SMAX             = null_real
+        real                                             :: KO2              = null_real
  end type T_Consumer
  
 
@@ -902,9 +1024,10 @@ subroutine ReadData
       !PintFactor      = 2
       !NintfactorR     = 3
       !RootsMort       = 4
+      !PintfactorR     = 5
 
     
-    allocate(Me%StoredArray(Me%Size%ILB:Me%Size%IUB,1:4)) 
+    allocate(Me%StoredArray(Me%Size%ILB:Me%Size%IUB,1:5)) 
     
     end subroutine ConstructRates
 
@@ -937,12 +1060,12 @@ subroutine ReadData
         call GetExtractType    (FromFile = FromFile)
         
         
-         call GetData(Me%DT,                                                             &
+         call GetData(Me%DT,                                                            &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'DT',                                               &
                      Default      = 3600.,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                    &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthicEcology - ERROR #1'
 
@@ -953,7 +1076,7 @@ subroutine ReadData
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'PELAGIC_MODEL',                                    &
-                     ClientModule = 'ModuleBenthicEcology',                                    &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthicEcology - ERROR #9'
         if(iflag==0)then
@@ -973,7 +1096,7 @@ subroutine ReadData
                      SearchType   = FromFile,                                           &
                      keyword      = 'NITROGEN',                                         &
                      Default      = .false.,                                            &
-                     ClientModule = 'ModuleBenthicEcology',                                    &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthicEcology - ERROR #11'
 
@@ -982,7 +1105,7 @@ subroutine ReadData
                      SearchType   = FromFile,                                           &
                      keyword      = 'PHOSPHORUS',                                       &
                      Default      = .false.,                                            &
-                     ClientModule = 'ModuleBenthicEcology',                                    &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthicEcology - ERR50'
 
@@ -992,45 +1115,46 @@ subroutine ReadData
                      SearchType   = FromFile,                                           &
                      keyword      = 'SILICA',                                           &
                      Default      = .false.,                                            &
-                     ClientModule = 'ModuleBenthicEcology',                                    &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthicEcology - ERR60'
         
-         call GetData(Me%ComputeOptions%Phyto,                                           &
+         call GetData(Me%ComputeOptions%Phyto,                                          &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'PHYTO',                                            &
                      Default      = .false.,                                            &
-                     ClientModule = 'ModuleBenthicEcology',                                    &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthicEcology - ERR90'
         
-                 call GetData(Me%ComputeOptions%PhytoFilt,                                           &
+                 call GetData(Me%ComputeOptions%PhytoFilt,                              &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'PHYTOFILT',                                            &
+                     keyword      = 'PHYTOFILT',                                        &
                      Default      = .false.,                                            &
-                     ClientModule = 'ModuleBenthicEcology',                                    &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthicEcology - ERR100'
         
-        if (Me%ComputeOptions%PhytoFilt .AND. Me%ComputeOptions%Phyto) stop ' you can choose only one between PHYTO =1 and PHYTOFILT =1'
+        if (Me%ComputeOptions%PhytoFilt .AND. Me%ComputeOptions%Phyto) &
+        stop ' you can choose only one between PHYTO =1 and PHYTOFILT =1'
         
-          call GetData(Me%ComputeOptions%Seagrasses,                                &
+          call GetData(Me%ComputeOptions%Seagrasses,                                    &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'SEAGRASSES',                                         &
+                     keyword      = 'SEAGRASSES',                                       &
                      Default      = .false.,                                            &
-                     ClientModule = 'ModuleBenthicEcology',                                    &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthicEcology - ERR110'            
 
-  call GetData(Me%ComputeOptions%Producers,                                      &
+  call GetData(Me%ComputeOptions%Producers,                                             &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'PRODUCERS',                                       &
+                     keyword      = 'PRODUCERS',                                        &
                      Default      = .false.,                                            &
-                     ClientModule = 'ModuleBenthicEcology',                                    &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthicEcology - ERR115'
     end subroutine ConstructGlobalVariables
@@ -1102,160 +1226,105 @@ subroutine ReadData
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'GMAX',                                             &
-                     Default      = 0.06,                                               &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     Default      = 0.23,                                               &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR01'
-       ! Leaves Respiration rate 1/day
-        call GetData(Me%Leaves%RespirationRate,                                         &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'RESPL0',                                           &
-                     Default      = 0.041,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR02'
-        ! Leaves Mortality rate 1/day
+ 
+       ! Leaves Mortality rate 1/day
         call GetData(Me%Leaves%MortalityRate,                                           &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'MORTL0',                                           &
-                     Default      = 0.00,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     Default      = 0.064,                                               &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR03'
-      ! Roots Mortality rate 1/day
+       ! Roots Mortality rate 1/day
         call GetData(Me%Roots%MortalityRate,                                            &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'MORTR0',                                           &
-                     Default      = 0.00,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     Default      = 0.035,                                               &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR04'
         
-         ! Roots Respiration rate 1/day
-        call GetData(Me%Roots%RespirationRate,                                          &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'RESPR0',                                           &
-                     Default      = 0.0038,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR05'
         
         ! Maximum internal Nitrogen Content gN/KgDW
-         call GetData(Me%Nint%Nmax,                                          &
+         call GetData(Me%Nint%Nmax,                                                     &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'NMAX',                                           &
-                     Default      = 11.,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     keyword      = 'NMAX',                                             &
+                     Default      = 31.,                                                &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR06'
         
         ! Minimum internal Nitrogen Content Nmin = gN/KgDW
-          call GetData(Me%Nint%Nmin,                                          &
+         call GetData(Me%Nint%Nmin,                                                     &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'NMIN',                                           &
-                     Default      = 4.28,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     keyword      = 'NMIN',                                             &
+                     Default      = 5.,                                               &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR07'
         ! Critical  internal Nitrogen Content Ncrit = gN/KgDW
-        call GetData(Me%Nint%Ncrit,                                          &
+        call GetData(Me%Nint%Ncrit,                                                     &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'NCRIT',                                           &
-                     Default      = 7.5,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     keyword      = 'NCRIT',                                            &
+                     Default      = 16.,                                                &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR08'
        
         ! Maximum internal Phosphorus Content Pmax = gP/KgDW
-         call GetData(Me%Pint%Pmax,                                          &
+         call GetData(Me%Pint%Pmax,                                                     &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'PMAX',                                           &
-                     Default      = 6.,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     keyword      = 'PMAX',                                             &
+                     Default      = 3.14,                                                 &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR09'
         ! Minimum internal Phosphorus Content Pmin = gP/KgDW
-          call GetData(Me%Pint%Pmin,                                          &
+          call GetData(Me%Pint%Pmin,                                                    &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'PMIN',                                           &
-                     Default      = 1.,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     keyword      = 'PMIN',                                             &
+                     Default      = 0.14,                                                 &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR10'
         !Critical  internal  Phosphorus Pcrit = gP/KgDW
-        call GetData(Me%Pint%Pcrit,                                          &
+        call GetData(Me%Pint%Pcrit,                                                     &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'PCRIT',                                           &
-                     Default      = 2.,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     keyword      = 'PCRIT',                                            &
+                     Default      = 0.8,                                                 &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR11'
        ! Ktr is the traslocation coefficient between roots and leaves (dimensionless)
-        call GetData(Me%Leaves%Ktr,                                          &
+        call GetData(Me%Leaves%Ktr,                                                     &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'KTR',                                           &
-                     Default      = 0.25,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     keyword      = 'KTR',                                              &
+                     Default      = 0.28,                                               &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR12'
-       ! NCRatio is the ratio Nitrogen /Carbon (gN/gC)
-        call GetData(Me%Leaves%NC_Ratio,                                          &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'LEAVESNC',                                           &
-                     Default      = 0.18,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR13'
-        
-        ! NCRatio is the ratio Nitrogen /Carbon (gN/gC)
-        call GetData(Me%Roots%NC_Ratio,                                          &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'ROOTSNC',                                           &
-                     Default      = 0.18,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR14'
-        
-         ! PC_Ratio is the ratio Phosphorus /Carbon (gP/gC)
-        call GetData(Me%Leaves%PC_Ratio,                                          &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'LEAVESPC',                                           &
-                     Default      = 0.024,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR15'
-        
-        ! PCRatio is the ratio Phosphorus /Carbon (gP/gC)
-        call GetData(Me%Roots%PC_Ratio,                                          &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'ROOTSPC',                                           &
-                     Default      = 0.024,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR16'
-        
+    
+  
        !Critical shear stress for macroalgae dettachment to occur (in Pa)
-        call GetData(Me%Leaves%ErosCritShear,                                          &
+        call GetData(Me%Leaves%ErosCritShear,                                           &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'EROCRIT',                                           &
-                     Default      = 0.144,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     keyword      = 'EROCRIT',                                          &
+                     Default      = 2.,                                              &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR17'
         
@@ -1263,19 +1332,19 @@ subroutine ReadData
         call GetData(Me%Leaves%MinimumBiomass,                                          &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'MINLEAVES',                                           &
-                     Default      = 0.0001,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                                 &
+                     keyword      = 'MINLEAVES',                                        &
+                     Default      = 0.0001,                                             &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR18'   
         
-                    !minimum roots biomass (kgdw/m2)
-        call GetData(Me%Roots%MinimumBiomass,                                          &
+        !minimum roots biomass (kgdw/m2)
+        call GetData(Me%Roots%MinimumBiomass,                                           &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'MINROOTS',                                          &
-                     Default      = 0.0001,                                              &
-                     ClientModule = 'ModuleBenthicEcology',                              &
+                     keyword      = 'MINROOTS',                                         &
+                     Default      = 0.0001,                                             &
+                     ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR19'
    
@@ -1284,115 +1353,115 @@ subroutine ReadData
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'GNKGDW',                                           &
-                     Default      = 19.,                                                &
+                     Default      = 16.,                                                &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR20'
         
-           call GetData(Me%Leaves%gPKgDW,                                               &
+        call GetData(Me%Leaves%gPKgDW,                                                  &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'GPKGDW',                                           &
-                     Default      = 1.,                                                 &
+                     Default      = 1.8,                                                 &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR21'
         
-         call GetData(Me%Leaves%gCKgDW,                                               &
+         call GetData(Me%Leaves%gCKgDW,                                                 &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'GCKGDW',                                           &
-                     Default      = 330.,                                                 &
+                     Default      = 330.,                                               &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR22'
         
-        call GetData(Me%Leaves%TOptMin,                                               &
+        call GetData(Me%Leaves%TOptMin,                                                 &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'TOPTMIN',                                           &
-                     Default      = 13.,                                                 &
+                     keyword      = 'TOPTMIN',                                          &
+                     Default      = 13.,                                                &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR23'
         
-        call GetData(Me%Leaves%TOptMax,                                               &
+        call GetData(Me%Leaves%TOptMax,                                                 &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'TOPTMAX',                                           &
-                     Default      = 28.,                                                 &
+                     keyword      = 'TOPTMAX',                                          &
+                     Default      = 28.,                                                &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR24'
         
-        call GetData(Me%Leaves%TMin,                                               &
+        call GetData(Me%Leaves%TMin,                                                    &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'TMIN',                                           &
+                     keyword      = 'TMIN',                                             &
                      Default      = 6.,                                                 &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR25'
         
-        call GetData(Me%Leaves%TMax,                                               &
+        call GetData(Me%Leaves%TMax,                                                    &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'TMAX',                                           &
-                     Default      = 37.,                                                 &
+                     keyword      = 'TMAX',                                             &
+                     Default      = 37.,                                                &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR26'
         
-        call GetData(Me%Leaves%K1,                                               &
+        call GetData(Me%Leaves%K1,                                                      &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'K1',                                           &
-                     Default      = 0.3,                                                 &
+                     keyword      = 'K1',                                               &
+                     Default      = 0.3,                                                &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR27'
         
-         call GetData(Me%Leaves%K2,                                               &
+         call GetData(Me%Leaves%K2,                                                     &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'K2',                                           &
-                     Default      = 0.98,                                                 &
+                     keyword      = 'K2',                                               &
+                     Default      = 0.98,                                               &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR28'
         
-         call GetData(Me%Leaves%K3,                                               &
+         call GetData(Me%Leaves%K3,                                                     &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'K3',                                           &
-                     Default      = 0.98,                                                 &
+                     keyword      = 'K3',                                               &
+                     Default      = 0.98,                                               &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR29'
         
-         call GetData(Me%Leaves%K4,                                               &
+         call GetData(Me%Leaves%K4,                                                     &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'K4',                                           &
-                     Default      = 0.02,                                                 &
+                     keyword      = 'K4',                                               &
+                     Default      = 0.02,                                               &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR30'
         
-                 call GetData(Me%Leaves%Lat,                                               &
+                 call GetData(Me%Leaves%Lat,                                            &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'LAT',                                           &
-                     Default      = 40.5,                                                 &
+                     keyword      = 'LAT',                                              &
+                     Default      = 40.5,                                               &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR31'
         
-                call GetData(Me%Leaves%SpaceCompetition,                                               &
+                call GetData(Me%Leaves%KMAX,                                &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'SPACECOMPETITION',                                           &
-                     Default      = .False.,                                                 &
+                     keyword      = 'KMAX',                                 &
+                     Default      = 0.23,                                            &
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR32'
@@ -1647,77 +1716,84 @@ subroutine AddProducer (ObjProducer)
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #2'
-
-        call GetData(NewProducer%RespirationRate,                    &
-                     Me%ObjEnterData, iflag,                    &
-                     SearchType   = FromBlock,                  &
-                     keyword      = 'RESPIRATION_RATE',               &
-                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #3'
-
+        
+        !producer mortality rate 1/day
+     
         call GetData(NewProducer%MortalityRate,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'MORTALITY_RATE',               &
+                     Default      = 0.02,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #4'
      
+        ! producer maximum growth rate (1/day)
         call GetData(NewProducer%Vmax,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'VMAX',               &
+                     Default      = 2.,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #5'
 
+        !Producer half saturation constant for N uptake g N/l
         call GetData(NewProducer%KN,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'KN',               &
+                     Default      = 0.014e-3,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #6'
         
-                call GetData(NewProducer%KP,                    &
+       !Producer half saturation constant for N uptake g P/l
+       call GetData(NewProducer%KP,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'KP',               &
+                     Default      = 0.001e-3,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #7'
         
+        ! Slope of P/I curve 1/[day*(W/m2)] 
         call GetData(NewProducer%alpha,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'ALPHA',               &
+                     Default      = 0.025,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #8'
         
-          call GetData(NewProducer%NCratio,                    &
+         !ratio N:C in producer (gN/gC)
+         call GetData(NewProducer%NCratio,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'NCRATIO',               &
+                     Default      = 0.18,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #9'
-        
+        !ratio N:C in producer (gP/gC)
         call GetData(NewProducer%PCratio,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'PCRATIO',               &
+                     Default      = 0.024,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #10'
         
-         !TOptPhytoMin, minimum temperature of the optimal interval for the microphytobenthos 
-            !growth, oC
+         ! minimum temperature of the optimal interval for the microphytobenthos 
+            !growth, ºC
         call GetData(NewProducer%TOptPhytoMin,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'TOPTFMIN',               &
+                     Default      = 25.,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #11'
@@ -1729,6 +1805,7 @@ subroutine AddProducer (ObjProducer)
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'TOPTFMAX',               &
+                     Default      = 26.5,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #12' 
@@ -1736,12 +1813,13 @@ subroutine AddProducer (ObjProducer)
 
 
         !TPhytoMin, minimum tolerable temperature of the  interval for the microphytobenthos 
-        !growth, oC
+        !growth, ºC
             
             call GetData(NewProducer%TPhytoMin,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'TFMIN',               &
+                     Default      = 10.,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #13' 
@@ -1753,6 +1831,7 @@ subroutine AddProducer (ObjProducer)
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'TFMAX',               &
+                     Default      = 30.,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #14' 
@@ -1762,6 +1841,7 @@ subroutine AddProducer (ObjProducer)
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'TFCONST1',               &
+                     Default      = 0.05,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #15' 
@@ -1771,6 +1851,7 @@ subroutine AddProducer (ObjProducer)
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'TFCONST2',               &
+                     Default      = 0.98,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #16' 
@@ -1780,6 +1861,7 @@ subroutine AddProducer (ObjProducer)
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'TFCONST3',               &
+                     Default      = 0.98,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #17' 
@@ -1789,6 +1871,7 @@ subroutine AddProducer (ObjProducer)
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'TFCONST4',               &
+                     Default      = 0.02,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #18' 
@@ -1798,6 +1881,7 @@ subroutine AddProducer (ObjProducer)
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'EROCRIT',               &
+                     Default      = 2.,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #19' 
@@ -1807,17 +1891,41 @@ subroutine AddProducer (ObjProducer)
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'MINBIOMASS',               &
+                     Default      = 0.1e-5,                        &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #20'         
 
+       ! Fraction of respiration (-)
         call GetData(NewProducer%RespFrac,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'RESPFRAC',               &
+                     Default      = 0.05,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #5'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #25'
+        
+        !Minimum producer's biomass that limits the growth rate (Kg C/m2)
+        call GetData(NewProducer%MINP,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'MINP',               &
+                     Default      = 0.001,                         &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #27'
+        
+       !Maximum producer's biomass that limits the growth rate (Kg C/m2)
+                call GetData(NewProducer%MAXP,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'MAXP',               &
+                     Default      = 0.005,                         &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #29'
+        
     end subroutine ConstructProducerParameters
 
 
@@ -1950,124 +2058,178 @@ cd2 :           if (BlockFound) then
  
      
  
-
+      ! mortality rate in 1/day
        call GetData(NewConsumer%BETA20,                              &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
-                     keyword      = 'BETA20',                &   ! 
+                     keyword      = 'BETA20',                      &   ! 
+                     Default      = 0.002,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #5'
       
+      ! if filter feeder, it is the filtration rate, for example 0.216e3 l/d/g C 
+      ! If deposit feeder, it is the ingestion rate for example  0.05 1/day 
        call GetData(NewConsumer%GRMAX,                              &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
-                     keyword      = 'GRMAX',                &   
+                     keyword      = 'GRMAX',                        &
+                     Default      = 0.05,                         &   
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #6'
         
       
-       
+       ! respiration rate in d-1
        call GetData(NewConsumer%RESP20,                              &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
                      keyword      = 'RESP20',                &   ! 
+                     Default      = 0.013,                         & 
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #7'
         
+         ! temperature decay factor, dimensionless
              call GetData(NewConsumer%TemperatureFactor,                              &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
                      keyword      = 'TFAC',                &   ! 
+                     Default      = 1.08,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #8' 
         
-        
-                     call GetData(NewConsumer%NCRatio,                              &
+        ! Ratio N:C in consumer gN/gC
+        call GetData(NewConsumer%NCRatio,                              &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
                      keyword      = 'NCRATIO',                &   ! 
+                     Default      = 0.18,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #9'  
 
-
-                     call GetData(NewConsumer%PCRatio,                              &
+       ! Ratio P:C in consumer
+        call GetData(NewConsumer%PCRatio,                              &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
                      keyword      = 'PCRATIO',                &   ! 
+                     Default      = 0.024,                         &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #10' 
         
         
-        
+        ! Minimum temperature of the optimal interval for consumer growth ºC
         call GetData(NewConsumer%TOptMin,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                           &
-                     keyword      = 'TOPTMIN',                                           &
+                     keyword      = 'TOPTMIN',                                         &
+                     Default      = 13.,                                                &                                
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #11'
         
+        ! Maximum temperature of the optimal interval for consumer growth ºC
         call GetData(NewConsumer%TOptMax,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                           &
                      keyword      = 'TOPTMAX',                                           &
+                     Default      = 28.,                                                & 
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #12'
-        
+       
+        ! Minimum temparature for consumer growth ºC 
         call GetData(NewConsumer%TMin,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                           &
                      keyword      = 'TMIN',                                           &
+                     Default      = 6.,                                                & 
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #13'
         
+        ! Maximum temparature consumers growth ºC 
         call GetData(NewConsumer%TMax,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                           &
                      keyword      = 'TMAX',                                           &
+                     Default      = 37.,                                                & 
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #14'
         
+        ! Constant to control temperature response curve shape
         call GetData(NewConsumer%K1,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'K1',                                           &
+                     Default      = 0.3,                                                & 
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #15'
         
+          ! Constant to control temperature response curve shape
          call GetData(NewConsumer%K2,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'K2',                                           &
+                     Default      = 0.98,                                                & 
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #16'
         
+           ! Constant to control temperature response curve shape
          call GetData(NewConsumer%K3,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'K3',                                           &
+                     Default      = 0.98,                                                & 
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #17'
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #20'
         
+          ! Constant to control temperature response curve shape
          call GetData(NewConsumer%K4,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'K4',                                           &
+                     Default      = 0.02,                                                & 
                      ClientModule = 'ModuleBenthicEcology',                             &
                      STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #18'
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #25'
+       
+        ! Min consumer density that limits the growth rate (kgC/m2)
+        call GetData(NewConsumer%SMIN,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'SMIN',                                           &
+                     Default      = 0.005,                                                & 
+                     ClientModule = 'ModuleBenthicEcology',                             &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #30'
+        
+        ! Max consumer density that limits the growth rate (kgC/m2)
+         call GetData(NewConsumer%SMAX,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'SMAX',                                           &
+                     Default      = 0.020,                                                & 
+                     ClientModule = 'ModuleBenthicEcology',                             &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #35'
+        
+        ! Oxygen concentration limitation constant (mg O2/l)
+          call GetData(NewConsumer%KO2,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'KO2',                                           &
+                     Default      = 0.5,                                                & 
+                     ClientModule = 'ModuleBenthicEcology',                             &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructConsumerParameters - ModuleBenthicEcology - ERROR #40'
         
         
         call ConstructGrazing               (NewConsumer%Grazing , ClientNumber)
@@ -2100,11 +2262,12 @@ subroutine ConstructGrazing (Grazing, ClientNumber)
 
         call GetExtractType    (FromBlock = FromBlock)
 
-
+       ! 
         call GetData(Grazing%Ass_Efic,                              &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
                      keyword      = 'ASS_EFIC',                &
+                     Default      = 0.25,                                                &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGrazing - ModuleBenthicEcology - ERROR #3'
@@ -2113,15 +2276,28 @@ subroutine ConstructGrazing (Grazing, ClientNumber)
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
                      keyword      = 'COHESIVESED',                &
+                     Default      = .false.,                                                &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGrazing - ModuleBenthicEcology - ERROR #4'
         
+     
+     If (Grazing%Cohesivesed) then 
+     call GetData(Grazing%MaxSediment,                              &
+                     Me%ObjEnterData, iflag,                        &
+                     SearchType   = FromBlock,                      &
+                     keyword      = 'SEDMAX',                &
+                     Default      = 0.1,                                                &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGrazing - ModuleBenthicEcology - ERROR #5'
+     endif
         
          call GetData(Grazing%KFoodC,                              &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
                      keyword      = 'KFOODC',                &
+                     Default      = 0.001,                                                &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGrazing - ModuleBenthicEcology - ERROR #6'
@@ -2290,9 +2466,18 @@ subroutine ConstructGrazing (Grazing, ClientNumber)
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFood - ModuleBenthicEcology - ERROR #7'
         
+        
+       call GetData(NewFood%Minval,                               &
+                     Me%ObjEnterData, iflag,                        &
+                     SearchType   = FromBlockInBlock,               &
+                     keyword      = 'MINVAL',                         &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFood - ModuleBenthicEcology - ERROR #8'
+        
         if((Me%PelagicModel == LifeModel))then
         if(.not. CheckPropertyName(trim(NewFood%ID%Name)//" nitrogen"))&
-        stop 'ConstructFood - ModuleBenthicEcology - ERROR #7'
+        stop 'ConstructFood - ModuleBenthicEcology - ERROR #9'
         endif        
 
         Producer => Me%FirstProducer
@@ -2586,6 +2771,9 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                  
                  case(RootsMort_)
                      RateFlux => Me%StoredArray(:, Me%StoredIndex%RootsMort)
+                 
+                 case(PintFactorR_)
+                     RateFlux => Me%StoredArray(:, Me%StoredIndex%PintFactorR)
                              
 
                 case default
@@ -2645,21 +2833,22 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
     
-    subroutine ModifyBenthicEcology(ObjBenthicEcologyID, &
-                                    Temperature,         &
-                                    WaterVolume,         &
-                                    CellArea,            &
-                                    MassInKgFromWater,   &
-                                    Sediment,            &
-                                    ShortWaveAverage,    &
-                                    ShearStress,         &
-                                    UptakeNH4s,          &
-                                    UptakeNH4NO3w,       &
-                                    UptakePO4w,          &
-                                    LightFactor,         &
-                                    JulianDay,           &
-                                    OpenPoints,          &
-                                    Mass,                &
+    subroutine ModifyBenthicEcology(ObjBenthicEcologyID, & 
+                                    Temperature,         & ! Temperature of the cell (k=1), in ºC
+                                    WaterVolume,         & ! Volume of the water cell (k=1) (m3)
+                                    CellArea,            & ! Area of the water cell (k=1)(m2)
+                                    MassInKgFromWater,   & ! MassInKgFromWater is a matrix containing water state variables (Kg)
+                                    Sediment,            & ! Sediment concentration in the cell (k=1) (Kg/m3)
+                                    ShortWaveAverage,    & ! Incident shortwave radiation at the bottom surface (W/m2)
+                                    ShearStress,         & ! Bottom shear stress in Pa
+                                    UptakeNH4s,          & ! Uptake of ammonia from seagrasses roots (gN/day) 
+                                    UptakeNH4NO3w,       & ! Uptake of Nh4 and No3 by seagrasses leaves (gN/day)
+                                    UptakePO4w,          & ! Uptake of phosphate from seagrasses leaves (gP/day) 
+                                    UptakePO4s,          & ! Uptake of phosphate from seagrasses roots (gP/day) 
+                                    LightFactor,         & ! Light limitation for seagrasses only , dimensionless
+                                    JulianDay,           & ! Day of year (days)
+                                    OpenPoints,          & ! Calculation points (0=No calculation, 1 =Calculation)
+                                    Mass,                & ! Mass is the matrix of bottom state variables, in Kg
                                     STAT)
     
     
@@ -2671,6 +2860,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real,    dimension(:  ), pointer, optional  :: UptakeNH4s
         real,    dimension(:  ), pointer, optional  :: UptakeNH4NO3w
         real,    dimension(:  ), pointer, optional  :: UptakePO4w
+        real,    dimension(:  ), pointer, optional  :: UptakePO4s
         real,    dimension(:  ), pointer, optional  :: LightFactor
         real,    dimension(:  ), pointer            :: WaterVolume
         real,    dimension(:  ), pointer            :: CellArea
@@ -2678,9 +2868,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real,    dimension(:  ), pointer, optional  :: ShortWaveAverage
         real,    dimension(:  ), pointer, optional  :: ShearStress
         real,    dimension(:,:), pointer            :: Mass
-        integer, intent(OUT), optional              :: STAT
+        integer, intent(OUT), optional              :: STAT !whatever
         integer, intent(IN)                         :: JulianDay
-
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
         integer                                     :: Index
@@ -2737,14 +2926,18 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             if (.not. associated(Me%ExternalVar%UptakePO4w))       &
                 stop 'ModifyBenthicEcology - ModuleBenthicEcology - ERR10' 
             
+               Me%ExternalVar%UptakePO4s  => UptakePO4s
+            if (.not. associated(Me%ExternalVar%UptakePO4s))       &
+                stop 'ModifyBenthicEcology - ModuleBenthicEcology - ERR11' 
+            
             Me%ExternalVar%LightFactor  => LightFactor
            if (.not. associated(Me%ExternalVar%LightFactor))       &
-               stop 'ModifyBenthicEcology - ModuleBenthicEcology - ERR11' 
+               stop 'ModifyBenthicEcology - ModuleBenthicEcology - ERR12' 
               
               
             Me%ExternalVar%Mass         => Mass
             if (.not. associated(Me%ExternalVar%Mass))              &
-                stop 'ModifyBenthos - ModuleBenthicEcology - ERR012'
+                stop 'ModifyBenthos - ModuleBenthicEcology      - ERR013'
 
 
             do Index = Me%Size%ILB, Me%Size%IUB
@@ -2814,8 +3007,9 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real                :: MortalityC, MortalityN, MortalityP
         real                :: FluxToPON, FluxToPOP, FluxToPOC
         real                :: x1,x2,x3,x4, AmmoniaPreferenceFactor
-        real                :: s1, s2, xa,xb,ya,yb, TemperatureLim
+        real                :: s1, s2, xa,xb,ya,yb, TemperatureLim,TemperatureFDecay
         real                :: ConcAM, ConcNA, ConcIP, ConcO2
+        real                :: ProducerDensity,DensityLim
         integer             :: Zone
         integer, parameter  :: NoLimitation = 1
         integer, parameter  :: Erosion      = 2
@@ -2888,6 +3082,11 @@ d1:     do while(associated(Producer))
         ConcIP=Me%ExternalVar%MassInKgFromWater(IP,Index)/Me%ExternalVar%WaterVolume(Index)
         ConcO2=Me%ExternalVar%MassInKgFromWater(O2,Index)/Me%ExternalVar%WaterVolume(Index)
         
+        ProducerDensity=Me%ExternalVar%Mass(Producer_C, Index)/Me%ExternalVar%CellArea(Index)
+        
+        !Density Limitation Le Pape, 1999
+       
+        DensityLim= 1. - max(0., min(1., (ProducerDensity - Producer%MINP)/(Producer%MAXP-Producer%MINP) ) )
         ! Evans and Parslow model (1985) model 
         ! Producer%alpha has units of 1/(day*(W/m2))
         ! AverageRadiation has units of W/m2
@@ -2898,7 +3097,7 @@ d1:     do while(associated(Producer))
         
         ! Nutrients Limitation (the same as for Phytoplankton in ModuleWaterQuality)
         ! Nlim is dimensionless ; Producer%KN is in Kg N/m3 (that is the same as g N /L)
-        NLim =   (ConcAM+ ConcNA )                 /  &
+        NLim =   (ConcAM + ConcNA )                 /  &
                  (Producer%KN + ConcAM + ConcNA)
        
         ! Plim is dimensionless
@@ -2938,42 +3137,75 @@ d1:     do while(associated(Producer))
         
       
         ! growth rate 1/day
-        GrowthRate=(1.-Producer%RespFrac)*Producer%Vmax*LightLim*NutLim*TemperatureLim
+        
+        GrowthRate=(1.-Producer%RespFrac)*Producer%Vmax*LightLim*NutLim*TemperatureLim*DensityLim
         
         ! uptake of ammonia 
         ! KgN     = 1/day  * (KgN/KgC) * KgC*day
         UptakeAM = AmmoniaPreferenceFactor * GrowthRate * Producer%NCRatio * &
                   Me%ExternalVar%Mass(Producer_C, Index)* Me%DTDay ! KgN
         
-        UptakeNA =(1.- AmmoniaPreferenceFactor)* GrowthRate * Producer%NCRatio * &
+        UptakeNA =(1.- AmmoniaPreferenceFactor) * GrowthRate * Producer%NCRatio * &
                   Me%ExternalVar%Mass(Producer_C, Index)* Me%DTDay ! KgN
         
         UptakeP = GrowthRate * Producer%PCRatio * Me%ExternalVar%Mass(Producer_C, Index)* Me%DTDay ! KgP
         
         
-        !KgC = KgC *day * 1/day * [-]     
+        !KgC = KgC *day * 1/day * [-]   
         
+        TemperatureFDecay = 1.08 ** (Me%ExternalVar%Temperature(index)-20.) 
         
-                                                                                          
-        MortalityC = Me%ExternalVar%Mass(Producer_C, Index) * Me%DTDay * Producer%MortalityRate 
+        if (ProducerDensity .LT. Producer%MinimumBiomass ) then
+        
+        MortalityC = 0.
+        MortalityN = 0.
+        MortalityP = 0.
+        
+        Me%ExternalVar%Mass(Producer_C,     Index) = Producer%MinimumBiomass*Me%ExternalVar%CellArea(Index)
+        Me%ExternalVar%Mass(Producer_N,     Index) = Producer%MinimumBiomass*Me%ExternalVar%CellArea(Index)* Producer%NCRatio
+        Me%ExternalVar%Mass(Producer_P,     Index) = Producer%MinimumBiomass*Me%ExternalVar%CellArea(Index)* Producer%PCRatio
+        
+        else   
+                                                                                       
+        MortalityC = Me%ExternalVar%Mass(Producer_C, Index) * Me%DTDay * Producer%MortalityRate * TemperatureFDecay
         MortalityN = MortalityC*Producer%NCRatio  ! KgN
         MortalityP = MortalityC*Producer%PCRatio  ! KgP
         
+        endif
         ! units of mass
         
+        
 
-       ! RespirationRate = Producer%RespirationRate * exp(0.069 * Me%ExternalVar%Temperature(index)) ! 1/day
-        RespirationRate=Producer%RespFrac*GrowthRate
+        RespirationRate=Producer%RespFrac*Producer%Vmax*LightLim*NutLim*TemperatureLim*DensityLim
          
         if (MAX( ConcO2 * 1000., Me%Oxygen%Minimum).eq.Me%Oxygen%Minimum) then
                 RespirationRate = -1.0 / null_real
         endif
         
+       
+        if (ProducerDensity .LT. Producer%MinimumBiomass ) then
+        
+        ! Respiration is set to 0 if the producer's biomass falls below a user-defined minimum value (Producer%MinimumBiomass)
+        ! this steps are necessary to avoid negative concentrations, and also to avoid 
+        ! errors due to single precision when using the release single executable 
+        ! In general it is better to use the release double executable when running interfacesedimentwater,
+        ! because values are very small (since they are expressed in Kg)
+         
+        RespirationC = 0.
+        RespirationN = 0.
+        RespirationP = 0.
+        
+        Me%ExternalVar%Mass(Producer_C,     Index) = Producer%MinimumBiomass*Me%ExternalVar%CellArea(Index)
+        Me%ExternalVar%Mass(Producer_N,     Index) = Producer%MinimumBiomass*Me%ExternalVar%CellArea(Index)* Producer%NCRatio
+        Me%ExternalVar%Mass(Producer_P,     Index) = Producer%MinimumBiomass*Me%ExternalVar%CellArea(Index)* Producer%PCRatio
+        
+        else 
         
         RespirationC = Me%ExternalVar%Mass(Producer_C, Index) * RespirationRate * Me%DTDay  !KgC
         RespirationN = RespirationC*Producer%NCRatio  ! KgN
         RespirationP = RespirationC*Producer%PCRatio  ! KgP
         
+        endif
                   
         ! mass balance
         
@@ -2985,24 +3217,24 @@ d1:     do while(associated(Producer))
                                                      MortalityC                                 - &  ! KgC
                                                      RespirationC                                    ! KgC
         ! KgN
-        Me%ExternalVar%Mass(Producer_N,     Index) = Me%ExternalVar%Mass(Producer_N,     Index) + &
-                                                     GrowthRate                                 * &
-                                                     Me%ExternalVar%Mass(Producer_N, Index)     * &    
-                                                     Me%DTDay                                   - &
-                                                     MortalityN                                 - &
-                                                     RespirationN  
+        Me%ExternalVar%Mass(Producer_N,     Index) = Me%ExternalVar%Mass(Producer_N,     Index) + &  ! KgN 
+                                                     GrowthRate                                 * &  ! 1/day
+                                                     Me%ExternalVar%Mass(Producer_N, Index)     * &  ! KgN 
+                                                     Me%DTDay                                   - &  ! day
+                                                     MortalityN                                 - &  ! KgN
+                                                     RespirationN                                    ! Kg N
         ! KgP
         Me%ExternalVar%Mass(Producer_P,     Index) = Me%ExternalVar%Mass(Producer_P,     Index) + &  ! KgP
-                                                     GrowthRate                                 * &  ! 
-                                                     Me%ExternalVar%Mass(Producer_P, Index)     * &
-                                                     Me%DTDay                                   - &
-                                                     MortalityP                                 - &
-                                                     RespirationP  
+                                                     GrowthRate                                 * &  ! 1/day
+                                                     Me%ExternalVar%Mass(Producer_P, Index)     * &  ! KgP
+                                                     Me%DTDay                                   - &  ! day
+                                                     MortalityP                                 - &  ! KgP
+                                                     RespirationP                                    ! KgP
            
         if(Me%ComputeOptions%Nitrogen)then
             
             !what passes from The benthic producer to PON
-            Me%ExternalVar%Mass(PON,     Index) = Me%ExternalVar%Mass(PON,     Index) + MortalityN
+            Me%ExternalVar%Mass(PON,     Index)             = Me%ExternalVar%Mass(PON,     Index) + MortalityN
             !what passes from The benthic producer to Ammonia
             Me%ExternalVar%MassInKgFromWater(AM,     Index) = Me%ExternalVar%MassInKgFromWater(AM,     Index) + RespirationN
             !what passes from nitrate to the benthic producer
@@ -3014,18 +3246,18 @@ d1:     do while(associated(Producer))
        if(Me%ComputeOptions%Phosphorus)then
             
             !what passes from The benthic producer to POP
-            Me%ExternalVar%Mass(POP,     Index) = Me%ExternalVar%Mass(POP,     Index) + MortalityP
+            Me%ExternalVar%Mass(POP,     Index)             = Me%ExternalVar%Mass(POP,     Index) + MortalityP
             !what passes from The benthic producer to Phosphate
             Me%ExternalVar%MassInKgFromWater(IP,     Index) = Me%ExternalVar%MassInKgFromWater(IP,     Index) + RespirationP
             !what passes from Phosphate to benthic producer 
             Me%ExternalVar%MassInKgFromWater(IP,     Index) = Me%ExternalVar%MassInKgFromWater(IP,     Index) - UptakeP
        end if
        
-       Me%ExternalVar%MassInKgFromWater(O2, Index)=Me%ExternalVar%MassInKgFromWater(O2, Index) + &   ! Kg O2 +
-                                                   (GrowthRate                                 * &   ! (1/day *
-                                                    Me%ExternalVar%Mass(Producer_C, Index)     * &   !  Kg C  *
-                                                    Me%DTDay                                   - &   !  day   -
-                                                    RespirationC)*32./12.                            !  Kg C) * KgO2/KgC
+       Me%ExternalVar%MassInKgFromWater(O2, Index)          = Me%ExternalVar%MassInKgFromWater(O2, Index) + &  ! Kg O2 +
+                                                             (GrowthRate                                 * &   ! (1/day *
+                                                              Me%ExternalVar%Mass(Producer_C, Index)     * &   !  Kg C  *
+                                                              Me%DTDay                                   - &   !  day   -
+                                                              RespirationC)*32./12.                            !  Kg C) * KgO2/KgC
        
        ! the ratio 32/12 is the ratio between grams of O2 produced and grams of Carbon in the photosynthesis reaction
        ! the same ratio is applied in the ModuleWaterquality for phytoplankton, and in the ModuleMacroalgae for macroalgae
@@ -3133,13 +3365,15 @@ d1:     do while(associated(Producer))
         integer                                    :: FoodIndexP
         real                                       :: TemperatureDependence
         real                                       :: TemperatureFDecay
-        real                                       :: Mortality
+        real                                       :: MortalityC
+        real                                       :: MortalityN
+        real                                       :: MortalityP
         real                                       :: MortalityRate
-        real                                       :: Respiration
+        real                                       :: RespirationC
+        real                                       :: RespirationN
+        real                                       :: RespirationP
         real                                       :: OxygenLimitation
         real                                       :: SedimentLimitation
-        real                                       :: Predation
-        real                                       :: PredationRate
         real                                       :: RespirationRate
         real                                       :: IngestionC
         real                                       :: IngestionN
@@ -3153,8 +3387,8 @@ d1:     do while(associated(Producer))
         real                                       :: EgestionC_tot
         real                                       :: EgestionN_tot
         real                                       :: EgestionP_tot
-        real                                       :: IngestionRate
-        real                                       :: FoodDens
+        real                                       :: IngestionRate,DensityLimitation
+        real                                       :: FoodDens,ConsumerDensity
         real                                       :: s1, s2, xa, xb, ya, yb
         
         
@@ -3192,19 +3426,22 @@ d1:     do while(associated(Consumer))
         ! temperature dependence follows a bell shaped function when multiplied by the maximum growth rate
         TemperatureDependence = xa * xb
         
-        !  respiration and mortality increase with temperature, similarly to mineralization 
+        !  respiration and mortality increase with temperature
         
         TemperatureFDecay = Consumer%TemperatureFactor ** (Me%ExternalVar%Temperature(index)-20.)
         
         Consumer_N   = Consumer%PoolIndex%Nitrogen
         Consumer_C   = Consumer%PoolIndex%Carbon
         Consumer_P   = Consumer%PoolIndex%Phosphorus 
-     
        
-         ! cohesive sediment is  g/l
-        !SedimentLimitation=(1.-0.01*(atss+btsss*log10(Me%ExternalVar%Sediment(Index))))
+        ConsumerDensity=Me%ExternalVar%Mass(Consumer_C, Index)/Me%ExternalVar%CellArea(Index)
+        
+        DensityLimitation= 1. - max(0., min(1., (ConsumerDensity - Consumer%SMIN)/(Consumer%SMAX-Consumer%SMIN) ) )
+        
+        ! cohesive sediment is  g/l
+        
         ! 
-        SedimentLimitation=max(0., 1.-Me%ExternalVar%Sediment(Index)/0.1)
+        
         ! Oxygen Limitation
         !Multiplication by 1000 because oxygen units are given in g/l
         OxygenLimitation = max((Me%ExternalVar%MassInKgFromWater(O2,Index)/ &
@@ -3212,9 +3449,9 @@ d1:     do while(associated(Consumer))
 
         !OxygenLimitation = 1 when Oxygen levels are high 
         !OxygenLimitation = 0 when Oxygen levels are low 
-        OxygenLimitation = OxygenLimitation / (OxygenLimitation + 0.5)
+        OxygenLimitation = OxygenLimitation / (OxygenLimitation + Consumer%KO2)
         
-        MortalityRate=(1.-OxygenLimitation)*Consumer%BETA20*TemperatureFDecay
+        MortalityRate=(1.- OxygenLimitation)*Consumer%BETA20*TemperatureFDecay
          ! 1/day
         
         !
@@ -3224,37 +3461,46 @@ d1:     do while(associated(Consumer))
         ! if the user provided the maximum growth rate as a filtration rate, the units will be:
         ! IngestionRate = m3/day/KgC =      m3/day /KgC    *  [-]      
         ! if the user provided the maximum growth rate as a grazing rate, the units will be:
-        ! 1/day/=      1/day     *  [-]                                                                                                            
-        IngestionRate=Consumer%GRMAX*  TemperatureDependence * &
+        ! 1/day/=      1/day     *  [-] 
+        
+        SedimentLimitation=max(0., 1. - Me%ExternalVar%Sediment(Index)/Consumer%Grazing%MaxSediment)
+                                                                                                                   
+        IngestionRate=Consumer%GRMAX *  TemperatureDependence * &
                                           OxygenLimitation     * &
-                                          SedimentLimitation
+                                          SedimentLimitation * DensityLimitation
                                           
         else 
         
-        IngestionRate=Consumer%GRMAX*  TemperatureDependence* &
-                                          OxygenLimitation
+        IngestionRate=Consumer%GRMAX *  TemperatureDependence* &
+                                          OxygenLimitation * DensityLimitation
         endif                                  
         
         !  1/day =           l/day     *[-]                                                                     
         RespirationRate=Consumer%RESP20*TemperatureFDecay
         
        
-      !     KgC   =          1/day      * KgC                                 *day
-        Respiration=RespirationRate*Me%ExternalVar%Mass(Consumer_C, Index)* Me%DTDay  
+      !     KgC    =    1/day      * KgC                                  * day
+        RespirationC=RespirationRate*Me%ExternalVar%Mass(Consumer_C, Index)* Me%DTDay 
+        RespirationN=RespirationC*Consumer%NCRatio
+        RespirationP=RespirationC*Consumer%PCRatio
         
-        !     KgC   =          1/day      * KgC                                 *day
-        Mortality =  MortalityRate*Me%ExternalVar%Mass(Consumer_C, Index) * Me%DTDay  ! KgC  
-       
+        !   KgC   =     1/day     * KgC                                   *day
+        MortalityC = MortalityRate*Me%ExternalVar%Mass(Consumer_C, Index) * Me%DTDay 
+        MortalityN = MortalityC*Consumer%NCRatio 
+        MortalityP = MortalityC*Consumer%PCRatio 
 
-       IngestionC_tot=0.
-       IngestionN_tot=0.
-       IngestionP_tot=0.
-       EgestionC_tot=0.
-       EgestionN_tot=0.
-       EgestionP_tot=0.
+        IngestionC_tot=0.
+        IngestionN_tot=0.
+        IngestionP_tot=0.
+       
+        EgestionC_tot=0.
+        EgestionN_tot=0.
+        EgestionP_tot=0.
        
        
        Food => Consumer%Grazing%FirstFood
+       
+       
   
   
        d2:   do while(associated(Food))
@@ -3313,24 +3559,41 @@ d1:     do while(associated(Consumer))
             if((Food%ID%Name=='particulate organic') .and. (Food%ParticulateWaterFood)) then
                 ! the food is eaten  from the water (filter feeder) 
                 ! In this case Ingestion rate is a filtration rate given as m3/Kg C /day  (or liters/g C/day)
-                ! 
-                Me%Matrix(Index, FoodIndexN, Consumer_N) = (IngestionRate/Food%NCRatio)                         *  &  ! m3/Kg N /day (divide by NC ratio to obtain right units)
-                                                            Me%ExternalVar%Mass(Consumer_N, Index)               *  &  ! Kg N
-                                                          (Me%ExternalVar%MassInKgFromWater(FoodIndexN, Index)   /  &  ! Kg N
-                                                          Me%ExternalVar%WaterVolume(index))                     *  &  ! m3
-                                                          Me%DTDay                                                     ! day
+                !                                              (divide by NC ratio to obtain right units)
+ 
+            Me%Matrix(Index, FoodIndexN, Consumer_N) = (IngestionRate/Food%NCRatio)                         *  &  ! m3/Kg N /day 
+                                                       Me%ExternalVar%Mass(Consumer_N, Index)               *  &  ! Kg N
+                                                      (Me%ExternalVar%MassInKgFromWater(FoodIndexN, Index)  /  &  ! Kg N
+                                                         Me%ExternalVar%WaterVolume(index))                 *  &  ! m3
+                                                         Me%DTDay                                                 ! day                                            
                                                            
                 Me%ExternalVar%MassInKgFromWater(FoodIndexN, Index)= Me%ExternalVar%MassInKgFromWater(FoodIndexN, Index)      - &
                                                                      Me%Matrix(Index, FoodIndexN, Consumer_N)
                 else
                 ! the food is eaten  from the bottom (deposit feeder)
                 ! In this case the ingestion rate is in 1/day
-                
-               FoodDens=Me%ExternalVar%Mass(FoodIndexN, Index)/ Me%ExternalVar%CellArea(Index)
+              
+               if(Food%Use_Carbon)  then
+               
+               FoodDens=Me%ExternalVar%Mass(FoodIndexC, Index)/ Me%ExternalVar%CellArea(Index)
+               else
+               FoodDens=Me%ExternalVar%Mass(FoodIndexN, Index)/ Me%ExternalVar%CellArea(Index)/Food%NCRatio
+               endif
+               
+               
+                if(FoodDens < Food%Minval) then
+                Me%Matrix(Index, FoodIndexN, Consumer_N) =0.
+
+                else
+               
+               
                 ! Kg N = 1/day * Kg N * day * [-]
-               Me%Matrix(Index, FoodIndexN, Consumer_N) = IngestionRate*Me%ExternalVar%Mass(Consumer_N, Index)         *   &  ! 1/day * Kg N
+               Me%Matrix(Index, FoodIndexN, Consumer_N) = IngestionRate*Me%ExternalVar%Mass(Consumer_C, Index)        *   &  ! 1/day * Kg N
+                                                          Consumer%NCRatio                                            *   &
                                                           Me%DTDay                                                    *   &  ! day
-                                                          FoodDens / ( FoodDens + (Consumer%Grazing%KFoodC*Food%NCRatio))                   ! [-]
+                                                          FoodDens / ( FoodDens + Consumer%Grazing%KFoodC)                   ! [-]
+                endif
+                
                 
                 Me%ExternalVar%Mass(FoodIndexN, Index)  = Me%ExternalVar%Mass(FoodIndexN, Index)- &
                                                            Me%Matrix(Index, FoodIndexN, Consumer_N)  ! kgN
@@ -3339,14 +3602,68 @@ d1:     do while(associated(Consumer))
 
             endif
         
-        IngestionN=Consumer%Grazing%Ass_Efic*Me%Matrix(Index, FoodIndexN, Consumer_N)  ! kgN
-        EgestionN=(1.-Consumer%Grazing%Ass_Efic)*Me%Matrix(Index, FoodIndexN, Consumer_N) ! ! kgN
+            IngestionN=Consumer%Grazing%Ass_Efic*Me%Matrix(Index, FoodIndexN, Consumer_N)  ! kgN
+            EgestionN=(1.-Consumer%Grazing%Ass_Efic)*Me%Matrix(Index, FoodIndexN, Consumer_N) ! ! kgN
+        
+        endif
+        
+        
+            if(Food%Use_Phosphorus)  then
+        
+            if((Food%ID%Name=='particulate organic') .and. (Food%ParticulateWaterFood)) then
+                ! food eaten from the water
+                 Me%Matrix(Index, FoodIndexP, Consumer_P) =(IngestionRate/Food%PCRatio)                         * &
+                                                         Me%ExternalVar%Mass(Consumer_P, Index)                * &
+                                                        (Me%ExternalVar%MassInKgFromWater(FoodIndexP, Index)  / &
+                                                         Me%ExternalVar%WaterVolume(index))* Me%DTDay       ! kgP
+                
+                Me%ExternalVar%MassInKgFromWater(FoodIndexP, Index)= Me%ExternalVar%MassInKgFromWater(FoodIndexP, Index)- &
+                                                                     Me%Matrix(Index, FoodIndexP, Consumer_P)
+                else
+               ! the food is eaten  from the bottom (deposit feeder)
+               ! Consumer%Grazing%KFoodC has units of kg C /m2
+               ! the food limitation is calculated by using food biomass (FoodDens, in kg C/m2) 
+                
+               if(Food%Use_Carbon)  then
+               
+               FoodDens=Me%ExternalVar%Mass(FoodIndexC, Index)/ Me%ExternalVar%CellArea(Index)
+               else
+               FoodDens=Me%ExternalVar%Mass(FoodIndexP, Index)/ Me%ExternalVar%CellArea(Index)/Food%PCRatio
+               endif
+                
+                
+                ! for deposit feeders, the Michaelis-Menten kinetic was used
+                ! IngestionRate has dimension of 1/day
+                
+                if(FoodDens < Food%Minval) then
+                ! if the 
+                Me%Matrix(Index, FoodIndexP, Consumer_P) = 0.
+                
+                else
+                
+                ! Kg P
+                Me%Matrix(Index, FoodIndexP, Consumer_P) = IngestionRate*Me%ExternalVar%Mass(Consumer_C, Index)     *   &  ! 1/day * Kg C
+                                                           Consumer%PCRatio                                         *   &
+                                                           Me%DTDay                                                 *   &  ! day
+                                                           FoodDens /( FoodDens + Consumer%Grazing%KFoodC)                ! [-]
+                endif
+                
+                Me%ExternalVar%Mass(FoodIndexP, Index)=    Me%ExternalVar%Mass(FoodIndexP, Index)                   -   &
+                                                           Me%Matrix(Index, FoodIndexP, Consumer_P)
+
+            
+            endif
+            
+            IngestionP =  Consumer%Grazing%Ass_Efic      * Me%Matrix(Index, FoodIndexP, Consumer_P)
+            EgestionP  = (1.- Consumer%Grazing%Ass_Efic) * Me%Matrix(Index, FoodIndexP, Consumer_P)
         endif
         
         if(Food%Use_Carbon)  then
         
             if(Food%ParticulateWaterFood)then
                 ! the food is eaten  from the water. 
+                
+                
                 Me%Matrix(Index, FoodIndexC, Consumer_C) = IngestionRate*Me%ExternalVar%Mass(Consumer_C, Index)  * &
                                                           (Me%ExternalVar%MassInKgFromWater(FoodIndexC, Index)    / &
                                                           Me%ExternalVar%WaterVolume(index))* Me%DTDay  
@@ -3358,7 +3675,11 @@ d1:     do while(associated(Consumer))
                 ! Consumer%Grazing%KFoodC has units of kg C /m2
                 
                 FoodDens=Me%ExternalVar%Mass(FoodIndexC, Index)/ Me%ExternalVar%CellArea(Index)
-                
+              
+                if(FoodDens < Food%Minval) then
+                    Me%Matrix(Index, FoodIndexC, Consumer_C) =0.
+                    
+                else
                 ! for deposit feeders, the Michaelis-Menten kinetic was used
                 ! IngestionRate has dimension of 1/day
                 ! Kg C
@@ -3366,54 +3687,20 @@ d1:     do while(associated(Consumer))
                                                           Me%DTDay                                                  *  & ! day
                                                           FoodDens/ ( FoodDens + Consumer%Grazing%KFoodC)                ! [-]
                                                         
+                endif
+                
                 
                 Me%ExternalVar%Mass(FoodIndexC, Index)= Me%ExternalVar%Mass(FoodIndexC, Index)                      - &
                                                         Me%Matrix(Index, FoodIndexC, Consumer_C)
 
             endif
         
-        IngestionC=Consumer%Grazing%Ass_Efic*Me%Matrix(Index, FoodIndexC, Consumer_C)
-        EgestionC=(1.-Consumer%Grazing%Ass_Efic)*Me%Matrix(Index, FoodIndexC, Consumer_C)
+            IngestionC=Consumer%Grazing%Ass_Efic*Me%Matrix(Index, FoodIndexC, Consumer_C)
+            EgestionC=(1.-Consumer%Grazing%Ass_Efic)*Me%Matrix(Index, FoodIndexC, Consumer_C)
         
         endif
         
-        if(Food%Use_Phosphorus)  then
-        
-            if((Food%ID%Name=='particulate organic') .and. (Food%ParticulateWaterFood)) then
-                ! food eaten from the water
-                Me%Matrix(Index, FoodIndexP, Consumer_P) =(IngestionRate/Food%PCRatio)                         * &
-                                                          Me%ExternalVar%Mass(Consumer_P, Index)                * &
-                                                         (Me%ExternalVar%MassInKgFromWater(FoodIndexP, Index)  / &
-                                                           Me%ExternalVar%WaterVolume(index))* Me%DTDay ! kgP
-                
-                Me%ExternalVar%MassInKgFromWater(FoodIndexP, Index)= Me%ExternalVar%MassInKgFromWater(FoodIndexP, Index)- &
-                                                                     Me%Matrix(Index, FoodIndexP, Consumer_P)
-                else
-               ! the food is eaten  from the bottom (deposit feeder)
-               ! Consumer%Grazing%KFoodP has units of kg P /m2
-               ! the food limitation is calculated by using food biomass (FoodDens, in kg P/m2) 
-                
-                FoodDens=Me%ExternalVar%Mass(FoodIndexP, Index)/ Me%ExternalVar%CellArea(Index)
-                
-                ! for deposit feeders, the Michaelis-Menten kinetic was used
-                ! IngestionRate has dimension of 1/day
-                
-                
-                ! Kg P
-                Me%Matrix(Index, FoodIndexP, Consumer_P) =IngestionRate*Me%ExternalVar%Mass(Consumer_P, Index)     *   &  ! 1/day * Kg P
-                                                           Me%DTDay                                                *   &  ! day
-                                                           FoodDens /( FoodDens + (Consumer%Grazing%KFoodC*Food%PCRatio))                ! [-]
-                
-                
-                Me%ExternalVar%Mass(FoodIndexP, Index)= Me%ExternalVar%Mass(FoodIndexP, Index)                  - &
-                                                        Me%Matrix(Index, FoodIndexP, Consumer_P)
-
-            
-            endif
-            
-        IngestionP=Consumer%Grazing%Ass_Efic*Me%Matrix(Index, FoodIndexP, Consumer_P)
-        EgestionP=(1.-Consumer%Grazing%Ass_Efic)*Me%Matrix(Index, FoodIndexP, Consumer_P)
-        endif
+    
        
        if ((Food%ID%Name=='phytoplankton').AND.(Me%PelagicModel == WaterQualityModel)) then
            IngestionN=IngestionC*Consumer%NCRatio 
@@ -3442,6 +3729,8 @@ d1:     do while(associated(Consumer))
                EgestionN=EgestionP*(Food%NCRatio/Food%PCRatio)
            endif
          endif
+         
+
         
            IngestionC_tot=IngestionC_tot+IngestionC   ! Ingestion of each Food is added to the total. 
            IngestionN_tot=IngestionN_tot+IngestionN
@@ -3455,34 +3744,38 @@ d1:     do while(associated(Consumer))
      
        
        Food => Food%Next
+       
         end do d2
             
-        Me%ExternalVar%Mass(Consumer_C, Index) = Me%ExternalVar%Mass(Consumer_C, Index)+IngestionC_tot &
-                                                                                       -Mortality &
-                                                                                       -Respiration
+        Me%ExternalVar%Mass(Consumer_C, Index) = Me%ExternalVar%Mass(Consumer_C, Index)+   IngestionC_tot &
+                                                                                       -   MortalityC     &
+                                                                                       -   RespirationC
 
-        Me%ExternalVar%Mass(Consumer_N, Index) = Me%ExternalVar%Mass(Consumer_N, Index)+IngestionN_tot &
-                                                                                       -Mortality*Me%OrganicMatter%NC_Ratio &
-                                                                                       -Respiration*Me%OrganicMatter%NC_Ratio
+        Me%ExternalVar%Mass(Consumer_N, Index) = Me%ExternalVar%Mass(Consumer_C, Index)* Consumer%NCRatio &
+                                                                                       +   IngestionN_tot &
+                                                                                       -   MortalityN     &
+                                                                                       -   RespirationN
                                                                                        
-       Me%ExternalVar%Mass(Consumer_P, Index) = Me%ExternalVar%Mass(Consumer_P, Index)+ IngestionP_tot &
-                                                                                       -Mortality*Me%OrganicMatter%PC_Ratio &
-                                                                                       -Respiration*Me%OrganicMatter%PC_Ratio
+        Me%ExternalVar%Mass(Consumer_P, Index) = Me%ExternalVar%Mass(Consumer_C, Index)* Consumer%PCRatio &
+                                                                                       + IngestionP_tot   &
+                                                                                       - MortalityP       &
+                                                                                       - RespirationP
                    
       
-      ! Predation is a loss from the system, to avoid this it was added to organic matter
+     
     
       Me%ExternalVar%Mass(PON, Index)=Me%ExternalVar%Mass(PON, Index)+EgestionN_tot + &
-                                     Mortality *Me%OrganicMatter%NC_Ratio 
+                                     MortalityN 
       ! PON e POP are Foods, so the predation was calculated already before
       Me%ExternalVar%Mass(POP, Index)=Me%ExternalVar%Mass(POP, Index)+EgestionP_tot + &
-                                      Mortality*Me%OrganicMatter%PC_Ratio
+                                      MortalityP
       if (Me%PelagicModel == LifeModel) then
-        Me%ExternalVar%Mass(POC, Index)=Me%ExternalVar%Mass(POC, Index)+EgestionC_tot + Mortality
+        Me%ExternalVar%Mass(POC, Index)=Me%ExternalVar%Mass(POC, Index)+EgestionC_tot + MortalityC
       endif
-      Me%ExternalVar%MassInKgFromWater(O2, Index)=Me%ExternalVar%MassInKgFromWater(O2, Index)-Respiration*32./12.
-      Me%ExternalVar%MassInKgFromWater(AM, Index)=Me%ExternalVar%MassInKgFromWater(AM, Index)+Respiration*Consumer%NCRatio
-      Me%ExternalVar%MassInKgFromWater(IP, Index)=Me%ExternalVar%MassInKgFromWater(IP, Index)+Respiration*Consumer%PCRatio
+      
+      Me%ExternalVar%MassInKgFromWater(O2, Index)=Me%ExternalVar%MassInKgFromWater(O2, Index)-RespirationC*32./12.
+      Me%ExternalVar%MassInKgFromWater(AM, Index)=Me%ExternalVar%MassInKgFromWater(AM, Index)+RespirationN
+      Me%ExternalVar%MassInKgFromWater(IP, Index)=Me%ExternalVar%MassInKgFromWater(IP, Index)+RespirationP
       
    
       
@@ -3757,9 +4050,7 @@ d1:     do while(associated(Consumer))
         integer                                     :: Zone
         real                                        :: LeavesMortality
         real                                        :: LeavesBioMass
-        real                                        :: LeavesRespiration
         real                                        :: RootsMortality
-        real                                        :: Respiration
         real                                        :: TemperatureLim
         real                                        :: SpaceLimitation
         real                                        :: InternalNitrogen
@@ -3770,6 +4061,7 @@ d1:     do while(associated(Consumer))
         real                                        :: PhosphorusLimitation
         real                                        :: NutrientsLimitation
         real                                        :: UptakeNH4s
+        real                                        :: UptakePO4s
         real                                        :: UptakeNH4NO3w
         real                                        :: UptakePO4w
         real                                        :: UptakeN
@@ -3830,9 +4122,14 @@ d1:     do while(associated(Consumer))
         
         case(NoLimitation)
         !
+        ! Leaves and roots decay rate is expressed as a function of the daylight, 
+        ! Calculated as described in Forsythe WC, Rykiel Jr EJ, Stahl RS, Wu H, Schoolfield RM.
+        ! A model comparison for daylength as a function of latitude and day of year.
+        ! Ecological Modeling 1995; 80:87-95.
         phi=asin(.39795*cos(.2163108 + 2*atan(.9671396*tan(.00860*(Me%JulianDay-186)))))
         Daylight=24-(24/pi)*acos((sin(0.8333*pi/180) + sin(Me%Leaves%Lat*pi/180)*sin(phi))/ &
                   (cos(Me%Leaves%Lat*pi/180)*cos(phi)))
+        
         fm=exp(9.5-Daylight)
         
         ! Leaves uptake nutrients from the water column.
@@ -3858,9 +4155,13 @@ d1:     do while(associated(Consumer))
         ! and then it is passed to the module BenthicEcology through 
         ! the InterfaceSedimentWater 
         ! Me%ExternalVar%UptakeNH4s = uptake of ammonia by roots
+        ! Me%ExternalVar%UptakePO4s = Uptake of PO4 from sediment 
         
         ! gN/day
         UptakeNH4s= Me%ExternalVar%UptakeNH4s(index)
+        
+        ! gN/day
+        UptakePO4s= Me%ExternalVar%UptakePO4s(index)
         
         ! Leaves growth depends on light in the water column
         ! the Light Limitation is calculated in
@@ -3874,12 +4175,12 @@ d1:     do while(associated(Consumer))
         UptakeN   = UptakeNH4s +  UptakeNH4NO3w
         
         ! gP/day
-        UptakeP   =  UptakePO4w
+        UptakeP   =  UptakePO4w + UptakePO4s
         
 
         
        
-        !TZooLimitationFactor, temperature effect on seagrass
+        !Temperature effect on seagrass
         s1 = (1. / (Me%Leaves%TOptMin - Me%Leaves%TMin)) * log((Me%Leaves%K2 * (1.0 - Me%Leaves%K1))                    &
                                                      / (Me%Leaves%K1 * (1.0 - Me%Leaves%K2)))
 
@@ -3903,7 +4204,7 @@ d1:     do while(associated(Consumer))
         
         if(Me%ComputeOptions%Nitrogen) then
         
-        !  Me%ExternalVar%Mass(NINT, Index) is The Internal Nitrogen Content of the plant 
+        !  Me%ExternalVar%Mass(NINT, Index) is The Internal Nitrogen pool
         !  InternalNitrogen is the The Internal Nitrogen Content 
         !  expressed as gN/KgDW 
         InternalNitrogen=(Me%ExternalVar%Mass(NINT, Index)*1000.)/TotalPlantMass
@@ -3930,7 +4231,7 @@ d1:     do while(associated(Consumer))
 
         if(Me%ComputeOptions%Phosphorus)then
         
-        !  Me%ExternalVar%Mass(PINT, Index) is The Internal Phosphorus Content of the plant in KgP
+        !  Me%ExternalVar%Mass(PINT, Index) is The Internal Phosphorus pool of the plant in KgP
         !  InternalPhosphorus is the the Internal Phosphorus Content 
         !  expressed as gP/KgDW 
         InternalPhosphorus=(Me%ExternalVar%Mass(PINT, Index)*1000.)/TotalPlantMass
@@ -3957,7 +4258,7 @@ d1:     do while(associated(Consumer))
 
          ! If there are onlly seagrasses
         
-        SpaceLimitation= 1.- max(0., min(1., (LeavesBioMass/0.22)))
+        SpaceLimitation= 1.- max(0., min(1., (LeavesBioMass/Me%Leaves%KMAX)))
         
         
 
@@ -3968,7 +4269,7 @@ d1:     do while(associated(Consumer))
         !KgDW * day-1
         LeavesMortality  = Me%ExternalVar%Mass(L, Index)      * &  ! KgDW   *
                            fm                                 * &  ! [-]   *
-                           Me%Leaves%RespirationRate               ! 1/day 
+                           Me%Leaves%MortalityRate               ! 1/day 
            ! 1/day 
                            
        
@@ -3977,7 +4278,7 @@ d1:     do while(associated(Consumer))
       ! KgDW * day-1
        RootsMortality  =   Me%ExternalVar%Mass(R, Index)      * &  ! KgDW   *
                            fm                                 * &  ! [-]   *
-                           Me%Roots%RespirationRate                ! 1/day 
+                           Me%Roots%MortalityRate                ! 1/day 
              !day 
                           
 
@@ -3994,25 +4295,7 @@ d1:     do while(associated(Consumer))
                           
        
                                  
-      if (LightFactor .LT. 0) then
-          write(*,*), 'LightFactor is lower than 0, LightFactor = ', LightFactor
-          write(*,*), 'Growth rate = ', Growth
-      endif
-      
-     if (TemperatureLim .LT. 0) then
-          write(*,*), 'TemperatureLim is lower than 0, TemperatureLim = ', LightFactor
-          write(*,*), 'Growth rate = ', Growth
-      endif
-     
-     if (SpaceLimitation .LT. 0) then
-          write(*,*), 'SpaceLimitation is lower than 0, SpaceLimitation = ', LightFactor
-          write(*,*), 'Growth rate = ', Growth
-      endif
-      
-      if (NutrientsLimitation .LT. 0) then
-          write(*,*), 'NutrientsLimitation is lower than 0, NutrientsLimitation = ', LightFactor
-          write(*,*), 'Growth rate = ', Growth
-      endif
+
       
         
         if(Me%ComputeOptions%Nitrogen)then
@@ -4127,13 +4410,12 @@ d1:     do while(associated(Consumer))
          ! Store quantities to be used in the other modules
 
 
-          Me%StoredArray(Index, Me%StoredIndex%NintFactor) = InternalNitrogenFunction       ! [-]
+          Me%StoredArray(Index, Me%StoredIndex%NintFactor)  = InternalNitrogenFunction       ! [-]
           Me%StoredArray(Index, Me%StoredIndex%NintFactorR) = InternalNitrogenFunction      ! [-]
-          Me%StoredArray(Index, Me%StoredIndex%PintFactor) = InternalPhosphorusFunction     ! [-]
-          Me%StoredArray(Index, Me%StoredIndex%RootsMort) = RootsMortality                  ! [KgDW/day]
+          Me%StoredArray(Index, Me%StoredIndex%PintFactor)  = InternalPhosphorusFunction     ! [-]
+          Me%StoredArray(Index, Me%StoredIndex%PintFactorR) = InternalPhosphorusFunction      ! [-]
+          Me%StoredArray(Index, Me%StoredIndex%RootsMort)   = RootsMortality                  ! [KgDW/day]
 
-     !write(*,*),'UPTAKEn in benthicecol ', UptakeN, 'Growth ', Growth*(Me%Leaves%gNKgDW),'lightlim ', LightFactor,'templim ',TemperatureLim,'nutlim',NutrientsLimitation,'spacelim', SpaceLimitation     
-  
 
     end subroutine ComputeSeagrasses
     

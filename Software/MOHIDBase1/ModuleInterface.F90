@@ -250,9 +250,11 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: UptakeNH4NO3w   
         real,    pointer, dimension(:    )      :: UptakePO4w   
         real,    pointer, dimension(:    )      :: UptakeNH4s   
+        real,    pointer, dimension(:    )      :: UptakePO4s 
         real,    pointer, dimension(:    )      :: LightFactor  
         real,    pointer, dimension(:    )      :: NintFactor   !Isabella
         real,    pointer, dimension(:    )      :: NintFactorR   !Isabella
+        real,    pointer, dimension(:    )      :: PintFactorR   !Isabella
         real,    pointer, dimension(:    )      :: PintFactor   !Isabella 
         real,    pointer, dimension(:    )      :: RootsMort   !Isabella
         real,    pointer, dimension(:    )      :: SeagrassesLength   !Isabella
@@ -932,9 +934,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
  
                allocate(Me%LightFactor(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR206'
+                
+                allocate(Me%UptakePO4s(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR207'
                     
                 
-
                 Me%WaterMassInKgIncrement         = FillValueReal
                 Me%MassinKgFromWater                 = FillValueReal
                 Me%Sediment                       = FillValueReal
@@ -946,6 +950,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%UptakePO4w                     = FillValueReal
                 Me%UptakeNH4s                     = FillValueReal
                 Me%LightFactor                    = FillValueReal
+                Me%UptakePO4s                     = FillValueReal
 
                 
              case (SeagrassSedimInteractionModel)
@@ -953,18 +958,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
               !Me%Temperature               = FillValueReal
               
               allocate(Me%SedimCellVol (ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR90'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR207'
               
             
               allocate(Me%NintFactorR (ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR92'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR208'
               
               allocate(Me%RootsMort (ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR92'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR209'
+              
+              allocate(Me%PintFactorR (ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR210'
               
             
               Me%SedimCellVol      = FillValueReal
               Me%NintFactorR       = FillValueReal
+              Me%PintFactorR       = FillValueReal
               Me%RootsMort         = FillValueReal
 
 
@@ -3090,7 +3099,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   DissolvedToParticulate3D, SoilDryDensity, Salinity,   &
                                   pH, IonicStrength, PhosphorusAdsortionIndex,          &
                                   
-                                  NintFac3D, NintFac3DR, PintFac3D, RootsMort,          &
+                                  NintFac3D, NintFac3DR, PintFac3D,                     &
+                                  RootsMort, PintFac3DR,                                &
                                   SeagrassesLength, WaterCellVol3D, SedimCellVol3D,     &
                                   CellArea,                                             &
 #ifdef _PHREEQC_
@@ -3115,6 +3125,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,    optional, dimension(:,:,:), pointer    :: NintFac3D  !Isabella
         real,    optional, dimension(:,:,:), pointer    :: NintFac3DR  !Isabella
         real,    optional, dimension(:,:,:), pointer    :: PintFac3D  !Isabella
+        real,    optional, dimension(:,:,:), pointer    :: PintFac3DR  !Isabella
         real(8),    optional, dimension(:,:,:), pointer    :: SedimCellVol3D  !Isabella
         real(8),    optional, dimension(:,:,:), pointer    :: WaterCellVol3D  !Isabella
         real,    optional, dimension(:,:,:), pointer    :: SeagrassesLength
@@ -3212,6 +3223,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
             if(present(NintFac3DR))then
                 call UnfoldMatrix(NintFac3DR, Me%NintFactorR)
+            end if
+            
+            if(present(PintFac3DR))then
+                call UnfoldMatrix(PintFac3DR, Me%PintFactorR)
             end if
             
             if(present(RootsMort))then
@@ -3498,6 +3513,7 @@ cd4 :           if (ReadyToCompute) then
                                                   NintFactorR           = Me%NintFactorR,          &
                                                   SedimCellVol          = Me%SedimCellVol,         &
                                                   RootsMort             = Me%RootsMort,            &
+                                                  PintFactorR           = Me%PintFactorR,          &
                                                   STAT                  = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR09'
 
@@ -3676,7 +3692,7 @@ do6 :               do index = ArrayLB, ArrayUB
                                   MassInKgFromWater, Sediment,                          &
                                   WaterVolume2D,CellArea2D,ShortWave2D,                 &
                                   ShearStress2D,UptakeNH4s2D,UptakeNH4NO3w2D,           &
-                                  UptakePO4w2D,LightFactor2D,                           &
+                                  UptakePO4w2D,LightFactor2D, UptakePO4s2D,             &
                                   DTProp, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -3693,11 +3709,11 @@ do6 :               do index = ArrayLB, ArrayUB
         real   , optional, dimension(:,:  ), pointer    :: CellArea2D
         real   , optional, dimension(:,:  ), pointer    :: ShearStress2D
         real   , optional, dimension(:,:  ), pointer    :: UptakeNH4s2D
+        real   , optional, dimension(:,:  ), pointer    :: UptakePO4s2D
         real   , optional, dimension(:,:  ), pointer    :: UptakeNH4NO3w2D
         real   , optional, dimension(:,:  ), pointer    :: UptakePO4w2D
         real   , optional, dimension(:,:  ), pointer    :: LightFactor2D
         real   , optional, dimension(:,:  ), pointer    :: MassInKgFromWater
-
         integer, optional,  intent(OUT)                 :: STAT
 
         !External--------------------------------------------------------------
@@ -3787,12 +3803,15 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call UnfoldMatrix(UptakePO4w2D, Me%UptakePO4w)
             end if   
            
-           
+            if(present(UptakePO4s2D))then
+                call UnfoldMatrix(UptakePO4s2D, Me%UptakePO4s)
+            end if 
+            
            if(present(LightFactor2D))then
                 call UnfoldMatrix(LightFactor2D, Me%LightFactor)
             end if    
             
-            
+
                          
             
             Increment = OFF
@@ -3891,6 +3910,7 @@ cd4 :           if (ReadyToCompute) then
                                                  Me%UptakeNH4s,                           &
                                                  Me%UptakeNH4NO3w,                        &
                                                  Me%UptakePO4w,                           &
+                                                 Me%UptakePO4s,                           &
                                                  Me%LightFactor,                          &
                                                  JulDay,                                  &
                                                  Me%OpenPoints,                           &
@@ -8117,7 +8137,7 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                 select case(PropertyID)
                         
                         !if it's not a property it can be a rate ID number 
-                        case(NintFactor_, PintFactor_, NintFactorR_, RootsMort_) 
+                        case(NintFactor_, PintFactor_, NintFactorR_, RootsMort_, PintFactorR_ ) 
 
                             nProperty = PropertyID 
 
@@ -8143,6 +8163,10 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                         
                         !if it's not a property it can be a rate ID number 
                         case(RootsUptakeN_) 
+
+                            nProperty = PropertyID 
+                            
+                        case(RootsUptakeP_) 
 
                             nProperty = PropertyID 
 
@@ -8645,9 +8669,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                        deallocate(Me%UptakeNH4s, STAT = STAT_CALL)
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.18'  
+                       
+                       deallocate(Me%UptakePO4s, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.19'  
  
                        deallocate(Me%LightFactor, STAT = STAT_CALL)
-                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.19'      
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.20'      
                         
 
 #ifdef _PHREEQC_
@@ -8670,25 +8697,27 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.22'
                               
                     deallocate(Me%NintFactorR, STAT = STAT_CALL)
-                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.24'
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.23'
                        
                    deallocate(Me%RootsMort, STAT = STAT_CALL)
-                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.23'
-                                    
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.24'
+                   
+                   deallocate(Me%PintFactorR, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.25'             
                    
                    case(SeagrassWaterInteractionModel)  ! Isabella
                         
                     call KillSeagrassWaterInteraction(Me%ObjSeagrassWaterInteraction, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.25'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.26'
                         
                     deallocate(Me%WaterCellVol, STAT = STAT_CALL)
-                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.26'
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.27'
                               
                     deallocate(Me%PintFactor, STAT = STAT_CALL)
-                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.27'                        
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.28'                        
                         
                     deallocate(Me%NintFactor, STAT = STAT_CALL)
-                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.26'
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.29'
                                            
                    deallocate(Me%SeagrassesLength, STAT = STAT_CALL)
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.30'             

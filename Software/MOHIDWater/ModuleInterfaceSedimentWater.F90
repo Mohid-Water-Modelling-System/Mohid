@@ -517,6 +517,7 @@ Module ModuleInterfaceSedimentWater
         real,    pointer, dimension(:,:  )      :: UptakeNH4NO3w2D
         real,    pointer, dimension(:,:  )      :: UptakeNH4s2D
         real,    pointer, dimension(:,:  )      :: UptakePO4w2D
+        real,    pointer, dimension(:,:  )      :: UptakePO4s2D
         real,    pointer, dimension(:,:  )      :: LightFactor2D
         real                                    :: NintInit
         real                                    :: PintInit
@@ -593,7 +594,6 @@ Module ModuleInterfaceSedimentWater
         integer                                     :: BenthicRatesNumber       = 0
         type(T_Consolidation)                       :: Consolidation
         type(T_Seagrasses )                         :: Seagrasses   ! Isabella
-  
 
         !Instance of ModuleBoxDif                   
         integer                                     :: ObjBoxDif                = 0
@@ -3353,7 +3353,9 @@ do1 :   do while (associated(PropertyX))
 
         Me%Coupled%BenthicEcology%DT_Compute  = BenthicEcologyDT 
         Me%Coupled%BenthicEcology%NextCompute = Me%ExternalVar%Now
+        
 
+       
         allocate(Me%ExtWater%WaterVolume(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR05'
@@ -3386,12 +3388,16 @@ do1 :   do while (associated(PropertyX))
                 if(STAT_CALL .ne. SUCCESS_)&
                     stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR12'
                     
-        
+        allocate(Me%Seagrasses%UptakePO4s2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            if(STAT_CALL .ne. SUCCESS_)&
+                stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR13'
         
         Me%Seagrasses%UptakeNH4s2D  = 0.
         Me%Seagrasses%LightFactor2D = 0.
         Me%Seagrasses%UptakePO4w2D  = 0.
+        Me%Seagrasses%UptakePO4s2D  = 0.
         Me%Seagrasses%UptakeNH4NO3w2D =0.
+
       
         
         deallocate(BenthicEcologyPropertyList)
@@ -6873,6 +6879,7 @@ subroutine BenthicEcology_Processes
         real, dimension(:,:,:),     pointer     :: UptakePO4w3D
         real, dimension(:,:,:),     pointer     :: LightFactor3D
         real, dimension(:,:,:),     pointer     :: UptakeNH4s3D
+        real, dimension(:,:,:),     pointer     :: UptakePO4s3D
         real, dimension(:,:  ),     pointer     :: Biomass
         real, dimension(:,:  ),     pointer     :: Array2D
         integer                                 :: CHUNK
@@ -6890,7 +6897,7 @@ subroutine BenthicEcology_Processes
         WILB = Me%WorkSize2D%ILB
         WJLB = Me%WorkSize2D%JLB
 
-        CHUNK = CHUNK_J(WJLB, WJUB)
+        !CHUNK = CHUNK_J(WJLB, WJUB)
         
 
         
@@ -6898,10 +6905,11 @@ subroutine BenthicEcology_Processes
             call StartWatch ("ModuleInterfaceSedimentWater", "BenthicEcology_Processes")
         endif
         
+
        
         if (Me%ExternalVar%Now .GE. Me%Coupled%BenthicEcology%NextCompute) then
         
-        
+
          call GetShortWaveRadiationAverage(Me%ObjWaterProperties, ShortWaveRadiationAverage, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
           stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR01'
@@ -6985,10 +6993,15 @@ subroutine BenthicEcology_Processes
              elseif(PropertyX%ID%IDNumber == SeagrassesRoots_) then
                
                     Me%Seagrasses%UptakeNH4s2D =0.
+                    Me%Seagrasses%UptakePO4s2D =0.
                     
                     call GetSeagrassesRootsRates(Me%ObjSedimentProperties, RootsUptakeN_, UptakeNH4s3D, STAT = STAT_CALL)
                      if (STAT_CALL .NE. SUCCESS_)                                            &
                      stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
+                    
+                     call GetSeagrassesRootsRates(Me%ObjSedimentProperties, RootsUptakeP_, UptakePO4s3D, STAT = STAT_CALL)
+                     if (STAT_CALL .NE. SUCCESS_)                                            &
+                     stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR09'
          
                             do j = WJLB, WJUB
                                do i = WILB, WIUB
@@ -7002,11 +7015,13 @@ subroutine BenthicEcology_Processes
                                                Me%Seagrasses%UptakeNH4s2D(i,j)=Me%Seagrasses%UptakeNH4s2D(i,j)+ &
                                                                                UptakeNH4s3D(i,j,k)
                                                
-
+                                               Me%Seagrasses%UptakePO4s2D(i,j)=Me%Seagrasses%UptakePO4s2D(i,j)+ &
+                                                                               UptakePO4s3D(i,j,k)
 
                                                enddo
                                            else
                                                Me%Seagrasses%UptakeNH4s2D(i,j)=UptakeNH4s3D(i,j,ktop)
+                                               Me%Seagrasses%UptakePO4s2D(i,j)=UptakePO4s3D(i,j,ktop)
                                            endif
                                            
                               endif
@@ -7017,6 +7032,7 @@ subroutine BenthicEcology_Processes
                                               PropertyID    = PropertyX%ID%IDNumber,            &
                                               Concentration = PropertyX%MassInKg,               &
                                               UptakeNH4s2D  = Me%Seagrasses%UptakeNH4s2D,     &
+                                              UptakePO4s2D  = Me%Seagrasses%UptakePO4s2D,     &
                                               WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
                                               OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
                                               STAT          = STAT_CALL)
@@ -7030,7 +7046,10 @@ subroutine BenthicEcology_Processes
                             if(STAT_CALL .ne. SUCCESS_)&
                                 stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR11'
            
-                
+                     
+                     call UnGetSedimentProperties(Me%ObjSedimentProperties, UptakePO4s3D, STAT = STAT_CALL)
+                            if(STAT_CALL .ne. SUCCESS_)&
+                                stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR11'
                 
                 
                 elseif (PropertyX%ID%IDNumber == SeagrassesLeaves_) then
@@ -8672,6 +8691,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR601'
                 
+                
                  deallocate(Me%ExtWater%WaterVolume, STAT = STAT_CALL) 
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR602'
@@ -8701,6 +8721,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%Seagrasses%LightFactor2D, STAT = STAT_CALL) 
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR608'
+                     
+              deallocate(Me%Seagrasses%UptakePO4s2D, STAT = STAT_CALL) 
+                     if(STAT_CALL .ne. SUCCESS_)&
+                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR609'
                 
                
                                

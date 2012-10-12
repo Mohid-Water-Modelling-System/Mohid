@@ -36,21 +36,23 @@
 !------------------------------------------------------------------------------
 !
 !DataFile
-!   DT                  : real          [3600]          !Time step compute biogeochemical processes
-!
-!   NITROGEN            : 0/1           [0]
-!   PHOSPHORUS          : 0/1
-!
-!   MIN_OXY             : real          [1.e-5]         ! Minimum oxygen concentration (mg/l)
-!   PONDECAY            : real          [0.01]          ! PON mineralization rate (1/day)
-!   POPDECAY            : real          [0.03]          ! POP mineralization rate (1/day)
-!   NCRATIO             : real          [0.18]          ! N/C ratio  (gN/gC)
-!   PCRATIO             : real          [0.024]         ! P/C ratio  (gP/gC)
-!
+!DT                : 120.
+!NITROGEN            : 1          
+!PHOSPHORUS          : 1
+
+!MIN_OXY             : 1.e-5        ! Minimum oxygen concentration (mg/l)
+!PONDECAY            : 0.02          ! PON mineralization rate (1/day)
+!POPDECAY            : 0.03          ! POP mineralization rate (1/day)
+!NCRATIO             : 0.18          ! N/C ratio  (gN/gC)
+!PCRATIO             : 0.024         ! P/C ratio  (gP/gC)
+!GNKGDW              : 16.           ! gN to kg DW ratio in seagrasses
+!GPKGDW              : 1.8           ! gP to kg DW ratio in seagrasses
+
 !<begin_SeagrassesRates>
-! VMAXNH4W            [0.006] maximum ammonia uptake rate by leaves(gN/gC/day)
-! KNO3W               [0.007] half saturation constant for nitrate uptake by leaves  (gN/m3)
-! KNH4W               [0.007] half saturation constant for ammonia uptake by leaves(gN/m3)
+!VMAXNH4S            : 0.0017    !maximum ammonia uptake rate by roots(gN/gdw/day)
+!VMAXPO4S            : 0.21e-3   !maximum phosphate uptake rate by roots (gP/gdw/day)
+!KNH4S               : 0.9       !half saturation constant for ammonia uptake by roots (gN/m3)
+!KPO4S               : 0.017     !half saturation constant for phosphate uptake by roots  (gP/m3)
 !<end_SeagrassesRates>
 
 Module ModuleSeagrassSedimInteraction
@@ -134,6 +136,7 @@ Module ModuleSeagrassSedimInteraction
 
     type T_StoredIndex
          integer                                    :: UptakeNH4s           = 1
+         integer                                    :: UptakePO4s           = 2
     end Type T_StoredIndex
     
     
@@ -151,7 +154,9 @@ Module ModuleSeagrassSedimInteraction
         real                                        :: PC_Ratio             = null_real
         real                                        :: VmaxNH4              = null_real
         real                                        :: VmaxNO3              = null_real
+        real                                        :: VmaxPO4              = null_real
         real                                        :: KNH4                 = null_real
+        real                                        :: KPO4                 = null_real
         real                                        :: gNKgdw               = null_real
         real                                        :: gPKgdw               = null_real
   end type     T_Parameters
@@ -419,12 +424,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         
            
-       !Seagrasses  maximum NH4 uptake rate  1/day
+       !Seagrasses  maximum NH4 uptake rate  gN/gdw/day
         call GetData(Me%Parameters%VmaxNH4,                                   &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
-                     keyword      = 'VMAXNH4',                                &
-                     Default      = 0.0250,                                               &
+                     keyword      = 'VMAXNH4S',                                &
+                     Default      = 1.7e-3,                                               &
                      ClientModule = 'ModuleSeagrassSedimInteraction',                                 &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassSedimInteractionParameters - ModuleSeagrassSedimInteraction - ERR60'
@@ -435,14 +440,37 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(Me%Parameters%KNH4,                                   &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
-                     keyword      = 'KNH4',                                &
+                     keyword      = 'KNH4S',                                &
                      Default      = 0.9,                                               &
                      ClientModule = 'ModuleSeagrassSedimInteraction',                                 &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassSedimInteractionParameters - ModuleSeagrassSedimInteraction - ERR70'
+        
+        
+          !Seagrasses  maximum PO4 uptake rate  gP/gdw/day
+        call GetData(Me%Parameters%VmaxPO4,                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'VMAXPO4S',                                &
+                     Default      = 0.21e-3,                                               &
+                     ClientModule = 'ModuleSeagrassSedimInteraction',                                 &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassSedimInteractionParameters - ModuleSeagrassSedimInteraction - ERR72'
+       
+
+        
+     !Seagrasses  Half saturation const. for PO4 uptake   gP/m3
+        call GetData(Me%Parameters%KPO4,                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'KPO4S',                                &
+                     Default      = 0.017,                                               &
+                     ClientModule = 'ModuleSeagrassSedimInteraction',                                 &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassSedimInteractionParameters - ModuleSeagrassSedimInteraction - ERR74'
    
 
-        !Minimum oxygen concentration allowed in mg/l
+        !Minimum oxygen concentration allowed in mg/l (or g/m3, it is the same)
         call GetData(Me%Parameters%MinimumOxygen,                                          &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
@@ -457,7 +485,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'GNKGDW',                                &
-                     Default      = 19.,                                               &
+                     Default      = 16.,                                               &
                      ClientModule = 'ModuleSeagrassSedimInteraction',                                 &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassSedimInteractionParameters - ModuleSeagrassSedimInteraction - ERR89'
@@ -467,7 +495,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'GPKGDW',                                &
-                     Default      = 1.,                                               &
+                     Default      = 1.8,                                               &
                      ClientModule = 'ModuleSeagrassSedimInteraction',                                 &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassSedimInteractionParameters - ModuleSeagrassSedimInteraction - ERR98'
@@ -503,7 +531,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                          &
                      keyword      = 'PONDECAY',                                       &
-                     Default      = 0.1,                                               &
+                     Default      = 0.01,                                               &
                      ClientModule = 'ModuleSeagrassSedimInteraction',                                 &
                      STAT         = STAT_CALL)
     if(STAT_CALL .NE. SUCCESS_) stop 'ReadMineralisationParameters - ModuleSeagrassSedimInteraction - ERR02'
@@ -618,10 +646,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              Me%Prop%ILB:Me%Prop%IUB, &
                              Me%Prop%ILB:Me%Prop%IUB))
 
-     !UptakeNH4s   limiting factor  : 1
+     !UptakeNH4s     : 1
+     !UptakePO4s     : 2
 
   
-        allocate(Me%Rates(Me%Size%ILB:Me%Size%IUB, Me%StoredIndex%UptakeNH4s))  ! ATTENZIONE
+        allocate(Me%Rates(Me%Size%ILB:Me%Size%IUB, 1:2))  ! ATTENZIONE
     
 
     end subroutine ConstructRates
@@ -830,6 +859,10 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             case(RootsUptakeN_)
                 
                 RateFlux => Me%Rates    (:, Me%StoredIndex%UptakeNH4s ) 
+            
+            case(RootsUptakeP_)
+                
+                RateFlux => Me%Rates    (:, Me%StoredIndex%UptakePO4s ) 
                 
      !           case(SGGrossProd_)
 
@@ -955,6 +988,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                                 Mass,        &
                                 NintFactorR, &
                                 RootsMort,   &
+                                PintFactorR, &
                                 SedimCellVol,STAT)
                                 
  
@@ -964,6 +998,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer, dimension(:  ), pointer, optional  :: OpenPoints
         real,    dimension(:,:), pointer            :: Mass
         real,    dimension(:), pointer              :: NintFactorR
+        real,    dimension(:), pointer              :: PintFactorR
         real(8),    dimension(:), pointer              :: SedimCellVol
         real,    dimension(:), pointer              :: RootsMort
         integer, intent(OUT), optional              :: STAT
@@ -1046,9 +1081,10 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer, intent(IN)                         :: Index
 
         !Local-----------------------------------------------------------------
-        integer                                     :: NH4, PON, POP, R
+        integer                                     :: NH4, PO4, PON, POP, R
         real                                        :: UptakeNH4s
-        real                                        :: NintFactorR
+        real                                        :: UptakePO4s
+        real                                        :: NintFactorR, PintFactorR
         real                                        :: MortalityN, MortalityP
 
         ! Description
@@ -1064,6 +1100,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !Begin-----------------------------------------------------------------
 
         NH4     = Me%PropIndex%Ammonia  ! Index of the property Ammonia
+        PO4      = Me%PropIndex%Phosphate  ! Index of the property Phosphate
         PON     = Me%PropIndex%PON      ! Index of the property Particulate Organic Nitrogen
         POP     = Me%PropIndex%POP      ! Index of the property Particulate Organic Phosphorus
         R       = Me%PropIndex%Roots    ! Index of the property Roots
@@ -1100,15 +1137,50 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                                          UptakeNH4s                      *  & ! gN/m3/day  *
                                          Me%DTDay                             ! day
 
-     Me%ExternalVar%Mass(PON, Index)=Me%ExternalVar%Mass(PON, Index) + MortalityN * Me%DTDay 
-     Me%ExternalVar%Mass(POP, Index)=Me%ExternalVar%Mass(POP, Index) + MortalityP * Me%DTDay 
+
 
      ! The uptake of ammonia is stored in the array Me%Rates for further use
      ! by the module ModuleBenthicEcology
      ! Me%ExternalVar%SedimCellVol(index) is the volume of the sediment cell
      ! gN/day                                      = gN/m3/day * m3
      Me%Rates(Index, Me%StoredIndex%UptakeNH4s   ) = UptakeNH4s*Me%ExternalVar%SedimCellVol(index)  !
-   
+     
+     
+     
+     !gP/m3/day
+        UptakePO4s = Me%Parameters%VmaxPO4                               *  &  ! gP/gdw/day *
+                     PintFactorR                                         *  &  ! []        *
+                     Me%ExternalVar%Mass(R, Index)                       *  &  ! gdw/m3    *
+                     Me%ExternalVar%Mass(PO4, Index)                     /  &  ! gP/m3    /
+                     (Me%ExternalVar%Mass(PO4, Index)                    +  &  ! (gP/m3   +
+                     Me%Parameters%KPO4)                                       ! +gP/m3)  *
+
+   ! 
+      ! Phosphate is consumed by roots uptake:
+      ! gN/m3   
+      Me%ExternalVar%Mass(PO4, Index)  = Me%ExternalVar%Mass(PO4, Index) -  & ! gN/m3      - 
+                                         UptakePO4s                      *  & ! gN/m3/day  *
+                                         Me%DTDay                             ! day
+
+
+
+     ! The uptake of ammonia is stored in the array Me%Rates for further use
+     ! by the module ModuleBenthicEcology
+     ! Me%ExternalVar%SedimCellVol(index) is the volume of the sediment cell
+     ! gN/day                                      = gN/m3/day * m3
+     Me%Rates(Index, Me%StoredIndex%UptakeNH4s   ) = UptakeNH4s*Me%ExternalVar%SedimCellVol(index)  !
+    
+     ! The uptake of phosphate is stored in the array Me%Rates for further use
+     ! by the module ModuleBenthicEcology
+     ! Me%ExternalVar%SedimCellVol(index) is the volume of the sediment cell
+     ! gP/day                                      = gP/m3/day * m3
+     Me%Rates(Index, Me%StoredIndex%UptakePO4s   ) = UptakePO4s*Me%ExternalVar%SedimCellVol(index)  !
+     
+     
+    ! Mortality of roots is added to PON and POP in the sediment
+     
+     Me%ExternalVar%Mass(PON, Index)=Me%ExternalVar%Mass(PON, Index) + MortalityN * Me%DTDay 
+     Me%ExternalVar%Mass(POP, Index)=Me%ExternalVar%Mass(POP, Index) + MortalityP * Me%DTDay 
    
     end subroutine ComputeSeagrassSedimInteraction
     

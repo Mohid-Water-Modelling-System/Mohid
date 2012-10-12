@@ -379,7 +379,9 @@ Module ModuleGlobalData
     integer, parameter :: NintFactor_                       = 875
     integer, parameter :: PintFactor_                       = 876
     integer, parameter :: NintFactorR_                      = 877
-    integer, parameter :: RootsMort_                        = 878    
+    integer, parameter :: RootsMort_                        = 878  
+    integer, parameter :: PintFactorR_                      = 879
+    integer, parameter :: RootsUptakeP_                     = 880  
     
     !Hydrodynamic Properties
     integer, parameter :: WaterLevel_                       = 86
@@ -1031,8 +1033,10 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_LeavesUptakeP         = 'leavesuptakep'   
     character(StringLength), private, parameter :: Char_LeavesLightFactor     = 'leaveslightfactor'
     character(StringLength), private, parameter :: Char_RootsUptakeN          = 'rootsuptaken'
+    character(StringLength), private, parameter :: Char_RootsUptakeP          = 'rootsuptakep'
     character(StringLength), private, parameter :: Char_NintFactor            = 'internal nitrogen function leaves'
     character(StringLength), private, parameter :: Char_NintFactorR           = 'internal nitrogen function roots'
+    character(StringLength), private, parameter :: Char_PintFactorR           = 'internal phosphorus function roots'
     character(StringLength), private, parameter :: Char_PintFactor            = 'internal phosphorus function leaves'
     character(StringLength), private, parameter :: Char_RootsMort             = 'roots mortality'
 
@@ -2361,9 +2365,11 @@ Module ModuleGlobalData
             call AddPropList (LeavesUptakeP_ ,          Char_LeavesUptakeP ,            ListNumber)
             call AddPropList (LeavesLightFactor_ ,      Char_LeavesLightFactor ,        ListNumber)
             call AddPropList (RootsUptakeN_ ,           Char_RootsUptakeN ,             ListNumber)
+            call AddPropList (RootsUptakeP_ ,           Char_RootsUptakeP ,             ListNumber)
             call AddPropList (NintFactor_ ,             Char_NintFactor ,               ListNumber)
-            call AddPropList (NintFactorR_ ,            Char_NintFactorR ,               ListNumber)
+            call AddPropList (NintFactorR_ ,            Char_NintFactorR ,              ListNumber)
             call AddPropList (PintFactor_ ,             Char_PintFactor ,               ListNumber)
+            call AddPropList (PintFactorR_ ,            Char_PintFactorR ,              ListNumber)
             call AddPropList (RootsMort_ ,              Char_RootsMort ,                ListNumber)
 
 !____POM pools (for aquaculture cages)__________________________________________    

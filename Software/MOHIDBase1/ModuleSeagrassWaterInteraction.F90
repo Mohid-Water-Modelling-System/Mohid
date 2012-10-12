@@ -29,18 +29,18 @@
 !------------------------------------------------------------------------------
 ! 
 !DataFile
-!   DT                  : 3600    !Time step compute biogeochemical processes
-!
-!   NITROGEN            : 1     ! Compute option (0/1)
-!   PHOSPHORUS          : 1     ! Compute option (0/1)
-!
+!DT                : 120.
+
+!NITROGEN            : 1          
+!PHOSPHORUS          : 1
+
 !<begin_SeagrassesRates>
-! VMAXNO3W       :     0.0044 ! maximum nitrate uptake rate by leaves  (gN/gC/day)
-! VMAXNH4W       :     0.006  ! maximum ammonia uptake rate by leaves(gN/gC/day)
-! VMAXPO4W       :     0.0044 ! maximum phosphate uptake rate by leaves(gP/gC/day)
-! KNO3W          :     0.23   ! half saturation constant for nitrate uptake by leaves  (gN/m3)
-! KNH4W          :     0.13   ! half saturation constant for ammonia uptake by leaves(gN/m3)
-! KPO4W          :     0.23   ! half saturation constant for phosphate uptake by leaves(gP/m3)
+!VMAXNH4W            : 0.0017   !maximum ammonia uptake rate by leaves(gN/gdw/day)
+!VMAXNO3W            : 0.0017   !maximum nitrate uptake rate by leaves(gN/gdw/day)
+!VMAXPO4W            : 0.21e-3  !maximum phosphate uptake rate by leaves(gP/gdw/day)
+!KNO3W               : 0.12     !half saturation constant for nitrate uptake by leaves  (gN/m3)
+!KNH4W               : 0.13     !half saturation constant for ammonia uptake by leaves(gN/m3)
+!KPO4W               : 0.017    !half saturation constant for phosphate uptake by leaves  (gP/m3)
 !<end_SeagrassesRates>
 
 Module ModuleSeagrassWaterInteraction
@@ -146,8 +146,6 @@ Module ModuleSeagrassWaterInteraction
         real                                        :: KNO3                 = null_real
         real                                        :: KPO4                 = null_real
         real                                        :: Photoinhibition      = null_real
-        real                                        :: gNkgdw               = null_real  
-        real                                        :: gPkgdw               = null_real
   end type     T_Parameters
 
     type       T_Seagrasses       
@@ -413,7 +411,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'VMAXNH4W',                                &
-                     Default      = 0.006,                                               &
+                     Default      = 1.7e-3,                                               &
                      ClientModule = 'ModuleSeagrassWaterInteraction',                                 &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadWaterInteractionParameters - ModuleSeagrassWaterInteraction - ERR60'
@@ -423,7 +421,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'VMAXNO3W',                                &
-                     Default      = 0.0044,                                               &
+                     Default      = 1.07e-3,                                               &
                      ClientModule = 'ModuleSeagrassWaterInteraction',                                 &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadWaterInteractionParameters - ModuleSeagrassWaterInteraction - ERR60'
@@ -432,7 +430,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'VMAXPO4W',                                &
-                     Default      = 0.0044,                                               &
+                     Default      = 2.1e-4,                                               &
                      ClientModule = 'ModuleSeagrassWaterInteraction',                                 &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadWaterInteractionParameters - ModuleSeagrassWaterInteraction - ERR65'
@@ -453,7 +451,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'KNO3W',                                &
-                     Default      = 0.23,                                               &
+                     Default      = 0.12,                                               &
                      ClientModule = 'ModuleSeagrassWaterInteraction',                                 &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadWaterInteractionParameters - ModuleSeagrassWaterInteraction - ERR70'
@@ -463,7 +461,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'KPO4W',                                &
-                     Default      = 0.23,                                               &
+                     Default      = 0.017,                                               &
                      ClientModule = 'ModuleSeagrassWaterInteraction',                                 &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadWaterInteractionParameters - ModuleSeagrassWaterInteraction - ERR75'
@@ -498,23 +496,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadWaterInteractionParameters - ModuleSeagrassWaterInteraction - ERR90'
    
    
-    call GetData(Me%Parameters%gNkgdw,                                        &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromBlock,                                          &
-                     keyword      = 'GNKGDW',                                          &
-                     Default      = 19.,                                               &
-                     ClientModule = 'ModuleSeagrassWaterInteraction',                                 &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ReadWaterInteractionParameters - ModuleSeagrassWaterInteraction - ERR91'
-        
-            call GetData(Me%Parameters%gPkgdw,                                        &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromBlock,                                          &
-                     keyword      = 'GPKGDW',                                          &
-                     Default      = 1.,                                               &
-                     ClientModule = 'ModuleSeagrassWaterInteraction',                                 &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ReadWaterInteractionParameters - ModuleSeagrassWaterInteraction - ERR92'
 
     end subroutine ReadWaterInteractionParameters
 
