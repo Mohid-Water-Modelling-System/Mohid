@@ -253,6 +253,7 @@ Module ModuleDischarges
          integer                                :: TimeSerie        = 0
          logical                                :: TimeSerieOnOut
          integer                                :: TimeSerieOut     = 0
+         logical                                :: UseOriginalValues
          type(T_WaterFlow          )            :: WaterFlow   
          type(T_WaterVelocity      )            :: VelocityFlow
          integer                                :: DischargeType
@@ -1039,9 +1040,20 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
         !Start TimeSerie Input
         if (NewDischarge%TimeSerieON) then
-            call StartTimeSerieInput(NewDischarge%TimeSerie, NewDischarge%DataBaseFile,  &
+            call StartTimeSerieInput(NewDischarge%TimeSerie, NewDischarge%DataBaseFile, &
                                      Me%ObjTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR20'
+            
+            call GetData(NewDischarge%UseOriginalValues,                                &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromFile,                                                      &
+                         keyword      = 'USE_ORIGINAL_VALUES',                          &
+                         default      = .false.,                                        &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR21'
+
         end if 
         
 
@@ -2654,9 +2666,18 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                 if (TimeCycle) then
                     NewValue = Value1
                 else
-                    !Interpolates Value for current instant
-                    call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,     &
-                                                NewValue)
+                    
+                    if(DischargeX%UseOriginalValues)then
+                    
+                        NewValue = Value1
+                        
+                    else
+                
+                        !Interpolates Value for current instant
+                        call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,     &
+                                                    NewValue)
+                    end if
+                    
                 endif
 
                 Flow = NewValue
@@ -2868,9 +2889,16 @@ cd2:            if (DischargeX%VelocityFlow%UVariable) then
                     if (TimeCycle) then
                         NewValue = Value1
                     else
-                        !Interpolates Value for current instant
-                        call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,     &
-                                                    NewValue)
+                        if(DischargeX%UseOriginalValues)then
+                    
+                            NewValue = Value1
+                        
+                        else
+                    
+                            !Interpolates Value for current instant
+                            call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,     &
+                                                        NewValue)
+                        end if
                     endif
 
                     VelocityU = NewValue
@@ -2894,9 +2922,16 @@ cd6:            if (DischargeX%VelocityFlow%VVariable) then
                     if (TimeCycle) then
                         NewValue = Value1
                     else
-                        !Interpolates Value for current instant
-                        call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,     &
-                                                    NewValue)
+                        if(DischargeX%UseOriginalValues)then
+                    
+                            NewValue = Value1
+                        
+                        else
+                
+                            !Interpolates Value for current instant
+                            call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,     &
+                                                        NewValue)
+                        end if
                     endif
 
                     VelocityV = NewValue
@@ -3061,9 +3096,16 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
                     if (TimeCycle) then
                         NewValue = Value1
                     else
-                        !Interpolates Value for current instant
-                        call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2, &
-                                                    NewValue)
+                        if(DischargeX%UseOriginalValues)then
+                    
+                        NewValue = Value1
+                        
+                        else
+                    
+                            !Interpolates Value for current instant
+                            call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,     &
+                                                        NewValue)
+                        end if
                     endif
 
                     Concentration = NewValue
