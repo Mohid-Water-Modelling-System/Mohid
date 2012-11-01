@@ -42,11 +42,11 @@
 ! OUTPUT_FETCH_DEPTHS       : logical     .false.    !Output fetch depths in each direction (grid data) (read if WAVEGEN_TYPE : 1)
 
 ! Poligon block for DISTANCE_TO_LAND_METHOD : 1
-! <begin_landareafiles>
+! <Begin_LandAreaFiles>
 !   Polygon1.xy
 !   Poligon2.xy
 !    ...
-! <end_landareafiles>
+! <End_LandAreaFiles>
 
 !<begin_[property]>
 ! NAME                      : wave height/ wave period / ... 
@@ -1607,6 +1607,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         if(y < 0 .or. x < 0) exit 
 
                     enddo
+                    
+                    if(CountDepthValues == 0)then
+                        SumDepth         = SumDepth + Me%ExternalVar%Bathymetry(i,j)
+                        CountDepthValues = CountDepthValues + 1
+                    endif
             
                     Me%Distance(i,j, Direction)    = DistanceToLand
                     Me%AverageDepth(i,j,Direction) = Me%MeanSeaLevel + (SumDepth / CountDepthValues)
@@ -3254,7 +3259,7 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
             if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaves - ERR30'
 
             !Writes OpenPoints
-            call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints", "OpenPoints2D",        &
+            call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints", "OpenPoints",          &
                                  "-", Array2D = Me%ExternalVar%OpenPoints2D,            &
                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaves - ERR40'
@@ -3520,7 +3525,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     endif
                     if (Me%DepthType.eq.DepthAverage .or. Me%DepthType.eq.DepthDefined) then
                         deallocate(Me%AverageDepth)
-                        deallocate(Me%Depth)
+                        if(Me%FetchDirections .eq. 16)then
+                            nullify(Me%Depth)
+                        else
+                            deallocate(Me%Depth)
+                        endif
                     endif
                 endif
                 
