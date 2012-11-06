@@ -58,7 +58,13 @@ Module ModuleDrawing
     
     public  ::    ArrayPolygonWindow
     public  ::    CellInterSectCell
+    public  ::    SegIntersectLine
     public  ::    SegIntersectSeg
+    
+    interface     SegIntersectSeg
+        module procedure SegIntersectSegR4
+        module procedure SegIntersectSegR8
+    end interface SegIntersectSeg    
    
     private ::    NewPolygon
     private ::    NewXYZPoint
@@ -85,9 +91,12 @@ Module ModuleDrawing
 
     private ::    SetLimitsPolygon
     private ::    SetLimitsXYZ
+    private ::    SetLimitsLine    
+    
     interface     SetLimits
         module procedure SetLimitsPolygon
         module procedure SetLimitsXYZ
+        module procedure SetLimitsLine
     end interface SetLimits
 
     private ::    WriteItemPolygon
@@ -109,7 +118,8 @@ Module ModuleDrawing
     private :: CreateDomainPolygon
     private :: LocateCellPolygonsV2
     private :: PointInsideCell
-
+   
+    
     !Parameter-----------------------------------------------------------------
     integer(4), parameter  :: TypeX_Y_Z     =  1
     integer(4), parameter  :: TypeX_Y_Z_P   =  2    
@@ -176,6 +186,7 @@ Module ModuleDrawing
         integer                                 :: ID           = null_int
         real, dimension(:), pointer             :: X
         real, dimension(:), pointer             :: Y
+        type(T_Limits)                          :: Limits        
         integer                                 :: nNodes    
         type(T_Lines) , pointer                 :: Next
     end type T_Lines
@@ -399,6 +410,8 @@ if2 :               if (BlockFound) then
                 endif
             enddo
         end if
+        
+        call SetLimits(Lines)        
 
         call KillEnterData(ObjEnterData, ret)
 
@@ -803,6 +816,23 @@ if2 :               if (BlockFound) then
     
     !--------------------------------------------------------------------------
 
+    
+    subroutine SetLimitsLine(Line)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Lines), pointer                  :: Line
+        
+        !Begin-----------------------------------------------------------------
+
+        Line%Limits%Left   = minval(Line%X)
+        Line%Limits%Right  = maxval(Line%X)
+        Line%Limits%Bottom = minval(Line%Y)
+        Line%Limits%Top    = maxval(Line%Y)
+
+    end subroutine SetLimitsLine
+    
+    !--------------------------------------------------------------------------
+    
     subroutine SetLimitsXYZ(XYZ)
 
         !Arguments-------------------------------------------------------------
@@ -2506,6 +2536,7 @@ i6:                         if (DirectionX.ne.0.) then
     end subroutine IntersectionBoundCell   
 
 
+
     subroutine IntersectionBoundCellV2(XX,YY, WindowInAux, ILB, IUB, JLB, JUB, &
                                        Intersect, WindowInIndex, GridCornerInside, Count)
 
@@ -2646,20 +2677,91 @@ i6:                         if (DirectionX.ne.0.) then
         
     end subroutine IntersectionBoundCellV2   
 
- !Checks if a segment (x1,y1,x2,y2) intersect nother segment (x3, y3, x4, y4)
-    logical function SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)
+ !Checks if a segment (x1,y1,x2,y2) intersect a line 
+    logical function SegIntersectLine(x1,y1,x2,y2, LineX, LineAng)
         !Arguments--------------------------------------------------
-        real                         :: x1,y1,x2,y2, x3, y3, x4, y4
+        real                         :: x1,y1,x2,y2
+        type (T_Lines), pointer      :: LineX
+        real, optional               :: LineAng
         !Local------------------------------------------------------
-        real                         :: xi, yi, d
+        type (T_Lines), pointer      :: AuxLine
+        real(8)                      :: x1_r8,y1_r8,x2_r8,y2_r8,x3,y3,x4,y4
+        real                         :: dx, dy    
+        integer                      :: n    
+        logical                      :: SearchSeg
         !Begin------------------------------------------------------
 
-        SegIntersectSeg = .true.
+        SegIntersectLine = .false.
+        
+        SearchSeg        = .true.
+        
+        x1_r8 = x1
+        y1_r8 = y1                
+        x2_r8 = x2
+        y2_r8 = y2
+        
+        
+        AuxLine => LineX
+
+        do while (associated(AuxLine))
+        
+                
+            if (y1_r8 > AuxLine%Limits%Top    .and. y2_r8 > AuxLine%Limits%Top   ) SearchSeg = .false. 
+            if (y1_r8 < AuxLine%Limits%Bottom .and. y2_r8 < AuxLine%Limits%Bottom) SearchSeg = .false.        
+
+            if (x1_r8 > AuxLine%Limits%Right  .and. x2_r8 > AuxLine%Limits%right ) SearchSeg = .false.
+            if (x1_r8 < AuxLine%Limits%Left   .and. x2_r8 < AuxLine%Limits%left  ) SearchSeg = .false.        
+            
+            if (SearchSeg) then
+            
+                do n=1, AuxLine%nNodes-1
+
+                    x3 = AuxLine%X(n)
+                    y3 = AuxLine%Y(n)
+                    x4 = AuxLine%X(n+1)
+                    y4 = AuxLine%Y(n+1)
+                    
+                    if (SegIntersectSeg(x1_r8,y1_r8,x2_r8,y2_r8, x3, y3, x4, y4)) then
+                        SegIntersectLine = .true. 
+                        if (present(LineAng)) then
+                            dx = x4-x3
+                            dy = y4-y3
+                            LineAng = atan2(dy, dx)
+                        endif                        
+                        exit
+                    endif
+                    
+                enddo                
+                
+                if (SegIntersectLine) then
+                    exit
+                endif
+                
+            endif
+                            
+            AuxLine => AuxLine%Next
+        enddo
+        
+        nullify(AuxLine)
+        
+
+    end function SegIntersectLine
+
+
+ !Checks if a segment (x1,y1,x2,y2) intersect another segment (x3, y3, x4, y4)
+    logical function SegIntersectSegR4(x1,y1,x2,y2, x3, y3, x4, y4)
+        !Arguments--------------------------------------------------
+        real(4)                      :: x1,y1,x2,y2, x3, y3, x4, y4
+        !Local------------------------------------------------------
+        real(4)                      :: xi, yi, d
+        !Begin------------------------------------------------------
+
+        SegIntersectSegR4 = .true.
 
         d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
-        if (d == 0) SegIntersectSeg = .false.
+        if (d == 0) SegIntersectSegR4 = .false.
         
-        if (SegIntersectSeg) then
+        if (SegIntersectSegR4) then
         
             xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d
             
@@ -2668,26 +2770,69 @@ i6:                         if (DirectionX.ne.0.) then
             else if (abs(x3-x4)>0) then
                 yi = y4 + (y3-y4)/(x3-x4) * (xi-x4)
             else
-                SegIntersectSeg = .false.
+                SegIntersectSegR4 = .false.
             endif
             
-            if (SegIntersectSeg) then
+            if (SegIntersectSegR4) then
             
                 if (abs(x1-x2) > abs(y1-y2)) then
-                    if (xi < min(x1,x2) .or. xi > max(x1,x2)) SegIntersectSeg = .false.
+                    if (xi < min(x1,x2) .or. xi > max(x1,x2)) SegIntersectSegR4 = .false.
                 else
-                    if (yi < min(y1,y2) .or. yi > max(y1,y2)) SegIntersectSeg = .false.
+                    if (yi < min(y1,y2) .or. yi > max(y1,y2)) SegIntersectSegR4 = .false.
                 endif 
 
                 if (abs(x3-x4) > abs(y3-y4)) then
-                    if (xi < min(x3,x4) .or. xi > max(x3,x4)) SegIntersectSeg = .false.        
+                    if (xi < min(x3,x4) .or. xi > max(x3,x4)) SegIntersectSegR4 = .false.        
                 else
-                    if (yi < min(y3,y4) .or. yi > max(y3,y4)) SegIntersectSeg = .false.
+                    if (yi < min(y3,y4) .or. yi > max(y3,y4)) SegIntersectSegR4 = .false.
                 endif
             endif
         endif
     
-    end function SegIntersectSeg    
+    end function SegIntersectSegR4    
+
+ !Checks if a segment (x1,y1,x2,y2) intersect another segment (x3, y3, x4, y4)
+    logical function SegIntersectSegR8(x1,y1,x2,y2, x3, y3, x4, y4)
+        !Arguments--------------------------------------------------
+        real(8)                      :: x1,y1,x2,y2, x3, y3, x4, y4
+        !Local------------------------------------------------------
+        real(8)                      :: xi, yi, d
+        !Begin------------------------------------------------------
+
+        SegIntersectSegR8 = .true.
+
+        d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
+        if (d == 0) SegIntersectSegR8 = .false.
+        
+        if (SegIntersectSegR8) then
+        
+            xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d
+            
+            if      (abs(x1-x2)>0) then
+                yi = y2 + (y1-y2)/(x1-x2) * (xi-x2)
+            else if (abs(x3-x4)>0) then
+                yi = y4 + (y3-y4)/(x3-x4) * (xi-x4)
+            else
+                SegIntersectSegR8 = .false.
+            endif
+            
+            if (SegIntersectSegR8) then
+            
+                if (abs(x1-x2) > abs(y1-y2)) then
+                    if (xi < min(x1,x2) .or. xi > max(x1,x2)) SegIntersectSegR8 = .false.
+                else
+                    if (yi < min(y1,y2) .or. yi > max(y1,y2)) SegIntersectSegR8 = .false.
+                endif 
+
+                if (abs(x3-x4) > abs(y3-y4)) then
+                    if (xi < min(x3,x4) .or. xi > max(x3,x4)) SegIntersectSegR8 = .false.        
+                else
+                    if (yi < min(y3,y4) .or. yi > max(y3,y4)) SegIntersectSegR8 = .false.
+                endif
+            endif
+        endif
+    
+    end function SegIntersectSegR8    
 
 
 end module ModuleDrawing
