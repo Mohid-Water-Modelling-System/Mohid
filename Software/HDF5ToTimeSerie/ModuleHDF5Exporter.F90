@@ -609,6 +609,7 @@ Module ModuleExportHDF5ToTimeSerie
 
         !Call StartComputeTime for the whole Time Serie
         call StartComputeTime(Me%ObjTime, Me%FirstTSHDF5File%InstantsArray(1),      &
+                              Me%FirstTSHDF5File%InstantsArray(1),      &
                               Me%LastTSHDF5File%InstantsArray                       &
                               (Me%LastTSHDF5File%NumberOfInstants),                 &
                               DT = Me%DT, VariableDT = Me%VariableDT, STAT = STAT_CALL)
