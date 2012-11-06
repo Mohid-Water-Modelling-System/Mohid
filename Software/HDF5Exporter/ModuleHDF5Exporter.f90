@@ -662,6 +662,7 @@ Module ModuleExportHDF5ToTimeSerie
         !Begin-----------------------------------------------------------------
 
         !Call StartComputeTime for the whole Time Serie
+        call GetSystemTime  (InitialSystemTime)
         call StartComputeTime(Me%ObjTime, Me%FirstTSHDF5File%InstantsArray(1), Me%FirstTSHDF5File%InstantsArray(1),      &
                               Me%LastTSHDF5File%InstantsArray                       &
                               (Me%LastTSHDF5File%NumberOfInstants),                 &
@@ -2419,7 +2420,7 @@ do2:        do item = 1, nItems
                         do i = 1, Me%Size2D%IUB
                         do j = 1, Me%Size2D%JUB
                             
-                            if ((mask_2d(i,j) > 0) .and. (Me%WaterPoints2D(i,j))) then
+                            if ((mask_2d(i,j) > 0) .and. (Me%WaterPoints2D(i,j) == 1)) then
                                 TS => Me%FirstTimeSeriesData
 do_ts1:                         do while (associated(TS))
                                     if (mask_2d(i, j) == TS%ID) then
@@ -2461,7 +2462,7 @@ do_ts1:                         do while (associated(TS))
                         do i = 1, Me%Size2D%IUB
                         do j = 1, Me%Size2D%JUB
                             
-                            if ((mask_2d(i,j) > 0) .and. (Me%WaterPoints2D(i,j))) then
+                            if ((mask_2d(i,j) > 0) .and. (Me%WaterPoints2D(i,j) == 1)) then
                                 TS => Me%FirstTimeSeriesData
 do_ts2:                         do while (associated(TS))
                                     if (mask_2d(i, j) == TS%ID) then
@@ -2501,7 +2502,7 @@ do_ts2:                         do while (associated(TS))
                             do j = 1, Me%Size3D%JUB
                             do k = 1, Me%Size3D%KUB
                                 
-                                if ((mask_3d(i,j,k) > 0) .and. (Me%WaterPoints3D(i,j,k))) then
+                                if ((mask_3d(i,j,k) > 0) .and. (Me%WaterPoints3D(i,j,k) == 1)) then
                                     TS => Me%FirstTimeSeriesData
 do_ts3:                             do while (associated(TS))
                                         if (mask_3d(i,j,k) == TS%ID) then
@@ -2544,7 +2545,7 @@ do_ts3:                             do while (associated(TS))
                             do j = 1, Me%Size3D%JUB
                             do k = 1, Me%Size3D%KUB
                                 
-                                if ((mask_3d(i,j,k) > 0) .and. (Me%WaterPoints3D(i,j,k))) then
+                                if ((mask_3d(i,j,k) > 0) .and. (Me%WaterPoints3D(i,j,k) == 1)) then
                                     TS => Me%FirstTimeSeriesData
 do_ts4:                             do while (associated(TS))
                                         if (mask_3d(i,j,k) == TS%ID) then
@@ -2585,7 +2586,7 @@ do_ts4:                             do while (associated(TS))
                             do i = 1, Me%Size3D%IUB
                             do j = 1, Me%Size3D%JUB                            
                                 
-                                if ((mask_3d(i,j,k) > 0) .and. (Me%WaterPoints3D(i,j,k))) then
+                                if ((mask_3d(i,j,k) > 0) .and. (Me%WaterPoints3D(i,j,k) == 1)) then
                                     TS => Me%FirstTimeSeriesData
 do_ts5:                             do while (associated(TS))
                                         if (mask_3d(i,j,k) == TS%ID) then
@@ -2626,7 +2627,7 @@ do_ts5:                             do while (associated(TS))
                             do i = 1, Me%Size3D%IUB
                             do j = 1, Me%Size3D%JUB                            
                                 
-                                if ((mask_3d(i,j,k) > 0) .and. (Me%WaterPoints3D(i,j,k))) then
+                                if ((mask_3d(i,j,k) > 0) .and. (Me%WaterPoints3D(i,j,k) == 1)) then
                                     TS => Me%FirstTimeSeriesData
 do_ts6:                             do while (associated(TS))
                                         if (mask_3d(i,j,k) == TS%ID) then
@@ -2696,7 +2697,7 @@ do_ts6:                             do while (associated(TS))
                 TS       => Me%FirstTimeSeriesData                
                 ts_index = 1
                 do while (associated(TS))
-                    call WriteSpecificTimeSerieLine(Me%ObjTimeSerie, ts_index, TS%ParamsData, STAT = STAT_CALL)
+                    !call WriteSpecificTimeSerieLine(Me%ObjTimeSerie, ts_index, TS%ParamsData, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR030'
                         
