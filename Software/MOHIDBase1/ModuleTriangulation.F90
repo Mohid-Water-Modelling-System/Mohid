@@ -67,6 +67,9 @@ Module ModuleTriangulation
     public  :: GetReaches
     public  :: GetNumberOfBoundaryNodes
     public  :: GetBoundaryNodes
+    public  :: GetVoronoiAreaNodes
+    public  :: GetNeighborNodesNumber
+    public  :: GetNeighborNodesIndex
 
     !Destructor
     public  :: KillTriangulation
@@ -129,7 +132,7 @@ Module ModuleTriangulation
         real                                        :: X
         real                                        :: Y
         real                                        :: Z
-        integer                                     :: nNeighbor
+        integer                                     :: nNeighbor = 0
         logical                                     :: Boundary
         integer                                     :: State
         real                                        :: VoronoiArea
@@ -202,8 +205,9 @@ Module ModuleTriangulation
     !must be called. This routine is designed to serve the Mohid model to 
     !interpolate Gauge levels at the open boundary
     !
-    subroutine ConstructTriangulationXY(TriangulationID,                       &
-                                        NumberOfNodes, NodeX, NodeY, WriteTriangles, STAT)
+    subroutine ConstructTriangulationXY(TriangulationID,                    &
+                                        NumberOfNodes, NodeX, NodeY,        &
+                                        WriteTriangles, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: TriangulationID
@@ -299,7 +303,6 @@ Module ModuleTriangulation
                          Me%Lptr, Me%Lend,                   &
                          Me%BNodes, Me%NumberOfBoundaryNodes,&
                          Me%NumberOfArcs, Me%NumberOfTriangles)
-
 
             !Returns ID
             TriangulationID    = Me%InstanceID
@@ -761,7 +764,9 @@ doEdge:     do iE = 1, 2 * Me%NumberOfArcs
         enddo
         
 
-        Me%HaveHeightValues = .true.
+        Me%HaveHeightValues   = .true.
+        Me%Nodes(:)%nNeighbor = 0
+        
         do iN = 1, Me%NumberOfNodes
             Me%Nodes(iN)%X         = NodeX(iN)
             Me%Nodes(iN)%Y         = NodeY(iN)
@@ -1954,7 +1959,151 @@ CurReach:   do while (associated(CurrentReach))
 
     end subroutine GetBoundaryNodes
 
+    !--------------------------------------------------------------------------
 
+    subroutine GetVoronoiAreaNodes (TriangulationID, VoronoiArea, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TriangulationID
+        real,    dimension(:), pointer              :: VoronoiArea
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_, iN             
+        integer                                     :: STAT_
+
+
+        !----------------------------------------------------------------------                         
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TriangulationID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+
+            do iN = 1, Me%NumberOfNodes
+                VoronoiArea(iN) = Me%Nodes(iN)%VoronoiArea
+            enddo
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT)) STAT = STAT_
+
+        !------------------
+
+    end subroutine GetVoronoiAreaNodes
+
+                    
+
+    !--------------------------------------------------------------------------
+   !--------------------------------------------------------------------------
+
+    subroutine GetNeighborNodesNumber (TriangulationID, iN, nNeighborNumber, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TriangulationID
+        integer          , intent(IN )              :: iN
+        integer          , intent(OUT)              :: nNeighborNumber
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+     
+        integer                                     :: ready_           
+        integer                                     :: STAT_
+
+
+        !Begin-----------------------------------------------------------------         
+        STAT_ = UNKNOWN_
+
+        call Ready(TriangulationID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then                       
+
+            nNeighborNumber = Me%Nodes(iN)%nNeighbor
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT)) STAT = STAT_
+
+        !------------------        
+    end subroutine GetNeighborNodesNumber  
+    
+    !------------------------------------------------------------------------ 
+ 
+    subroutine GetNeighborNodesIndex (TriangulationID, iN, nNeighborIndex, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TriangulationID
+        integer                                     :: iN
+        integer, dimension(:), pointer              :: nNeighborIndex
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        type (T_DirectedEdge), pointer              :: CurrentEdge        
+        integer                                     :: ready_, iE             
+        integer                                     :: STAT_
+        logical                                     :: NoError
+
+
+        !Begin-----------------------------------------------------------------         
+        STAT_   = UNKNOWN_
+        NoError = .true.        
+
+        call Ready(TriangulationID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then                       
+
+            if (associated(Me%Nodes)) then
+                if (size(Me%Nodes) > iN) then 
+                
+
+                    CurrentEdge => Me%Nodes(iN)%FirstEdge
+                    do iE = 1, Me%Nodes(iN)%nNeighbor
+                        if (associated(CurrentEdge)) then
+                            if (CurrentEdge%StartNode == iN) then
+                                nNeighborIndex(iE) = CurrentEdge%EndNode
+                            else
+                                nNeighborIndex(iE) = CurrentEdge%StartNode
+                            endif
+                            CurrentEdge => CurrentEdge%CounterClockEdge
+                        else
+                            NoError = .false.
+                            exit                            
+                        endif
+                    enddo
+            
+                    nullify(CurrentEdge)
+
+                    if (NoError) then
+                        STAT_ = SUCCESS_
+                    else
+                        write(*,*) 'GetNeighborNodesIndex - ModuleTrangulation - ERR10'
+                    endif                                                
+                endif
+            endif                                    
+        else 
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT)) STAT = STAT_
+
+        !------------------        
+ end subroutine GetNeighborNodesIndex   
+      
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
