@@ -3725,7 +3725,9 @@ cd11:                        if (Me%State%FirstStepAP) then
                             else   cd11
 
     
-                                Me%Var%DiffCoef      = Me%Var%alfa * ((Me%Var%alfa_old / Me%Var%DiffCoef)**2 + DT)**(-1.0/2.0)
+                                Me%Var%DiffCoef      = Me%Var%alfa / sqrt((Me%Var%alfa_old / Me%Var%DiffCoef)**2 + DT)
+                                
+                                
 
                                 Me%Var%alfa_old      = Me%Var%alfa
       
