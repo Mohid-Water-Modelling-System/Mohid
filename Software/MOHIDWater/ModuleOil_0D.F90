@@ -347,6 +347,7 @@ Module ModuleOil_0D
         type(T_Time)                        :: BeginTime
         type(T_Time)                        :: EndTime
 
+        logical                             :: BackTracking
 
         real                                :: Area
 
@@ -535,6 +536,7 @@ Module ModuleOil_0D
         type(T_Time)            :: NextInternalComputeTime
         type(T_Time)            :: NextActiveComputeTime
         type(T_Time)            :: Now
+        type(T_Time)            :: BeginTime
 
         !Instance of ModuleTime
         integer                 :: ObjTime = 0
@@ -629,15 +631,20 @@ Module ModuleOil_0D
             Me%ObjEnterData      = AssociateInstance (mENTERDATA_,      EnterDataID     )
 
             !Gets Time
-            call GetComputeTimeLimits(Me%ObjTime,                                        &
-                                      Me%ExternalVar%EndTime,                            &
-                                      Me%ExternalVar%BeginTime,                          &
+            call GetComputeTimeLimits(Me%ObjTime,                                       &
+                                      BeginTime = Me%ExternalVar%BeginTime,             &
+                                      EndTime   = Me%ExternalVar%EndTime,               &
                                       STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'StartOil - ModuleOil_0D - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'StartOil - ModuleOil_0D - ERR10'
 
             ! Actualized the time
             call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)                    
-            if (STAT_CALL /= SUCCESS_) stop 'StartOil - ModuleOil_0D - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'StartOil - ModuleOil_0D - ERR20'
+
+            ! Check if the simulation goes backward in time or forward in time (default mode)
+            call GetBackTracking(Me%ObjTime,                                            &
+                                 Me%ExternalVar%BackTracking, STAT = STAT_CALL)                    
+            if (STAT_CALL /= SUCCESS_) stop 'StartOil - ModuleOil_0D - ERR30'
 
 
 
@@ -689,6 +696,8 @@ ifContCalc: if (.NOT. ContCalc ) then
 
                 !initialization of some properties
                 if (Me%Var%OilEmulsification) Me%Var%MaxVWaterContent = F_MaxVWaterContent()
+                
+                if (Me%Var%MaxVWaterContent < 1e-6) Me%Var%OilEmulsification = .false. 
             
                 Me%Var%SolubilityOilInWater = SolubilityFreshOil
 
@@ -734,7 +743,11 @@ cd10:               if (Me%Var%Recovery_DataForm .EQ. Rate) then
                 end if cd9
 
             end if ifContCalc
+            
 
+            Me%NextInternalComputeTime = Me%ExternalVar%Now + Me%Var%DTOilInternalProcesses
+            Me%NextActiveComputeTime   = Me%ExternalVar%Now + DT
+                  
             nUsers = DeassociateInstance (mENTERDATA_,      Me%ObjEnterData     )
             if (nUsers == 0) stop 'StartOil - ModuleOil_0D - ERR98'
 
@@ -822,19 +835,21 @@ cd10:               if (Me%Var%Recovery_DataForm .EQ. Rate) then
 
         !--------------------------------------------------------------------------------
 
+
         Me%NextInternalComputeTime = Me%ExternalVar%Now
         Me%NextActiveComputeTime   = Me%ExternalVar%Now
+        Me%BeginTime               = Me%ExternalVar%Now
 
         if (.NOT. ContCalc ) then
 
-            call GetData(Me%Var%DTOilInternalProcesses,                                  &
-                         Me%ObjEnterData,                                                &
-                         flag,                                                           &
-                         SearchType = ExtractType,                                       &    
-                         keyword    = 'DT_OIL_INTPROCESSES',                             &         
-                         ClientModule ='ModuleOil_0D',                                      &
+            call GetData(Me%Var%DTOilInternalProcesses,                                 &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType = ExtractType,                                      &    
+                         keyword    = 'DT_OIL_INTPROCESSES',                            &         
+                         ClientModule ='ModuleOil_0D',                                  &
                          STAT       = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OilOptions - ModuleOil_0D - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'OilOptions - ModuleOil_0D - ERR10'
 
 
 cd1 :       if (flag .EQ. 0) then
@@ -843,16 +858,16 @@ cd1 :       if (flag .EQ. 0) then
 
             else cd1
 
-cd2 :           if ((mod(Me%Var%DTOilInternalProcesses, DT) .EQ. 0.0      ) .AND.       &
-                    (    Me%Var%DTOilInternalProcesses      .GE. DT)) then
-
-                    !OK
-
-                else cd2
-
-                    stop 'OilOptions - ModuleOil_0D - ERR02'
-
-                end if cd2   
+!cd2 :           if ((mod(Me%Var%DTOilInternalProcesses, DT) .EQ. 0.0      ) .AND.       &
+!                    (    Me%Var%DTOilInternalProcesses      .GE. DT)) then
+!
+!                    !OK
+!
+!                else cd2
+!
+!                    stop 'OilOptions - ModuleOil_0D - ERR20'
+!
+!                end if cd2   
 
             end if cd1                  
                                  
@@ -862,10 +877,10 @@ cd2 :           if ((mod(Me%Var%DTOilInternalProcesses, DT) .EQ. 0.0      ) .AND
                          flag,                                                           &
                          SearchType   = ExtractType,                                     &
                          keyword      ='OILTYPE',                                        &
-                         ClientModule ='ModuleOil_0D',                                      &
+                         ClientModule ='ModuleOil_0D',                                   &
                          Default      = Char_Crude,                                      &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'OilOptions - ModuleOil_0D - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'OilOptions - ModuleOil_0D - ERR30'
 
 case1 :     select case(trim(adjustl(String)))
             case(Char_Refined)
@@ -878,35 +893,35 @@ case1 :     select case(trim(adjustl(String)))
 
             case default
 
-                if (STAT_CALL /= SUCCESS_) stop 'OilOptions - ModuleOil_0D - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'OilOptions - ModuleOil_0D - ERR40'
 
             end select case1
 
 
-            call GetData(Me%Var%OilEvaporation,                                          &
-                         Me%ObjEnterData,                                                &
-                         flag,                                                           &
-                         SearchType     = ExtractType,                                   & 
-                         keyword        = 'OIL_EVAPORATION',                             &
-                         Default        = OFF,                                           &
-                         ClientModule   ='ModuleOil_0D',                                    &
+            call GetData(Me%Var%OilEvaporation,                                         &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType     = ExtractType,                                  & 
+                         keyword        = 'OIL_EVAPORATION',                            &
+                         Default        = OFF,                                          &
+                         ClientModule   ='ModuleOil_0D',                                &
                          STAT           = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'OilOptions - ModuleOil_0D - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'OilOptions - ModuleOil_0D - ERR50'
 
 
 ifevap: if (Me%Var%OilEvaporation) then
 
-            call GetData(String,                                                           &
+            call GetData(String,                                                        &
                          Me%ObjEnterData,                                               &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        &
-                         keyword      ='EVAPORATIONMETHOD',                                 &
-                         ClientModule ='ModuleOil_0D',                                         &
-                         Default      = Char_EvaporativeExposure,                           &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    &
+                         keyword      ='EVAPORATIONMETHOD',                             &
+                         ClientModule ='ModuleOil_0D',                                  &
+                         Default      = Char_EvaporativeExposure,                       &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL .NE. SUCCESS_)                                                    &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR07") 
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                             "Subroutine OilOptions; Module ModuleOil_0D. ERR60") 
 
 case2 :         select case(trim(adjustl(String)))
                 case(Char_PseudoComponents)
@@ -923,8 +938,8 @@ case2 :         select case(trim(adjustl(String)))
 
                 case default
 
-                    call SetError(FATAL_, KEYWORD_,                                       &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR08") 
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR70") 
             end select case2
 
 
@@ -932,36 +947,36 @@ cd5:        if (Me%Var%EvaporationMethod  .EQ. PseudoComponents) then
 
                 call GetData(Me%Var%NbrDistCuts,                                        &
                              Me%ObjEnterData,                                           &
-                             flag,                                                          &
-                             SearchType   = ExtractType,                                    & 
-                             keyword      = 'NBRDISTCUTS',                                  &
-                             Default      = 0,                                              & 
-                             ClientModule ='ModuleOil_0D',                                     &
+                             flag,                                                      &
+                             SearchType   = ExtractType,                                & 
+                             keyword      = 'NBRDISTCUTS',                              &
+                             Default      = 0,                                          & 
+                             ClientModule ='ModuleOil_0D',                              &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    call SetError(FATAL_, KEYWORD_,                                           &
-                                   "Subroutine OilOptions; Module ModuleOil_0D. ERR26") 
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                   "Subroutine OilOptions; Module ModuleOil_0D. ERR80") 
 
 
 
                allocate(Me%Var%TDistExp(1:Me%Var%NbrDistCuts), STAT = STAT_CALL)
-               if (STAT_CALL .NE. SUCCESS_)                                                 &
-                   call SetError(FATAL_, INTERNAL_,                                           &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR27") 
+               if (STAT_CALL .NE. SUCCESS_)                                             &
+                   call SetError(FATAL_, INTERNAL_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR90") 
 
 
                allocate(Me%Var%CPDistExp(1:Me%Var%NbrDistCuts), STAT = STAT_CALL)
-               if (STAT_CALL .NE. SUCCESS_)                                                 &
-                   call SetError(FATAL_, INTERNAL_,                                           &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR28") 
+               if (STAT_CALL .NE. SUCCESS_)                                             &
+                   call SetError(FATAL_, INTERNAL_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR100") 
 
 
                call GetData(Me%Var%CPDistExp,                                           &
                             Me%ObjEnterData,                                            &
-                            flag         = flag,                                            &
-                            SearchType   = ExtractType,                                     &
-                            keyword      = 'CPDISTEXP',                                     &
-                            ClientModule ='ModuleOil_0D',                                      &
+                            flag         = flag,                                        &
+                            SearchType   = ExtractType,                                 &
+                            keyword      = 'CPDISTEXP',                                 &
+                            ClientModule ='ModuleOil_0D',                               &
                             STAT         = STAT_CALL)
 cd6 :          if   (STAT_CALL .EQ. SIZE_ERR_)  then
                      write(*,*) 
@@ -969,19 +984,19 @@ cd6 :          if   (STAT_CALL .EQ. SIZE_ERR_)  then
                      write(*,*) 'Number of distillation cuts is incorrect:'
                      write(*,*) '    NbrDistCuts  =', Me%Var%NbrDistCuts
                      write(*,*) '   CPDistExpData =', flag
-                     stop       'Subroutine OilOptions; Module ModuleOil_0D. ERR29.'           
+                     stop       'Subroutine OilOptions; Module ModuleOil_0D. ERR110.'           
 
-               else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                                     &
+               else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                                &
                         (STAT_CALL .NE. SUCCESS_)) then cd6                                                                    
-                    stop 'Subroutine OilOptions; Module ModuleOil_0D. ERR30.'           
+                    stop 'Subroutine OilOptions; Module ModuleOil_0D. ERR120.'           
                end if cd6           
 
                call GetData(Me%Var%TDistExp,                                            &
                                     Me%ObjEnterData,                                    &
-                                    flag,                                                   &
-                                    SearchType   = ExtractType,                             &
-                                    keyword      = 'TDISTEXP',                              &
-                                    ClientModule ='ModuleOil_0D',                              &
+                                    flag,                                               &
+                                    SearchType   = ExtractType,                         &
+                                    keyword      = 'TDISTEXP',                          &
+                                    ClientModule ='ModuleOil_0D',                       &
                                     STAT         = STAT_CALL)
 cd7 :           if   (STAT_CALL .EQ. SIZE_ERR_)  then
                      write(*,*) 
@@ -989,77 +1004,81 @@ cd7 :           if   (STAT_CALL .EQ. SIZE_ERR_)  then
                      write(*,*) 'Number of distillation cuts is incorrect:'
                      write(*,*) '    NbrDistCuts  =', Me%Var%NbrDistCuts
                      write(*,*) '    TDistExpData =', flag
-                     stop       'Subroutine OilOptions; Module ModuleOil_0D. ERR31.'           
+                     stop       'Subroutine OilOptions; Module ModuleOil_0D. ERR130.'           
 
-                else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                                    &
+                else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                               &
                                  (STAT_CALL .NE. SUCCESS_)) then cd7            
-                    stop 'Subroutine OilOptions; Module ModuleOil_0D. ERR32.'           
+                    stop 'Subroutine OilOptions; Module ModuleOil_0D. ERR140.'           
                 end if cd7           
 
             else if (Me%Var%EvaporationMethod  .EQ. Fingas) then cd5
                 
                 call GetData(Me%Var%Fingas_Evap_Emp_Data,                               &
                              Me%ObjEnterData,                                           &
-                             flag,                                                          &
-                             SearchType   = ExtractType,                                    & 
-                             keyword      = 'FINGAS_EVAP_EMP_DATA',                         &
-                             Default      = OFF,                                            &
-                             ClientModule ='ModuleOil_0D',                                     &
+                             flag,                                                      &
+                             SearchType   = ExtractType,                                & 
+                             keyword      = 'FINGAS_EVAP_EMP_DATA',                     &
+                             Default      = OFF,                                        &
+                             ClientModule ='ModuleOil_0D',                              &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    call SetError(FATAL_, KEYWORD_,                                           &
-                                   "Subroutine OilOptions; Module ModuleOil_0D. ERR26") 
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                   "Subroutine OilOptions; Module ModuleOil_0D. ERR140") 
               
                 
 cd76:           if (Me%Var%Fingas_Evap_Emp_Data) then
 
                     call GetData(Me%Var%Fingas_Evap_Const1,                             &
                                  Me%ObjEnterData,                                       &
-                                 flag,                                                      &
-                                 SearchType   = ExtractType,                                & 
-                                 keyword      = 'FINGAS_EVAP_CONST1',                       &
-                                 ClientModule ='ModuleOil_0D',                                 &
+                                 flag,                                                  &
+                                 SearchType   = ExtractType,                            & 
+                                 keyword      = 'FINGAS_EVAP_CONST1',                   &
+                                 ClientModule ='ModuleOil_0D',                          &
                                  STAT         = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)                                              &
-                        call SetError(FATAL_, KEYWORD_,                                       &
-                                       "Subroutine OilOptions; Module ModuleOil_0D. ERR26") 
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        call SetError(FATAL_, KEYWORD_,                                 &
+                                       "Subroutine OilOptions; Module ModuleOil_0D. ERR150") 
+                                       
+                    if (flag == 0) then
+                        stop "Subroutine OilOptions; Module ModuleOil_0D. ERR160"
+                    endif                                       
 
                     call GetData(Me%Var%Fingas_Evap_Const2,                             &
                                  Me%ObjEnterData,                                       &
-                                 flag,                                                      &
-                                 SearchType   = ExtractType,                                & 
-                                 keyword      = 'FINGAS_EVAP_CONST2',                       &
-                                 ClientModule ='ModuleOil_0D',                                 &
+                                 flag,                                                  &
+                                 SearchType   = ExtractType,                            & 
+                                 keyword      = 'FINGAS_EVAP_CONST2',                   &
+                                 ClientModule ='ModuleOil_0D',                          &
                                  STAT         = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)                                              &
-                        call SetError(FATAL_, KEYWORD_,                                       &
-                                       "Subroutine OilOptions; Module ModuleOil_0D. ERR26") 
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        call SetError(FATAL_, KEYWORD_,                                 &
+                                       "Subroutine OilOptions; Module ModuleOil_0D. ERR160") 
 
                 else if (.NOT. Me%Var%Fingas_Evap_Emp_Data) then    cd76
 
                     call GetData(Me%Var%Perc_MassDist180,                               &
                                  Me%ObjEnterData,                                       &
-                                 flag,                                                      &
-                                 SearchType   = ExtractType,                                & 
-                                 keyword      = 'PERC_MASSDIST180',                         &
-                                 ClientModule ='ModuleOil_0D',                                 &
+                                 flag,                                                  &
+                                 SearchType   = ExtractType,                            & 
+                                 keyword      = 'PERC_MASSDIST180',                     &
+                                 ClientModule ='ModuleOil_0D',                          &
                                  STAT         = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)                                              &
-                        call SetError(FATAL_, KEYWORD_,                                       &
-                                       "Subroutine OilOptions; Module ModuleOil_0D. ERR26") 
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        call SetError(FATAL_, KEYWORD_,                                 &
+                                       "Subroutine OilOptions; Module ModuleOil_0D. ERR170") 
                 end if  cd76
 
 
-                call GetData(String,                                                        &
-                             Me%ObjEnterData,                                               &
-                             flag,                                                          &
-                             SearchType   = ExtractType,                                    &
-                             keyword      ='FINGAS_EVAP_EQTYPE',                            &
-                             ClientModule ='ModuleOil_0D',                                     &
+                call GetData(String,                                                     &
+                             Me%ObjEnterData,                                            &
+                             flag,                                                       &
+                             SearchType   = ExtractType,                                 &
+                             keyword      ='FINGAS_EVAP_EQTYPE',                         &
+                             ClientModule ='ModuleOil_0D',                               &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL .NE. SUCCESS_)                                                &
-                    call SetError(FATAL_, KEYWORD_,                                         &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR07") 
+                if (STAT_CALL .NE. SUCCESS_)                                             &
+                    call SetError(FATAL_, KEYWORD_,                                      &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR180") 
 
 cd77 :          if (flag .EQ. 1) then
 case77 :            select case(trim(adjustl(String)))
@@ -1073,14 +1092,14 @@ case77 :            select case(trim(adjustl(String)))
 
                         case default
 
-                            call SetError(FATAL_, KEYWORD_,                                   &
-                                         "Subroutine OilOptions; Module ModuleOil_0D. ERR08") 
+                            call SetError(FATAL_, KEYWORD_,                             &
+                                         "Subroutine OilOptions; Module ModuleOil_0D. ERR190") 
                     end select case77
 
                 else cd77
 
-                    call SetError(FATAL_, KEYWORD_,                                           &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR09") 
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR200") 
                 end if cd77
 
 
@@ -1088,30 +1107,30 @@ case77 :            select case(trim(adjustl(String)))
                 
         end if ifevap
 
-        call GetData(Me%Var%OilDispersion,                                               &
-                     Me%ObjEnterData,                                                    &
-                     flag,                                                               &
-                     SearchType     = ExtractType,                                       &    
-                     keyword        = 'OIL_DISPERSION',                                  &
-                     Default        = OFF,                                               &
-                     ClientModule   = 'ModuleOil_0D',                                       &
+        call GetData(Me%Var%OilDispersion,                                              &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType     = ExtractType,                                      &
+                     keyword        = 'OIL_DISPERSION',                                 &
+                     Default        = OFF,                                              &
+                     ClientModule   = 'ModuleOil_0D',                                   &
                      STAT           = STAT_CALL) 
-        if (STAT_CALL .NE. SUCCESS_)                                                        &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR35")
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR210")
 
 ifdisp: if  (Me%Var%OilDispersion) then
 
-            call GetData(String,                                                            &
-                         Me%ObjEnterData,                                                   &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        &
-                         keyword      ='DISPERSIONMETHOD',                                  &
-                         ClientModule ='ModuleOil_0D',                                         &
-                         Default      = Char_Delvigne,                                      &
+            call GetData(String,                                                         &
+                         Me%ObjEnterData,                                                &
+                         flag,                                                           &
+                         SearchType   = ExtractType,                                     &
+                         keyword      ='DISPERSIONMETHOD',                               &
+                         ClientModule ='ModuleOil_0D',                                   &
+                         Default      = Char_Delvigne,                                   &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL .NE. SUCCESS_)                                                    &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR10") 
+            if (STAT_CALL .NE. SUCCESS_)                                                 &
+                call SetError(FATAL_, KEYWORD_,                                          &
+                             "Subroutine OilOptions; Module ModuleOil_0D. ERR220") 
 
 case3 :         select case(trim(adjustl(String)))
                 case(Char_Delvigne)
@@ -1124,8 +1143,8 @@ case3 :         select case(trim(adjustl(String)))
 
                 case default
 
-                    call SetError(FATAL_, KEYWORD_,                                       &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR11") 
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR230") 
             end select case3
 
 
@@ -1133,14 +1152,24 @@ cd9:        if (Me%Var%DispersionMethod .EQ. Mackay) then
 
                 call GetData(Me%Var%OWInterfacialTension,                               &
                              Me%ObjEnterData,                                           &
-                             flag,                                                          &
-                             SearchType   = ExtractType,                                    & 
-                             keyword      = 'OWINTERFACIALTENSION',                         &
-                             ClientModule ='ModuleOil_0D',                                     &
+                             flag,                                                      &
+                             SearchType   = ExtractType,                                & 
+                             keyword      = 'OWINTERFACIALTENSION',                     &
+                             ClientModule ='ModuleOil_0D',                              &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    call SetError(FATAL_, KEYWORD_,                                           &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR25") 
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR240") 
+                                 
+                if (Me%Var%OWInterfacialTension < 0.) then
+                    write(*,*) "Oil-Water Interfacial Tension below zero"
+                    stop "Subroutine OilOptions; Module ModuleOil_0D. ERR243" 
+                endif
+
+                if (Me%Var%OWInterfacialTension > 1e6) then
+                    write(*,*) "Oil-Water Interfacial Tension above 1e6 Dyne/cm"
+                    stop "Subroutine OilOptions; Module ModuleOil_0D. ERR244" 
+                endif
 
             end if cd9
 
@@ -1152,7 +1181,7 @@ cd9:        if (Me%Var%DispersionMethod .EQ. Mackay) then
 
 
         call OilOptionsAPI(Me%ObjEnterData,                                             &
-                           ExtractType  = ExtractType,                                      &
+                           ExtractType  = ExtractType,                                  &
                            API          = Me%Var%API)
 
 
@@ -1160,40 +1189,40 @@ cd9:        if (Me%Var%DispersionMethod .EQ. Mackay) then
 
         call GetData(Me%Var%PourPoint,                                                  &
                      Me%ObjEnterData,                                                   &
-                     flag,                                                                  &
-                     SearchType   = ExtractType,                                            & 
-                     keyword      = 'POURPOINT',                                            &     
-                     ClientModule ='ModuleOil_0D',                                             &
+                     flag,                                                              &
+                     SearchType   = ExtractType,                                        & 
+                     keyword      = 'POURPOINT',                                        &     
+                     ClientModule ='ModuleOil_0D',                                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                          &
-            call SetError(FATAL_, KEYWORD_,                                                   &
-                         "Subroutine OilOptions; Module ModuleOil_0D. ERR17") 
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_,                                             &
+                         "Subroutine OilOptions; Module ModuleOil_0D. ERR250") 
 
         
-        call GetData(Me%Var%OilEmulsification,                                           &
-                     Me%ObjEnterData,                                                    &
-                     flag,                                                               &
-                     SearchType     = ExtractType,                                          & 
-                     keyword        = 'OIL_EMULSIFICATION',                                 &
-                     Default        = OFF,                                                  &
-                     ClientModule   ='ModuleOil_0D',                                           &
+        call GetData(Me%Var%OilEmulsification,                                          &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType     = ExtractType,                                      & 
+                     keyword        = 'OIL_EMULSIFICATION',                             &
+                     Default        = OFF,                                              &
+                     ClientModule   ='ModuleOil_0D',                                    &
                      STAT           = STAT_CALL) 
-        if (STAT_CALL .NE. SUCCESS_)                                                        &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR37")
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR260")
 
 ifemul: if (Me%Var%OilEmulsification) then
 
-            call GetData(String,                                                           &
+            call GetData(String,                                                        &
                          Me%ObjEnterData,                                               &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        &
-                         keyword      ='EMULSIFICATIONMETHOD',                              &
-                         Default      = Char_Rasmussen,                                     &
-                         ClientModule ='ModuleOil_0D',                                         &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    &
+                         keyword      ='EMULSIFICATIONMETHOD',                          &
+                         Default      = Char_Rasmussen,                                 &
+                         ClientModule ='ModuleOil_0D',                                  &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL .NE. SUCCESS_)                                                    &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR13") 
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                             "Subroutine OilOptions; Module ModuleOil_0D. ERR270") 
 
 case4 :         select case(trim(adjustl(String)))
                 case(Char_Rasmussen)
@@ -1206,75 +1235,85 @@ case4 :         select case(trim(adjustl(String)))
 
                 case default
 
-                    call SetError(FATAL_, KEYWORD_,                                       &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR14") 
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR280") 
             end select case4
 
         
             call GetData(Me%Var%Cemuls,                                                 &
                          Me%ObjEnterData,                                               &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        & 
-                         keyword      = 'CEMULS',                                           &
-                         Default      = 0.0,                                                &
-                         ClientModule ='ModuleOil_0D',                                         &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    & 
+                         keyword      = 'CEMULS',                                       &
+                         Default      = 0.0,                                            &
+                         ClientModule ='ModuleOil_0D',                                  &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR18") 
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                             "Subroutine OilOptions; Module ModuleOil_0D. ERR290") 
 
 
             call GetData(Me%Var%MaxVWaterContent,                                       &
                          Me%ObjEnterData,                                               &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        & 
-                         keyword      = 'MAXVWATERCONTENT',                                 &
-                         Default      = null_real,                                          &
-                         ClientModule ='ModuleOil_0D',                                         &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    & 
+                         keyword      = 'MAXVWATERCONTENT',                             &
+                         Default      = null_real,                                      &
+                         ClientModule ='ModuleOil_0D',                                  &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR19") 
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                             "Subroutine OilOptions; Module ModuleOil_0D. ERR300") 
 
+             if (Me%Var%MaxVWaterContent < 0) then
+                write(*,*) "Max water content below 0%"
+                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR302"
+             endif
+             
+             if (Me%Var%MaxVWaterContent > 100) then
+                write(*,*) "Max water content above 100%"
+                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR303"
+             endif
+             
 
 cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
 
                 call GetData(Me%Var%AsphalteneContent,                                  &
                              Me%ObjEnterData,                                           &
-                             flag,                                                          &
-                             SearchType   = ExtractType,                                    & 
-                             keyword      = 'ASPHALTENECONTENT',                            &
-                             ClientModule ='ModuleOil_0D',                                     &
+                             flag,                                                      &
+                             SearchType   = ExtractType,                                & 
+                             keyword      = 'ASPHALTENECONTENT',                        &
+                             ClientModule ='ModuleOil_0D',                              &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    call SetError(FATAL_, KEYWORD_,                                           &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR20") 
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR310") 
 
 
                 call GetData(Me%Var%WaxContent,                                         &
                              Me%ObjEnterData,                                           &
-                             flag,                                                          &
-                             SearchType   = ExtractType,                                    &  
-                             keyword      = 'WAXCONTENT',                                   &
-                             ClientModule ='ModuleOil_0D',                                     &
+                             flag,                                                      &
+                             SearchType   = ExtractType,                                &
+                             keyword      = 'WAXCONTENT',                               &
+                             ClientModule ='ModuleOil_0D',                              &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    call SetError(FATAL_, KEYWORD_,                                           &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR21") 
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR320") 
         
             else if (Me%Var%EmulsificationMethod .EQ. Mackay) then cd11
             
                 call GetData(Me%Var%EmulsParameter,                                     &
                              Me%ObjEnterData,                                           &
-                             flag,                                                          &
-                             SearchType   = ExtractType,                                    &  
-                             keyword      = 'EmulsParameter',                               &
-                             Default      = 1.6E-6,                                         &
-                             ClientModule ='ModuleOil_0D',                                     &
+                             flag,                                                      &
+                             SearchType   = ExtractType,                                &  
+                             keyword      = 'EmulsParameter',                           &
+                             Default      = 1.6E-6,                                     &
+                             ClientModule ='ModuleOil_0D',                              &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    call SetError(FATAL_, KEYWORD_,                                           &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR21") 
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR330") 
 
             end if cd11
 
@@ -1282,69 +1321,69 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
 
         call GetData(Me%Var%TempViscRef,                                                &
                      Me%ObjEnterData,                                                   &
-                     flag,                                                                  &
-                     SearchType   = ExtractType,                                            &  
-                     keyword      = 'TEMPVISCREF',                                          &
-                     ClientModule ='ModuleOil_0D',                                             &
+                     flag,                                                              &
+                     SearchType   = ExtractType,                                        &  
+                     keyword      = 'TEMPVISCREF',                                      &
+                     ClientModule ='ModuleOil_0D',                                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                          &
-            call SetError(FATAL_, KEYWORD_,                                                   &
-                         "Subroutine OilOptions; Module ModuleOil_0D. ERR22") 
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_,                                             &
+                         "Subroutine OilOptions; Module ModuleOil_0D. ERR340") 
 
 
         call GetData(Me%Var%ViscRef,                                                    &
                      Me%ObjEnterData,                                                   &
-                     flag,                                                                  &
-                     SearchType   = ExtractType,                                            & 
-                     keyword      = 'VISCREF',                                              &
-                     ClientModule ='ModuleOil_0D',                                             &
+                     flag,                                                              &
+                     SearchType   = ExtractType,                                        & 
+                     keyword      = 'VISCREF',                                          &
+                     ClientModule ='ModuleOil_0D',                                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                          &
-            call SetError(FATAL_, KEYWORD_,                                                   &
-                         "Subroutine OilOptions; Module ModuleOil_0D. ERR23") 
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_,                                             &
+                         "Subroutine OilOptions; Module ModuleOil_0D. ERR350") 
 
 
         call GetData(Me%Var%ViscCinRef,                                                 &
                      Me%ObjEnterData,                                                   &
-                     flag,                                                                  &
-                     SearchType   = ExtractType,                                            &    
-                     keyword      = 'VISCCINREF',                                           &
-                     ClientModule ='ModuleOil_0D',                                             &
+                     flag,                                                              &
+                     SearchType   = ExtractType,                                        &    
+                     keyword      = 'VISCCINREF',                                       &
+                     ClientModule ='ModuleOil_0D',                                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                          &
-            call SetError(FATAL_, KEYWORD_,                                                   &
-                         "Subroutine OilOptions; Module ModuleOil_0D. ERR24") 
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_,                                             &
+                         "Subroutine OilOptions; Module ModuleOil_0D. ERR360") 
 
 
 
 
 
 
-        call GetData(Me%Var%OilSpreading,                                                &
-                     Me%ObjEnterData,                                                    &
-                     flag,                                                               &
-                     SearchType     = ExtractType,                                       &    
-                     keyword        = 'OIL_SPREADING',                                   &
-                     Default        = ON,                                                &
-                     ClientModule   ='ModuleOil_0D',                                        &
+        call GetData(Me%Var%OilSpreading,                                               &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType     = ExtractType,                                      &    
+                     keyword        = 'OIL_SPREADING',                                  &
+                     Default        = ON,                                               &
+                     ClientModule   ='ModuleOil_0D',                                    &
                      STAT           = STAT_CALL) 
-        if (STAT_CALL .NE. SUCCESS_)                                                        &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR33")
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR370")
 
 
 ifspr:  if (Me%Var%OilSpreading) then
 
-            call GetData(String,                                                            &
-                         Me%ObjEnterData,                                                   &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        &
-                         keyword      ='SPREADINGMETHOD',                                   &
-                         Default      = Char_ThicknessGradient,                             &
-                         ClientModule ='ModuleOil_0D',                                         &
+            call GetData(String,                                                        &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    &
+                         keyword      ='SPREADINGMETHOD',                               &
+                         Default      = Char_ThicknessGradient,                         &
+                         ClientModule ='ModuleOil_0D',                                  &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL .NE. SUCCESS_)                                                    &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR39") 
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                             "Subroutine OilOptions; Module ModuleOil_0D. ERR380") 
 
 case5 :         select case(trim(adjustl(String)))
                 case(Char_Fay)
@@ -1357,8 +1396,8 @@ case5 :         select case(trim(adjustl(String)))
 
                 case default
 
-                    call SetError(FATAL_, KEYWORD_,                                       &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR40") 
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR390") 
             end select case5
 
 
@@ -1367,173 +1406,217 @@ cd13:       if (Me%Var%SpreadingMethod  .EQ. ThicknessGradient_) then
 
                 call GetData(Me%Var%UserCoefVelMancha,                                  &
                              Me%ObjEnterData,                                           &
-                             flag,                                                          &
-                             SearchType   = ExtractType,                                    & 
-                             keyword      = 'USERCOEFVELMANCHA',                            &
-                             Default      = 10.0,                                           &
-                             ClientModule = 'ModuleOil_0D',                                    &
+                             flag,                                                      &
+                             SearchType   = ExtractType,                                & 
+                             keyword      = 'USERCOEFVELMANCHA',                        &
+                             Default      = 10.0,                                       &
+                             ClientModule = 'ModuleOil_0D',                             &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    call SetError(FATAL_, KEYWORD_,                                           &
-                                   "Subroutine OilOptions; Module ModuleOil_0D. ERR42") 
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                   "Subroutine OilOptions; Module ModuleOil_0D. ERR400") 
 
             end if cd13
 
         end if ifspr
 
-        call GetData(Me%Var%OilSedimentation,                                               &
-                     Me%ObjEnterData,                                                       &
-                     flag,                                                                  &
-                     SearchType     = ExtractType,                                          & 
-                     keyword        = 'OIL_SEDIMENTATION',                                  &
-                     Default        = OFF,                                                  &
-                     ClientModule   = 'ModuleOil_0D',                                          &
+        call GetData(Me%Var%OilSedimentation,                                           &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType     = ExtractType,                                      & 
+                     keyword        = 'OIL_SEDIMENTATION',                              &
+                     Default        = OFF,                                              &
+                     ClientModule   = 'ModuleOil_0D',                                   &
                      STAT           = STAT_CALL) 
-        if (STAT_CALL .NE. SUCCESS_)                                                        &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR36")
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR410")
 
 
-        call GetData(Me%Var%OilDissolution,                                                 &
-                     Me%ObjEnterData,                                                       &
-                     flag,                                                                  &
-                     SearchType     = ExtractType,                                          & 
-                     keyword        = 'OIL_DISSOLUTION',                                    &
-                     Default        = OFF,                                                  &
-                     ClientModule   = 'ModuleOil_0D',                                          &
+        call GetData(Me%Var%OilDissolution,                                             &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType     = ExtractType,                                      & 
+                     keyword        = 'OIL_DISSOLUTION',                                &
+                     Default        = OFF,                                              &
+                     ClientModule   = 'ModuleOil_0D',                                   &
                      STAT           = STAT_CALL) 
-        if (STAT_CALL .NE. SUCCESS_)                                                        &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR38")
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR420")
 
 
 
     !Removal
 
 
-        call GetData(Me%Var%OilChemDispersion,                                              &
-                     Me%ObjEnterData,                                                       &
-                     flag,                                                                  &
-                     SearchType     = ExtractType,                                          & 
-                     keyword        = 'OIL_CHEM_DISPERSION',                                &
-                     Default        = OFF,                                                  &
-                     ClientModule   = 'ModuleOil_0D',                                          &
+        call GetData(Me%Var%OilChemDispersion,                                          &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType     = ExtractType,                                      & 
+                     keyword        = 'OIL_CHEM_DISPERSION',                            &
+                     Default        = OFF,                                              &
+                     ClientModule   = 'ModuleOil_0D',                                   &
                      STAT           = STAT_CALL) 
-        if (STAT_CALL .NE. SUCCESS_)                                                        &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR43")
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR430")
 
 
 ifcdis: if (Me%Var%OilChemDispersion) then
 
             call GetData(Me%Var%Start_ChemDispersion,                                   &
                          Me%ObjEnterData,                                               &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        & 
-                         keyword      = 'START_CHEM_DISPERSION',                            &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    & 
+                         keyword      = 'START_CHEM_DISPERSION',                        &
                          Default      = Me%ExternalVar%BeginTime,                       &
-                         ClientModule = 'ModuleOil_0D',                                        &
+                         ClientModule = 'ModuleOil_0D',                                 &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR43a") 
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                               "Subroutine OilOptions; Module ModuleOil_0D. ERR440") 
+
+            if (Me%Var%Start_ChemDispersion < Me%ExternalVar%BeginTime) then
+                write(*,*) 'Starting Time of Dispersant Application below run starting time'
+                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR445"
+            endif
+
 
 
             call GetData(Me%Var%End_ChemDispersion,                                     &
                          Me%ObjEnterData,                                               &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        & 
-                         keyword      = 'END_CHEM_DISPERSION',                              &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    & 
+                         keyword      = 'END_CHEM_DISPERSION',                          &
                          Default      = Me%ExternalVar%EndTime,                         &
-                         ClientModule = 'ModuleOil_0D',                                        &
+                         ClientModule = 'ModuleOil_0D',                                 &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR43b") 
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                               "Subroutine OilOptions; Module ModuleOil_0D. ERR450") 
+
+            if (Me%Var%End_ChemDispersion > Me%ExternalVar%EndTime) then
+                write(*,*) 'Ending Time of Dispersant Application above run ending time'
+                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR455"
+            endif
 
 
             call GetData(Me%Var%P_AreaSprayed,                                          &
                          Me%ObjEnterData,                                               &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        & 
-                         keyword      = 'P_AREA_SPRAYED',                                   &
-                         ClientModule = 'ModuleOil_0D',                                        &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    & 
+                         keyword      = 'P_AREA_SPRAYED',                               &
+                         ClientModule = 'ModuleOil_0D',                                 &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR44") 
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                               "Subroutine OilOptions; Module ModuleOil_0D. ERR460") 
+                               
+
+             if (Me%Var%P_AreaSprayed < 0) then
+                write(*,*) "Percentage of area sprayed below 0%"
+                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR462"
+             endif
+             
+             if (Me%Var%P_AreaSprayed > 100) then
+                write(*,*) "Percentage of area sprayed above 100%"
+                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR463"
+             endif                               
 
             call GetData(Me%Var%Efficiency,                                             &
                          Me%ObjEnterData,                                               &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        & 
-                         keyword      = 'EFFICIENCY',                                       &
-                         ClientModule = 'ModuleOil_0D',                                        &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    & 
+                         keyword      = 'EFFICIENCY',                                   &
+                         ClientModule = 'ModuleOil_0D',                                 &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR45") 
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                               "Subroutine OilOptions; Module ModuleOil_0D. ERR470") 
+
+
+
+             if (Me%Var%Efficiency < 0) then
+                write(*,*) "Percentage of Area sprayed effectively dispersed below 0%"
+                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR472"
+             endif
+             
+             if (Me%Var%Efficiency > 100) then
+                write(*,*) "Percentage of Area sprayed effectively dispersed above 100%"
+                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR473"
+             endif
 
         end if ifcdis
 
-        call GetData(Me%Var%OilMecCleanup,                                                  &
-                     Me%ObjEnterData,                                                       &
-                     flag,                                                                  &
-                     SearchType     = ExtractType,                                          &    
-                     keyword        = 'OIL_MEC_CLEANUP',                                    &
-                     Default        = OFF,                                                  &
-                     ClientModule   = 'ModuleOil_0D',                                          &
+        call GetData(Me%Var%OilMecCleanup,                                              &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType     = ExtractType,                                      &    
+                     keyword        = 'OIL_MEC_CLEANUP',                                &
+                     Default        = OFF,                                              &
+                     ClientModule   = 'ModuleOil_0D',                                   &
                      STAT           = STAT_CALL) 
-        if (STAT_CALL .NE. SUCCESS_)                                                        &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR46")
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR480")
 
 
 ifmcle: if (Me%Var%OilMecCleanup) then
         
             call GetData(Me%Var%Start_Mec_Cleanup,                                      &
                          Me%ObjEnterData,                                               &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        & 
-                         keyword      = 'START_MEC_CLEANUP',                                &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    & 
+                         keyword      = 'START_MEC_CLEANUP',                            &
                          Default      = Me%ExternalVar%BeginTime,                       &
-                         ClientModule = 'ModuleOil_0D',                                        &
+                         ClientModule = 'ModuleOil_0D',                                 &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR46a") 
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                               "Subroutine OilOptions; Module ModuleOil_0D. ERR490") 
 
+            if (Me%Var%Start_Mec_Cleanup < Me%ExternalVar%BeginTime) then
+                write(*,*) 'Starting Time of Mechanical cleanup below run starting time'
+                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR495"
+            endif
 
             call GetData(Me%Var%End_Mec_Cleanup,                                        &
                          Me%ObjEnterData,                                               &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        & 
-                         keyword      = 'END_MEC_CLEANUP',                                  &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    & 
+                         keyword      = 'END_MEC_CLEANUP',                              &
                          Default      = Me%ExternalVar%EndTime,                         &
-                         ClientModule ='ModuleOil_0D',                                         &
+                         ClientModule ='ModuleOil_0D',                                  &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR46b") 
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                               "Subroutine OilOptions; Module ModuleOil_0D. ERR500") 
+
+            if (Me%Var%End_Mec_Cleanup > Me%ExternalVar%EndTime) then
+                write(*,*) 'Ending Time of Mechanical cleanup above run ending time'
+                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR505"
+            endif
+
 
 
             call GetData(Me%Var%Recovery,                                               &
                          Me%ObjEnterData,                                               &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        & 
-                         keyword      = 'RECOVERY',                                         &
-                         ClientModule ='ModuleOil_0D',                                         &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    & 
+                         keyword      = 'RECOVERY',                                     &
+                         ClientModule ='ModuleOil_0D',                                  &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR47") 
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                               "Subroutine OilOptions; Module ModuleOil_0D. ERR510") 
 
-            call GetData(String,                                                            &
-                         Me%ObjEnterData,                                                   &
-                         flag,                                                              &
-                         SearchType   = ExtractType,                                        &
-                         keyword      ='RECOVERY_DATAFORM',                                 &
-                         ClientModule ='ModuleOil_0D',                                         &
+            call GetData(String,                                                        &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = ExtractType,                                    &
+                         keyword      ='RECOVERY_DATAFORM',                             &
+                         ClientModule ='ModuleOil_0D',                                  &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL .NE. SUCCESS_)                                                    &
-                call SetError(FATAL_, KEYWORD_,                                               &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR48") 
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                call SetError(FATAL_, KEYWORD_,                                         &
+                             "Subroutine OilOptions; Module ModuleOil_0D. ERR520") 
 
 cd14 :       if (flag .EQ. 1) then
 
@@ -1548,19 +1631,33 @@ case6 :         select case(trim(adjustl(String)))
 
                     case default
 
-                        call SetError(FATAL_, KEYWORD_,                                       &
-                                     "Subroutine OilOptions; Module ModuleOil_0D. ERR49") 
+                        call SetError(FATAL_, KEYWORD_,                                  &
+                                     "Subroutine OilOptions; Module ModuleOil_0D. ERR530") 
                 end select case6
 
             else cd14
 
-                call SetError(FATAL_, KEYWORD_,                                               &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR50") 
+                call SetError(FATAL_, KEYWORD_,                                          &
+                             "Subroutine OilOptions; Module ModuleOil_0D. ERR540") 
             end if cd14
 
         end if ifmcle
 
         end if 
+        
+        if (Me%ExternalVar%BackTracking) then
+            Me%Var%OilSpreading             = .false.
+            Me%Var%OilEvaporation           = .false.
+            Me%Var%OilDispersion            = .false.
+            Me%Var%OilSedimentation         = .false.
+            Me%Var%OilEmulsification        = .false.
+            Me%Var%OilDissolution           = .false.
+            Me%Var%OilChemDispersion        = .false.
+            Me%Var%OilMecCleanup            = .false.
+            
+            write(*,*) "Backtracking option is ON all oil processes were disconnected"
+            write(*,*) "Subroutine OilOptions; Module ModuleOil_0D. WRN010"  
+        endif
     !------------------------------------------------------------------------
 
     end subroutine OilOptions 
@@ -1588,6 +1685,14 @@ case6 :         select case(trim(adjustl(String)))
         if (STAT_CALL /= SUCCESS_)                                                          &
             call SetError(FATAL_, KEYWORD_,                                                 &
                          "Subroutine OilOptionsAPI; Module ModuleOil_0D. ERR01") 
+                         
+        if (API < 10) then
+            write(*,*) "This oil tends to be more dense than water because the API is below 10."
+            write(*,*) "This oil will tends to sink. However the API will be considered equal to 10"
+            write(*,*) "to allow the user to simulate the trajectory of potential less dense fractions."
+            API = 10
+        endif
+                         
 
         !------------------------------------------------------------------------
 
@@ -1833,11 +1938,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
     subroutine GetOilSpreadingVelocity(OilID,                                              &
                                        CoefVelMancha,                                      &
                                        DiffVelocity,                                       &
+                                       DiffCoef,                                           &
                                        STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: OilID
-        real,    optional                           :: CoefVelMancha, DiffVelocity
+        real,    optional                           :: CoefVelMancha, DiffVelocity, DiffCoef
         integer, optional, intent(OUT)      :: STAT
 
         !Local-----------------------------------------------------------------
@@ -1852,17 +1958,32 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                               &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
-cd2 :       if      (Me%Var%SpreadingMethod .EQ. ThicknessGradient_) then
-
+                    
+cd2 :   if  (Me%Var%SpreadingMethod .EQ. ThicknessGradient_) then
+            
+            if (Me%Var%OilSpreading .and. present(CoefVelMancha)) then
                 CoefVelMancha = Me%Var%CoefVelMancha 
+            else
+                CoefVelMancha = 0.
+            endif                                
+        
+        else if (Me%Var%SpreadingMethod .EQ. Fay_              ) then cd2
 
-            else if (Me%Var%SpreadingMethod .EQ. Fay_              ) then cd2
+            if (Me%Var%OilSpreading) then
+                if (present(DiffVelocity)) then
+                    DiffVelocity = Me%Var%DiffVelocity 
+                else
+                    DiffVelocity = 0.
+                endif
+                
+                if (present(DiffCoef)) then
+                    DiffCoef = Me%Var%DiffCoef 
+                else
+                    DiffCoef = 0.
+                endif                
+            endif                
 
-                DiffVelocity = Me%Var%DiffVelocity
-
-            end if cd2
-
+        endif cd2
 
             STAT_ = SUCCESS_
 
@@ -2039,7 +2160,6 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         !Local-------------------------------------------------------------------
         integer                                     :: ready_ 
-        integer                                     :: STAT_CALL 
         integer                                     :: STAT_ 
 
         !------------------------------------------------------------------------
@@ -2050,123 +2170,126 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-            ! Actualized the time
-            call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_)                                                              &
-                call SetError(FATAL_, INTERNAL_,                                                      &
-                             "Subroutine OilInternalProcesses; Module ModuleOil_0D. ERR01") 
-
 cd2 :       if (LagrangianTime .GE. Me%NextInternalComputeTime) then
-                Me%Now                          = Me%NextInternalComputeTime            
+
                 VolumeTotalOUT                  = null_real
                 MDissolvedDT                    = 0.0
                 Me%Var%VolumeOil                = VolumeTotalIN
-                
 
-                if (AreaTotal >= 0.) then
+                do while (LagrangianTime .GE. Me%NextInternalComputeTime) 
+                    Me%Now                      = Me%NextInternalComputeTime            
 
-                    Me%ExternalVar%Area         = AreaTotal
+                    if (AreaTotal >= 0.) then
 
-                else
+                        Me%ExternalVar%Area         = AreaTotal
 
-                    Me%ExternalVar%Area         = Me%Var%AreaTeoric
+                    else
 
-                endif
+                        Me%ExternalVar%Area         = Me%Var%AreaTeoric
 
-                Me%ExternalVar%VolOilBeached        = VolTotOilBeached
-                Me%ExternalVar%VolumeBeached        = VolTotBeached
-                Me%ExternalVar%Wind                 = Wind
-                Me%ExternalVar%AtmosphericPressure  = AtmosphericPressure
-                Me%ExternalVar%WaterTemperature     = WaterTemperature
-                Me%ExternalVar%WaterDensity         = WaterDensity
-                Me%ExternalVar%SPM                  = SPM
-                Me%ExternalVar%WaveHeight           = WaveHeight
-                Me%ExternalVar%WavePeriod           = WavePeriod
+                    endif
 
+                    Me%ExternalVar%VolOilBeached        = VolTotOilBeached
+                    Me%ExternalVar%VolumeBeached        = VolTotBeached
+                    Me%ExternalVar%Wind                 = Wind
+                    Me%ExternalVar%AtmosphericPressure  = AtmosphericPressure
+                    Me%ExternalVar%WaterTemperature     = WaterTemperature
+                    Me%ExternalVar%WaterDensity         = WaterDensity
+                    Me%ExternalVar%SPM                  = SPM
+                    Me%ExternalVar%WaveHeight           = WaveHeight
+                    Me%ExternalVar%WavePeriod           = WavePeriod
+                    
+                    if ( (Me%State%FirstStepIP) .AND. (Me%Var%OilEvaporation)           &
+                         .AND. (Me%Var%EvaporationMethod .EQ. PseudoComponents) )           &
+                        call EvapPropINI()
 
-                if ( (Me%State%FirstStepIP) .AND. (Me%Var%OilEvaporation)           &
-                     .AND. (Me%Var%EvaporationMethod .EQ. PseudoComponents) )           &
-                    call EvapPropINI()
+                    !Initialization                                            
+                    if (Me%State%FirstStepIP) Me%Var%Volume = Me%Var%VolumeOil
 
-                !Initialization                                            
-                if (Me%State%FirstStepIP) Me%Var%Volume = Me%Var%VolumeOil
+                    Me%Var%SlickThickness = Me%Var%Volume    / (max(AllmostZero,Me%ExternalVar%Area))
+                    Me%Var%OilThickness   = Me%Var%VolumeOil / (max(AllmostZero,Me%ExternalVar%Area))
+                    
+                    !Output into an ASCII file 
+    cd11 :          if (Me%State%FirstStepIP .and. Me%State%TimeSerie) then
+                        call TimeSerieOutput(CurrentTime = Me%BeginTime)
 
-                Me%Var%SlickThickness = Me%Var%Volume    / (max(AllmostZero,Me%ExternalVar%Area))
-                Me%Var%OilThickness   = Me%Var%VolumeOil / (max(AllmostZero,Me%ExternalVar%Area))
+                    end if cd11          
+                    
+                    if (Me%Var%VolumeOil > 0.) then
 
-                if ( ((Me%Var%OilDispersion) .AND. (Me%Var%DispersionMethod .EQ. Delvigne)) &
-                    .OR. (Me%Var%OilSedimentation) )                                            &
-                    Me%Var%Cdisp      = F_Cdisp ()
+                        if ( ((Me%Var%OilDispersion) .AND. (Me%Var%DispersionMethod .EQ. Delvigne)) &
+                            .OR. (Me%Var%OilSedimentation) )                                            &
+                            Me%Var%Cdisp      = F_Cdisp ()
 
-                !Integrated Values
-                if ((Me%Var%OilEmulsification) .and. (Me%Var%OilIsFloating))                                                   &
-                    call Emulsification
+                        !Integrated Values
+                        if ((Me%Var%OilEmulsification) .and. (Me%Var%OilIsFloating))                                                   &
+                            call Emulsification
+                            
+                        if ((Me%Var%OilEvaporation) .and. (Me%Var%OilIsFloating))                       &
+                            call Evaporation
+                            
+                        if ((Me%Var%OilDispersion)  .and. (Me%Var%OilIsFloating))                       &
+                            call Dispersion 
+                            
+                        if (Me%Var%OilSedimentation)                                                    &
+                            call Sedimentation 
+                            
+                        if (Me%Var%OilDissolution)                                                      &
+                            call Dissolution 
+                            
+                        if (Me%Var%OilChemDispersion)                                                   &
+                            call ChemDispersion 
 
-                if ((Me%Var%OilEvaporation) .and. (Me%Var%OilIsFloating))                       &
-                    call Evaporation
+                        if (Me%Var%OilMecCleanup)                                                       &
+                            call MecCleanup                            
 
-                if ((Me%Var%OilDispersion)  .and. (Me%Var%OilIsFloating))                       &
-                    call Dispersion 
+                        call Density   
+                        
+                        !when oil is denser than surrounding water, oil will sink 
+                        if (.not. Me%Var%OilIsFloating) then                 
+                            if (Me%Var%Density .GT. Me%ExternalVar%WaterDensity)                        &
+                                write(*,*)  
+                                write(*,*) 'Oil is denser than surrounding water, and will sink'
+                                write(*,*) 'Evaporation,dispersion and emulsification processes will be interrupted'
+                                write(*,*)  
+                                Me%Var%OilIsFloating  = OFF
+                        end if
 
-                if (Me%Var%OilSedimentation)                                                    &
-                    call Sedimentation 
+                        call Viscosity 
 
-                if (Me%Var%OilDissolution)                                                      &
-                    call Dissolution 
+                    endif
 
-                if (Me%Var%OilChemDispersion)                                                   &
-                    call ChemDispersion 
+                    !Output into an ASCII file 
+    cd3 :           if (Me%State%TimeSerie) then
+    cd4 :           if (present(DataLineIN  )) then
+                        call TimeSerieOutput(DataLineIN)
 
-                if (Me%Var%OilMecCleanup)                                                       &
-                    call MecCleanup                            
+                    else cd4
 
-                call Density   
+                        call TimeSerieOutput
+                    end if cd4
+                    end if cd3
+                    
+                    Me%NextInternalComputeTime = Me%NextInternalComputeTime + Me%Var%DTOilInternalProcesses
 
-                !when oil is denser than surrounding water, oil will sink 
-                if (.not. Me%Var%OilIsFloating) then                 
-                    if (Me%Var%Density .GT. Me%ExternalVar%WaterDensity)                        &
-                        write(*,*)  
-                        write(*,*) 'Oil is denser than surrounding water, and will sink'
-                        write(*,*) 'Evaporation,dispersion and emulsification processes will be interrupted'
-                        write(*,*)  
-                        Me%Var%OilIsFloating  = OFF
-                end if
+                    VolumeTotalOUT                 = Me%Var%VolumeOil 
+                    VWaterContent                  = Me%Var%VWaterContent
+                    MWaterContent                  = Me%Var%MWaterContent
 
-                call Viscosity 
+                    !AreaTotalOUT, OilDensity e MDispersed necessaria para o calculo da concentracao no ModuleLagrangian
+                    AreaTotalOUT                   = Me%ExternalVar%Area
+                    OilDensity                     = Me%Var%Density
+                    MDispersed                     = Me%Var%MDispersed
+                    
+                    MassINI                         = Me%Var%MassINI
+                    OilViscosity                    = Me%Var%Viscosity        
+                    FMEvaporated                    = Me%Var%FMEvaporated        
+                    FMDispersed                     = Me%Var%FMDispersed    
+                    MDissolvedDT                    = Me%Var%MDissolvedDT
 
+                enddo 
 
-
-
-                !Output into an ASCII file 
-cd3 :           if (Me%State%TimeSerie) then
-cd4 :           if (present(DataLineIN  )) then
-                    call TimeSerieOutput(DataLineIN)
-
-                else cd4
-
-                    call TimeSerieOutput
-                end if cd4
-                end if cd3
-
-
-                Me%NextInternalComputeTime = Me%NextInternalComputeTime + Me%Var%DTOilInternalProcesses
-
-                VolumeTotalOUT                 = Me%Var%VolumeOil 
-                VWaterContent                  = Me%Var%VWaterContent
-                MWaterContent                  = Me%Var%MWaterContent
-
-                !AreaTotalOUT, OilDensity e MDispersed necessaria para o calculo da concentracao no ModuleLagrangian
-                AreaTotalOUT                   = Me%ExternalVar%Area
-                OilDensity                     = Me%Var%Density
-                MDispersed                     = Me%Var%MDispersed
-                
-                MassINI                         = Me%Var%MassINI
-                OilViscosity                    = Me%Var%Viscosity        
-                FMEvaporated                    = Me%Var%FMEvaporated        
-                FMDispersed                     = Me%Var%FMDispersed    
-                MDissolvedDT                    = Me%Var%MDissolvedDT
-
-            else
+            else cd2
 
                 VolumeTotalOUT                 = VolumeTotalIN 
                 VWaterContent                  = Me%Var%VWaterContent
@@ -2188,11 +2311,8 @@ cd4 :           if (present(DataLineIN  )) then
 
             Me%State%FirstStepIP = OFF
 
-
-            call null_time   (Me%ExternalVar%Now)
-
             STAT_ = SUCCESS_
-
+            
         else cd1
          
             STAT_ = ready_
@@ -2324,7 +2444,7 @@ cd3:           if (Me%Var%VolPC(n)-(Me%Var%VEvaporatedPCDT(n))                  
 
 
         else if (Me%Var%EvaporationMethod  .EQ. EvaporativeExposure) then  cd1
-            
+        
             KTransfMass                       = 1.5e-3 * Me%ExternalVar%Wind **0.78
 
             Me%Var%VEvaporatedDT          = (1-Me%Var%VWaterContent)                        &
@@ -3309,17 +3429,18 @@ cd1:    if (Me%Var%NbrDistCuts .LT. 2) then
     !----------------------------------------------------------------------------
 
 
-    subroutine TimeSerieOutput(DataLineIN)
+    subroutine TimeSerieOutput(DataLineIN, CurrentTime)
 
         !Arguments---------------------------------------------------------------
         real,    optional, dimension(:), pointer :: DataLineIN
+        type (T_Time), optional, intent (IN)     :: CurrentTime   
 
         !External--------------------------------------------------------------
         
         integer :: STAT_CALL
 
         !Local-------------------------------------------------------------------
-
+        type (T_Time)                            :: ExternalCurrentTime
         integer :: aux, Prop
 
         !------------------------------------------------------------------------
@@ -3362,13 +3483,19 @@ do1 :       do Prop = (ColNbr+1), aux
                 Me%TimeSerie%DataLine(Prop) = DataLineIN(aux-ColNbr)
             end do do1
         end if cd4
+        
+        if (present(CurrentTime)) then
+            ExternalCurrentTime = CurrentTime
+        else
+            ExternalCurrentTime = Me%NextInternalComputeTime
+        endif
 
-
-        call WriteTimeSerieLine(Me%ObjTimeSerie,                                &
-                                DataLine     = Me%TimeSerie%DataLine,           &
-                                STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                              &
-                call SetError(FATAL_, INTERNAL_,                                &
+        call WriteTimeSerieLine(Me%ObjTimeSerie,                                        &
+                                DataLine            = Me%TimeSerie%DataLine,            &
+                                ExternalCurrentTime = ExternalCurrentTime,              &
+                                STAT                = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_,                                        &
                              "Subroutine TimeSerieOutput; Module ModuleOil_0D. ERR01") 
 
         !------------------------------------------------------------------------
@@ -3408,7 +3535,6 @@ do1 :       do Prop = (ColNbr+1), aux
         !External----------------------------------------------------------------
 
         integer :: ready_ 
-        integer :: STAT_CALL 
 
         !Local-------------------------------------------------------------------
 
@@ -3424,20 +3550,11 @@ do1 :       do Prop = (ColNbr+1), aux
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-
-            ! Actualized the time
-            call GetComputeCurrentTime(Me%ObjTime,                          &
-                                       Me%ExternalVar%Now,                  &
-                                       STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_)                                          &
-                call SetError(FATAL_, INTERNAL_,                                  &
-                             "Subroutine OilActiveProcesses; Module ModuleOil_0D. ERR01") 
-
-
 cd2 :       if (LagrangianTime .GE. Me%NextActiveComputeTime) then
                 
                 Me%Now                          = Me%NextActiveComputeTime
                 Me%ExternalVar%WaterTemperature = WaterTemperature
+                Me%ExternalVar%WaterDensity     = WaterDensity
 
 cd3:            if (Me%State%FirstStepAP)  then                                     
 
@@ -3461,7 +3578,10 @@ cd4:                if (present(AreaTotal)) then
                     
                     else    cd4
                     
-                        Me%ExternalVar%Area          = F_FayArea(VolInic = Me%Var%VolInic, API = Me%Var%API )                
+                        Me%ExternalVar%Area          = F_FayArea (VolInic          = Me%Var%VolInic, &
+                                                                  API              = Me%Var%API,     &
+                                                                  WaterDensity     = WaterDensity,   &
+                                                                  WaterTemperature = WaterTemperature)                
 
                     end if  cd4
 
@@ -3528,16 +3648,11 @@ cd11:                        if (Me%State%FirstStepAP) then
 
                 end if cd6
 
-
-
-
                 Me%NextActiveComputeTime = Me%NextActiveComputeTime + DT
 
                 Me%State%FirstStepAP = OFF
                 
             end if cd2
-
-            call null_time   (Me%ExternalVar%Now)
 
             STAT_ = SUCCESS_
 
@@ -3564,7 +3679,7 @@ cd11:                        if (Me%State%FirstStepAP) then
         !Arguments---------------------------------------------------------------
 
         !------------------------------------------------------------------------
-
+        
 
             Me%Var%Density15          = FreshWaterDensity15 * 141.5                    &
                                             / (131.5 + Me%Var%API)
@@ -3617,32 +3732,35 @@ cd1:        if (Me%Var%ViscRef .LT. 0) then
         real, intent(out)      :: Delta
 
         !Local-------------------------------------------------------------------
-        real                   :: aux1, aux2
+        real                   :: aux1, aux2, aux3
 
         !------------------------------------------------------------------------
-
+        
 cd1:    if (Me%Var%OilThickness .GE. Me%Var%ThicknessLimit) then
-           
-           Delta                      = max(1e-9,(WaterDensity - Me%Var%Density)) / WaterDensity
+               
+            Delta                      = max(1e-9,(WaterDensity - Me%Var%Density)) / WaterDensity
 
-           Me%Var%beta                       = Pi *(CFay_2**2/4.) * (Delta*Gravity*(Me%Var%VolInic**2)/          &
+            Me%Var%beta                       = Pi *(CFay_2**2/4.) * (Delta*Gravity*(Me%Var%VolInic**2)/          &
                                         sqrt(WaterCinematicVisc))**(1.0/3.0)
            
-cd2:       if (Me%State%FirstStepAP) then
-     
-               Me%Var%AreaTeoric = TheoricArea(Me%Var%VolInic, Delta)
+cd2:        if (Me%State%FirstStepAP) then
+            
+                Me%Var%AreaTeoric = TheoricArea(Me%Var%VolInic, Delta)
            
-               Me%Var%beta_old   = Me%Var%beta
+                Me%Var%beta_old   = Me%Var%beta
 
-           else cd2
+            else cd2
            
-               aux1 = Me%Var%beta_old
+                aux1 = Me%Var%beta_old
 
-               aux2 = Me%Var%AreaTeoric/aux1
-
-               Me%Var%AreaTeoric = Me%Var%beta * sqrt((aux2)**2 + DT)
-
-               Me%Var%beta_old              = Me%Var%beta
+                aux2 = Me%Var%AreaTeoric/aux1
+               
+                aux3 = Me%Var%beta * sqrt((aux2)**2 + DT)
+                !The area can only grow by spreading can not shrink             
+                if (aux3 > Me%Var%AreaTeoric) then
+                    Me%Var%AreaTeoric = aux3
+                    Me%Var%beta_old   = Me%Var%beta     
+                endif 
 
            end if   cd2  
         
@@ -3717,11 +3835,11 @@ cd2:       if (Me%State%FirstStepAP) then
     ! The initial area, A0, at the end of this gravity-inertial phase and the beginning
     ! of the weathering processes is computed to be
 
-    function F_FayArea(VolInic, API, ObjEnterData)
+    function F_FayArea(VolInic, API, WaterDensity, WaterTemperature, ObjEnterData)
     real ::  F_FayArea
 
         !Arguments---------------------------------------------------------------
-        real, intent (IN)                           :: VolInic
+        real, intent (IN)                           :: VolInic, WaterDensity, WaterTemperature
         real, intent (IN), optional                 :: API
         integer, optional                           :: ObjEnterData
 
@@ -3736,9 +3854,6 @@ cd2:       if (Me%State%FirstStepAP) then
         real            :: Delta
         real            :: Density15
         real            :: Density
-        !tentar alterar as próximas constantes para variáveis
-        real, parameter :: ConstantWaterDensity     = 1027.0
-        real, parameter :: ConstantWaterTemperature = 18.0
         !------------------------------------------------------------------------
 
 
@@ -3758,15 +3873,15 @@ cd2:       if (Me%State%FirstStepAP) then
 
         Density15 = FreshWaterDensity15 * 141.5 / (131.5 + lAPI)
         
-        Density   = Density15 * (1 - CDens_DT * (ConstantWaterTemperature - Temp15)) 
+        Density   = Density15 * (1 - CDens_DT * (WaterTemperature - Temp15)) 
 
         !when oil is denser than surrounding water, oil will sink (in this case                     & 
         !oil is denser than an aproximation of surrounding water density
-        if (Density .GT. ConstantWaterDensity)                                                      &
+        if (Density .GT. WaterDensity) then
             call SetError(FATAL_, INTERNAL_,                                                          &
                           "Function  F_FayArea; Module ModuleOil_0D. ERR01 ") 
-
-        Delta     = (ConstantWaterDensity - Density) / ConstantWaterDensity
+        endif
+        Delta     = (WaterDensity - Density) / WaterDensity
 
         
         F_FayArea = TheoricArea(VolInic, Delta)
