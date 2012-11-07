@@ -2506,10 +2506,10 @@ ipp:            if (Me%ProjType == PAULO_PROJECTION_) then
 
                     do j = JLB, JUB + 1
                     do i = ILB, IUB + 1
-                        Rad_Lat  = Me%LatitudeConn(i,j)* radians 
-                        CosenLat = cos(Rad_Lat)
-                        XX_IE(i, j) =  CosenLat * EarthRadius * (Me%LongitudeConn(i, j) - Me%Longitude) * radians
-                        YY_IE(i, j) =             EarthRadius * (Me%LatitudeConn (i, j) - Me%Latitude ) * radians
+                        Rad_Lat     = Me%LatitudeConn(i,j)* radians 
+                        CosenLat    = cos(Rad_Lat)
+                        XX_IE(i, j) = CosenLat * EarthRadius * (Me%LongitudeConn(i, j) - Me%Longitude) * radians
+                        YY_IE(i, j) =            EarthRadius * (Me%LatitudeConn (i, j) - Me%Latitude ) * radians
                     enddo
                     enddo
 
@@ -4704,6 +4704,7 @@ cd3 :       if (present(SurfaceMM5)) then
         real                                        :: XPoint2, YPoint2, Xorig2, Yorig2
         integer                                     :: Referential_, GetGridBorderType
         integer                                     :: ILB, IUB, JLB, JUB
+        logical                                     :: CellLocated
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -4775,9 +4776,9 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                                         XPoint, YPoint, Me%DefineCellsMap,              &
                                         Me%WorkSize%ILB, Me%WorkSize%IUB + 1,           &
                                         Me%WorkSize%JLB, Me%WorkSize%JUB + 1,           &
-                                        I, J)
+                                        I, J, CellLocated)
 
-                if (I < 0 .or. J < 0) then
+                if (I < 0 .or. J < 0  .or. .not. CellLocated) then
                     STAT_ = OUT_OF_BOUNDS_ERR_
                     !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
 
@@ -4888,6 +4889,7 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
         integer                                     :: Referential_, GetGridBorderType
         integer                                     :: ILB, IUB, JLB, JUB
         type (T_HorizontalGrid), pointer            :: LocalMe
+        logical                                     :: CellLocated
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -4959,9 +4961,9 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                                         XPoint, YPoint, LocalMe%DefineCellsMap,              &
                                         LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB + 1,           &
                                         LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB + 1,           &
-                                        I, J)
+                                        I, J, CellLocated)
 
-                if (I < 0 .or. J < 0) then
+                if (I < 0 .or. J < 0 .or. .not. CellLocated) then
                     STAT_ = OUT_OF_BOUNDS_ERR_
                     !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
 
@@ -5802,37 +5804,35 @@ i2:                 if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j) ==
                                    ComputeFather, XInput, YInput,                       &
                                    Compute, STAT)
 
-
-
         !Arguments-------------------------------------------------------------
-        integer                                     :: HorizontalGridID
-        real,    dimension(:,:  ), pointer          :: Field2DFather
-        integer, dimension(:,:  ), pointer          :: ComputeFather
-        real,              intent(IN)               :: XInput, YInput
-        integer, optional, intent(IN)               :: Compute
-        integer, optional, intent(OUT)              :: STAT
+        integer                                             :: HorizontalGridID
+        real,              dimension(:,:  ), pointer        :: Field2DFather
+        integer, optional, dimension(:,:  ), pointer        :: ComputeFather
+        real,                                intent(IN)     :: XInput, YInput
+        integer, optional,                   intent(IN)     :: Compute
+        integer, optional,                   intent(OUT)    :: STAT
 
         !Local-----------------------------------------------------------------
-        real   , pointer, dimension(:,:)            :: DXFather, DYFather, XXFather2D, YYFather2D
-        real   , pointer, dimension(:  )            :: XXFather, YYFather
-        integer, pointer, dimension(:,:)            :: DefinedPoint
-        logical                                     :: InsideDomain
+        real   , pointer, dimension(:,:)                    :: DXFather, DYFather, XXFather2D, YYFather2D
+        real   , pointer, dimension(:  )                    :: XXFather, YYFather
+        integer, pointer, dimension(:,:)                    :: DefinedPoint
+        logical                                             :: InsideDomain
 
-        real                                        :: YYUpper, YYLower, XXUpper, XXLower,  &
-                                                       PropLowLeft,  PropUpLeft, PropLowRight, PropUpRight
+        real                                                :: YYUpper, YYLower, XXUpper, XXLower,  &
+                                                               PropLowLeft,  PropUpLeft, PropLowRight, PropUpRight
         
-        integer                                     :: ONLowLeft, ONUpLeft, ONLowRight, ONUpRight
-        integer                                     :: ready_
+        integer                                             :: ONLowLeft, ONUpLeft, ONLowRight, ONUpRight
+        integer                                             :: ready_
             
-        integer                                     :: Jlower, Jupper, Ilower, Iupper 
-        integer                                     :: STAT_            
+        integer                                             :: Jlower, Jupper, Ilower, Iupper 
+        integer                                             :: STAT_            
 
-        integer                                     :: I, J
-        real                                        :: PercI, PercJ
-        integer                                     :: Compute_ 
-        logical                                     :: InterPolOK
-        real                                        :: XPosition, YPosition, InterpolatedValue
-        integer                                     :: Dij, Dji, JUBFather, IUBFather
+        integer                                             :: I, J
+        real                                                :: PercI, PercJ
+        integer                                             :: Compute_ 
+        logical                                             :: InterPolOK
+        real                                                :: XPosition, YPosition, InterpolatedValue
+        integer                                             :: Dij, Dji, JUBFather, IUBFather
 
         !Begin------------------------------------------------------------------
 
@@ -6007,11 +6007,22 @@ id:         if (InsideDomain) then
                 PropUpLeft  = Field2DFather(Iupper, Jlower)
                 PropLowRight= Field2DFather(Ilower, Jupper)
                 PropUpRight = Field2DFather(Iupper, Jupper)           
+                
+                if (present(ComputeFather)) then
+                
+                    ONLowLeft   = ComputeFather(Ilower, Jlower)
+                    ONUpLeft    = ComputeFather(Iupper, Jlower)
+                    ONLowRight  = ComputeFather(Ilower, Jupper)
+                    ONUpRight   = ComputeFather(Iupper, Jupper)
+                    
+                else
+                
+                    ONLowLeft   = 1
+                    ONUpLeft    = 1
+                    ONLowRight  = 1
+                    ONUpRight   = 1
 
-                ONLowLeft   = ComputeFather(Ilower, Jlower)
-                ONUpLeft    = ComputeFather(Iupper, Jlower)
-                ONLowRight  = ComputeFather(Ilower, Jupper)
-                ONUpRight   = ComputeFather(Iupper, Jupper)
+                endif                    
                 
                 if (ONLowLeft + ONUpLeft + ONLowRight + ONUpRight == 4) then
 
@@ -10142,24 +10153,25 @@ cd1:    if      (SumON > 0) then
    !------------------------------------------------------------------------    
     
     subroutine LocateCellPolygons(XX2D_Z, YY2D_Z, XPoint, YPoint,                       &
-                                  DefinedPoint, ILB, IUB, JLB, JUB, IZ, JZ)
+                                  DefinedPoint, ILB, IUB, JLB, JUB, IZ, JZ, CellLocated)
 
         !Arguments ---------------------------------------------------------
-        real,    dimension(:,:)  , pointer   :: XX2D_Z, YY2D_Z
-        integer, dimension(:,:)  , pointer   :: DefinedPoint
-        real   ,                 intent(IN ) :: XPoint, YPoint
-        integer,                 intent(IN ) :: ILB, IUB, JLB, JUB
-        integer,                 intent(OUT) :: IZ, JZ
+        real,    dimension(:,:)  , pointer              :: XX2D_Z, YY2D_Z
+        integer, dimension(:,:)  , pointer              :: DefinedPoint
+        real   ,                 intent(IN )            :: XPoint, YPoint
+        integer,                 intent(IN )            :: ILB, IUB, JLB, JUB
+        integer,                 intent(OUT)            :: IZ, JZ
+        logical,                 intent(OUT), optional  :: CellLocated
 
         !Local -------------------------------------------------------------
-        integer                              :: ICenter, JCenter, Iupper, ILower,       &
-                                                Jupper, JLower
-        logical                              :: CellFound
-        type(T_PointF ),          pointer    :: Point
-        type(T_Polygon),          pointer    :: Polygon
-        integer                              :: i, j, pi
-        integer                              :: I1, I2, I3, I4
-        integer                              :: J1, J2, J3, J4
+        integer                                         :: ICenter, JCenter, Iupper, ILower,&
+                                                           Jupper, JLower
+        type(T_PointF ),          pointer               :: Point
+        type(T_Polygon),          pointer               :: Polygon
+        integer                                         :: i, j, pi
+        integer                                         :: I1, I2, I3, I4
+        integer                                         :: J1, J2, J3, J4
+        logical                                         :: IsPointInside, SearchCell, CellFound
         !Begin -------------------------------------------------------------
 
         allocate(Polygon)
@@ -10168,17 +10180,22 @@ cd1:    if      (SumON > 0) then
         allocate(Point)
 
         CellFound = .false.
-
+        SearchCell = .true.
+        
         Iupper = IUB
         ILower = ILB
 
         Jupper = JUB
         JLower = JLB
+        
 
-        do while (.not. CellFound)
+
+        do while (SearchCell)
 
             ICenter = int(real((Iupper - ILower)/ 2.)) + ILower
             JCenter = int(real((Jupper - JLower)/ 2.)) + JLower
+            
+            IsPointInside = .false.
 
             !Construct 4 polygons NW, NE, SW, SE
             do pi = 1, 4
@@ -10286,8 +10303,10 @@ cd1:    if      (SumON > 0) then
 
                 Point%X = XPoint
                 Point%Y = YPoint
+                
+                IsPointInside = IsPointInsidePolygon(Point, Polygon)
 
-                if (IsPointInsidePolygon(Point, Polygon)) exit
+                if (IsPointInside) exit
 
             enddo
 
@@ -10296,14 +10315,23 @@ cd1:    if      (SumON > 0) then
 
             Jupper  = J2
             JLower  = J1
-
-            !Test if the cell was found
-            if ((Iupper - ILower) == 1 .and. (Jupper - JLower) == 1) CellFound = .true.
-
+            
+            if ((Iupper - ILower) == 1 .and. (Jupper - JLower) == 1) then
+                
+                SearchCell = .false.           
+            
+                if (IsPointInside) then
+                    !Test if the cell was found
+                     CellFound = .true.
+                endif
+            endif
+                            
         end do 
 
         IZ = ILower
         JZ = JLower
+        
+        if (present(CellLocated)) CellLocated = CellFound
 
             
         deallocate(Polygon%VerticesF)        
