@@ -1183,6 +1183,30 @@ do2 :       do J = 1, WaveNameLength
                 stop 'Error calling GetData, SUBROUTINE ReadHarmonics; Module ModuleGauge. ERR01.'
 
 if2 :       if (flag .EQ. 2) then
+
+                if (AuxWave(1) < 0.) then
+                    write(*,*) 'Tidal component ', trim(WaveName),' in the tidal gauge named ', trim(PresentGauge%Name)
+                    write(*,*) 'has an amplitude below ZERO'
+                    stop
+                endif
+                if (AuxWave(1) > 20.) then
+                    write(*,*) 'Tidal component ', trim(WaveName),' in the tidal gauge named ', trim(PresentGauge%Name)
+                    write(*,*) 'has an amplitude above 20'
+                    stop
+                endif
+
+                if (AuxWave(2) < -360.) then
+                    write(*,*) 'Tidal component ', trim(WaveName),' in the tidal gauge named ', trim(PresentGauge%Name)
+                    write(*,*) 'has a phase below -360'
+                    stop
+                endif
+                if (AuxWave(2) >  360.) then
+                    write(*,*) 'Tidal component ', trim(WaveName),' in the tidal gauge named ', trim(PresentGauge%Name)
+                    write(*,*) 'has a phase above +360'
+                    stop
+                endif
+
+
                 Amplitude = AuxWave(1)
                 Phase     = AuxWave(2) / 360.0
 
