@@ -595,7 +595,7 @@ Module ModuleWaterProperties
         integer, dimension(:), pointer          :: i, j, k, nCells, kmin, kmax
         real,    dimension(:), pointer          :: Flow
         integer, dimension(:), pointer          :: Vert
-        logical, dimension(:), pointer          :: Ignore
+        logical, dimension(:), pointer          :: Ignore, ByPass
     end type   T_Discharge                       
 
 
@@ -3834,7 +3834,8 @@ do1 :   do while (associated(PropertyX))
                          Me%Discharge%kmax   (TotalCells))
 
                 allocate(Me%Discharge%Vert   (Me%Discharge%Number),                     &
-                         Me%Discharge%Ignore (Me%Discharge%Number))
+                         Me%Discharge%Ignore (Me%Discharge%Number),                     &
+                         Me%Discharge%ByPass (Me%Discharge%Number))
 
                 Me%Discharge%Flow   (:) = FillValueReal
                 Me%Discharge%i      (:) = FillValueInt
@@ -3846,6 +3847,7 @@ do1 :   do while (associated(PropertyX))
 
                 Me%Discharge%Vert   (:) = 0
                 Me%Discharge%Ignore (:) = .false.
+                Me%Discharge%ByPass (:) = .false.
 
                 PropertyX   => Me%FirstProperty
                 do while (associated(PropertyX))
@@ -12320,7 +12322,7 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                                             Me%Discharge%kmin,    Me%Discharge%kmax,    &
                                             Me%Discharge%Vert,    Me%Discharge%Number,  &
                                             Me%Discharge%Ignore,  Me%Discharge%nCells,  &
-                                            STAT = STAT_CALL)
+                                            Me%Discharge%ByPass,  STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR100'
                     endif
@@ -16709,6 +16711,8 @@ dd:     do dis = 1, Me%Discharge%Number
             !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
             call GetByPassON(Me%ObjDischarges, dis, ByPassON, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR75'
+            
+            if (ByPassON) Me%Discharge%ByPass   (dis) = .true.
 
             call GetDischargeFromIntakeON(Me%ObjDischarges, dis, DischargeFromIntakeON, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR76'
@@ -16799,70 +16803,73 @@ dn:         do n=1, nCells
 
                         !nProperties = nProperties + 1
                     
-                        !Frank
-                        !If the discharge flow is positive (Input) then the concentration
-                        !to consider is the concentration supplied in the data file
- i1:                    if (DischargeFlow > 0.) then
-                
- i2:                        if (ByPassON) then
-                                !Concentration equal to the value where the other bypass side is located 
-                                !In the bypass discharge case there is an numerical inconsistency because 
-                                !the same discharge is consider implicitly (see module advectiondiffusion) in one cell
-                                !and added explicitly in another
-                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i, j, k)
-                            
-                            elseif (DischargeFromIntakeON) then i2
+ iby:                   if (ByPassON) then
                                 
-                                !Get the Intake location and the concentration increase
-                                call GetIntakeConcentration(Me%ObjDischarges, dis,      &
-                                                            PropertyX%ID%IDNumber,      &
-                                                            IntakeI, IntakeJ, IntakeK,  &
-                                                            ConcentrationIncrease,      &
-                                                            STAT = STAT_CALL)
-                                if (STAT_CALL/=SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR89'
-                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(IntakeI, IntakeJ, IntakeK) + &
-                                                               ConcentrationIncrease
-
-                            else   i2
-
-                                call GetDischargeConcentration (Me%ObjDischarges,                   &
-                                                                Me%ExternalVar%Now,                 &
-                                                                dis, DischargeConc,                 &
-                                                                PropertyIDNumber=PropertyX%ID%IDNumber, &
+                            if (DischargeFlow > 0.) then                                
+                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(ib, jb, k)                        
+                            else
+                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i , j , k)                        
+                            endif
+                            
+                        else iby 
+                        !Frank
+                            !If the discharge flow is positive (Input) then the concentration
+                            !to consider is the concentration supplied in the data file
+ i1:                        if (DischargeFlow > 0.) then
+                    
+ i2:                            if (DischargeFromIntakeON) then
+                                    
+                                    !Get the Intake location and the concentration increase
+                                    call GetIntakeConcentration(Me%ObjDischarges, dis,      &
+                                                                PropertyX%ID%IDNumber,      &
+                                                                IntakeI, IntakeJ, IntakeK,  &
+                                                                ConcentrationIncrease,      &
                                                                 STAT = STAT_CALL)
-                                if (STAT_CALL/=SUCCESS_) then
-                                    if (STAT_CALL == NOT_FOUND_ERR_) then 
-                                        !When a property is not found associated to a discharge
-                                        !by default is consider that the concentration is zero
-                                        DischargeConc = 0.
-                                    else
-                                        stop 'WaterPropDischarges - ModuleWaterProperties - ERR90'
+                                    if (STAT_CALL/=SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR89'
+                                    PropertyX%DischConc(AuxCell) = PropertyX%Concentration(IntakeI, IntakeJ, IntakeK) + &
+                                                                   ConcentrationIncrease
+
+                                else   i2
+
+                                    call GetDischargeConcentration (Me%ObjDischarges,                   &
+                                                                    Me%ExternalVar%Now,                 &
+                                                                    dis, DischargeConc,                 &
+                                                                    PropertyIDNumber=PropertyX%ID%IDNumber, &
+                                                                    STAT = STAT_CALL)
+                                    if (STAT_CALL/=SUCCESS_) then
+                                        if (STAT_CALL == NOT_FOUND_ERR_) then 
+                                            !When a property is not found associated to a discharge
+                                            !by default is consider that the concentration is zero
+                                            DischargeConc = 0.
+                                        else
+                                            stop 'WaterPropDischarges - ModuleWaterProperties - ERR90'
+                                        endif
                                     endif
-                                endif
 
-                                PropertyX%DischConc(AuxCell) = DischargeConc
-                                                              
-                                if (Me%Coupled%DischargesTracking%Yes) then
+                                    PropertyX%DischConc(AuxCell) = DischargeConc
+                                                                  
+                                    if (Me%Coupled%DischargesTracking%Yes) then
 
-                                    nProperties = nProperties + 1
-                                    
-                                    if (nCells > 1) then
-                                    
-                                        Databuffer(nProperties) = DischargeConc * DistributionCoef(n)
+                                        nProperties = nProperties + 1
                                         
-                                    else
-                                    
-                                        Databuffer(nProperties) = DischargeConc
+                                        if (nCells > 1) then
                                         
-                                    endif 
-                                    
-                                endif
+                                            Databuffer(nProperties) = DischargeConc * DistributionCoef(n)
+                                            
+                                        else
+                                        
+                                            Databuffer(nProperties) = DischargeConc
+                                            
+                                        endif 
+                                        
+                                    endif
 
-                            endif i2
+                                endif i2
 
-                        endif i1
+                            endif i1
+                        
+                        endif iby
 
-                
                     endif cd2
                     endif cd1
   
@@ -22085,7 +22092,8 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                                Me%Discharge%kmax    ,                                   &
                                Me%Discharge%Vert    ,                                   &
                                Me%Discharge%Ignore  ,                                   &
-                               Me%Discharge%nCells)
+                               Me%Discharge%nCells  ,                                   &
+                               Me%Discharge%ByPass)
 
                     nullify   (Me%Discharge%Flow    ,                                   &
                                Me%Discharge%i       ,                                   &
@@ -22095,7 +22103,8 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                                Me%Discharge%kmax    ,                                   &
                                Me%Discharge%Vert    ,                                   &
                                Me%Discharge%Ignore  ,                                   &
-                               Me%Discharge%nCells)
+                               Me%Discharge%nCells  ,                                   &
+                               Me%Discharge%ByPass)
 
                 end if
 
