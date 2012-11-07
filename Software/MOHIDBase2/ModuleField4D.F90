@@ -236,6 +236,7 @@ Module ModuleField4D
         real(8), dimension(:      ), pointer        :: Matrix1D, Depth1D        
         
         type (T_Time)                               :: StartTime, EndTime
+        type (T_Time)                               :: CurrentTimeExt, CurrentTimeInt        
         type (T_ExternalVar)                        :: ExternalVar
         type (T_PropField), pointer                 :: FirstPropField
         type (T_File      )                         :: File
@@ -265,7 +266,7 @@ Module ModuleField4D
         integer                                     :: MaskDim              = Dim3D
         real                                        :: LatReference
         real                                        :: LonReference
-        logical                                     :: ReadWindow, WindowWithData
+        logical                                     :: ReadWindow, WindowWithData 
         real,    dimension(2,2)                     :: WindowLimits
         type(T_Field4D), pointer                    :: Next
     end type  T_Field4D
@@ -339,6 +340,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             Me%File%FileName     = trim(FileName)
             Me%MaskDim           = MaskDim
+            
+            Me%WindowWithData    = .true. 
 
             call ConstructFile(ExtractType)
             
@@ -396,102 +399,106 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ReadGridFromFile
                 
             endif
+
+wwd:        if (Me%WindowWithData) then            
             
-            call GetHorizontalGridSize(HorizontalGridID = Me%ObjHorizontalGrid,         &
-                                       Size             = Me%Size2D,                    &
-                                       WorkSize         = Me%WorkSize2D,                &
-                                       STAT             = STAT_CALL) 
-            if (STAT_CALL/=SUCCESS_) then
-                stop 'ConstructField4D - ModuleField4D - ERR30' 
-            endif
-            
-            
-            if (present(BathymetryID)) then
-                Me%ObjBathymetry            = AssociateInstance (mGRIDDATA_,       BathymetryID    )
-                
-                Me%BuildBathymetry      = .false.
-            else
-                Me%BuildBathymetry      = .true.
-
-                call ReadBathymFromFile
-            endif
-
-            if (present(HorizontalMapID)) then
-                Me%ObjHorizontalMap         = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
-                
-                Me%BuildHorizontalMap      = .false.
-            else
-                Me%BuildHorizontalMap      = .true.
-
-
-                call ReadMap2DFromFile
-            endif
-            
-            call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
-                                  WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
-                                  STAT              = STAT_CALL) 
-            if (STAT_CALL/=SUCCESS_) then
-                stop 'ConstructField4D - ModuleField4D - ERR40' 
-            endif 
-
-            if (Me%MaskDim == Dim3D) then
-
-                if (present(GeometryID)) then
-                    Me%ObjGeometry          = AssociateInstance (mGEOMETRY_,       GeometryID      )
-                
-                    Me%BuildGeometry      = .false.
-                else
-                    Me%BuildGeometry      = .true.
-
-                    call ReadGeometryFromFile
+                call GetHorizontalGridSize(HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                           Size             = Me%Size2D,                    &
+                                           WorkSize         = Me%WorkSize2D,                &
+                                           STAT             = STAT_CALL) 
+                if (STAT_CALL/=SUCCESS_) then
+                    stop 'ConstructField4D - ModuleField4D - ERR30' 
                 endif
                 
-                if (present(MapID)) then
-                    Me%ObjMap               = AssociateInstance (mMAP_,            MapID           )
+                
+                if (present(BathymetryID)) then
+                    Me%ObjBathymetry            = AssociateInstance (mGRIDDATA_,       BathymetryID    )
                     
-                    call GetWaterPoints3D(Map_ID            = Me%ObjMap,                    &
-                                          WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
-                                          STAT              = STAT_CALL) 
+                    Me%BuildBathymetry      = .false.
+                else
+                    Me%BuildBathymetry      = .true.
+
+                    call ReadBathymFromFile
+                endif
+
+                if (present(HorizontalMapID)) then
+                    Me%ObjHorizontalMap         = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
+                    
+                    Me%BuildHorizontalMap      = .false.
+                else
+                    Me%BuildHorizontalMap      = .true.
+
+
+                    call ReadMap2DFromFile
+                endif
+                
+                call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
+                                      WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
+                                      STAT              = STAT_CALL) 
+                if (STAT_CALL/=SUCCESS_) then
+                    stop 'ConstructField4D - ModuleField4D - ERR40' 
+                endif 
+
+                if (Me%MaskDim == Dim3D) then
+
+                    if (present(GeometryID)) then
+                        Me%ObjGeometry          = AssociateInstance (mGEOMETRY_,       GeometryID      )
+                    
+                        Me%BuildGeometry      = .false.
+                    else
+                        Me%BuildGeometry      = .true.
+
+                        call ReadGeometryFromFile
+                    endif
+                    
+                    if (present(MapID)) then
+                        Me%ObjMap               = AssociateInstance (mMAP_,            MapID           )
+                        
+                        call GetWaterPoints3D(Map_ID            = Me%ObjMap,                    &
+                                              WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
+                                              STAT              = STAT_CALL) 
+                        if (STAT_CALL/=SUCCESS_) then
+                            stop 'ConstructField4D - ModuleField4D - ERR50' 
+                        endif 
+                    
+                        Me%BuildMap      = .false.
+                    else
+                        Me%BuildMap      = .true.
+
+                        call ReadMap3DFromFile
+                    endif
+               
+                endif
+                
+                call AllocatePropertyField  (NewPropField, Me%MaskDim)
+                
+                call ReadOptions            (NewPropField, ExtractType)     
+                
+                call ConstructPropertyField (NewPropField)
+                
+                if (Me%OutPut%Yes) then
+                    call Open_HDF5_OutPut_File(NewPropField)
+                endif
+                
+                call UnGetHorizontalMap(HorizontalMapID = Me%ObjHorizontalMap,              &
+                                        Array           = Me%ExternalVar%WaterPoints2D,     &
+                                        STAT            = STAT_CALL) 
+                if (STAT_CALL/=SUCCESS_) then
+                    stop 'ConstructField4D - ModuleField4D - ERR60' 
+                endif 
+                
+                if (Me%MaskDim == Dim3D) then
+                
+                    call UnGetMap(Map_ID          = Me%ObjMap,                              &
+                                  Array           = Me%ExternalVar%WaterPoints3D,           &
+                                  STAT            = STAT_CALL) 
                     if (STAT_CALL/=SUCCESS_) then
-                        stop 'ConstructField4D - ModuleField4D - ERR50' 
+                        stop 'ConstructField4D - ModuleField4D - ERR70' 
                     endif 
                 
-                    Me%BuildMap      = .false.
-                else
-                    Me%BuildMap      = .true.
-
-                    call ReadMap3DFromFile
                 endif
-           
-            endif
             
-            call AllocatePropertyField  (NewPropField, Me%MaskDim)
-            
-            call ReadOptions            (NewPropField, ExtractType)     
-            
-            call ConstructPropertyField (NewPropField)
-            
-            if (Me%OutPut%Yes) then
-                call Open_HDF5_OutPut_File(NewPropField)
-            endif
-            
-            call UnGetHorizontalMap(HorizontalMapID = Me%ObjHorizontalMap,              &
-                                    Array           = Me%ExternalVar%WaterPoints2D,     &
-                                    STAT            = STAT_CALL) 
-            if (STAT_CALL/=SUCCESS_) then
-                stop 'ConstructField4D - ModuleField4D - ERR60' 
-            endif 
-            
-            if (Me%MaskDim == Dim3D) then
-            
-                call UnGetMap(Map_ID          = Me%ObjMap,                              &
-                              Array           = Me%ExternalVar%WaterPoints3D,           &
-                              STAT            = STAT_CALL) 
-                if (STAT_CALL/=SUCCESS_) then
-                    stop 'ConstructField4D - ModuleField4D - ERR70' 
-                endif 
-            
-            endif
+            endif wwd
                          
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
             if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR60' 
@@ -759,24 +766,28 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                         WindowWithData  = Me%WindowWithData)
             
                 if (.not. Me%WindowWithData) then
-                    stop 'ReadGridFromFile - ModuleField4D - ERR70'
+                    write(*,*) 'Input file do not intersect the model domain'
+                    write(*,*) 'ReadGridFromFile - ModuleField4D - WRN70'
                 endif
             
             endif
-
+            
             ILB = max(WindowDomain(1,1) - 1,1   )
             IUB = min(WindowDomain(1,2) + 1,Imax)
             JLB = max(WindowDomain(2,1) - 1,1   )
             JUB = min(WindowDomain(2,2) + 1,Jmax)
             
             deallocate (WindowDomain)
-
-            allocate(LatStagW(ILB-1:IUB+1,JLB-1:JUB+1))
-            LatStagW(ILB-1:IUB+1,JLB-1:JUB+1) = LatStag(ILB-1:IUB+1,JLB-1:JUB+1)
-
-            allocate(LonStagW(ILB-1:IUB+1,JLB-1:JUB+1))
-            LonStagW(ILB-1:IUB+1,JLB-1:JUB+1) = LonStag(ILB-1:IUB+1,JLB-1:JUB+1)
             
+wwd1:        if (Me%WindowWithData) then
+
+                allocate(LatStagW(ILB-1:IUB+1,JLB-1:JUB+1))
+                LatStagW(ILB-1:IUB+1,JLB-1:JUB+1) = LatStag(ILB-1:IUB+1,JLB-1:JUB+1)
+
+                allocate(LonStagW(ILB-1:IUB+1,JLB-1:JUB+1))
+                LonStagW(ILB-1:IUB+1,JLB-1:JUB+1) = LonStag(ILB-1:IUB+1,JLB-1:JUB+1)
+            
+            endif wwd1
         else
         
             ILB = 1
@@ -789,27 +800,30 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
             
         endif
         
+        if (Me%WindowWithData) then
         
-        !Builds horizontal grid object
-        call ConstructHorizontalGrid(HorizontalGridID   = Me%ObjHorizontalGrid,         &
-                                     LatitudeConn       = LatStagW,                     &
-                                     LongitudeConn      = LonStagW,                     &
-                                     XX                 = XXDummy,                      &
-                                     YY                 = YYDummy,                      &
-                                     Latitude           = Me%LatReference,              &
-                                     Longitude          = Me%LonReference,              &
-                                     ILB                = ILB,                          &
-                                     IUB                = IUB,                          &
-                                     JLB                = JLB,                          &
-                                     JUB                = JUB,                          &
-                                     STAT               = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR80'
+            !Builds horizontal grid object
+            call ConstructHorizontalGrid(HorizontalGridID   = Me%ObjHorizontalGrid,         &
+                                         LatitudeConn       = LatStagW,                     &
+                                         LongitudeConn      = LonStagW,                     &
+                                         XX                 = XXDummy,                      &
+                                         YY                 = YYDummy,                      &
+                                         Latitude           = Me%LatReference,              &
+                                         Longitude          = Me%LonReference,              &
+                                         ILB                = ILB,                          &
+                                         IUB                = IUB,                          &
+                                         JLB                = JLB,                          &
+                                         JUB                = JUB,                          &
+                                         STAT               = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR80'
+
+        endif    
         
         deallocate(Lat    )
         deallocate(Lon    )
         deallocate(LatStag)
         deallocate(LonStag)
-        if (Me%ReadWindow) then
+        if (Me%ReadWindow .and. Me%WindowWithData) then
             deallocate(LatStagW)
             deallocate(LonStagW)
         endif
@@ -1713,6 +1727,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         
 it:     if (NewPropField%ChangeInTime) then
 
+            FoundSecondInstant = .false.
 
             if (Me%Backtracking) then
 
@@ -1723,21 +1738,25 @@ it:     if (NewPropField%ChangeInTime) then
 
                 if(NewPropField%PreviousTime .lt. Me%EndTime)then
                     write(*,*)
-                    write(*,*)'Could not read solution from file'
+                    !write(*,*)'Could not read solution from file'
                     write(*,*) 'Filename =', trim(Me%File%FileName)                    
                     write(*,*)'First file instant greater than current time'
                     write(*,*)'Matrix name: '//trim(NewPropField%FieldName)
-                    stop      'ConstructPropertyField - ModuleField4D - ERR170'
+                    !stop      'ConstructPropertyField - ModuleField4D - ERR170'
+                    
+                    FoundSecondInstant        = .true. 
+                    NewPropField%NextInstant  = NewPropField%PreviousInstant - 1
+                    NewPropField%NextTime     = Me%File%InstantsDates(NewPropField%NextInstant) 
                 end if
 
                             
                 if(Me%File%StartTime .gt. Me%StartTime)then
                     write(*,*)
-                    write(*,*)'Could not read solution from file'
+                    !write(*,*)'Could not read solution from file'
                     write(*,*) 'Filename =', trim(Me%File%FileName)                    
                     write(*,*)'Last instant in file lower than simulation ending time'
                     write(*,*)'Matrix name: '//trim(NewPropField%FieldName)
-                    stop      'ConstructPropertyField - ModuleField4D - ERR180'
+                    !stop      'ConstructPropertyField - ModuleField4D - ERR180'
                 end if
             
             else
@@ -1748,27 +1767,30 @@ it:     if (NewPropField%ChangeInTime) then
 
                 if(NewPropField%PreviousTime .gt. Me%StartTime)then
                     write(*,*)
-                    write(*,*)'Could not read solution from file'
+                    !write(*,*)'Could not read solution from file'
                     write(*,*) 'Filename =', trim(Me%File%FileName)                    
                     write(*,*)'First file instant greater than current time'
                     write(*,*)'Matrix name: '//trim(NewPropField%FieldName)
-                    stop      'ConstructPropertyField - ModuleField4D - ERR190'
+                    !stop      'ConstructPropertyField - ModuleField4D - ERR190'
+                    
+                    FoundSecondInstant        = .true. 
+                    NewPropField%NextInstant  = NewPropField%PreviousInstant + 1
+                    NewPropField%NextTime     = Me%File%InstantsDates(NewPropField%NextInstant) 
+                    
                 end if
 
                             
                 if(Me%File%EndTime .lt. Me%EndTime)then
                     write(*,*)
-                    write(*,*)'Could not read solution from file'
+                    !write(*,*)'Could not read solution from file'
                     write(*,*) 'Filename =', trim(Me%File%FileName)                    
                     write(*,*)'Last instant in file lower than simulation ending time'
                     write(*,*)'Matrix name: '//trim(NewPropField%FieldName)
-                    stop      'ConstructPropertyField - ModuleField4D - ERR200'
+                    !stop      'ConstructPropertyField - ModuleField4D - ERR200'
                 end if
                 
             endif
 
-            FoundSecondInstant = .false.
-            
         
             !if number of instants greater than 1 then 
             !find first and second instants
@@ -2037,51 +2059,42 @@ it:     if (NewPropField%ChangeInTime) then
     !--------------------------------------------------------------------------
 
     !-------------------------------------------------------------------------
-    subroutine BacktrackingTime(CurrentTime, Now)
+    subroutine BacktrackingTime
 
         !Arguments------------------------------------------------------------
-        type (T_Time), intent(IN)                       :: CurrentTime
-        type (T_Time), intent(OUT)                      :: Now
+
         !Local----------------------------------------------------------------
         real                                            :: TotalTime, AuxPeriod
 
         !Begin----------------------------------------------------------------
 
 
-        TotalTime = Me%EndTime  - Me%StartTime                  
-        AuxPeriod = CurrentTime - Me%StartTime
-        AuxPeriod = TotalTime   - AuxPeriod
+        TotalTime = Me%EndTime        - Me%StartTime                  
+        AuxPeriod = Me%CurrentTimeExt - Me%StartTime
+        AuxPeriod = TotalTime         - AuxPeriod
         
-        Now = Me%StartTime + AuxPeriod
+        Me%CurrentTimeInt = Me%StartTime + AuxPeriod
 
     end subroutine BacktrackingTime
     
     !-------------------------------------------------------------------------    
     !-------------------------------------------------------------------------
     
-    logical function ReadNewField(PropField,CurrentTime,Now,n)
+    logical function ReadNewField(PropField,n)
 
         !Arguments------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
-        type (T_Time), intent(IN )                      :: CurrentTime        
-        type (T_Time), intent(OUT)                      :: Now
         integer      , intent(OUT)                      :: n
         !Local----------------------------------------------------------------
         logical                                         :: ReadNewField_
 
         !Begin----------------------------------------------------------------
 
-        if (Me%BackTracking) then  
-            call BacktrackingTime(CurrentTime, Now)
-        else   
-            Now = CurrentTime
-        endif     
-
         ReadNewField_ = .false.
         if (Me%BackTracking) then  
-            if (Now .le. PropField%NextTime) ReadNewField_ = .true.
+            if (Me%CurrentTimeInt .le. PropField%NextTime) ReadNewField_ = .true.
         else            
-            if (Now .ge. PropField%NextTime) ReadNewField_ = .true.
+            if (Me%CurrentTimeInt .ge. PropField%NextTime) ReadNewField_ = .true.
         endif
         
         ReadNewField = ReadNewField_
@@ -2093,9 +2106,9 @@ it:     if (NewPropField%ChangeInTime) then
             do 
 
                 if (Me%BackTracking) then  
-                    if (Now .gt. PropField%NextTime) exit
+                    if (Me%CurrentTimeInt .gt. PropField%NextTime) exit
                 else            
-                    if (Now .lt. PropField%NextTime) exit
+                    if (Me%CurrentTimeInt .lt. PropField%NextTime) exit
                 endif            
                 
                 PropField%PreviousInstant  = PropField%NextInstant
@@ -2123,7 +2136,7 @@ it:     if (NewPropField%ChangeInTime) then
             enddo
             
             if (Me%BackTracking) then
-                if(Now .lt. PropField%NextTime)then
+                if(Me%CurrentTimeInt .lt. PropField%NextTime)then
                     write(*,*)
                     write(*,*)'----------Backtracking mode-----------'
                     write(*,*)'Could not read solution from HDF5 file'
@@ -2131,7 +2144,7 @@ it:     if (NewPropField%ChangeInTime) then
                     stop      'ReadNewField - ModuleField4D - ERR20'
                 end if
             else
-                if(Now .gt. PropField%NextTime)then
+                if(Me%CurrentTimeInt .gt. PropField%NextTime)then
                     write(*,*)
                     write(*,*)'Could not read solution from HDF5 file'
                     write(*,*)'Time instants inconsistency.'
@@ -2518,6 +2531,7 @@ it:     if (NewPropField%ChangeInTime) then
         !Local-----------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
         integer                                         :: STAT_, ready_, STAT_CALL
+        logical                                         :: CorrectTimeFrame
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -2526,22 +2540,39 @@ it:     if (NewPropField%ChangeInTime) then
 
         if (ready_ .EQ. IDLE_ERR_) then
         
-            call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4D - ModuleField4D - ERR10'
-
-            if (present(Matrix2D)) Me%Matrix2D => Matrix2D
-            if (present(Matrix3D)) Me%Matrix3D => Matrix3D
-
-            if      (PropField%SpaceDim == Dim2D) then
-                call ModifyInput2D (PropField, CurrentTime) 
-            else if (PropField%SpaceDim == Dim3D) then
-                call ModifyInput3D (PropField, CurrentTime)
+            Me%CurrentTimeExt = CurrentTime
+        
+            if (Me%BackTracking) then  
+                call BacktrackingTime
+            else   
+                Me%CurrentTimeInt = Me%CurrentTimeExt
             endif
             
-            if (Me%Output%Yes) then
-                call WriteOutput(PropField, PropertyIDNumber, CurrentTime)
-            endif
+            CorrectTimeFrame = .true.
+            
+            if (Me%CurrentTimeInt < Me%File%StartTime) CorrectTimeFrame = .false.  
+            if (Me%CurrentTimeInt > Me%File%EndTime  ) CorrectTimeFrame = .false.              
+            
+            if (CorrectTimeFrame) then
+        
+                call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4D - ModuleField4D - ERR10'
 
+                if (present(Matrix2D)) Me%Matrix2D => Matrix2D
+                if (present(Matrix3D)) Me%Matrix3D => Matrix3D
+
+                if      (PropField%SpaceDim == Dim2D) then
+                    call ModifyInput2D (PropField) 
+                else if (PropField%SpaceDim == Dim3D) then
+                    call ModifyInput3D (PropField)
+                endif
+                
+                if (Me%Output%Yes) then
+                    call WriteOutput(PropField, PropertyIDNumber)
+                endif
+
+            endif
+            
             STAT_ = SUCCESS_
             
         else               
@@ -2554,46 +2585,31 @@ it:     if (NewPropField%ChangeInTime) then
 
     !--------------------------------------------------------------------------
     
-    subroutine WriteOutput(PropField, PropertyIDNumber, now)
+    subroutine WriteOutput(PropField, PropertyIDNumber)
 
         !Arguments-------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
         integer,                 intent(IN)             :: PropertyIDNumber
-        type (T_Time),           intent(IN)             :: Now 
 
         !Local-----------------------------------------------------------------
         real,   dimension(:,:,:),  pointer              :: SZZ
         real, dimension(6), target                      :: AuxTime
         real,    dimension(:    ), pointer              :: TimePtr   
-        type (T_Time)                                   :: Aux        
         integer                                         :: WorkILB, WorkIUB,            &
                                                            WorkJLB, WorkJUB,            &
                                                            WorkKLB, WorkKUB
         integer                                         :: OutPutNumber, STAT_CALL 
-        real(8)                                         :: AuxPeriod, TotalTime            
 
         !Begin-----------------------------------------------------------------
 
         OutPutNumber = Me%OutPut%NextOutput
         
         if (OutPutNumber<=Me%OutPut%TotalOutputs) then
-        if (Now>=Me%OutPut%OutTime(Me%OutPut%NextOutput)) then
+        if (Me%CurrentTimeExt>=Me%OutPut%OutTime(Me%OutPut%NextOutput)) then
 
             if (Me%BackTracking) then
                 OutPutNumber = Me%OutPut%TotalOutputs - OutPutNumber + 1 
             endif 
-            
-            
-            if (Me%BackTracking) then  
-                TotalTime = Me%EndTime - Me%StartTime                  
-                AuxPeriod = Now        - Me%StartTime
-                AuxPeriod = TotalTime  - AuxPeriod
-                
-                Aux = Me%StartTime + AuxPeriod
-            else
-                Aux = Now
-            endif    
-
 
             WorkILB = Me%WorkSize2D%ILB 
             WorkIUB = Me%WorkSize2D%IUB 
@@ -2603,7 +2619,7 @@ it:     if (NewPropField%ChangeInTime) then
 
             
             !Writes current time
-            call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3),  &
+            call ExtractDate   (Me%CurrentTimeInt, AuxTime(1), AuxTime(2), AuxTime(3),  &
                                 AuxTime(4), AuxTime(5), AuxTime(6))
             TimePtr => AuxTime
             call HDF5SetLimits  (Me%ObjHDF5Out, 1, 6, STAT = STAT_CALL)
@@ -2627,8 +2643,8 @@ it:     if (NewPropField%ChangeInTime) then
 
                 call GetGeometryDistances(  GeometryID      = Me%ObjGeometry,           &
                                             SZZ             = SZZ,                      &
-!For Aux a stationary geometry is assumed                                    
-!                                    ActualTime      = Aux,                             &
+!For Me%CurrentTimeInt a stationary geometry is assumed                                    
+!                                    ActualTime      = Me%CurrentTimeInt,                             &
                                     STAT            = STAT_CALL)                                     
                 if (STAT_CALL /= SUCCESS_) stop 'WriteOutput - ModuleField4D - ERR40'
 
@@ -2697,6 +2713,7 @@ it:     if (NewPropField%ChangeInTime) then
         !Local-----------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
         integer                                         :: STAT_, ready_, STAT_CALL
+        logical                                         :: CorrectTimeFrame
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -2705,26 +2722,47 @@ it:     if (NewPropField%ChangeInTime) then
 
         if (ready_ .EQ. IDLE_ERR_) then
         
-            call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DXYZ - ModuleField4D - ERR10'
-
-            if      (PropField%SpaceDim == Dim2D) then
+            if (Me%WindowWithData) then
+        
+                Me%CurrentTimeExt = CurrentTime
             
-                call Interpolate2DCloud (PropField, CurrentTime, X, Y, Field, NoData) 
-                
-            else if (PropField%SpaceDim == Dim3D) then
-            
-                if (.not.present(Z)) then
-                    stop 'ModifyField4DXYZ - ModuleField4D - ERR20'
+                if (Me%BackTracking) then  
+                    call BacktrackingTime
+                else   
+                    Me%CurrentTimeInt = Me%CurrentTimeExt
                 endif
+                
+                CorrectTimeFrame = .true.
+                
+                if (Me%CurrentTimeInt < Me%File%StartTime) CorrectTimeFrame = .false.  
+                if (Me%CurrentTimeInt > Me%File%EndTime  ) CorrectTimeFrame = .false.              
+                
+                if (CorrectTimeFrame) then        
+            
+                    call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DXYZ - ModuleField4D - ERR10'
 
-                call Interpolate3DCloud (PropField, CurrentTime, X, Y, Z, Field, NoData) 
+                    if      (PropField%SpaceDim == Dim2D) then
+                    
+                        call Interpolate2DCloud (PropField, X, Y, Field, NoData) 
+                        
+                    else if (PropField%SpaceDim == Dim3D) then
+                    
+                        if (.not.present(Z)) then
+                            stop 'ModifyField4DXYZ - ModuleField4D - ERR20'
+                        endif
+
+                        call Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
+                    endif
+                    
+                    if (Me%Output%Yes) then
+                        call WriteOutput(PropField, PropertyIDNumber)
+                    endif
+
+                endif
+            
             endif
             
-            if (Me%Output%Yes) then
-                call WriteOutput(PropField, PropertyIDNumber, CurrentTime)
-            endif
-
             STAT_ = SUCCESS_
             
         else               
@@ -2825,11 +2863,10 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
 
     !----------------------------------------------------------------------
 
-    subroutine Interpolate2DCloud (PropField, CurrentTime, X, Y, Field, NoData) 
+    subroutine Interpolate2DCloud (PropField, X, Y, Field, NoData) 
         
         !Arguments------------------------------------------------------------
         type (T_PropField),         pointer, intent(IN)     :: PropField
-        type (T_Time)                      , intent(IN)     :: CurrentTime
         real,       dimension(:),   pointer, intent(IN)     :: X, Y
         real,       dimension(:),   pointer, intent(OUT)    :: Field
         logical,    dimension(:),   pointer, intent(INOUT)  :: NoData
@@ -2844,7 +2881,7 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         
         nPoints = size(X)
         
-        call ModifyInput2D(PropField, CurrentTime)
+        call ModifyInput2D(PropField)
         
 
         call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
@@ -3065,11 +3102,10 @@ dnP:    do nP = 1,nPoints
     !----------------------------------------------------------------------
 
 
-    subroutine Interpolate3DCloud (PropField, CurrentTime, X, Y, Z, Field, NoData) 
+    subroutine Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
         
         !Arguments------------------------------------------------------------
         type (T_PropField),         pointer, intent(IN)     :: PropField
-        type (T_Time)                      , intent(IN)     :: CurrentTime
         real,       dimension(:),   pointer, intent(IN)     :: X, Y, Z
         real,       dimension(:),   pointer, intent(OUT)    :: Field
         logical,    dimension(:),   pointer, intent(INOUT)  :: NoData
@@ -3086,7 +3122,7 @@ dnP:    do nP = 1,nPoints
 
         nPoints = size(X)
         
-        call ModifyInput3D(PropField, CurrentTime)
+        call ModifyInput3D(PropField)
         
         call GetWaterPoints3D(Map_ID            = Me%ObjMap,                            &
                               WaterPoints3D     = Me%ExternalVar%WaterPoints3D,         &
@@ -3105,8 +3141,8 @@ dnP:    do nP = 1,nPoints
         endif                                     
         call GetGeometryDistances(  GeometryID      = Me%ObjGeometry,                   &
                                             SZZ     = SZZ,                              &
-!For now a stationary geometry is assumed                                    
-!                                    ActualTime      = Now,                      &
+!For Me%CurrentTimeInt a stationary geometry is assumed                                    
+!                                    ActualTime      = Me%CurrentTimeInt,                      &
                                     STAT            = STAT_CALL)                                     
         if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR20'
         
@@ -3336,15 +3372,13 @@ dnP:    do nP = 1,nPoints
 
     !----------------------------------------------------------------------
 
-    subroutine ModifyInput3D(PropField, CurrentTime)
+    subroutine ModifyInput3D(PropField)
         
         !Arguments------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
-        type (T_Time), intent (IN)                      :: CurrentTime
         
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL, n, i, j, k
-        type (T_Time)                                   :: Now
         !Begin----------------------------------------------------------------
 
         call GetWaterPoints3D(Map_ID            = Me%ObjMap,                    &
@@ -3355,7 +3389,7 @@ dnP:    do nP = 1,nPoints
         endif 
 
 
-        if (ReadNewField(PropField,CurrentTime,Now,n))then
+        if (ReadNewField(PropField,n))then
         
             if (n==1) then
                 call SetMatrixValue(PropField%PreviousField3D, Me%WorkSize3D, PropField%NextField3D)
@@ -3394,7 +3428,7 @@ dnP:    do nP = 1,nPoints
 
         if (PropField%PreviousInstant /= PropField%NextInstant) then
 
-            call InterpolateMatrix3DInTime(ActualTime       = Now,                      &
+            call InterpolateMatrix3DInTime(ActualTime       = Me%CurrentTimeInt,                      &
                                            Size             = Me%WorkSize3D,            &
                                            Time1            = PropField%PreviousTime,   &
                                            Matrix1          = PropField%PreviousField3D,&
@@ -3426,14 +3460,12 @@ dnP:    do nP = 1,nPoints
 
 
 
-    subroutine ModifyInput2D(PropField, CurrentTime)
+    subroutine ModifyInput2D(PropField)
         
         !Arguments------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
-        type (T_Time), intent (IN)                      :: CurrentTime
 
         !Local----------------------------------------------------------------
-        type (T_Time)                                   :: Now
         integer                                         :: STAT_CALL, n, i, j
 
         !Begin----------------------------------------------------------------
@@ -3446,7 +3478,7 @@ dnP:    do nP = 1,nPoints
 
         
 
-        if (ReadNewField(PropField,CurrentTime, Now,n))then
+        if (ReadNewField(PropField,n))then
 
             if (n==1) then 
                 call SetMatrixValue(PropField%PreviousField2D, Me%WorkSize2D, PropField%NextField2D, Me%ExternalVar%WaterPoints2D)
@@ -3485,18 +3517,18 @@ dnP:    do nP = 1,nPoints
             
                 Me%Matrix2D = PropField%NextField2D
                 
-                call PredictDTForHDF (PropField, Now)
+                call PredictDTForHDF (PropField)
             
             else  if (PropField%ValuesType == AccumulatedValues) then       !For Rain
             
                 Me%Matrix2D = PropField%NextField2D / (PropField%NextTime - PropField%PreviousTime)
     
-                call PredictDTForHDF (PropField, Now)
+                call PredictDTForHDF (PropField)
                 
             else if (PropField%ValuesType == InterpolatedValues) then       !For interpolation
 
                 !Interpolates the two matrixes in time
-                call InterpolateMatrix2DInTime(ActualTime       = Now,                  &
+                call InterpolateMatrix2DInTime(ActualTime       = Me%CurrentTimeInt,                  &
                                                Size             = Me%WorkSize2D,        &
                                                Time1            = PropField%PreviousTime, &
                                                Matrix1          = PropField%PreviousField2D,&
@@ -3534,11 +3566,10 @@ dnP:    do nP = 1,nPoints
 
     !--------------------------------------------------------------------------
 
-    subroutine PredictDTForHDF(PropField, ActualTime)
+    subroutine PredictDTForHDF(PropField)
         
         !Arguments-------------------------------------------------------------
         type(T_PropField), pointer                      :: PropField
-        type (T_Time)                                   :: ActualTime
 
         !Local-----------------------------------------------------------------
         type (T_Time)                                   :: Time1, Time2
@@ -3567,8 +3598,8 @@ doj:    do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
 
         if (ValueDifferentZero) then
 
-            if (Time2 /= ActualTime) then
-                aux1 = Time2 - ActualTime
+            if (Time2 /= Me%CurrentTimeInt) then
+                aux1 = Time2 - Me%CurrentTimeInt
             else
                 aux1 = -FillValueReal
             endif
@@ -3585,8 +3616,8 @@ doj:    do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             !This prediction is different from the one done by the GetTimeSerieDTForNextEvent
             !but I (Frank) assume that the datasets in the HDF always have a quite larger DT
             !then the model will use to run
-            PropField%PredictedDT     = Time2 - ActualTime
-            PropField%DTForNextEvent  = Time2 - ActualTime
+            PropField%PredictedDT     = Time2 - Me%CurrentTimeInt
+            PropField%DTForNextEvent  = Time2 - Me%CurrentTimeInt
         endif
                         
 
@@ -3626,134 +3657,138 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             nUsers = DeassociateInstance(mField4D_,  Me%InstanceID)
 
             if (nUsers == 0) then
-
-                if (Me%File%Obj /= 0) then
-                
-                    PropField => Me%FirstPropField
-                
-                    do while (associated(PropField))
-
-                        if( associated(PropField%PreviousField2D))then
-                            deallocate(PropField%PreviousField2D)
-                            nullify   (PropField%PreviousField2D)
-                        end if
-
-                        if( associated(PropField%NextField2D))then
-                            deallocate(PropField%NextField2D)
-                            nullify   (PropField%NextField2D)
-                        end if
-
-                        if( associated(PropField%PreviousField3D))then
-                            deallocate(PropField%PreviousField3D)
-                            nullify   (PropField%PreviousField3D)
-                        end if
-
-                        if(associated (PropField%NextField3D))then
-                            deallocate(PropField%NextField3D)
-                            nullify   (PropField%NextField3D)
-                        end if
-                        
-                        PropField => PropField%Next
-
-                    enddo
-                    
-                    if (associated(Me%Matrix2D)) then
-                        deallocate(Me%Matrix2D)
-                        nullify   (Me%Matrix2D)
-                    endif                    
-
-                    if (associated(Me%Matrix3D)) then
-                        deallocate(Me%Matrix3D)
-                        nullify   (Me%Matrix3D)
-                    endif                                        
-
-                    if (associated(Me%Depth3D)) then
-                        deallocate(Me%Depth3D)
-                        nullify   (Me%Depth3D)
-                    endif                                        
-
-                    if (associated(Me%Matrix1D)) then
-                        deallocate(Me%Matrix1D)
-                        nullify   (Me%Matrix1D)
-                    endif                                        
-
-                    if (associated(Me%Depth1D)) then
-                        deallocate(Me%Depth1D)
-                        nullify   (Me%Depth1D)
-                    endif                                        
-                    
-                    
-                    if (Me%File%Form == HDF5_) then
-                        call KillHDF5(Me%File%Obj, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR30'
-                    endif
-                    
-                    if (Me%OutPut%Yes) then
-                        call KillHDF5 (Me%ObjHDF5Out, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR40'
-                        
-                        if (associated(Me%OutPut%OutTime)) then
-                            deallocate(Me%OutPut%OutTime, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) &
-                                stop 'KillField4D - ModuleField4D - ERR50'
-                            nullify   (Me%OutPut%OutTime)
-                        end if
-                        
-                    endif                    
-                      
-                endif
             
-                if (Me%ObjMap /= 0) then
-                    if (Me%BuildMap) then
-                        call KillMap(Me%ObjMap, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR60'
-                    else
-                        nUsers =  DeassociateInstance (mMAP_,  Me%ObjMap)
-                        if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR70'
-                    endif
-                endif
+wwd:            if (Me%WindowWithData) then
 
-        
-                if (Me%ObjGeometry /= 0) then
-                    if (Me%BuildGeometry) then
-                        call KillGeometry(Me%ObjGeometry, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR80'
-                    else                
-                        nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjGeometry)
-                        if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR90'
-                    endif
-                endif
+                    if (Me%File%Obj /= 0) then
+                    
+                        PropField => Me%FirstPropField
+                    
+                        do while (associated(PropField))
 
-                if (Me%ObjHorizontalMap /= 0) then
-                    if (Me%BuildHorizontalMap) then
-                        call KillHorizontalMap(Me%ObjHorizontalMap, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR100'
-                    else                  
-                        nUsers = DeassociateInstance (mHORIZONTALMAP_,  Me%ObjHorizontalMap)
-                        if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR110'                          
+                            if( associated(PropField%PreviousField2D))then
+                                deallocate(PropField%PreviousField2D)
+                                nullify   (PropField%PreviousField2D)
+                            end if
+
+                            if( associated(PropField%NextField2D))then
+                                deallocate(PropField%NextField2D)
+                                nullify   (PropField%NextField2D)
+                            end if
+
+                            if( associated(PropField%PreviousField3D))then
+                                deallocate(PropField%PreviousField3D)
+                                nullify   (PropField%PreviousField3D)
+                            end if
+
+                            if(associated (PropField%NextField3D))then
+                                deallocate(PropField%NextField3D)
+                                nullify   (PropField%NextField3D)
+                            end if
+                            
+                            PropField => PropField%Next
+
+                        enddo
+                        
+                        if (associated(Me%Matrix2D)) then
+                            deallocate(Me%Matrix2D)
+                            nullify   (Me%Matrix2D)
+                        endif                    
+
+                        if (associated(Me%Matrix3D)) then
+                            deallocate(Me%Matrix3D)
+                            nullify   (Me%Matrix3D)
+                        endif                                        
+
+                        if (associated(Me%Depth3D)) then
+                            deallocate(Me%Depth3D)
+                            nullify   (Me%Depth3D)
+                        endif                                        
+
+                        if (associated(Me%Matrix1D)) then
+                            deallocate(Me%Matrix1D)
+                            nullify   (Me%Matrix1D)
+                        endif                                        
+
+                        if (associated(Me%Depth1D)) then
+                            deallocate(Me%Depth1D)
+                            nullify   (Me%Depth1D)
+                        endif                                        
+                        
+                        
+                        if (Me%File%Form == HDF5_) then
+                            call KillHDF5(Me%File%Obj, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR30'
+                        endif
+                        
+                        if (Me%OutPut%Yes) then
+                            call KillHDF5 (Me%ObjHDF5Out, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR40'
+                            
+                            if (associated(Me%OutPut%OutTime)) then
+                                deallocate(Me%OutPut%OutTime, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) &
+                                    stop 'KillField4D - ModuleField4D - ERR50'
+                                nullify   (Me%OutPut%OutTime)
+                            end if
+                            
+                        endif                    
+                          
                     endif
-                endif
                 
-                if (Me%ObjBathymetry  /= 0) then
-                    if (Me%BuildBathymetry) then
-                        call KillGridData(Me%ObjBathymetry, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR120'
-                    else                   
-                        nUsers = DeassociateInstance (mGRIDDATA_, Me%ObjBathymetry)
-                        if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR130'
+                    if (Me%ObjMap /= 0) then
+                        if (Me%BuildMap) then
+                            call KillMap(Me%ObjMap, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR60'
+                        else
+                            nUsers =  DeassociateInstance (mMAP_,  Me%ObjMap)
+                            if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR70'
+                        endif
                     endif
-                endif
 
-                if (Me%ObjHorizontalGrid  /= 0) then
-                    if (Me%BuildHorizontalGrid) then
-                        call KillHorizontalGrid(Me%ObjHorizontalGrid, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR140'
-                    else 
-                        nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid )
-                        if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR150'
+            
+                    if (Me%ObjGeometry /= 0) then
+                        if (Me%BuildGeometry) then
+                            call KillGeometry(Me%ObjGeometry, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR80'
+                        else                
+                            nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjGeometry)
+                            if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR90'
+                        endif
                     endif
-                endif
-                
+
+                    if (Me%ObjHorizontalMap /= 0) then
+                        if (Me%BuildHorizontalMap) then
+                            call KillHorizontalMap(Me%ObjHorizontalMap, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR100'
+                        else                  
+                            nUsers = DeassociateInstance (mHORIZONTALMAP_,  Me%ObjHorizontalMap)
+                            if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR110'                          
+                        endif
+                    endif
+                    
+                    if (Me%ObjBathymetry  /= 0) then
+                        if (Me%BuildBathymetry) then
+                            call KillGridData(Me%ObjBathymetry, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR120'
+                        else                   
+                            nUsers = DeassociateInstance (mGRIDDATA_, Me%ObjBathymetry)
+                            if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR130'
+                        endif
+                    endif
+
+                    if (Me%ObjHorizontalGrid  /= 0) then
+                        if (Me%BuildHorizontalGrid) then
+                            call KillHorizontalGrid(Me%ObjHorizontalGrid, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR140'
+                        else 
+                            nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid )
+                            if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR150'
+                        endif
+                    endif
+                    
+                end if wwd                    
+                    
                 nUsers = DeassociateInstance (mTIME_,           Me%ObjTime           )
                 if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR160'
 
@@ -3764,7 +3799,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 Field4DID = 0
                 STAT_           = SUCCESS_
 
-            end if
+                
+            endif           
+
         else 
             STAT_ = ready_
         end if cd1
