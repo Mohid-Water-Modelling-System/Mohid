@@ -1900,11 +1900,12 @@ cd2 :       if (Me%Points) then
 
     !--------------------------------------------------------------------------
 
-    subroutine WriteTimeSerieLine(TimeSerieID, DataLine, STAT)
+    subroutine WriteTimeSerieLine(TimeSerieID, DataLine, ExternalCurrentTime, STAT)
     
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeSerieID
         real,    dimension(:), pointer              :: DataLine
+        type (T_Time), optional, intent(IN)         :: ExternalCurrentTime
         integer, optional, intent(OUT)              :: STAT
     
         !External--------------------------------------------------------------
@@ -1926,9 +1927,12 @@ cd2 :       if (Me%Points) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-            !Stores the actual compute time
-            call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT)
-
+            if (present(ExternalCurrentTime)) then
+                CurrentTime = ExternalCurrentTime
+            else                
+                !Stores the actual compute time
+                call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT)
+            endif
 
 do1:        do iTimeSerie = 1, Me%NumberOfTimeSeries
 
