@@ -189,6 +189,8 @@ Module ModuleFunctions
 
     !Polygon 
     public  :: RelativePosition4VertPolygon
+    public  :: PolygonArea
+    public  :: FromGeo2Meters
    
     !Secant
     public  :: Secant
@@ -5716,8 +5718,59 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
     !--------------------------------------------------------------------------
 
 
-    !--------------------------------------------------------------------------
+!!  Public-domain function by Darel Rex Finley, 2006.
+!   Computes the area of polygon
 
+    real function PolygonArea(X, Y, points) 
+
+        !Arguments-------------------------------------------------------------
+        real,       dimension(:), pointer :: X, Y
+        integer                           :: points                     
+        
+        !Local-----------------------------------------------------------------
+        real                              :: area=0.
+        integer                           :: i, j
+        
+        !Begin-----------------------------------------------------------------
+
+        j = points
+        do i=1, points
+            area = area + (X(j)+X(i))*(Y(j)-Y(i))
+            j = i
+        enddo
+        
+        polygonArea = abs(0.5*area)
+  
+    end function PolygonArea
+
+
+    !--------------------------------------------------------------------------
+    !This subroutine convert geographic coordinates in distance to meters relative to 
+    !a reference point (LongRef, LatRef)
+    
+    subroutine FromGeo2Meters(Lat, Long, LatRef, LongRef, X, Y)
+
+        !Arguments----------------------------------------------------------------------
+        real(8), intent(IN)     :: Lat, Long, LatRef, LongRef
+        real(8), intent(OUT)    :: X, Y
+
+        !Local--------------------------------------------------------------------------
+        real(8)                 :: radians, EarthRadius, Rad_Lat, CosenLat        
+
+        !Begin--------------------------------------------------------------------------
+    
+        radians      = Pi / 180.0
+        EarthRadius  = 6378000.
+        Rad_Lat      = Lat * radians 
+        CosenLat     = cos(Rad_Lat)
+        X            = CosenLat * EarthRadius * (Long - LongRef) * radians
+        Y            =            EarthRadius * (Lat  - LatRef ) * radians
+        
+    
+    end subroutine FromGeo2Meters
+
+    !--------------------------------------------------------------------------
+    
 #ifdef _USE_MPI
 
     integer function MPIKind0D(Variable0D)
