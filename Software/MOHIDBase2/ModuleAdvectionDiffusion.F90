@@ -239,7 +239,7 @@ Module ModuleAdvectionDiffusion
         integer, pointer, dimension(:)     :: DischVert
         integer                            :: DischNumber  = null_int
         logical                            :: DischON     
-        logical, pointer, dimension(:)     :: IgnoreDisch
+        logical, pointer, dimension(:)     :: IgnoreDisch, ByPass
 
         !No flux condition
         logical                            :: NoFlux
@@ -899,7 +899,8 @@ cd1 :   if (ready_ == READ_LOCK_ERR_) then
 
     subroutine SetDischarges (AdvectionDiffusionID, DischFlow, DischConc,               &
                               DischI, DischJ, DischK, DischKmin, DischKmax,             &
-                              DischVert, DischNumber, IgnoreDisch, DischnCells, STAT)
+                              DischVert, DischNumber, IgnoreDisch, DischnCells, ByPass, &
+                              STAT)
     
     
         !Arguments--------------------------------------------------------------
@@ -908,7 +909,7 @@ cd1 :   if (ready_ == READ_LOCK_ERR_) then
         integer, pointer, dimension(:)     :: DischI, DischJ, DischK, DischKmin, DischKmax
         integer, pointer, dimension(:)     :: DischVert 
         integer,           intent(IN )     :: DischNumber
-        logical, pointer, dimension(:)     :: IgnoreDisch
+        logical, pointer, dimension(:)     :: IgnoreDisch, ByPass
         integer, pointer, dimension(:)     :: DischnCells
         integer, optional, intent(OUT)     :: STAT
 
@@ -939,6 +940,7 @@ cd1 :   if (ready_ == IDLE_ERR_) then
             Me%ExternalVar%DischVert    => DischVert
             Me%ExternalVar%IgnoreDisch  => IgnoreDisch
             Me%ExternalVar%DischnCells  => DischnCells
+            Me%ExternalVar%ByPass       => ByPass
 
 
             STAT_ = SUCCESS_
@@ -990,6 +992,7 @@ cd1 :   if (ready_ == IDLE_ERR_) then
             nullify(Me%ExternalVar%DischVert)
             nullify(Me%ExternalVar%IgnoreDisch)
             nullify(Me%ExternalVar%DischnCells)
+            nullify(Me%ExternalVar%ByPass     )
 
 
             STAT_ = SUCCESS_
@@ -3132,17 +3135,24 @@ dk:             do k=kmin, kmax
                     endif
 
 cd1:                if (Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) then
-            
-fl:                     if (Flow > 0.) then
-                
-                            Me%TICOEF3(i,j,k) = Me%TICOEF3(i,j,k)               +               &
-                                                Flow * DT_V * Me%ExternalVar%DischConc(n)
-                        else fl
-                
-                            Me%COEF3%E(i,j,k) = Me%COEF3%E(i,j,k)               -               &
-                                                Flow * DT_V 
-                        endif fl
 
+                        if (Me%ExternalVar%ByPass(n)) then
+                        
+                            Me%TICOEF3(i,j,k) = Me%TICOEF3(i,j,k)           +           &
+                                                Flow * DT_V * Me%ExternalVar%DischConc(n)  
+                        else
+                        
+fl:                         if (Flow > 0.) then
+                    
+                                Me%TICOEF3(i,j,k) = Me%TICOEF3(i,j,k)       +           &
+                                                    Flow * DT_V * Me%ExternalVar%DischConc(n)
+                            else fl
+                    
+                                Me%COEF3%E(i,j,k) = Me%COEF3%E(i,j,k)       -           &
+                                                    Flow * DT_V 
+                            endif fl
+                            
+                        endif
                     else
                     !This for the case that tonly discharges changes the volume
                     ! In this case the cell is water point and is not open point
