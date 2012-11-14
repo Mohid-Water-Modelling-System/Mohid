@@ -3607,7 +3607,7 @@ cd2 :           if (BlockFound) then
                     
                 if (Me%EVTPRefOutput%yes) then
                     !mm                           = mm                         +  m/s                       * mm/m * s
-                    Me%PartialAccEVTPRef   (i, j) = Me%PartialAccEVTPRef (i,j) + (RefEvapotrans%Field(i, j) * 1000 * Me%CurrentDT)                 
+                    Me%PartialAccEVTPRef   (i, j) = Me%PartialAccEVTPRef (i,j) + (RefEvapotrans%Field(i, j) * 1000 * Me%CurrentDT)
                 endif
                 
 !                call ExtractDate(Me%CurrentTime, Year, Month, Day, hour, minute, second) 
@@ -5668,7 +5668,7 @@ cd2 :           if (BlockFound) then
         real, dimension (:), pointer               :: DNConcentration
         integer, dimension(:, :), pointer          :: ChannelsID
         integer                                    :: nProperties, iProp, PropID
-        logical                                    :: SplashErosion, ModelCanopyHeight
+        logical                                    :: SplashErosion !, ModelCanopyHeight
         real, dimension(:,:), pointer              :: CanopyHeight
         real, dimension(:,:), pointer              :: FertilOrganicNParticFluff
         real, dimension(:,:), pointer              :: FertilOrganicPParticFluff
@@ -5760,7 +5760,8 @@ cd2 :           if (BlockFound) then
         if (SplashErosion) then
             
             if (Me%Coupled%Vegetation) then
-!                call GetVegetationOptions (VegetationID = Me%ObjVegetation, ModelCanopyHeight = ModelCanopyHeight, STAT = STAT_CALL)
+!                call GetVegetationOptions (VegetationID = Me%ObjVegetation, ModelCanopyHeight = ModelCanopyHeight, &
+!                                           STAT = STAT_CALL)
 !                if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0120'
 !                
 !                if (ModelCanopyHeight) then
@@ -7088,7 +7089,7 @@ cd2 :           if (BlockFound) then
         Me%TimeSeriesBuffer(26) = Me%MB%GWFlowToRiver
        
 
-        call WriteTimeSerieLine (Me%ObjTimeSerieBasin, Me%TimeSeriesBuffer, STAT_CALL)
+        call WriteTimeSerieLine (Me%ObjTimeSerieBasin, Me%TimeSeriesBuffer, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR30'     
         
         
@@ -7110,7 +7111,7 @@ cd2 :           if (BlockFound) then
         Me%TimeSeriesBuffer4(13) = Me%MB%GWFlowToRiver  / Me%CurrentDT
        
 
-        call WriteTimeSerieLine (Me%ObjTimeSerieBasin2, Me%TimeSeriesBuffer4, STAT_CALL)
+        call WriteTimeSerieLine (Me%ObjTimeSerieBasin2, Me%TimeSeriesBuffer4, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR40'     
                 
         
@@ -7309,10 +7310,10 @@ cd2 :           if (BlockFound) then
             
             end do
             
-            call WriteTimeSerieLine (Me%ObjTimeSerieBasinMass, Me%TimeSeriesBuffer3, STAT_CALL)
+            call WriteTimeSerieLine (Me%ObjTimeSerieBasinMass, Me%TimeSeriesBuffer3, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR40'                        
   
-            call WriteTimeSerieLine (Me%ObjTimeSerieBasinMass2, Me%TimeSeriesBuffer5, STAT_CALL)
+            call WriteTimeSerieLine (Me%ObjTimeSerieBasinMass2, Me%TimeSeriesBuffer5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR50'                        
 
         

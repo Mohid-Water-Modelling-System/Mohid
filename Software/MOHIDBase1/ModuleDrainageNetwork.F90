@@ -240,6 +240,7 @@ Module ModuleDrainageNetwork
     public  :: GetChannelsNodeLength
     public  :: GetChannelsVolume
     public  :: GetChannelsMaxVolume
+    public  :: GetChannelsTopArea
     public  :: GetChannelsOpenProcess
     public  :: GetChannelsActiveState
     public  :: GetHasProperties
@@ -529,10 +530,10 @@ Module ModuleDrainageNetwork
         real                                        :: WaterDepth               = null_real !cotas (inclui z bottom)
         real                                        :: InitialWaterDepth        = null_real
         real                                        :: WaterLevel               = null_real
-        real(8)                                     :: VolumeNew                = null_real
-        real(8)                                     :: VolumeOld                = null_real        
-        real(8)                                     :: InitialVolumeOld         = null_real
-        real(8)                                     :: InitialVolumeNew         = null_real
+        real(8)                                     :: VolumeNew                = 0.0
+        real(8)                                     :: VolumeOld                = 0.0      
+        real(8)                                     :: InitialVolumeOld         = 0.0
+        real(8)                                     :: InitialVolumeNew         = 0.0
         real                                        :: VolumeMax                = null_real
         real                                        :: VolumeMaxTrapez1         = null_real
         real                                        :: VolumeMin                = null_real
@@ -832,6 +833,7 @@ Module ModuleDrainageNetwork
         real,    dimension(:,:), pointer            :: ChannelsBankSlope    => null()
         real,    dimension(:,:), pointer            :: ChannelsNodeLength   => null()
         real,    dimension(:,:), pointer            :: ChannelsVolume       => null()
+        real,    dimension(:,:), pointer            :: ChannelsTopArea      => null()
         real,    dimension(:,:), pointer            :: ChannelsMaxVolume    => null()
         integer, dimension(:,:), pointer            :: ChannelsOpenProcess  => null()
         integer, dimension(:,:), pointer            :: ChannelsActiveState  => null()
@@ -858,8 +860,7 @@ Module ModuleDrainageNetwork
         real                                        :: NextDT               = null_real
         integer                                     :: LastGoodNiter        = 1
         integer                                     :: NextNiter            = 1
-        integer                                     :: InternalTimeStepSplit = 5
-
+        real                                        :: InternalTimeStepSplit = 1.5
         real, dimension (:), pointer                :: GlobalToxicity       => null()
         integer                                     :: nToxicProp           = 0
         character(len=StringLength)                 :: GlobalToxicityEvolution
@@ -886,6 +887,8 @@ Module ModuleDrainageNetwork
         logical                                     :: LimitDTCourant               = .false.
         logical                                     :: LimitDTVariation             = .true.
         real                                        :: MaxCourant                   = 1.0
+        integer                                     :: MinNodesToRestart            = 10
+        integer                                     :: MinIterations                = 1
         
 
         integer                                     :: nPropWithDischarges          = 0   !Performance
@@ -1420,6 +1423,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR24'        
 
+            call GetData(Me%MinNodesToRestart,                                  &
+                         Me%ObjEnterData, flag,                                 &  
+                         keyword      = 'MIN_NODES_TO_RESTART',                 &
+                         ClientModule = 'DrainageNetwork',                      &
+                         SearchType   = FromFile,                               &
+                         Default      = 10,                                     &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR24'                
+            
+            call GetData(Me%MinIterations,                                      &
+                         Me%ObjEnterData, flag,                                 &  
+                         keyword      = 'MIN_ITERATIONS',                       &
+                         ClientModule = 'DrainageNetwork',                      &
+                         SearchType   = FromFile,                               &
+                         Default      = 1,                                      &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR24'                
+
+            !Me%LastGoodNIter = Me%MinIterations
+            !Me%NextNIter = Me%MinIterations
+            
+            
         end if
 
         !Factor for DT Prediction
@@ -1439,16 +1464,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
 
         
-!        !Internal Time Step Split
-!        call GetData(Me%InternalTimeStepSplit,                              &
-!                     Me%ObjEnterData, flag,                                 &  
-!                     keyword      = 'TIME_STEP_SPLIT',                      &
-!                     ClientModule = 'DrainageNetwork',                      &
-!                     SearchType   = FromFile,                               &
-!                     Default      = 5,                                      &
-!                     STAT         = STAT_CALL)                                  
-!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25a'        
-
+        !Internal Time Step Split
+        call GetData(Me%InternalTimeStepSplit,                              &
+                     Me%ObjEnterData, flag,                                 &  
+                     keyword      = 'DT_SPLIT_FACTOR',                      &
+                     ClientModule = 'DrainageNetwork',                      &
+                     SearchType   = FromFile,                               &
+                     Default      = 1.5,                                    &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25a'        
+        if (Me%DTFactor <= 1.0) then
+            write (*,*)'Invalid DT Factor [DT_SPLIT_FACTOR]'
+            write (*,*)'Value must be greater then 1.0'
+            stop 'ModuleDrainageNetwork - ReadDataFile - ERR28a'              
+        endif
+        
+        
         !Gets flag of DT is limited by the courant number
         call GetData(Me%LimitDTCourant,                                     &
                      Me%ObjEnterData, flag,                                 &  
@@ -4491,10 +4522,8 @@ if1:    if (Me%HasGrid) then
             !Channels WaterLevel
             allocate(Me%ChannelsWaterLevel    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsVolume        (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%ChannelsMaxVolume     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            Me%ChannelsWaterLevel   = 0.0
-            call UpdateChannelsDynamicMatrix
-
+            allocate(Me%ChannelsMaxVolume     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))                        
+            allocate(Me%ChannelsTopArea       (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsBottomLevel   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsBottomWidth   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsSurfaceWidth  (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))            
@@ -4504,6 +4533,8 @@ if1:    if (Me%HasGrid) then
             allocate(Me%ChannelsActiveState   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsID            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             
+            Me%ChannelsWaterLevel   = 0.0
+            Me%ChannelsTopArea      = null_real
             Me%ChannelsBottomLevel  = null_real
             Me%ChannelsBottomWidth  = null_real
             Me%ChannelsSurfaceWidth = null_real
@@ -4512,9 +4543,11 @@ if1:    if (Me%HasGrid) then
             Me%ChannelsOpenProcess  = null_int
             Me%ChannelsActiveState  = null_int
             Me%ChannelsID           = null_int
-            Me%ChannelsVolume       = null_int
-            Me%ChannelsMaxVolume    = null_int
+            Me%ChannelsVolume       = null_real
+            Me%ChannelsMaxVolume    = null_real
 
+            call UpdateChannelsDynamicMatrix
+            
             do NodeID = 1, Me%TotalNodes
 
                 CurrNode => Me%Nodes (NodeID)         
@@ -4523,6 +4556,7 @@ if1:    if (Me%HasGrid) then
                        
                 Me%ChannelsBottomLevel  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomLevel
                 Me%ChannelsNodeLength   (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length
+                Me%ChannelsTopArea      (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length * CurrNode%CrossSection%TopWidth
 
                 Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 0
                 do iUp = 1, CurrNode%nUpStreamReaches
@@ -4832,44 +4866,73 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
 
 !        if (CurrNode%nDownstreamReaches /= 0) then
 
-            if (CurrNode%CrossSection%Form == Trapezoidal .OR.            &
-               (CurrNode%CrossSection%Form == TrapezoidalFlood .AND.      &
-                CurrNode%WaterDepth <= CurrNode%CrossSection%MiddleHeight))  then
+            if (CurrNode%CrossSection%Form == Trapezoidal)  then
 
-                call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
-                                        mR = CurrNode%CrossSection%Slope,       &
-                                        mL = CurrNode%CrossSection%Slope,       &
-                                        h  = CurrNode%WaterDepth,               &
-                                        Av = CurrNode%VerticalArea,             &
-                                        P  = CurrNode%WetPerimeter,             &
-                                        Sw = CurrNode%SurfaceWidth)
+                if (CurrNode%WaterDepth <= CurrNode%CrossSection%Height) then
+            
+                    call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
+                                            mR = CurrNode%CrossSection%Slope,       &
+                                            mL = CurrNode%CrossSection%Slope,       &
+                                            h  = CurrNode%WaterDepth,               &
+                                            Av = CurrNode%VerticalArea,             &
+                                            P  = CurrNode%WetPerimeter,             &
+                                            Sw = CurrNode%SurfaceWidth)
+                else
+                
+                    call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
+                                            mR = CurrNode%CrossSection%Slope,       &
+                                            mL = CurrNode%CrossSection%Slope,       &
+                                            h  = CurrNode%CrossSection%Height,      &
+                                            Av = CurrNode%VerticalArea,             &
+                                            P  = CurrNode%WetPerimeter,             &
+                                            Sw = CurrNode%SurfaceWidth)                
+                
+                    CurrNode%VerticalArea = CurrNode%VerticalArea + &
+                                            (CurrNode%CrossSection%TopWidth * &
+                                            (CurrNode%WaterDepth - CurrNode%CrossSection%Height))
+                    
+                    CurrNode%WetPerimeter = CurrNode%WetPerimeter + 2 * (CurrNode%WaterDepth - CurrNode%CrossSection%Height)
+                    
+                endif
 
             elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
-            ! from the previous if
-            ! we already know that CurrNode%WaterDepth > CurrNode%CrossSection%MiddleHeigh
+                
+                if (CurrNode%WaterDepth <= CurrNode%CrossSection%MiddleHeight) then
+            
+                    call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
+                                            mR = CurrNode%CrossSection%Slope,       &
+                                            mL = CurrNode%CrossSection%Slope,       &
+                                            h  = CurrNode%WaterDepth,               &
+                                            Av = CurrNode%VerticalArea,             &
+                                            P  = CurrNode%WetPerimeter,             &
+                                            Sw = CurrNode%SurfaceWidth)                
+                else
+                    ! from the previous if
+                    ! we already know that CurrNode%WaterDepth > CurrNode%CrossSection%MiddleHeigh
 
-                call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
-                                        mR = CurrNode%CrossSection%Slope,       &
-                                        mL = CurrNode%CrossSection%Slope,       &
-                                        h  = CurrNode%CrossSection%MiddleHeight,&
-                                        Av = AvTrapez1,                         &
-                                        P  = PTrapez1,                          &
-                                        Sw = aux)
+                    call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
+                                            mR = CurrNode%CrossSection%Slope,       &
+                                            mL = CurrNode%CrossSection%Slope,       &
+                                            h  = CurrNode%CrossSection%MiddleHeight,&
+                                            Av = AvTrapez1,                         &
+                                            P  = PTrapez1,                          &
+                                            Sw = aux)
 
-                TopH = CurrNode%WaterDepth - CurrNode%CrossSection%MiddleHeight
+                    TopH = CurrNode%WaterDepth - CurrNode%CrossSection%MiddleHeight
 
-                call TrapezoidGeometry (b  = CurrNode%CrossSection%MiddleWidth, &
-                                        mR = CurrNode%CrossSection%SlopeTop,    &
-                                        mL = CurrNode%CrossSection%SlopeTop,    &
-                                        h  = TopH,                              &
-                                        Av = AvTrapez2,                         &
-                                        P  = aux,                               &
-                                        Sw = CurrNode%SurfaceWidth)
+                    call TrapezoidGeometry (b  = CurrNode%CrossSection%MiddleWidth, &
+                                            mR = CurrNode%CrossSection%SlopeTop,    &
+                                            mL = CurrNode%CrossSection%SlopeTop,    &
+                                            h  = TopH,                              &
+                                            Av = AvTrapez2,                         &
+                                            P  = aux,                               &
+                                            Sw = CurrNode%SurfaceWidth)
 
-                CurrNode%VerticalArea = AvTrapez1 + AvTrapez2
-                CurrNode%WetPerimeter = PTrapez1 + 2. * TopH * sqrt (1. + CurrNode%CrossSection%SlopeTop**2.)
+                    CurrNode%VerticalArea = AvTrapez1 + AvTrapez2
+                    CurrNode%WetPerimeter = PTrapez1 + 2. * TopH * sqrt (1. + CurrNode%CrossSection%SlopeTop**2.)
 
-
+                endif
+                
             elseif (CurrNode%CrossSection%Form == Tabular) then
                 
                 call TabularGeometry (CurrNode%CrossSection,   &
@@ -5145,7 +5208,7 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         if (STAT_CALL == SUCCESS_) then
             allocate (Me%AirTemperature     (Me%TotalNodes))
             allocate (Me%SedimentTemperature(Me%TotalNodes))
-            Me%AirTemperature      = null_real
+            Me%AirTemperature      = PropertyX%Concentration !null_real -> leave this here, otherwise simulation crashes...
             Me%SedimentTemperature = PropertyX%Concentration
         else
             if (Me%ComputeOptions%TopRadiation .or. Me%ComputeOptions%T90_Decay) then
@@ -6544,6 +6607,41 @@ if0:    if (Me%HasProperties) then
     
     !---------------------------------------------------------------------------
 
+    subroutine GetChannelsTopArea (DrainageNetworkID, ChannelsTopArea, STAT)
+    
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsTopArea
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsTopArea => Me%ChannelsTopArea
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsTopArea
+        
+    !---------------------------------------------------------------------------
+    
     subroutine GetChannelsMaxVolume (DrainageNetworkID, ChannelsMaxVolume, STAT)
 
         !Arguments--------------------------------------------------------------
@@ -7676,7 +7774,7 @@ do2 :   do while (associated(PropertyX))
 
         !Local------------------------------------------------------------------
         real                                        :: SumDT, LocalDT, gA
-        integer                                     :: iter, Niter, NodeID, ReachID
+        integer                                     :: iter, Niter, NodeID, ReachID, RIter
         integer                                     :: STAT_CALL
         logical                                     :: Restart       
         type (T_Property), pointer                  :: Property
@@ -7741,7 +7839,6 @@ do2 :   do while (associated(PropertyX))
 
         SumDT       = 0.0
         Restart     = .false.
-        !Niter       = Me%InternalTimeStepSplit
         Niter       = Me%NextNiter
         LocalDT     = Me%ExtVar%DT / Niter
         iter        = 1
@@ -7776,10 +7873,10 @@ do2 :   do while (associated(PropertyX))
 
             !If Hydrodynamic return Restart as true, Restart with initial Solution
             if (Restart) then
-                !Niter   = Niter + 1
-                !Niter = Niter + Me%InternalTimeStepSplit
-                Niter        = Niter * 2.0
-                LocalDT = Me%ExtVar%DT / Niter
+                
+                Niter = max(int(Niter * Me%InternalTimeStepSplit), Niter + 1)                
+                LocalDT = Me%ExtVar%DT / Niter                
+                
                 call WriteDTLog_ML ('ModuleDrainageNetwork', Niter, LocalDT)
                 if (Niter > Me%MaxIterations) then
                     write(*,*)'Number of iterations above maximum: ', Niter
@@ -7820,15 +7917,14 @@ do2 :   do while (associated(PropertyX))
 
         enddo
                 
-        !DB
-        if (Niter <= Me%LastGoodNiter) then
-            Me%NextNiter = max (int(Niter / 2.0), 1)
-            !Me%NextNiter = max (int(Niter / Me%DTFactor), 1)
+        !DB       
+        if (Niter <= Me%LastGoodNiter) then            
+            Me%NextNiter = max (min(int(Niter / Me%InternalTimeStepSplit), Niter - 1), 1)
         else
             Me%NextNiter = Niter
-        endif
-
-        Me%LastGoodNiter = Niter
+        endif        
+        
+        Me%LastGoodNiter = Niter                      
 
         !So far, total removed volume is the flow volume
         Me%TotalOutputVolume = Me%TotalFlowVolume
@@ -8420,33 +8516,41 @@ do2 :   do while (associated(PropertyX))
 
             if (Me%LimitDTVariation) then
 
-                MaxrdVol = null_real
+                !MaxrdVol = null_real
+                !
+                !do NodeID = 1, Me%TotalNodes
+                !
+                !    CurrNode => Me%Nodes (NodeID)
+                !
+                !    !rdVol = abs(CurrNode%InitialVolumeNew - CurrNode%VolumeNew) / CurrNode%VolumeMax
+                !    rdVol = abs(CurrNode%InitialVolumeNew - CurrNode%VolumeNew) / CurrNode%InitialVolumeNew
+                !
+                !    MaxrdVol = max(rdVol, MaxrdVol)
+                !    
+                !enddo
+                !
+                !if (MaxrdVol > 0.0) then
+                !    
+                !    !if (Me%LastGoodNiter == Me%InternalTimeStepSplit .and. MaxrdVol < Me%StabilizeFactor) then
+                !    if (Me%NextNiter <= Me%LastGoodNiter .and. MaxrdVol < Me%StabilizeFactor) then    
+                !        nextDTVariation = Me%ExtVar%DT * Me%DTFactor
+                !    !else if (Me%LastGoodNiter ==  Me%InternalTimeStepSplit) then
+                !    !    nextDTVariation = Me%ExtVar%DT
+                !    else
+                !        nextDTVariation = Me%ExtVar%DT / Me%DTFactor
+                !    endif                
+                !
+                !else
+                !    nextDTVariation = Me%ExtVar%DT * Me%DTFactor
+                !endif
 
-                do NodeID = 1, Me%TotalNodes
-
-                    CurrNode => Me%Nodes (NodeID)
-
-                    rdVol = abs(CurrNode%InitialVolumeNew - CurrNode%VolumeNew) / CurrNode%VolumeMax
-                
-                    MaxrdVol = max(rdVol, MaxrdVol)
-                    
-                enddo
-
-                if (MaxrdVol > 0.0) then
-                    
-                    !if (Me%LastGoodNiter == Me%InternalTimeStepSplit .and. MaxrdVol < Me%StabilizeFactor) then
-                    if (Me%NextNiter < Me%LastGoodNiter .and. MaxrdVol < Me%StabilizeFactor) then    
-                        nextDTVariation = Me%ExtVar%DT * Me%DTFactor
-                    !else if (Me%LastGoodNiter ==  Me%InternalTimeStepSplit) then
-                    !    nextDTVariation = Me%ExtVar%DT
-                    else
-                        nextDTVariation = Me%ExtVar%DT / Me%DTFactor
-                    endif                
-
+                if (Me%NextNIter == 1 .OR. Me%NextNiter < Me%LastGoodNiter) then    
+                    nextDTVariation = Me%ExtVar%DT * Me%DTFactor                
                 else
-                    nextDTVariation = Me%ExtVar%DT * Me%DTFactor
+                    nextDTVariation = Me%ExtVar%DT / Me%NextNIter * Me%MinIterations
+                    Me%NextNIter = Me%MinIterations
                 endif
-
+                
             endif
 
             !if (min(nextDTVariation, nextDTCourant * Me%InternalTimeStepSplit) > MaxDT) then
@@ -8929,6 +9033,7 @@ do2 :   do while (associated(PropertyX))
         integer                                     :: NodeID, ReachID
         type (T_Reach), pointer                     :: CurrReach
         integer                                     :: CHUNK
+        integer                                     :: n_restart
 
 
         CHUNK = Me%TotalNodes / 8 !8 Cores ?
@@ -8960,11 +9065,20 @@ do2 :   do while (associated(PropertyX))
                 call ModifyReach (ReachID, LocalDT)
             end do
 
-            !Updates Volumes            
+            !Updates Volumes
+            n_restart = 0
             do NodeID = 1, Me%TotalNodes
                 call ModifyNode          (NodeID, LocalDT)
                 call VerifyMinimumVolume (NodeID, Restart, Niter)
-                if (Restart) exit
+                                
+                !if (Restart) exit
+                if (Restart) then
+                    n_restart = n_restart + 1
+                    if (n_restart > Me%MinNodesToRestart) then
+                        exit
+                    endif
+                    Restart = .false.
+                endif
             end do
                   
             if (Me%CheckMass .and. .not. Restart) then               
@@ -9108,27 +9222,38 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 VolNewAux = CurrNode%VolumeNew / CurrNode%SingCoef
                 Av_New    = (VolNewAux - PoolVolume) / CurrNode%Length
                 
-                if (CurrNode%CrossSection%Form == Trapezoidal .OR.                    &
-                   (CurrNode%CrossSection%Form == TrapezoidalFlood .AND.              &
-                    VolNewAux <= CurrNode%VolumeMaxTrapez1)) then
-
-                    h_New = TrapezoidWaterHeight (b  = CurrNode%CrossSection%BottomWidth,  &
-                                                  m  = CurrNode%CrossSection%Slope,        &
-                                                  Av = Av_New)
-
+                if (CurrNode%CrossSection%Form == Trapezoidal) then
+                
+                    if (VolNewAux <= CurrNode%VolumeMax) then
+                        h_New = TrapezoidWaterHeight (b  = CurrNode%CrossSection%BottomWidth,  &
+                                                      m  = CurrNode%CrossSection%Slope,        &
+                                                      Av = Av_New)
+                    else
+                        h_new = CurrNode%CrossSection%Height + (VolNewAux - CurrNode%VolumeMax) / &
+                                (CurrNode%CrossSection%TopWidth * CurrNode%Length)
+                    endif   
+                    
                 elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
-                ! from the previous if
-                ! we already know that CurrNode%WaterDepth > CurrNode%CrossSection%MiddleHeigh
+                   
+                    if (VolNewAux <= CurrNode%VolumeMaxTrapez1) then
 
+                        h_New = TrapezoidWaterHeight (b  = CurrNode%CrossSection%BottomWidth,  &
+                                                        m  = CurrNode%CrossSection%Slope,        &
+                                                        Av = Av_New)                    
+                    else
+                        ! from the previous if
+                        ! we already know that CurrNode%WaterDepth > CurrNode%CrossSection%MiddleHeigh
 
-                    AvTrapez2 = (VolNewAux - CurrNode%VolumeMaxTrapez1) / CurrNode%Length
+                        AvTrapez2 = (VolNewAux - CurrNode%VolumeMaxTrapez1) / CurrNode%Length
 
-                    TopH =  TrapezoidWaterHeight (b  = CurrNode%CrossSection%MiddleWidth,  &
-                                                  m  = CurrNode%CrossSection%SlopeTop,     &
-                                                  Av = AvTrapez2)
-
-                    h_New = CurrNode%CrossSection%MiddleHeight + TopH
-
+                        TopH =  TrapezoidWaterHeight (b  = CurrNode%CrossSection%MiddleWidth,  &
+                                                      m  = CurrNode%CrossSection%SlopeTop,     &
+                                                      Av = AvTrapez2)
+                    
+                        h_New = CurrNode%CrossSection%MiddleHeight + TopH
+                    
+                    endif
+                    
                 elseif (CurrNode%CrossSection%Form == Tabular) then
 
                     call TabularWaterLevel (CurrNode%CrossSection, Av_New, CurrNode%WaterLevel)
@@ -9582,6 +9707,8 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                     endif
                 endif
 !            endif
+        else
+            CurrReach%FlowNew = FlowNew !THIS IS MEGA IMPORTANT - FB
         endif
        
         !Velocity
@@ -9805,7 +9932,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         if (CurrNode%nDownstreamReaches /= 0 .and. CurrNode%VolumeNew < 0.0) then
         
             !Feed back to user -> model will stop
-            if (Niter + Me%InternalTimeStepSplit > Me%MaxIterations) then
+            if (Niter * Me%InternalTimeStepSplit > Me%MaxIterations) then
                 write(*,*)'Negative Volume!'
                 write(*,*)'Node ID        : ', CurrNode%ID
                 write(*,*)'New Volume     : ', CurrNode%VolumeNew
@@ -9821,10 +9948,11 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             if (CurrNode%nDownstreamReaches /= 0) then 
             
                 if (CurrNode%VolumeOld > Me%StabilizeCoefficient * CurrNode%VolumeMax) then
-                    if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld) > Me%StabilizeFactor * CurrNode%VolumeMax) then
+                    !if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld) > Me%StabilizeFactor * CurrNode%VolumeMax) then
+                    if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld)/CurrNode%VolumeOld > Me%StabilizeFactor) then
 
                         !Feed back to user -> model will stop
-                        if (Niter + Me%InternalTimeStepSplit > Me%MaxIterations) then
+                        if (Niter * Me%InternalTimeStepSplit > Me%MaxIterations) then
                             write(*,*)'High Volume Variation!'
                             write(*,*)'Node ID        : ', CurrNode%ID
                             write(*,*)'New Volume     : ', CurrNode%VolumeNew

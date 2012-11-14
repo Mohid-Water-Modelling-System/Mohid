@@ -90,8 +90,16 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "JoinTimeSeries", "JoinTimeS
 	EndProjectSection
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "HDF5Statistics", "HDF5Statistics\HDF5Statistics.vfproj", "{C447F70C-970B-4274-A711-048C5D6F2C87}"
+	ProjectSection(ProjectDependencies) = postProject
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78} = {98ABA093-7927-4BCD-B011-BF409B5BBB78}
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
+	EndProjectSection
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "SmoothBathymNesting", "SmoothBathymNesting\SmoothBathymNesting.vfproj", "{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}"
+	ProjectSection(ProjectDependencies) = postProject
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78} = {98ABA093-7927-4BCD-B011-BF409B5BBB78}
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
+	EndProjectSection
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "FilterBathymetry", "FilterBathymetry\FilterBathymetry.vfproj", "{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}"
 	ProjectSection(ProjectDependencies) = postProject
