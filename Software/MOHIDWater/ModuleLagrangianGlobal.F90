@@ -1183,6 +1183,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: NbrParticlesBeached = 0
         real                                    :: Fdisp               = 0
         real                                    :: Fblowout            = 1
+        real                                    :: CDispOilOff         = null_real
     end type T_Origin
 
     type T_OptionsStat
@@ -5445,6 +5446,20 @@ SP:             if (NewProperty%SedimentPartition%ON) then
 
             if (.not. NewOrigin%Default) then
                 call ConstructParticOil (NewOrigin, ClientNumber)
+            endif
+            
+            if (NewOrigin%Movement%Float == OFF) then
+
+                call GetData(NewOrigin%CDispOilOff,                                  &
+                             Me%ObjEnterData,                                        &
+                             flag,                                                   &
+                             SearchType   = FromBlock,                               &
+                             keyword      ='CDISP_OIL_OFF',                          &
+                             ClientModule ='ModuleLagrangianGlobal',                 &
+                             Default      = 1.,                                      &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1510'
+            
             endif
 
         endif
@@ -15225,7 +15240,7 @@ ib2:                if (.not. CurrentPartic%Beached) then
 CurrOr: do while (associated(CurrentOrigin))
             
 i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and.         &
-                CurrentOrigin%Fblowout < 0.5) then
+                CurrentOrigin%Fblowout < CurrentOrigin%CDispOilOff) then
 
                 i       = CurrentOrigin%FirstPartic%Position%I
                 j       = CurrentOrigin%FirstPartic%Position%J
