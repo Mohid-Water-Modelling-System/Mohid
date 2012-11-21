@@ -2547,8 +2547,11 @@ cd4:   if  (Me%Var%MassOil - (Me%Var%MEvaporatedDT) * Me%Var%DTOilInternalProces
         end if  cd4
  
 
-        !V(t+dt) = Voil + WaterContent*V(t)
-        Me%Var%Volume         = Me%Var%VolumeOil + Me%Var%VWaterContent*Me%Var%Volume
+        If (Me%Var%VWaterContent < 1) then
+            Me%Var%Volume             = Me%Var%VolumeOil / (1 - Me%Var%VWaterContent)
+        Else
+            Me%Var%Volume               = 0.
+        End If
 
         Me%Var%SlickThickness = Me%Var%Volume / (max(AllmostZero,Me%ExternalVar%Area))
         Me%Var%OilThickness   = Me%Var%VolumeOil / (max(AllmostZero,Me%ExternalVar%Area))
@@ -2655,9 +2658,11 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
 
         end if  cd4
 
-
-        !V(t+dt) = Voil + WaterContent*V(t)
-        Me%Var%Volume                 = Me%Var%VolumeOil + Me%Var%VWaterContent*Me%Var%Volume
+        If (Me%Var%VWaterContent < 1) then
+            Me%Var%Volume                 = Me%Var%VolumeOil / (1 - Me%Var%VWaterContent)
+        Else
+            Me%Var%Volume                 = 0.
+        End If
 
         Me%Var%SlickThickness             = Me%Var%Volume / (max(AllmostZero,Me%ExternalVar%Area))
         Me%Var%OilThickness               = Me%Var%VolumeOil / (max(AllmostZero,Me%ExternalVar%Area))
@@ -2758,8 +2763,11 @@ cd3:    if (Me%Var%MassOil - (Me%Var%MSedimentedDT) * Me%Var%DTOilInternalProces
             Me%Var%VolumeOil          = 0.0
         end if  cd3
 
-        !V(t+dt) = Voil + WaterContent*V(t)
-        Me%Var%Volume                 = Me%Var%VolumeOil + Me%Var%VWaterContent*Me%Var%Volume
+        If (Me%Var%VWaterContent < 1) then
+            Me%Var%Volume             = Me%Var%VolumeOil / (1 - Me%Var%VWaterContent)
+        Else
+            Me%Var%Volume             = 0.
+        End If
 
         Me%Var%SlickThickness         = Me%Var%Volume / (max(AllmostZero,Me%ExternalVar%Area))
         Me%Var%OilThickness           = Me%Var%VolumeOil / (max(AllmostZero,Me%ExternalVar%Area))
@@ -2829,8 +2837,11 @@ cd2:    if (Me%Var%MassOil - (Me%Var%MdissolvedDT) * Me%Var%DTOilInternalProcess
             Me%Var%VolumeOil        = 0.0
         end if  cd2
 
-        !V(t+dt) = Voil + WaterContent*V(t)
-        Me%Var%Volume                 = Me%Var%VolumeOil + Me%Var%VWaterContent*Me%Var%Volume
+        If (Me%Var%VWaterContent < 1) then
+            Me%Var%Volume           = Me%Var%VolumeOil / (1 - Me%Var%VWaterContent)
+        Else
+            Me%Var%Volume           = 0.
+        End If
 
         Me%Var%SlickThickness       = Me%Var%Volume / Me%ExternalVar%Area
         Me%Var%OilThickness         = Me%Var%VolumeOil / Me%ExternalVar%Area
@@ -2892,9 +2903,11 @@ cd2:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
         Me%Var%VWaterContent   = Me%Var%VWaterContent + (Me%Var%VWaterContentDT         &
                                      * Me%Var%DTOilInternalProcesses)
         
-
-        !V(t+dt) = Voil + WaterContent*V(t)
-        Me%Var%Volume          = Me%Var%VolumeOil +  Me%Var%VWaterContent*Me%Var%Volume  
+        If (Me%Var%VWaterContent < 1) then
+            Me%Var%Volume      = Me%Var%VolumeOil / (1 - Me%Var%VWaterContent)
+        Else
+            Me%Var%Volume      = 0.
+        End If
 
         Me%Var%SlickThickness  = Me%Var%Volume / (max(AllmostZero,Me%ExternalVar%Area))
         Me%Var%OilThickness    = Me%Var%VolumeOil / (max(AllmostZero,Me%ExternalVar%Area))
@@ -2972,8 +2985,11 @@ cd4:        if (Me%Var%MassOil - (Me%Var%MChemDispersedDT)                      
             end if  cd4
 
 
-            !V(t+dt) = Voil + WaterContent*V(t)
-            Me%Var%Volume               = Me%Var%VolumeOil + Me%Var%VWaterContent*Me%Var%Volume
+            If (Me%Var%VWaterContent < 1) then
+                Me%Var%Volume           = Me%Var%VolumeOil / (1 - Me%Var%VWaterContent)
+            Else
+                Me%Var%Volume           = 0.
+            End If
         
             Me%Var%SlickThickness       = Me%Var%Volume / Me%ExternalVar%Area
             Me%Var%OilThickness         = Me%Var%VolumeOil / Me%ExternalVar%Area
@@ -3053,8 +3069,11 @@ cd4:        if (Me%Var%MassOil - Me%Var%MOilRecoveredDT * Me%Var%DTOilInternalPr
             end if  cd4
 
 
-            !V(t+dt) = Voil + WaterContent*V(t)
-            Me%Var%Volume                 = Me%Var%VolumeOil + Me%Var%VWaterContent*Me%Var%Volume
+            If (Me%Var%VWaterContent < 1) then
+                Me%Var%Volume          = Me%Var%VolumeOil / (1 - Me%Var%VWaterContent)
+            Else
+                Me%Var%Volume          = 0.
+            End If
             
             Me%Var%SlickThickness      = Me%Var%Volume / Me%ExternalVar%Area
             Me%Var%OilThickness        = Me%Var%VolumeOil / Me%ExternalVar%Area
