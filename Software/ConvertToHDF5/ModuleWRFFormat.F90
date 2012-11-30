@@ -1862,7 +1862,7 @@ if1:    if (Me%TimeWindow) then
 
             do while(associated(Field))
             
-                if(Field%Name == trim('geopotential base state_3D')         .and. &
+                if(Field%Name == trim('geopotential perturbation_3D')         .and. &
                    Field%Date == CurrentDate%Date)then
                     
                     
@@ -2506,7 +2506,7 @@ if1:    if (Me%TimeWindow) then
 !
 ! Dave
 
-    subroutine compute_seaprs (z, t , p , q , MeanSeaLevelPressure)
+    subroutine compute_seaprs (zf, t , p , q , MeanSeaLevelPressure)
 
 ! where
 !           p = p+pb                                !half levels
@@ -2519,7 +2519,7 @@ if1:    if (Me%TimeWindow) then
 
         !Arguments-------------------------------------------------------------
         type(T_Field), pointer                  :: MeanSeaLevelPressure
-        real, dimension(:,:,:), pointer         :: z, t, p, q
+        real, dimension(:,:,:), pointer         :: zf, z, t, p, q
 
         !Local-----------------------------------------------------------------        
         integer                                 :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
@@ -2553,9 +2553,14 @@ if1:    if (Me%TimeWindow) then
         allocate(level      (ILB:IUB,JLB:JUB))
         allocate(t_surf     (ILB:IUB,JLB:JUB))
         allocate(t_sea_level(ILB:IUB,JLB:JUB))
-
-        z = 0.5 * (z(:,:,WKLB:WKUB) + z(:,:,WKLB+1:WKUB+1))
-
+        allocate(z          (ILB:IUB,JLB:JUB,KLB:KUB))      
+        
+        !VerticalZ(k=0) == Topography
+        !VerticalZ(k=WKUB) == Topo
+        do k = WKLB, WKUB
+            z(:,:,k) = 0.5 * (zf(:,:,k-1) + zf(:,:,k))
+        enddo
+        
 !     Find least zeta level that is PCONST Pa above the surface.  We later use this
 !     level to extrapolate a surface pressure and temperature, which is supposed
 !     to reduce the effect of the diurnal heating cycle in the pressure field.
