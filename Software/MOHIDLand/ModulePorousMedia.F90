@@ -309,6 +309,8 @@ Module ModulePorousMedia
         logical :: ComputeHydroPressure
         integer :: InfiltrationConductivity
         logical :: DryChannelsCompletely = .false.
+        logical :: ImposeBoundaryValue
+        real    :: BoundaryValue
     end type T_SoilOptions
 
     type T_SoilType
@@ -387,6 +389,7 @@ Module ModulePorousMedia
         integer, dimension(:,:), pointer        :: UGCell                   => null()
         integer, dimension(:,:), pointer        :: UGCell_Old               => null()
         
+        real,    dimension(:,:,:), allocatable  :: lFlowBoundary            !=> null()
         !Exchange with channels
         real,    dimension(:,:),   allocatable  :: lFlowToChannels          !=> null()
         real,    dimension(:,:,:), allocatable  :: lFlowToChannelsLayer     !=> null()
@@ -594,6 +597,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Build Initial fields
             call InitialFields
+            
+            !if (Me%SoilOpt%ImposeBoundaryValue) call UpdateBoundaryConditions
 
             if (Me%SoilOpt%Continuous)  call ReadInitialSoilFile
             
@@ -976,6 +981,113 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule ='ModulePorousMedia',                         &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR270'
+        
+        !Impose boundary saturated levels
+        call GetData(Me%SoilOpt%ImposeBoundaryValue,                            &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType = FromFile,                                     &
+                     keyword    = 'IMPOSE_BOUNDARY_VALUE',                      &
+                     Default    = .false.,                                      & 
+                     ClientModule ='ModulePorousMedia',                         &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR271'
+        
+        if (Me%SoilOpt%ImposeBoundaryValue) then
+
+            call GetData(Me%SoilOpt%BoundaryValue,                                  &
+                         Me%ObjEnterData, iflag,                                    &
+                         SearchType = FromFile,                                     &
+                         keyword    = 'BOUNDARY_VALUE',                             &
+                         ClientModule ='ModulePorousMedia',                         &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR271' 
+
+            if (iflag == 0) then
+                write(*,*)'BOUNDARY_VALUE must be defined in module Runoff'
+                stop 'ReadDataFile - ModuleRunOff - ERR0230'
+            endif            
+!            !impose level on x lower and upper grid boundary
+!            call GetData(Me%SoilOpt%ImposeBoundaryLevelX,                           &
+!                         Me%ObjEnterData, iflag,                                    &
+!                         SearchType = FromFile,                                     &
+!                         keyword    = 'IMPOSE_BOUNDARY_LEVEL_X',                    &
+!                         Default    = .false.,                                      & 
+!                         ClientModule ='ModulePorousMedia',                         &
+!                         STAT       = STAT_CALL)            
+!            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR272'   
+!            
+!            if (Me%SoilOpt%ImposeBoundaryLevelX) then
+!                call GetData(Me%SoilOpt%ImposedLevelLowerX,                             &
+!                             Me%ObjEnterData, iflag,                                    &
+!                             SearchType = FromFile,                                     &
+!                             keyword    = 'IMPOSED_LEVEL_LOWERX',                       &
+!                             Default    = -99.,                                         & 
+!                             ClientModule ='ModulePorousMedia',                         &
+!                             STAT       = STAT_CALL)            
+!                if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR273'  
+!
+!                call GetData(Me%SoilOpt%ImposedLevelUpperX,                             &
+!                             Me%ObjEnterData, iflag,                                    &
+!                             SearchType = FromFile,                                     &
+!                             keyword    = 'IMPOSED_LEVEL_UPPERX',                       &
+!                             Default    = -99.,                                         & 
+!                             ClientModule ='ModulePorousMedia',                         &
+!                             STAT       = STAT_CALL)            
+!                if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR274'
+!            endif
+!            
+!            !impose level on y lower and upper grid boundary                             
+!            call GetData(Me%SoilOpt%ImposeBoundaryLevelY,                           &
+!                         Me%ObjEnterData, iflag,                                    &
+!                         SearchType = FromFile,                                     &
+!                         keyword    = 'IMPOSE_BOUNDARY_LEVEL_Y',                    &
+!                         Default    = .false.,                                      & 
+!                         ClientModule ='ModulePorousMedia',                         &
+!                         STAT       = STAT_CALL)            
+!            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR275'   
+!            
+!            if (Me%SoilOpt%ImposeBoundaryLevelY) then
+!                call GetData(Me%SoilOpt%ImposedLevelLowerY,                             &
+!                             Me%ObjEnterData, iflag,                                    &
+!                             SearchType = FromFile,                                     &
+!                             keyword    = 'IMPOSED_LEVEL_LOWERY',                       &
+!                             Default    = -99.,                                         & 
+!                             ClientModule ='ModulePorousMedia',                         &
+!                             STAT       = STAT_CALL)            
+!                if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR276'  
+!
+!                call GetData(Me%SoilOpt%ImposedLevelUpperY,                             &
+!                             Me%ObjEnterData, iflag,                                    &
+!                             SearchType = FromFile,                                     &
+!                             keyword    = 'IMPOSED_LEVEL_UPPERX',                       &
+!                             Default    = -99.,                                         & 
+!                             ClientModule ='ModulePorousMedia',                         &
+!                             STAT       = STAT_CALL)            
+!                if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR277' 
+!            endif
+!            
+!            !boundary outside basin but not belonging to grid boundary
+!            call GetData(Me%SoilOpt%ImposeBoundaryLevelInside,                      &
+!                         Me%ObjEnterData, iflag,                                    &
+!                         SearchType = FromFile,                                     &
+!                         keyword    = 'IMPOSE_BOUNDARY_LEVEL_INSIDE',               &
+!                         Default    = .false.,                                      & 
+!                         ClientModule ='ModulePorousMedia',                         &
+!                         STAT       = STAT_CALL)            
+!            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR278'   
+!            
+!            if (Me%SoilOpt%ImposeBoundaryLevelInside) then
+!                call GetData(Me%SoilOpt%ImposedLevelInside,                             &
+!                             Me%ObjEnterData, iflag,                                    &
+!                             SearchType = FromFile,                                     &
+!                             keyword    = 'IMPOSED_LEVEL_INSIDE',                       &
+!                             Default    = -99.,                                         & 
+!                             ClientModule ='ModulePorousMedia',                         &
+!                             STAT       = STAT_CALL)            
+!                if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR279'              
+!            endif
+            
+        endif
 
         !Number of iterations below which the DT is reduce (lower optimal iteration range)
         call GetData(Me%CV%MinIter,                                             &
@@ -1452,6 +1564,10 @@ do1:     do
         allocate(Me%lFlowToChannelsLayer    (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate(Me%FlowToChannelsTopLayer          (ILB:IUB,JLB:JUB))
         allocate(Me%FlowToChannelsBottomLayer       (ILB:IUB,JLB:JUB))
+        if (Me%SoilOpt%ImposeBoundaryValue) then
+            allocate(Me%lFlowBoundary       (ILB:IUB,JLB:JUB,KLB:KUB))
+            Me%lFlowBoundary = 0.0
+        endif
         Me%iFlowToChannels      = 0.0
         Me%iFlowToChannelsLayer = 0.0
         Me%lFlowToChannels      = 0.0
@@ -1640,8 +1756,6 @@ HF:         if (STAT_CALL == SUCCESS_ .and. SoilTypeFound) then
         integer                                     :: i, j, k
         character(LEN = StringLength)               :: string
         type (T_PropertyID)                         :: ID
-        logical                                     :: ImpermeableConstant
-        
         
         allocate(LayerControl(Me%WorkSize%KLB: Me%WorkSize%KUB))
         LayerControl = 0
@@ -1936,6 +2050,104 @@ doSP:           do
 
     !--------------------------------------------------------------------------
 
+    subroutine UpdateBoundaryConditions
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                    :: i,j,k, STAT_CALL
+        integer, dimension (:,:,:), pointer        :: Mapping
+        !Begin-----------------------------------------------------------------
+        
+!        allocate (Mapping (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
+!        if (STAT_CALL /= SUCCESS_) stop UpdateBoundaryConditions - ModulePorousMedia - ERR01
+!    
+!        SetMatrixValueAllocatable(Mapping, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D)
+        
+!        if (Me%SoilOpt%ImposeBoundaryLevelX) then
+!            if (Me%SoilOpt%ImposedLevelLowerX .gt. -95.) then
+!                j = Me%Size%JLB
+!                do i= Me%Size%ILB, Me%Size%IUB
+!                do k= Me%Size%KLB, Me%Size%KUB
+!                    !in saturated cells assuming hydrostatic pressure
+!                    !in unsaturated cells gravity balances suction (field capcity) and
+!                    !final head is uniform and equal to level
+!                    Me%FinalHead(i,j,k) = Me%SoilOpt%ImposedLevelLowerX 
+!                    
+!                    !only mapping and compute faces in cells between level gradient 
+!                    if ((-Me%ExtVar%SZZ(i,j,k) .le. max (Me%UGWaterLevel2D(i,j), Me%SoilOpt%ImposedLevelLowerX)) &
+!                       (-Me%ExtVar%SZZ(i,j,k) .ge. min (Me%UGWaterLevel2D(i,j), Me%SoilOpt%ImposedLevelLowerX)))
+!                        Mapping (i,j,k)     = 1
+!                    endif
+!                enddo
+!                enddo
+!            endif          
+!            if (Me%SoilOpt%ImposedLevelUpperX .gt. -95.) then
+!                j = Me%Size%JUB
+!                do i= Me%Size%ILB, Me%Size%IUB
+!                do k= Me%Size%KLB, Me%Size%KUB
+!                    Me%FinalHead(i,j,k) = Me%SoilOpt%ImposedLevelUpperX
+!                    
+!                    if ((-Me%ExtVar%SZZ(i,j,k) .le. max (Me%UGWaterLevel2D(i,j), Me%SoilOpt%ImposedLevelUpperX)) &
+!                       (-Me%ExtVar%SZZ(i,j,k) .ge. min (Me%UGWaterLevel2D(i,j), Me%SoilOpt%ImposedLevelUpperX)))
+!                        Mapping (i,j,k)     = 1
+!                    endif               
+!                enddo
+!                enddo
+!            endif                     
+!        endif
+!        if (Me%SoilOpt%ImposeBoundaryLevelY) then
+!            if (Me%SoilOpt%ImposedLevelLowerY .gt. -95.) then
+!                i = Me%Size%ILB
+!                do j= Me%Size%JLB, Me%Size%JUB
+!                do k= Me%Size%KLB, Me%Size%KUB
+!
+!                    Me%FinalHead(i,j,k) = Me%SoilOpt%ImposedLevelLowerY 
+!                    
+!                    if ((-Me%ExtVar%SZZ(i,j,k) .le. max (Me%UGWaterLevel2D(i,j), Me%SoilOpt%ImposedLevelLowerY)) &
+!                       (-Me%ExtVar%SZZ(i,j,k) .ge. min (Me%UGWaterLevel2D(i,j), Me%SoilOpt%ImposedLevelLowerY)))
+!                        Mapping (i,j,k)     = 1
+!                    endif               
+!                enddo
+!                enddo
+!            endif          
+!            if (Me%SoilOpt%ImposedLevelUpperY .gt. -95.) then
+!                i = Me%Size%IUB
+!                do j= Me%Size%JLB, Me%Size%JUB
+!                do k= Me%Size%KLB, Me%Size%KUB
+!
+!                    Me%FinalHead(i,j,k) = Me%SoilOpt%ImposedLevelUpperY 
+!                    
+!                    if ((-Me%ExtVar%SZZ(i,j,k) .le. max (Me%UGWaterLevel2D(i,j), Me%SoilOpt%ImposedLevelUpperY)) &
+!                       (-Me%ExtVar%SZZ(i,j,k) .ge. min (Me%UGWaterLevel2D(i,j), Me%SoilOpt%ImposedLevelUpperY)))
+!                        Mapping (i,j,k)     = 1
+!                    endif  
+!                enddo
+!                enddo
+!            endif                     
+!        endif 
+
+        do j= Me%Size%JLB, Me%Size%JUB
+        do i= Me%Size%ILB, Me%Size%IUB
+            if (Me%ExtVar%BasinPoints(i, j) == 0) then           
+                do k= Me%Size%KLB, Me%Size%KUB
+
+                    Me%FinalHead(i,j,k) = Me%SoilOpt%BoundaryValue
+                    
+                enddo
+            endif
+        enddo
+        enddo
+        
+        !update mapping with boundary cells so that compute faces in boundary are open
+        !(only the ones between saturated levels)
+!        call UpDateWaterPoints3D(Me%ObjMap, Mapping, STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop UpdateBoundaryConditions - ModulePorousMedia - ERR01
+        
+                  
+    end subroutine UpdateBoundaryConditions
+
+    !--------------------------------------------------------------------------
+    
     subroutine StartWithFieldCapacity
 
         !Arguments-------------------------------------------------------------
@@ -3640,6 +3852,10 @@ i1:         if (CoordON) then
        
             !Calculate flow in unsaturated part of soil
             call VariableSaturatedFlow (InfiltrationColumn)
+            
+            if (Me%SoilOpt%ImposeBoundaryValue) then
+                call ImposeBoundaryValue
+            endif
             
             call CalculateUGWaterLevel
 
@@ -5424,6 +5640,87 @@ cd2 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
 
     end subroutine LogDT
 
+    !--------------------------------------------------------------------------
+
+    subroutine ImposeBoundaryValue
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k, di, dj, Sum, SumFaces
+        logical                                     :: NearBoundary
+        real                                        :: AverageArea, AverageDist
+        
+        call SetMatrixValueAllocatable (Me%lFlowBoundary, Me%Size, 0.0, Me%ExtVar%WaterPoints3D)
+        
+        !Sets Boundary values
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint) then
+
+                !Check if near a boundary point (no diagonal)
+                NearBoundary = .false.
+                do dj = -1, 1
+                do di = -1, 1
+                    Sum = dj + di
+                    if ((Me%ExtVar%BasinPoints(i+di, j+dj) == 0) .and. (Sum .eq. -1 .or. Sum .eq. 1)) then
+                        NearBoundary = .true.
+                    endif
+                enddo
+                enddo
+                
+                
+                if (NearBoundary) then
+
+do1:                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                        
+                        !do not process in saturated cells below BoundaryValue and any above maximum level 
+                        !so flux occurs only between areas where saturation occurs in boundary an not inside
+                        !or not inside but in boundary
+                        if ((- Me%ExtVar%SZZ(i,j,k) .gt. max(Me%SoilOpt%BoundaryValue, Me%UGWaterLevel2D(i, j))) &
+                            .or. ((- Me%ExtVar%SZZ(i,j,k) .lt. Me%SoilOpt%BoundaryValue) .and.                   &
+                                   (Me%Theta(i,j,k) .gt. (Me%RC%ThetaS(i,j,k) - Me%CV%LimitThetaHi)))) then
+                            exit do1
+                        endif
+                        
+                        !Do not know trough each area is flowing and areas do not change a lot
+                        SumFaces    = Me%ExtVar%ComputeFacesU3D(i,j  ,k) + Me%ExtVar%ComputeFacesU3D(i,j+1,k) + &
+                                      Me%ExtVar%ComputeFacesV3D(i,j  ,k) + Me%ExtVar%ComputeFacesV3D(i+1,j,k)
+                        AverageArea = (Me%ExtVar%AreaU(i,j  ,k) * Me%ExtVar%ComputeFacesU3D(i,j  ,k) +  &
+                                       Me%ExtVar%AreaU(i,j+1,k) * Me%ExtVar%ComputeFacesU3D(i,j+1,k) +  &
+                                       Me%ExtVar%AreaV(i,j  ,k) * Me%ExtVar%ComputeFacesV3D(i,j  ,k) +  &
+                                       Me%ExtVar%AreaV(i+1,j,k) * Me%ExtVar%ComputeFacesV3D(i+1,j,k)) / SumFaces 
+                        AverageDist =  ((Me%ExtVar%DUX(i,j) + Me%ExtVar%DVY(i,j)) / 2.) * 0.5
+                                                               
+                        !using sat conduct since flow is only computed with at least saturation in one side of face
+                        Me%lFlowBoundary(i,j,k) = AverageArea * BuckinghamDarcyEquation   &
+                                                  (con      = Me%SatK      (i  ,  j,k),   &
+                                                   hinf     = Me%SoilOpt%BoundaryValue,   &
+                                                   hsup     = Me%FinalHead (i  ,  j,k),   &
+                                                   delta    = AverageDist            )
+                        
+                        !m3H20/m3cell = (m3H20/m3cell * m3cell - m3/s * s) / m3cell
+                        Me%Theta(i,j,k) = (Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k) -  &
+                                           Me%lFlowBoundary(i,j,k) * Me%ExtVar%DT)       /  &
+                                           Me%ExtVar%CellVolume(i,j,k)
+                        
+                        if (Me%Theta(i,j,k) .gt. (Me%RC%ThetaS(i,j,k) - Me%CV%LimitThetaHi)) then
+                            Me%Theta(i,j,k) = Me%RC%ThetaS(i,j,k)
+                        elseif (Me%Theta(i,j,k) .lt. (Me%RC%ThetaR(i,j,k) + Me%CV%LimitThetaLo)) then
+                            Me%Theta(i,j,k) = Me%RC%ThetaR(i,j,k)
+                        endif
+                        
+                    enddo do1
+
+                endif
+           
+            endif
+        enddo
+        enddo
+
+    
+    end subroutine ImposeBoundaryValue
+    
     !--------------------------------------------------------------------------
 
     subroutine CalculateUGWaterLevel

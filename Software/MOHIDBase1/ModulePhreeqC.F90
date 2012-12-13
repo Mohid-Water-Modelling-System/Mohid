@@ -1256,9 +1256,9 @@ cd1:   if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) &
             call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR190.') 
-                
+#ifdef DEBUG_PHREEQC                
         call OpenDebugFile
-        
+#endif        
 !        call ReadPhreeqCDatabase 
 
         !----------------------------------------------------------------------

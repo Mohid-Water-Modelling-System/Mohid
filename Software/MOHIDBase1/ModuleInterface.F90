@@ -2625,7 +2625,7 @@ cd14 :          if (Phosphorus) then
                 
             case(BivalveModel) 
                 
-                Size%ILB = 1; Size%IUB = 1
+                !Size%ILB = 1; Size%IUB = 1
                 
                 !Get number of simulated properties 
                 call GetBivalveSize(Me%ObjBivalve, PropLB, PropUB, STAT = STAT_CALL)

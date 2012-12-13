@@ -681,6 +681,8 @@ Module ModuleVegetation
  !       real                                            :: PotentialHUBase
         real                                            :: WaterUptakeCompensationFactor
         logical                                         :: NutrientReduceUptake
+        real                                            :: NutrientReduceUptakeFactor
+        logical                                         :: NutrientReduceDemand
         real                                            :: NitrogenDistributionParameter
         real                                            :: PhosphorusDistributionParameter
         real                                            :: AtmosphereCO2
@@ -1393,6 +1395,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR195'
+
+            call GetData(Me%ComputeOptions%NutrientReduceUptakeFactor,                      &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword        = 'NUTRIENT_REDUCE_UPTAKE_FACTOR',                  &
+                         Default        = 0.5,                                              &
+                         SearchType     = FromFile,                                         &
+                         ClientModule   = 'ModuleVegetation',                               &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR196'
+
+            call GetData(Me%ComputeOptions%NutrientReduceDemand,                            &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword        = 'DEMAND_REDUCE_UPTAKE',                           &
+                         Default        = .false.,                                          &
+                         SearchType     = FromFile,                                         &
+                         ClientModule   = 'ModuleVegetation',                               &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR197'
             
         endif
 
@@ -2665,15 +2685,15 @@ doV:    do while (associated(VegetationInList))
                     endif
             endif  
             
-            if (Me%ComputeOptions%Evolution%ModelSWAT .and.                                           &
-                (Me%ComputeOptions%NutrientUptakeMethod .eq. NutrientUptake_TranspConc) .and.          &
-                (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressSWAT)) then
-                write(*,*    )
-                write(*,*    ) 'If growth model connected cant use nutrient uptake Q*C option'
-                write(*,*    ) 'and compute stress based on SWAT formulation'
-                write(*,*    ) 'Check NUTRIENT_UPTAKE_METHOD and NUTRIENT_STRESS_METHOD keyword in vegetation data file'
-                stop 'CheckOptionsConsistence - ModuleVegetation - ERR016'        
-            endif
+!            if (Me%ComputeOptions%Evolution%ModelSWAT .and.                                           &
+!                (Me%ComputeOptions%NutrientUptakeMethod .eq. NutrientUptake_TranspConc) .and.          &
+!                (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressSWAT)) then
+!                write(*,*    )
+!                write(*,*    ) 'If growth model connected cant use nutrient uptake Q*C option'
+!                write(*,*    ) 'and compute stress based on SWAT formulation'
+!                write(*,*    ) 'Check NUTRIENT_UPTAKE_METHOD and NUTRIENT_STRESS_METHOD keyword in vegetation data file'
+!                stop 'CheckOptionsConsistence - ModuleVegetation - ERR016'        
+!            endif
                           
         else
 !            if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
@@ -9719,11 +9739,12 @@ do3 :               do k = KUB, KLB, -1
         real                                            :: PotentialNitrogenUptake
         real                                            :: GridCellArea, CellVolume
         real                                            :: DistributionParameter
-        real                                            :: LayerNitrogenContent, PredictedVolume
+        real                                            :: LayerNitrogenContent
         real                                            :: SumDemand, SumUptake
         real                                            :: DemandNotMetInUpperLayers
         integer                                         :: k, KUB, KLB, PlantType
         logical                                         :: Dormant
+        real                                            :: AmountAvailable
        !Begin-----------------------------------------------------------------
 
         MappingPoints => Me%ExternalVar%MappingPoints2D
@@ -9774,10 +9795,16 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                     !  kgN/ha
                     NitrogenDemand = OptimalNContent - TotalPlantNitrogen
-                    NitrogenDemand = min(4. * PlantFractionN3 * Me%Growth%BiomassGrowthOld(i,j), NitrogenDemand)
                     
+                    !This is taken from SWAT formulation and usually originates stresses to oscillate between 0 and 1
+                    !because if low nutrient is available in one time step stress will be high (much lower than 1), 
+                    !plant will not grow and with this formulation in the next step demand will be reduced because 
+                    !plant did not grow and stress will be low (closer to 1). And so on so on
+                    if (Me%ComputeOptions%NutrientReduceDemand) then
+                        NitrogenDemand = min(4. * PlantFractionN3 * Me%Growth%BiomassGrowthOld(i,j), NitrogenDemand)
+                    endif
 
-    cd1:            if(NitrogenDemand .lt. 1e-6) then
+    cd1:            if(NitrogenDemand .lt. 1e-5) then
         
                         Me%Fluxes%NitrogenUptake(i,j) = 0.0
                         Me%Growth%NitrogenStress(i,j) = 1.0
@@ -9827,51 +9854,35 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             DemandNotMetInUpperLayers = SumDemand - SumUptake
                             !Demand in next iteration
                             SumDemand = SumDemand + PotentialNitrogenUptake
+                            
+                            Me%Fluxes%NitrogenUptakeLayer(i,j,k) = PotentialNitrogenUptake + DemandNotMetInUpperLayers
 
                             CellVolume = Me%ExternalVar%CellVolume(i,j,k)
                             
-                            if (Me%ComputeOptions%NutrientReduceUptake) then
-                                !Avoid emptying the cell during vegetation dt
-                                !m3H20 = m3H20/m3cell * m3cell - (m3/s * s)
-                                PredictedVolume = Me%ExternalVar%SoilWaterContent(i,j,k) * CellVolume              &
-                                                  - (Me%Fluxes%WaterUptakeLayer(i,j,k) * Me%ComputeOptions%VegetationDT)
-            
-                                !      kgN/ha        = gN/m3H20 * 1E-3kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
-    !                            LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
-    !                                                    * Me%ExternalVar%SoilWaterContent(i,j,k)                      &
-    !                                                    * (CellVolume) / (GridCellArea) * 10000
-                                LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
-                                                        * PredictedVolume / (GridCellArea) * 10000.
+                            !      kgN/ha        = gN/m3H20 * 1E-3kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
+                            LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
+                                                    * Me%ExternalVar%SoilWaterContent(i,j,k)                      &
+                                                    * (CellVolume) / (GridCellArea) * 10000
 
-
-                                Me%Fluxes%NitrogenUptakeLayer(i,j,k) = PotentialNitrogenUptake + DemandNotMetInUpperLayers
-                               
-                               !Avoid taking more than exists because there is also transport that can remove mass
-                               !Problem with this SWAT formulatio where nutrient is completely disconnected from transpiration
-                               !If plant tries to remove per day more than half the amount that exists than nutrients
-                               !will run out in two days. at this low amount plant encounters limitations to uptake
-                                
-
-                                if (Me%Fluxes%NitrogenUptakeLayer(i,j,k) .ge. LayerNitrogenContent * 0.5) then
-                                    !Me%Fluxes%NitrogenUptakeLayer(i,j,k) = LayerNitrogenContent
-                                    Me%Fluxes%NitrogenUptakeLayer(i,j,k) = 0.
-                                end if
-                            else
                             
-            
-                                !      kgN/ha        = gN/m3H20 * 1E-3kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
-                                LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
-                                                        * Me%ExternalVar%SoilWaterContent(i,j,k)                      &
-                                                        * (CellVolume) / (GridCellArea) * 10000
-
-                                Me%Fluxes%NitrogenUptakeLayer(i,j,k) = PotentialNitrogenUptake + DemandNotMetInUpperLayers
+                            if (Me%ComputeOptions%NutrientReduceUptake) then
+                               !Avoid taking more than exists because there is also transport that can remove mass
+                               !Problem with this SWAT formulation where nutrient is completely disconnected from transpiration
+                               !ex. If plant tries to remove per day more than half the amount that exists than nutrients
+                               !will run out in two days. at this low amount plant will encounter limitation to uptake
                                
-                                if (Me%Fluxes%NitrogenUptakeLayer(i,j,k) .ge. LayerNitrogenContent) then
-                                    Me%Fluxes%NitrogenUptakeLayer(i,j,k) = LayerNitrogenContent
-                                end if                            
+                               AmountAvailable = LayerNitrogenContent * Me%ComputeOptions%NutrientReduceUptakeFactor
+                            
+                            else
+                                AmountAvailable = LayerNitrogenContent
                             endif
-        
+                                                           
+                            if (Me%Fluxes%NitrogenUptakeLayer(i,j,k) .ge. AmountAvailable) then
+                                Me%Fluxes%NitrogenUptakeLayer(i,j,k) = AmountAvailable
+                            end if                                     
+                            
                             SumUptake = SumUptake + Me%Fluxes%NitrogenUptakeLayer(i,j,k)
+                        
                         enddo do3
 
                         Me%Fluxes%NitrogenUptake(i,j) = SumUptake
@@ -9892,13 +9903,15 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                 
                                 elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then
                                     
-                                    !SWAT stress update
+                                    !stress update
                                     if (NitrogenDemand .gt. 1e-5) then
                                         Stress = SumUptake / NitrogenDemand
                                     else
                                         Stress = 1.0
                                     endif
-
+                                    
+                                    Stress = min (Stress, 1.0)
+                                    
 !                                   Stress = amax1(Stress, NewStress)
 !                                   Stress = amin1(Stress, 1.0)
                                 else
@@ -10016,8 +10029,14 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
 
                         NitrogenDemand = OptimalNContent - TotalPlantNitrogen
-                        NitrogenDemand = min(4. * PlantFractionN3 * Me%Growth%BiomassGrowthOld(i,j), NitrogenDemand)
-
+                        
+                        !This is taken from SWAT formulation and usually originates stresses to oscillate between 0 and 1
+                        !because if low nutrient is available in one time step stress will be high (much lower than 1), 
+                        !plant will not grow and with this formulation in the next step demand will be reduced because 
+                        !plant did not grow and stress will be low (closer to 1). And so on so on
+                        if (Me%ComputeOptions%NutrientReduceDemand) then                        
+                            NitrogenDemand = min(4. * PlantFractionN3 * Me%Growth%BiomassGrowthOld(i,j), NitrogenDemand)
+                        endif
                     endif
     
 
@@ -10088,12 +10107,13 @@ do3:                do k = KUB, KLB, -1
                                 elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then
                                     
                                     !SWAT stress update
-                                    if (NitrogenDemand .gt. 1e-5) then
+                                    if (NitrogenDemand .gt. AllmostZero) then
                                         Stress = SumUptake / NitrogenDemand
                                     else
                                         Stress = 1.0
                                     endif
-
+                                    
+                                    Stress = min (Stress, 1.0)
 !                                   Stress = amax1(Stress, NewStress)
 !                                   Stress = amin1(Stress, 1.0)
                                 else
@@ -10208,11 +10228,12 @@ do3:                do k = KUB, KLB, -1
         real                                            :: PotentialPhosphorusUptake
         real                                            :: GridCellArea, CellVolume
         real                                            :: DistributionParameter
-        real                                            :: LayerPhosphorusContent, PredictedVolume
+        real                                            :: LayerPhosphorusContent
         real                                            :: SumDemand, SumUptake
         real                                            :: DemandNotMetInUpperLayers
         integer                                         :: k, KUB, KLB, PlantType
         logical                                         :: Dormant
+        real                                            :: AmountAvailable
        !Begin-----------------------------------------------------------------
         
         MappingPoints => Me%ExternalVar%MappingPoints2D
@@ -10263,7 +10284,15 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                     !  kgP/ha
                     PhosphorusDemand = OptimalPContent - TotalPlantPhosphorus
-                    PhosphorusDemand = min(4. * PlantFractionP3 * Me%Growth%BiomassGrowthOld(i,j), PhosphorusDemand)
+                    
+                    !This is taken from SWAT formulation and usually originates stresses to oscillate between 0 and 1
+                    !because if low nutrient is available in one time step stress will be high (much lower than 1), 
+                    !plant will not grow and with this formulation in the next step demand will be reduced because 
+                    !plant did not grow and stress will be low (closer to 1). And so on so on
+                    if (Me%ComputeOptions%NutrientReduceDemand) then                    
+                        PhosphorusDemand = min(4. * PlantFractionP3 * Me%Growth%BiomassGrowthOld(i,j), PhosphorusDemand)
+                    endif
+                    
                     !Luxury P uptake
                     PhosphorusDemand =  PhosphorusDemand * 1.5
         
@@ -10317,58 +10346,36 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             DemandNotMetInUpperLayers = SumDemand - SumUptake
                             !Demand in next iteration
                             SumDemand = SumDemand + PotentialPhosphorusUptake
-
+                            
+                            Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = PotentialPhosphorusUptake + DemandNotMetInUpperLayers
+                            
                             CellVolume = Me%ExternalVar%CellVolume(i,j,k)
                             
+                            !      kgP/ha          = gP/m3H20 * 1E-3kg/g  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
+                            LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                   &
+                                                     * Me%ExternalVar%SoilWaterContent(i,j,k)                       &
+                                                     * (CellVolume) / (GridCellArea) * 10000
+                            
                             if (Me%ComputeOptions%NutrientReduceUptake) then
-                            
-                                !Avoid emptying the cell during vegetation dt
-                                !m3H20 = m3H20/m3cell * m3cell - (m3/s * s)
-                                PredictedVolume = Me%ExternalVar%SoilWaterContent(i,j,k) * CellVolume              &
-                                                  - (Me%Fluxes%WaterUptakeLayer(i,j,k) * Me%ComputeOptions%VegetationDT)
-                
-                                !      kgP/ha          = gP/m3H20 * 1E-3kg/g  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
-    !                            LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3              &
-    !                                                     * Me%ExternalVar%SoilWaterContent(i,j,k)                  &
-    !                                                     * (CellVolume) / (GridCellArea) * 10000
-                                LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3              &
-                                                         * PredictedVolume / (GridCellArea) * 10000.
-
-
-                                Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = PotentialPhosphorusUptake + DemandNotMetInUpperLayers
-                               
                                !Avoid taking more than exists because there is also transport that can remove mass
-                               !Problem with this SWAT formulatio where nutrient is completely disconnected from transpiration
-                               !If plant tries to remove per day more than half the amount that exists than nutrients
-                               !will run out in two days. at this low amount plant encounters limitations to uptake                            
-                                
-                                !if (LayerPhosphorusContent .lt. Me%Fluxes%PhosphorusUptakeLayer(i,j,k)) then
-                                if (Me%Fluxes%PhosphorusUptakeLayer(i,j,k) .ge. LayerPhosphorusContent * 0.5) then
-                                    !Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = LayerPhosphorusContent
-                                    Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = 0.
-                                end if
-                            else
+                               !Problem with this SWAT formulation where nutrient is completely disconnected from transpiration
+                               !ex. If plant tries to remove per day more than half the amount that exists than nutrients
+                               !will run out in two days. at this low amount plant will encounter limitation to uptake                                
+                                AmountAvailable = LayerPhosphorusContent * Me%ComputeOptions%NutrientReduceUptakeFactor
                             
-                
-                                !      kgP/ha          = gP/m3H20 * 1E-3kg/g  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
-                                LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                   &
-                                                         * Me%ExternalVar%SoilWaterContent(i,j,k)                       &
-                                                         * (CellVolume) / (GridCellArea) * 10000
-
-                                Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = PotentialPhosphorusUptake + DemandNotMetInUpperLayers
-                               
-                                !if (LayerPhosphorusContent .lt. Me%Fluxes%PhosphorusUptakeLayer(i,j,k)) then
-                                if (Me%Fluxes%PhosphorusUptakeLayer(i,j,k) .ge. LayerPhosphorusContent) then
-                                    Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = LayerPhosphorusContent
-                                end if
-                            
+                            else                            
+                                AmountAvailable = LayerPhosphorusContent                           
                             endif
-                                                        
+                            
+                            if (Me%Fluxes%PhosphorusUptakeLayer(i,j,k) .ge. AmountAvailable) then
+                                Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = AmountAvailable
+                            end if
+                            
                             SumUptake = SumUptake + Me%Fluxes%PhosphorusUptakeLayer(i,j,k)
+                        
                         enddo do3
 
                         Me%Fluxes%PhosphorusUptake(i,j) = SumUptake
-
 
                         !Compute Phosphorus Stress
                         PlantType = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantType
@@ -10392,7 +10399,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                     else
                                         Stress = 1.0
                                     endif
-
+                                    
+                                    Stress = min (Stress, 1.0)
+                                    
 !                                   Stress = amax1(Stress, NewStress)
 !                                   Stress = amin1(Stress, 1.0)
                                 else
@@ -10511,10 +10520,17 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                         !  kgP/ha
                         PhosphorusDemand = OptimalPContent - TotalPlantPhosphorus
-                        PhosphorusDemand = min(4. * PlantFractionP3 * Me%Growth%BiomassGrowthOld(i,j), PhosphorusDemand)
+                            
+                        !This is taken from SWAT formulation and usually originates stresses to oscillate between 0 and 1
+                        !because if low nutrient is available in one time step stress will be high (much lower than 1), 
+                        !plant will not grow and with this formulation in the next step demand will be reduced because 
+                        !plant did not grow and stress will be low (closer to 1). And so on so on
+                        if (Me%ComputeOptions%NutrientReduceDemand) then                        
+                            PhosphorusDemand = min(4. * PlantFractionP3 * Me%Growth%BiomassGrowthOld(i,j), PhosphorusDemand)
+                        endif
+                        
                         !Luxury P uptake
                         PhosphorusDemand =  PhosphorusDemand * 1.5
-
                    
                     endif
         
@@ -10543,7 +10559,6 @@ do3 :               do k = KUB, KLB, -1
                         endif
                  
                         CellVolume = Me%ExternalVar%CellVolume(i,j,k)
-
                         
                         !    KgP/ha               =   gN/m3H20 * 1E-3kg/g * m3/s * s / (m2) * 10000m2/ha 
                         PotentialPhosphorusUptake = Me%ExternalVar%SoilPhosphorus(i,j,k) * 1E-3                    &
@@ -10557,11 +10572,13 @@ do3 :               do k = KUB, KLB, -1
                                                  * (CellVolume) / (GridCellArea) * 10000
 
                         Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = PotentialPhosphorusUptake
+                        
                         if (LayerPhosphorusContent .lt. Me%Fluxes%PhosphorusUptakeLayer(i,j,k)) then
                             Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = LayerPhosphorusContent
                         end if
         
                         SumUptake = SumUptake + Me%Fluxes%PhosphorusUptakeLayer(i,j,k)
+                        
                     enddo do3
 
                     Me%Fluxes%PhosphorusUptake(i,j) = SumUptake
@@ -10584,13 +10601,15 @@ do3 :               do k = KUB, KLB, -1
                                 
                                 elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then
                                     
-                                    !SWAT stress update (adapted from nitrogen)
-                                    if (PhosphorusDemand .gt. 1e-6) then
+                                    !stress update (adapted from nitrogen)
+                                    if (PhosphorusDemand .gt. AllmostZero) then
                                         Stress = SumUptake / PhosphorusDemand
                                     else
                                         Stress = 1.0
                                     endif
-
+                                    
+                                    Stress = min (Stress, 1.0)
+                                    
 !                                   Stress = amax1(Stress, NewStress)
 !                                   Stress = amin1(Stress, 1.0)
                                 else
