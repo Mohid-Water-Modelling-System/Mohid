@@ -43,7 +43,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     !Subroutines---------------------------------------------------------------
 
     !Constructor
-    public  :: ConvertNetCDFCF_2_HDF5MOHID
+    public  ::      ConvertNetCDFCF_2_HDF5MOHID
     private ::      ReadOptions
     private ::      KillNetCDFCF_2_HDF5MOHID
 
@@ -180,7 +180,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: FromMeteo2Algebric
         character(len=StringLength)             :: DirX
         character(len=StringLength)             :: DirY
-        logical                                 :: ComputeIntensity, Rotation, Beaufort, WaveBeaufort 
+        logical                                 :: ComputeIntensity, Rotation, Beaufort, WaveBeaufort
+        logical                                 :: ComputeWindDirection  
         integer                                 :: VectorComponent
         character(len=StringLength)             :: VectorX
         character(len=StringLength)             :: VectorY        
@@ -300,6 +301,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
 
           
         call WriteRotation
+
+        call WriteComputeWindDirection
 
         call WriteComputeIntensity
         
@@ -426,6 +429,112 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     
     !------------------------------------------------------------------------    
 
+    subroutine WriteComputeWindDirection
+    
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, iP, iPx, iPy
+        logical                                     :: Found
+        !Begin-----------------------------------------------------------------
+        
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%ComputeWindDirection) then
+        
+                !Found component X
+                Found = .false.
+                do iPx = 1, Me%PropNumber
+                    if (trim(Me%Field(iPx)%ID%Name)==trim(Me%Field(iP)%VectorX)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteComputeWindDirection - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+                !Found component Y
+                Found = .false.
+                do iPy = 1, Me%PropNumber
+                    if (trim(Me%Field(iPy)%ID%Name)==trim(Me%Field(iP)%VectorY)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteComputeWindDirection - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+
+
+                do i=1, Me%Date%TotalInst
+                    !Read component X
+
+                    if      (Me%Field(iPx)%Dim==2) then
+                        allocate(Me%Field(iPx)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    else
+                        allocate(Me%Field(iPx)%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
+                                                          Me%Size%JLB:Me%Size%JUB,           &
+                                                          Me%Size%KLB:Me%Size%KUB))                    
+                    endif
+                    
+                    if      (Me%Field(iP)%Dim==2) then
+                        allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    else
+                        allocate(Me%Field(iP)%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
+                                                         Me%Size%JLB:Me%Size%JUB,           &
+                                                         Me%Size%KLB:Me%Size%KUB))                    
+                    endif
+                    
+                    call ReadFieldHDF5(iPx, i)
+
+                    !Compute vector direction
+                    call ComputeVectorWindDirection(iPx=iPx, Step=1, iP=iP)   
+                    
+                    if      (Me%Field(iPx)%Dim==2) then
+                        deallocate(Me%Field(iPx)%Value2DOut)
+                    else
+                        deallocate(Me%Field(iPx)%Value3DOut)                    
+                    endif                    
+                    
+                    if      (Me%Field(iPy)%Dim==2) then
+                        allocate(Me%Field(iPy)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    else
+                        allocate(Me%Field(iPy)%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
+                                                          Me%Size%JLB:Me%Size%JUB,           &
+                                                          Me%Size%KLB:Me%Size%KUB))                    
+                    endif
+                                 
+                    
+                    !Read component Y                    
+                    call ReadFieldHDF5(iPy, i)
+
+                    !Compute vector direction
+                    call ComputeVectorWindDirection(iPx=iPy, Step=2, iP=iP)              
+
+                    if      (Me%Field(iPy)%Dim==2) then
+                        deallocate(Me%Field(iPy)%Value2DOut)
+                    else
+                        deallocate(Me%Field(iPy)%Value3DOut)                    
+                    endif
+               
+                    !Write wind direction
+                    if (Me%OutHDF5) then
+                        call WriteFieldHDF5  (iP, i)    
+                    endif
+
+                    if (Me%OutNetCDF) then
+                        call WriteFieldNetCDF(iP, i)                        
+                    endif
+                    
+                    
+                    if      (Me%Field(iP)%Dim==2) then
+                        deallocate(Me%Field(iP)%Value2DOut)
+                    else
+                        deallocate(Me%Field(iP)%Value3DOut)
+                    endif
+
+                enddo
+            endif                
+        enddo    
+        
+    end subroutine WriteComputeWindDirection
+    
+    !------------------------------------------------------------------------
 
     !------------------------------------------------------------------------
     
@@ -806,6 +915,96 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         
 
     end subroutine ComputeVectorIntensity
+    
+    !------------------------------------------------------------------------    
+
+
+    subroutine ComputeVectorWindDirection(iPx, step, iP)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: iPx, step, iP
+        
+        !Local-----------------------------------------------------------------
+        type(T_Field), pointer                      :: Field_UV        
+        integer                                     :: i, j, k
+        real                                        :: DperR
+        !Begin-----------------------------------------------------------------
+
+        allocate(Field_UV)
+        nullify(Field_UV)
+        
+        Field_UV => Me%Field(iPx)
+
+
+        if      (Me%Field(iP)%Dim==3) then
+        
+            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                if (Step ==1) then
+                    Me%Field(iP)%Value3DOut(i,j,k) = 0.0
+                endif
+                
+                if(Me%Mapping%Value3DOut(i,j,k) == 1)then
+                    if (Step ==1) then
+                        Me%Field(iP)%Value3DOut(i,j,k) = Field_UV%Value3DOut(i,j,k)
+                    else if (Step ==2) then
+                    
+                        DperR=180/pi
+                        
+                        Me%Field(iP)%Value3DOut(i,j,k) =270-atan2(Field_UV%Value3DOut(i,j,k),Me%Field(iP)%Value3DOut(i,j,k))*DperR
+        
+                        if (Me%Field(iP)%Value3DOut(i,j,k) >360)then
+                             Me%Field(iP)%Value3DOut(i,j,k)=Me%Field(iP)%Value3DOut(i,j,k) -360
+                        else if (Me%Field(iP)%Value2DOut(i,j)<0) then
+                             Me%Field(iP)%Value3DOut(i,j,k) =Me%Field(iP)%Value3DOut(i,j,k) +360
+                        end if
+                        
+                    endif
+                endif
+
+            enddo
+            enddo
+            enddo
+        
+        else if (Me%Field(iP)%Dim==2) then
+
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                if (Step ==1) then
+                    Me%Field(iP)%Value2DOut(i,j) = 0.0
+                endif
+                                
+                if(Me%Mapping%Value2DOut(i,j) == 1)then
+                    if (Step ==1) then
+                        Me%Field(iP)%Value2DOut(i,j) = Field_UV%Value2DOut(i,j)
+                    else if (Step ==2) then
+                    
+                        DperR=180/pi
+                        
+                        Me%Field(iP)%Value2DOut(i,j) =270-atan2(Field_UV%Value2DOut(i,j),Me%Field(iP)%Value2DOut(i,j))*DperR
+                        
+                        if (Me%Field(iP)%Value2DOut(i,j)>360)then
+                             Me%Field(iP)%Value2DOut(i,j)=Me%Field(iP)%Value2DOut(i,j)-360
+                        else if (Me%Field(iP)%Value2DOut(i,j)<0) then
+                             Me%Field(iP)%Value2DOut(i,j)=Me%Field(iP)%Value2DOut(i,j)+360
+                        end if
+
+                    endif
+                endif
+
+            enddo
+            enddo
+
+        endif        
+
+        nullify(Field_UV)
+
+        
+
+    end subroutine ComputeVectorWindDirection
     !------------------------------------------------------------------------
 
     subroutine ComputeBeaufort(iPx, iP)
@@ -1839,6 +2038,20 @@ BF:         if (BlockFound) then
                         write(*,*) 'To compute vector intensity need to write hdf5 output file'
                         stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
                     endif
+                    
+                    call GetData(Me%Field(ip)%ComputeWindDirection,                         &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'WIND_DIRECTION',                     &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
+                    
+                    if (Me%Field(ip)%ComputeWindDirection .and. .not. Me%OutHDF5) then
+                        write(*,*) 'To compute wind direction need to write hdf5 output file'
+                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
+                    endif
 
                     call GetData(Me%Field(ip)%Rotation,                                 &
                                  Me%ObjEnterData, iflag,                                &
@@ -1884,7 +2097,8 @@ BF:         if (BlockFound) then
                         stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR170'
                     endif
                     
-                    if (Me%Field(ip)%ComputeIntensity .or. Me%Field(ip)%Rotation .or. Me%Field(ip)%Beaufort) then
+                    if (Me%Field(ip)%ComputeIntensity .or. Me%Field(ip)%Rotation .or.   &
+                    Me%Field(ip)%Beaufort .or. Me%Field(ip)%ComputeWindDirection) then
 
                         call GetData(Me%Field(ip)%VectorX,                              &
                                      Me%ObjEnterData, iflag,                            &
@@ -1896,7 +2110,8 @@ BF:         if (BlockFound) then
 
                     endif                        
                     
-                    if (Me%Field(ip)%ComputeIntensity .or. Me%Field(ip)%Rotation) then                    
+                    if (Me%Field(ip)%ComputeIntensity .or. Me%Field(ip)%Rotation .or.   &
+                    Me%Field(ip)%Beaufort .or. Me%Field(ip)%ComputeWindDirection) then                    
 
                         call GetData(Me%Field(ip)%VectorY,                              &
                                      Me%ObjEnterData, iflag,                            &
@@ -2050,7 +2265,7 @@ BF:         if (BlockFound) then
         
             if (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation  .or.          &
                 Me%Field(iP)%Beaufort         .or. Me%Field(iP)%ComputeRH .or.          &
-                Me%Field(iP)%WaveBeaufort) then
+                Me%Field(iP)%WaveBeaufort .or. Me%Field(iP)%ComputeWindDirection ) then
             
                 Me%ReadPropNumber = Me%ReadPropNumber - 1
             
@@ -2700,7 +2915,8 @@ BF:         if (BlockFound) then
             do iT =1, Me%Date%NumberInst
         
                 if (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation .or.        &
-                    Me%Field(iP)%Beaufort         .or. Me%Field(iP)%WaveBeaufort) then
+                    Me%Field(iP)%Beaufort         .or. Me%Field(iP)%WaveBeaufort         &
+                    .or. Me%Field(iP)%ComputeWindDirection) then
                 
                     WriteProp       = .false.
                 
@@ -2722,7 +2938,8 @@ BF:         if (BlockFound) then
                 endif
 
                 if (.not. (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation .or. &
-                           Me%Field(iP)%Beaufort .or. Me%Field(iP)%WaveBeaufort)) &
+                           Me%Field(iP)%Beaufort .or. Me%Field(iP)%WaveBeaufort .or.     &
+                           Me%Field(iP)%ComputeWindDirection)) &
                     call DeAllocateValueIn(Me%Field(iP)%ValueIn)
             enddo
         enddo
