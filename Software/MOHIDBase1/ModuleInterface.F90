@@ -159,13 +159,16 @@ Module ModuleInterface
     private :: UnfoldMatrix1D_R
     private :: UnfoldMatrix2D_I
     private :: UnfoldMatrix2D_R
+    private :: UnfoldMatrix2D_R8
     private :: UnfoldMatrix3D_I
     private :: UnfoldMatrix3D_R
+    private :: UnfoldMatrix3D_R8
     interface  UnfoldMatrix
         module procedure UnfoldMatrix1D_I
         module procedure UnfoldMatrix1D_R
         module procedure UnfoldMatrix2D_I
         module procedure UnfoldMatrix2D_R
+        module procedure UnfoldMatrix2D_R8
         module procedure UnfoldMatrix3D_I
         module procedure UnfoldMatrix3D_R
         module procedure UnfoldMatrix3D_R8
@@ -174,7 +177,7 @@ Module ModuleInterface
 
     !Type----------------------------------------------------------------------
     type       T_External
-        type(T_Time     )                       :: Now
+        type(T_Time)                            :: Now    !acrescentei pointer aqui, nao estava
         integer, dimension(:      ), pointer    :: RiverPoints1D
         integer, dimension(:, :   ), pointer    :: WaterPoints2D
         integer, dimension(:, :, :), pointer    :: WaterPoints3D
@@ -183,7 +186,7 @@ Module ModuleInterface
         integer, dimension(:, :, :), pointer    :: OpenPoints3D
         real,    dimension(:      ), pointer    :: DWZ1D
         real,    dimension(:, :, :), pointer    :: DWZ, ShearStress, SPMFlux
-        real(8),    dimension(:, :, :), pointer    :: SedimCellVol
+        real(8), dimension(:, :, :), pointer    :: SedimCellVol
         logical                                 :: Vertical1D = .false.
     end type T_External
 
@@ -229,8 +232,11 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: DissolvedToParticulate
         real,    pointer, dimension(:    )      :: SoilDryDensity
         real,    pointer, dimension(:    )      :: pH
+        real(8), pointer, dimension(:    )      :: WaterVolume1D !Array with volumes from unfold matrix 
+        real,    pointer, dimension(:    )      :: CellArea1D    !Array with volumes from unfold matrix
+
 #ifdef _PHREEQC_        
-        real,    pointer, dimension(:    )      :: WaterVolume  
+!        real,    pointer, dimension(:    )      :: WaterVolume  
         real,    pointer, dimension(:    )      :: pE
         real,    pointer, dimension(:    )      :: WaterMass  
         real,    pointer, dimension(:    )      :: SolidMass   
@@ -241,7 +247,7 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: WindVelocity
         integer, pointer, dimension(:    )      :: OpenPoints
         logical, pointer, dimension(:    )      :: AddedProperties
-        real,    pointer, dimension(:    )      :: WaterVol
+        !real,    pointer, dimension(:    )      :: WaterVol
         real,    pointer, dimension(:,:  )      :: MassInKgFromWater
         real,    pointer, dimension(:,:  )      :: WaterMassInKgIncrement
         real,    pointer, dimension(:    )      :: Sediment    
@@ -258,9 +264,8 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: PintFactor   !Isabella 
         real,    pointer, dimension(:    )      :: RootsMort   !Isabella
         real,    pointer, dimension(:    )      :: SeagrassesLength   !Isabella
-        real(8),    pointer, dimension(:    )      :: WaterCellVol  ! 3d   !Isabella
-        real(8),    pointer, dimension(:    )      :: SedimCellVol  ! 3d   !Isabella
-        real,    pointer, dimension(:    )      :: CellArea
+        !real(8),    pointer, dimension(:    )      :: WaterCellVol  ! 3d   !Isabella
+        real(8), pointer, dimension(:    )      :: SedimCellVol  ! 3d   !Isabella
       
         !Instance of ModuleTime
         integer                                 :: ObjTime              = 0
@@ -718,49 +723,49 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !griflet: optimize performance
         !griflet: start
         allocate(Me%Index2I(ArrayLB:ArrayUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR01-B1'
+        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR01'
 
         allocate(Me%Index2J(ArrayLB:ArrayUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR01-B2'
+        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR02'
 
         allocate(Me%Index2K(ArrayLB:ArrayUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR01-B3'
+        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR03'
         !griflet: end
         
         allocate(Me%Mass(PropLB:PropUB, ArrayLB:ArrayUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR01'
+        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR04'
 
         allocate(Me%ConcentrationIncrement(PropLB:PropUB, ArrayLB:ArrayUB), &
                                                      STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR02'
+        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR05'
 
         allocate(Me%Temperature(ArrayLB:ArrayUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR03'
+        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR06'
 
         allocate(Me%OpenPoints(ArrayLB:ArrayUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR04'
+        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR07'
         
         allocate(Me%AddedProperties(PropLB:PropUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR05'
+        if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR08'
         
         select case (Me%SinksSourcesModel)
 
             case (WaterQualityModel)
 
                 allocate(Me%Salinity (ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR07'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR10'
         
                 allocate(Me%LightExtCoefField(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR08'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR11'
         
                 allocate(Me%ShortWaveTop(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR09'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR12'
 
                 allocate(Me%Thickness(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR10'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR13'
 
                 allocate(Me%FishFood(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR11'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR14'
                        
                 Me%Salinity           = FillValueReal
                 Me%FishFood           = FillValueReal
@@ -771,66 +776,66 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             case (SedimentQualityModel)
                 
                 allocate (Me%WaterPercentage(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR12'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR20'
                 
                 Me%WaterPercentage = FillValueReal
 
                 allocate (Me%DissolvedToParticulate(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR13'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR21'
                 
                 Me%DissolvedToParticulate = FillValueReal
          
                 allocate (Me%SoilDryDensity(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR131'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR22'
                 
                 Me%SoilDryDensity = FillValueReal
 
                 allocate (Me%Salinity(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR132'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR23'
                 
                 Me%Salinity = FillValueReal
 
                 allocate (Me%pH(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR133'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR24'
                 
                 Me%pH = FillValueReal
 
                 allocate (Me%IonicStrength(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR134'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR25'
                 
                 Me%IonicStrength = FillValueReal
 
                 allocate (Me%PhosphorusAdsortionIndex(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR135'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26'
                 
                 Me%PhosphorusAdsortionIndex = FillValueReal
 
                 allocate (Me%WindVelocity(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR136'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR27'
                 
                 Me%WindVelocity = FillValueReal
 
                 allocate (Me%Oxygen(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR137'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR28'
                 
                 Me%WindVelocity = FillValueReal
 
             case (CEQUALW2Model)
 
                 allocate(Me%Salinity (ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR14'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR30'
         
                 allocate(Me%LightExtCoefField(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR15'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR31'
         
                 allocate(Me%ShortWaveTop(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR16'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR32'
 
                 allocate(Me%Thickness(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR17'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR33'
 
                 allocate(Me%Alkalinity(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR18'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR34'
                        
                 Me%Salinity           = FillValueReal
                 Me%Alkalinity         = FillValueReal
@@ -841,22 +846,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             case (LifeModel)
 
                 allocate(Me%Salinity (ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR19'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR40'
         
                 allocate(Me%LightExtCoefField(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR20'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR41'
 
                 allocate(Me%ShortWaveAverage(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR20a'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR42'
         
                 allocate(Me%ShortWaveTop(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR21'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR43'
 
                 allocate(Me%Thickness(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR22'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR44'
 
                 allocate(Me%Alkalinity(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR23'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR45'
                        
                 Me%Salinity           = FillValueReal
                 Me%Alkalinity         = FillValueReal
@@ -869,16 +874,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             case (BFMModel)
 
                 allocate(Me%Salinity (ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR19a'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR50'
         
                 allocate(Me%LightExtCoefField(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR20a'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR51'
         
                 allocate(Me%ShortWaveRadiation(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR21a'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR52'
 
                 allocate(Me%Thickness(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR22a'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR53'
 
                 Me%Salinity           = FillValueReal
                 Me%LightExtCoefField  = FillValueReal
@@ -888,62 +893,61 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             case (BenthicCEQUALW2Model)                
                 allocate(Me%Oxygen(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR24'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR60'
                 
                 allocate(Me%SOD (ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR25'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR61'
             
             case (BenthosModel )
             
                 allocate(Me%Oxygen(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR24'
-                
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR70'
                 
             case (BenthicEcologyModel )
             
                 allocate(Me%WaterMassInKgIncrement(PropLB:PropUB, ArrayLB:ArrayUB), &
                                                      STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR25.1'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR80'
                  
                 allocate (Me%Sediment(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR25.2'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR81'
                              
-                allocate(Me%WaterVol(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR25.3'
+                allocate(Me%WaterVolume1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR82'
                 
-                allocate(Me%CellArea(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26.1'
+                allocate(Me%CellArea1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR83'
                 
                 allocate(Me%MassinKgFromWater(PropLB:PropUB, ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26.2'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR84'
                 
                 allocate(Me%BottomSWRadiationAverage(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26.3'  
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR85'  
                 
                 allocate(Me%ShearStress2D(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26.4'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR86'
                 
                  allocate(Me%UptakeNH4NO3w(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR203'    
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR87'    
         
                allocate(Me%UptakePO4w(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR204'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR88'
                 
                allocate(Me%UptakeNH4s(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR205'   
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR89'   
  
                allocate(Me%LightFactor(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR206'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR90'
                 
                 allocate(Me%UptakePO4s(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR207'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR91'
                     
                 
                 Me%WaterMassInKgIncrement         = FillValueReal
-                Me%MassinKgFromWater                 = FillValueReal
+                Me%MassinKgFromWater              = FillValueReal
                 Me%Sediment                       = FillValueReal
-                Me%WaterVol                       = FillValueReal
-                Me%CellArea                       = FillValueReal
+                Me%WaterVolume1D                  = FillValueReal
+                Me%CellArea1D                     = FillValueReal
                 Me%BottomSWRadiationAverage       = FillValueReal
                 Me%ShearStress2D                  = FillValueReal
                 Me%UptakeNH4NO3w                  = FillValueReal
@@ -958,52 +962,50 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
               !Me%Temperature               = FillValueReal
               
               allocate(Me%SedimCellVol (ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR207'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR100'
               
             
               allocate(Me%NintFactorR (ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR208'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR101'
               
               allocate(Me%RootsMort (ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR209'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR102'
               
               allocate(Me%PintFactorR (ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR210'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR103'
               
-            
               Me%SedimCellVol      = FillValueReal
               Me%NintFactorR       = FillValueReal
               Me%PintFactorR       = FillValueReal
               Me%RootsMort         = FillValueReal
 
-
    case (SeagrassWaterInteractionModel)
                     
               !Me%Temperature               = FillValueReal
               
-              allocate(Me%WaterCellVol (ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR90'
+              allocate(Me%WaterVolume1D (ArrayLB:ArrayUB), STAT = STAT_CALL)
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR104'
               
               allocate(Me%PintFactor (ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR91'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR105'
             
               allocate(Me%NintFactor (ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR92'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR106'
               
               allocate(Me%LightExtCoefField(ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR96'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR107'
         
               allocate(Me%ShortWaveTop(ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR97'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR108'
 
               allocate(Me%Thickness(ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR98'
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR109'
               
               allocate(Me%SeagrassesLength(ArrayLB:ArrayUB), STAT = STAT_CALL)
-              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR98' 
+              if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR110' 
             
             
-              Me%WaterCellVol        = FillValueReal
+              Me%WaterVolume1D       = FillValueReal
               Me%PintFactor          = FillValueReal
               Me%NintFactor          = FillValueReal
               Me%LightExtCoefField   = FillValueReal
@@ -1011,27 +1013,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
               Me%Thickness           = FillValueReal
               Me%SeagrassesLength    = FillValueReal
 
-            
-            
             case (MacroAlgaeModel)
 
                 allocate(Me%Salinity (ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR30'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR120'
         
                 allocate(Me%LightExtCoefField(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR40'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR121'
         
                 allocate(Me%ShortWaveTop(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR50'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR122'
 
                 allocate(Me%Thickness(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR60'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR123'
               
                 allocate(Me%ShearStress(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR70'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR124'
                 
                 allocate(Me%SPMFlux(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR80'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR125'
 
                 Me%Salinity           = FillValueReal
                 Me%LightExtCoefField  = FillValueReal
@@ -1044,53 +1044,53 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 #ifdef _PHREEQC_
             case (PhreeqCModel)
                                                
-                allocate (Me%WaterVolume(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26'
+                allocate (Me%WaterVolume1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR130'
                 
                 allocate (Me%WaterMass(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR131'
 
                 allocate (Me%pH(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR27'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR132'
                 
                 allocate (Me%pE(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR28'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR133'
 
                 allocate (Me%Temperature(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29B'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR134'
                 
                 allocate (Me%SolidMass(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29C'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR135'
                 
                 allocate (Me%PhreeqCID(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29D'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR136'
 
-                Me%WaterVolume  = FillValueReal
-                Me%WaterMass    = FillValueReal
-                Me%pH           = FillValueReal
-                Me%pE           = FillValueReal
-                Me%Temperature  = FillValueReal
-                Me%SolidMass    = FillValueReal
-                Me%PhreeqCID    = 0
+                Me%WaterVolume1D = FillValueReal
+                Me%WaterMass     = FillValueReal
+                Me%pH            = FillValueReal
+                Me%pE            = FillValueReal
+                Me%Temperature   = FillValueReal
+                Me%SolidMass     = FillValueReal
+                Me%PhreeqCID     = 0
 #endif
 
             case (WWTPQModel)
                 
                 !GRiflet: alocar aqui os arrays
                 allocate(Me%Salinity (ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR07'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR140'
         
                 allocate(Me%LightExtCoefField(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR08'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR141'
         
                 allocate(Me%ShortWaveTop(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR09'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR142'
 
                 allocate(Me%Thickness(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR10'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR143'
 
                 allocate(Me%FishFood(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR11'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR144'
                        
                 Me%Salinity           = FillValueReal
                 Me%FishFood           = FillValueReal
@@ -1101,22 +1101,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             case (BivalveModel)
 
                 allocate(Me%Salinity (ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR20'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR150'
 
-                allocate(Me%WaterCellVol (ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR90'
+                allocate(Me%WaterVolume1D (ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR151'
 
-                allocate(Me%CellArea(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR22'
+                allocate(Me%CellArea1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR152'
 
-                Me%Salinity           = FillValueReal
-                Me%WaterCellVol           = FillValueReal
-                Me%CellArea           = FillValueReal
+                Me%Salinity       = FillValueReal
+                Me%WaterVolume1D  = FillValueReal
+                Me%CellArea1D     = FillValueReal
                 
             case default
                 write(*,*) 
                 write(*,*) 'Defined sinks and sources model was not recognised.'
-                stop 'AllocateVariables - ModuleInterface - ERR90'
+                stop 'AllocateVariables - ModuleInterface - ERR09'
         end select
 
         Me%Mass                       = FillValueReal
@@ -1637,10 +1637,15 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
 
             case(BivalveModel) 
 
+
+                call GetComputeCurrentTime(Me%ObjTime,                  &
+                                           Me%ExternalVar%Now,          &
+                                           STAT = STAT_CALL)                    
                 !Construct Bivalve Model
                 call ConstructBivalve(Me%ObjBivalve,                            &
-                                   FileName = Me%FileName,                      &
-                                   STAT = STAT_CALL) 
+                                      FileName = Me%FileName,                   &
+                                      TimeIN   = Me%ExternalVar%Now,            &
+                                      STAT     = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR120'
  
                 !Number of properties involved
@@ -3101,10 +3106,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   
                                   NintFac3D, NintFac3DR, PintFac3D,                     &
                                   RootsMort, PintFac3DR,                                &
-                                  SeagrassesLength, WaterCellVol3D, SedimCellVol3D,     &
-                                  CellArea,                                             &
+                                  SeagrassesLength, SedimCellVol3D,                     &
+                                  CellArea, WaterVolume,                                &
 #ifdef _PHREEQC_
-                                  WaterVolume, WaterMass, SolidMass, pE, Temperature,   & 
+                                  WaterMass, SolidMass, pE, Temperature,                & 
                                   PhreeqCID,                                            &
 #endif
                                   WindVelocity,  Oxygen, DTProp,STAT)
@@ -3127,13 +3132,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,    optional, dimension(:,:,:), pointer    :: PintFac3D  !Isabella
         real,    optional, dimension(:,:,:), pointer    :: PintFac3DR  !Isabella
         real(8),    optional, dimension(:,:,:), pointer    :: SedimCellVol3D  !Isabella
-        real(8),    optional, dimension(:,:,:), pointer    :: WaterCellVol3D  !Isabella
+        !real(8),    optional, dimension(:,:,:), pointer    :: WaterCellVol3D  !Isabella
         real,    optional, dimension(:,:,:), pointer    :: SeagrassesLength
         real,    optional, dimension(:,:,:), pointer    :: RootsMort
+        real(8), optional, dimension(:,:,:), pointer    :: WaterVolume
         real,    optional, dimension(:,:  ), pointer    :: CellArea
                
 #ifdef _PHREEQC_
-        real,    optional, dimension(:,:,:), pointer    :: WaterVolume
         real,    optional, dimension(:,:,:), pointer    :: WaterMass
         real,    optional, dimension(:,:,:), pointer    :: SolidMass
         real,    optional, dimension(:,:,:), pointer    :: pE
@@ -3237,8 +3242,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call UnfoldMatrix(PintFac3D, Me%PintFactor)
             end if
                  
-            if(present(WaterCellVol3D))then
-                call UnfoldMatrix(WaterCellVol3D, Me%WaterCellVol) 
+            if(present(WaterVolume))then
+                call UnfoldMatrix(WaterVolume, Me%WaterVolume1D) 
             end if 
             
             if(present(SedimCellVol3D))then
@@ -3336,8 +3341,8 @@ cd4 :           if (ReadyToCompute) then
                                                      Me%DissolvedToParticulate,        &
                                                      Me%Array%ILB,                     &
                                                      Me%Array%IUB,                     &
-                                                     Me%SoilDryDensity,                &
                                                      Me%Salinity,                      &
+                                                     Me%SoilDryDensity,                &
                                                      Me%pH,                            &
                                                      Me%IonicStrength,                 &
                                                      Me%PhosphorusAdsortionIndex,      &
@@ -3438,7 +3443,7 @@ cd4 :           if (ReadyToCompute) then
 #ifdef _PHREEQC_
                         case(PhreeqcModel)
                          
-                            call UnfoldMatrix(WaterVolume, Me%WaterVolume)
+                            call UnfoldMatrix(WaterVolume, Me%WaterVolume1D)
                             call UnfoldMatrix(WaterMass, Me%WaterMass)
                             call UnfoldMatrix(pH, Me%pH)
                             call UnfoldMatrix(pE, Me%pE)
@@ -3449,35 +3454,35 @@ cd4 :           if (ReadyToCompute) then
                             
                                 call UnfoldMatrix(SolidMass, Me%SolidMass)
                                 
-                                call ModifyPhreeqC(PhreeqCID = Me%ObjPhreeqC,     &
-                                                   PropertiesValues = Me%Mass,    & 
-                                                   WaterVolume = Me%WaterVolume,  &
-                                                   WaterMass = Me%WaterMass,      &  
-                                                   Temperature = Me%Temperature,  &
-                                                   pH = Me%pH,                    &
-                                                   pE = Me%pE,                    &
-                                                   SolidMass = Me%SolidMass,      &
-                                                   CellsArrayLB = Me%Array%ILB,   &
-                                                   CellsArrayUB = Me%Array%IUB,   &
-                                                   OpenPoints = Me%OpenPoints,    &
-                                                   ModelID = Me%PhreeqCID,        & 
+                                call ModifyPhreeqC(PhreeqCID = Me%ObjPhreeqC,      &
+                                                   PropertiesValues = Me%Mass,     & 
+                                                   WaterVolume = Me%WaterVolume1D, &
+                                                   WaterMass = Me%WaterMass,       &  
+                                                   Temperature = Me%Temperature,   &
+                                                   pH = Me%pH,                     &
+                                                   pE = Me%pE,                     &
+                                                   SolidMass = Me%SolidMass,       &
+                                                   CellsArrayLB = Me%Array%ILB,    &
+                                                   CellsArrayUB = Me%Array%IUB,    &
+                                                   OpenPoints = Me%OpenPoints,     &
+                                                   ModelID = Me%PhreeqCID,         & 
                                                    STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) &
                                     stop 'Modify_Interface3D - ModuleInterface - ERR14'
 
                             else
 
-                                call ModifyPhreeqC(PhreeqCID = Me%ObjPhreeqC,     &
-                                                   PropertiesValues = Me%Mass,    & 
-                                                   WaterVolume = Me%WaterVolume,  &
-                                                   WaterMass = Me%WaterMass,      &  
-                                                   Temperature = Me%Temperature,  &
-                                                   pH = Me%pH,                    &
-                                                   pE = Me%pE,                    &
-                                                   CellsArrayLB = Me%Array%ILB,   &
-                                                   CellsArrayUB = Me%Array%IUB,   &
-                                                   OpenPoints = Me%OpenPoints,    & 
-                                                   ModelID = Me%PhreeqCID,        & 
+                                call ModifyPhreeqC(PhreeqCID = Me%ObjPhreeqC,      &
+                                                   PropertiesValues = Me%Mass,     & 
+                                                   WaterVolume = Me%WaterVolume1D, &
+                                                   WaterMass = Me%WaterMass,       &  
+                                                   Temperature = Me%Temperature,   &
+                                                   pH = Me%pH,                     &
+                                                   pE = Me%pE,                     &
+                                                   CellsArrayLB = Me%Array%ILB,    &
+                                                   CellsArrayUB = Me%Array%IUB,    &
+                                                   OpenPoints = Me%OpenPoints,     & 
+                                                   ModelID = Me%PhreeqCID,         & 
                                                    STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) &
                                     stop 'Modify_Interface3D - ModuleInterface - ERR14'
@@ -3537,23 +3542,31 @@ cd4 :           if (ReadyToCompute) then
                                                 SWLightExctintionCoef  = Me%LightExtCoefField,    &
                                                 Thickness              = Me%Thickness,            &
                                                 SeagrassesLength       = Me%SeagrassesLength,     &
-                                                WaterCellVol           = Me%WaterCellVol  ,       &
+                                                WaterCellVol           = Me%WaterVolume1D,        &
                                                 STAT                   = STAT_CALL)
                             
                         case(BivalveModel) 
                         
-                            call UnfoldMatrix(CellArea, Me%CellArea) 
-                           
+                            call UnfoldMatrix(CellArea, Me%CellArea1D) 
+
+
+                            call GetComputeCurrentTime(Me%ObjTime,                  &
+                                                       Me%ExternalVar%Now,          &
+                                                       STAT = STAT_CALL)                    
+                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR17' 
+
+                            
                             call ModifyBivalve(Me%ObjBivalve,                        &
                                                Me%Temperature,                       &
                                                Me%Salinity,                          &
                                                Me%Mass,                              &
                                                Me%Array,                             &
                                                Me%OpenPoints,                        &
-                                               WaterVolumeIN = Me%WaterCellVol,      &
-                                               CellAreaIN    = Me%CellArea,          &
+                                               WaterVolumeIN = Me%WaterVolume1D,     &
+                                               CellAreaIN    = Me%CellArea1D,        &
+                                               TimeIN        = Me%ExternalVar%Now,   &
                                     STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR17'
+                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR17a'
                             
                     end select
 
@@ -3705,7 +3718,7 @@ do6 :               do index = ArrayLB, ArrayUB
         real   , optional, dimension(:,:  ), pointer    :: Oxygen2D
         real   , optional, dimension(:,:  ), pointer    :: ShortWave2D
         real   , optional, dimension(:,:  ), pointer    :: Sediment
-        real   , optional, dimension(:,:  ), pointer    :: WaterVolume2D
+        real(8), optional, dimension(:,:  ), pointer    :: WaterVolume2D
         real   , optional, dimension(:,:  ), pointer    :: CellArea2D
         real   , optional, dimension(:,:  ), pointer    :: ShearStress2D
         real   , optional, dimension(:,:  ), pointer    :: UptakeNH4s2D
@@ -3772,11 +3785,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             end if    
             
             if(present(WaterVolume2D))then
-                call UnfoldMatrix(WaterVolume2D, Me%WaterVol)
+                call UnfoldMatrix(WaterVolume2D, Me%WaterVolume1D)
             end if 
             
              if(present(CellArea2D))then
-                call UnfoldMatrix(CellArea2D, Me%CellArea)
+                call UnfoldMatrix(CellArea2D, Me%CellArea1D)
             end if  
             
             if(present(ShortWave2D))then
@@ -3901,8 +3914,8 @@ cd4 :           if (ReadyToCompute) then
                         
                             call ModifyBenthicEcology  (Me%ObjBenthicEcology,             &
                                                  Me%Temperature,                          &
-                                                 Me%WaterVol,                             &
-                                                 Me%CellArea,                             &
+                                                 Me%WaterVolume1D,                        &
+                                                 Me%CellArea1D,                           &
                                                  Me%MassInKgFromWater,                    &
                                                  Me%Sediment,                             &
                                                  Me%BottomSWRadiationAverage,             &
@@ -7296,15 +7309,15 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     subroutine UnfoldMatrix3D_R8 (Matrix3D, Vector)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:,:,:), pointer     :: Matrix3D
-        real(8), dimension(:    ), pointer        :: Vector
+        real(8), dimension(:,:,:), pointer  :: Matrix3D
+        real(8), dimension(:    ), pointer  :: Vector
 
         !Local-----------------------------------------------------------------
         integer                             :: Index
         integer                             :: i, j, k
         integer                             :: NLB, NUB
         !$ integer                          :: CHUNK
-        real(8), dimension(:,:,:), pointer     :: LocalMatrix3D
+        real(8), dimension(:,:,:), pointer  :: LocalMatrix3D
 !        integer                             :: ILB, IUB      
 !        integer                             :: JLB, JUB     
 !        integer                             :: KLB, KUB    
@@ -7437,15 +7450,15 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     subroutine UnfoldMatrix2D_R (Matrix2D, Vector)
 
         !Arguments-------------------------------------------------------------
-        real, dimension(:,:), pointer       :: Matrix2D
-        real, dimension(:  ), pointer       :: Vector
+        real(4), dimension(:,:), pointer       :: Matrix2D
+        real(4), dimension(:  ), pointer       :: Vector
 
         !Local-----------------------------------------------------------------
         integer                             :: Index
         integer                             :: i, j
         integer                             :: NLB, NUB
         !$ integer                          :: CHUNK
-        real, dimension(:,:), pointer    :: LocalMatrix2D
+        real(4), dimension(:,:), pointer       :: LocalMatrix2D
 !        integer                             :: ILB, IUB      
 !        integer                             :: JLB, JUB     
 !          
@@ -7502,7 +7515,76 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
         
     end subroutine UnfoldMatrix2D_R
-        
+   !----------------------------------------------------------------------
+
+    subroutine UnfoldMatrix2D_R8 (Matrix2D, Vector)
+
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:,:), pointer    :: Matrix2D
+        real(8), dimension(:  ), pointer    :: Vector
+
+        !Local-----------------------------------------------------------------
+        integer                             :: Index
+        integer                             :: i, j
+        integer                             :: NLB, NUB
+        !$ integer                          :: CHUNK
+        real(8), dimension(:,:), pointer    :: LocalMatrix2D
+!        integer                             :: ILB, IUB      
+!        integer                             :: JLB, JUB     
+!          
+!           
+!        !----------------------------------------------------------------------
+!
+!        ILB = Me%Size2D%ILB     
+!        IUB = Me%Size2D%IUB     
+!
+!        JLB = Me%Size2D%JLB    
+!        JUB = Me%Size2D%JUB    
+!
+!          
+!        
+!        !Number indexed to 3D cell in the vector 
+!        Index = 0
+!
+!        do j = JLB, JUB
+!        do i = ILB, IUB
+!            if (Me%ExternalVar%WaterPoints2D(i,j)==1) then
+!
+!                    Index         = Index + 1
+!                    
+!             if (Me%ExternalVar%OpenPoints2D(i,j)==1) then
+!                
+!                Vector(Index) = Matrix2D(i,j)
+!             
+!             endif
+!                    
+!                    
+!            endif    
+!        enddo
+!        enddo
+!
+!        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix2D_R - ModuleInterface - ERR01'
+            
+
+        !griflet: new way
+        !griflet: start
+        NLB = Me%Array%ILB
+        NUB = Me%Array%IUB
+        !$ CHUNK = CHUNK_I(NLB, NUB)
+        !$OMP PARALLEL PRIVATE(Index,i,j,LocalMatrix2D)
+        LocalMatrix2D => Matrix2D
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do Index = NLB, NUB
+            i = Me%Index2I(Index)
+            j = Me%Index2J(Index)
+            Vector(Index) = LocalMatrix2D(i,j)
+        enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+        !griflet: stop
+       
+    end subroutine UnfoldMatrix2D_R8
+            
     !----------------------------------------------------------------------
 
     subroutine UnfoldMatrix2D_I (Matrix2D, Vector)
@@ -8646,10 +8728,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                        deallocate(Me%Sediment, STAT = STAT_CALL)
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.10'
                        
-                       deallocate(Me%WaterVol, STAT = STAT_CALL)
+                       deallocate(Me%WaterVolume1D, STAT = STAT_CALL)
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.11'
                        
-                       deallocate(Me%CellArea, STAT = STAT_CALL)
+                       deallocate(Me%CellArea1D, STAT = STAT_CALL)
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.12'
                        
                        deallocate(Me%MassinKgFromWater, STAT = STAT_CALL)
@@ -8679,6 +8761,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 #ifdef _PHREEQC_
                     case(PhreeqCModel)
+                    
+                        if(associated(Me%WaterVolume1D))then
+                            deallocate(Me%WaterVolume1D, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR80'
+                        end if
                     
                         call KillPhreeqC (Me%ObjPhreeqC, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR100'
@@ -8710,7 +8797,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     call KillSeagrassWaterInteraction(Me%ObjSeagrassWaterInteraction, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.26'
                         
-                    deallocate(Me%WaterCellVol, STAT = STAT_CALL)
+                    deallocate(Me%WaterVolume1D, STAT = STAT_CALL)
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.27'
                               
                     deallocate(Me%PintFactor, STAT = STAT_CALL)
@@ -8725,13 +8812,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                    
                    case(BivalveModel)
                    
-                        if(associated(Me%WaterCellVol))then
-                            deallocate(Me%WaterCellVol, STAT = STAT_CALL)
+                        if(associated(Me%WaterVolume1D))then
+                            deallocate(Me%WaterVolume1D, STAT = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR80'
                         end if
 
-                        if(associated(Me%CellArea))then
-                            deallocate(Me%CellArea, STAT = STAT_CALL)
+                        if(associated(Me%CellArea1D))then
+                            deallocate(Me%CellArea1D, STAT = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR81'
                         end if
                             
@@ -8793,7 +8880,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%OpenPoints, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR11'
                 
-                
                 if(associated(Me%FishFood))then
                     deallocate(Me%FishFood, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR12'
@@ -8807,11 +8893,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 #ifdef _PHREEQC_
 
-                if(associated(Me%WaterVolume))then
-                    deallocate(Me%WaterVolume, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR16'
-                end if
-                
                 if(associated(Me%WaterMass))then
                     deallocate(Me%WaterMass, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR16'
@@ -8836,7 +8917,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 deallocate(Me%Mass, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR14'
-
 
                 deallocate(Me%AddedProperties, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR15'

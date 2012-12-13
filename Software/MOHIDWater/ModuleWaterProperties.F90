@@ -331,7 +331,7 @@ Module ModuleWaterProperties
     private ::                          AddCohort                                  
     private ::                          ConstructCohort                           
     private ::                              Construct_CohortPropertiesFromFile    
-    private ::              ConstructBivalvePopulationHDF
+    private ::              ConstructBivalvePopulationOutput
     private ::          CoupleMacroAlgae
     private ::          CoupleSeagrassesLeaves
     private ::          CoupleFreeVerticalMovement
@@ -462,8 +462,9 @@ Module ModuleWaterProperties
     private ::                          Construct_OutputBoxFluxesFromCohort                   
     private ::              UpdateBivalvePropertyList
     private ::              UpdateInterfaceMass
-    private ::              UpdateBoxTimeSerieList
-    private ::          BivalvePopulationOutputHDF
+    private ::          BivalvePopulationOutput
+    private ::              BivalvePopulationHDF
+    private ::              BivalvePopulationBoxTimeSerie
     private ::      Partition_Processes
     private ::      DataAssimilationProcesses
     private ::      AltimAssimilationProcess
@@ -704,7 +705,7 @@ Module ModuleWaterProperties
         logical                                 :: CohortBoxTimeSerie     = .false.
         logical                                 :: CohortStatistics       = .false.
         character(len=Pathlength)               :: CohortStatisticsFile
-        logical                                 :: PopulationOutputHDF    = .false.
+        logical                                 :: PopulationHDF          = .false.
         logical                                 :: PopulationTimeSerie    = .false.
         logical                                 :: PopulationBoxTimeSerie = .false.
         logical                                 :: BySizeOutputHDF        = .false.
@@ -728,15 +729,17 @@ Module ModuleWaterProperties
     end type   T_Species
 
     type       T_Bivalve 
-        type(T_Species), pointer                :: FirstSpecies           => null() 
-        integer                                 :: nSpecies               = 0
-        integer                                 :: nPropertiesFromBivalve = 0
-        integer                                 :: nCohortProperties        = 7 !Each cohort has 7 associated properties
+        type(T_Species), pointer                :: FirstSpecies            => null() 
+        integer                                 :: nSpecies                = 0
+        integer                                 :: nPropertiesFromBivalve  = 0
+        integer                                 :: nCohortProperties       = 7 !Each cohort has 7 properties
         integer, pointer, dimension(:)          :: ListDeadIDS
         integer, pointer, dimension(:)          :: ListNewbornsIDs
         real   , pointer, dimension(:,:)        :: MatrixNewborns
-        logical                                 :: PopulationOutputHDF    = .false.
-        integer                                 :: ObjHDF5                = 0
+        logical                                 :: PopulationHDF           = .false.
+        logical                                 :: PopulationBoxTimeSerie  = .false.
+        integer                                 :: ObjHDF5                 = 0
+        integer                                 :: ObjBoxDif              = 0
     end type   T_Bivalve
 
     type       T_Evolution
@@ -1553,7 +1556,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             WQRateX => WQRateX%Next
         end do
 
-
         call StartBoxDif(BoxDifID           = Me%ObjBoxDif,                 &
                          TimeID             = Me%ObjTime,                   &
                          HorizontalGridID   = Me%ObjHorizontalGrid,         &
@@ -1929,7 +1931,7 @@ cd2 :           if (BlockFound) then
                 stop 'ConstructSpecies - ModuleWaterProperties - ERR110' 
         endif
 
-        call GetData(NewSpecies%PopulationOutputHDF,                          &
+        call GetData(NewSpecies%PopulationHDF,                                &
                      Me%ObjEnterData, iflag,                                  &
                      SearchType   = FromBlock,                                &
                      keyword      = 'POPULATION_OUTPUT_HDF',                  &
@@ -2721,7 +2723,7 @@ do6 :                       do K = WKLB, WKUB
 
             endif !(not (VariableDT)
 
-            NewProperty%Evolution%NextCompute = Me%ExternalVar%Now + NewProperty%Evolution%DTInterval
+            NewProperty%Evolution%NextCompute = Me%ExternalVar%Now
                                                 
         else ! not (NewProperty%Evolution%Variable)
 
@@ -2885,30 +2887,27 @@ do1 :        do I = ILB, IUB
         CohortScalarOutputList(6) = trim(adjustl(NewCohort%ID%Name))//" age"
         CohortScalarOutputList(7) = trim(adjustl(NewCohort%ID%Name))//" number"
         
-        CohortFluxesOutputList(1) = trim(adjustl(NewCohort%ID%Name))//" structure"
-        CohortFluxesOutputList(2) = trim(adjustl(NewCohort%ID%Name))//" reserves"
-        CohortFluxesOutputList(3) = trim(adjustl(NewCohort%ID%Name))//" maturity"
-        CohortFluxesOutputList(4) = trim(adjustl(NewCohort%ID%Name))//" reproduction"
-        CohortFluxesOutputList(5) = trim(adjustl(NewCohort%ID%Name))//" length"
-        CohortFluxesOutputList(6) = trim(adjustl(NewCohort%ID%Name))//" age"
-        CohortFluxesOutputList(7) = trim(adjustl(NewCohort%ID%Name))//" number"
+        CohortFluxesOutputList = CohortScalarOutputList
 
         call UpdateBoxDif( Me%ObjBoxDif,                                         &
                            NewFluxesOutputList   = CohortFluxesOutputList,       &
                            NewScalarOutputList   = CohortScalarOutputList,       &
                            nDimensions           = 3,                            &
-                           STAT               = STAT_CALL)
+                           STAT                  = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'Construct_OutputBoxFluxesFromCohort - ModuleWaterProperties - ERR07'
 
         deallocate(CohortFluxesOutputList, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'Construct_OutputBoxFluxesFromCohort - ModuleWaterProperties - ERR08'
+        nullify (CohortFluxesOutputList)
+
 
         deallocate(CohortScalarOutputList, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'Construct_OutputBoxFluxesFromCohort - ModuleWaterProperties - ERR07'
-
+        nullify (CohortScalarOutputList)
+        
     end subroutine Construct_OutputBoxFluxesFromCohort
     
     !----------------------------------------------------------------------------
@@ -3999,7 +3998,7 @@ do1 :   do while (associated(PropertyX))
                    PropertyX%Evolution%SeagrassesLeaves              .or. &
                    PropertyX%Evolution%CEQUALW2                      .or. &
                    PropertyX%Evolution%Life                          .or. &
-                   PropertyX%Evolution%Bivalve                       .or. & 
+                   !PropertyX%Evolution%Bivalve                       .or. & 
                    PropertyX%Evolution%WWTPQ                         .or. &
                    PropertyX%Evolution%Partitioning                  .or. &
                    PropertyX%Evolution%FreeVerticalMovement          .or. &
@@ -4472,24 +4471,30 @@ do1 :   do while (associated(PropertyX))
         deallocate(BivalvePropertyList)
         nullify   (BivalvePropertyList)
         
-        call ConstructBivalvePopulationHDF
-
+        call ConstructBivalvePopulationOutput
+        
     end subroutine CoupleBivalve
     
     !--------------------------------------------------------------------------
    
-    subroutine ConstructBivalvePopulationHDF
+    subroutine ConstructBivalvePopulationOutput
         !Arguments-------------------------------------------------------------
         
         !External--------------------------------------------------------------
         integer                                     :: STAT_CALL
-        
+        integer                                             :: iflag
+        logical                                             :: Exist, Opened
+
         !Local-----------------------------------------------------------------
-        type (T_Species), pointer                   :: Species
-        character(len=PathLength)                   :: FileName
+        type (T_Species), pointer                           :: Species
+        character(len=StringLength), dimension(:),  pointer :: ScalarOutputList
+        character(len=StringLength), dimension(:),  pointer :: FluxesOutputList
+        character(len=PathLength)                           :: FileName
         integer                                     :: FileNameLength
         character(len=5)                            :: Extension
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: nSpeciesBoxTimeSerie, n
+        integer                                     :: nScalars, nFluxes
 
         !----------------------------------------------------------------------
         
@@ -4499,40 +4504,50 @@ do1 :   do while (associated(PropertyX))
         JUB = Me%Size%JUB
         KLB = Me%Size%KLB
         KUB = Me%Size%KUB
+        
+        nSpeciesBoxTimeSerie = 0
 
         Species => Me%Bivalve%FirstSpecies
         
-        !check for HDF outputs for the Bivalve    
+        !check for population outputs for the Bivalve    
         do while (associated(Species))
 
-            if ((Species%PopulationOutputHDF) .or. (Species%BySizeOutputHDF)) then
-                Me%Bivalve%PopulationOutputHDF = .true.
+            if ((Species%PopulationHDF) .or. (Species%BySizeOutputHDF)) then
+                Me%Bivalve%PopulationHDF = .true.
             endif 
 
+            if (Species%PopulationBoxTimeSerie) then
+                Me%Bivalve%PopulationBoxTimeSerie = .true.
+                nSpeciesBoxTimeSerie = nSpeciesBoxTimeSerie + 1
+            endif 
             
-            call GetBivalveOtherParameters (Bivalve_ID      = Me%ObjBivalve       , &
-                                            SpeciesIDNumber = Species%ID%IDNumber , &
-                                            MinObsLength    = Species%MinObsLength, &
-                                            STAT            = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalvePopulationHDF - ModuleWaterProperties - ERR01'
+            if (Me%Bivalve%PopulationHDF .or. Me%Bivalve%PopulationBoxTimeSerie) then
             
-            nullify (Species%TotalDensity)
-            allocate(Species%TotalDensity(ILB:IUB,JLB:JUB,KLB:KUB))
+                call GetBivalveOtherParameters (Bivalve_ID      = Me%ObjBivalve       , &
+                                                SpeciesIDNumber = Species%ID%IDNumber , &
+                                                MinObsLength    = Species%MinObsLength, &
+                                                STAT            = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalvePopulationOutput - ModuleWaterProperties - ERR01'
+                
+                nullify (Species%TotalDensity)
+                allocate(Species%TotalDensity(ILB:IUB,JLB:JUB,KLB:KUB))
 
-            nullify (Species%FieldDensity)
-            allocate(Species%FieldDensity(ILB:IUB,JLB:JUB,KLB:KUB))
+                nullify (Species%FieldDensity)
+                allocate(Species%FieldDensity(ILB:IUB,JLB:JUB,KLB:KUB))
 
-            nullify (Species%TotalBiomass)
-            allocate(Species%TotalBiomass(ILB:IUB,JLB:JUB,KLB:KUB))
+                nullify (Species%TotalBiomass)
+                allocate(Species%TotalBiomass(ILB:IUB,JLB:JUB,KLB:KUB))
 
-            nullify (Species%CohortsNumber)
-            allocate(Species%CohortsNumber(ILB:IUB,JLB:JUB,KLB:KUB))
+                nullify (Species%CohortsNumber)
+                allocate(Species%CohortsNumber(ILB:IUB,JLB:JUB,KLB:KUB))
+                
+            end if
             
             Species => Species%Next
             
         end do 
         
-        if (Me%Bivalve%PopulationOutputHDF) then 
+        if (Me%Bivalve%PopulationHDF) then 
         
             FileNameLength      = len_trim(Me%Files%OutPutFields) + 1
             Extension           = trim(Me%Files%OutPutFields(FileNameLength-4:FileNameLength))
@@ -4540,12 +4555,107 @@ do1 :   do while (associated(PropertyX))
             FileName            = Me%Files%OutPutFields(1:FileNameLength-5)//"_Bivalve"//trim(Extension)
             
             call Open_HDF5_OutPut_File(FileNameIN = FileName, ObjHDF5External = Me%Bivalve%ObjHDF5)
+                                    
+        end if
+        
+        if (Me%Bivalve%PopulationBoxTimeSerie) then        
+        
+            call GetData(Me%Files%BoxesFile,                                            &
+                         Me%ObjEnterData, iflag,                                       &
+                         keyword      = 'BOXFLUXES',                                    &
+                         ClientModule = 'ModuleWaterProperties',                        &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'StartOutputBoxFluxes - ModuleWaterProperties - ERR01'
+            if (iflag .EQ. 0)                                                           &
+                stop 'StartOutputBoxFluxes - ModuleWaterProperties - ERR02'    
             
-            call BivalvePopulationOutputHDF 
+            inquire(File = Me%Files%BoxesFile, Exist = exist)
+            if (exist) then
+                inquire(File = Me%Files%BoxesFile, Opened  = Opened)
+                if (opened) then
+                    write(*,*    ) 
+                    write(*,'(A)') 'BoxesFile = ',trim(adjustl(Me%Files%BoxesFile))
+                    write(*,*    ) 'Already opened.'
+                    stop           'StartOutputBoxFluxes - ModuleWaterProperties - ERR03'    
+                end if
+            else
+                write(*,*) 
+                write(*,*)     'Could not find the boxes file.'
+                write(*,'(A)') 'BoxFileName = ', Me%Files%BoxesFile
+                stop           'StartOutputBoxFluxes - ModuleWaterProperties - ERR04'    
+            end if
             
+            nScalars = nSpeciesBoxTimeSerie * 4 ! TotalDensity, FieldDensity, TotalBiomass, CohortsNumber
+            nFluxes  = nSpeciesBoxTimeSerie * 4
+                    
+            allocate(ScalarOutputList(nScalars), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ConstructBivalvePopulationOutput - ModuleWaterProperties - ERR05'
+
+            allocate(FluxesOutputList(nFluxes), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ConstructBivalvePopulationOutput - ModuleWaterProperties - ERR06'
+                
+            n = 0
+                
+            Species => Me%Bivalve%FirstSpecies
+
+            !check for population outputs for the Bivalve    
+            do while (associated(Species))
+            
+                if (Species%PopulationBoxTimeSerie) then
+                    
+                        n = n + 1
+            
+                        ScalarOutputList(n) = trim(Species%ID%Name)//trim('TotalDensity')
+                        n = n + 1
+                        ScalarOutputList(n) = trim(Species%ID%Name)//trim('FieldDensity')
+                        n = n + 1
+                        ScalarOutputList(n) = trim(Species%ID%Name)//trim('TotalBiomass')
+                        n = n + 1
+                        ScalarOutputList(n) = trim(Species%ID%Name)//trim('CohortsNumber')
+                        
+                end if
+
+                Species => Species%Next
+
+            end do 
+
+            FluxesOutputList = ScalarOutputList
+
+            call StartBoxDif(BoxDifID           = Me%Bivalve%ObjBoxDif,         &
+                             TimeID             = Me%ObjTime,                   &
+                             HorizontalGridID   = Me%ObjHorizontalGrid,         &
+                             BoxesFilePath      = Me%Files%BoxesFile,           &
+                             FluxesOutputList   = FluxesOutputList,             &
+                             ScalarOutputList   = ScalarOutputList,             &
+                             WaterPoints3D      = Me%ExternalVar%WaterPoints3D, &
+                             Size3D             = Me%Size,                      &
+                             WorkSize3D         = Me%WorkSize,                  &
+                             STAT               = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ConstructBivalvePopulationOutput - ModuleWaterProperties - ERR07'
+
+!            call GetDTBoxes(Me%Bivalve%ObjBoxDif,Me%Coupled%BoxTimeSerie%DT_Compute, STAT_CALL)
+!            if (STAT_CALL .NE. SUCCESS_) stop 'Read_Reinitialize_Parameters - ModuleWaterProperties - ERR60'
+
+            deallocate(FluxesOutputList, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ConstructBivalvePopulationOutput - ModuleWaterProperties - ERR08'
+
+            deallocate(ScalarOutputList, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ConstructBivalvePopulationOutput - ModuleWaterProperties - ERR07'
+                
+            allocate(Me%CellMass(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ConstructBivalvePopulationOutput - ModuleWaterProperties - ERR12'
+            Me%CellMass(:,:,:) = 0.
+        
         end if
 
-    end subroutine ConstructBivalvePopulationHDF
+    end subroutine ConstructBivalvePopulationOutput
 
     !--------------------------------------------------------------------------
     
@@ -12845,7 +12955,7 @@ cd5:                if (TotalVolume > 0.) then
                                       Concentration     = PropertyX%Concentration,      &
                                       WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
                                       OpenPoints3D      = Me%ExternalVar%OpenPoints3D,  &
-                                      ShortWaveTop= ShortWaveTop,           &
+                                      ShortWaveTop      = ShortWaveTop,                 &
                                       LightExtCoefField = ShortWaveExtinctionField,     &
                                       DWZ               = Me%ExternalVar%DWZ,           &
                                       STAT              = STAT_CALL)
@@ -13718,21 +13828,21 @@ cd5:                if (TotalVolume > 0.) then
                                       OpenPoints3D      = Me%ExternalVar%OpenPoints3D,           &
                                       ShortWaveTop      = ShortWaveTop,                          &
                                       LightExtCoefField = ShortWaveExtinctionField,              &
-                                      WaterCellVol3D    = Me%SeagrassesLeaves%Volume,            &
+                                      WaterVolume       = Me%SeagrassesLeaves%Volume,            &
                                       NintFac3D         = Me%SeagrassesLeaves%NintFactor3D,      &
                                       PintFac3D         = Me%SeagrassesLeaves%PintFactor3D,      &
-                                      SeagrassesLength   = Me%SeagrassesLeaves%SeagrassesL3D,            & 
+                                      SeagrassesLength   = Me%SeagrassesLeaves%SeagrassesL3D,    & 
                                       DWZ               = Me%ExternalVar%DWZ,                    &
                                       STAT              = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                                     &
                     stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR02'
             else
-                   call Modify_Interface(InterfaceID       = Me%ObjSeagrassWaterInteraction,       &
-                                      PropertyID        = PropertyX%ID%IDNumber,                 &
-                                      Concentration     = PropertyX%Concentration,               &
-                                      WaterPoints3D     = Me%ExternalVar%WaterPoints3D,          &
-                                      OpenPoints3D      = Me%ExternalVar%OpenPoints3D,           &
-                                      STAT              = STAT_CALL)
+                   call Modify_Interface(InterfaceID       = Me%ObjSeagrassWaterInteraction,     &
+                                         PropertyID        = PropertyX%ID%IDNumber,              &
+                                         Concentration     = PropertyX%Concentration,            &
+                                         WaterPoints3D     = Me%ExternalVar%WaterPoints3D,       &
+                                         OpenPoints3D      = Me%ExternalVar%OpenPoints3D,        &
+                                         STAT              = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                                     &
                     stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR02'
             endif
@@ -13756,14 +13866,14 @@ cd5:                if (TotalVolume > 0.) then
     
                     if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
 
-                         call Modify_Interface(InterfaceID   = Me%ObjSeagrassWaterInteraction,  &
-                                          PropertyID    = PropertyX%ID%IDNumber,            &
-                                          Concentration = PropertyX%Concentration,          &
-                                          DTProp        = PropertyX%Evolution%DTInterval,   &
-                                          WaterPoints3D = Me%ExternalVar%WaterPoints3D,     &
-                                          OpenPoints3D  = Me%ExternalVar%OpenPoints3D,      &
-                                          STAT          = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                         call Modify_Interface(InterfaceID   = Me%ObjSeagrassWaterInteraction,   &
+                                               PropertyID    = PropertyX%ID%IDNumber,            &
+                                               Concentration = PropertyX%Concentration,          &
+                                               DTProp        = PropertyX%Evolution%DTInterval,   &
+                                               WaterPoints3D = Me%ExternalVar%WaterPoints3D,     &
+                                               OpenPoints3D  = Me%ExternalVar%OpenPoints3D,      &
+                                               STAT          = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                             &
                         stop 'SeagrassesLeaves_Processes - ModuleWaterProperties - ERR03'
 
 
@@ -14213,7 +14323,7 @@ cd5:                if (TotalVolume > 0.) then
                                       Concentration     = PropertyX%Concentration,      &
                                       WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
                                       OpenPoints3D      = Me%ExternalVar%OpenPoints3D,  &
-                                      ShortWaveTop= ShortWaveTop,           &
+                                      ShortWaveTop      = ShortWaveTop,                 &
                                       LightExtCoefField = ShortWaveExtinctionField,     &
                                       DWZ               = Me%ExternalVar%DWZ,           &
                                       STAT              = STAT_CALL)
@@ -14314,22 +14424,22 @@ cd5:                if (TotalVolume > 0.) then
         PropertyX => Me%FirstProperty
 
         if (Me%ExternalVar%Now .GE. Me%Coupled%Bivalve%NextCompute) then
-            
-            call CheckListDeadAndListNewborns
         
+            call CheckListDeadAndListNewborns
+            
             do while(associated(PropertyX))
-
+            
                 call Modify_Interface(InterfaceID             = Me%ObjInterfaceBivalve,           &
                                       PropertyID              = PropertyX%ID%IDNumber,            &
                                       Concentration           = PropertyX%Concentration,          &
                                       WaterPoints3D           = Me%ExternalVar%WaterPoints3D,     &
                                       OpenPoints3D            = Me%ExternalVar%OpenPoints3D,      &
-                                      WaterCellVol3D          = Me%ExternalVar%VolumeZ,           &
+                                      WaterVolume             = Me%ExternalVar%VolumeZ,           &
                                       CellArea                = Me%ExternalVar%GridCellArea,      &
                                       STAT                    = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
                     stop 'Bivalve_Processes - ModuleWaterProperties - ERR02'
-
+                    
                 PropertyX => PropertyX%Next
 
             end do
@@ -14337,7 +14447,7 @@ cd5:                if (TotalVolume > 0.) then
             Me%Coupled%Bivalve%NextCompute = Me%Coupled%Bivalve%NextCompute + Me%Coupled%Bivalve%DT_Compute
             
         end if 
-
+        
         PropertyX => Me%FirstProperty
 
         do while (associated(PropertyX))
@@ -14345,7 +14455,7 @@ cd5:                if (TotalVolume > 0.) then
             if (PropertyX%Evolution%Bivalve) then
     
                 if (Me%ExternalVar%Now .GE.PropertyX%Evolution%NextCompute) then
-
+                
                    call Modify_Interface(InterfaceID    = Me%ObjInterfaceBivalve,           &
                                          PropertyID     = PropertyX%ID%IDNumber,            &
                                          Concentration  = PropertyX%Concentration,          &
@@ -14355,6 +14465,7 @@ cd5:                if (TotalVolume > 0.) then
                                          STAT           = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                        &
                         stop 'Bivalve_Processes - ModuleWaterProperties - ERR03'
+                        
                 endif
 
             endif
@@ -14362,13 +14473,13 @@ cd5:                if (TotalVolume > 0.) then
             PropertyX=>PropertyX%Next
 
         enddo
+
+        if ((Me%Bivalve%PopulationHDF) .or. (Me%Bivalve%PopulationBoxTimeSerie)) then 
         
-        if (Me%Bivalve%PopulationOutputHDF) then 
-        
-            call BivalvePopulationOutputHDF 
+            call BivalvePopulationOutput 
             
-        end if       
-                           
+        end if
+                                   
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Bivalve_Processes")
         
         nullify(PropertyX)
@@ -14377,7 +14488,7 @@ cd5:                if (TotalVolume > 0.) then
 
     !--------------------------------------------------------------------------
     
-    subroutine BivalvePopulationOutputHDF
+    subroutine BivalvePopulationOutput
     
         !Arguments-------------------------------------------------------------
         
@@ -14389,25 +14500,144 @@ cd5:                if (TotalVolume > 0.) then
         type (T_Cohort)  , pointer         :: Cohort
         type (T_Property), pointer         :: Property_N, Property_L
         type (T_Property), pointer         :: Property_MV, Property_ME, Property_MR
-        logical                            :: FirstTime
+        integer                            :: WorkILB, WorkIUB, WorkJLB, WorkJUB
+        integer                            :: WorkKLB, WorkKUB
+        integer                            :: i, j, k
+        character(len=StringLength)        :: PropertyName_N, PropertyName_L
+        character(len=StringLength)        :: PropertyName_MV, PropertyName_ME, PropertyName_MR 
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "BivalvePopulationOutput")
+                    
+        WorkILB = Me%WorkSize%ILB 
+        WorkIUB = Me%WorkSize%IUB 
+
+        WorkJLB = Me%WorkSize%JLB 
+        WorkJUB = Me%WorkSize%JUB 
+
+        WorkKLB = Me%WorkSize%KLB 
+        WorkKUB = Me%WorkSize%KUB 
+ 
+        Species  => Me%Bivalve%FirstSpecies
+        do while (associated(Species))
+        
+            Species%TotalDensity = 0.0
+            Species%FieldDensity = 0.0
+            Species%TotalBiomass = 0.0
+            Species%CohortsNumber= 0.0
+
+            Cohort  => Species%FirstCohort
+            do while (associated(Cohort))
+            
+                PropertyName_N = trim(adjustl(Cohort%ID%Name))//" number"
+            
+                call Search_Property(Property_N,                         &
+                                     PropertyXID = GetDynamicPropertyIDNumber(trim(PropertyName_N)), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutput - ModuleWaterProperties - ERR80' 
+
+                PropertyName_L = trim(adjustl(Cohort%ID%Name))//" length"
+            
+                call Search_Property(Property_L,                         & 
+                                     PropertyXID = GetDynamicPropertyIDNumber(PropertyName_L), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutput - ModuleWaterProperties - ERR90' 
+
+                PropertyName_MV = trim(adjustl(Cohort%ID%Name))//" structure"
+            
+                call Search_Property(Property_MV,                         & 
+                                     PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MV), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutput - ModuleWaterProperties - ERR100' 
+
+                PropertyName_ME = trim(adjustl(Cohort%ID%Name))//" reserves"
+            
+                call Search_Property(Property_ME,                         & 
+                                     PropertyXID = GetDynamicPropertyIDNumber(PropertyName_ME), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutput - ModuleWaterProperties - ERR110' 
+
+                PropertyName_MR = trim(adjustl(Cohort%ID%Name))//" reproduction"
+            
+                call Search_Property(Property_MR,                         & 
+                                     PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MR), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutput - ModuleWaterProperties - ERR120' 
+
+do3 :               do k = WorkKLB, WorkKUB
+do2 :                do j = WorkJLB, WorkJUB
+do1 :                 do i = WorkILB, WorkIUB
+
+
+                    if (Property_MV%Concentration(i,j,k) .gt. 0.0) then !the cohort is not dead
+                    
+                        Species%TotalDensity(i,j,k) = Species%TotalDensity(i,j,k) +            &
+                                                      Property_N%Concentration(i,j,k)
+
+                        if (Property_L%Concentration(i,j,k) .ge. Species%MinObsLength) then
+                         
+                            Species%FieldDensity(i,j,k) = Species%FieldDensity(i,j,k) + &
+                                                          Property_N%Concentration(i,j,k)
+                        end if
+
+                        Species%CohortsNumber(i,j,k) = Species%CohortsNumber(i,j,k) + 1 
+                        
+                        Species%TotalBiomass(i,j,k) = Species%TotalBiomass(i,j,k)           +  &
+                                                  ( Property_MV%Concentration(i,j,k) +         &
+                                                    Property_ME%Concentration(i,j,k) +         &
+                                                    Property_MR%Concentration(i,j,k) )   *     &
+                                                    Property_N%Concentration(i,j,k) * 12
+                                                    
+                     end if 
+                    
+                  end do do1
+                 end do do2
+                end do do3
+            
+                nullify (Property_N, Property_L, Property_MV, Property_ME, Property_MR)
+                
+                Cohort  => Cohort%Next
+            enddo
+                
+            Species  => Species%Next
+        enddo
+
+        if (Me%Bivalve%PopulationHDF)then 
+        
+            call BivalvePopulationHDF 
+            
+        end if
+        
+        if (Me%Bivalve%PopulationBoxTimeSerie) then 
+        
+            call BivalvePopulationBoxTimeSerie
+            
+        end if  
+             
+        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "BivalvePopulationOutput")
+   
+    end subroutine BivalvePopulationOutput
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine BivalvePopulationHDF
+    
+        !Arguments-------------------------------------------------------------
+        
+        !External--------------------------------------------------------------
+        integer                            :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        type (T_Species) , pointer         :: Species
         integer                            :: OutPutNumber, ObjHDF5
         type (T_Time)                      :: CurrentTime, OutTime
         real,    dimension(6    ), target  :: AuxTime
         real,    dimension(:    ), pointer :: TimePtr
         integer                            :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         integer                            :: WorkKLB, WorkKUB
-        integer                            :: i, j, k
         character(len=StringLength)        :: AuxGroup
-        character(len=StringLength)        :: PropertyName_N, PropertyName_L
-        character(len=StringLength)        :: PropertyName_MV, PropertyName_ME, PropertyName_MR 
 
         !----------------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "BivalvePopulationOutputHDF")
+        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "BivalvePopulationHDF")
         
         CurrentTime = Me%ExternalVar%Now
-
-        FirstTime = .true.       
 
         WorkILB = Me%WorkSize%ILB 
         WorkIUB = Me%WorkSize%IUB 
@@ -14430,176 +14660,228 @@ TOut:   if (CurrentTime >= OutTime) then
                 Me%OutPut%Run_End = .true.
             endif
 
-First:      if (FirstTime) then 
-                    
-                !Writes current time
-                call ExtractDate   (CurrentTime, AuxTime(1), AuxTime(2), AuxTime(3),  &
-                                    AuxTime(4), AuxTime(5), AuxTime(6))
-                TimePtr => AuxTime
-                call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR10'
+            !Writes current time
+            call ExtractDate   (CurrentTime, AuxTime(1), AuxTime(2), AuxTime(3),  &
+                                AuxTime(4), AuxTime(5), AuxTime(6))
+            TimePtr => AuxTime
+            call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR10'
 
-                call HDF5WriteData  (ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS", &
-                                     Array1D = TimePtr, OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR20'
+            call HDF5WriteData  (ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS", &
+                                 Array1D = TimePtr, OutputNumber = OutPutNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR20'
 
-                !Writes SZZ
-                call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB,        &
-                                     WorkJUB, WorkKLB-1, WorkKUB, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR30'
+            !Writes SZZ
+            call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB,        &
+                                 WorkJUB, WorkKLB-1, WorkKUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR30'
 
-                call HDF5WriteData  (ObjHDF5, "/Grid/VerticalZ", "Vertical",    &
-                                     "m", Array3D = Me%ExternalVar%SZZ,            &
-                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR40'
+            call HDF5WriteData  (ObjHDF5, "/Grid/VerticalZ", "Vertical",    &
+                                 "m", Array3D = Me%ExternalVar%SZZ,            &
+                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR40'
 
-                !Writes OpenPoints
-                call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                 &
-                                     WorkJLB, WorkJUB, WorkKLB, WorkKUB,        &
-                                     STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR50'
+            !Writes OpenPoints
+            call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                 &
+                                 WorkJLB, WorkJUB, WorkKLB, WorkKUB,        &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR50'
 
-                call HDF5WriteData  (ObjHDF5, "/Grid/OpenPoints", "OpenPoints", &
-                                     "-", Array3D = Me%ExternalVar%OpenPoints3D,&
-                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR60'
-                
-            endif First
-                    
+            call HDF5WriteData  (ObjHDF5, "/Grid/OpenPoints", "OpenPoints", &
+                                 "-", Array3D = Me%ExternalVar%OpenPoints3D,&
+                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR60'
+                                
             AuxGroup = "/Results/"                                     
 
             call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                     &
                                  WorkJLB, WorkJUB, WorkKLB, WorkKUB,            &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR70'
-            
+            if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR70'
             
             Species  => Me%Bivalve%FirstSpecies
             do while (associated(Species))
             
-                if (Species%PopulationOutputHDF) then
-  
-                    Species%TotalDensity = 0.0
-                    Species%FieldDensity = 0.0
-                    Species%TotalBiomass = 0.0
-                    Species%CohortsNumber= 0.0
+                call HDF5WriteData(Me%Bivalve%ObjHDF5,                                          &
+                                   trim(AuxGroup)//trim(Species%ID%Name)//trim('Total Density'), &
+                                   'Total Density',                                              &
+                                   '#/m2',                                                      &
+                                   Array3D      = Species%TotalDensity,                         &
+                                   OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR130'
 
-                    Cohort  => Species%FirstCohort
-                    do while (associated(Cohort))
-                    
-                        PropertyName_N = trim(adjustl(Cohort%ID%Name))//" number"
-                    
-                        call Search_Property(Property_N,                         &
-                                             PropertyXID = GetDynamicPropertyIDNumber(trim(PropertyName_N)), STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR80' 
+                call HDF5WriteData(Me%Bivalve%ObjHDF5,                                          &
+                                   trim(AuxGroup)//trim(Species%ID%Name)//'Field Density',       &
+                                   'Field Density',                                              &
+                                   '#/m2',                                                      &
+                                   Array3D      = Species%FieldDensity,                         &
+                                   OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR140'
+                
+                call HDF5WriteData(Me%Bivalve%ObjHDF5,                                          &
+                                   trim(AuxGroup)//trim(Species%ID%Name)//'Total Biomass',       &
+                                   'Total Biomass',                                              &
+                                   'gC/m2',                                                     &
+                                   Array3D      = Species%TotalBiomass,                         &
+                                   OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR150'
 
-                        PropertyName_L = trim(adjustl(Cohort%ID%Name))//" length"
-                    
-                        call Search_Property(Property_L,                         & 
-                                             PropertyXID = GetDynamicPropertyIDNumber(PropertyName_L), STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR90' 
-
-                        PropertyName_MV = trim(adjustl(Cohort%ID%Name))//" structure"
-                    
-                        call Search_Property(Property_MV,                         & 
-                                             PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MV), STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR100' 
-
-                        PropertyName_ME = trim(adjustl(Cohort%ID%Name))//" reserves"
-                    
-                        call Search_Property(Property_ME,                         & 
-                                             PropertyXID = GetDynamicPropertyIDNumber(PropertyName_ME), STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR110' 
-
-                        PropertyName_MR = trim(adjustl(Cohort%ID%Name))//" reproduction"
-                    
-                        call Search_Property(Property_MR,                         & 
-                                             PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MR), STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR120' 
-
-    do3 :               do k = WorkKLB, WorkKUB
-    do2 :                do j = WorkJLB, WorkJUB
-    do1 :                 do i = WorkILB, WorkIUB
-    
-    
-                            if (Property_MV%Concentration(i,j,k) .gt. 0.0) then !the cohort is not dead
-                            
-                                Species%TotalDensity(i,j,k) = Species%TotalDensity(i,j,k) +            &
-                                                              Property_N%Concentration(i,j,k)
-
-                                if (Property_L%Concentration(i,j,k) .ge. Species%MinObsLength) then
-                                 
-                                    Species%FieldDensity(i,j,k) = Species%FieldDensity(i,j,k) + &
-                                                                  Property_N%Concentration(i,j,k)
-                                end if
-
-                                Species%CohortsNumber(i,j,k) = Species%CohortsNumber(i,j,k) + 1 
-                                
-                                Species%TotalBiomass(i,j,k) = Species%TotalBiomass(i,j,k)           +  &
-                                                          ( Property_MV%Concentration(i,j,k) +         &
-                                                            Property_ME%Concentration(i,j,k) +         &
-                                                            Property_MR%Concentration(i,j,k) )   *     &
-                                                            Property_N%Concentration(i,j,k) * 12
-                                                            
-                             end if 
-                            
-                          end do do1
-                         end do do2
-                        end do do3
-                    
-                        nullify (Property_N, Property_L, Property_MV, Property_ME, Property_MR)
-                        
-                        Cohort  => Cohort%Next
-                    enddo
-                    
-                    call HDF5WriteData(Me%Bivalve%ObjHDF5,                                          &
-                                       trim(AuxGroup)//trim(Species%ID%Name)//trim('Total Density'), &
-                                       'Total Density',                                              &
-                                       '#/m2',                                                      &
-                                       Array3D      = Species%TotalDensity,                         &
-                                       OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR130'
-
-                    call HDF5WriteData(Me%Bivalve%ObjHDF5,                                          &
-                                       trim(AuxGroup)//trim(Species%ID%Name)//'Field Density',       &
-                                       'Field Density',                                              &
-                                       '#/m2',                                                      &
-                                       Array3D      = Species%FieldDensity,                         &
-                                       OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR140'
-                    
-                    call HDF5WriteData(Me%Bivalve%ObjHDF5,                                          &
-                                       trim(AuxGroup)//trim(Species%ID%Name)//'Total Biomass',       &
-                                       'Total Biomass',                                              &
-                                       'gC/m2',                                                     &
-                                       Array3D      = Species%TotalBiomass,                         &
-                                       OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR150'
-
-                    call HDF5WriteData(Me%Bivalve%ObjHDF5,                                          &
-                                       trim(AuxGroup)//trim(Species%ID%Name)//'Cohorts Number',      &
-                                       'Cohorts Number',                                             &
-                                       '#/m2',                                                      &
-                                       Array3D      = Species%CohortsNumber,                        &
-                                       OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationOutputHDF - ModuleWaterProperties - ERR160'
-                    
-                end if
+                call HDF5WriteData(Me%Bivalve%ObjHDF5,                                          &
+                                   trim(AuxGroup)//trim(Species%ID%Name)//'Cohorts Number',      &
+                                   'Cohorts Number',                                             &
+                                   '#/m2',                                                      &
+                                   Array3D      = Species%CohortsNumber,                        &
+                                   OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR160'
+                
                 Species  => Species%Next
             enddo
                 
-            if (FirstTime) FirstTime = .false.
-
             !Writes everything to disk
             call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR180'            
+            if (STAT_CALL /= SUCCESS_) stop 'BivalvePopulationHDF - ModuleWaterProperties - ERR180'            
 
         endif  TOut    
 
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "BivalvePopulationOutputHDF")
+        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "BivalvePopulationHDF")
     
-    end subroutine BivalvePopulationOutputHDF
+    end subroutine BivalvePopulationHDF
+    
+    !--------------------------------------------------------------------------
 
+    subroutine BivalvePopulationBoxTimeSerie
+
+        !External--------------------------------------------------------------
+        integer                                 :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        type (T_Species),  pointer              :: Species
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: i, j, k
+        !$ integer                              :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        ILB = Me%Size%ILB 
+        IUB = Me%Size%IUB 
+        JLB = Me%Size%JLB 
+        JUB = Me%Size%JUB 
+        KLB = Me%Size%KLB 
+        KUB = Me%Size%KUB 
+
+        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "BivalvePopulationBoxTimeSerie")
+                
+        Species  => Me%Bivalve%FirstSpecies
+        do while (associated(Species))
+        
+                !Total Density
+                Me%CellMass(:,:,:) = 0.
+                
+                !$OMP PARALLEL PRIVATE(I,J,K)
+                do K = KLB, KUB
+                !$OMP DO SCHEDULE(STATIC, CHUNK)
+                do J = JLB, JUB
+                do I = ILB, IUB
+                    Me%CellMass(i,j,k) = Species%TotalDensity(i, j, k) * &
+                                         Me%ExternalVar%VolumeZ(i, j, k)
+                end do
+                end do
+                !$OMP END DO
+                end do
+                !$OMP END PARALLEL
+
+                call BoxDif(Me%Bivalve%ObjBoxDif, Me%CellMass,             &
+                            trim(Species%ID%Name)//trim('TotalDensity'),  &
+                            Me%ExternalVar%WaterPoints3D,                  &
+                            STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)  &
+                    stop 'OutPut_BoxTimeSeries - ModuleWaterProperties - ERR01'
+
+                Me%CellMass(:,:,:) = null_real
+
+
+            !Field Density
+                Me%CellMass(:,:,:) = 0.
+                
+                !$OMP PARALLEL PRIVATE(I,J,K)
+                do K = KLB, KUB
+                !$OMP DO SCHEDULE(STATIC, CHUNK)
+                do J = JLB, JUB
+                do I = ILB, IUB
+                    Me%CellMass(i,j,k) = Species%FieldDensity(i, j, k) * &
+                                         Me%ExternalVar%VolumeZ(i, j, k)
+                end do
+                end do
+                !$OMP END DO
+                end do
+                !$OMP END PARALLEL
+
+                call BoxDif(Me%Bivalve%ObjBoxDif, Me%CellMass,             &
+                            trim(Species%ID%Name)//trim('FieldDensity'),  &
+                            Me%ExternalVar%WaterPoints3D,                  & !aqui
+                            STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)  &
+                    stop 'OutPut_BoxTimeSeries - ModuleWaterProperties - ERR01'
+
+                Me%CellMass(:,:,:) = null_real
+
+            !Total Biomass
+                Me%CellMass(:,:,:) = 0.
+                
+                !$OMP PARALLEL PRIVATE(I,J,K)
+                do K = KLB, KUB
+                !$OMP DO SCHEDULE(STATIC, CHUNK)
+                do J = JLB, JUB
+                do I = ILB, IUB
+                    Me%CellMass(i,j,k) = Species%TotalBiomass(i, j, k) * &
+                                         Me%ExternalVar%VolumeZ(i, j, k)
+                end do
+                end do
+                !$OMP END DO
+                end do
+                !$OMP END PARALLEL
+
+                call BoxDif(Me%Bivalve%ObjBoxDif, Me%CellMass,             &
+                            trim(Species%ID%Name)//trim('TotalBiomass'),  &
+                            Me%ExternalVar%WaterPoints3D,                  & !aqui
+                            STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)  &
+                    stop 'OutPut_BoxTimeSeries - ModuleWaterProperties - ERR01'
+
+                Me%CellMass(:,:,:) = null_real
+
+            !Cohorts Number
+                Me%CellMass(:,:,:) = 0.
+                
+                !$OMP PARALLEL PRIVATE(I,J,K)
+                do K = KLB, KUB
+                !$OMP DO SCHEDULE(STATIC, CHUNK)
+                do J = JLB, JUB
+                do I = ILB, IUB
+                    Me%CellMass(i,j,k) = Species%CohortsNumber(i, j, k) * &
+                                         Me%ExternalVar%VolumeZ(i, j, k)
+                end do
+                end do
+                !$OMP END DO
+                end do
+                !$OMP END PARALLEL
+
+                call BoxDif(Me%Bivalve%ObjBoxDif, Me%CellMass,             &
+                            trim(Species%ID%Name)//trim('CohortsNumber'),  &
+                            Me%ExternalVar%WaterPoints3D,                  & !aqui
+                            STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)  &
+                    stop 'OutPut_BoxTimeSeries - ModuleWaterProperties - ERR01'
+
+                Me%CellMass(:,:,:) = null_real
+           
+            Species  => Species%Next
+        enddo        
+
+        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "BivalvePopulationBoxTimeSerie")
+
+    end subroutine BivalvePopulationBoxTimeSerie
+    
     !--------------------------------------------------------------------------
    
     subroutine CheckListDeadAndListNewborns
@@ -14629,9 +14911,7 @@ First:      if (FirstTime) then
            call UpdateBivalvePropertyList
 
            call UpdateInterfaceMass
-           
-           call UpdateBoxTimeSerieList
-           
+                      
        end if
        
        call UnGetBivalve(Me%ObjBivalve, Me%Bivalve%ListDeadIDS, STAT = STAT_CALL)
@@ -14694,13 +14974,13 @@ First:      if (FirstTime) then
         
         nullify(PropertyX)
         
-        
         call UpdateMassDimensions(InterfaceID         = Me%ObjInterfaceBivalve,        &
                                   PropertiesList      = BivalvePropertyList,           &
                                   STAT = STAT_CALL)
          if (STAT_CALL .NE. SUCCESS_)stop 'UpdateInterfaceMass - ModuleWaterProperties - ERR01'
-    
-    
+         
+         deallocate(BivalvePropertyList)
+         nullify   (BivalvePropertyList)
     
     end subroutine UpdateInterfaceMass
     
@@ -14909,15 +15189,6 @@ First:      if (FirstTime) then
         
     end subroutine AddNewbornsToList
 
-    !--------------------------------------------------------------------------
-    subroutine UpdateBoxTimeSerieList
-    
-        !Arguments-----------------------------------------------------------------
-    
-        !Local-----------------------------------------------------------------
-
-    end subroutine UpdateBoxTimeSerieList 
-    
     !--------------------------------------------------------------------------
     !   Makes the connection between the Water         
     !   Properties module and the Partition processes                  
@@ -21939,6 +22210,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
+        type (T_Species),  pointer                  :: Species
         type (T_Time)                               :: EndTime, BeginTime
         integer                                     :: STAT_CALL, Orlanski
         integer                                     :: STAT_, ready_, nUsers, iW
@@ -22078,7 +22350,6 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                     nullify   (DischargeTimeSerieToKill)
 
                 enddo
-
 
                 if (Me%Coupled%Discharges%Yes)    then
                     nUsers = DeassociateInstance(mDISCHARGES_,    Me%ObjDischarges)
@@ -22386,16 +22657,63 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                 
                 endif
 
-                if (Me%Coupled%Bivalve%Yes   ) then
+                if (Me%Coupled%Bivalve%Yes) then
                     
                     nUsers = DeassociateInstance (mBIVALVE_, Me%ObjBivalve)
                     if (nUsers == 0) stop 'KillWaterProperties - ModuleWaterProperties - ERR425'
-
                     
+                    if ((Me%Bivalve%PopulationHDF) .or. (Me%Bivalve%PopulationBoxTimeSerie)) then
+
+                        !Population variables
+                        Species => Me%Bivalve%FirstSpecies
+                        do while (associated(Species))
+
+                            deallocate(Species%TotalDensity, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) &
+                                stop 'KillWaterProperties - ModuleWaterProperties - ERR425a'
+                            nullify(Species%TotalDensity)
+
+                            deallocate(Species%FieldDensity, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) &
+                                stop 'KillWaterProperties - ModuleWaterProperties - ERR425b'
+                            nullify(Species%FieldDensity)
+
+                            deallocate(Species%TotalBiomass, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) &
+                                stop 'KillWaterProperties - ModuleWaterProperties - ERR425c'
+                            nullify(Species%TotalBiomass)
+
+                            deallocate(Species%CohortsNumber, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) &
+                                stop 'KillWaterProperties - ModuleWaterProperties - ERR425d'
+                            nullify(Species%CohortsNumber)
+                                                        
+                            Species => Species%Next
+                        end do
+                    end if 
+
+                    !Population outputs
+                    if (Me%Bivalve%PopulationHDF) then
+                        call KillHDF5 (Me%Bivalve%ObjHDF5, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaterProperties - ModuleWaterProperties - ERR450'
+                    endif
+
+                    if (Me%Bivalve%PopulationBoxTimeSerie) then
+                        call KillBoxDif(Me%Bivalve%ObjBoxDif, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaterProperties - ModuleWaterProperties - ERR450'
+                    
+                        if(associated(Me%CellMass)) then 
+                            deallocate(Me%CellMass, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) &
+                                stop 'KillWaterProperties - ModuleWaterProperties - ERR0450'
+                            nullify(Me%CellMass)
+                        end if
+                    
+                    endif
+
                     call KillInterface(Me%ObjInterfaceBivalve, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'KillWaterProperties - ModuleWaterProperties - ERR425a'
-                    
                 end if
 
                 if(Me%Coupled%HybridReferenceField)then
@@ -22404,7 +22722,6 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                     nullify   (Me%HybridWeights%Field)
 
                 end if
-
 
                 !Assimilation object
                 if ( (Me%Coupled%DataAssimilation%Yes .or. Me%Coupled%AltimetryAssimilation%Yes)        &
@@ -22441,11 +22758,6 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                     
                 endif                
                 
-                if (Me%Bivalve%PopulationOutputHDF) then
-                    call KillHDF5 (Me%Bivalve%ObjHDF5, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillWaterProperties - ModuleWaterProperties - ERR450'
-                endif
-
                 if (Me%OutPut%SurfaceOutputs)then
                     call KillHDF5 (Me%ObjSurfaceHDF5, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillWaterProperties - ModuleWaterProperties - ERR460'

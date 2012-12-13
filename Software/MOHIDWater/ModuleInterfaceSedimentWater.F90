@@ -390,7 +390,7 @@ Module ModuleInterfaceSedimentWater
         integer, pointer, dimension(:,:,:)          :: LandPoints3D
         real,    pointer, dimension(:,:  )          :: Bathymetry
         real,    pointer, dimension(:,:  )          :: WaterColumn
-        real,    pointer, dimension(:,:)            :: WaterVolume
+        real(8), pointer, dimension(:,:)            :: WaterVolume
         real,    pointer, dimension(:,:)            :: Sediment
         real                                        :: MinWaterColumn        
         integer, pointer, dimension(:,:  )          :: KFloor_Z

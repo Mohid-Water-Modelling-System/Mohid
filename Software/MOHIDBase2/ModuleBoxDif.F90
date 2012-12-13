@@ -80,7 +80,7 @@ Module ModuleBoxDif
     private ::          ScalarTimeSerieHeader2D
     private ::          ScalarTimeSerieHeader3D
     private ::          AddScalarTimeSerie
-    public  :: UpdateBoxDif !soffs
+    public  :: UpdateBoxDif
 
 
     !Selector
@@ -400,6 +400,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
             call ConstructBoxes3D
+            
+            nullify(Me%FirstFluxesTimeSerie)
+            nullify(Me%FirstScalarTimeSerie)
 
             if(present(FluxesOutputList)) call ConstructOutputFluxes3D  (FluxesOutputList)
                 
@@ -1771,8 +1774,6 @@ cd2 :           if (BlockFound) then
 
         !Begin-----------------------------------------------------------------
         
-        nullify(Me%FirstFluxesTimeSerie)
-
         !Number of properties which fluxes are to be integrated
         NumberOfFluxes = size(FluxesOutputList)
 
@@ -1791,7 +1792,8 @@ cd2 :           if (BlockFound) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOutputFluxes2D - ModuleBoxDif - ERR02'
 
         end do
-
+        
+        nullify(NewFluxesTimeSerie)
 
     end subroutine ConstructOutputFluxes2D
 
@@ -1811,9 +1813,6 @@ cd2 :           if (BlockFound) then
 
         !Begin-----------------------------------------------------------------
         
-        nullify(Me%FirstFluxesTimeSerie)
-
-
         !Number of properties which fluxes are to be integrated
         NumberOfFluxes = size(FluxesOutputList)
 
@@ -1833,6 +1832,8 @@ cd2 :           if (BlockFound) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOutputFluxes3D - ModuleBoxDif - ERR02'
 
         end do
+        
+        nullify(NewFluxesTimeSerie)
 
 
     end subroutine ConstructOutputFluxes3D
@@ -2039,6 +2040,8 @@ cd2 :           if (BlockFound) then
                                 STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOutputScalar2D - ModuleBoxDif - ERR02'
         end do
+        
+        nullify(NewScalarTimeSerie)
 
 
     end subroutine ConstructOutputScalar2D
@@ -2079,7 +2082,8 @@ cd2 :           if (BlockFound) then
                                 STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOutputScalar3D - ModuleBoxDif - ERR02'
         end do
-
+        
+        nullify(NewScalarTimeSerie)
 
     end subroutine ConstructOutputScalar3D
 

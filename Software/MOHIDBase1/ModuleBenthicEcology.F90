@@ -344,7 +344,7 @@ Module ModuleBenthicEcology
         real, pointer, dimension(:  )       :: Temperature
         real, pointer, dimension(:,:)       :: MassInKgFromWater
         real, pointer, dimension(:  )       :: Sediment
-        real, pointer, dimension(:  )       :: WaterVolume
+        real(8), pointer, dimension(:  )       :: WaterVolume
         real, pointer, dimension(:  )       :: CellArea
         real, pointer, dimension(:  )       :: ShortWaveTop
         real, pointer, dimension(:  )       :: ShortWaveAverage
@@ -2862,7 +2862,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real,    dimension(:  ), pointer, optional  :: UptakePO4w
         real,    dimension(:  ), pointer, optional  :: UptakePO4s
         real,    dimension(:  ), pointer, optional  :: LightFactor
-        real,    dimension(:  ), pointer            :: WaterVolume
+        real(8), dimension(:  ), pointer            :: WaterVolume
         real,    dimension(:  ), pointer            :: CellArea
         integer, dimension(:  ), pointer, optional  :: OpenPoints
         real,    dimension(:  ), pointer, optional  :: ShortWaveAverage
