@@ -88,14 +88,16 @@ Module ModuleSWAN
         character(len=PathLength)               :: FileName
         character(len=PathLength)               :: GridFileName
         character(len=PathLength)               :: OutputFileName
-
+        character(len=StringLength)             :: Generic4DProperty
+        character(len=StringLength)             :: Generic4DUnits
+        
         integer                                 :: NumberDates          = FillValueInt
         integer                                 :: NumberFields         = FillValueInt
         integer                                 :: NumberProps          = FillValueInt
         integer                                 :: NumberUnits          = FillValueInt
 
         integer                                 :: DirectionReferential = FillValueInt
-
+        
         character(len=StringLength), dimension(:), pointer :: PropsName
         character(len=StringLength), dimension(:), pointer :: PropsUnits
         character(len=PathLength),   dimension(:), pointer :: FilesName
@@ -109,6 +111,9 @@ Module ModuleSWAN
 
         logical                                 :: WriteVelModulus = .false., WriteWindModulus = .false.
         real                                    :: FillValue
+        real                                    :: Generic4DValue
+        integer                                 :: Generic4DPropertyIndeX
+        integer                                 :: Generic4D
         integer                                 :: ReadType
         integer, dimension(:,:  ),  pointer     :: WaterPoints2D
         type(T_OutPut)                          :: OutPut
@@ -233,6 +238,25 @@ d2:         do p=1, Me%NumberProps
                      ClientModule = 'SWAN',                                   &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleSWAN - ERR70'
+        
+        call GetData(Me%Generic4D,                                            &
+                     Me%ObjEnterData, iflag,                                  &
+                     SearchType   = FromBlock,                                &
+                     keyword      = 'Generic4D',                              &
+                     default      = 0,                                        &
+                     ClientModule = 'SWAN',                                   &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleSWAN - ERR80'
+        
+        call GetData(Me%Generic4DProperty,                                    &
+                     Me%ObjEnterData, iflag,                                  &
+                     SearchType   = FromBlock,                                &
+                     keyword      = 'Generic4D_Property',                     &
+                     ClientModule = 'SWAN',                                   &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleSWAN - ERR90'
+        if (iflag     == 0 .AND. Me%Generic4D == 1 )                          &
+                stop 'ReadGlobalOptions - ModuleSWAN - ERR100'
 
  
     end subroutine ReadGlobalOptions
@@ -585,21 +609,36 @@ d3:     do l= 1, Me%NumberFields
         if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleTecnoceanAscii - ERR10'
 
         open(Unit   = Me%Unit,                                                          &
-             File   = Me%FilesName(l),                                                  &
+             File   = trim(Me%FilesName(l)),                                                  &
              Form   = 'FORMATTED',                                                      &
              STATUS = 'OLD',                                                            &
              Action = 'READ',                                                           &
              IOSTAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleTecnoceanAscii - ERR20'
+        
+        do p = 1, Me%NumberProps
+ 
+                if(trim(Me%Generic4DProperty) == trim(Me%PropsName(p))) Then 
+                Me%Generic4DPropertyIndeX=p
+                exit
+                end if
+                
+        enddo
 
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
     
-            read(Me%Unit,*) x, y, Me%PropVector
+!            read(Me%Unit,*) x, y, Me%PropVector
+            read(Me%Unit,*) Me%PropVector
 
             do p = 1, Me%NumberProps
  
                 Me%Fields(p, i, j) = Me%PropVector(p)
+                
+                if(Me%Generic4D==1 .AND. p==Me%Generic4DPropertyIndeX) Then
+                Me%Generic4DValue=Me%PropVector(p)
+                Me%Generic4DUnits=trim(Me%PropsUnits(p))
+                end if
 
             enddo
 
@@ -666,6 +705,7 @@ d3:     do l= 1, Me%NumberFields
         real,    dimension(6), target                   :: AuxTime
         real,    dimension(:), pointer                  :: TimePtr
         real, dimension(:,:), pointer                   :: Aux2D, Aux2DX, Aux2DY, Aux2DXY
+        real,    dimension(:), pointer              :: RealArray1D
         real                                            :: Angle
         integer                                         :: STAT_CALL, i, ii, jj, k
         character(len=StringLength)                     :: FieldName
@@ -677,6 +717,7 @@ d3:     do l= 1, Me%NumberFields
             allocate(Aux2D (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Aux2DX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Aux2DY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(RealArray1D(1:1))
         endif
 
 !i0:     if (i<=Me%Output%Number) then
@@ -703,8 +744,23 @@ i1:         if (p==1) then
                                      Array1D = TimePtr,                                 &
                                      OutputNumber = i, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleSWAN - ERR20'
-
+                
             endif i1
+            
+i2:         if (p==1 .AND. Me%Generic4D==1) then
+                
+                RealArray1D(1) = Me%Generic4DValue
+                
+                call HDF5SetLimits  (Me%ObjHDF5, 1, 1, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleSWAN - ERR30'
+                
+                call HDF5WriteData  (Me%ObjHDF5, "/Generic4D",                           &
+                                     "Generic4D", Me%Generic4DUnits,                     &
+                                     Array1D = RealArray1D,                        &
+                                     OutputNumber = i, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleSWAN - ERR40'
+                
+            endif i2
 
    
             call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,            &
@@ -798,6 +854,7 @@ d2:             do k=1,2
             deallocate(Aux2D)
             deallocate(Aux2DX)
             deallocate(Aux2DY)
+            deallocate(RealArray1D)
             nullify(Aux2D, Aux2DX, Aux2DY, Aux2DXY)
         endif
 
@@ -833,7 +890,7 @@ d2:             do k=1,2
         if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleSWAN - ERR40'
 
             
-        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Bathymetry", "-",                   &
+        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Bathymetry", "m",                   &
                               Array2D =  Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleSWAN - ERR50'            
 
