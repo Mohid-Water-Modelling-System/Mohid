@@ -41,6 +41,14 @@ Module ModuleCALMETFormat
     public  :: ConvertCALMETFormat
     private ::      ReadOptions
     private ::      OpenAndReadTerrainFile
+    private ::      WriteGridInformation 
+    private ::      Open_HDF5_OutPut_File
+    private ::      OpenAndReadCALMETFile
+    private ::      BeginEndTime
+    private ::      ComputeVerticalCoordinate
+    private ::      ComputeWindSurface
+    private ::      OutputFields
+    private ::          WriteGridToHDF5File            
     private ::      KillCALMETFormat
     
     !Perfect gas constant in Pa m3 kg-1 K-1
@@ -169,15 +177,9 @@ Module ModuleCALMETFormat
             call ComputeVerticalCoordinate
 
             call ComputeWindSurface
-            !
-            !if(Me%ComputeRelativeHumidity)          call ComputeRelativeHumidity
-            !if(Me%ComputeRelativeHumidity3D)        call ComputeRelativeHumidity3D
-            !if(Me%ComputeCloudCover)                call ComputeCloudCover
-            !
-            !if(Me%ComputePrecipitation)             call ComputePrecipitation
-            
+
             call OutputFields
-            !
+            
         endif
         
         call KillCALMETFormat
