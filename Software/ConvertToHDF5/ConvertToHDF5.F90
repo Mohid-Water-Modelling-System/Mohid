@@ -43,6 +43,7 @@ program ConvertToHDF5
 #ifndef _NO_NETCDF    
 #ifdef _USE_PROJ4 
     use ModuleWRFFormat
+    use ModuleCALMETFormat
 #endif
 #endif
 #ifdef _USE_MODIS
@@ -92,7 +93,7 @@ program ConvertToHDF5
     character(len = StringLength), parameter:: ConvertMOG2DFormatToHDF5     = 'CONVERT MOG2D FORMAT'    
     character(len = StringLength), parameter:: ConvertGFS_from_ASCII2HDF    = 'CONVERT GFS FORMAT'  
     character(len = StringLength), parameter:: ConvertWRFFormatToHDF5       = 'CONVERT WRF FORMAT'
-   
+    character(len = StringLength), parameter:: ConvertCALMETFormatToHDF5    = 'CONVERT CALMET FORMAT'
 
 #ifdef _USE_MODIS
 !    character(len = StringLength), parameter:: ConvertModisL3Mapped         = 'CONVERT MODIS L3MAPPED'
@@ -351,6 +352,11 @@ if2 :           if (BlockFound) then
                             
                             call ConvertWRFFormat(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR210'
+
+                        case(ConvertCALMETFormatToHDF5)
+                            
+                            call ConvertCALMETFormat(ObjEnterData, STAT = STAT_CALL)
+                            if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR211'
 #endif
 #endif
                         case(InterpolateTime)
