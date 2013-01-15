@@ -725,7 +725,7 @@ Module ModuleLagrangian
         real                                    :: CoupleProp               = null_real 
     end type T_Partition
 
-	type T_Larvae
+    type T_Larvae
         logical                                 :: Vertical_Migration = OFF
         logical                                 :: Compute_Larvae_Velocity = ON 
         logical                                 :: Light_Relation = ON
@@ -748,7 +748,7 @@ Module ModuleLagrangian
         logical                                 :: T90Variable              = OFF
         integer                                 :: T90Var_Method            = null_int
         real                                    :: T90                      = 7200.     !Coliform Bacteria decay time
-		type(T_Larvae)                          :: Larvae
+        type(T_Larvae)                          :: Larvae
         type(T_Partition)                       :: SedimentPartition
         type(T_Partition)                       :: WaterPartition
         logical                                 :: Statistics               = .false.
@@ -3373,7 +3373,7 @@ DOPROP:         do
                         !Extra Stuff
                         ret = CheckPropertyName (NewProperty%Name, PropertyID)
                         select case (PropertyID)
-						
+
                         case (Larvae_)
                         
                             call GetData(NewProperty%Larvae%Vertical_Migration,          &
@@ -3446,7 +3446,7 @@ DOPROP:         do
                                              ClientModule ='ModuleLagrangian',               &
                                              Default      = .true.,                          &    
                                              STAT         = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR2050'                        
+                                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR2050'
                                         
                                         if (NewProperty%Larvae%Compute_Larvae_Velocity) then
                                         
