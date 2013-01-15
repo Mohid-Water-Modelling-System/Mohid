@@ -75,7 +75,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  83
+    integer, parameter  :: MaxModules           =  84
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -449,7 +449,11 @@ Module ModuleGlobalData
     integer, parameter :: BaroclinicVelocityV_              = 114
     
     integer, parameter :: ObstacleDragCoef_                 = 200
-
+    
+    integer, parameter :: ScraperVelU_                      = 210
+    integer, parameter :: ScraperVelV_                      = 211
+    integer, parameter :: ScraperVelW_                      = 212
+    
     !Geometry properties
     integer, parameter :: VerticalZ_                        = 300
      
@@ -1148,6 +1152,10 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_BaroclinicVelocityV_ = 'baroclinic velocity V'
 
     character(StringLength), private, parameter :: Char_ObstacleDragCoef     = 'obstacle drag coefficient'
+    
+    character(StringLength), private, parameter :: Char_ScraperVelU          = 'scraper velocity U'
+    character(StringLength), private, parameter :: Char_ScraperVelV          = 'scraper velocity V'    
+    character(StringLength), private, parameter :: Char_ScraperVelW          = 'scraper velocity W'    
 
     character(StringLength), private, parameter :: Char_VerticalZ            = 'vertical z'
 
@@ -1653,6 +1661,7 @@ Module ModuleGlobalData
     integer, parameter ::  mSEAGRASSSEDIMINTERAC_   = 81     ! Isabella
     integer, parameter ::  mSEAGRASSWATERINTERAC_   = 82     ! Isabella
     integer, parameter ::  mBivalve_                = 83
+    integer, parameter ::  mTimeSeriesAnalyser_     = 84
 
     type T_Size1D
         integer                 :: ILB            = null_int
@@ -1748,7 +1757,8 @@ Module ModuleGlobalData
         T_Module(mRUNOFFPROPERTIES_      , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions"),        &
         T_Module(mField4D_               , "Field4D"),               T_Module(mBENTHICECOLOGY_         , "BenthicEcology"),        &! isab
         T_Module(mWWTPQ_                  , "WWTPQ") ,               T_Module(mSEAGRASSWATERINTERAC_   , "SeagrassWaterInteraction"),&
-        T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel")          /)
+        T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
+        T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ) /)
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
@@ -2397,7 +2407,12 @@ Module ModuleGlobalData
             
             call AddPropList (BaroclinicVelocityU_ ,    Char_BaroclinicVelocityU_ ,     ListNumber)
             call AddPropList (BaroclinicVelocityV_ ,    Char_BaroclinicVelocityV_ ,     ListNumber)
-            call AddPropList (ObstacleDragCoef_ ,       Char_ObstacleDragCoef ,         ListNumber)
+            call AddPropList (ObstacleDragCoef_    ,    Char_ObstacleDragCoef     ,     ListNumber)
+            
+            call AddPropList (ScraperVelU_         ,    Char_ScraperVelU          ,     ListNumber)
+            call AddPropList (ScraperVelV_         ,    Char_ScraperVelV          ,     ListNumber)            
+            call AddPropList (ScraperVelW_         ,    Char_ScraperVelW          ,     ListNumber)                        
+            
 
             call AddPropList (Vorticity_ ,              Char_Vorticity ,                ListNumber)
             call AddPropList (BaroclinicKE_ ,           Char_BaroclinicKE ,             ListNumber)
