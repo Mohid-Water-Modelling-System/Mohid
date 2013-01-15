@@ -1077,7 +1077,7 @@ diV:    do iV = 1, Me%TableValues
             if (iV == 1) NewPosition = .true.
             
             if (iV > 1) then
-                if (Me%X(iV) /= Me%X(iV-1) .and. Me%Y(iV) /= Me%Y(iV-1)) then
+                if (Me%X(iV) /= Me%X(iV-1) .or. Me%Y(iV) /= Me%Y(iV-1)) then
                     NewPosition = .true.
                 else
                     NewPosition = .false.
