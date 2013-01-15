@@ -3136,7 +3136,7 @@ dk:             do k=kmin, kmax
 
 cd1:                if (Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) then
 
-                        if (Me%ExternalVar%ByPass(n)) then
+                        if (Me%ExternalVar%ByPass(dis)) then
                         
                             Me%TICOEF3(i,j,k) = Me%TICOEF3(i,j,k)           +           &
                                                 Flow * DT_V * Me%ExternalVar%DischConc(n)  
