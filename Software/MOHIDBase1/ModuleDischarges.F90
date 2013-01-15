@@ -154,8 +154,6 @@ Module ModuleDischarges
         real                                    :: scalar         = FillValueReal
         logical                                 :: TimeSerieON
         integer                                 :: TimeSerie      = 0
-        logical                                 :: TimeSerieOnOut 
-        integer                                 :: TimeSerieOut   = 0
         logical                                 :: PropTimeSerie  = .false.
         logical                                 :: FromIntake     = .false.
         real                                    :: IncreaseValue  = FillValueReal 
@@ -213,6 +211,8 @@ Module ModuleDischarges
          logical                                :: UseDischargePathFile             = .false.
          character(len=StringLength)            :: DischargePathFile
          real                                   :: CoordinateX, CoordinateY
+         integer                                :: XColumn, YColumn
+         logical                                :: VariableX, VariableY
          logical                                :: CoordinatesON                    = .false.
          integer                                :: HorizontalType                   = FillValueInt
          logical                                :: CellCorrect                      = .false.
@@ -251,8 +251,6 @@ Module ModuleDischarges
          character(len=PathLength)              :: OutPutFile         
          logical                                :: TimeSerieON
          integer                                :: TimeSerie        = 0
-         logical                                :: TimeSerieOnOut
-         integer                                :: TimeSerieOut     = 0
          logical                                :: UseOriginalValues
          type(T_WaterFlow          )            :: WaterFlow   
          type(T_WaterVelocity      )            :: VelocityFlow
@@ -532,6 +530,9 @@ cd2 :           if (BlockFound) then
 
         !Construct Discharge Velocity values
         call Construct_VelocityValues         (NewDischarge)
+
+        !Construct Discharge Variable Location
+        call Construct_VariableLocation       (NewDischarge)
 
         !Construct Property List
         call Construct_PropertyList           (NewDischarge, ClientNumber)
@@ -1015,8 +1016,6 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
         !External--------------------------------------------------------------
         integer                                             :: flag, STAT_CALL
-        character(len=StringLength), dimension(:), pointer  :: PropertyList
-        character(len=StringLength)                         :: Extension
         !----------------------------------------------------------------------
 
 
@@ -1056,32 +1055,6 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
         end if 
         
-
-        call GetData(NewDischarge%TimeSerieOnOut,                                       &
-                     Me%ObjEnterData,                                                   &
-                     flag,                                                              &
-                     FromFile,                                                          &
-                     keyword      = 'TIME_SERIE',                                       &
-                     default      = .false.,                                            &
-                     ClientModule = 'ModuleDischarges',                                 &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR30'
-
-
-        !Start TimeSerie Input
-        if (NewDischarge%TimeSerieOnOut) then
-            allocate(PropertyList(1))
-            PropertyList(1) = 'flow'
-            Extension       = '.fds'
-            call StartTimeSerie(TimeSerieID         = NewDischarge%TimeSerieOut,        &
-                                ObjTime             = Me%ObjTime,                       &
-                                TimeSerieDataFile   = Me%DataFile,                      &      
-                                PropertyList        = PropertyList,                     &
-                                Extension           = Extension,                        &
-                                ResultFileName      = NewDischarge%ID%Name,             &
-                                STAT                = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR40'
-        end if         
 
         !----------------------------------------------------------------------
 
@@ -1382,6 +1355,56 @@ i3:     if (NewDischarge%ByPass%ON) then
      End Subroutine Construct_FlowValues  
 
     !--------------------------------------------------------------------------
+
+
+     Subroutine Construct_VariableLocation(NewDischarge)
+
+        !Arguments--------------------------------------------------------------
+        type(T_IndividualDischarge), pointer        :: NewDischarge
+
+        !External-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: flag
+
+        !----------------------------------------------------------------------
+
+        if (NewDischarge%TimeSerieON) then
+            !Searches for the X location column (if the discharge as associated an input time serie)
+            call GetData(NewDischarge%Localization%XColumn,                              &
+                         Me%ObjEnterData, flag,                                          &
+                         keyword    = 'X_COLUMN',                                        &
+                         default    = FillValueInt,                                      &
+                         SearchType = FromBlock,                                         &
+                         ClientModule = 'ModuleDischarges',                              &
+                         STAT       = STAT_CALL)
+
+            if (flag == 1) then
+                NewDischarge%Localization%VariableX = .true.            
+            else
+                NewDischarge%Localization%VariableX = .false.            
+            endif
+            
+            !Searches for the Y location column (if the discharge as associated an input time serie)
+            call GetData(NewDischarge%Localization%YColumn,                              &
+                         Me%ObjEnterData, flag,                                          &
+                         keyword    = 'Y_COLUMN',                                        &
+                         default    = FillValueInt,                                      &
+                         SearchType = FromBlock,                                         &
+                         ClientModule = 'ModuleDischarges',                              &
+                         STAT       = STAT_CALL)
+
+            if (flag == 1) then
+                NewDischarge%Localization%VariableY = .true.            
+            else
+                NewDischarge%Localization%VariableY = .false.            
+            endif
+            
+        endif
+
+        !----------------------------------------------------------------------
+
+    end subroutine Construct_VariableLocation
+
 
     !--------------------------------------------------------------------------
 
@@ -1788,7 +1811,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
     subroutine GetDischargesGridLocalization(DischargesID, DischargeIDNumber, Igrid,        &
                                              JGrid, KGrid, IByPass, JByPass, DischVertical, &
                                              KDepth, WaterColumnZ, Bathymetry, OpenPoints3D, &
-                                             CoordinateX, CoordinateY, CoordinatesON, STAT)
+                                             CoordinateX, CoordinateY, CoordinatesON, TimeX, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: DischargesID
@@ -1802,6 +1825,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         
         real,    optional, intent(OUT)                  :: CoordinateX, CoordinateY, Kdepth
         logical, optional, intent(OUT)                  :: CoordinatesON        
+        type (T_Time), optional, intent (IN)            :: TimeX
                 
         integer, optional, intent(OUT)                  :: STAT
 
@@ -1835,12 +1859,26 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                 write(*,*)trim(adjustl(DischargeX%ID%Name))
                 stop 'GetDischargesGridLocalization - ModuleDischarges - ERR01a'
             endif
+            
+            if (DischargeX%Localization%VariableX .and. present(TimeX)) then
+                DischargeX%Localization%CoordinateX  =                                  &
+                    TimeSerieValue(DischargeX%TimeSerie, DischargeX%UseOriginalValues,  &
+                                   TimeX, DischargeX%Localization%XColumn)            
+            endif
+
+            if (DischargeX%Localization%VariableY .and. present(TimeX)) then
+                DischargeX%Localization%CoordinateY  =                                  &
+                    TimeSerieValue(DischargeX%TimeSerie, DischargeX%UseOriginalValues,  &
+                                   TimeX, DischargeX%Localization%YColumn)            
+            endif
 
             if (present(IGrid           )) IGrid              = DischargeX%Localization%GridCoordinates%I
             if (present(JGrid           )) JGrid              = DischargeX%Localization%GridCoordinates%J
+            
 
             if (present(CoordinateX     )) CoordinateX        = DischargeX%Localization%CoordinateX
             if (present(CoordinateY     )) CoordinateY        = DischargeX%Localization%CoordinateY
+
             if (present(CoordinatesON   )) CoordinatesON      = DischargeX%Localization%CoordinatesON
 
             if (present(DischVertical   )) DischVertical      = DischargeX%Localization%DischVertical
@@ -2410,13 +2448,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeIDNumber
-                stop       'GetDischargesGridLocalization - ModuleDischarges - ERR01'
+                stop       'GetDischargesNodeID - ModuleDischarges - ERR01'
             endif
 
             if (DischargeX%Localization%Location2D) then
                 write(*,*)'Discharge location not given as Node ID'
                 write(*,*)trim(adjustl(DischargeX%ID%Name))
-                stop 'GetDischargesGridLocalization - ModuleDischarges - ERR01a'
+                stop 'GetDischargesNodeID - ModuleDischarges - ERR01a'
             endif
 
             NodeID = DischargeX%Localization%NodeID
@@ -2612,15 +2650,11 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         integer                                     :: ready_
         integer                                     :: STAT_
         type(T_IndividualDischarge), pointer        :: DischargeX
-        type(T_Time)                                :: Time1, Time2
-        real                                        :: Value1, Value2, NewValue
         real                                        :: H, C, A
-        logical                                     :: TimeCycle
         integer                                     :: STAT_CALL
         logical                                     :: AssociateIntakeFlowON
         real                                        :: FlowFraction
-        real,  dimension(:), pointer                :: AuxFlow
-        !----------------------------------------------------------------------
+         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
@@ -2659,28 +2693,9 @@ cd31:           if (STAT_CALL/=SUCCESS_) then
 
 cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Variable) then
 
-                call GetTimeSerieValue(DischargeX%TimeSerie, TimeX,                      &
-                                       DischargeX%WaterFlow%FlowColumn, Time1, Value1,   &
-                                       Time2, Value2, TimeCycle, STAT)
 
-                if (TimeCycle) then
-                    NewValue = Value1
-                else
-                    
-                    if(DischargeX%UseOriginalValues)then
-                    
-                        NewValue = Value1
-                        
-                    else
-                
-                        !Interpolates Value for current instant
-                        call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,     &
-                                                    NewValue)
-                    end if
-                    
-                endif
-
-                Flow = NewValue
+                Flow = TimeSerieValue(DischargeX%TimeSerie, DischargeX%UseOriginalValues, &
+                                     TimeX, DischargeX%WaterFlow%FlowColumn)
 
             elseif (DischargeX%DischargeType == FlowOver) then
 
@@ -2741,23 +2756,13 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                     stop 'GetDischargeWaterFlow - ModuleDischarges - ERR03'
                 end if 
                
-
             end if
             
-            
-            if (DischargeX%TimeSerieOnOut) then   
-                allocate(AuxFlow(1))
-                AuxFlow(1) = Flow
-                !Flow 
-                call WriteTimeSerieLine(DischargeX%TimeSerieOut, AuxFlow,               &
-                                    STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'GetDischargeWaterFlow - ModuleDischarges - ERR20'
-                deallocate(AuxFlow)
-            endif
             
             if (present(FlowDistribution)) then
                 Flow = Flow * FlowDistribution
             endif
+
 
             nullify(DischargeX)
 
@@ -2776,8 +2781,50 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
     end subroutine GetDischargeWaterFlow
 
     !--------------------------------------------------------------------------
+    
+    real function TimeSerieValue(TimeSerieID, UseOriginalValues, TimeX, XColumn)
+    
+        !Arguments-------------------------------------------------------------
+        integer,                        intent(IN ) :: TimeSerieID
+        logical,                        intent(IN ) :: UseOriginalValues
+        type(T_Time),                   intent(IN ) :: TimeX
+        integer, optional,              intent(IN ) :: XColumn
 
-    subroutine SetDischargeWaterFlow(DischargesID, DischargeIDNumber,            &
+        !Local-----------------------------------------------------------------
+        type(T_Time)                                :: Time1, Time2
+        real                                        :: Value1, Value2, NewValue
+        logical                                     :: TimeCycle
+        integer                                     :: STAT_CALL
+        !Begin-----------------------------------------------------------------        
+    
+        call GetTimeSerieValue(TimeSerieID, TimeX, XColumn, Time1, Value1,              &
+                               Time2, Value2, TimeCycle, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleDischarges - ERR20'
+
+        if (TimeCycle) then
+            NewValue = Value1
+        else
+            
+            if(UseOriginalValues)then
+            
+                NewValue = Value1
+                
+            else
+        
+                !Interpolates Value for current instant
+                call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,        &
+                                            NewValue)
+            end if
+            
+        endif
+        
+        TimeSerieValue = NewValue
+                
+    end function TimeSerieValue
+
+    !--------------------------------------------------------------------------
+
+    subroutine SetDischargeWaterFlow(DischargesID, DischargeIDNumber,                   &
                                      Flow, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2852,9 +2899,6 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         integer                                     :: ready_         
         integer                                     :: STAT_
         type(T_IndividualDischarge), pointer        :: DischargeX
-        type(T_Time)                                :: Time1, Time2
-        real                                        :: Value1, Value2, NewValue
-        logical                                     :: TimeCycle
         integer                                     :: STAT_CALL
 
         !----------------------------------------------------------------------
@@ -2882,26 +2926,9 @@ cd4 :       if (Present(VelocityU)) then
 
 cd2:            if (DischargeX%VelocityFlow%UVariable) then
 
-                    call GetTimeSerieValue(DischargeX%TimeSerie, TimeX,                      &
-                                           DischargeX%VelocityFlow%UColumn, Time1, Value1,   &
-                                           Time2, Value2, TimeCycle, STAT)
-
-                    if (TimeCycle) then
-                        NewValue = Value1
-                    else
-                        if(DischargeX%UseOriginalValues)then
-                    
-                            NewValue = Value1
-                        
-                        else
-                    
-                            !Interpolates Value for current instant
-                            call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,     &
-                                                        NewValue)
-                        end if
-                    endif
-
-                    VelocityU = NewValue
+                    VelocityU = TimeSerieValue(DischargeX%TimeSerie,                    &
+                                               DischargeX%UseOriginalValues, TimeX,     &
+                                               DischargeX%VelocityFlow%UColumn)
 
                 else
 
@@ -2915,27 +2942,9 @@ cd5 :       if (Present(VelocityV)) then
 
 cd6:            if (DischargeX%VelocityFlow%VVariable) then
 
-                    call GetTimeSerieValue(DischargeX%TimeSerie, TimeX,                      &
-                                           DischargeX%VelocityFlow%VColumn, Time1, Value1,   &
-                                           Time2, Value2, TimeCycle, STAT)
-
-                    if (TimeCycle) then
-                        NewValue = Value1
-                    else
-                        if(DischargeX%UseOriginalValues)then
-                    
-                            NewValue = Value1
-                        
-                        else
-                
-                            !Interpolates Value for current instant
-                            call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,     &
-                                                        NewValue)
-                        end if
-                    endif
-
-                    VelocityV = NewValue
-
+                    VelocityV = TimeSerieValue(DischargeX%TimeSerie,                    &
+                                               DischargeX%UseOriginalValues, TimeX,     &
+                                               DischargeX%VelocityFlow%VColumn)
                 else
                     VelocityV = DischargeX%VelocityFlow%VScalar
 
@@ -3026,9 +3035,6 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
         !Local-----------------------------------------------------------------
         type(T_IndividualDischarge), pointer        :: DischargeX
         type(T_Property),            pointer        :: PropertyX
-        type(T_Time)                                :: Time1, Time2
-        real                                        :: Value1, Value2, NewValue
-        logical                                     :: TimeCycle
         integer                                     :: ready_
         integer                                     :: STAT_
         integer                                     :: STAT_CALL
@@ -3089,27 +3095,9 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
                                                                          
                 if (PropertyX%Variable) then
 
-                    call GetTimeSerieValue(PropertyX%TimeSerie, TimeX,                   &
-                                           PropertyX%ConcColumn, Time1, Value1,          &
-                                           Time2, Value2, TimeCycle, STAT)
-
-                    if (TimeCycle) then
-                        NewValue = Value1
-                    else
-                        if(DischargeX%UseOriginalValues)then
-                    
-                        NewValue = Value1
-                        
-                        else
-                    
-                            !Interpolates Value for current instant
-                            call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,     &
-                                                        NewValue)
-                        end if
-                    endif
-
-                    Concentration = NewValue
-
+                    Concentration = TimeSerieValue(PropertyX%TimeSerie,                 &
+                                                   DischargeX%UseOriginalValues, TimeX, &
+                                                   PropertyX%ConcColumn)
                 else
  
                     Concentration = PropertyX%Scalar
@@ -3653,7 +3641,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                     :: ready_, STAT_            
         type(T_IndividualDischarge), pointer        :: DischargeX, DischargeToKill
-        integer                                     :: nUsers, STAT_CALL
+        integer                                     :: nUsers
 
         !----------------------------------------------------------------------
 
@@ -3681,11 +3669,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if (DischargeToKill%Localization%TrackLocation)  &
                         call UnitsManager (DischargeToKill%Localization%TrackLocationFileUnitNumber, CLOSE_FILE)
                         
-                    if (DischargeToKill%TimeSerieOnOut) then   
-                        call KillTimeSerie(DischargeToKill%TimeSerieOut, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Kill_Discharges - ModuleDischarges - ERR20'
-                    endif
-                    
                     call KillIndividualDischarge(DischargeToKill)                                        
 
                 end do
