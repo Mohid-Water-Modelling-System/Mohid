@@ -120,7 +120,7 @@ Module ModuleHydrodynamic
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,     &
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie,        &
                                        GetTimeSerieValue, WriteTimeSerie,                &
-                                       GetTimeSerieName, KillTimeSerie         
+                                       GetTimeSerieName, WriteTimeSerieLine, KillTimeSerie         
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetBoundaries, GetBoundaryFaces,&
                                        GetExteriorBoundaryFaces, UnGetHorizontalMap
     use ModuleHorizontalGrid,   only : WriteHorizontalGrid, GetComputeZUV,               &
@@ -1027,6 +1027,15 @@ Module ModuleHydrodynamic
         real, dimension(:,:,:), pointer :: Coef
     end type T_Drag
 
+    type T_Scraper
+        type(T_PropertyID)                  :: ID_U, ID_V, ID_W 
+        real,    dimension(:,:,:), pointer  :: VelU, VelV, VelW
+        integer, dimension(:,:,:), pointer  :: Position
+        logical                             :: UOn,  VOn,  WOn
+        real                                :: VelLimit = -1e8
+    end type T_Scraper
+
+
 
     type       T_HydroCoupling                  
          type(T_Time)                           :: NextCompute
@@ -1127,7 +1136,7 @@ Module ModuleHydrodynamic
 
         logical :: Obstacle
         
-        logical :: Scraper
+        logical :: Scraper = .false. 
 
         type (T_Time) :: RAMP_BeginTime
 
@@ -1167,6 +1176,10 @@ Module ModuleHydrodynamic
          logical                                  :: RestartOverwrite
          logical                                  :: Faces
          real                                     :: WaterLevelUnits
+         logical                                  :: TimeSerieDischON = .false. 
+         integer                                  :: DischargesNumber
+         integer, dimension(:),   pointer         :: TimeSerieDischID
+         real,    dimension(:,:), pointer         :: TimeSerieDischProp
     end type T_OutPut
 
     type      T_OutW
@@ -1323,6 +1336,7 @@ Module ModuleHydrodynamic
         type(T_NonHydrostatic) :: NonHydrostatic
         type(T_Generic4D     ) :: Generic4D
         type(T_Drag          ) :: Drag
+        type(T_Scraper       ) :: Scraper
                 
         logical                :: FirstIteration = .true.
 #ifdef _USE_SEQASSIMILATION
@@ -1682,6 +1696,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructMatrixesOutput
 
         if (Me%OutPut%ProfileON) call Construct_Output_Profile
+        
 
         !call External Modules
         call ReadLock_External_Modules
@@ -2349,6 +2364,142 @@ Cov2:       if ( Me%External_Var%ComputeFaces3D_V(I, J, K) == Covered) then
 
     end subroutine ConstructDragCoefficients
 
+    !-----------------------------------------------------------------------------------
+
+    subroutine ConstructScraper
+
+        !Local-----------------------------------------------------------------
+        character(len = StringLength)           :: BeginBlock, EndBlock
+        integer                                 :: STAT_CALL, ClientNumber
+        logical                                 :: BlockFound
+
+        !----------------------------------------------------------------------
+        
+        
+        Me%Scraper%UOn            = .false.
+        Me%Scraper%VOn            = .false.
+        Me%Scraper%WOn            = .false.
+        
+        !call GetData
+
+        call GetWaterPoints3D(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR10'
+
+        BeginBlock = "<begin_scraper_u>"
+        EndBlock   = "<end_scraper_u>"
+        
+        allocate(Me%Scraper%Position(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
+        
+        Me%Scraper%Position(:,:,:) = Me%External_Var%WaterPoints3D(:,:,:)
+
+        !Searches for drag coefficients block
+        call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                             &
+                                     BeginBlock, EndBlock,                                      &
+                                     BlockFound, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR20'
+
+        if (BlockFound) then
+        
+            Me%Scraper%UOn            = .true.
+
+            call ConstructPropertyID  (Me%Scraper%ID_U, Me%ObjEnterData, FromBlock)
+            
+            allocate(Me%Scraper%VelU(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
+
+            !Uncovered cells are set to zero
+            call ConstructFillMatrix  (PropertyID           = Me%Scraper%ID_U,                  &
+                                       EnterDataID          = Me%ObjEnterData,                  &
+                                       TimeID               = Me%ObjTime,                       &
+                                       HorizontalGridID     = Me%ObjHorizontalGrid,             &
+                                       GeometryID           = Me%ObjGeometry,                   &
+                                       ExtractType          = FromBlock,                        &
+                                       PointsToFill3D       = Me%External_Var%WaterPoints3D,    &
+                                       Matrix3D             = Me%Scraper%VelU,                  &
+                                       TypeZUV              = TypeU_,                           &
+                                       FillMatrix           = FillValueReal,                    &             
+                                       STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR30'
+
+            if(.not. Me%Scraper%ID_U%SolutionFromFile)then
+                
+                call KillFillMatrix(Me%Scraper%ID_U%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR40'
+            end if
+
+        else
+
+            write(*,*) 'Block not found'
+            write(*,*) 'Begin = ',trim(BeginBlock)
+            write(*,*) 'End   = ',trim(EndBlock)
+            stop 'ConstructScraper - ModuleHydrodynamic - ERR50'
+
+        endif
+
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR60'
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR70'
+        
+        
+        BeginBlock = "<begin_scraper_v>"
+        EndBlock   = "<end_scraper_v>"
+
+        !Searches for drag coefficients block
+        call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                             &
+                                     BeginBlock, EndBlock,                                      &
+                                     BlockFound, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR80'
+
+        if (BlockFound) then
+        
+            Me%Scraper%VOn            = .true.            
+
+            call ConstructPropertyID  (Me%Scraper%ID_V, Me%ObjEnterData, FromBlock)
+            
+            allocate(Me%Scraper%VelV(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))            
+
+            !Uncovered cells are set to zero
+            call ConstructFillMatrix  (PropertyID           = Me%Scraper%ID_V,                  &
+                                       EnterDataID          = Me%ObjEnterData,                  &
+                                       TimeID               = Me%ObjTime,                       &
+                                       HorizontalGridID     = Me%ObjHorizontalGrid,             &
+                                       GeometryID           = Me%ObjGeometry,                   &
+                                       ExtractType          = FromBlock,                        &
+                                       PointsToFill3D       = Me%External_Var%WaterPoints3D,    &
+                                       Matrix3D             = Me%Scraper%VelV,                  &
+                                       TypeZUV              = TypeV_,                           &
+                                       FillMatrix           = FillValueReal,                    &             
+                                       STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR90'
+
+            if(.not. Me%Scraper%ID_V%SolutionFromFile)then
+                
+                call KillFillMatrix(Me%Scraper%ID_V%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR100'
+            end if
+
+        else
+
+            write(*,*) 'Block not found'
+            write(*,*) 'Begin = ',trim(BeginBlock)
+            write(*,*) 'End   = ',trim(EndBlock)
+            stop 'ConstructScraper - ModuleHydrodynamic - ERR110'
+
+        endif
+
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR120'
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR130'
+        
+        call UnGetMap (Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructScraper - ModuleHydrodynamic - ERR140'
+
+
+    end subroutine ConstructScraper
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -2930,6 +3081,34 @@ ifFla: if (BarotropicRadia == FlatherWindWave_ .or. BarotropicRadia == FlatherLo
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic -ERR90.') 
 
         Me%ComputeOptions%WaterDischarges = WaterDischarges
+        
+        !<BeginKeyword>
+            !Keyword          : TIME_SERIE_DISCHARGE
+            !<BeginDescription>       
+               ! 
+               !Checks out if the user pretends to write a time serie with the discharge flows
+               ! 
+            !<EndDescription>
+            !Type             : Logical
+            !Default          : .false.
+            !File keyword     : IN_DAD3D 
+            !Multiple Options : .true. , .false.
+            !Search Type      : From File
+        !<EndKeyword>
+        
+        if (Me%ComputeOptions%WaterDischarges) then
+
+            call GetData(Me%Output%TimeSerieDischON,                              &
+                         Me%ObjEnterData, iflag,                                  &
+                         keyword    = 'TIME_SERIE_DISCHARGES',                    &
+                         Default    = .false.,                                    &
+                         SearchType = FromFile,                                   &
+                         ClientModule ='ModuleHydrodynamic',                      &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_)                                            &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR92.')
+
+        endif        
 
 
         !<BeginKeyword>
@@ -2954,7 +3133,7 @@ ifFla: if (BarotropicRadia == FlatherWindWave_ .or. BarotropicRadia == FlatherLo
                      ClientModule ='ModuleHydrodynamic',                                 &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                            &
-            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR90.')
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR96.')
 
         Me%ComputeOptions%Residual = Residual
 
@@ -5691,13 +5870,15 @@ cd21:   if (Baroclinic) then
             !Keyword          : SCRAPER
             !<BeginDescription>       
                ! 
-               !Checks if the user want to take in consideration the effect of a scraper
+               !Checks if the user want to parameteriza the influence of an
+               !SCRAPER in the flow, giving a determined a velocity of the scraper
+
                ! 
             !<EndDescription>
             !Type             : logical
-            !Default          : 0 (No OBSTACLE)
+            !Default          : 0 (No SCRAPER)
             !File keyword     : IN_DAD3D 
-            !Multiple Options : 0 (No OBSTACLE, 1(SCRAPER parameterization)
+            !Multiple Options : 0 (No SCRAPER, 1(SCRAPER parameterization)
             !Search Type      : From File
         !<EndKeyword>
 
@@ -5711,7 +5892,6 @@ cd21:   if (Baroclinic) then
 
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1150')
-
 
     End Subroutine Construct_Numerical_Options
 
@@ -6848,6 +7028,7 @@ d1:             do dn = 1, DischargesNumber
                                                        CoordinateX   = CoordinateX,     &
                                                        CoordinateY   = CoordinateY,     & 
                                                        CoordinatesON = CoordinatesON,   &
+                                                       TimeX         = Me%CurrentTime,  &
                                                        STAT          = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR40' 
                     
@@ -6886,6 +7067,7 @@ i3:                 if (SpatialEmission == DischPoint_) then
                                                            DischVertical = DischVertical,   &
                                                            Igrid         = Id,              &
                                                            JGrid         = Jd,              &
+                                                           TimeX         = Me%CurrentTime,  &
                                                            STAT          = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR100'
 
@@ -7011,10 +7193,14 @@ i4:                 if (SpatialEmission /= DischPoint_) then
 
                 call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR230' 
-
+                
             else  i2
                 Me%ObjDischarges = AssociateInstance (mDISCHARGES_, DischargesID)
             endif i2
+            
+            if (Me%OutPut%TimeSerieDischON) then
+                call Construct_Time_Serie_Discharge
+            endif                    
 
         endif i1
 
@@ -7887,8 +8073,7 @@ do17:       do  j=JLB, JUB
 do18:       do  i=ILB, IUB + 1
 
                 !Horizontal Velocity
-                Me%Velocity%Horizontal%V%New(i, j, k) =                     &
-                    Me%Velocity%Horizontal%V%Default
+                Me%Velocity%Horizontal%V%New(i, j, k) = Me%Velocity%Horizontal%V%Default
 
 
 
@@ -7920,7 +8105,7 @@ cd9:            if (Me%ComputeOptions%Residual) then
 
             !Disposes pointer to the Bathymetry
             call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                        &
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR80'
 
 
@@ -7936,37 +8121,37 @@ cd9:            if (Me%ComputeOptions%Residual) then
 
 cd10:   if (Evolution == Read_File_) then
             call GetHydrodynamicFileIOState(InputStateEx = InputStateEx)
-            call StartHydrodynamicFile (Me%ObjHydrodynamicFileIn,           &
-                                        Me%ObjGridData,                   &
-                                        Me%ObjHorizontalGrid,               &
-                                        Me%ObjGeometry,                     &
-                                        Me%ObjMap,                          &
-                                        Me%ObjHorizontalMap,                &
-                                        Me%ObjTime,                         &
-                                        InputStateEx,                                    &
-                                        InitialWaterLevel      =                         &
-                                        Me%WaterLevel%New,                  &
-                                        InitialWaterFluxX      =                         &
-                                        Me%WaterFluxes%X,                   &
-                                        InitialWaterFluxY      =                         &
-                                        Me%WaterFluxes%Y,                   &
-                                        InitialDischarges      =                         &
-                                        Me%WaterFluxes%Discharges,          &
-                                        InitialComputeFacesU3D =                         &
-                                        InitialComputeFacesU3D,                          &
-                                        InitialComputeFacesV3D =                         &
-                                        InitialComputeFacesV3D,                          &
+            call StartHydrodynamicFile (Me%ObjHydrodynamicFileIn,                       &
+                                        Me%ObjGridData,                                 &
+                                        Me%ObjHorizontalGrid,                           &
+                                        Me%ObjGeometry,                                 &
+                                        Me%ObjMap,                                      &
+                                        Me%ObjHorizontalMap,                            &
+                                        Me%ObjTime,                                     &
+                                        InputStateEx,                                   &
+                                        InitialWaterLevel      =                        &
+                                        Me%WaterLevel%New,                              &
+                                        InitialWaterFluxX      =                        &
+                                        Me%WaterFluxes%X,                               &
+                                        InitialWaterFluxY      =                        &
+                                        Me%WaterFluxes%Y,                               &
+                                        InitialDischarges      =                        &
+                                        Me%WaterFluxes%Discharges,                      &
+                                        InitialComputeFacesU3D =                        &
+                                        InitialComputeFacesU3D,                         &
+                                        InitialComputeFacesV3D =                        &
+                                        InitialComputeFacesV3D,                         &
                                         STAT = STAT_CALL)            
 
-             if (STAT_CALL /= SUCCESS_)                                                  &
+             if (STAT_CALL /= SUCCESS_)                                                 &
                 stop 'Subroutine ConstructHydrodynamicProperties; Module ModuleHydrodynamic. ERR90.' 
 
-             call SetComputesFaces3D(Me%ObjMap,                             &
-                                InitialComputeFacesU3D,                                  &
-                                InitialComputeFacesV3D,                                  &
-                                Me%CurrentTime,                             &
+             call SetComputesFaces3D(Me%ObjMap,                                         &
+                                InitialComputeFacesU3D,                                 &
+                                InitialComputeFacesV3D,                                 &
+                                Me%CurrentTime,                                         &
                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'Subroutine ConstructHydrodynamicProperties; Module ModuleHydrodynamic. ERR100.' 
  
             nullify(InitialComputeFacesU3D, InitialComputeFacesV3D)
@@ -7978,6 +8163,12 @@ cd10:   if (Evolution == Read_File_) then
             call ConstructDragCoefficients
 
         end if
+        
+        if (Me%ComputeOptions%Scraper) then        
+        
+            call ConstructScraper
+            
+        endif
         !------------------------------------------------------------------------
 
     end subroutine ConstructHydrodynamicProperties
@@ -9083,7 +9274,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         PropertyList(6) = trim(GetPropertyName (WaterLevel_))
         PropertyList(7) = 'OpenPoint'
 
-        do i=1,6
+        do i=1,nProperties
             do j=1,len_trim(PropertyList(i))
                 if (PropertyList(i)(j:j)==' ') PropertyList(i)(j:j)='_'
             enddo
@@ -9185,6 +9376,89 @@ i1:         if (CoordON) then
     
         
     end subroutine Construct_Time_Serie
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine Construct_Time_Serie_Discharge
+
+        !Arguments-------------------------------------------------------------
+
+        !External--------------------------------------------------------------
+        character(len=StringLength), dimension(:), pointer  :: PropertyList
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: nProperties
+        integer                                             :: STAT_CALL
+        integer                                             :: iflag, dis, i, j
+        character(len=PathLength)                           :: TimeSerieLocationFile
+        character(len=StringLength)                         :: Extension, DischargeName
+
+        !Begin-----------------------------------------------------------------
+
+
+        call GetDischargesNumber(Me%ObjDischarges, Me%OutPut%DischargesNumber, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_)stop 'Construct_Time_Serie_Discharge - ModuleHydrodynamic - ERR10'
+
+        allocate(Me%OutPut%TimeSerieDischID(Me%OutPut%DischargesNumber))
+        
+        Me%OutPut%TimeSerieDischID(:) = 0
+        
+        nProperties = 4 !1 - flow, 2- Velocity U; 3 - Velocity V; 4 - Velocity W
+        
+        allocate(Me%OutPut%TimeSerieDischProp(1:Me%OutPut%DischargesNumber,1:nProperties))
+        
+        Me%OutPut%TimeSerieDischProp(:,:) = FillValueReal
+
+        !Allocates PropertyList
+        allocate(PropertyList(nProperties), STAT = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie_Discharge - Hydrodynamic - ERR20")
+
+        !Fills up PropertyList
+        PropertyList(1) = "water_flux"
+        PropertyList(2) = trim(GetPropertyName (VelocityU_      ))
+        PropertyList(3) = trim(GetPropertyName (VelocityV_      ))
+        PropertyList(4) = trim(GetPropertyName (VelocityW_      ))
+
+        do i=1,nProperties
+            do j=1,len_trim(PropertyList(i))
+                if (PropertyList(i)(j:j)==' ') PropertyList(i)(j:j)='_'
+            enddo
+        enddo
+  
+       Extension       = '.fds'
+
+       call GetData(TimeSerieLocationFile,                                              &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'TIME_SERIE_LOCATION',                              &
+                     ClientModule = 'ModuleHydrodynamic',                               &
+                     Default      = Me%Files%ConstructData,                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_Time_Serie_Discharge - Hydrodynamic - ERR30'         
+
+        do dis = 1, Me%OutPut%DischargesNumber
+        
+            call GetDischargesIDName (Me%ObjDischarges, dis, DischargeName, STAT = STAT_CALL)
+        
+            call StartTimeSerie(TimeSerieID         = Me%OutPut%TimeSerieDischID(dis),  &
+                                ObjTime             = Me%ObjTime,                       &
+                                TimeSerieDataFile   = TimeSerieLocationFile,            &
+                                PropertyList        = PropertyList,                     &
+                                Extension           = Extension,                        &
+                                ResultFileName      = "hydro_"//trim(DischargeName),    &
+                                STAT                = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie_Discharge - Hydrodynamic - ERR40'
+        
+        enddo
+        !----------------------------------------------------------------------
+        
+        
+    end subroutine Construct_Time_Serie_Discharge
 
     !--------------------------------------------------------------------------
 
@@ -22074,7 +22348,7 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
             !               FCoef_2D, TiCoef_2D, WaterLevel_New,                          &
             !               Me%VECG_2D, Me%VECW_2D)
             !griflet: new call
-            call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, Me%THOMAS2D, WaterLevel_New)
+            call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, Me%THOMAS2D, WaterLevel_New, Me%ModelName)
 
         else
 
@@ -27329,7 +27603,7 @@ cd3:                   if (Manning) then
             call Modify_ObstacleDrag
             
         !Effect of a scraper in a settling tank
-        if (Me%ComputeOptions%Scraper)                                         &
+        if (Me%ComputeOptions%Scraper)                                          &
             call Modify_ScraperEffect           
 
         !Adds a force that relax the velocity field to a reference field
@@ -30630,6 +30904,7 @@ do1:    do DischargeID = 1, DischargesNumber
                                                WaterColumnZ  = Me%External_Var%Watercolumn,&
                                                Bathymetry    = Bathymetry,              &
                                                OpenPoints3D  = Me%External_Var%OpenPoints3D,&
+                                               TimeX         = Me%CurrentTime,          &
                                                STAT = STAT_CALL)   
 
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR30'
@@ -30723,6 +30998,16 @@ i2:             if      (FlowDistribution == DischByCell_       ) then
             if (MonitorPerformance) then
                 call StartWatch ("ModuleHydrodynamic", "ModifyMomentumDischarge")
             endif
+            
+
+            if (Me%OutPut%TimeSerieDischON) then
+                if (dj==1) then
+                    Me%OutPut%TimeSerieDischProp(DischargeID,2) = 0.
+                else
+                    Me%OutPut%TimeSerieDischProp(DischargeID,3) = 0.
+                endif                    
+            endif
+ 
                 
             !$OMP PARALLEL PRIVATE(k,AuxFlowK,MomentumDischarge,SectionHeight)
             
@@ -30832,7 +31117,8 @@ dk:             do k = kmin,kmax
                         endif 
 
                         Horizontal_Transport(iNorth, jEast, k) =                                 &
-                            Horizontal_Transport(iNorth, jEast, k)   +   MomentumDischarge      
+                            Horizontal_Transport(iNorth, jEast, k)   +   MomentumDischarge   
+                            
                             
                     else if (abs(MomentumDischarge) > AllmostZero) then
                         !!! $OMP CRITICAL (MMD1_WARN01)
@@ -30840,6 +31126,16 @@ dk:             do k = kmin,kmax
                         write(*,*) 'WARNING_ - ModifyMomentumDischarge - ModuleHydrodynamic - WARN01'
                         !!! $OMP END CRITICAL (MMD1_WARN01)
                     endif 
+                    
+                    if (Me%OutPut%TimeSerieDischON) then
+                        if (dj==1) then
+                            Me%OutPut%TimeSerieDischProp(DischargeID,2) = Me%OutPut%TimeSerieDischProp(DischargeID,2) + &
+                                                                          MomentumDischarge
+                        else
+                            Me%OutPut%TimeSerieDischProp(DischargeID,3) = Me%OutPut%TimeSerieDischProp(DischargeID,3) + &
+                                                                          MomentumDischarge
+                        endif                    
+                    endif                    
 
                 enddo dk
                 !$OMP END DO
@@ -30850,6 +31146,24 @@ dk:             do k = kmin,kmax
             if (MonitorPerformance) then
                 call StopWatch ("ModuleHydrodynamic", "ModifyMomentumDischarge")
             endif
+            
+            if (Me%OutPut%TimeSerieDischON) then
+                if (dj==1) then
+                    if (Me%OutPut%TimeSerieDischProp(DischargeID,1) /=0) then
+                        Me%OutPut%TimeSerieDischProp(DischargeID,2) = Me%OutPut%TimeSerieDischProp(DischargeID,2)/ &
+                                                                      Me%OutPut%TimeSerieDischProp(DischargeID,1)
+                    else
+                        Me%OutPut%TimeSerieDischProp(DischargeID,2) = 0.
+                    endif                                                                       
+                else
+                   if (Me%OutPut%TimeSerieDischProp(DischargeID,1) /=0) then
+                        Me%OutPut%TimeSerieDischProp(DischargeID,3) = Me%OutPut%TimeSerieDischProp(DischargeID,3)/ &
+                                                                      Me%OutPut%TimeSerieDischProp(DischargeID,1)
+                    else
+                        Me%OutPut%TimeSerieDischProp(DischargeID,3) = 0.
+                    endif   
+                endif                    
+            endif            
 
             if (nCells>1) deallocate(DistributionCoef)
 
@@ -30889,16 +31203,15 @@ dk:             do k = kmin,kmax
     subroutine Modify_ScraperEffect
         
         !Local---------------------------------------------------------------------
+        real                                :: VelScraper
         integer                             :: IUB, ILB, JUB, JLB, KUB, KLB, kbottom
-        integer                             :: di, dj, i, j, k
-        integer                             :: JL, JXB
-        real                                :: T, Period, VelScraperX, aux, VelScraper
+        integer                             :: di, dj, i, j, k, STAT_CALL
         !$ integer                          :: CHUNK
 
         !Begin---------------------------------------------------------------------
 
         if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "Modify_ObstacleDrag")
+            call StartWatch ("ModuleHydrodynamic", "Modify_ScraperEffect")
         endif
 
         IUB = Me%WorkSize%IUB
@@ -30910,6 +31223,26 @@ dk:             do k = kmin,kmax
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
+        
+        if (Me%Scraper%ID_U%SolutionFromFile .and. dj == 1) then
+
+            call ModifyFillMatrix(FillMatrixID      = Me%Scraper%ID_U%ObjFillMatrix,        &
+                                  Matrix3D          = Me%Scraper%VelU,                      &
+                                  PointsToFill3D    = Me%External_Var%WaterPoints3D,        &
+                                  STAT              = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_) stop 'Modify_ScraperEffect - ModuleHydrodynamic - ERR10'
+
+        endif
+                
+        if (Me%Scraper%ID_V%SolutionFromFile .and. dj == 0) then
+
+            call ModifyFillMatrix(FillMatrixID      = Me%Scraper%ID_V%ObjFillMatrix,        &
+                                  Matrix3D          = Me%Scraper%VelV,                      &
+                                  PointsToFill3D    = Me%External_Var%WaterPoints3D,        &
+                                  STAT              = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_) stop 'Modify_ScraperEffect - ModuleHydrodynamic - ERR20'
+
+        endif
 
         
         if(.not.(associated(Me%Forces%Scraper_Aceleration))) then
@@ -30922,60 +31255,35 @@ dk:             do k = kmin,kmax
         
         Me%Forces%Scraper_Aceleration(:,:,:) = 0.                             
         
-        if (dj == 1) then                   
+        Me%Scraper%Position(:,:,:) = Me%External_Var%WaterPoints3D(:,:,:)
         
-            JL           = 132
-            T           = Me%CurrentTime - Me%BeginTime
-            Period      = 1080 
-            VelScraperX = real(JL) * 0.15 / Period
-            aux         = sin(T/Period*Pi)                        
-            
-            JXB         = int((T/Period - int(T/Period)) * JL)
 
         !$ CHUNK = CHUNK_J(JLB, JUB)
 
         !griflet: new simple parallelization
-        !$OMP PARALLEL PRIVATE(i,j,k,kbottom,VelScraper)
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:    do j = JLB, JUB
 do2:    do i = ILB, IUB
 
 
-            if (Me%External_Var%ComputeFaces3D_UV(I, J, KUB) == Covered) then 
+            if (Me%External_Var%WaterPoints3D(I, J, KUB) == WaterPoint) then 
 
 
-                kbottom = Me%External_Var%KFloor_UV(I, J)
+                kbottom = Me%External_Var%KFloor_Z(I, J)
                 
 do3:            do k = kbottom, KUB
 
-                    VelScraper = FillValueReal
-
-                    if (J==JXB + 3) then
-                    
-                        if (K>=24 .and. K<= 25) then
-                            if (aux > 0) then
-                                VelScraper  = VelScraperX
-                            endif
-                        endif  
-                        
-                    endif
-                    
-                    if (J==JL-JXB+3) then                         
-                        
-                        if (K>=28 .and. K<= 29) then
-                            if (aux <= 0) then
-                                VelScraper  = - VelScraperX
-                            endif
-                        endif                  
-
-                    endif        
-                    
-                    if (VelScraper > FillValueReal) then
-
-                        ![m/s2]              =    [m/s] / [s]
-                        Me%Forces%Scraper_Aceleration(i, j, k) =                        &
-                            (VelScraper - Me%Velocity%Horizontal%UV%New(I,J,K)) / Me%Velocity%DT
-
+                    if (dj == 1) then
+                        if (Me%Scraper%VelU(i, j  , k) > Me%Scraper%VelLimit .and. &
+                            Me%Scraper%VelU(i, j+1, k) > Me%Scraper%VelLimit) then
+                            Me%Scraper%Position(i,j,k) = 0
+                        endif                            
+                    else                        
+                        if (Me%Scraper%VelV(i,   j, k) > Me%Scraper%VelLimit .and. &
+                            Me%Scraper%VelV(i+1, j, k) > Me%Scraper%VelLimit) then
+                            Me%Scraper%Position(i,j,k) = 0
+                        endif
                     endif
                     
                 enddo do3
@@ -30986,11 +31294,49 @@ do3:            do k = kbottom, KUB
         enddo do1
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+
+        !griflet: new simple parallelization
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom,VelScraper)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+do4:    do j = JLB, JUB
+do5:    do i = ILB, IUB
+
+
+            if (Me%External_Var%ComputeFaces3D_UV(I, J, KUB) == Covered) then 
+
+
+                kbottom = Me%External_Var%KFloor_UV(I, J)
+                
+do6:            do k = kbottom, KUB
+
+                    if (dj == 1) then
+                        VelScraper = Me%Scraper%VelU(i, j, k)
+                    else                        
+                        VelScraper = Me%Scraper%VelV(i, j, k)
+                    endif
+                    
+                    if (VelScraper > Me%Scraper%VelLimit) then
+                    
+                        ![m/s2]              =    [m/s] / [s]
+                        Me%Forces%Scraper_Aceleration(i, j, k) =                        &
+                            (VelScraper - Me%Velocity%Horizontal%UV%New(I,J,K)) / Me%Velocity%DT
+
+                    endif
+                    
+                enddo do6
+
+            endif
+
+        enddo do5
+        enddo do4
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
-        endif
 
         if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "Modify_ObstacleDrag")
+            call StopWatch ("ModuleHydrodynamic", "Modify_ScraperEffect")
         endif
 
     end subroutine Modify_ScraperEffect  
@@ -37794,7 +38140,7 @@ dok:            do  k = kbottom, KUB
                         AuxExplicit  = AuxExplicit  + DT_Velocity * Area_UV(I, J, K)   *     &
                                                       Me%Forces%ObstacleDrag_Aceleration(I, J, K) 
 
-                    if(Me%ComputeOptions%Scraper)                                       &
+                    if(Me%ComputeOptions%Scraper)                                            &
                         ![m^3/s]     = [m^3/s]      +     [s]     * [m^2]  * [m/s^2]
                         AuxExplicit  = AuxExplicit  + DT_Velocity * Area_UV(I, J, K)   *     &
                                                       Me%Forces%Scraper_Aceleration(I, J, K) 
@@ -38478,6 +38824,8 @@ subroutine ModifyWaterDischarges
         real,    dimension(:    ), pointer :: DistributionCoef
         integer, dimension(:    ), pointer :: VectorI, VectorJ, VectorK
         real                               :: AuxFlowIJ, SectionHeight
+        real                               :: CoordinateX, CoordinateY
+        logical                            :: CoordinatesON
         integer                            :: nCells, n
         integer                            :: FlowDistribution 
 
@@ -38533,8 +38881,20 @@ do1:        do DischargeID = 1, DischargesNumber
                                                    WaterColumnZ  = WaterColumnZ,        &
                                                    Bathymetry    = Bathymetry,          &
                                                    OpenPoints3D  = Me%External_Var%OpenPoints3D,&
+                                                   CoordinateX   = CoordinateX,         &
+                                                   CoordinateY   = CoordinateY,         & 
+                                                   CoordinatesON = CoordinatesON,       &
+                                                   TimeX         = Me%CurrentTime,      &
                                                    STAT          = STAT_CALL)   
                 if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR30'
+            
+                if (CoordinatesON) then
+                    call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, I, J, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR40'
+
+                    call CorrectsCellsDischarges(Me%ObjDischarges, DischargeID, I, J, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR45'                
+                endif                        
 
                 !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
                 call GetByPassON(Me%ObjDischarges, DischargeID, ByPassON, STAT = STAT_CALL)
@@ -38578,8 +38938,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 endif i1
 
                 AuxFlowIJ = DischargeFlow
+                
+                if (Me%OutPut%TimeSerieDischON) then
+                    Me%OutPut%TimeSerieDischProp(DischargeID,1) = 0.
+                endif
 
  dn:            do n=1, nCells
+ 
                     if (nCells > 1) then
                         i         = VectorI(n)
                         j         = VectorJ(n)
@@ -38630,6 +38995,10 @@ dk:                 do k=kmin, kmax
                         Me%WaterFluxes%Discharges(i, j, k) =                                &
                             Me%WaterFluxes%Discharges(i, j, k) + AuxFlowK
 
+                        if (Me%OutPut%TimeSerieDischON) then
+                            Me%OutPut%TimeSerieDischProp(DischargeID,1) = Me%OutPut%TimeSerieDischProp(DischargeID,1) + AuxFlowK
+                        endif
+ 
                     enddo dk
 
                 enddo dn
@@ -38746,8 +39115,9 @@ do5:            do i = ILB, IUB
 
 
         !Local-----------------------------------------------------------------
+        real,  dimension(:), pointer        :: AuxFlow
         logical                             :: OutPutFileOK, OutPutSurfaceFileOK
-        integer                             :: NextOutPut, STAT_CALL, iW
+        integer                             :: NextOutPut, STAT_CALL, iW, dis
         real                                :: DT_Model
         real                                :: Year, Month, Day, Hour, Minute, Second
 
@@ -38914,6 +39284,21 @@ do5:            do i = ILB, IUB
 
         end if         
         !! $OMP END PARALLEL SECTIONS
+
+        if (Me%OutPut%TimeSerieDischON) then
+            do dis = 1, Me%OutPut%DischargesNumber
+   
+                allocate(AuxFlow(4))
+                
+                AuxFlow(1:4) = Me%OutPut%TimeSerieDischProp(dis,1:4)
+                
+                call WriteTimeSerieLine(Me%OutPut%TimeSerieDischID(dis), AuxFlow,  STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Hydrodynamic_OutPut - ModuleHydrodynamic - ERR10'
+                
+                deallocate(AuxFlow)
+                
+            enddo    
+        endif              
                 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Hydrodynamic_OutPut")
 
@@ -39672,25 +40057,32 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
 
 
         !Writes SZZ
-        call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                     &
+        call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                        &
                              WorkJUB, WorkKLB-1, WorkKUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR50'
 
-        call HDF5WriteData  (ObjHDF5, "/Grid/VerticalZ", "Vertical",                 &
+        call HDF5WriteData  (ObjHDF5, "/Grid/VerticalZ", "Vertical",                    &
                              "m", Array3D = SZZ, OutputNumber = Index, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR60'
 
 
         !Writes OpenPoints
-        call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                              &
+        call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                                 &
                              WorkJLB, WorkJUB, WorkKLB, WorkKUB,                        &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR70'
 
-        call HDF5WriteData  (ObjHDF5, "/Grid/OpenPoints", "OpenPoints",              &
+        call HDF5WriteData  (ObjHDF5, "/Grid/OpenPoints", "OpenPoints",                 &
                              "-", Array3D = OpenPoints3D, OutputNumber = Index,         &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR80'
+        
+        if (Me%ComputeOptions%Scraper) then
+            call HDF5WriteData  (ObjHDF5, "/Grid/ScraperPosition", "ScraperPosition",      &
+                                 "-", Array3D = Me%Scraper%Position, OutputNumber = Index, &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR90'
+        endif
 
         !Writes Waterlevel
 
@@ -39705,7 +40097,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             AuxChar = 'm'
         endif
 
-        call HDF5WriteData  (ObjHDF5,                                                &
+        call HDF5WriteData  (ObjHDF5,                                                   &
                              "/Results/"//trim(GetPropertyName (WaterLevel_)),          &
                              trim(GetPropertyName (WaterLevel_)), trim(AuxChar),        &
                              Array2D = Me%OutPut%Aux2D,                                 &
@@ -41532,7 +41924,7 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
         !Arguments------------------------------------------------------------
 
         !Local----------------------------------------------------------------
-        integer :: STAT_CALL, nUsers
+        integer :: STAT_CALL, nUsers, dis
 
         !Begin----------------------------------------------------------------
 
@@ -41546,6 +41938,21 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
                 if (STAT_CALL /= SUCCESS_)                                               &
                     stop 'Subroutine Kill_Sub_Modules; Module ModuleHydrodynamic. ERR01.'  
+                    
+       
+                if (Me%OutPut%TimeSerieDischON) then
+                    do dis = 1, Me%OutPut%DischargesNumber
+                        
+                        call KillTimeSerie(TimeSerieID         = Me%OutPut%TimeSerieDischID(dis), &
+                                             STAT              = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Kill_Sub_Modules - Hydrodynamic - ERR40'
+                        
+                    enddo                    
+                    
+                    deallocate(Me%OutPut%TimeSerieDischProp)
+                    deallocate(Me%OutPut%TimeSerieDischID)                    
+                    
+                endif                    
 
             else if (nUsers > 1) then
 
@@ -42764,7 +43171,30 @@ ic1:    if (Me%CyclicBoundary%ON) then
         if(Me%ComputeOptions%Scraper)then
             
             deallocate (Me%Forces%Scraper_Aceleration, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR110.' 
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR120.' 
+            
+            deallocate (Me%Scraper%Position, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR125.' 
+            
+            if (Me%Scraper%UOn) deallocate(Me%Scraper%VelU)            
+            
+            if (Me%Scraper%VOn) deallocate(Me%Scraper%VelV)
+            
+            if(Me%Scraper%ID_U%SolutionFromFile)then
+                call KillFillMatrix(Me%Scraper%ID_U%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR130.' 
+            endif
+            
+            
+            if(Me%Scraper%ID_V%SolutionFromFile)then
+                call KillFillMatrix(Me%Scraper%ID_V%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR140.' 
+            endif
+
+!            if(Me%Scraper%ID_W%SolutionFromFile)then
+!                call KillFillMatrix(Me%Scraper%ID_W%ObjFillMatrix, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR150.' 
+!            endif
 
 
         end if        
