@@ -245,6 +245,7 @@ Module ModuleFillMatrix
         logical                                     :: InterpolateValues
         logical                                     :: AccumulateValues
         logical                                     :: UseOriginalValues
+        logical                                     :: PreviousInstantValues
         
         logical                                     :: Backtracking         = .false.
         
@@ -910,6 +911,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%InterpolateValues = .true.     
         endif
         
+
         !When to shut down DT?
         call GetData(Me%MinForDTDecrease, Me%ObjEnterData,  iflag,                      &
                      SearchType     = ExtractType,                                      &
@@ -918,7 +920,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule   = 'ModuleFillMatrix',                               &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR150'
+        
+        !Assumes the last instant value to avoid linear interpolation
+        call GetData(Me%PreviousInstantValues, Me%ObjEnterData,  iflag,                 &
+                     SearchType     = ExtractType,                                      &
+                     keyword        = 'PREVIOUS_INSTANT_VALUES',                        &
+                     default        = .false.,                                          &
+                     ClientModule   = 'ModuleFillMatrix',                               &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR155'
 
+        
 
         !Fill Matrix with default Value
         if (Me%Dim == Dim2D) then
@@ -3082,7 +3094,7 @@ i4:         if(Me%Dim == Dim2D)then
                 enddo   
                                 
                 if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
-
+                
                     !Interpolates the two matrixes in time
                     call InterpolateMatrix2DInTime(ActualTime       = Now,                         &
                                                    Size             = Me%WorkSize2D,               &
@@ -3092,7 +3104,7 @@ i4:         if(Me%Dim == Dim2D)then
                                                    Matrix2          = Me%HDF%NextField2D,          &
                                                    MatrixOut        = Me%Matrix2D,                 &
                                                    PointsToFill2D   = PointsToFill2D)
-                                                           
+                                                                              
                 else
 
                     Me%Matrix2D(:,:)  = Me%HDF%PreviousField2D(:,:)
@@ -3133,16 +3145,23 @@ i4:         if(Me%Dim == Dim2D)then
 
 
                 if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
+                
+                   if (Me%PreviousInstantValues) then
+                    
+                        Me%Matrix3D = Me%HDF%PreviousField3D
+  
+                    else                
 
-                    call InterpolateMatrix3DInTime(ActualTime       = Now,                         &
-                                                   Size             = Me%WorkSize3D,               &
-                                                   Time1            = Me%HDF%PreviousTime,         &
-                                                   Matrix1          = Me%HDF%PreviousField3D,      &
-                                                   Time2            = Me%HDF%NextTime,             &
-                                                   Matrix2          = Me%HDF%NextField3D,          &
-                                                   MatrixOut        = Me%Matrix3D,                 &
-                                                   PointsToFill3D   = PointsToFill3D)
-
+                        call InterpolateMatrix3DInTime(ActualTime       = Now,                         &
+                                                       Size             = Me%WorkSize3D,               &
+                                                       Time1            = Me%HDF%PreviousTime,         &
+                                                       Matrix1          = Me%HDF%PreviousField3D,      &
+                                                       Time2            = Me%HDF%NextTime,             &
+                                                       Matrix2          = Me%HDF%NextField3D,          &
+                                                       MatrixOut        = Me%Matrix3D,                 &
+                                                       PointsToFill3D   = PointsToFill3D)
+                    endif
+                    
                 else
 
                     !Prev and next are equal (last instant?)
@@ -3926,16 +3945,22 @@ i4:         if(Me%Dim == Dim2D)then
         end if
 
         if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
+                                            
+            if (Me%PreviousInstantValues) then
+            
+                Me%Matrix3D = Me%HDF%PreviousField3D
 
-            call InterpolateMatrix3DInTime(ActualTime       = Now,                         &
-                                           Size             = Me%WorkSize3D,               &
-                                           Time1            = Me%HDF%PreviousTime,         &
-                                           Matrix1          = Me%HDF%PreviousField3D,      &
-                                           Time2            = Me%HDF%NextTime,             &
-                                           Matrix2          = Me%HDF%NextField3D,          &
-                                           MatrixOut        = Me%Matrix3D,                 &
-                                           PointsToFill3D   = PointsToFill3D)
+            else             
 
+                call InterpolateMatrix3DInTime(ActualTime       = Now,                         &
+                                               Size             = Me%WorkSize3D,               &
+                                               Time1            = Me%HDF%PreviousTime,         &
+                                               Matrix1          = Me%HDF%PreviousField3D,      &
+                                               Time2            = Me%HDF%NextTime,             &
+                                               Matrix2          = Me%HDF%NextField3D,          &
+                                               MatrixOut        = Me%Matrix3D,                 &
+                                               PointsToFill3D   = PointsToFill3D)
+            endif
         else
             
             !Prev and next are equal (last instant?)
