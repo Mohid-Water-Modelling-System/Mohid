@@ -7448,7 +7448,8 @@ subroutine BenthicEcology_Processes
                                ! 2. change seagrassesleaves%biomass equal to to the value of PropertyX%MassInKg/area*1000.
                                ! 3. unget the seagrassesleaves%biomass
      
-                                        call GetSeagrassArray2D(Me%ObjWaterProperties, Biomass, ArrayID=SeagrassesLeaves_ , STAT = STAT_CALL)
+                                        call GetSeagrassArray2D(Me%ObjWaterProperties, Biomass, &
+                                                                ArrayID=SeagrassesLeaves_ , STAT = STAT_CALL)
                                         if (STAT_CALL .NE. SUCCESS_)                                            &
                                         stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
 
@@ -7470,7 +7471,8 @@ subroutine BenthicEcology_Processes
                            
                            elseif(PropertyX%ID%IDNumber==SeagrassesRoots_) then
                                          
-                                        call GetRootsArray2D(Me%ObjSedimentProperties, Biomass, ArrayID=SeagrassesRoots_ , STAT = STAT_CALL)
+                                        call GetRootsArray2D(Me%ObjSedimentProperties, Biomass, &
+                                                              ArrayID=SeagrassesRoots_ , STAT = STAT_CALL)
                                         if (STAT_CALL .NE. SUCCESS_)                                            &
                                         stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
 
