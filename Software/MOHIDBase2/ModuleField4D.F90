@@ -52,13 +52,13 @@ Module ModuleField4D
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
                                        HDF5WriteData, HDF5FlushMemory, HDF5WriteData,   &
-                                       GetHDF5GroupExist
+                                       GetHDF5GroupExist, GetHDF5DataSetExist
 #ifndef _NO_NETCDF                                       
     ! Manages NetCDF files
     use ModuleNetCDF,           only : GetNCDFFileAccess, ConstructNETCDF,              &
                                        NETCDFReadGrid2D, NETCDFReadTime,                &
                                        NETCDFGetDimensions, NETCDFReadData,             &
-                                       NETCDFReadVert
+                                       NETCDFReadVert, NETCDFWithVert
 #ifdef _USE_NIX
     use netcdf
 #else
@@ -123,6 +123,7 @@ Module ModuleField4D
 
     integer, parameter                              :: Dim2D            = 2
     integer, parameter                              :: Dim3D            = 3
+    integer, parameter                              :: DimUnknown       = -99
     
 
     !Variable from file
@@ -1520,6 +1521,20 @@ wwd1:        if (Me%WindowWithData) then
             Me%File%DefaultNames%bat        = 'Bathymetry'
             Me%File%DefaultNames%lon_stag   = 'Longitude'
             Me%File%DefaultNames%lat_stag   = 'Latitude'
+            
+            
+            if (Me%MaskDim == DimUnknown) then
+                call GetHDF5DataSetExist (Me%File%Obj, 'WaterPoints3D', exist, STAT= STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR45'
+                
+                if (exist) then
+                    Me%MaskDim = Dim3D
+                else
+                    Me%MaskDim = Dim2D
+                endif
+                
+            endif                
+            
             if (Me%MaskDim == Dim3D) then
                 Me%File%DefaultNames%mask   = 'WaterPoints3D'
             else
@@ -1542,6 +1557,16 @@ wwd1:        if (Me%WindowWithData) then
             call ConstructNETCDF(NCDFID = Me%File%Obj, FileName = trim(Me%File%FileName),&
                                  Access = NCDF_READ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR50'
+            
+            if (Me%MaskDim == DimUnknown) then
+               
+                if (NETCDFWithVert(Me%File%Obj)) then
+                    Me%MaskDim = Dim3D
+                else
+                    Me%MaskDim = Dim2D
+                endif
+                
+            endif             
             
             call NETCDFReadTime(NCDFID = Me%File%Obj, InitialDate = InitialDate,        &
                                 nInstants = Me%File%NumberOfInstants,                   &
@@ -2872,6 +2897,7 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         logical,    dimension(:),   pointer, intent(INOUT)  :: NoData
         !Local----------------------------------------------------------------
         real                                            :: ValueSW, ValueNW, ValueSE, ValueNE, ValueN, ValueS
+        integer                                         :: MaskSW, MaskNW, MaskSE, MaskNE, MaskN, MaskS       
         real                                            :: X_W, X_E, Xv, Y_S, Y_N, Yv, PercI, PercJ  
         integer                                         :: STAT_CALL, nPoints, nP
         integer                                         :: jW, jE, iS, iN, i, j
@@ -2938,20 +2964,86 @@ dnP:    do nP = 1,nPoints
                 Y_S = 0.                
                 Y_N = 1.
                 
-                ValueSW = Me%Matrix2D(iS, jW)
-
-                ValueSE = Me%Matrix2D(iS, jE)
-
-                ValueNW = Me%Matrix2D(iN, jW)
-
+                ValueSW     = Me%Matrix2D(iS, jW)
+                ValueSE     = Me%Matrix2D(iS, jE)
+                ValueNW     = Me%Matrix2D(iN, jW)
                 ValueNE     = Me%Matrix2D(iN, jE)
+                
+                MaskSW      = Me%ExternalVar%Waterpoints2D(iS, jW)
+                MaskSE      = Me%ExternalVar%Waterpoints2D(iS, jE)
+                MaskNW      = Me%ExternalVar%Waterpoints2D(iN, jW)
+                MaskNE      = Me%ExternalVar%Waterpoints2D(iN, jE)
+                
+
+                if (ValueSW < FillValueReal/1e4) ValueSW = 0.
+                if (ValueSE < FillValueReal/1e4) ValueSE = 0.                
+                if (ValueNW < FillValueReal/1e4) ValueNW = 0.                
+                if (ValueNE < FillValueReal/1e4) ValueNE = 0.    
+                
+                if (Me%Extrapolate) then
+                
+                    ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
+                    ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                    
+                    Field(nP)   = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
+
+                    if (abs(Field(nP)) > 0.) then
+                        NoData(nP) = .false. 
+                    else
+                        NoData(nP) = .true. 
+                    endif                    
+                    
+                else
+                    if (MaskNW == WaterPoint .and. MaskNE == WaterPoint) then
+                        ValueN = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
+                        MaskN  = 1
+                    elseif (MaskNW == WaterPoint) then
+                        ValueN = ValueNW
+                        MaskN  = 1
+                    elseif (MaskNE == WaterPoint) then
+                        ValueN = ValueNE
+                        MaskN  = 1
+                    else
+                        MaskN  = 0
+                    endif
+
+                    if (MaskSW == WaterPoint .and. MaskSE == WaterPoint) then
+                        ValueS = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                        MaskS  = 1
+                    elseif (MaskSW == WaterPoint) then
+                        ValueS = ValueSW
+                        MaskS  = 1
+                    elseif (MaskSE == WaterPoint) then
+                        ValueS = ValueSE
+                        MaskS  = 1
+                    else
+                        MaskS  = 0
+                    endif
+                    
+                    NoData(nP) = .false. 
+                    
+                    if (MaskN == WaterPoint .and. MaskS == WaterPoint) then
+                        Field(nP) = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
+                    else if (MaskN == WaterPoint) then
+                        Field(nP) = ValueN
+                    else if (MaskS == WaterPoint) then
+                        Field(nP) = ValueS
+                    else
+                        Field(nP)  = FillValueReal
+                        NoData(nP) = .true. 
+                    endif
+                    
+                endif                
+                
+                !ValueSW = Me%Matrix2D(iS, jW)
+                !ValueSE = Me%Matrix2D(iS, jE)
+                !ValueNW = Me%Matrix2D(iN, jW)
+                !ValueNE = Me%Matrix2D(iN, jE)
                                                
-                ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
-                ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
-                
-                Field(nP)   = LinearInterpolation (Y_S,  ValueS, Y_N,  ValueN, Yv)
-                
-                NoData(nP)  = .false. 
+                !ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
+                !ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                !Field(nP)   = LinearInterpolation (Y_S,  ValueS, Y_N,  ValueN, Yv)
+                !NoData(nP)  = .false. 
                 
             endif
                             
