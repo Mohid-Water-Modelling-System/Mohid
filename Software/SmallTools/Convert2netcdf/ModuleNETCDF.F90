@@ -50,6 +50,7 @@ Module ModuleNETCDF
     public  :: NETCDFWriteVert
     public  :: NETCDFWriteVertStag    
     public  :: NETCDFReadVert    
+    public  :: NETCDFWithVert
     public  :: NETCDFReadData
     private :: NETCDFWriteAttributes
 
@@ -2462,6 +2463,43 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine NETCDFWriteVertStag
 
     !--------------------------------------------------------------------------
+    logical function NETCDFWithVert(NCDFID, STAT)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL, VarID
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then                
+                
+            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Depth_Name),VarID)
+            if (STAT_CALL == nf90_noerr) then
+                NETCDFWithVert = .true.
+            else                  
+                NETCDFWithVert = .false.
+            endif
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end function NETCDFWithVert
+                
     !--------------------------------------------------------------------------    
 
     subroutine NETCDFReadVert(NCDFID, CenterCellDepth, VerticalZ, nInstant,             &
