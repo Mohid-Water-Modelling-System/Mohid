@@ -2176,7 +2176,8 @@ do1 :       do II = JImin+1, JImax+1
                          JImin, JImax,                                        &
                          di,    dj,                                           &
                          THOMAS,                                              &
-                         ANSWER)
+                         ANSWER,                                               &
+                         ModelName)
 
         !Arguments-------------------------------------------------------------
         integer,                         intent(IN) :: IJmin, IJmax
@@ -2186,6 +2187,7 @@ do1 :       do II = JImin+1, JImax+1
         !real(8), dimension(:,:), pointer            :: ECoef_2D
         type(T_THOMAS2D), pointer                   :: THOMAS
         real,    dimension(:,:), pointer            :: ANSWER
+        character (len=*), optional                 :: ModelName
 
         !Local-----------------------------------------------------------------
         integer :: IJ, JI, II, MM, I, J
@@ -2221,7 +2223,7 @@ do3 :       do JI=JImin+1,JImax+1
                     VEC%W(JI) = -THOMAS%COEF2%F(I,J) / AUX
                     VEC%G(JI) = (THOMAS%TI(I,J) - THOMAS%COEF2%D(I,J) * VEC%G(JI-1))/ AUX
                 else
-                    write(*,*) 'I, J: ', I, J
+                    write(*,*) 'ModelName I, J: ', trim(ModelName), ' ', I, J
                     stop 'Error: Instability in THOMAS2D - Module Functions - ERR10'
                 end if
             end do do3
