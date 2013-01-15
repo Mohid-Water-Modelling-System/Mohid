@@ -31,6 +31,7 @@
 Module ModuleDrawing
 
     use ModuleGlobalData
+    use ModuleTime
     use ModuleEnterData
     use ModuleFunctions
 
@@ -59,6 +60,7 @@ Module ModuleDrawing
     public  ::    ArrayPolygonWindow
     public  ::    CellInterSectCell
     public  ::    SegIntersectLine
+    public  ::    SegIntersectPolygon    
     public  ::    SegIntersectSeg
     
     interface     SegIntersectSeg
@@ -406,13 +408,13 @@ if2 :               if (BlockFound) then
                         iPoint = iPoint + 1
 
                     end do
+                    
+                    call SetLimits(CurrLine)                            
 
                 endif
             enddo
         end if
         
-        call SetLimits(Lines)        
-
         call KillEnterData(ObjEnterData, ret)
 
     end subroutine NewLine   
@@ -2705,6 +2707,7 @@ i6:                         if (DirectionX.ne.0.) then
 
         do while (associated(AuxLine))
         
+            SearchSeg = .true.
                 
             if (y1_r8 > AuxLine%Limits%Top    .and. y2_r8 > AuxLine%Limits%Top   ) SearchSeg = .false. 
             if (y1_r8 < AuxLine%Limits%Bottom .and. y2_r8 < AuxLine%Limits%Bottom) SearchSeg = .false.        
@@ -2746,6 +2749,77 @@ i6:                         if (DirectionX.ne.0.) then
         
 
     end function SegIntersectLine
+
+ !Checks if a segment (x1,y1,x2,y2) intersect a Polygon 
+    logical function SegIntersectPolygon(x1,y1,x2,y2, PolygonX, LineAng)
+        !Arguments--------------------------------------------------
+        real                         :: x1,y1,x2,y2
+        type (T_polygon), pointer    :: PolygonX
+        real, optional               :: LineAng
+        !Local------------------------------------------------------
+        type (T_polygon), pointer    :: AuxPolygon
+        real(8)                      :: x1_r8,y1_r8,x2_r8,y2_r8,x3,y3,x4,y4
+        real                         :: dx, dy    
+        integer                      :: n    
+        logical                      :: SearchSeg
+        !Begin------------------------------------------------------
+
+        SegIntersectPolygon = .false.
+        
+        SearchSeg        = .true.
+        
+        x1_r8 = x1
+        y1_r8 = y1                
+        x2_r8 = x2
+        y2_r8 = y2
+        
+        
+        AuxPolygon => PolygonX
+
+        do while (associated(AuxPolygon))
+        
+            SearchSeg = .true.
+                
+            if (y1_r8 > AuxPolygon%Limits%Top    .and. y2_r8 > AuxPolygon%Limits%Top   ) SearchSeg = .false. 
+            if (y1_r8 < AuxPolygon%Limits%Bottom .and. y2_r8 < AuxPolygon%Limits%Bottom) SearchSeg = .false.        
+
+            if (x1_r8 > AuxPolygon%Limits%Right  .and. x2_r8 > AuxPolygon%Limits%right ) SearchSeg = .false.
+            if (x1_r8 < AuxPolygon%Limits%Left   .and. x2_r8 < AuxPolygon%Limits%left  ) SearchSeg = .false.        
+            
+            if (SearchSeg) then
+            
+                do n=1, AuxPolygon%Count - 1
+
+                    x3 = AuxPolygon%VerticesF(n)%X
+                    y3 = AuxPolygon%VerticesF(n)%Y
+                    x4 = AuxPolygon%VerticesF(n+1)%X
+                    y4 = AuxPolygon%VerticesF(n+1)%Y
+                    
+                    if (SegIntersectSeg(x1_r8,y1_r8,x2_r8,y2_r8, x3, y3, x4, y4)) then
+                        SegIntersectPolygon = .true. 
+                        if (present(LineAng)) then
+                            dx = x4-x3
+                            dy = y4-y3
+                            LineAng = atan2(dy, dx)
+                        endif                        
+                        exit
+                    endif
+                    
+                enddo                
+                
+                if (SegIntersectPolygon) then
+                    exit
+                endif
+                
+            endif
+                            
+            AuxPolygon => AuxPolygon%Next
+        enddo
+        
+        nullify(AuxPolygon)
+        
+
+    end function SegIntersectPolygon
 
 
  !Checks if a segment (x1,y1,x2,y2) intersect another segment (x3, y3, x4, y4)
