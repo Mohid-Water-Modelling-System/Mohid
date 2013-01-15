@@ -254,7 +254,8 @@ Module ModuleLagrangianGlobal
                                        ComputeT90_Chapra, ComputeT90_Canteras,              &
                                        GetDataOnlineString, SetMatrixValue, TimeToString,   &
                                        ChangeSuffix, ConstructPropertyID,                   &
-                                       DistanceBetweenTwoGPSPoints, WGS84toGoogleMaps
+                                       DistanceBetweenTwoGPSPoints, WGS84toGoogleMaps,      &
+                                       SettlingVelSecondaryClarifier
     use ModuleEnterData,        only : ReadFileName, ConstructEnterData, GetData,           &
                                        ExtractBlockFromBuffer, ExtractBlockFromBlock,       &
                                        Block_Unlock, GetOutPutTime, RewindBuffer,           &
@@ -263,7 +264,7 @@ Module ModuleLagrangianGlobal
                                        RewindBlockinBlock, ExtractBlockFromBlockFromBlock,  &
                                        GetBlockSize, KillEnterData
     use ModuleDrawing,          only : T_Polygon, T_PointF, PointDistanceToPolygon, New,    &
-                                       T_Lines, IsVisible, SegIntersectLine
+                                       T_Lines, IsVisible, SegIntersectLine, SegIntersectPolygon
     use ModuleWaterQuality,     only : StartWaterQuality, WaterQuality, GetDTWQM,           &
                                        GetWQPropIndex, KillWaterQuality
     use ModuleGridData,         only : GetGridData, GetMaximumValue, ModifyGridData, UngetGridData
@@ -470,6 +471,7 @@ Module ModuleLagrangianGlobal
     integer, parameter                          :: Stokes_                  = 1
     integer, parameter                          :: Imposed_                 = 2
     integer, parameter                          :: DensDynamic_             = 3
+    integer, parameter                          :: SecondaryClarifier_      = 4
 
     !accident
     integer, parameter                          :: Fay_                     = 1
@@ -542,6 +544,7 @@ Module ModuleLagrangianGlobal
     character(LEN = StringLength), parameter    :: Char_Stokes              = 'Stokes'
     character(LEN = StringLength), parameter    :: Char_Imposed             = 'Imposed'
     character(LEN = StringLength), parameter    :: Char_DensDynamic         = 'Density Dynamic'    
+    character(LEN = StringLength), parameter    :: Char_SecondaryClarifier  = 'Secondary Clarifier'    
 
     character(LEN = StringLength), parameter    :: Char_Fay                 = 'Fay'
     character(LEN = StringLength), parameter    :: Char_Thickness           = 'Thickness'
@@ -1304,7 +1307,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: CoastLineON
         
 
-        type (T_Lines), pointer                 :: ThinWalls
+        type (T_Polygon), pointer               :: ThinWalls
         character(StringLength)                 :: ThinWallsFile
         logical                                 :: ThinWallsON
 
@@ -1609,10 +1612,13 @@ em2:            do em =1, Me%EulerModelNumber
             call ReadMeteoOceanFields   
             
             call ReadBooms
-
+            
             !Kills EnterData
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR70'
+            
+            !Redefine coast line
+            call RedefinedCoastLine
 
             !Merges Old with New Origins
             call MergeOldWithNewOrigins
@@ -4257,7 +4263,12 @@ SE:             if (flag == 1) then
                 endif
 
                 NewOrigin%State%Sedimentation     = ON
-
+             
+            case(Char_SecondaryClarifier)
+            
+                NewOrigin%Movement%SedimentationType = SecondaryClarifier_
+                NewOrigin%State%Sedimentation        = ON
+                
             case default
             
                 write(*,*)'Invalid Sedimentaion type, keyword SEDIMENTATION : ', trim(adjustl(String))
@@ -5447,7 +5458,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             if (.not. NewOrigin%Default) then
                 call ConstructParticOil (NewOrigin, ClientNumber)
             endif
-            
+
             if (NewOrigin%Movement%Float == OFF) then
 
                 call GetData(NewOrigin%CDispOilOff,                                  &
@@ -5460,10 +5471,9 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1510'
             
-            endif
+             endif
 
         endif
-
         call GetData(NewOrigin%State%Age,                                               &
                      Me%ObjEnterData,                                                   &
                      flag,                                                              &
@@ -8188,8 +8198,11 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         real                                        :: API
         integer                                     :: STAT_CALL
         integer                                     :: i, j, k, KUB, em
-        logical                                     :: Emited
+        logical                                     :: Emited, OutsideWalls
         type (T_Position)                           :: NewPosition
+        type (T_PointF),                pointer     :: Point        
+        
+        !Begin-----------------------------------------------------------------
 
 
         !Cell of the Accident
@@ -8197,7 +8210,8 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         II = CurrentOrigin%position%I         
 
         em = CurrentOrigin%Position%ModelID
-
+        
+        allocate(Point)
         
         select case (CurrentOrigin%AccidentMethod)
 
@@ -8293,8 +8307,17 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                 j   = NewPosition%J
                 KUB = Me%EulerModel(em)%WorkSize%KUB
                 
+                OutsideWalls = .true.
+                if (Me%ThinWallsON) then
+                    Point%X = NewPosition%CoordX
+                    Point%Y = NewPosition%CoordY
+                    if (IsVisible(Me%ThinWalls, Point)) then
+                        OutsideWalls = .false. 
+                    endif
+                endif
+                
                 !Stores the Particle
-                if (Me%EulerModel(em)%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                if (Me%EulerModel(em)%OpenPoints3D(i, j, KUB) == OpenPoint .and. OutsideWalls) then
 
 
                     NewPosition%ModelID = Locate_ModelDomain(NewPosition%CoordX, NewPosition%CoordY) 
@@ -8346,6 +8369,7 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
 
         CurrentOrigin%AccidentFinished = .true.
 
+        deallocate(Point)
 
     end subroutine EmissionAccident
 
@@ -10018,6 +10042,120 @@ d2:         do while (associated (CurrentPartic))
                 
     !--------------------------------------------------------------------------
     
+    !--------------------------------------------------------------------------
+    
+    subroutine RedefinedCoastLine()    
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------        
+        integer,    dimension(:,:,:),   pointer     :: WaterPoints3D
+        real,       dimension(:,:),     pointer     :: Bathymetry, CoordX, CoordY,      &
+                                                       BathymetryDefault, SurfaceElevation
+        type (T_PointF),                pointer     :: Point        
+        integer                                     :: i, j, em
+        integer                                     :: STAT_CALL
+        integer                                     :: WorkSizeILB, WorkSizeIUB, WorkSizeJLB, WorkSizeJUB
+        
+        !Begin-----------------------------------------------------------------    
+
+rdf:     if (Me%CoastLineON) then
+
+
+            call ReadUnLockExternalVar
+
+dem:        do em = 1, Me%EulerModelNumber        
+
+                !Shorten
+                WorkSizeILB = Me%EulerModel(em)%WorkSize%ILB
+                WorkSizeIUB = Me%EulerModel(em)%WorkSize%IUB
+                WorkSizeJLB = Me%EulerModel(em)%WorkSize%JLB
+                WorkSizeJUB = Me%EulerModel(em)%WorkSize%JUB
+
+                call GetGridData(Me%EulerModel(em)%ObjGridData, BathymetryDefault, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR10' 
+
+                allocate    (Bathymetry(Me%EulerModel(em)%Size%ILB:                     &
+                                        Me%EulerModel(em)%Size%IUB,                     &
+                                        Me%EulerModel(em)%Size%JLB:                     &
+                                        Me%EulerModel(em)%Size%JUB))        
+
+                Bathymetry(:,:) =  BathymetryDefault(:,:)
+
+                call UnGetGridData(Me%EulerModel(em)%ObjGridData, BathymetryDefault, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR20' 
+
+
+                call GetZCoordinates(Me%EulerModel(em)%ObjHorizontalGrid, CoordX, CoordY, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR30'
+                
+                
+                allocate(Point)
+                do j = WorkSizeJLB, WorkSizeJUB       
+                do i = WorkSizeILB, WorkSizeIUB  
+                    Point%X = CoordX(i,j)
+                    Point%Y = CoordY(i,j)
+                    if (IsVisible(Me%CoastLine, Point)) then
+                        Bathymetry(i,j) = -99.
+                    endif
+                enddo
+                enddo            
+                deallocate(Point)
+
+                
+                call ModifyGridData(Me%EulerModel(em)%ObjGridData, Bathymetry, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR50' 
+                
+                call UpdateWaterPoints2D(Me%EulerModel(em)%ObjHorizontalMap, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR60' 
+
+                call GetWaterLevel(Me%EulerModel(em)%ObjHydrodynamic, SurfaceElevation, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR70'
+
+                call UpdateKfloor(Me%EulerModel(em)%ObjGeometry, SurfaceElevation, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR80'
+                
+                call UpDateWaterPoints3D(Me%EulerModel(em)%ObjMap, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR90'
+
+                !Update the moving boundary (boundary of the tidal areas covered)
+                call UpdateComputeFaces3D(Map_ID            = Me%EulerModel(em)%ObjMap, &
+                                          SurfaceElevation  = SurfaceElevation,         &
+                                          ActualTime        = Me%ExternalVar%BeginTime, &
+                                          STAT              = STAT_CALL)      
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR110'
+                
+                call GetWaterPoints3D(Map_ID            = Me%EulerModel(em)%ObjMap,     &
+                                      WaterPoints3D     = WaterPoints3D,                &
+                                      STAT              = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR100'
+                
+                call ComputeInitialGeometry(Me%EulerModel(em)%ObjGeometry,              &
+                                            WaterPoints3D, SurfaceElevation, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR120'              
+                
+                call UnGetMap(Map_ID           = Me%EulerModel(em)%ObjMap,              &
+                              Array            = WaterPoints3D,                         &
+                              STAT             = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR130'
+
+
+                call UnGetHydrodynamic(Me%EulerModel(em)%ObjHydrodynamic, SurfaceElevation, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR140'
+
+                deallocate    (Bathymetry)      
+            
+            enddo dem
+            
+            call ReadLockExternalVar            
+
+        endif rdf   
+                         
+    end subroutine RedefinedCoastLine    
+
+    !--------------------------------------------------------------------------
+    
+    
     subroutine ReadMeteoOceanBathym()    
 
         !Arguments-------------------------------------------------------------
@@ -10030,7 +10168,7 @@ d2:         do while (associated (CurrentPartic))
         real,       dimension(:  ),     pointer     :: Matrix1DY        
         real,       dimension(:  ),     pointer     :: Prop1D
         logical,    dimension(:  ),     pointer     :: NoData
-        type (T_PointF),                pointer     :: Point        
+        !type (T_PointF),                pointer     :: Point        
         integer                                     :: ic, nCellT, nF, nFiles_total, i, j, em
         integer                                     :: nMOP, nMOPtotal, STAT_CALL
         integer                                     :: WorkSizeILB, WorkSizeIUB, WorkSizeJLB, WorkSizeJUB
@@ -10134,21 +10272,21 @@ dem:        do em = 1, Me%EulerModelNumber
                 
                 endif
                 
-                if (Me%CoastLineON) then
-                    allocate(Point)
-                    ic = 1
-                    do j = WorkSizeJLB, WorkSizeJUB       
-                    do i = WorkSizeILB, WorkSizeIUB  
-                        Point%X = Matrix1DX(ic)
-                        Point%Y = Matrix1DY(ic)                
-                        if (IsVisible(Me%CoastLine, Point)) then
-                            Bathymetry(i,j) = -99.
-                        endif
-                        ic = ic + 1
-                    enddo
-                    enddo            
-                    deallocate(Point)
-                endif
+!                if (Me%CoastLineON) then
+!                    allocate(Point)
+!                    ic = 1
+!                    do j = WorkSizeJLB, WorkSizeJUB       
+!                    do i = WorkSizeILB, WorkSizeIUB  
+!                        Point%X = Matrix1DX(ic)
+!                        Point%Y = Matrix1DY(ic)                
+!                        if (IsVisible(Me%CoastLine, Point)) then
+!                            Bathymetry(i,j) = -99.
+!                        endif
+!                        ic = ic + 1
+!                    enddo
+!                    enddo            
+!                    deallocate(Point)
+!                endif
                 
                 call ModifyGridData(Me%EulerModel(em)%ObjGridData, Bathymetry, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanBathym - ModuleLagrangianGlobal - ERR50' 
@@ -11788,7 +11926,11 @@ MF:             if (CurrentPartic%Position%Surface) then
                             CurrentPartic%WindX = CurrentOrigin%Movement%WindX
                         else
                             if (associated(Me%EulerModel(emp)%WindX)) then
-                                CurrentPartic%WindX = Me%EulerModel(emp)%WindX(i, j)
+                                if (Me%EulerModel(emp)%WindX(i, j) > FillValueReal) then
+                                    CurrentPartic%WindX = Me%EulerModel(emp)%WindX(i, j)
+                                else
+                                    CurrentPartic%WindX = 0.
+                                endif                                    
                             else
                                 CurrentPartic%WindX = 0.
                             endif
@@ -11803,7 +11945,11 @@ MF:             if (CurrentPartic%Position%Surface) then
                             CurrentPartic%WindY = CurrentOrigin%Movement%WindY
                         else
                             if (associated(Me%EulerModel(emp)%WindY)) then
-                                CurrentPartic%WindY = Me%EulerModel(emp)%WindY(i, j)
+                                if (Me%EulerModel(emp)%WindY(i, j) > FillValueReal) then
+                                    CurrentPartic%WindY = Me%EulerModel(emp)%WindY(i, j)
+                                else
+                                    CurrentPartic%WindY = 0.
+                                endif                                    
                             else
                                 CurrentPartic%WindY = 0.
                             endif
@@ -12400,12 +12546,12 @@ dts:        do ts = 1, 2
                                 
                                 if (MovePartic .and. Me%ThinWallsON) then
                         
-                                    if (SegIntersectLine(                                   &
+                                    if (SegIntersectPolygon(                                &
                                         x1      = CurrentPartic%Position%CoordX,            &
                                         y1      = CurrentPartic%Position%CoordY,            &
                                         x2      = NewPosition%CoordX,                       &
                                         y2      = NewPosition%CoordY,                       &
-                                        LineX   = Me%ThinWalls)) then
+                                        PolygonX= Me%ThinWalls)) then
                                         MovePartic = .false.
                                         exit
                                     endif
@@ -12786,8 +12932,9 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         real, intent (IN )                          :: VelModH
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j, k, KUB, emp, kFloor
-        real                                        :: CellK, BALZ
+        type (T_Property), pointer                  :: CurrentProperty
+        integer                                     :: i, j, k, KUB, emp, kFloor, iP
+        real                                        :: CellK, BALZ, SST
         real                                        :: CompZ_Up, CompZ_Down
         real                                        :: CompZ1_Up, CompZ1_Down
         real                                        :: AuxCompMisturaZ_Up, AuxCompMisturaZ_Down
@@ -12926,7 +13073,27 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                         
                         if (DensRel>1) VELQZ = - VELQZ
                         
-                        CurrentPartic%D50vel = VELQZ                 
+                        CurrentPartic%D50vel = VELQZ 
+                        
+                    else if (CurrentOrigin%Movement%SedimentationType .EQ. SecondaryClarifier_) then 
+                    
+                        CurrentProperty => CurrentOrigin%FirstProperty
+                        iP = 1
+                        do while (associated(CurrentProperty))
+
+                            if (CurrentProperty%ID == Cohesive_Sediment_) then
+
+                                call GetAmbientConcPartic (CurrentProperty, iP, emp, CurrentPartic, SST)
+                                SST = SST / 1000.
+                                VELQZ = - SettlingVelSecondaryClarifier (SST, WithCompression = .true.)
+                                exit
+                                
+                            endif
+                            iP = iP + 1
+                            CurrentProperty => CurrentProperty%Next
+                        enddo 
+                        
+                        nullify(CurrentProperty)
                         
                     else
 
@@ -13074,6 +13241,8 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
 
                 endif
+                
+                VELFLOAT      = 0
 
 
                 if (CurrentOrigin%State%Oil) then    
