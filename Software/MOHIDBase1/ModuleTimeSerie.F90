@@ -533,7 +533,7 @@ do1:    do while (BlockFound)
             endif
 
 
-            !Searches for the Localization I
+            !Searches for NAME
             call GetData(Me%TimeSerie(iTimeSerie)%FromBlockFileName,                &
                          Me%ObjEnterData,                                           &
                          iflag,                                                     &
