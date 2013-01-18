@@ -52,6 +52,9 @@ Module ModuleDrawing
     public  ::    InvertVerticesOrder
     public  ::    CheckPolygonClockwise
     public  ::    ConvexPolygon
+    
+    public  ::    GetPolygonsNumber
+    public  ::    GetSpecificPolygon 
 
     public  ::    VertPolygonInsidePolygon
     
@@ -1283,7 +1286,63 @@ logical function CheckPolygonClockwise(Polygon)
 
     end function CheckPolygonClockwise
 
+!-------------------------------------------------------------------------
 
+    integer function GetPolygonsNumber(Polygon)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Polygon), pointer           :: Polygon
+        
+        !Local-----------------------------------------------------------------
+        type (T_Polygon), pointer           :: AuxPoly
+        integer                             :: i
+
+
+        !Begin-----------------------------------------------------------------
+        nullify(AuxPoly)
+        AuxPoly => Polygon
+        i = 0
+        
+        do while (associated(AuxPoly))
+            i = i + 1
+            AuxPoly => AuxPoly%Next
+        
+        enddo
+        
+        GetPolygonsNumber = i
+        
+        nullify(AuxPoly)
+
+    end function GetPolygonsNumber
+
+
+!-------------------------------------------------------------------------
+
+
+
+
+    subroutine GetSpecificPolygon(Polygon, n, PolygonOut)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Polygon), pointer           :: Polygon
+        type (T_Polygon), pointer           :: PolygonOut
+        integer                             :: n
+        !Local-----------------------------------------------------------------
+        integer                             :: i
+
+        !Begin-----------------------------------------------------------------
+        nullify(PolygonOut) 
+        PolygonOut => Polygon
+
+        do i=2,n
+            PolygonOut => PolygonOut%Next
+        enddo
+        
+
+    end subroutine GetSpecificPolygon
+
+
+!-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 
 !Thius function check if the vertixes of a polygon A are inside of polygon B

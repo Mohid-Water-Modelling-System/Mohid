@@ -59,22 +59,24 @@ Module ModuleExportHDF5ToTimeSerie
 
     use ModuleGlobalData         
     use ModuleTime               
-    use ModuleEnterData,         only : ConstructEnterData, KillEnterData,             &
+    use ModuleEnterData,         only : ConstructEnterData, KillEnterData,              & 
                                         GetData, ExtractBlockFromBuffer, Block_Unlock
-    use ModuleTimeSerie,         only : StartTimeSerie, WriteTimeSerie, KillTimeSerie, &
-                                        GetTimeSerieLocation, GetNumberOfTimeSeries,   &
-                                        CorrectsCellsTimeSerie,                        &
+    use ModuleTimeSerie,         only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,  &
+                                        GetTimeSerieLocation, GetNumberOfTimeSeries,    &
+                                        CorrectsCellsTimeSerie,                         &
                                         WriteSpecificTimeSerieLine
     use ModuleFunctions         
-    use ModuleHDF5,              only : GetHDF5FileAccess, ConstructHDF5,              &
-                                        GetHDF5GroupNumberOfItems, HDF5SetLimits,      &
-                                        HDF5ReadData, GetHDF5GroupID, KillHDF5,        &
+    use ModuleHDF5,              only : GetHDF5FileAccess, ConstructHDF5,               &
+                                        GetHDF5GroupNumberOfItems, HDF5SetLimits,       &
+                                        HDF5ReadData, GetHDF5GroupID, KillHDF5,         &
                                         GetHDF5DataSetExist     
-    use ModuleDrawing,           only : IsPointInsidePolygon, SetLimits, T_Point,      &
-                                        T_PointF, T_Polygon
-    use ModuleHorizontalGrid,    only : ConstructHorizontalGrid, GetXYCellZ,           &
-                                        KillHorizontalGrid 
-    use ModuleGridData,          only : ConstructGridData, GetGridData, UngetGridData, &
+    use ModuleDrawing,           only : IsPointInsidePolygon, SetLimits, T_Point,       &
+                                        T_PointF, T_Polygon, GetSpecificPolygon,        &
+                                        GetPolygonsNumber, New 
+    use ModuleHorizontalGrid,    only : ConstructHorizontalGrid, GetXYCellZ,            &
+                                        GetHorizontalGridSize, KillHorizontalGrid,      &
+                                        GetZCoordinates, UnGetHorizontalGrid 
+    use ModuleGridData,          only : ConstructGridData, GetGridData, UngetGridData,  &
                                         GetIsGridData3D, KillGridData           
 
     ! To lower compilation costs are specified which subrotines are used in each module
@@ -228,6 +230,9 @@ Module ModuleExportHDF5ToTimeSerie
         character(PathLength)                       :: GridFileName
         logical                                     :: GridFileNameON
         logical                                     :: MaskIs3D
+        character(PathLength)                       :: PolygonsFile
+        logical                                     :: PolygonON
+        real, dimension(:,:), pointer               :: mask_2D
         type(T_HDF5File),              pointer      :: FirstHDF5File
         type(T_HDF5File),              pointer      :: FirstTSHDF5File
         type(T_HDF5File),              pointer      :: LastTSHDF5File
@@ -243,7 +248,7 @@ Module ModuleExportHDF5ToTimeSerie
 
     !Global Module Variables
     type (T_ExportHDF5ToTimeSerie),    pointer      :: Me
-
+    
     !--------------------------------------------------------------------------
     
     contains
@@ -662,7 +667,7 @@ Module ModuleExportHDF5ToTimeSerie
         !Begin-----------------------------------------------------------------
 
         !Call StartComputeTime for the whole Time Serie
-        call GetSystemTime  (InitialSystemTime)
+
         call StartComputeTime(Me%ObjTime, Me%FirstTSHDF5File%InstantsArray(1), Me%FirstTSHDF5File%InstantsArray(1),      &
                               Me%LastTSHDF5File%InstantsArray                       &
                               (Me%LastTSHDF5File%NumberOfInstants),                 &
@@ -734,17 +739,19 @@ Module ModuleExportHDF5ToTimeSerie
 
                     call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OpenOutputFiles - ModuleExportHDF5ToTimeSerie - ERR070'
-
-                    if (Id < 0 .or. Jd < 0) stop 'OpenOutputFiles - ModuleExportHDF5ToTimeSerie - ERR080'
-
-                    call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OpenOutputFiles - ModuleExportHDF5ToTimeSerie - ERR090'
                     
-                    write(*,*) 'I = ', Id
-                    write(*,*) 'J = ', Jd
+                    if (.not.Me%PolygonON) then
 
+                        if (Id < 0 .or. Jd < 0) stop 'OpenOutputFiles - ModuleExportHDF5ToTimeSerie - ERR080'
+
+                        call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OpenOutputFiles - ModuleExportHDF5ToTimeSerie - ERR090'
+                        
+                        write(*,*) 'I = ', Id
+                        write(*,*) 'J = ', Jd
+                        
+                    endif
                 endif
-
             enddo
 
 
@@ -769,9 +776,13 @@ Module ModuleExportHDF5ToTimeSerie
         !Arguments-------------------------------------------------------------
           
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL, iflag
+        type(T_Size2D)                              :: WorkSize2D, Size2D
+        integer                                     :: STAT_CALL, iflag, i, j, n, PolygonsNumber
         logical                                     :: exist
         character(len=PathLength)                   :: mask_grid_filename
+        type (T_PointF),   pointer                  :: Point
+        type (T_Polygon),  pointer                  :: MaskPolygons, CurrentPolygon
+        real,   dimension(:,:), pointer             :: CoordX, CoordY
 
         !Begin-----------------------------------------------------------------
 
@@ -785,38 +796,7 @@ Module ModuleExportHDF5ToTimeSerie
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR010'
 
-        if (Me%ExportType == ExportAreaToTimeseries) then
-            
-            !Obtain name of the MASK grid data (if it exists)
-            call GetData(mask_grid_filename, Me%ObjEnterData, iflag,  &
-                         keyword      = 'MASK_GRID',                  &
-                         SearchType   = FromFile,                     &
-                         ClientModule = 'ExportToTimeSerie',          &
-                         STAT         = STAT_CALL)
-            if ((STAT_CALL /= SUCCESS_) .or. (iflag < 1)) &
-                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR020'              
-            
-            call ConstructHorizontalGrid(Me%ObjMaskHorizontalGrid, &
-                                         mask_grid_filename,       &
-                                         STAT = STAT_CALL)           
-            if (STAT_CALL /= SUCCESS_) &
-               stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR030'
-            
-            call ConstructGridData (Me%ObjMaskGrid,                 &
-                                    Me%ObjMaskHorizontalGrid,       &
-                                    FileName = mask_grid_filename,  &
-                                    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR040'            
-                
-            call GetIsGridData3D(Me%ObjMaskGrid, Me%MaskIs3D, STAT = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR050'              
-                
-            call LoadTimeSeriesMaskID
 
-        endif
-            
         ! Obtain the start and end times for the Time Serie
         ! Start Time
         call GetData(Me%StartTSTime, Me%ObjEnterData, iflag,                &
@@ -825,7 +805,7 @@ Module ModuleExportHDF5ToTimeSerie
                      ClientModule = 'ExportToTimeSerie',                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR060'   
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR110'   
 
         ! End Time 
         call GetData(Me%EndTSTime,   Me%ObjEnterData, iflag,                &
@@ -834,19 +814,19 @@ Module ModuleExportHDF5ToTimeSerie
                      ClientModule = 'ExportToTimeSerie',                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR070'   
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR120'   
 
         ! Verifies Time Variables
         if (Me%EndTSTime .lt. Me%StartTSTime) then
             write (*,*) 'Time Serie End Time is BEFORE Time Serie Start Time'
             write (*,*) 'Module :','ExportHDF5ToTimeSerie'
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR080'
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR130'
         endif
 
         if (Me%EndTSTime .eq. Me%StartTSTime) then
             write (*,*) 'Time Serie End Time is EQUAL Time Serie Start Time'
             write (*,*) 'Module :','ExportHDF5ToTimeSerie'
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR090'
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR140'
         endif
 
         call GetData(Me%VariableGrid,Me%ObjEnterData, iflag,                &
@@ -856,7 +836,7 @@ Module ModuleExportHDF5ToTimeSerie
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR100'
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR150'
 
         call GetData(Me%WaterPointsName,   Me%ObjEnterData, iflag,          &
                      keyword      = 'WATERPOINTS_NAME',                     &
@@ -864,7 +844,7 @@ Module ModuleExportHDF5ToTimeSerie
                      ClientModule = 'ExportToTimeSerie',                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR110'
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR160'
                 
         call GetData(Me%WaterPointsGroup,   Me%ObjEnterData, iflag,         &
                      keyword      = 'WATERPOINTS_GROUP',                    &
@@ -873,7 +853,7 @@ Module ModuleExportHDF5ToTimeSerie
                      default      = "/Grid",                                &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR120'
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR170'
         
         call GetData(Me%GridFileName,                                       &
                      Me%ObjEnterData, iflag,                                &
@@ -882,7 +862,7 @@ Module ModuleExportHDF5ToTimeSerie
                      ClientModule = 'ConvertToHDF5',                        &
                      STAT         = STAT_CALL)                                          
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR130'
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR180'
                        
         if (iflag==0) then
             Me%GridFileNameON = .false.
@@ -892,11 +872,11 @@ Module ModuleExportHDF5ToTimeSerie
             inquire(FILE = Me%GridFileName, EXIST = exist)
             if (.not. exist) then
                 write(*,*)'Grid file does not exist'
-                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR140'
+                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR190'
             endif
 
             call ConstructHorizontalGrid(Me%ObjHorizontalGrid, Me%GridFileName, STAT = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_) stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR150'
+            if(STAT_CALL .ne. SUCCESS_) stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR200'
         
         endif
 
@@ -907,7 +887,7 @@ Module ModuleExportHDF5ToTimeSerie
                      Default      = "Time",                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_ )                                         &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR160'   
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR210'   
 
 
         ! Get decimation factor
@@ -919,7 +899,115 @@ Module ModuleExportHDF5ToTimeSerie
                      ClientModule = 'ExportToTimeSerie',                    &
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR170'
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR220'
+            
+        if (Me%ExportType == ExportAreaToTimeseries) then
+            
+            call GetData(Me%PolygonsFile, Me%ObjEnterData, iflag,                       &
+                         keyword      = 'POLYGONS_FILE',                                &
+                         SearchType   = FromFile,                                       &
+                         Default      = "******.***",                                   &
+                         ClientModule = 'ExportToTimeSerie',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR040'               
+                
+            Me%PolygonON = .false.                
+                
+            if (iflag == 1) then
+                Me%PolygonON = .true.
+            endif
+            
+            if (Me%PolygonON) then
+            
+                if (.not. Me%GridFileNameON) then
+                
+                    write(*,*)'Grid file not define'
+                    stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR045'
+                                
+                endif
+            
+                call GetHorizontalGridSize(Me%ObjHorizontalGrid, Size = Size2D,         &
+                                           WorkSize = WorkSize2D, STAT = STAT_CALL)           
+                if (STAT_CALL /= SUCCESS_) &
+                   stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR050'            
+            
+                Me%MaskIs3D = .false. 
+                
+                allocate(Me%mask_2D(Size2D%ILB:Size2D%IUB, Size2D%JLB:Size2D%JUB))
+                
+                Me%mask_2D(:,:) = -99
+                
+                call New(MaskPolygons, Me%PolygonsFile)
+                
+                PolygonsNumber = GetPolygonsNumber(MaskPolygons)
+                
+                call GetZCoordinates(Me%ObjHorizontalGrid, CoordX, CoordY, STAT= STAT_CALL)           
+                if (STAT_CALL /= SUCCESS_) &
+                   stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR060'   
+                   
+                allocate(Point)                   
+                
+                do n=1, PolygonsNumber
+                    do j=WorkSize2D%JLB, WorkSize2D%JUB
+                    do i=WorkSize2D%ILB, WorkSize2D%IUB
+                        Point%X = CoordX(i, j)
+                        Point%Y = CoordY(i, j)
+                        call GetSpecificPolygon(MaskPolygons, n, CurrentPolygon)
+                        
+                        if (IsPointInsidePolygon(Point, CurrentPolygon)) then
+                            Me%mask_2D(i,j) = n
+                        endif
+                    enddo
+                    enddo
+                
+                enddo
+                
+                deallocate(Point)
+
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR070'                 
+
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordY, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR080'                 
+
+            
+            else
+            
+                !Obtain name of the MASK grid data (if it exists)
+                call GetData(mask_grid_filename, Me%ObjEnterData, iflag,  &
+                             keyword      = 'MASK_GRID',                  &
+                             SearchType   = FromFile,                     &
+                             ClientModule = 'ExportToTimeSerie',          &
+                             STAT         = STAT_CALL)
+                if ((STAT_CALL /= SUCCESS_) .or. (iflag < 1)) &
+                    stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR020'
+                    
+                call ConstructHorizontalGrid(Me%ObjMaskHorizontalGrid, &
+                                             mask_grid_filename,       &
+                                             STAT = STAT_CALL)           
+                if (STAT_CALL /= SUCCESS_) &
+                   stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR030'            
+            
+                call ConstructGridData (Me%ObjMaskGrid,                 &
+                                        Me%ObjMaskHorizontalGrid,       &
+                                        FileName = mask_grid_filename,  &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR090'            
+                    
+                call GetIsGridData3D(Me%ObjMaskGrid, Me%MaskIs3D, STAT = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR100'              
+
+            endif
+                            
+            call LoadTimeSeriesMaskID
+
+        endif
+                        
 
     end subroutine ReadGlobalData
 
@@ -2358,13 +2446,21 @@ do2:        do item = 1, nItems
             
             TS => TS%Next
         enddo
+                
+        if (Me%PolygonON) then
         
-        if (Me%MaskIs3D) then
-            call GetGridData (Me%ObjMaskGrid, mask_3d, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR010'
+            mask_2d => Me%mask_2D
+
         else
-            call GetGridData (Me%ObjMaskGrid, mask_2d, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR020'
+        
+            if (Me%MaskIs3D) then
+                call GetGridData (Me%ObjMaskGrid, mask_3d, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR010'
+            else
+                call GetGridData (Me%ObjMaskGrid, mask_2d, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR020'
+            endif
+
         endif
 
         do while(associated(ObjHDF5File))
@@ -2495,7 +2591,7 @@ do_ts2:                         do while (associated(TS))
                         
                     case (3)
                     
-                        if (Me%MaskIs3D) then
+ifIs3D:                 if (Me%MaskIs3D) then
 
                             !First do the sum of the values, by ID of TimeSeries
                             do i = 1, Me%Size3D%IUB
@@ -2575,21 +2671,21 @@ do_ts4:                             do while (associated(TS))
                                 TS => TS%Next
                             enddo
                                                     
-                        else
-                            if (TS%Layer /= -1) then
-                                k = Me%Size3D%KUB
-                            else
-                                k = TS%Layer
-                            endif
+                        else  ifIs3D
                         
                             !First do the sum of the values, by ID of TimeSeries
                             do i = 1, Me%Size3D%IUB
                             do j = 1, Me%Size3D%JUB                            
                                 
-                                if ((mask_3d(i,j,k) > 0) .and. (Me%WaterPoints3D(i,j,k) == 1)) then
-                                    TS => Me%FirstTimeSeriesData
-do_ts5:                             do while (associated(TS))
-                                        if (mask_3d(i,j,k) == TS%ID) then
+                                TS => Me%FirstTimeSeriesData
+do_ts5:                         do while (associated(TS))
+                                    if (mask_2d(i,j) == TS%ID) then
+                                        if (TS%Layer /= -1) then
+                                            k = Me%Size3D%KUB
+                                        else
+                                            k = TS%Layer
+                                        endif                                            
+                                        if (Me%WaterPoints3D(i,j,k) == 1) then                                        
                                             val      = ObjParameter%CurrentField%Values3D(i,j,k)
                                             TS%Sum   = TS%Sum + val
                                             TS%Count = TS%Count + 1
@@ -2602,11 +2698,11 @@ do_ts5:                             do while (associated(TS))
                                                 if (TS%min > val) TS%Min = val
                                             endif
                                             exit do_ts5                                        
-                                        endif
-                                    
-                                        TS => TS%Next
-                                    enddo do_ts5
-                                endif
+                                        endif                                                
+                                    endif
+                                
+                                    TS => TS%Next
+                                enddo do_ts5
                                 
                             enddo
                             enddo
@@ -2627,14 +2723,20 @@ do_ts5:                             do while (associated(TS))
                             do i = 1, Me%Size3D%IUB
                             do j = 1, Me%Size3D%JUB                            
                                 
-                                if ((mask_3d(i,j,k) > 0) .and. (Me%WaterPoints3D(i,j,k) == 1)) then
+                                if ((mask_2d(i,j) > 0) .and. (Me%WaterPoints3D(i,j,k) == 1)) then
                                     TS => Me%FirstTimeSeriesData
 do_ts6:                             do while (associated(TS))
-                                        if (mask_3d(i,j,k) == TS%ID) then
-                                            val      = ObjParameter%CurrentField%Values3D(i,j,k)
-                                            TS%QSum  = TS%QSum + (val - TS%Mean)**2
-                                            exit do_ts6 
-                                            
+                                        if (mask_2d(i,j) == TS%ID) then
+                                            if (TS%Layer /= -1) then
+                                                k = Me%Size3D%KUB
+                                            else
+                                                k = TS%Layer
+                                            endif                                            
+                                            if (Me%WaterPoints3D(i,j,k) == 1) then                                         
+                                                val      = ObjParameter%CurrentField%Values3D(i,j,k)
+                                                TS%QSum  = TS%QSum + (val - TS%Mean)**2
+                                                exit do_ts6 
+                                            endif                                            
                                         endif
                                     
                                         TS => TS%Next
@@ -2657,7 +2759,8 @@ do_ts6:                             do while (associated(TS))
                                 
                                 TS => TS%Next
                             enddo                        
-                        endif
+                        
+                        endif ifIs3D
                                         
                     end select
 
@@ -2697,7 +2800,7 @@ do_ts6:                             do while (associated(TS))
                 TS       => Me%FirstTimeSeriesData                
                 ts_index = 1
                 do while (associated(TS))
-                    !call WriteSpecificTimeSerieLine(Me%ObjTimeSerie, ts_index, TS%ParamsData, STAT = STAT_CALL)
+                    call WriteSpecificTimeSerieLine(Me%ObjTimeSerie, ts_index, TS%ParamsData, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR030'
                         
@@ -2742,13 +2845,23 @@ do_ts6:                             do while (associated(TS))
             ObjHDF5File => ObjHDF5File%Next           
 
         end do 
+        
+        if (Me%PolygonON) then
+        
+            nullify(mask_2d)
+            deallocate(Me%mask_2d)
+            nullify(mask_2d)
 
-        if (Me%MaskIs3D) then
-            call UngetGridData  (Me%ObjMaskGrid, mask_3d, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR050'
         else
-            call UngetGridData  (Me%ObjMaskGrid, mask_2d, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR060'
+
+            if (Me%MaskIs3D) then
+                call UngetGridData  (Me%ObjMaskGrid, mask_3d, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR050'
+            else
+                call UngetGridData  (Me%ObjMaskGrid, mask_2d, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR060'
+            endif
+
         endif
 
         TS => Me%FirstTimeSeriesData
@@ -3187,14 +3300,18 @@ do_ts6:                             do while (associated(TS))
         nullify(Me%FirstTSHDF5File)
  
         if (Me%ExportType == ExportAreaToTimeseries) then
+
+            if (.not.Me%PolygonON) then
                 
-            call KillGridData(Me%ObjMaskGrid, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                print *, 'WARN: KillExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - WRN010' 
-                
-            call KillHorizontalGrid(Me%ObjMaskHorizontalGrid, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                print *, 'WARN: KillExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - WRN020'
+                call KillGridData(Me%ObjMaskGrid, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    print *, 'WARN: KillExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - WRN010' 
+                    
+                call KillHorizontalGrid(Me%ObjMaskHorizontalGrid, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    print *, 'WARN: KillExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - WRN020'
+            
+            endif
             
             if (associated(Me%WaterPoints2D)) then    
                 deallocate(Me%WaterPoints2D)
