@@ -622,6 +622,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (Me%CoordType == SIMPLE_GEOG_ .and. .not. Me%ReadCartCorners .and. Me%ProjType == PAULO_PROJECTION_) then
                 if (ObjHorizontalGridFather%Longitude /= Me%Longitude) then
                     stop 'ConstructFatherGridLocation - ModuleHorizontalGrid - ERR10'
+                    write(*,*) 'both grids must have the same values in keyword LATITUDE and LONGITUDE'
                 endif
                 if (ObjHorizontalGridFather%Latitude /= Me%Latitude) then
                     stop 'ConstructFatherGridLocation - ModuleHorizontalGrid - ERR20'
