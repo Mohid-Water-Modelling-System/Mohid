@@ -91,19 +91,21 @@ Module ModuleWRFFormat
     private ::      Open_HDF5_OutPut_File
     private ::      OpenAndReadWRFFile
     private ::          FillDimInformation
-    private ::          ReadWriteGridData
+    private ::          ReadGridData
     private ::              InitializeProjection
     private ::              CorrectCorners
-    private ::              ConstructGrid 
-    private ::              WriteCenterGridXYZ
-    private ::              WriteGridToHDF5File
+    private ::              WriteWRFGridData    
+    private ::                  ConstructGrid 
+    private ::                  WriteCenterGridXYZ
+    private ::                  WriteGridToHDF5File
     private ::          SetNewDate    
     private ::          VariableIsToRead
     private ::          FieldIsToRead
     private ::          AddField
     private ::          SetNewFieldAttributes
     private ::      BeginEndTime
-    private ::      ComputeVerticalCoordinate        
+    private ::      ComputeVerticalCoordinate   
+    private ::      CorrectVerticalCoordinate ! ToMohid    
     private ::      ComputeAtmosphericPressure3D
     private ::      ComputeAirTemperature3D
     private ::      ComputeMeanSeaLevelPressureMM5
@@ -118,6 +120,7 @@ Module ModuleWRFFormat
     private ::      ComputeWindShearStress
     private ::      ComputeWindModulus
 
+    
     private ::      OutputFields
     private ::      KillWRFFormat
 
@@ -197,10 +200,12 @@ Module ModuleWRFFormat
         logical                                             :: ComputePressure3D        = .false.
         logical                                             :: ComputeTemperature3D     = .false.
         logical                                             :: ComputeVerticalZ         = .false.
-
         logical                                             :: WriteTerrain             = .false.
         logical                                             :: TerrainFileNotSpecified  = .false.
         logical                                             :: OutputGridNotSpecified   = .false.
+        ! to run in MOHID as an imposed solution
+        logical                                             :: ToMohid                  = .false.  
+        
         real                                                :: PTop                     = null_real
         integer                                             :: IfSnow                   = null_int
         type(T_Size3D)                                      :: Size, WorkSize
@@ -284,6 +289,11 @@ Module ModuleWRFFormat
 
         if(Me%ComputePrecipitation)             call ComputePrecipitation
 
+        if(Me%ToMohid) call CorrectVerticalCoordinate                
+
+        !if ToMohid, this must be after CorrectVerticalCoordinate
+        call WriteWRFGridData
+            
         call OutputFields
 
         call KillWRFFormat
@@ -469,8 +479,21 @@ Module ModuleWRFFormat
                      Default      = 0.0,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR11'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR13'
 
+        call GetData(Me%ToMohid,                                        &
+                     Me%ObjEnterData, iflag1,                           &
+                     SearchType   = FromBlock,                          &
+                     keyword      = 'TO_MOHID',                         & 
+                     Default      = .false.,                                &
+                     ClientModule = 'ModuleWRFFormat',                  &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR13'
+
+        write(*,*) 'Output To Mohid        = ', Me%ToMohid
+        write(*,*)         
+
+        
         call ReadFieldsToConvert(ClientNumber)
 
     end subroutine ReadOptions
@@ -886,10 +909,12 @@ Module ModuleWRFFormat
         enddo
 
         ! GEOMETRY - time invariant  ------------------------------------------
-
         write(*,*) 'Reading Geometry...'
-        call ReadWriteGridData (ncid, nvars)
 
+        ! if ToMohid, Grid needs corrected VerticalZ
+        ! WriteGridData must be after ComputeVerticalCoordinate        
+        call ReadGridData (ncid, nvars)
+       
         ! Time ----------------------------------------------------------------
 
         write(*,*) 'Reading Times...'
@@ -1326,7 +1351,7 @@ if1:    if (Me%TimeWindow) then
     
     !--------------------------------------------------------------------------
 
-    subroutine ReadWriteGridData (ncid, nvars)
+    subroutine ReadGridData (ncid, nvars)
 
         !Arguments-------------------------------------------------------------
         integer, intent(in)                             :: ncid, nvars      
@@ -1364,12 +1389,12 @@ if1:    if (Me%TimeWindow) then
         !        passar a Lat,Lon -> ConnectionX, ConnectionY.
 
         status = nf90_get_att(ncid, NF90_GLOBAL, 'DY', Me%DY)
-        call handle_error(status); if (status /= NF90_NOERR) stop 'ReadWriteGridData - ModuleWRFFormat - ERR00' 
+        call handle_error(status); if (status /= NF90_NOERR) stop 'ReadGridData - ModuleWRFFormat - ERR00' 
 
         do varid = 1, nvars
 
             status = nf90_inquire_variable(ncid, varid, name)
-            call handle_error(status); if (status /= NF90_NOERR) stop 'ReadWriteGridData - ModuleWRFFormat - ERR01'
+            call handle_error(status); if (status /= NF90_NOERR) stop 'ReadGridData - ModuleWRFFormat - ERR01'
 
             select case (trim(name))
 
@@ -1379,7 +1404,7 @@ if1:    if (Me%TimeWindow) then
                     allocate(DataAux(WJUB,WIUB, 1,1))
 
                     status = nf90_get_var(ncid, varid, DataAux, start=(/1,1,1/), count=(/WJUB, WIUB, 1/))
-                    call handle_error(status); if (status /= NF90_NOERR) stop 'ReadWriteGridData - ModuleWRFFormat - ERR02'
+                    call handle_error(status); if (status /= NF90_NOERR) stop 'ReadGridData - ModuleWRFFormat - ERR02'
 
                     allocate(Me%Bathymetry(ILB:IUB, JLB:JUB))
 
@@ -1395,7 +1420,7 @@ if1:    if (Me%TimeWindow) then
                     allocate(DataAux(WJUB,WIUB, 1,1))
 
                     status = nf90_get_var(ncid, varid, DataAux, start=(/1,1,1/), count=(/WJUB, WIUB, 1/))
-                    call handle_error(status); if (status /= NF90_NOERR) stop 'ReadWriteGridData - ModuleWRFFormat - ERR02'
+                    call handle_error(status); if (status /= NF90_NOERR) stop 'ReadGridData - ModuleWRFFormat - ERR02'
 
                     allocate(Me%CenterX(ILB:IUB, JLB:JUB))
 
@@ -1411,7 +1436,7 @@ if1:    if (Me%TimeWindow) then
                     allocate(DataAux(WJUB,WIUB, 1,1))
 
                     status = nf90_get_var(ncid, varid, DataAux, start=(/1,1,1/), count=(/WJUB, WIUB, 1/))
-                    call handle_error(status); if (status /= NF90_NOERR) stop 'ReadWriteGridData - ModuleWRFFormat - ERR02'
+                    call handle_error(status); if (status /= NF90_NOERR) stop 'ReadGridData - ModuleWRFFormat - ERR02'
 
                     allocate(Me%CenterY(ILB:IUB, JLB:JUB))
 
@@ -1429,7 +1454,7 @@ if1:    if (Me%TimeWindow) then
                     allocate(DataAux(JUB,WIUB, 1,1))
 
                     status = nf90_get_var(ncid, varid, DataAux, start=(/1,1,1/), count=(/JUB, WIUB, 1/))
-                    call handle_error(status); if (status /= NF90_NOERR) stop 'ReadWriteGridData - ModuleWRFFormat - ERR02'
+                    call handle_error(status); if (status /= NF90_NOERR) stop 'ReadGridData - ModuleWRFFormat - ERR02'
 
                     allocate(Me%ConnectionX(ILB:IUB, JLB:JUB))
 
@@ -1447,7 +1472,7 @@ if1:    if (Me%TimeWindow) then
                     allocate(DataAux(JUB,WIUB, 1,1))
 
                     status = nf90_get_var(ncid, varid, DataAux, start=(/1,1,1/), count=(/JUB, WIUB, 1/))
-                    call handle_error(status); if (status /= NF90_NOERR) stop 'ReadWriteGridData - ModuleWRFFormat - ERR02'
+                    call handle_error(status); if (status /= NF90_NOERR) stop 'ReadGridData - ModuleWRFFormat - ERR02'
 
                     allocate(Me%ConnectionY(ILB:IUB, JLB:JUB))
 
@@ -1469,26 +1494,32 @@ if1:    if (Me%TimeWindow) then
 
         enddo
         
-        if (.not. Bathymetry_OK)    stop 'Missing HGT - ReadWriteGridData - ModuleWRFFormat - ERR08'
-        !if (.not. LandUse_OK)       stop 'Missing LU_INDEX - ReadWriteGridData - ModuleWRFFormat - ERR09'
-        if (.not. CenterX_OK)       stop 'Missing XLAT - ReadWriteGridData - ModuleWRFFormat - ERR10'
-        if (.not. CenterY_OK)       stop 'Missing XLONG - ReadWriteGridData - ModuleWRFFormat - ERR11'
-        if (.not. ConnectionX_OK)   stop 'Missing XLAT_U - ReadWriteGridData - ModuleWRFFormat - ERR12'
-        if (.not. ConnectionY_OK)   stop 'Missing ZLONG_U - ReadWriteGridData - ModuleWRFFormat - ERR13'
-            
-        if(                  .not. Me%OutputGridNotSpecified) call ConstructGrid 
-
-        if(Me%WriteXYZ .and. .not. Me%OutputGridNotSpecified) call WriteCenterGridXYZ
-
-        call WriteGridToHDF5File
-
+        if (.not. Bathymetry_OK)    stop 'Missing HGT - ReadGridData - ModuleWRFFormat - ERR08'
+        !if (.not. LandUse_OK)       stop 'Missing LU_INDEX - ReadGridData - ModuleWRFFormat - ERR09'
+        if (.not. CenterX_OK)       stop 'Missing XLAT - ReadGridData - ModuleWRFFormat - ERR10'
+        if (.not. CenterY_OK)       stop 'Missing XLONG - ReadGridData - ModuleWRFFormat - ERR11'
+        if (.not. ConnectionX_OK)   stop 'Missing XLAT_U - ReadGridData - ModuleWRFFormat - ERR12'
+        if (.not. ConnectionY_OK)   stop 'Missing ZLONG_U - ReadGridData - ModuleWRFFormat - ERR13'
+        
         !Kill Projection
         status = prj90_free(Me%Proj)
 
-    end subroutine ReadWriteGridData
+    end subroutine ReadGridData
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine WriteWRFGridData
+            
+        if(                  .not. Me%OutputGridNotSpecified) call ConstructGrid 
+        
+        if(Me%WriteXYZ .and. .not. Me%OutputGridNotSpecified) call WriteCenterGridXYZ
+        
+        call WriteGridToHDF5File
+
+    end subroutine WriteWRFGridData
 
     !--------------------------------------------------------------------------
-
+    
     subroutine InitializeProjection (ncid)
 
         !Local-----------------------------------------------------------------
@@ -1767,7 +1798,7 @@ if1:    if (Me%TimeWindow) then
                              Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleWRFFormat - ERR02'
 
-        Me%Bathymetry = -1 * Me%Bathymetry
+        !Me%Bathymetry = -1 * Me%Bathymetry
 
         call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Bathymetry", "-",       &
                               Array2D =  Me%Bathymetry, STAT = STAT_CALL)
@@ -1894,7 +1925,7 @@ if1:    if (Me%TimeWindow) then
                     allocate(VerticalZ%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))
                     VerticalZ%Values3D = 0.
 
-                    VerticalZ%Values3D(WILB:WIUB, WJLB:WJUB, 0) = - Me%Bathymetry(WILB:WIUB, WJLB:WJUB)
+                    VerticalZ%Values3D(WILB:WIUB, WJLB:WJUB, 0) = Me%Bathymetry(WILB:WIUB, WJLB:WJUB)
 
                     VerticalZ%Values3D(WILB:WIUB, WJLB:WJUB, WKLB:WKUB+1) =         &
                                         (GeoPP(WILB:WIUB, WJLB:WJUB, WKLB:WKUB+1) + &
@@ -1923,7 +1954,81 @@ if1:    if (Me%TimeWindow) then
 
     end subroutine ComputeVerticalCoordinate
 
+    !--------------------------------------------------------------------------
+    ! if ToMohid
+    subroutine CorrectVerticalCoordinate
+        
+        !Local-----------------------------------------------------------------
+        type(T_Field), pointer                  :: Field
+        type(T_Date), pointer                   :: CurrentDate
+        real, dimension(:,:,:), pointer         :: VZ
+        integer                                 :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: i,j,k
+        real                                    :: zeroh
+        logical                                 :: FirstTime
+        
+        !Begin-----------------------------------------------------------------
+        
 
+        ILB = Me%Size%ILB; WILB = Me%WorkSize%ILB 
+        IUB = Me%Size%IUB; WIUB = Me%WorkSize%IUB 
+        JLB = Me%Size%JLB; WJLB = Me%WorkSize%JLB 
+        JUB = Me%Size%JUB; WJUB = Me%WorkSize%JUB 
+        KLB = Me%Size%KLB; WKLB = Me%WorkSize%KLB 
+        KUB = Me%Size%KUB; WKUB = Me%WorkSize%KUB 
+        
+        CurrentDate => Me%FirstDate
+        FirstTime = .true.
+        
+        do while(associated(CurrentDate))
+
+            Field => Me%FirstField
+
+            do while(associated(Field))
+            
+                if(trim(adjustl(Field%Name)) == 'VerticalZ' .and. Field%Date == CurrentDate%Date)then
+                    
+                    allocate(VZ(ILB:IUB, JLB:JUB, KLB:KUB))                    
+                    VZ = 0.
+
+                    if (FirstTime) then
+
+                        !find ficticious hydrographic zero - min da camada superior, que é como se fosse a sup. livre
+                        zeroh = -1. * null_real
+                        do j = WJLB, WJUB
+                        do i = WILB, WIUB                        
+                            if (Field%Values3D(i,j,WKUB) < zeroh) zeroh = Field%Values3D(i,j,WKUB)
+                        enddo
+                        enddo
+                                        
+                        Me%Bathymetry(WILB:WIUB, WJLB:WJUB) = zeroh - Me%Bathymetry(WILB:WIUB, WJLB:WJUB)
+                        FirstTime = .false.
+                        
+                        print*, 'zeroh = ', zeroh                        
+                        
+                    endif
+
+                    
+                    do k = WKLB-1, WKUB
+                        VZ(WILB:WIUB, WJLB:WJUB,k) = zeroh - Field%Values3D(WILB:WIUB, WJLB:WJUB, k) 
+                    enddo
+                    
+                    Field%Values3D = VZ !-1.* VZ  
+
+                end if
+
+                Field => Field%Next
+
+            end do
+
+            CurrentDate => CurrentDate%Next
+
+        end do 
+    
+    end subroutine CorrectVerticalCoordinate
+    !end if ToMohid
+    
     !------------------------------------------------------------------------
 
     subroutine ComputeAtmosphericPressure3D
@@ -3775,6 +3880,7 @@ do2:        do while(associated(Field))
         type(T_Field), pointer                          :: Field
         type(T_Date), pointer                           :: CurrentDate, PreviousOutputDate
         real                                            :: dt
+        character(StringLength)                         :: MohidName
 
         !Begin-----------------------------------------------------------------
 
@@ -3819,7 +3925,24 @@ ifDT:       if (CurrentDate%Date .EQ. Me%FirstDate%Date .OR. dt >= Me%OutputDTIn
             do while(associated(Field))
 
                 if(Field%Convert)then
-            
+
+                    if (Me%ToMohid) then
+                        MohidName = GetPropertyName(WindVelocityX_)
+                        MohidName = trim(MohidName)//"_3D"
+                
+                        if (Field%Name == MohidName) Field%Name = GetPropertyName(VelocityU_)
+
+                        MohidName = GetPropertyName(WindVelocityY_)
+                        MohidName = trim(MohidName)//"_3D"
+                
+                        if (Field%Name == MohidName) Field%Name = GetPropertyName(VelocityV_)
+
+                        MohidName = 'wind velocity Z'
+                        MohidName = trim(MohidName)//"_3D"
+                
+                        if (Field%Name == MohidName) Field%Name = GetPropertyName(VelocityW_)
+                    endif
+                    
                     if(Field%Date == CurrentDate%Date)then
                 
                         Field%OutputNumber = OutputNumber
@@ -3851,9 +3974,6 @@ ifDT:       if (CurrentDate%Date .EQ. Me%FirstDate%Date .OR. dt >= Me%OutputDTIn
                                                    Field%WorkSize%KLB - 1, Field%WorkSize%KUB, STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR70'
 
-                                !Invert vertical axis
-                                Field%Values3D = -1. * Field%Values3D
-
                                 call HDF5WriteData(Me%ObjHDF5,                                  &
                                                "/Grid/"//Field%Name,                            &
                                                'Vertical',                                      &
@@ -3863,6 +3983,32 @@ ifDT:       if (CurrentDate%Date .EQ. Me%FirstDate%Date .OR. dt >= Me%OutputDTIn
                                                STAT         = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR80'
 
+                                if (Me%ToMohid) then
+                                    
+                                    ! write ficticious water level - needed by imposed solution
+                                    ! WaterLevel = VerticalZ(WKUB). VerticalZ começa em k=0
+                                
+                                    call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
+                                                       Field%WorkSize%JLB, Field%WorkSize%JUB, STAT = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR81'
+                                
+                                    allocate(Field%Values2D(Field%WorkSize%ILB:Field%WorkSize%IUB, &
+                                                            Field%WorkSize%JLB:Field%WorkSize%JUB))
+                                
+                                    Field%Values2D = Field%Values3D(:,:, Field%WorkSize%KUB)
+
+                                    call HDF5WriteData(Me%ObjHDF5,                                   &
+                                                    "/Results/"//GetPropertyName(WaterLevel_),       &
+                                                    GetPropertyName(WaterLevel_),                    &
+                                                    "m",                                             &
+                                                    Array2D      = Field%Values2D,                   &
+                                                    OutputNumber = Field%OutputNumber,               &
+                                                    STAT         = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR82'
+
+                                endif                                
+                                                                
+
                             else
                     
                                 call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
@@ -3870,15 +4016,27 @@ ifDT:       if (CurrentDate%Date .EQ. Me%FirstDate%Date .OR. dt >= Me%OutputDTIn
                                                    Field%WorkSize%KLB, Field%WorkSize%KUB, STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR90'
 
-                                call HDF5WriteData(Me%ObjHDF5,                                      &
-                                                   "/Results3D/"//Field%Name,                       &
-                                                   Field%Name,                                      &
-                                                   Field%Units,                                     &
-                                                   Array3D      = Field%Values3D,                   &
-                                                   OutputNumber = Field%OutputNumber,               &
-                                                   STAT         = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR100'
-
+                                if (Me%ToMohid) then
+                                    call HDF5WriteData(Me%ObjHDF5,                                      &
+                                                       "/Results/"//Field%Name,                         &
+                                                       Field%Name,                                      &
+                                                       Field%Units,                                     &
+                                                       Array3D      = Field%Values3D,                   &
+                                                       OutputNumber = Field%OutputNumber,               &
+                                                       STAT         = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR100'
+                                    
+                                else
+                                    
+                                    call HDF5WriteData(Me%ObjHDF5,                                      &
+                                                       "/Results3D/"//Field%Name,                       &
+                                                       Field%Name,                                      &
+                                                       Field%Units,                                     &
+                                                       Array3D      = Field%Values3D,                   &
+                                                       OutputNumber = Field%OutputNumber,               &
+                                                       STAT         = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR101'
+                                endif
                             end if
                         end if
                     end if

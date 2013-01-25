@@ -47,8 +47,10 @@ Module ModuleCALMETFormat
     private ::      BeginEndTime
     private ::      ComputeVerticalCoordinate
     private ::      ComputeWindSurface
+    private ::      CorrectVerticalCoordinate  !ToMohid
     private ::      OutputFields
     private ::          WriteGridToHDF5File            
+    private ::          WriteMapping
     private ::      KillCALMETFormat
     
     !Perfect gas constant in Pa m3 kg-1 K-1
@@ -94,13 +96,16 @@ Module ModuleCALMETFormat
         real, dimension(:,:  ),       pointer               :: CenterY
         real, dimension(:,:  ),       pointer               :: ConnectionX
         real, dimension(:,:  ),       pointer               :: ConnectionY
-        real, dimension(:,:  ),       pointer               :: LandUse
         real, dimension(:    ),       pointer               :: ZFace
         
         
         logical                                             :: ConvertCALMET            = .false.
         logical                                             :: ConvertTERRAIN           = .false.
-
+        logical                                             :: Verbose                  = .false.
+        ! to run in MOHID as an imposed solution
+        logical                                             :: ToMohid                  = .false.  
+                        
+         
         type(T_Size3D)                                      :: Size, WorkSize
         type(T_Field),                pointer               :: FirstField
         type(T_Date),                 pointer               :: FirstDate
@@ -170,7 +175,8 @@ Module ModuleCALMETFormat
             
             call OpenAndReadCALMETFile
             
-            call WriteGridInformation ! terrain from CALMET file
+            !if ToMohid, Grid needs corrected VerticalZ
+            if (.not. Me%ToMohid) call WriteGridInformation ! terrain from CALMET file
         
             call BeginEndTime
             
@@ -178,6 +184,11 @@ Module ModuleCALMETFormat
 
             call ComputeWindSurface
 
+            if (Me%ToMohid) then
+                call CorrectVerticalCoordinate                
+                call WriteGridInformation            
+            endif
+            
             call OutputFields
             
         endif
@@ -251,10 +262,6 @@ Module ModuleCALMETFormat
                 
         if (iflag == 1) Me%ConvertTERRAIN = .true.
 
-        write(*,*) 'Convert CALMET Output  = ', Me%ConvertCALMET
-        write(*,*) 'Convert TERRAIN Output = ', Me%ConvertTERRAIN
-        write(*,*) 
-        
         call GetData(Me%StartTime,                                      &
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromBlock,                          &
@@ -293,7 +300,35 @@ Module ModuleCALMETFormat
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleCALMETFormat - ERR12'
         
-        
+        call GetData(Me%Verbose,                                        &
+                     Me%ObjEnterData, iflag1,                           &
+                     SearchType   = FromBlock,                          &
+                     keyword      = 'VERBOSE',                          & 
+                     Default      = .false.,                            &
+                     ClientModule = 'ModuleCALMETFormat',               &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleCALMETFormat - ERR13'
+
+        call GetData(Me%ToMohid,                                        &
+                     Me%ObjEnterData, iflag1,                           &
+                     SearchType   = FromBlock,                          &
+                     keyword      = 'TO_MOHID',                         & 
+                     Default      = .false.,                            &
+                     ClientModule = 'ModuleCALMETFormat',               &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleCALMETFormat - ERR14'
+
+        if (.not. Me%ConvertCALMET .and. Me%ToMohid) then
+            write(*,*) "Needs CALMET input file to TO_MOHID"
+            stop 'ReadOptions - ModuleCALMETFormat - ERR15'
+        endif
+
+        write(*,*) 'Convert CALMET Output  = ', Me%ConvertCALMET
+        write(*,*) 'Convert TERRAIN Output = ', Me%ConvertTERRAIN        
+        write(*,*) 'Output To Mohid        = ', Me%ToMohid
+        write(*,*)         
+
+
     end subroutine ReadOptions
     
     !--------------------------------------------------------------------------
@@ -357,9 +392,9 @@ Module ModuleCALMETFormat
         !Allocate Size ------------------------------------
         
         Me%Size%ILB = 0             ; Me%WorkSize%ILB = Me%Size%ILB + 1
-        Me%Size%IUB = nx + 1        ; Me%WorkSize%IUB = Me%Size%IUB - 1
+        Me%Size%IUB = ny + 1        ; Me%WorkSize%IUB = Me%Size%IUB - 1
         Me%Size%JLB = 0             ; Me%WorkSize%JLB = Me%Size%JLB + 1
-        Me%Size%JUB = ny + 1        ; Me%WorkSize%JUB = Me%Size%JUB - 1
+        Me%Size%JUB = nx + 1        ; Me%WorkSize%JUB = Me%Size%JUB - 1
 
         ILB = Me%Size%ILB; WILB = Me%WorkSize%ILB 
         IUB = Me%Size%IUB; WIUB = Me%WorkSize%IUB 
@@ -420,11 +455,12 @@ Module ModuleCALMETFormat
         print*, 'DataAux(99,98) = ', DataAux(99,98)
         
         allocate(Me%Bathymetry(ILB:IUB, JLB:JUB))               
-        Me%Bathymetry(WILB:WIUB, WJLB:WJUB) = DataAux(WILB:WIUB, WJLB:WJUB)        
+        Me%Bathymetry(WILB:WIUB, WJLB:WJUB) = transpose(DataAux(WILB:WIUB, WJLB:WJUB))
 
+        ! por causa dos -99 e dos -4...
         do j = WJLB, WJUB
         do i = WILB, WIUB
-            if (Me%Bathymetry(i,j) < -99.) Me%Bathymetry(i,j) = -99.
+            if (Me%Bathymetry(i,j) < 0) Me%Bathymetry(i,j) = 0.
         enddo
         enddo
 
@@ -461,16 +497,16 @@ Module ModuleCALMETFormat
         do j = 1, WJUB + 1
         do i = 1, WIUB + 1
             
-            x = dble(Me%XOri + (i-1)*Me%DX)
-            y = dble(Me%YOri + (j-1)*Me%DY)
-        
+            x = dble(Me%XOri + (j-1)*Me%DX)
+            y = dble(Me%YOri + (i-1)*Me%DY)
+                                
             STAT_CALL = prj90_inv(Me%Proj, x, y, lon, lat)
             call handle_proj_error(STAT_CALL)
             if (STAT_CALL /= PRJ90_NOERR) stop 'WriteGridInformation - ModuleCALMETFormat - ERR01'
-        
+            
             Me%ConnectionX(i,j) = lon
             Me%ConnectionY(i,j) = lat
-            
+                        
         enddo
         enddo
 
@@ -478,13 +514,13 @@ Module ModuleCALMETFormat
         do j = 1, WJUB
         do i = 1, WIUB
 
-            x = dble(Me%XOri + Me%DX/2. + (i-1)*Me%DX)
-            y = dble(Me%YOri + Me%DY/2. + (j-1)*Me%DY)
+            x = dble(Me%XOri + Me%DX/2. + (j-1)*Me%DX)
+            y = dble(Me%YOri + Me%DY/2. + (i-1)*Me%DY)
 
             STAT_CALL = prj90_inv(Me%Proj, x, y, lon, lat)
             call handle_proj_error(STAT_CALL)
             if (STAT_CALL /= PRJ90_NOERR) stop 'WriteGridInformation - ModuleCALMETFormat - ERR02'
-
+            
             Me%CenterX(i,j) = lon
             Me%CenterY(i,j) = lat
 
@@ -525,7 +561,7 @@ Module ModuleCALMETFormat
                                 SP2            = Me%TrueLatUpper,                              &
                                 STAT           = STAT_CALL) 
         if(STAT_CALL .ne. SUCCESS_)stop 'WriteGridInformation - ModuleCALMETFormat - ERR06'
-
+        
         call ConstructHorizontalGrid(Me%ObjHorizontalGrid, Me%GridFileName, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteGridInformation - ModuleCALMETFormat - ERR07'
         
@@ -829,12 +865,15 @@ Module ModuleCALMETFormat
         
         rewind(Me%Unit)
         read  (Me%Unit) dataset,dataver,datamod
-        print*, 'dataset = ', trim(adjustl(dataset)), '.'
-        print*, 'dataver = ', trim(adjustl(dataver)), '.'
-        print*, 'datamod = ', trim(adjustl(datamod)), '.'
+        
+        if (Me%Verbose) then
+            print*, 'dataset = ', trim(adjustl(dataset)), '.'
+            print*, 'dataver = ', trim(adjustl(dataver)), '.'
+            print*, 'datamod = ', trim(adjustl(datamod)), '.'
+        endif
         
         read  (Me%Unit) ncom
-        print*, 'ncom = ', ncom
+        if (Me%Verbose) print*, 'ncom = ', ncom
         
         do i=1, ncom
             read  (Me%Unit) AuxString
@@ -852,32 +891,34 @@ Module ModuleCALMETFormat
                         pmap,datum,daten,feast,fnorth,utmhem,iutmzn,        &
                         rnlat0,relon0,xlat1,xlat2                           
         
-        print*, 'ibyrn,ibmon,ibdyn,ibhrn,ibsecn = ', ibyrn,ibmon,ibdyn,ibhrn,ibsecn
-        print*, 'ieyrn,iemon,iedyn,iehrn,iesecn = ', ieyrn,iemon,iedyn,iehrn,iesecn
-        print*, 'axtz,irlg,irtype               = ', axtz,irlg,irtype
-        print*, 'nx, ny, nz, dgrid              = ', nx, ny, nz, dgrid
-        print*, 'xorigr, yorigr, iwfcod         = ', xorigr, yorigr, iwfcod
-        print*, 'nssta, nusta, npsta, nowsta    = ', nssta, nusta, npsta, nowsta
-        print*, 'nlu, iwat1, iwat2, lcalgrd     = ', nlu, iwat1, iwat2, lcalgrd
-        print*, 'pmap,datum,daten               = ', pmap,datum,daten
-        print*, 'feast,fnorth                   = ', feast,fnorth
-        print*, 'utmhem,iutmzn                  = ', utmhem,iutmzn
-        print*, 'rnlat0,relon0,xlat1,xlat2      = ', rnlat0,relon0,xlat1,xlat2 
+        if (Me%Verbose) then
+            print*, 'ibyrn,ibmon,ibdyn,ibhrn,ibsecn = ', ibyrn,ibmon,ibdyn,ibhrn,ibsecn
+            print*, 'ieyrn,iemon,iedyn,iehrn,iesecn = ', ieyrn,iemon,iedyn,iehrn,iesecn
+            print*, 'axtz,irlg,irtype               = ', axtz,irlg,irtype
+            print*, 'nx, ny, nz, dgrid              = ', nx, ny, nz, dgrid
+            print*, 'xorigr, yorigr, iwfcod         = ', xorigr, yorigr, iwfcod
+            print*, 'nssta, nusta, npsta, nowsta    = ', nssta, nusta, npsta, nowsta
+            print*, 'nlu, iwat1, iwat2, lcalgrd     = ', nlu, iwat1, iwat2, lcalgrd
+            print*, 'pmap,datum,daten               = ', pmap,datum,daten
+            print*, 'feast,fnorth                   = ', feast,fnorth
+            print*, 'utmhem,iutmzn                  = ', utmhem,iutmzn
+            print*, 'rnlat0,relon0,xlat1,xlat2      = ', rnlat0,relon0,xlat1,xlat2 
+        endif
         
-        !call SetDate(AuxTime, ibyrn, ibmon, ibdyn, ibhrn, ibsecn, 0)
+        call SetDate(AuxTime, ibyrn, ibmon, ibdyn, ibhrn, ibsecn, 0)
         !call SetDate(Me%FileEndTime, ieyrn, iemon, iedyn, iehrn, iesecn, 0)
         
         if (.not. Me%ConvertTERRAIN) then
 
             Me%Size%ILB = 0             ; Me%WorkSize%ILB = Me%Size%ILB + 1
-            Me%Size%IUB = nx + 1        ; Me%WorkSize%IUB = Me%Size%IUB - 1
+            Me%Size%IUB = ny + 1        ; Me%WorkSize%IUB = Me%Size%IUB - 1
             Me%Size%JLB = 0             ; Me%WorkSize%JLB = Me%Size%JLB + 1
-            Me%Size%JUB = ny + 1        ; Me%WorkSize%JUB = Me%Size%JUB - 1
+            Me%Size%JUB = nx + 1        ; Me%WorkSize%JUB = Me%Size%JUB - 1
     
             Me%DX = dgrid
             Me%DY = dgrid
-            Me%FalseEast = feast
-            Me%FalseNorth = fnorth
+            Me%FalseEast = feast * 1000.
+            Me%FalseNorth = fnorth * 1000.
                 
             Me%XOri = xorigr
             Me%YOri = yorigr
@@ -913,12 +954,12 @@ Module ModuleCALMETFormat
         
         else ! ConvertTERRAIN = TRUE, check that parameters are the same
             
-            if (Me%WorkSize%IUB /= nx) then
+            if (Me%WorkSize%IUB /= ny) then
                 write(*,*) 'TERRAIN nx differs from CALMET nx = ', Me%WorkSize%IUB, nx
                 stop 'OpenAndReadCALMETFile - ModuleCALMETFormat - ERR06'
             endif
             
-            if (Me%WorkSize%JUB /= ny) then
+            if (Me%WorkSize%JUB /= nx) then
                 write(*,*) 'TERRAIN ny differs from CALMET ny = ', Me%WorkSize%JUB, ny
                 stop 'OpenAndReadCALMETFile - ModuleCALMETFormat - ERR07'
             endif
@@ -1036,13 +1077,13 @@ Module ModuleCALMETFormat
         CALMETName  = 'Z0'
         MohidName   = CALMETName
         Units       = 'm'
-        call AddFieldXY (CALMETName, MohidName, Units, NewField)
+        call AddFieldXY (CALMETName, MohidName, Units, NewField, AuxTime)
         
         !ILANDU - land use categories (NX * NY words)
         CALMETName  = 'ILANDU'
         MohidName   = 'LandUse'
         Units       = '-'
-        call AddIntegerFieldXY (CALMETName, MohidName, Units, NewField, ConvertToReal = .TRUE.)
+        call AddIntegerFieldXY (CALMETName, MohidName, Units, NewField, AuxTime, ConvertToReal = .TRUE.)
                 
         !ELEV -  elevations (NX * NY words)
         CALMETName  = 'ELEV'
@@ -1052,11 +1093,12 @@ Module ModuleCALMETFormat
 
         nullify(Me%Bathymetry)        
         allocate(Me%Bathymetry(ILB:IUB,JLB:JUB))
-        Me%Bathymetry(WILB:WIUB,WJLB:WJUB) = NewField%Values2D(WILB:WIUB,WJLB:WJUB)    
+        Me%Bathymetry(WILB:WIUB,WJLB:WJUB) = NewField%Values2D(WILB:WIUB,WJLB:WJUB)
 
+        ! por causa dos -99 e dos -4...
         do j = WJLB, WJUB
         do i = WILB, WIUB
-            if (Me%Bathymetry(i,j) < -99.) Me%Bathymetry(i,j) = -99.
+            if (Me%Bathymetry(i,j) < 0) Me%Bathymetry(i,j) = 0.
         enddo
         enddo
         
@@ -1064,14 +1106,14 @@ Module ModuleCALMETFormat
         CALMETName  = 'XLAI'
         MohidName   = CALMETName
         Units       = '-'
-        call AddFieldXY (CALMETName, MohidName, Units, NewField)
+        call AddFieldXY (CALMETName, MohidName, Units, NewField, AuxTime)
 
         !NEARS -- Number of the closest surface met station        
         if (nssta > 1) then
             CALMETName  = 'NEARS'
             MohidName   = CALMETName
             Units       = '-'
-            call AddFieldXY (CALMETName, MohidName, Units, NewField)
+            call AddFieldXY (CALMETName, MohidName, Units, NewField, AuxTime)
         endif
 
         !----------------------------------------------------------------------
@@ -1079,14 +1121,15 @@ Module ModuleCALMETFormat
         !----------------------------------------------------------------------
         
         do it = 1, irlg
-
+            
+            if (Me%Verbose) print*, 'it = ', it
             nullify (CurrentDate)
             
             !Wind Components ------------------------------------------------
             
-            allocate(DataAux3D1(WILB:WIUB, WJLB:WJUB, WKLB:WKUB))            
-            allocate(DataAux3D2(WILB:WIUB, WJLB:WJUB, WKLB:WKUB))            
-            if (lcalgrd) allocate(DataAux3D3(WILB:WIUB, WJLB:WJUB, WKLB:WKUB+1))            
+            allocate(DataAux3D1(nx,ny,nz))            
+            allocate(DataAux3D2(nx,ny,nz))            
+            if (lcalgrd) allocate(DataAux3D3(nx,ny,nz+1))            
                         
             do k = 1, nz
 
@@ -1125,8 +1168,11 @@ Module ModuleCALMETFormat
                                        Date          = CurrentDate%Date,                        &
                                        Convert       = .true.) !FieldIsToConvert(MohidName))
         
-            allocate(NewField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))        
-            NewField%Values3D(WILB:WIUB, WJLB:WJUB, WKLB:WKUB) = DataAux3D1(WILB:WIUB, WJLB:WJUB, WKLB:WKUB)
+            allocate(NewField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))                   
+            do k = WKLB, WKUB
+                NewField%Values3D(WILB:WIUB, WJLB:WJUB, k) = transpose(DataAux3D1(WILB:WIUB, WJLB:WJUB, k))
+            enddo
+            
             deallocate(DataAux3D1)
         
             !Velocity V
@@ -1144,7 +1190,9 @@ Module ModuleCALMETFormat
                                        Convert       = .true.) !FieldIsToConvert(MohidName))
             
             allocate(NewField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))        
-            NewField%Values3D(WILB:WIUB, WJLB:WJUB, WKLB:WKUB) = DataAux3D2(WILB:WIUB, WJLB:WJUB, WKLB:WKUB)
+            do k = WKLB, WKUB
+                NewField%Values3D(WILB:WIUB, WJLB:WJUB, k) = transpose(DataAux3D2(WILB:WIUB, WJLB:WJUB, k))
+            enddo            
             deallocate(DataAux3D2)
 
             if (lcalgrd) then
@@ -1162,7 +1210,9 @@ Module ModuleCALMETFormat
         
                 allocate(NewField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))        
                 DataAux3D3(:,:,WKLB) = 0.0
-                NewField%Values3D(WILB:WIUB, WJLB:WJUB, WKLB:(WKUB+1)) = DataAux3D3(WILB:WIUB, WJLB:WJUB, WKLB:(WKUB+1))
+                do k = WKLB, WKUB+1
+                    NewField%Values3D(WILB:WIUB, WJLB:WJUB, k) = transpose(DataAux3D3(WILB:WIUB, WJLB:WJUB, k))
+                enddo
                 deallocate(DataAux3D3)
         
             endif
@@ -1190,8 +1240,12 @@ if1:        if (irtype > 0) then
                                            Convert       = .true.) !FieldIsToConvert(MohidName))
                 
         
-                allocate(NewField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))        
-                NewField%Values3D(WILB:WIUB, WJLB:WJUB, WKLB:WKUB) = DataAux3D1(WILB:WIUB, WJLB:WJUB, WKLB:WKUB)
+                allocate(NewField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB)) 
+                do k = WKLB, WKUB
+                    NewField%Values3D(WILB:WIUB, WJLB:WJUB, k) = transpose(DataAux3D1(WILB:WIUB, WJLB:WJUB, k))
+                enddo                         
+                NewField%Values3D = NewField%Values3D - 273.15
+                
                 deallocate(DataAux3D1)
 
 
@@ -1236,7 +1290,7 @@ if1:        if (irtype > 0) then
                 !Air Temperature (K)
                 CALMETName  = 'TEMPK'
                 MohidName   = GetPropertyName(AirTemperature_)
-                Units       = 'degC'
+                Units       = 'ºC'
                 call AddFieldXY (CALMETName, MohidName, Units, NewField, AuxTime)                
                 NewField%Values2D = NewField%Values2D - 273.15
                 
@@ -1296,10 +1350,10 @@ if1:        if (irtype > 0) then
             
         nullify(DataAux2D)
                        
-        allocate(DataAux2D(Me%WorkSize%IUB, Me%WorkSize%JUB))
+        allocate(DataAux2D (Me%WorkSize%IUB, Me%WorkSize%JUB))        
             
         read(Me%Unit) clabel, ndathrb, ibsec, ndathre, iesec, DataAux2D
-        
+       
         if (clabel /= trim(adjustl(CALMETName))) then
             write(*,*) 'Property should be ', trim(adjustl(CALMETName))
             write(*,*) 'instead of ', clabel
@@ -1323,7 +1377,8 @@ if1:        if (irtype > 0) then
         JUB = Me%Size%JUB; WJUB = Me%WorkSize%JUB 
         
         allocate(NewField%Values2D(ILB:IUB, JLB:JUB))        
-        NewField%Values2D(WILB:WIUB, WJLB:WJUB) = DataAux2D(WILB:WIUB, WJLB:WJUB)
+        NewField%Values2D(WILB:WIUB, WJLB:WJUB) = transpose(DataAux2D(WILB:WIUB, WJLB:WJUB))
+
         deallocate(DataAux2D)
 
     end subroutine AddFieldXY
@@ -1379,11 +1434,11 @@ if1:        if (irtype > 0) then
         if (present(ConvertToReal)) then
 
             allocate(NewField%Values2D(ILB:IUB, JLB:JUB))        
-            NewField%Values2D(WILB:WIUB, WJLB:WJUB) = real(DataAux2D(WILB:WIUB, WJLB:WJUB))
+            NewField%Values2D(WILB:WIUB, WJLB:WJUB) = transpose(real(DataAux2D(WILB:WIUB, WJLB:WJUB)))
             
         else 
             allocate(NewField%IValues2D(ILB:IUB, JLB:JUB))        
-            NewField%IValues2D(WILB:WIUB, WJLB:WJUB) = DataAux2D(WILB:WIUB, WJLB:WJUB)
+            NewField%IValues2D(WILB:WIUB, WJLB:WJUB) = transpose(DataAux2D(WILB:WIUB, WJLB:WJUB))
             NewField%IsInteger  = .true.
 
         endif
@@ -1429,7 +1484,7 @@ if1:        if (irtype > 0) then
         
             call JulianDayToMonthDay(IYear2, JulianDay, AuxTime)
             
-            NewDate%Date = AuxTime + Ihour2*60. + isec
+            NewDate%Date = AuxTime + Ihour2*3600. + isec
         
         else
 
@@ -1549,8 +1604,15 @@ if1:    if (Me%TimeWindow) then
                                        Convert       = .true.)
                 
             allocate(NewField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))        
-            do k = WKLB, WKUB + 1
-                NewField%Values3D(:,:,k) = Me%ZFace(k)
+            NewField%Values3D = 0.
+            !NewField%Values3D(WILB:WIUB, WJLB:WJUB, 0) = Me%Bathymetry(WILB:WIUB, WJLB:WJUB)
+
+            !VerticalZ(k=0) == Topography
+            !VerticalZ(k=WKUB) == Topo
+            !Me%ZFace(0) = 0
+            
+            do k = WKLB-1, WKUB
+                NewField%Values3D(:,:,k) = Me%Bathymetry(:,:) + Me%ZFace(k+1)
             enddo
 
             CurrentDate => CurrentDate%Next
@@ -1560,6 +1622,80 @@ if1:    if (Me%TimeWindow) then
 
     end subroutine ComputeVerticalCoordinate
 
+    !--------------------------------------------------------------------------
+    !if ToMohid
+    subroutine CorrectVerticalCoordinate
+        
+        !Local-----------------------------------------------------------------
+        type(T_Field), pointer                  :: Field
+        type(T_Date), pointer                   :: CurrentDate
+        real, dimension(:,:,:), pointer         :: VZ
+        integer                                 :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: i,j,k
+        real                                    :: zeroh
+        logical                                 :: FirstTime
+        
+        !Begin-----------------------------------------------------------------
+        
+
+        ILB = Me%Size%ILB; WILB = Me%WorkSize%ILB 
+        IUB = Me%Size%IUB; WIUB = Me%WorkSize%IUB 
+        JLB = Me%Size%JLB; WJLB = Me%WorkSize%JLB 
+        JUB = Me%Size%JUB; WJUB = Me%WorkSize%JUB 
+        KLB = Me%Size%KLB; WKLB = Me%WorkSize%KLB 
+        KUB = Me%Size%KUB; WKUB = Me%WorkSize%KUB 
+        
+        CurrentDate => Me%FirstDate
+        FirstTime = .true.
+        
+        do while(associated(CurrentDate))
+
+            Field => Me%FirstField
+
+            do while(associated(Field))
+            
+                if(trim(adjustl(Field%Name)) == 'VerticalZ' .and. Field%Date == CurrentDate%Date)then
+                    
+                    allocate(VZ(ILB:IUB, JLB:JUB, KLB:KUB))                    
+                    VZ = 0.
+                    
+
+                    if (FirstTime) then
+
+                        !find ficticious hydrographic zero - min da camada superior, que é como se fosse a sup. livre
+                        zeroh = -1. * null_real
+                        do j = WJLB, WJUB
+                        do i = WILB, WIUB                        
+                            if (Field%Values3D(i,j,WKUB) < zeroh) zeroh = Field%Values3D(i,j,WKUB)
+                        enddo
+                        enddo
+                                        
+                        Me%Bathymetry(WILB:WIUB, WJLB:WJUB) = zeroh - Me%Bathymetry(WILB:WIUB, WJLB:WJUB)
+                        FirstTime = .false.
+                        
+                        print*, 'zeroh = ', zeroh
+                    endif
+
+                    
+                    do k = WKLB-1, WKUB
+                        VZ(WILB:WIUB, WJLB:WJUB,k) = zeroh - Field%Values3D(WILB:WIUB, WJLB:WJUB, k) 
+                    enddo
+                    
+                    Field%Values3D = VZ !-1.* VZ  
+
+                end if
+
+                Field => Field%Next
+
+            end do
+
+            CurrentDate => CurrentDate%Next
+
+        end do 
+    
+    end subroutine CorrectVerticalCoordinate
+    
     !------------------------------------------------------------------------
 
     subroutine ComputeWindSurface
@@ -1707,8 +1843,8 @@ if1:    if (Me%TimeWindow) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer,    dimension(:,:), pointer         :: WaterPoints2D
-        type(T_Field), pointer                      :: Field
-        logical                                     :: LandUse_OK, Z0_OK, XLAI_OK
+        !type(T_Field), pointer                      :: Field
+        !logical                                     :: LandUse_OK, Z0_OK, XLAI_OK
 
 
         !----------------------------------------------------------------------
@@ -1744,6 +1880,7 @@ if1:    if (Me%TimeWindow) then
         if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleCALMETFormat - ERR06'
         
         !Bathymetry
+        !if (.not. Me%ToMohid) Me%Bathymetry = -1 * Me%Bathymetry        
         
         call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,&
                              Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
@@ -1757,46 +1894,6 @@ if1:    if (Me%TimeWindow) then
                              Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleCALMETFormat - ERR09'
 
-        nullify(Field)
-        Field => Me%FirstField
-        LandUse_OK   = .false.
-        Z0_OK       = .false.
-        XLAI_OK     = .false.
-        
-        do while (associated(Field))
-            
-            select case (Field%Name)
-                
-            case ('LandUse')
-                call HDF5WriteData   (Me%ObjHDF5, "/Grid", "LandUse", "-",       &
-                                        Array2D =  Field%Values2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleCALMETFormat - ERR10'
-
-                LandUse_OK = .true.
-                                    
-            case ('Z0')
-                call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Z0", "-",       &
-                                        Array2D =  Field%Values2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleCALMETFormat - ERR11'
-
-                Z0_OK = .true.
-
-            case ('XLAI')
-                call HDF5WriteData   (Me%ObjHDF5, "/Grid", "XLAI", "-",       &
-                                        Array2D =  Field%Values2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleCALMETFormat - ERR12'
-                
-                XLAI_OK = .true.
-                
-            end select
-
-            if (LandUse_OK .and. Z0_OK .and. XLAI_OK) exit
-            
-            Field => Field%Next
-            
-        enddo
-        
-        
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleCALMETFormat - ERR13'
@@ -1805,6 +1902,38 @@ if1:    if (Me%TimeWindow) then
         nullify   (WaterPoints2D)
 
     end subroutine WriteGridToHDF5File
+
+    !------------------------------------------------------------------------
+    
+    subroutine WriteMapping
+        
+        !Local-----------------------------------------------------------------
+        integer,    dimension(:,:,:), pointer           :: WaterPoints3D
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+        
+
+        allocate(WaterPoints3D(Me%Size%ILB:Me%Size%IUB,&
+                               Me%Size%JLB:Me%Size%JUB,&
+                               Me%Size%KLB:Me%Size%KUB))
+
+        WaterPoints3D = 1
+
+
+        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,&
+                             Me%WorkSize%JLB, Me%WorkSize%JUB, &
+                             Me%WorkSize%KLB, Me%WorkSize%KUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteMapping - ModuleWRFFormat - ERR10'            
+
+        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints3D", "-",    &
+                              Array3D = WaterPoints3D,  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteMapping - ModuleWRFFormat - ERR20'
+
+        deallocate(WaterPoints3D)
+        nullify   (WaterPoints3D)
+
+    end subroutine WriteMapping    
     
     !------------------------------------------------------------------------
     
@@ -1817,6 +1946,7 @@ if1:    if (Me%TimeWindow) then
         type(T_Field), pointer                          :: Field
         type(T_Date), pointer                           :: CurrentDate, PreviousOutputDate
         real                                            :: dt
+        character(StringLength)                         :: MohidName
 
         !Begin-----------------------------------------------------------------
 
@@ -1824,6 +1954,8 @@ if1:    if (Me%TimeWindow) then
         write(*,*)'Writing HDF5 file...'
 
         call WriteGridToHDF5File
+        
+        call WriteMapping
         
         OutputNumber = 1
         CurrentDate        => Me%FirstDate
@@ -1892,12 +2024,33 @@ if2:                if(Field%nDimensions == 2)then
 
                     elseif(Field%nDimensions == 3) then !if2
 
+
+                        if (Me%ToMohid) then
+                            MohidName = GetPropertyName(WindVelocityX_)
+                            MohidName = trim(MohidName)//"_3D"
+                
+                            if (Field%Name == MohidName) Field%Name = GetPropertyName(VelocityU_)
+
+                            MohidName = GetPropertyName(WindVelocityY_)
+                            MohidName = trim(MohidName)//"_3D"
+                
+                            if (Field%Name == MohidName) Field%Name = GetPropertyName(VelocityV_)
+
+                            MohidName = 'wind velocity Z'
+                            MohidName = trim(MohidName)//"_3D"
+                
+                            if (Field%Name == MohidName) Field%Name = GetPropertyName(VelocityW_)
+                        endif
+                        
                         if(Field%Name == 'VerticalZ') then
 
                             call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,  &
                                                 Field%WorkSize%JLB, Field%WorkSize%JUB,             &
                                                 Field%WorkSize%KLB - 1, Field%WorkSize%KUB, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCALMETFormat - ERR70'
+
+                            !Invert vertical axis
+                            !if (.not. Me%ToMohid) Field%Values3D = -1. * Field%Values3D                                
 
                             call HDF5WriteData(Me%ObjHDF5,                                      &
                                             "/Grid/"//Field%Name,                               &
@@ -1908,6 +2061,31 @@ if2:                if(Field%nDimensions == 2)then
                                             STAT         = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCALMETFormat - ERR80'
 
+                            if (Me%ToMohid) then
+                                
+                                ! write ficticious water level - needed by imposed solution
+                                ! WaterLevel = VerticalZ(WKUB). VerticalZ começa em k=0
+                                
+                                call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
+                                                    Field%WorkSize%JLB, Field%WorkSize%JUB, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR81'
+                                
+                                allocate(Field%Values2D(Field%WorkSize%ILB:Field%WorkSize%IUB, &
+                                                        Field%WorkSize%JLB:Field%WorkSize%JUB))
+                                
+                                Field%Values2D = Field%Values3D(:,:, Field%WorkSize%KUB)
+
+                                call HDF5WriteData(Me%ObjHDF5,                                   &
+                                                "/Results/"//GetPropertyName(WaterLevel_),       &
+                                                GetPropertyName(WaterLevel_),                    &
+                                                "m",                                             &
+                                                Array2D      = Field%Values2D,                   &
+                                                OutputNumber = Field%OutputNumber,               &
+                                                STAT         = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR82'
+
+                            endif                                
+
                         else
                     
                             call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
@@ -1915,15 +2093,28 @@ if2:                if(Field%nDimensions == 2)then
                                                 Field%WorkSize%KLB, Field%WorkSize%KUB, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCALMETFormat - ERR90'
 
-                            call HDF5WriteData(Me%ObjHDF5,                                      &
-                                                "/Results/"//Field%Name,                         &
-                                                Field%Name,                                      &
-                                                Field%Units,                                     &
-                                                Array3D      = Field%Values3D,                   &
-                                                OutputNumber = Field%OutputNumber,               &
-                                                STAT         = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCALMETFormat - ERR100'
-
+                            if (Me%ToMohid) then
+                                !No Results3D
+                                call HDF5WriteData(Me%ObjHDF5,                                       &
+                                                    "/Results/"//Field%Name,                         &
+                                                    Field%Name,                                      &
+                                                    Field%Units,                                     &
+                                                    Array3D      = Field%Values3D,                   &
+                                                    OutputNumber = Field%OutputNumber,               &
+                                                    STAT         = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCALMETFormat - ERR100'
+                                
+                            else                                 
+                        
+                                call HDF5WriteData(Me%ObjHDF5,                                       &
+                                                    "/Results3D/"//Field%Name,                       &
+                                                    Field%Name,                                      &
+                                                    Field%Units,                                     &
+                                                    Array3D      = Field%Values3D,                   &
+                                                    OutputNumber = Field%OutputNumber,               &
+                                                    STAT         = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCALMETFormat - ERR101'
+                            endif                            
                         end if
                     end if if2
                 end if if1
@@ -1971,8 +2162,10 @@ if2:                if(Field%nDimensions == 2)then
         deallocate(Me%CenterY    )
         deallocate(Me%ConnectionY)
 
-        call KillHDF5(Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'KillCALMETFormat - ModuleCALMETFormat - ERR02'
+        if (Me%ConvertCALMET) then
+            call KillHDF5(Me%ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'KillCALMETFormat - ModuleCALMETFormat - ERR02'
+        endif
         
         nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
         if (nUsers == 0) stop 'KillCALMETFormat - ModuleCALMETFormat - ERR03'
