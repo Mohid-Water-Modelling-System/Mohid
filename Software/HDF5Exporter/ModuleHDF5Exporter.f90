@@ -2680,7 +2680,7 @@ do_ts4:                             do while (associated(TS))
                                 TS => Me%FirstTimeSeriesData
 do_ts5:                         do while (associated(TS))
                                     if (mask_2d(i,j) == TS%ID) then
-                                        if (TS%Layer /= -1) then
+                                        if (TS%Layer == -1) then
                                             k = Me%Size3D%KUB
                                         else
                                             k = TS%Layer
@@ -2727,7 +2727,7 @@ do_ts5:                         do while (associated(TS))
                                     TS => Me%FirstTimeSeriesData
 do_ts6:                             do while (associated(TS))
                                         if (mask_2d(i,j) == TS%ID) then
-                                            if (TS%Layer /= -1) then
+                                            if (TS%Layer == -1) then
                                                 k = Me%Size3D%KUB
                                             else
                                                 k = TS%Layer
