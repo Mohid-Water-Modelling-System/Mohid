@@ -169,6 +169,7 @@ Module ModuleBasinGeometry
         logical                                     :: WriteDrainedArea
         logical                                     :: WriteDrainageDirection
         logical                                     :: WriteCellSlope
+        logical                                     :: WriteBasinPoints
         logical                                     :: RemoveDepressions
         logical                                     :: FlatSolution
         logical                                     :: DelineateBasin
@@ -179,6 +180,7 @@ Module ModuleBasinGeometry
         character(Pathlength)                       :: DrainageDirectionFile
         character(Pathlength)                       :: CellSlopeFile
         character(Pathlength)                       :: NewTopographyFile
+        character(Pathlength)                       :: BasinPointsFile
         integer                                     :: ObjHorizontalGrid    = 0
         integer                                     :: ObjTopography        = 0
         type (T_BasinGeometry), pointer             :: Next
@@ -626,6 +628,19 @@ Module ModuleBasinGeometry
                                   STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasinGeometry - ERR06'
 
+                    call GetData (Me%BasinPointsFile, ObjEnterData, flag,                        &
+                                  SearchType   = FromFile,                                       &
+                                  keyword      ='BASIN_POINTS_FILE',                             &
+                                  ClientModule ='ModuleBasinGeometry',                           &
+                                  STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasinGeometry - ERR06a'
+                    
+                    if (flag == 1) then
+                        Me%WriteBasinPoints = .true.
+                    else
+                        Me%WriteBasinPoints = .false.
+                    endif                                        
+                    
                 endif
 
             endif
@@ -2160,7 +2175,21 @@ do1:            do
             write (unit, *)"<endpolygon>"
             
             call UnitsManager (Unit, CLOSE_FILE)
-
+            
+            if (Me%WriteBasinPoints) then
+            
+    	        call WriteGridData  (Me%BasinPointsFile,                                        &
+		                             COMENT1          = "Created using BasinDelineator.",       &
+		                             COMENT2          = "BasinPoints 2D GridData: ",            &
+		                             HorizontalGridID = Me%ObjHorizontalGrid,                   &
+		                             FillValue        = -99.0,                                  &
+		                             OverWrite        = .true.,                                 &
+		                             GridData2D_Int   = Me%BasinPoints,                         &
+		                             STAT             = STAT_CALL)   
+                if (STAT_CALL /= SUCCESS_) stop 'WriteBasinASCII - ModuleBasinGeometry - ERR06a'            
+            
+            endif
+            
         endif
 
 

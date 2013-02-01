@@ -3584,7 +3584,9 @@ Module ModuleHDF5
         if (ready_ .EQ. IDLE_ERR_) then
            
             call h5gopen_f       (Me%FileID, trim(adjustl(FatherGroupName)), gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5GroupNumberOfItems - ModuleHDF5 - ERR10'
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'GetHDF5GroupID - ModuleHDF5 - ERR10'
+            endif
                     
             call h5gget_obj_info_idx_f(gr_id, FatherGroupName, GroupPosition-1, &   
                                        GroupName, GroupType, STAT_CALL)
@@ -3640,7 +3642,7 @@ Module ModuleHDF5
             end if
             
             call h5gclose_f      (gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5GroupNumberOfItems - ModuleHDF5 - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5GroupID - ModuleHDF5 - ERR30'
 
             STAT_ = SUCCESS_
 
@@ -3784,13 +3786,13 @@ Module ModuleHDF5
         if (ready_ .EQ. IDLE_ERR_) then
        
             call h5gopen_f       (Me%FileID, trim(adjustl(FatherGroupName)), gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5GroupNumberOfItems - ModuleHDF5 - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ObjectInfo - ModuleHDF5 - ERR10'
                     
             call h5gget_obj_info_idx_f(gr_id, FatherGroupName, GroupPosition-1, &   
                                        GroupName, GroupType, STAT_CALL)
             
             call h5gclose_f      (gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5GroupNumberOfItems - ModuleHDF5 - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ObjectInfo - ModuleHDF5 - ERR30'
 
             STAT_ = SUCCESS_
 

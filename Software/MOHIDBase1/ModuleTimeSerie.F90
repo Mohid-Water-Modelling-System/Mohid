@@ -1263,7 +1263,7 @@ cd1 :       if (present(ResultFileName)) then
 
        enddo
 
-        1000 format(1x,"     Seconds   YY  MM  DD  hh  mm       ss", 2x, 1000(1x, A44))
+        1000 format(1x,"     Seconds   YY  MM  DD  hh  mm       ss", 2x, 1000(1x, A43))
         2000 format(1x,"     Seconds   YY  MM  DD  hh  mm       ss", 2x, 1000(1x, A))
 !        1000 format(1x," Seconds    YY   MM  DD  HH  MM  SS", 6x, 1x, 1000(1x, A12))
 
@@ -1861,8 +1861,10 @@ cd2 :       if (Me%Points) then
 
                         !Sets next output time
                         if (IPC == Me%NumberOfProperties)                           &
+                            !Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
+                            !    CurrentTime + Me%TimeSerie(iTimeSerie)%DT
                             Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
-                                CurrentTime + Me%TimeSerie(iTimeSerie)%DT
+                                Me%TimeSerie(iTimeSerie)%NextOutPut + Me%TimeSerie(iTimeSerie)%DT                        
                     endif
 
                     !Verifies if the buffer is full
@@ -1900,12 +1902,15 @@ cd2 :       if (Me%Points) then
 
     !--------------------------------------------------------------------------
 
-    subroutine WriteTimeSerieLine(TimeSerieID, DataLine, ExternalCurrentTime, STAT)
+    subroutine WriteTimeSerieLine(TimeSerieID, DataLine, ExternalCurrentTime, LineStored, CheckTime, NextDT, STAT)
     
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeSerieID
         real,    dimension(:), pointer              :: DataLine
         type (T_Time), optional, intent(IN)         :: ExternalCurrentTime
+        logical, optional, intent(OUT)              :: LineStored
+        logical, optional, intent(IN)               :: CheckTime
+        real, optional, intent(IN)                  :: NextDT        
         integer, optional, intent(OUT)              :: STAT
     
         !External--------------------------------------------------------------
@@ -1915,6 +1920,8 @@ cd2 :       if (Me%Points) then
         type (T_Time)                               :: CurrentTime
         integer                                     :: IPC, IBC, iTimeSerie
         real                                        :: DT_Residual
+        real                                        :: NextDT_
+        logical                                     :: CheckTime_          
 
         !----------------------------------------------------------------------
 
@@ -1933,7 +1940,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 !Stores the actual compute time
                 call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT)
             endif
-
+            
+            if (present(CheckTime)) then
+                CheckTime_ = CheckTime
+            else
+                CheckTime_ = .true.
+            endif                    
+            
 do1:        do iTimeSerie = 1, Me%NumberOfTimeSeries
 
                 if(Me%ComputeResidual)then
@@ -1961,12 +1974,13 @@ do1:        do iTimeSerie = 1, Me%NumberOfTimeSeries
                 end if
 
                 !Stores the data in the buffer
-cd2:            if (CurrentTime .ge. Me%TimeSerie(iTimeSerie)%NextOutPut .or.           &
-                    CurrentTime .eq. Me%TimeSerie(iTimeSerie)%EndOutPut) then
+cd2:            if ((.not. CheckTime_) .or.                                     &
+                    (CurrentTime .ge. Me%TimeSerie(iTimeSerie)%NextOutPut) .or. &
+                    (CurrentTime .eq. Me%TimeSerie(iTimeSerie)%EndOutPut)) then
                     
+                    if (present(LineStored)) LineStored = .true.
+
 do2:                do IPC = 1, Me%NumberOfProperties
-
-
 
                         if (IPC == 1) then
                             !Increments the internal buffer count
@@ -1978,20 +1992,28 @@ do2:                do IPC = 1, Me%NumberOfProperties
                             Me%TimeSerie(iTimeSerie)%TimeBuffer(IBC) = CurrentTime
                         endif
 
-
                         !Shorten Variable
                         IBC = Me%TimeSerie(iTimeSerie)%BufferCount
 
-
                         !Locates the place of the time serie to store
                         Me%TimeSerie(iTimeSerie)%TimeSerieData(IPC,IBC) = DataLine(IPC)
-
-
+                        
                         !Sets next output time
-                        if (IPC == Me%NumberOfProperties)                           &
+                        if (IPC == Me%NumberOfProperties) then
+                        
+                            !Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
+                            !    CurrentTime + Me%TimeSerie(iTimeSerie)%DT
+                            if (present(NextDT)) then
+                                NextDT_ = NextDT
+                            else
+                                NextDT_ = Me%TimeSerie(iTimeSerie)%DT
+                            endif    
+                            
                             Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
-                                CurrentTime + Me%TimeSerie(iTimeSerie)%DT
+                                Me%TimeSerie(iTimeSerie)%NextOutPut + NextDT_                        
 
+                        endif
+                        
                         !Verifies if the buffer is full
                         if ((Me%TimeSerie(iTimeSerie)%BufferCount  ==               &
                              Me%TimeSerie(iTimeSerie)%BufferSize)  .and.            &
@@ -2002,6 +2024,10 @@ do2:                do IPC = 1, Me%NumberOfProperties
 
                     enddo do2
 
+                else
+                
+                    if (present(LineStored)) LineStored = .false.
+                    
                 endif cd2
 
             enddo do1
@@ -2112,8 +2138,10 @@ do2:                do IPC = 1, Me%NumberOfProperties
 
                         !Sets next output time
                         if (IPC == Me%NumberOfProperties)                           &
+                            !Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
+                            !    CurrentTime + Me%TimeSerie(iTimeSerie)%DT
                             Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
-                                CurrentTime + Me%TimeSerie(iTimeSerie)%DT
+                                Me%TimeSerie(iTimeSerie)%NextOutPut + Me%TimeSerie(iTimeSerie)%DT                        
 
                         !Verifies if the buffer is full
                         if ((Me%TimeSerie(iTimeSerie)%BufferCount  ==               &
@@ -2148,12 +2176,14 @@ do2:                do IPC = 1, Me%NumberOfProperties
 
     !--------------------------------------------------------------------------    
     
-    subroutine WriteSpecificTimeSerieLine(TimeSerieID, iTimeSerie, DataLine, STAT)
+    subroutine WriteSpecificTimeSerieLine(TimeSerieID, iTimeSerie, DataLine, CheckTime, NextDT, STAT)
     
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeSerieID
-        real,    dimension(:), pointer              :: DataLine
         integer                                     :: iTimeSerie
+        real, dimension(:), pointer                 :: DataLine        
+        logical, optional, intent(IN)               :: CheckTime
+        real, optional, intent(IN)                  :: NextDT
         integer, optional, intent(OUT)              :: STAT
     
         !External--------------------------------------------------------------
@@ -2163,6 +2193,8 @@ do2:                do IPC = 1, Me%NumberOfProperties
         type (T_Time)                               :: CurrentTime
         integer                                     :: IPC, IBC
         real                                        :: DT_Residual
+        real                                        :: NextDT_
+        logical                                     :: CheckTime_        
 
         !----------------------------------------------------------------------
 
@@ -2175,9 +2207,20 @@ do2:                do IPC = 1, Me%NumberOfProperties
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
+            if (present(CheckTime)) then
+                CheckTime_ = CheckTime
+            else
+                CheckTime_ = .true.
+            endif
+            
+            if (present(NextDT)) then
+                NextDT_ = NextDT
+            else
+                NextDT_ = Me%TimeSerie(iTimeSerie)%DT
+            endif
+
             !Stores the actual compute time
             call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT)
-
 
             if(Me%ComputeResidual)then
 
@@ -2201,8 +2244,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             end if
 
             !Stores the data in the buffer
-cd2:        if (CurrentTime .ge. Me%TimeSerie(iTimeSerie)%NextOutPut .or.           &
-                CurrentTime .eq. Me%TimeSerie(iTimeSerie)%EndOutPut) then
+cd2:        if ((.not. CheckTime_) .or.                                     &
+                (CurrentTime .ge. Me%TimeSerie(iTimeSerie)%NextOutPut) .or. &
+                (CurrentTime .eq. Me%TimeSerie(iTimeSerie)%EndOutPut)) then
                 
 do2:            do IPC = 1, Me%NumberOfProperties
 
@@ -2229,8 +2273,10 @@ do2:            do IPC = 1, Me%NumberOfProperties
 
                     !Sets next output time
                     if (IPC == Me%NumberOfProperties)                           &
+                        !Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
+                        !    CurrentTime + Me%TimeSerie(iTimeSerie)%DT
                         Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
-                            CurrentTime + Me%TimeSerie(iTimeSerie)%DT
+                            Me%TimeSerie(iTimeSerie)%NextOutPut + NextDT_                    
 
                     !Verifies if the buffer is full
                     if ((Me%TimeSerie(iTimeSerie)%BufferCount  ==               &
@@ -2394,8 +2440,10 @@ cd2 :       if (Me%Points) then
 
                         !Sets next output time
                         if (IPC == Me%NumberOfProperties)                           &
+                            !Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
+                            !    CurrentTime + Me%TimeSerie(iTimeSerie)%DT
                             Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
-                                CurrentTime + Me%TimeSerie(iTimeSerie)%DT
+                                Me%TimeSerie(iTimeSerie)%NextOutPut + Me%TimeSerie(iTimeSerie)%DT                        
                     endif
 
                     !Verifies if the buffer is full
@@ -2564,8 +2612,10 @@ cd2 :       if (Me%Points) then
 
                         !Sets next output time
                         if (IPC == Me%NumberOfProperties)                           &
+                            !Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
+                            !    CurrentTime + Me%TimeSerie(iTimeSerie)%DT
                             Me%TimeSerie(iTimeSerie)%NextOutPut =                   &
-                                CurrentTime + Me%TimeSerie(iTimeSerie)%DT
+                                Me%TimeSerie(iTimeSerie)%NextOutPut + Me%TimeSerie(iTimeSerie)%DT                        
                     endif
 
                     !Verifies if the buffer is full
@@ -3432,6 +3482,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
                     PredictedDT = aux1
 
+
+                else
+                
+                    DTForNextEvent = -null_real                    
+                    
                 endif
 
             endif

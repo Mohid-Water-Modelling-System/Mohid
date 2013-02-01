@@ -177,7 +177,7 @@ Module ModuleInterface
 
     !Type----------------------------------------------------------------------
     type       T_External
-        type(T_Time)                            :: Now    !acrescentei pointer aqui, nao estava
+        type(T_Time)                            :: Now
         integer, dimension(:      ), pointer    :: RiverPoints1D
         integer, dimension(:, :   ), pointer    :: WaterPoints2D
         integer, dimension(:, :, :), pointer    :: WaterPoints3D
@@ -236,7 +236,6 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: CellArea1D    !Array with volumes from unfold matrix
 
 #ifdef _PHREEQC_        
-!        real,    pointer, dimension(:    )      :: WaterVolume  
         real,    pointer, dimension(:    )      :: pE
         real,    pointer, dimension(:    )      :: WaterMass  
         real,    pointer, dimension(:    )      :: SolidMass   

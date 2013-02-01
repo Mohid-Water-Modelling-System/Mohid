@@ -41,29 +41,132 @@ program HDF5Exporter
 
     integer                     :: ObjExportHDF5ToTimeSerieID = 0
 
+    character(PathLength)       :: DataFile  = 'ConvertToHDF5Action.dat'
+    logical                     :: ConfigByArgument = .false.
+    
+#ifdef _COMMAND_LINE_ARGS     
+    call ReadArguments
+#endif     
+    
     call ConstructHDF5Exporter
     call ModifyHDF5Exporter
     call KillHDF5Exporter
 
     contains
     
+    !--------------------------------------------------------------------------    
+    
+#ifdef _COMMAND_LINE_ARGS     
+    subroutine ReadArguments
+    
+        integer         :: i
+        integer         :: n_args
+        character(1024) :: arg
+        integer         :: last_arg = 0
+        
+        n_args = command_argument_count()
+        
+        do i = 1, n_args
+           
+            call get_command_argument(i, arg)
+
+            select case (arg)
+                
+            case ('-h', '--help')
+               
+                call print_help()
+                stop
+                
+            case ('-w', '--watch')
+               
+                if (last_arg > 0) then             
+                
+                     print *, 'Invalid parameter.'
+                
+                     if (i > n_args) then
+                        call print_help()
+                        stop                   
+                     endif
+                endif
+                
+                last_arg = 1
+                
+            case ('-c', '--config')
+                if (last_arg > 0) then             
+                
+                     print *, 'Invalid parameter.'
+                
+                     if (i > n_args) then
+                        call print_help()
+                        stop                   
+                     endif
+                endif
+                
+                last_arg = 2                
+            
+            case default
+                select case (last_arg)
+                   
+                case (1)
+                   
+                    !call get_command_argument(i, WatchFile)                
+                    !Watch = .true.  
+                    
+                case (2)
+                   
+                    call get_command_argument(i, DataFile)
+                    ConfigByArgument = .true.
+                    
+                case default
+                   
+                   print *, 'Invalid parameter: ', arg
+                   stop
+                   
+                end select
+                
+                last_arg = 0
+                
+            end select
+        end do    
+    
+    end subroutine ReadArguments
+    
+    subroutine print_help()
+        !print '(a)', ''
+        !print '(a)', 'ConvertToHDF5 usage: ConvertToHDF5 [OPTIONS]'
+        !print '(a)', ''
+        !print '(a)', 'Without further options, ConvertToHDF5 uses "ConvertToHDF5Action.dat" as input file.'
+        !print '(a)', ''
+        !print '(a)', 'ConvertToHDF5 options:'
+        !print '(a)', ''
+        !print '(a)', '  [-v, --version]     print version information and exit'
+        !print '(a)', '  [-h, --help]        print usage information and exit'
+        !print '(a)', '  [-w, --watch] file  Monitor performance and save data to "file"'
+        !print '(a)', '  [-c, --config] file Uses "file" as input configuration'
+        !print '(a)', ''
+    end subroutine print_help    
+#endif        
+    
     !--------------------------------------------------------------------------
 
     subroutine ConstructHDF5Exporter
         
         !Local-----------------------------------------------------------------
-        character(PathLength)       :: DataFile
         integer                     :: STAT_CALL
 
         call StartUpMohid("HDF5Exporter")
 
-        call ReadFileName('IN_MODEL', DataFile, "HDF5Exporter", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - HDF5Exporter - ERR10'
-
+        if (.not. ConfigByArgument) then
+            call ReadFileName('IN_MODEL', DataFile, "HDF5Exporter", STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - HDF5Exporter - ERR10'        
+        endif
+        
+        FilesName = DataFile
+        
         call StartCPUTime
 
         call StartExportHDF5ToTimeSerie(ObjExportHDF5ToTimeSerieID, DataFile)      
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - HDF5Exporter - ERR20'
+        !if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - HDF5Exporter - ERR20'
 
     end subroutine ConstructHDF5Exporter
 

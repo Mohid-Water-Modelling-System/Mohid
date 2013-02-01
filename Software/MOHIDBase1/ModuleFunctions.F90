@@ -4951,17 +4951,19 @@ d3:                     do dij=1,dijmax
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructPropertyID (PropertyID, ObjEnterData, ExtractType)
+    subroutine ConstructPropertyID (PropertyID, ObjEnterData, ExtractType, CheckProperty)
 
         !Arguments-------------------------------------------------------------
         type (T_PropertyID)                         :: PropertyID
         integer                                     :: ObjEnterData
         integer                                     :: ExtractType
+        logical, optional                           :: CheckProperty
 
         !Local-----------------------------------------------------------------
         integer                                     :: flag
         integer                                     :: STAT_CALL
-
+        logical                                     :: check
+        
         !Property Name
         call GetData(PropertyID%Name, ObjEnterData, flag,                                &
                      SearchType   = ExtractType,                                         &
@@ -4973,11 +4975,19 @@ d3:                     do dij=1,dijmax
             stop 'ConstructPropertyID - ModuleFunctions - ERR02'
         endif
 
-        if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
-            write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
-            stop 'ConstructPropertyID - ModuleFunctions - ERR03'
+        if (present(CheckProperty)) then
+            check = CheckProperty
+        else
+            check = .true.
         endif
- 
+        
+        if (check) then
+            if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
+                write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
+                stop 'ConstructPropertyID - ModuleFunctions - ERR03'
+            endif
+        endif
+            
         !Units
         call GetData(PropertyID%Units, ObjEnterData, flag,                               &
                      SearchType   = ExtractType,                                         &

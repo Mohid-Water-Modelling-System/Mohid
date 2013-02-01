@@ -4654,7 +4654,7 @@ cd3 :           if (ClientNumber .NE. Me%BlockClientIDnumber) then
         call ExtractDate(Time, Year, Month, Day, Hour, Minute, Second)            
 
         write(KeyWordValue, fmt=10)Year, Month, Day, Hour, Minute, Second
-        10 format(f5.0, 1x, f3.0, 1x, f3.0, 1x, f3.0, 1x, f3.0, 1x, f3.0)
+        10 format(f5.0, 1x, f3.0, 1x, f3.0, 1x, f3.0, 1x, f3.0, 1x, f4.1)
  
         if (len_trim(adjustl(KeyWord)) < 25) then
 

@@ -63,7 +63,7 @@ Module ModuleInterpolateGrids
     integer, parameter                                      :: Triangulation    = 3
     integer, parameter                                      :: AverageInCells   = 4
 
-    integer, parameter                                      :: Null             = 0
+    integer, parameter                                      :: Null_             = 0
     integer, parameter                                      :: MediumTriang     = 1
     integer, parameter                                      :: HighTriang       = 2
     integer, parameter                                      :: NearestNeighbor  = 3
@@ -553,7 +553,7 @@ Module ModuleInterpolateGrids
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'EXTRAPOLATE_2D',                                   &
-                     default      =  Null,                                              &
+                     default      =  Null_,                                              &
                      ClientModule = 'ConvertToHDF5',                                    &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR190'
@@ -1076,7 +1076,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
         allocate (AuxField)
 
         !Allocate local matrices
-        if (Me%Extrapolate2DFields /= Null) then
+        if (Me%Extrapolate2DFields /= Null_) then
 
             allocate(InValues2D (Me%Father%Size2D%ILB:Me%Father%Size2D%IUB,Me%Father%Size2D%JLB:Me%Father%Size2D%JUB))
             allocate(OutValues2D(Me%Aux%Size2D%ILB   :Me%Aux%Size2D%IUB   ,Me%Aux%Size2D%JLB   :Me%Aux%Size2D%JUB))
@@ -1230,7 +1230,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
             
 
 
-                if (Me%Extrapolate2DFields /= Null) then
+                if (Me%Extrapolate2DFields /= Null_) then
 
                     call GetWaterPoints2D(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR193'
@@ -1418,7 +1418,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                     call FieldMapping (Me%Aux, Values3D = AuxField%Values3D)
                 endif
 
-                if (Me%Extrapolate2DFields /= Null) then
+                if (Me%Extrapolate2DFields /= Null_) then
 
                 do k=Me%Father%WorkSize3D%KLB,Me%Father%WorkSize3D%KUB
 
@@ -1632,7 +1632,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
 
                 endif ifG3D
 
-                if ((Me%DoNotBelieveMap .or. Me%Extrapolate2DFields /= Null) .and. .not. Me%InterpolateGrid3D) then
+                if ((Me%DoNotBelieveMap .or. Me%Extrapolate2DFields /= Null_) .and. .not. Me%InterpolateGrid3D) then
                 !In this case water points mapping was changed
 
                     allocate(SurfaceElevation (Me%Aux%Size3D%ILB:Me%Aux%Size3D%IUB,      &
@@ -1671,7 +1671,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
             end select
 
             !DeAllocates local matrices
-            if (Me%Extrapolate2DFields /= Null) then
+            if (Me%Extrapolate2DFields /= Null_) then
 
                 deallocate(InValues2D)
                 deallocate(OutValues2D)

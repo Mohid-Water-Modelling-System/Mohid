@@ -692,6 +692,7 @@ Module ModuleVegetation
         logical                                         :: ModelRootBiomass, ModelPlantBiomass
         logical                                         :: ModelCanopyHeight, ModelTemperatureStress
         logical                                         :: ModelWater
+        logical                                         :: WaterStress
         logical                                         :: AtmospherePropertiesOutput
         logical                                         :: FluxesToSoilOutput
         logical                                         :: NutrientFluxesWithSoil
@@ -1091,7 +1092,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call CheckLatitude
             endif
             
-            if (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) then
+            if ((Me%ComputeOptions%ModelWater) .and.                                &
+                (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) .and. &
+                (Me%ComputeOptions%WaterStress)) then
                 call ConstructFeddes
             endif
             
@@ -1272,13 +1275,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         call GetData(Me%ComputeOptions%ModelWater,                                      &
                      Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'WATER_STRESS',                                   &
+                     Keyword        = 'WATER_UPTAKE',                                   &
                      Default        = .true.,                                           &
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR080'
-
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR080'        
+        
         if (Me%ComputeOptions%ModelWater) then
             call GetData(Me%ComputeOptions%TranspirationMethod,                             &
                          Me%ObjEnterData, iflag,                                            &
@@ -1287,7 +1290,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR090'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR081'
+            
+            call GetData(Me%ComputeOptions%WaterStress,                                     &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword        = 'WATER_STRESS',                                   &
+                         Default        = .true.,                                           &
+                         SearchType     = FromFile,                                         &
+                         ClientModule   = 'ModuleVegetation',                               &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR082'            
         
             if (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) then        
 
@@ -3000,7 +3012,11 @@ doV:    do while (associated(VegetationInList))
             
             if(Me%ComputeOptions%ModelWater) then
                 if (Me%ComputeOptions%TranspirationMethod .eq. 1) then
-                    write(*,*    ) '   ---WaterUptake Method    : Feddes'
+                    if (Me%ComputeOptions%WaterStress) then
+                        write(*,*    ) '   ---WaterUptake Method    : MOHID based (Feddes ON)'
+                    else
+                        write(*,*    ) '   ---WaterUptake Method    : MOHID based (Feddes OFF)'
+                    endif
                 else
                     write(*,*    ) '   ---WaterUptake Method    : SWAT based'
                 endif
@@ -3081,7 +3097,11 @@ doV:    do while (associated(VegetationInList))
             if (Me%ComputeOptions%ModelWater) then
                 write(*,*    ) '---Water Uptake             : ON'
                 if (Me%ComputeOptions%TranspirationMethod .eq. 1) then
-                    write(*,*    ) '   ---WaterUptakeMethod     : Feddes'
+                    if (Me%ComputeOptions%WaterStress) then
+                        write(*,*    ) '   ---WaterUptake Method    : MOHID based (Feddes ON)'
+                    else
+                        write(*,*    ) '   ---WaterUptake Method    : MOHID based (Feddes OFF)'
+                    endif                
                 else
                     write(*,*    ) '   ---WaterUptakeMethod     : SWAT based'
                 endif
@@ -4657,7 +4677,9 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         endif
                         
                         
-                        if (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) then
+                        if ((Me%ComputeOptions%ModelWater) .and.                                &
+                            (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) .and. &
+                            (Me%ComputeOptions%WaterStress)) then
 
                             !Get Feddes from database
                             call GetData(Me%FeddesDatabase, Me%ObjEnterData, iflag,                                          &
@@ -9432,7 +9454,11 @@ do3 :               do k = KUB, KLB, -1
 
          
                         !Reduce Factor of EVTP due to water stress
-                        if (Me%ComputeOptions%WaterUptakeStressMethod .eq. Feddes) then   
+                        if (.not. Me%ComputeOptions%WaterStress) then
+                        
+                            WFactor = 1.0
+                            
+                        elseif (Me%ComputeOptions%WaterUptakeStressMethod .eq. Feddes) then   
 
                             ! stress functions by Feddes
                             FeddesH1 = Me%ComputeOptions%TranspirationMOHID%RootFeddesH1(i,j)
@@ -10908,7 +10934,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                              :: GlobalStress
         !begin-----------------------------------------------------------------
 
-        if (Me%ComputeOptions%ModelWater) then
+        if (Me%ComputeOptions%ModelWater .and. Me%ComputeOptions%WaterStress) then
             WaterStress = Me%Growth%WaterStress(i,j)
         else
             WaterStress = 1.0

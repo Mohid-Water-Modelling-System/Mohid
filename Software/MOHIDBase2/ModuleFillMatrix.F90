@@ -78,6 +78,8 @@ Module ModuleFillMatrix
     public  :: GetDefaultValue
     public  :: GetFillMatrixDTPrediction
     public  :: GetHDFTimeLimits
+    public  :: GetNumberOfInstants
+    public  :: GetTimeInstant
                      
     
     !Modifier
@@ -3739,6 +3741,99 @@ i4:         if(Me%Dim == Dim2D)then
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetHDFTimeLimits
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetNumberOfInstants (FillMatrixID, NumberOfInstants, STAT)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                         :: FillMatrixID
+        integer, intent(OUT)                            :: NumberOfInstants
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FillMatrixID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            NumberOfInstants = Me%HDF%NumberOfInstants
+
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+        
+        !----------------------------------------------------------------------
+    
+    end subroutine GetNumberOfInstants
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetTimeInstant(FillMatrixID, Instant, TimeInstant, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                 :: FillMatrixID
+        integer                                 :: Instant
+        type(T_Time), intent(OUT)               :: TimeInstant 
+        integer, intent(OUT), optional          :: STAT
+        
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_, ready_
+        real,    dimension(:), pointer          :: TimeVector
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FillMatrixID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call HDF5SetLimits  (Me%HDF%ObjHDF5, 1, 6, STAT = STAT_)
+
+            allocate(TimeVector(6))
+
+            call HDF5ReadData   (HDF5ID         = Me%HDF%ObjHDF5,   &
+                                 GroupName      = "/Time",          &
+                                 Name           = "Time",           &
+                                 Array1D        = TimeVector,       &
+                                 OutputNumber   = Instant,          &
+                                 STAT           = STAT_)
+            if (STAT_ /= SUCCESS_) stop 'GetTimeInstant - ModuleFillMatrix - ERR010'
+
+            call SetDate(TimeInstant, Year     = TimeVector(1), Month  = TimeVector(2), &
+                                      Day      = TimeVector(3), Hour   = TimeVector(4), &
+                                      Minute   = TimeVector(5), Second = TimeVector(6))
+                                     
+            deallocate(TimeVector)
+            
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+        
+        !----------------------------------------------------------------------
+
+    end subroutine GetTimeInstant
+
+    
+    !--------------------------------------------------------------------------
+    
+    
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -4231,10 +4326,19 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
         endif     
 
         ReadNewField_ = .false.
-        if (Me%BackTracking) then  
-            if (Now .le. Me%HDF%NextTime) ReadNewField_ = .true.
-        else            
-            if (Now .ge. Me%HDF%NextTime) ReadNewField_ = .true.
+        
+        if (.not. Me%AccumulateValues) then
+            if (Me%BackTracking) then  
+                if (Now .le. Me%HDF%NextTime) ReadNewField_ = .true.
+            else            
+                if (Now .ge. Me%HDF%NextTime) ReadNewField_ = .true.
+            endif
+        else
+            if (Me%BackTracking) then  
+                if (Now .lt. Me%HDF%NextTime) ReadNewField_ = .true.
+            else            
+                if (Now .gt. Me%HDF%NextTime) ReadNewField_ = .true.
+            endif        
         endif
         
         ReadNewField = ReadNewField_

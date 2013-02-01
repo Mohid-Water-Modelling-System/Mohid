@@ -252,6 +252,7 @@ Module ModuleDrainageNetwork
     public  :: GetNeedsAtmosphere
     public  :: GetNextDrainageNetDT
     public  :: GetVolumes
+    public  :: GetDNStoredVolume
     public  :: GetDNConcentration
     public  :: GetDNMassBalance             !To Basin get the property mass balance values
     public  :: CheckDNProperty             
@@ -878,6 +879,9 @@ Module ModuleDrainageNetwork
         real(8)                                     :: InitialTotalOutputVolume     = 0.0
         real(8)                                     :: InitialTotalFlowVolume       = 0.0
         real(8)                                     :: InitialTotalInputVolume      = 0.0 !by discharges
+        
+        real(8)                                     :: OutletFlowVolume             = 0.0 !Accumulated Outlet Flow Volume for the Input DT.
+        type(T_Reach), pointer                      :: OutletReach                  => null()
 
         logical                                     :: Stabilize                    = .true.
         real                                        :: StabilizeFactor
@@ -889,6 +893,7 @@ Module ModuleDrainageNetwork
         real                                        :: MaxCourant                   = 1.0
         integer                                     :: MinNodesToRestart            = 10
         integer                                     :: MinIterations                = 1
+        logical                                     :: CheckDecreaseOnly            = .false.
         
 
         integer                                     :: nPropWithDischarges          = 0   !Performance
@@ -1017,6 +1022,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Connects nodes / reaches
             call ConstructNetwork
+            
+            !Finds wich reach is the outlet and associate it with Me%OutletReach
+            call FindOutlet
 
             !Set up properties to be transported
             call ConstructPropertyList
@@ -1412,7 +1420,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                               &
                          Default      = 0.05,                                   &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR23'        
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR24'        
 
             call GetData(Me%MaxIterations,                                      &
                          Me%ObjEnterData, flag,                                 &  
@@ -1421,7 +1429,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                               &
                          Default      = 100,                                    &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR24'        
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25'        
 
             call GetData(Me%MinNodesToRestart,                                  &
                          Me%ObjEnterData, flag,                                 &  
@@ -1430,7 +1438,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                               &
                          Default      = 10,                                     &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR24'                
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'                
             
             call GetData(Me%MinIterations,                                      &
                          Me%ObjEnterData, flag,                                 &  
@@ -1439,7 +1447,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                               &
                          Default      = 1,                                      &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR24'                
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR27'          
+            
+            call GetData(Me%CheckDecreaseOnly,                                  &
+                         Me%ObjEnterData, flag,                                 &  
+                         keyword      = 'CHECK_DEC_ONLY',                       &
+                         ClientModule = 'DrainageNetwork',                      &
+                         SearchType   = FromFile,                               &
+                         Default      = .false.,                                &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR28'               
 
             !Me%LastGoodNIter = Me%MinIterations
             !Me%NextNIter = Me%MinIterations
@@ -1455,7 +1472,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = 1.05,                                   &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25'        
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR29'        
 
         if (Me%DTFactor <= 1.0) then
             write (*,*)'Invalid DT Factor [DT_FACTOR]'
@@ -1472,11 +1489,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = 1.5,                                    &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25a'        
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR30'        
         if (Me%DTFactor <= 1.0) then
             write (*,*)'Invalid DT Factor [DT_SPLIT_FACTOR]'
             write (*,*)'Value must be greater then 1.0'
-            stop 'ModuleDrainageNetwork - ReadDataFile - ERR28a'              
+            stop 'ModuleDrainageNetwork - ReadDataFile - ERR31'              
         endif
         
         
@@ -1488,7 +1505,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'        
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR32'        
 
         if (Me%LimitDTCourant) then
 
@@ -1500,7 +1517,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                               &
                          Default      = 1.0,                                    &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'        
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR33'        
 
         endif
 
@@ -1512,7 +1529,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .true.,                                 &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'        
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR34'        
 
 
         call GetData(Me%AerationEquation,                                   &
@@ -1522,7 +1539,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'DrainageNetwork',                      &
                      Default      = PoolAndRifle_,                          &
                     STAT          = STAT_CALL)            
-        if (STAT_CALL  /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR27'  
+        if (STAT_CALL  /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR35'  
 
         if (Me%AerationEquation /= PoolAndRifle_ .and. Me%AerationEquation /= ChannelControled_) then
             write (*,*)'Invalid O2 Aeration Method'
@@ -1537,7 +1554,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                             &
                      Default        = Canteras,                             &
                      STAT           = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR29' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR36' 
 
         if (Me%T90Var_Method == Constant) then
             call GetData(Me%T90,                                            &   
@@ -1547,7 +1564,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType     = FromFile,                         &
                          Default        = 7200.,                            &
                          STAT           = STAT_CALL)              
-            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR30' 
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR37' 
         endif
 
         call GetData(Me%ShadingFactor,                                      &
@@ -1559,7 +1576,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     ClientModule = 'DrainageNetwork',                       &
                     STAT         = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR31' 
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR38' 
 
 
         call GetData(Me%ComputeOptions%TransmissionLosses,                  &
@@ -1570,7 +1587,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .false.,                                &
                      ClientModule = 'DrainageNetwork',                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR32' 
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR39' 
 
 
         call GetData(Me%ComputeOptions%RemoveOverTop,                       &
@@ -1581,7 +1598,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .false.,                                &
                      ClientModule = 'DrainageNetwork',                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR33' 
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR40' 
 
         call GetData(Me%ComputeOptions%CalcFractionSediment,                &
                      Me%ObjEnterData,                                       &
@@ -1591,7 +1608,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .false.,                                &
                      ClientModule = 'DrainageNetwork',                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR33_Wassim_FractionSediment' 
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR41' 
 
 
 
@@ -1605,7 +1622,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = 1.e-5,                              &
                          ClientModule = 'DrainageNetwork',                  &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR34' 
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR42' 
 
         endif
 
@@ -1616,7 +1633,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                             &
                      Default        = 'SUM',                                &                         
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR35'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR43'
 
         select case (trim(adjustl(AuxString)))
             case ("Max",       "MAX", "max")
@@ -1627,7 +1644,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%GlobalToxicityEvolution = 'RISKRATIO'
             case default
                 write(*,*)'Invalid option for keyword GLOBAL_TOXICITY'
-                stop 'ModuleDrainageNetwork - ReadDataFile - ERR36' 
+                stop 'ModuleDrainageNetwork - ReadDataFile - ERR44' 
         end select
 
 
@@ -1637,7 +1654,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule   = 'DrainageNetwork',                                    &
                      SearchType     = FromFile,                                             &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR37'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR45'
         
         if (flag == 1) then
             call SetError(WARNING_, INTERNAL_, 'The keyword GEO_CONVERSATION_FACTOR is obselete and not used any more', ON)
@@ -1651,7 +1668,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      Default        = .FALSE.,                                          &                         
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR38' 
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR46' 
 
 
         !Sets Output Time 
@@ -1663,7 +1680,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            OutPutsTime = Me%OutPut%OutTime,                              &
                            OutPutsOn   = Me%OutPut%Yes,                                  &
                            STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR40' 
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR47' 
 
         !Output for restart
         call GetOutPutTime(Me%ObjEnterData,                                             &
@@ -1674,7 +1691,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            OutPutsTime  = Me%OutPut%RestartOutTime,                     &
                            OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
                            STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR41'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR48'
 
         call GetData(Me%OutPut%RestartOverwrite,                                        &
                      Me%ObjEnterData,                                                   &
@@ -1684,7 +1701,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .true.,                                             &
                      ClientModule = 'ModuleDrainageNetwork',                            &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR42'
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR49'
 
         call GetData(Me%Output%ComputeFlowFrequency,                                    &
                      Me%ObjEnterData,                                                   &
@@ -1790,7 +1807,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = 86400.,                                             &
                          ClientModule = 'ModuleDrainageNetwork',                            &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR95'
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR95b'
             
             !first output date is current (beggining)
             Me%Output%IntFlow%IntFlowNextOutput = Me%CurrentTime
@@ -3138,6 +3155,30 @@ if2:              if (BlockFound) then
 
     !---------------------------------------------------------------------------
 
+    subroutine FindOutlet
+    
+        !Local------------------------------------------------------------------
+        type (T_Reach), pointer                         :: CurrReach, NextReach
+        integer                                         :: ReachID
+        type (T_Node), pointer                          :: DownNode
+    
+        !Begin------------------------------------------------------------------
+
+do1:    do ReachID = 1, Me%TotalReaches
+            CurrReach => Me%Reaches (ReachID)    
+            DownNode => Me%Nodes (CurrReach%DownstreamNode)
+            if (DownNode%nDownstreamReaches .EQ. 0) then
+                Me%OutletReach => CurrReach
+                exit do1
+            endif
+        enddo do1
+    
+    !-----------------------------------------------------------------------
+    
+    end subroutine FindOutlet
+    
+    !---------------------------------------------------------------------------
+    
     subroutine CheckReachesConsistency      
 
         !Local------------------------------------------------------------------
@@ -7135,7 +7176,7 @@ if0:    if (Me%HasProperties) then
     subroutine GetVolumes(DrainageNetworkID, TotalInputVolume,                           &
                           TotalOutputVolume, TotalStoredVolume, TotalFlowVolume,         &
                           TotalOvertopVolume, TotalStormWaterOutput,                     &
-                          TotalStormWaterInput, STAT)
+                          TotalStormWaterInput, OutletFlowVolume, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: DrainageNetworkID
@@ -7146,6 +7187,7 @@ if0:    if (Me%HasProperties) then
         real(8), intent(OUT), optional                  :: TotalOvertopVolume
         real(8), intent(OUT), optional                  :: TotalStormWaterOutput
         real(8), intent(OUT), optional                  :: TotalStormWaterInput
+        real(8), intent(OUT), optional                  :: OutletFlowVolume
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
@@ -7165,6 +7207,7 @@ if0:    if (Me%HasProperties) then
             if (present (TotalOvertopVolume    )) TotalOvertopVolume    = Me%TotalOvertopVolume
             if (present (TotalStormWaterOutput )) TotalStormWaterOutput = Me%TotalStormWaterOutput
             if (present (TotalStormWaterInput  )) TotalStormWaterInput  = Me%TotalStormWaterInput
+            if (present (OutletFlowVolume      )) OutletFlowVolume      = Me%OutletFlowVolume
             STAT_CALL = SUCCESS_
         else 
             STAT_CALL = ready_
@@ -7175,8 +7218,44 @@ if0:    if (Me%HasProperties) then
     end subroutine GetVolumes
 
     !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
+    
+    subroutine GetDNStoredVolume (ID, StoredVolume, STAT)
+            
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ID
+        real(8), intent(OUT)                            :: StoredVolume        
+        integer, intent(OUT), optional                  :: STAT
 
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer                                         :: NodeID
+        
+        !Begin-----------------------------------------------------------------
+        call Ready(ID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            StoredVolume = 0.0
+            
+            do NodeID = 1, Me%TotalNodes
+                if (Me%Nodes(NodeID)%nDownStreamReaches /= 0) then
+                    StoredVolume = StoredVolume + Me%Nodes(NodeID)%VolumeNew
+                endif             
+            enddo
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_            
+        !----------------------------------------------------------------------
+   
+    end subroutine GetDNStoredVolume
+    
+    !---------------------------------------------------------------------------
+    
     subroutine GetDNMassBalance(DrainageNetworkID, PropertyID, TotalDischargeMass,       &
                           TotalOutFlowMass, TotalStoredMass, STAT)
 
@@ -7778,7 +7857,7 @@ do2 :   do while (associated(PropertyX))
         integer                                     :: STAT_CALL
         logical                                     :: Restart       
         type (T_Property), pointer                  :: Property
-        type(T_Reach), pointer                      :: CurrReach
+        type(T_Reach), pointer                      :: CurrReach, Outlet
         type(T_Node), pointer                       :: UpNode, DownNode, CurrNode
         real                                        :: BottomMass
         !Begin-------------------------------------------------------------------
@@ -7842,6 +7921,9 @@ do2 :   do while (associated(PropertyX))
         Niter       = Me%NextNiter
         LocalDT     = Me%ExtVar%DT / Niter
         iter        = 1
+        
+        Me%OutletFlowVolume = 0.0
+        
         do while (iter <= Niter)
 
             !Water From OverLandFlow / GW Exchange
@@ -7888,7 +7970,8 @@ do2 :   do while (associated(PropertyX))
                 SumDT   = 0.0
                 Restart = .false.
                 iter    = 1
-
+                
+                Me%OutletFlowVolume = 0.0
             else
 
                 !needs update after all computation (so that modules get the last level)
@@ -7912,7 +7995,8 @@ do2 :   do while (associated(PropertyX))
                     call OutputIntMass (LocalDT)
                 endif
 
-                
+                !       m3          =          m3         +          m3/s          *    s
+                Me%OutletFlowVolume = Me%OutletFlowVolume + Me%OutletReach%FlowNew * LocalDT
             endif
 
         enddo
@@ -9900,7 +9984,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         CurrNode%VolumeNew = CurrNode%VolumeOld + ( InFlow - OutFlow ) * DT
         
         !If Volume is negative with less then 1/10. of a ml set it to zero
-        if (CurrNode%VolumeNew < AllmostZero) then
+        if ((CurrNode%VolumeNew < 0.0) .and. (abs(CurrNode%VolumeNew) < AllmostZero)) then
             CurrNode%VolumeNew = 0.0
         endif
 
@@ -9946,24 +10030,24 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         if (Me%Stabilize .and. Niter < Me%MaxIterations) then
 
             if (CurrNode%nDownstreamReaches /= 0) then 
-            
-                if (CurrNode%VolumeOld > Me%StabilizeCoefficient * CurrNode%VolumeMax) then
-                    !if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld) > Me%StabilizeFactor * CurrNode%VolumeMax) then
-                    if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld)/CurrNode%VolumeOld > Me%StabilizeFactor) then
+                if ((.not. Me%CheckDecreaseOnly) .or. (CurrNode%VolumeNew < CurrNode%VolumeOld)) then            
+                    if (CurrNode%VolumeOld > Me%StabilizeCoefficient * CurrNode%VolumeMax) then
+                        !if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld) > Me%StabilizeFactor * CurrNode%VolumeMax) then
+                        if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld)/CurrNode%VolumeOld > Me%StabilizeFactor) then
 
-                        !Feed back to user -> model will stop
-                        if (Niter * Me%InternalTimeStepSplit > Me%MaxIterations) then
-                            write(*,*)'High Volume Variation!'
-                            write(*,*)'Node ID        : ', CurrNode%ID
-                            write(*,*)'New Volume     : ', CurrNode%VolumeNew
-                            write(*,*)'Old Volume     : ', CurrNode%VolumeOld
+                            !Feed back to user -> model will stop
+                            if (Niter * Me%InternalTimeStepSplit > Me%MaxIterations) then
+                                write(*,*)'High Volume Variation!'
+                                write(*,*)'Node ID        : ', CurrNode%ID
+                                write(*,*)'New Volume     : ', CurrNode%VolumeNew
+                                write(*,*)'Old Volume     : ', CurrNode%VolumeOld
+                            endif
+
+                            Restart = .true.
+                            return
                         endif
-
-                        Restart = .true.
-                        return
                     endif
                 endif
-
             endif
 
         end if
