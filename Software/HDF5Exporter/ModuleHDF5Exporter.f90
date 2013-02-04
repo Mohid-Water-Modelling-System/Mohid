@@ -72,9 +72,11 @@ Module ModuleExportHDF5ToTimeSerie
                                         HDF5ReadData, GetHDF5GroupID, KillHDF5,        &
                                         GetHDF5DataSetExist     
     use ModuleDrawing,           only : IsPointInsidePolygon, SetLimits, T_Point,      &
-                                        T_PointF, T_Polygon
+                                        T_PointF, T_Polygon, GetSpecificPolygon,       &
+                                        GetPolygonsNumber, New
     use ModuleHorizontalGrid,    only : ConstructHorizontalGrid, GetXYCellZ,           &
-                                        KillHorizontalGrid 
+                                        GetHorizontalGridSize, KillHorizontalGrid,     &
+                                        GetZCoordinates, UnGetHorizontalGrid
     use ModuleGridData,          only : ConstructGridData, GetGridData, UngetGridData, &
                                         GetIsGridData3D, KillGridData           
 
