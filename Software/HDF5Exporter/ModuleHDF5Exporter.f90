@@ -803,6 +803,31 @@ Module ModuleExportHDF5ToTimeSerie
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR010'
 
+        call GetData(Me%GridFileName,                                       &
+                     Me%ObjEnterData, iflag,                                &
+                     SearchType   = FromFile,                               &
+                     keyword      = 'GRID_FILENAME',                        &
+                     ClientModule = 'ConvertToHDF5',                        &
+                     STAT         = STAT_CALL)                                          
+        if (STAT_CALL /= SUCCESS_)                                          &
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR130'
+                       
+        if (iflag==0) then
+            Me%GridFileNameON = .false.
+        else
+            Me%GridFileNameON = .true.
+
+            inquire(FILE = Me%GridFileName, EXIST = exist)
+            if (.not. exist) then
+                write(*,*)'Grid file does not exist'
+                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR140'
+            endif
+
+            call ConstructHorizontalGrid(Me%ObjHorizontalGrid, Me%GridFileName, STAT = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_) stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR150'
+        
+        endif
+
         Me%UsePointsMatrix = .true.
         
         if (Me%ExportType == ExportAreaToTimeseries) then
@@ -813,7 +838,7 @@ Module ModuleExportHDF5ToTimeSerie
                          ClientModule = 'ExportToTimeSerie',          &
                          default      = .true.,                       &
                          STAT         = STAT_CALL)
-            if ((STAT_CALL /= SUCCESS_) .or. (iflag < 1)) &
+            if (STAT_CALL /= SUCCESS_) &
                 stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR019'                          
             
             
@@ -1013,32 +1038,7 @@ Module ModuleExportHDF5ToTimeSerie
             if (STAT_CALL /= SUCCESS_)                                          &
                 stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR120'
         
-        endif
-        
-        call GetData(Me%GridFileName,                                       &
-                     Me%ObjEnterData, iflag,                                &
-                     SearchType   = FromFile,                               &
-                     keyword      = 'GRID_FILENAME',                        &
-                     ClientModule = 'ConvertToHDF5',                        &
-                     STAT         = STAT_CALL)                                          
-        if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR130'
-                       
-        if (iflag==0) then
-            Me%GridFileNameON = .false.
-        else
-            Me%GridFileNameON = .true.
-
-            inquire(FILE = Me%GridFileName, EXIST = exist)
-            if (.not. exist) then
-                write(*,*)'Grid file does not exist'
-                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR140'
-            endif
-
-            call ConstructHorizontalGrid(Me%ObjHorizontalGrid, Me%GridFileName, STAT = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_) stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR150'
-        
-        endif
+        endif        
 
         call GetData(Me%TimeGroup,   Me%ObjEnterData, iflag,                &
                      keyword      = 'TIME_GROUP',                           &
