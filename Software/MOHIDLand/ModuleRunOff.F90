@@ -275,6 +275,7 @@ Module ModuleRunOff
         integer                                     :: FaceWaterColumn      = WCMaxBottom_
         real                                        :: MaxVariation
         integer                                     :: OverlandChannelInteractionMethod
+        logical                                     :: CheckDecreaseOnly
         
         real(8)                                     :: VolumeStoredInSurface     = 0.0
         real(8)                                     :: VolumeStoredInStormSystem = 0.0
@@ -538,7 +539,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                     '<BeginInitialWaterColumn>',                      &
                                     '<EndInitialWaterColumn>', BlockFound,            &
                                     STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR070'
 
         if (BlockFound) then
             call ConstructFillMatrix  ( PropertyID       = InitialWaterColumnID,      &
@@ -550,14 +551,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                         Matrix2D         = Me%InitialWaterColumn,        &
                                         TypeZUV          = TypeZ_,                       &
                                         STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR80'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR080'
 
             call KillFillMatrix(InitialWaterColumnID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR90'
+            if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR090'
 
         else
             write(*,*)'Missing Block <BeginInitialWaterColumn> / <EndInitialWaterColumn>' 
-            stop      'ReadDataFile - ModuleRunOff - ERR0100'
+            stop      'ReadDataFile - ModuleRunOff - ERR100'
         endif
 
          !Gets Minimum Slope 
@@ -640,11 +641,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = WCMaxBottom_,                           &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR175'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR171'
         
         if (Me%FaceWaterColumn /= WCMaxBottom_ .and. Me%FaceWaterColumn /= WCAverageBottom_) then
             write(*,*) 'Unknown option for WATER_COLUMN_FACE'
-            stop 'ModuleRunOff - ReadDataFile - ERR01'
+            stop 'ReadDataFile - ModuleRunOff - ERR172'
         endif        
         
         if (Me%FaceWaterColumn == WCMaxBottom_) then
@@ -656,7 +657,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = .true.,                                 &
                          ClientModule = 'ModuleRunOff',                         &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0180'        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR180'        
         endif
         
         !Gets if solution is limited by an maximum velocity
@@ -667,7 +668,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                    &
                      ClientModule = 'ModuleRunOff',                             &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0190'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR190'
 
         if (Me%ImposeMaxVelocity) then
         
@@ -679,7 +680,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = 0.1,                                        &
                          ClientModule = 'ModuleRunOff',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0200'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR200'
         
         endif
 
@@ -692,7 +693,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                    &
                      ClientModule = 'ModuleRunOff',                             &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0210'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR210'
 
         if (iflag > 0 .and. .not. DynamicAdjustManning) then
             write(*,*)'The option DynamicAdjustManning (DYNAMIC_ADJUST_MANNING) has been removed.'
@@ -713,10 +714,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 !                     default      = 0.001,                                              &
                      ClientModule = 'ModuleRunOff',                                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0220'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR220'
         if (iflag == 0) then
             write(*,*)'MIN_WATER_COLUMN must be defined in module Runoff'
-            stop 'ReadDataFile - ModuleRunOff - ERR0230'
+            stop 'ReadDataFile - ModuleRunOff - ERR230'
         endif
 
         !Continuous Computation
@@ -725,9 +726,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                                            &
                      keyword      = 'CONTINUOUS',                                        &
                      default      = .false.,                                             &
-                     ClientModule = 'ModuleRunoff',                                       &
+                     ClientModule = 'ModuleRunoff',                                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0240'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR240'
 
         if (Me%Continuous) then
             call ReadFileName('RUNOFF_INI', Me%Files%InitialFile,                         &
@@ -742,7 +743,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .true.,                                 &
                      ClientModule = 'ModuleBasin',                          &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0260'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR260'
 
         !Factor for DT Prediction
         call GetData(Me%DTFactor,                                           &
@@ -752,12 +753,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = 1.05,                                   &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR270'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR270'        
 
         if (Me%DTFactor <= 1.0) then
             write (*,*)'Invalid DT Factor [DT_FACTOR]'
             write (*,*)'Value must be greater then 1.0'
-            stop 'ModuleDrainageNetwork - ReadDataFile - ERR280'              
+            stop 'ReadDataFile - ModuleRunOff - ERR280'              
         endif
 
         !Stabilize Solution
@@ -768,7 +769,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .true.,                                 &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR290'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR290'        
         
         if (Me%Stabilize) then
             call GetData(Me%StabilizeFactor,                                &
@@ -778,7 +779,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                           &
                          Default      = 0.1,                                &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR300' 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR300' 
             
             !Minimum Water Column for checking stabilize
             call GetData(Me%MinimumWaterColumnStabilize,                    &
@@ -788,7 +789,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = Me%MinimumWaterColumn,              &
                          ClientModule = 'ModuleRunOff',                     &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0305'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR301'
         endif
 
         call GetData(Me%MaxIterations,                                      &
@@ -798,21 +799,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = 5,                                      &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR310'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR310'
 
         !Internal Time Step Split
         call GetData(Me%InternalTimeStepSplit,                              &
                      ObjEnterData, iflag,                                   &  
-                     keyword      = 'DT_SPLIT_FACTOR',                    &
+                     keyword      = 'DT_SPLIT_FACTOR',                      &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
                      Default      = 1.25,                                   &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25a'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR311'        
         if (Me%InternalTimeStepSplit <= 1.0) then
             write (*,*)'Invalid DT Factor [DT_RESTART_FACTOR]'
             write (*,*)'Value must be greater then 1.0'
-            stop 'ModuleDrainageNetwork - ReadDataFile - ERR25b'              
+            stop 'ReadDataFile - ModuleRunOff - ERR312'              
         endif        
         
         call GetData(Me%MinIterations,                                      &
@@ -822,7 +823,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = 1,                                      &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25c'          
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR313'     
+        
+        call GetData(Me%CheckDecreaseOnly,                                  &
+                     ObjEnterData, iflag,                                   &  
+                     keyword      = 'CHECK_DEC_ONLY',                       &
+                     ClientModule = 'DrainageNetwork',                      &
+                     SearchType   = FromFile,                               &
+                     Default      = .false.,                                &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR314'                 
         
         !Gets flag of DT is limited by the courant number
         call GetData(Me%LimitDTCourant,                                     &
@@ -832,7 +842,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR320'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR320'        
 
         if (Me%LimitDTCourant) then
 
@@ -844,7 +854,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                               &
                          Default      = 1.0,                                    &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR330'        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR330'        
 
         endif
 
@@ -856,7 +866,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .true.,                                 &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR340'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR340'        
         
         
         !Impose Boundary Value
@@ -867,7 +877,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                                   &
                      Default      = .false.,                                    &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR350'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR350'        
         
         if (Me%ImposeBoundaryValue) then
             call GetData(Me%BoundaryValue,                                      &
@@ -876,11 +886,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR360'        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR360'        
 
             if (iflag == 0) then
                 write(*,*)'BOUNDARY_VALUE must be defined in module Runoff'
-                stop 'ReadDataFile - ModuleRunOff - ERR0230'
+                stop 'ReadDataFile - ModuleRunOff - ERR0361'
             endif
 
 
@@ -890,11 +900,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR360'        
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR362'        
 
             if (iflag == 0) then
                 write(*,*)'MAX_DTM_FOR_BOUNDARY must be defined in module Runoff'
-                stop 'ReadDataFile - ModuleRunOff - ERR0230'
+                stop 'ReadDataFile - ModuleRunOff - ERR0363'
             endif
 
         endif
@@ -907,7 +917,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = 1,                                      &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR370a'          
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR364'          
         
         !Discharges
         call GetData(Me%Discharges,                                         &
@@ -917,7 +927,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR370'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR370'        
 
         !Discharges
         call GetData(Me%SimpleChannelInteraction,                           &
@@ -927,7 +937,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR380'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR380'        
 
 
 
@@ -939,7 +949,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR390'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR390'
         
         if (Me%RouteDFourPoints) then
             !Routes D4 Points
@@ -950,7 +960,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                               &
                          Default      = .false.,                                &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR390a'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR391'
         endif
 
         !Limits Flow to critical
@@ -961,7 +971,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .true.,                                 &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR391'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR392'
 
         
 
@@ -973,7 +983,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR400'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR400'
 
         if (Me%StormWaterDrainage) then
         
@@ -985,7 +995,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                               &
                          default      = 1.4e-5,                                 & !~50mm/h
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR410'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR410'
 
             !Storm Water Transfer Coeficient
             call GetData(Me%StormWaterFlowVelocity,                             &
@@ -995,7 +1005,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                               &
                          default      = 0.2,                                    & !0.2m/s
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR420'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR420'
 
         endif
 
@@ -1007,7 +1017,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR430'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR430'
         
         !If Connected to a StormWater model
         call GetData(Me%StormWaterModel,                                    &
@@ -1017,7 +1027,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR440'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR440'
         
                    
 
@@ -1259,14 +1269,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                             Matrix2D         = Me%StormWaterInteraction,     &
                                             TypeZUV          = TypeZ_,                       &
                                             STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR700'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR691'
 
                 call KillFillMatrix(StormWaterInteractionID%ObjFillMatrix, STAT = STAT_CALL)
-                if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR710'
+                if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR692'
 
             else
                 write(*,*)'Missing Block <BeginStormWaterInteraction> / <EndStormWaterInteraction>' 
-                stop      'ReadDataFile - ModuleRunOff - ERR08'
+                stop      'ReadDataFile - ModuleRunOff - ERR693'
             endif
             
             !Gets Street Gutter Length in each grid cell
@@ -1274,7 +1284,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                         '<BeginStreetGutterLength>',                         &
                                         '<EndStreetGutterLength>', BlockFound,               &
                                         STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR690'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR694'
 
             if (BlockFound) then
                 call ConstructFillMatrix  ( PropertyID       = StreetGutterLengthID,         &
@@ -1293,7 +1303,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             else
                 write(*,*)'Missing Block <BeginStreetGutterLength> / <EndStreetGutterLength>' 
-                stop      'ReadDataFile - ModuleRunOff - ERR08'
+                stop      'ReadDataFile - ModuleRunOff - ERR711'
             endif
             
         endif
@@ -1313,7 +1323,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if(Me%WriteMaxFlowModulus) then
             !Gets the root path from the file nomfich.dat
             call ReadFileName("ROOT_SRT", Me%MaxFlowModulusFile, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0730'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR730'
             Me%MaxFlowModulusFile = trim(adjustl(Me%MaxFlowModulusFile))//"MaxRunOff.dat"
         end if
 
@@ -6030,15 +6040,17 @@ doIter:         do while (iter <= Niter)
             
                 if (Me%StabilityPoints(i, j) == BasinPoint) then
             
-                    if (Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j) > Me%MinimumWaterColumnStabilize) then
-                        
-                        variation = abs(Me%myWaterVolume(i, j) - Me%myWaterVolumeOld(i, j)) / Me%myWaterVolumeOld(i, j)
-                        
-                        if (variation > Me%MaxVariation) Me%MaxVariation = variation
-                        
-                        if (variation > Me%StabilizeFactor) then
-                            Restart = .true.
-                            return
+                    if ((.not. Me%CheckDecreaseOnly) .or. (Me%myWaterVolumeOld(i, j) > Me%myWaterVolume(i, j))) then
+                        if (Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j) > Me%MinimumWaterColumnStabilize) then
+                            
+                            variation = abs(Me%myWaterVolume(i, j) - Me%myWaterVolumeOld(i, j)) / Me%myWaterVolumeOld(i, j)
+                            
+                            if (variation > Me%MaxVariation) Me%MaxVariation = variation
+                            
+                            if (variation > Me%StabilizeFactor) then
+                                Restart = .true.
+                                return
+                            endif
                         endif
                     endif
                 endif
