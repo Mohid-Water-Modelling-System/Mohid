@@ -8332,10 +8332,12 @@ subroutine WQParticulateOrganicNitrogen(index, PartDecompRate)
          !CH2O+O2 -> CO2 + H2O
          if (Me%PropCalc%Oxygen) then
          
+            if(.NOT. Me%PropCalc%BOD) then
+            
                 Me%Matrix(O, PON) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio * &
                 MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                         &
                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
+            endif
          endif
         endif
          !aqui_7
@@ -8396,12 +8398,15 @@ cd1 :   if (Me%PropCalc%Bacteria) then
            
             Me%Matrix(DONnr, DONnr) = 1.0  + DTDay * Me%NonRefrAmmoniaMinRate
         
-            if (Me%PropCalc%Oxygen)  then                                                               
+            if (Me%PropCalc%Oxygen)  then
+            
+                if(.NOT. Me%PropCalc%BOD) then                                                               
               
                     Me%Matrix(O, DONnr) = DTDay * Me%NonRefrAmmoniaMinRate                          &
                                         * 1/Me%OMAlfaNC * Me%OxyCarbonRatio                         &
                                         * MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)           &
                                         / (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)                
+                endif
             endif
         endif cd1
 
@@ -8453,12 +8458,14 @@ subroutine WQDONRefractory(index, RefrAmmoniaMinRate, PartDecompRate)
         Me%Matrix(DONre, PON) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
 
         if (Me%PropCalc%Oxygen) then
+        
+            if(.NOT. Me%PropCalc%BOD) then
             
                 Me%Matrix(O, DONre) = DTDay * RefrAmmoniaMinRate                                    &
                                   * 1/Me%OMAlfaNC * Me%OxyCarbonRatio                               &
                                   * MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                 &
                                   / (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
+            endif
         endif
 
     !Independent term
@@ -8659,22 +8666,31 @@ end subroutine WQInorganicPhosphorus
 
          if (Me%PropCalc%Oxygen)     then
 
-
+            if(.NOT. Me%PropCalc%BOD) then
+            
+                if(.NOT. Me%PropCalc%Nitrogen) then
+                
                 Me%Matrix(O, POP) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
                                    MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
                                    /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
+                endif   
+            endif
         endif
 
         !Calculation of system coeficients for DOPnr---------------------------------------       
         Me%Matrix(DOPnr, DOPnr) = 1.0  + DTDay * PhosphorusDOPnrMinRate
 
         if (Me%PropCalc%Oxygen)     then
+        
+            if(.NOT. Me%PropCalc%BOD) then
+            
+                if(.NOT. Me%PropCalc%Nitrogen) then
 
                 Me%Matrix(O, DOPnr) = DTDay * PhosphorusDOPnrMinRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio * &
                                    MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                 &
                                    /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
+                endif
+            endif
         endif
 
         !Calculation of system coeficients for DOPr---------------------------------------
@@ -8683,11 +8699,16 @@ end subroutine WQInorganicPhosphorus
         Me%Matrix(DOPr, POP) =-DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
        
         if (Me%PropCalc%Oxygen)     then
+        
+            if(.NOT. Me%PropCalc%BOD) then
+            
+                if(.NOT. Me%PropCalc%Nitrogen) then
 
                 Me%Matrix(O, DOPr) = DTDay * PhosphorusDOPrMinRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
                                    MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                 &
                                    /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
+                endif
+            endif
         endif
 
     !Independent term
