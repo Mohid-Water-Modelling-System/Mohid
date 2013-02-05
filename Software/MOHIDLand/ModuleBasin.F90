@@ -77,7 +77,7 @@ Module ModuleBasin
                                      SetBasinColumnToRunoff, GetRunoffWaterColumn,       &
                                      GetRunoffWaterColumnOld, GetRunoffWaterLevel,       &
                                      GetRunoffTotalStoredVolume, GetMassError,           &
-                                     GetRunOffStoredVolumes
+                                     GetRunOffStoredVolumes, GetRunOffBoundaryFlowVolume
                                      
                                      
     use ModuleRunoffProperties,                                                          &
@@ -111,7 +111,8 @@ Module ModuleBasin
                                      GetNextPorousMediaDT, UngetPorousMedia, GetGWLayer, &
                                      GetGWFlowOption, GetGWFlowToChannelsByLayer,        &
                                      GetGWToChannelsLayers, GetIgnoreWaterColumnOnEVAP,  &
-                                     GetPMStoredVolume, GetEVTPVolumes
+                                     GetPMStoredVolume, GetEVTPVolumes,                  &
+                                     GetPMBoundaryFlowVolume
                                      
     use ModulePorousMediaProperties,                                                     &
                               only : ConstructPorousMediaProperties,                     &
@@ -409,6 +410,7 @@ Module ModuleBasin
         real(8)  :: Stored                  = 0.0 !m3 on soil, on leaves, on channels, on surface
         real(8)  :: Output                  = 0.0 !m3 evap from soil, from leaves, from surface, from channels and transpiration + outlet flow
         real(8)  :: Discharges              = 0.0 !m3 on Soil, on surface, on channels (can be positive or negative)
+        real(8)  :: Boundary                = 0.0 !m3 on Soil and Surface
         real(8)  :: ErrorInVolume           = 0.0 !m3  
         real(8)  :: AccErrorInVolume        = 0.0 !m3
         real(8)  :: ErrorInPercentage       = 0.0 !% of error from the actual stored (variation from initial to final) water content to the expected due the inputs/outputs/discharges
@@ -1781,8 +1783,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%ComputeBasinWaterBalance) then
         
             !Time Serie for BASIN WATER BALANCE (BWB)
-            allocate(PropertyList(35))
-            allocate(Me%BWBBuffer(35))
+            allocate(PropertyList(36))
+            allocate(Me%BWBBuffer(36))
             
             PropertyList(1)     = "Rain_m3"
             PropertyList(2)     = "Irrigation_m3"
@@ -1816,10 +1818,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             PropertyList(30)    = "Discharges_m3"
             PropertyList(31)    = "Output_m3"
             PropertyList(32)    = "Stored_m3"
-            PropertyList(33)    = "Error_m3"
-            PropertyList(34)    = "AccumulatedError_m3"
-            PropertyList(35)    = "Error_%"
-            !PropertyList(36)    = "BasinArea_m2"
+            PropertyList(33)    = "Boundary_m3"            
+            PropertyList(34)    = "Error_m3"
+            PropertyList(35)    = "AccumulatedError_m3"
+            PropertyList(36)    = "Error_%"
             !PropertyList(37)    = "NumberOfBasinCells"
             !PropertyList(38)    = "HDFAccEVTP_m3"
             
@@ -8148,12 +8150,22 @@ cd2 :           if (BlockFound) then
         
         !Begin-----------------------------------------------------------------
         
+        if (Me%Coupled%RunOff) then
+            call GetRunOffBoundaryFlowVolume (Me%ObjRunOff, Volume, STAT = stat)
+            if (stat /= SUCCESS_) stop 'ComputeBasinWaterBalance - ModuleBasin - ERR005'
+            Me%BWB%BoundaryFromSurface = Me%BWB%BoundaryFromSurface + Volume
+        endif
+        
         if (Me%Coupled%PorousMedia) then
         
             !Gets Evaporation from soil
             call GetEVTPVolumes(Me%ObjPorousMedia, Evaporation = Volume, STAT = stat)
             if (stat /= SUCCESS_) stop 'ComputeBasinWaterBalance - ModuleBasin - ERR010'
             Me%BWB%EvapFromSoil = Me%BWB%EvapFromSoil + Volume
+            
+            call GetPMBoundaryFlowVolume (Me%ObjPorousMedia, Volume, STAT = stat)
+            if (stat /= SUCCESS_) stop 'ComputeBasinWaterBalance - ModuleBasin - ERR011'
+            Me%BWB%BoundaryFromSoil = Me%BWB%BoundaryFromSoil + Volume
         
             if (Me%Coupled%Vegetation) then
             
@@ -8187,7 +8199,8 @@ cd2 :           if (BlockFound) then
         Me%BWB%Output     = Me%BWB%OutletFlowVolume + Me%BWB%EvapFromSoil + Me%BWB%EvapFromLeaves +     &
                             Me%BWB%EvapFromChannels + Me%BWB%EvapFromSurface + Me%BWB%Transpiration
         Me%BWB%Discharges = Me%BWB%DischargesOnSoil + Me%BWB%DischargesOnSurface +                      &  
-                            Me%BWB%DischargesOnChannels        
+                            Me%BWB%DischargesOnChannels    
+        Me%BWB%Boundary   = Me%BWB%BoundaryFromSurface + Me%BWB%BoundaryFromSoil
         
         InitialVol = Me%BWB%IniStoredInSoil + Me%BWB%IniStoredInChannels + Me%BWB%IniStoredInLeaves +   &
                      Me%BWB%IniStoredInSurface + Me%BWB%IniStoredInStormWater
@@ -8195,8 +8208,8 @@ cd2 :           if (BlockFound) then
         FinalVol   = Me%BWB%FinStoredInSoil + Me%BWB%FinStoredInChannels + Me%BWB%FinStoredInLeaves +   &
                      Me%BWB%FinStoredInSurface + Me%BWB%FinStoredInStormWater
         
-        Me%BWB%ErrorInVolume     = InitialVol + Me%BWB%Input + Me%BWB%Discharges -                      &
-                                   (FinalVol + Me%BWB%Output)
+        Me%BWB%ErrorInVolume     = (InitialVol + Me%BWB%Input + Me%BWB%Discharges) -                    &
+                                   (FinalVol + Me%BWB%Output + Me%BWB%Boundary)
         OldValue                 = Me%BWB%AccErrorInVolume
         Me%BWB%AccErrorInVolume  = Me%BWB%AccErrorInVolume + Me%BWB%ErrorInVolume
         Me%BWB%ErrorInPercentage = (Me%BWB%ErrorInVolume / FinalVol) * 100.0
@@ -8245,9 +8258,10 @@ cd2 :           if (BlockFound) then
         Me%BWBBuffer(30) = Me%BWB%Discharges
         Me%BWBBuffer(31) = Me%BWB%Output
         Me%BWBBuffer(32) = Me%BWB%Stored
-        Me%BWBBuffer(33) = Me%BWB%ErrorInVolume 
-        Me%BWBBuffer(34) = Me%BWB%AccErrorInVolume
-        Me%BWBBuffer(35) = Me%BWB%ErrorInPercentage
+        Me%BWBBuffer(33) = Me%BWB%Boundary
+        Me%BWBBuffer(34) = Me%BWB%ErrorInVolume 
+        Me%BWBBuffer(35) = Me%BWB%AccErrorInVolume
+        Me%BWBBuffer(36) = Me%BWB%ErrorInPercentage
         !Me%BWBBuffer(36) = Me%BWB%BasinArea
         !Me%BWBBuffer(37) = Me%BWB%NumberOfCells
         !Me%BWBBuffer(38) = sum
@@ -8290,6 +8304,7 @@ cd2 :           if (BlockFound) then
             Me%BWB%Input                 = 0.0
             Me%BWB%Discharges            = 0.0
             Me%BWB%Output                = 0.0
+            Me%BWB%Boundary              = 0.0
             Me%BWB%Stored                = 0.0
             Me%BWB%ErrorInVolume         = 0.0
             Me%BWB%ErrorInPercentage     = 0.0            

@@ -151,6 +151,7 @@ Module ModulePorousMedia
     public  ::  GetEvaporation
     public  ::  GetTranspiration
     public  ::  GetEVTPVolumes
+    public  ::  GetPMBoundaryFlowVolume
     public  ::  GetPMStoredVolume
     public  ::  GetIgnoreWaterColumnOnEVAP
     public  ::  UnGetPorousMedia
@@ -386,8 +387,10 @@ Module ModulePorousMedia
         real(8),    pointer, dimension(:,:  )   :: EfectiveEVTP             => null()
         real(8),    pointer, dimension(:,:  )   :: EfectiveEVAP             => null()
         
-        real(8)                                 :: AccEvapFromSoil  = 0.0 !m3
-        real(8)                                 :: AccTranspiration = 0.0 !m3           
+        !For Basin Water Balance
+        real(8)                                 :: AccEvapFromSoil       = 0.0 !m3
+        real(8)                                 :: AccTranspiration      = 0.0 !m3   
+        real(8)                                 :: AccBoundaryFlowVolume = 0.0 !m3        
 
         !Watertable Properties
         real,    dimension(:,:), pointer        :: UGWaterLevel2D           => null()
@@ -3481,6 +3484,35 @@ i1:         if (CoordON) then
 
     !---------------------------------------------------------------------------    
     
+    subroutine GetPMBoundaryFlowVolume(ID, AccBoundaryFlowVolume, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: ID
+        real(8), intent(OUT)                            :: AccBoundaryFlowVolume
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+
+        !Begin------------------------------------------------------------------
+        STAT_CALL = UNKNOWN_
+
+        call Ready(ID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            AccBoundaryFlowVolume = Me%AccBoundaryFlowVolume
+            STAT_CALL = SUCCESS_
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+        !-----------------------------------------------------------------------
+    
+    end subroutine GetPMBoundaryFlowVolume
+
+    !---------------------------------------------------------------------------    
+
     subroutine GetPMStoredVolume (ID, StoredVolume, STAT)    
 
         !Arguments--------------------------------------------------------------
@@ -5778,8 +5810,11 @@ cd2 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
         integer                                     :: i, j, k, di, dj, Sum, SumFaces
         logical                                     :: NearBoundary
         real                                        :: AverageArea, AverageDist
+        real                                        :: OldVolume
         
         call SetMatrixValueAllocatable (Me%lFlowBoundary, Me%Size, 0.0, Me%ExtVar%WaterPoints3D)
+        
+        Me%AccBoundaryFlowVolume = 0.0
         
         !Sets Boundary values
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -5827,9 +5862,11 @@ do1:                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                                                    hsup     = Me%FinalHead (i  ,  j,k),   &
                                                    delta    = AverageDist            )
                         
-                        !m3H20/m3cell = (m3H20/m3cell * m3cell - m3/s * s) / m3cell
-                        Me%Theta(i,j,k) = (Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k) -  &
-                                           Me%lFlowBoundary(i,j,k) * Me%ExtVar%DT)       /  &
+                        !m3H2O = m3H20/m3cell * m3cell
+                        OldVolume = Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k)
+                        
+                        !m3H20/m3cell = (m3H20 - m3/s * s) / m3cell
+                        Me%Theta(i,j,k) = (OldVolume - Me%lFlowBoundary(i,j,k) * Me%ExtVar%DT) / &
                                            Me%ExtVar%CellVolume(i,j,k)
                         
                         if (Me%Theta(i,j,k) .gt. (Me%RC%ThetaS(i,j,k) - Me%CV%LimitThetaHi)) then
@@ -5837,6 +5874,8 @@ do1:                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                         elseif (Me%Theta(i,j,k) .lt. (Me%RC%ThetaR(i,j,k) + Me%CV%LimitThetaLo)) then
                             Me%Theta(i,j,k) = Me%RC%ThetaR(i,j,k)
                         endif
+                        
+                        Me%AccBoundaryFlowVolume = Me%AccBoundaryFlowVolume + (OldVolume - Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k))
                         
                     enddo do1
 

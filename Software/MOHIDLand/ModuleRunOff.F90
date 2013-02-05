@@ -90,6 +90,7 @@ Module ModuleRunOff
     public  ::  GetRunoffCenterVelocity
     public  ::  GetRunoffTotalStoredVolume
     public  ::  GetRunOffStoredVolumes
+    public  ::  GetRunOffBoundaryFlowVolume
     public  ::  GetMassError
     public  ::  GetNextRunOffDT
     public  ::  SetBasinColumnToRunoff
@@ -277,6 +278,7 @@ Module ModuleRunOff
         integer                                     :: OverlandChannelInteractionMethod
         logical                                     :: CheckDecreaseOnly
         
+        real(8)                                     :: BoundaryFlowVolume        = 0.0 !m3 => positive if flow is towards boundary.          
         real(8)                                     :: VolumeStoredInSurface     = 0.0
         real(8)                                     :: VolumeStoredInStormSystem = 0.0
 
@@ -2662,6 +2664,36 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !----------------------------------------------------------------------
     
     end subroutine GetRunOffStoredVolumes
+    
+    !-------------------------------------------------------------------------
+    
+    subroutine GetRunOffBoundaryFlowVolume (ID, BoundaryFlowVolume, STAT)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ID
+        real(8), intent(OUT)                            :: BoundaryFlowVolume
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        !Begin-----------------------------------------------------------------
+        call Ready(ID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            BoundaryFlowVolume = Me%BoundaryFlowVolume
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_            
+        !----------------------------------------------------------------------    
+    
+    end subroutine GetRunOffBoundaryFlowVolume
     
     !-------------------------------------------------------------------------
         
@@ -6272,12 +6304,15 @@ doIter:         do while (iter <= Niter)
         integer                                     :: i, j, di, dj
         integer                                     :: ILB, IUB, JLB, JUB
         logical                                     :: NearBoundary
+        real                                        :: OldVolume, NewVolume
 
         !Routes water outside the watershed if water is higher then a given treshold values
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
+        
+        Me%BoundaryFlowVolume = 0.0
         
         !Sets Boundary values
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -6302,11 +6337,14 @@ doIter:         do while (iter <= Niter)
                     Me%myWaterLevel (i, j) = max(Me%BoundaryValue, Me%ExtVar%Topography (i, j))
 
                     !Updates Water Column
-                    Me%myWaterColumn(i, j) = Me%myWaterLevel (i, j) - Me%ExtVar%Topography (i, j)
+                    Me%myWaterColumn(i, j) = Me%myWaterLevel (i, j) - Me%ExtVar%Topography (i, j)                                        
                     
-                    !Updates Volume
+                    !Updates Volume and BoundaryFlowVolume
+                    OldVolume              = Me%myWaterVolume(i, j)
+                    !m3 = m * m2
                     Me%myWaterVolume(i, j) = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
-
+                    !m3 = m3 + (m3 - m3)
+                    Me%BoundaryFlowVolume  = Me%BoundaryFlowVolume + (OldVolume - Me%myWaterVolume(i, j))
 
                 endif
            
