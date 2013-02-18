@@ -262,9 +262,9 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: PintFactorR   !Isabella
         real,    pointer, dimension(:    )      :: PintFactor   !Isabella 
         real,    pointer, dimension(:    )      :: RootsMort   !Isabella
-        real,    pointer, dimension(:    )      :: SeagrassesLength   !Isabella
-        !real(8),    pointer, dimension(:    )      :: WaterCellVol  ! 3d   !Isabella
+        real,    pointer, dimension(:    )      :: SeagOccupation
         real(8), pointer, dimension(:    )      :: SedimCellVol  ! 3d   !Isabella
+        real,    pointer, dimension(:    )      :: MacrOccupation
       
         !Instance of ModuleTime
         integer                                 :: ObjTime              = 0
@@ -1000,7 +1000,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
               allocate(Me%Thickness(ArrayLB:ArrayUB), STAT = STAT_CALL)
               if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR109'
               
-              allocate(Me%SeagrassesLength(ArrayLB:ArrayUB), STAT = STAT_CALL)
+              
+              allocate(Me%SeagOccupation(ArrayLB:ArrayUB), STAT = STAT_CALL)
               if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR110' 
             
             
@@ -1010,7 +1011,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
               Me%LightExtCoefField   = FillValueReal
               Me%ShortWaveTop        = FillValueReal
               Me%Thickness           = FillValueReal
-              Me%SeagrassesLength    = FillValueReal
+              Me%SeagOccupation            = FillValueReal
 
             case (MacroAlgaeModel)
 
@@ -1029,6 +1030,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 allocate(Me%ShearStress(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR124'
                 
+                allocate(Me%MacrOccupation(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR75' 
+                
                 allocate(Me%SPMFlux(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR125'
 
@@ -1037,7 +1041,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ShortWaveTop       = FillValueReal
                 Me%Thickness          = FillValueReal
                 Me%ShearStress        = FillValueReal
-                Me%SPMFlux           = FillValueReal
+                Me%SPMFlux            = FillValueReal
+                Me%MacrOccupation     = FillValueReal
 
 
 #ifdef _PHREEQC_
@@ -3105,8 +3110,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   
                                   NintFac3D, NintFac3DR, PintFac3D,                     &
                                   RootsMort, PintFac3DR,                                &
-                                  SeagrassesLength, SedimCellVol3D,                     &
+                                  SedimCellVol3D,                                       &
                                   CellArea, WaterVolume,                                &
+                                  SeagOccupation,MacrOccupation,                                    &
 #ifdef _PHREEQC_
                                   WaterMass, SolidMass, pE, Temperature,                & 
                                   PhreeqCID,                                            &
@@ -3132,10 +3138,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,    optional, dimension(:,:,:), pointer    :: PintFac3DR  !Isabella
         real(8),    optional, dimension(:,:,:), pointer    :: SedimCellVol3D  !Isabella
         !real(8),    optional, dimension(:,:,:), pointer    :: WaterCellVol3D  !Isabella
-        real,    optional, dimension(:,:,:), pointer    :: SeagrassesLength
         real,    optional, dimension(:,:,:), pointer    :: RootsMort
         real(8), optional, dimension(:,:,:), pointer    :: WaterVolume
         real,    optional, dimension(:,:  ), pointer    :: CellArea
+        real,    optional, dimension(:,:,:), pointer    :: MacrOccupation
+        real,    optional, dimension(:,:,:), pointer    :: SeagOccupation
                
 #ifdef _PHREEQC_
         real,    optional, dimension(:,:,:), pointer    :: WaterMass
@@ -3216,8 +3223,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if(present(ShearStress  ))Me%ExternalVar%ShearStress      => ShearStress
             if(present(SPMFlux      ))Me%ExternalVar%SPMFlux          => SPMFlux
             
-             if(present(SeagrassesLength))then
-                call UnfoldMatrix(SeagrassesLength, Me%SeagrassesLength)
+             if(present(SeagOccupation))then
+                call UnfoldMatrix(SeagOccupation, Me%SeagOccupation)
+            end if
+            
+            if(present(MacrOccupation))then
+                call UnfoldMatrix(MacrOccupation, Me%MacrOccupation)
             end if
             
            
@@ -3425,6 +3436,7 @@ cd4 :           if (ReadyToCompute) then
                             call UnfoldMatrix(Me%ExternalVar%DWZ,         Me%Thickness  )
                             call UnfoldMatrix(Me%ExternalVar%ShearStress, Me%ShearStress)
                             call UnfoldMatrix(Me%ExternalVar%SPMFlux,     Me%SPMFlux    ) 
+                            call UnfoldMatrix(MacrOccupation,        Me%MacrOccupation  )
 
                             call ModifyMacroAlgae(ObjMacroAlgaeID       = Me%ObjMacroAlgae,       &
                                                   Temperature           = Me%Temperature,         &
@@ -3435,6 +3447,7 @@ cd4 :           if (ReadyToCompute) then
                                                   SWRadiation           = Me%ShortWaveTop,        &
                                                   SWLightExctintionCoef = Me%LightExtCoefField,   &
                                                   Thickness             = Me%Thickness,           &
+                                                  Occupation            = Me%MacrOccupation,      &
                                                   Mass                  = Me%Mass,                &
                                                   STAT                  = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR08'
@@ -3526,8 +3539,9 @@ cd4 :           if (ReadyToCompute) then
                       
                       call UnfoldMatrix(ShortWaveTop,               Me%ShortWaveTop  )
                       call UnfoldMatrix(LightExtCoefField,          Me%LightExtCoefField   )
-                      call UnfoldMatrix(Me%ExternalVar%DWZ,         Me%Thickness  )
-                     ! call UnfoldMatrix(SeagrassesLength,         Me%SeagrassesLength  )
+                      call UnfoldMatrix(SeagOccupation,             Me%SeagOccupation  )
+                      call UnfoldMatrix(Me%ExternalVar%DWZ,         Me%Thickness)
+                     
                       
                             
                             
@@ -3540,7 +3554,7 @@ cd4 :           if (ReadyToCompute) then
                                                 SWRadiation            = Me%ShortWaveTop,         &
                                                 SWLightExctintionCoef  = Me%LightExtCoefField,    &
                                                 Thickness              = Me%Thickness,            &
-                                                SeagrassesLength       = Me%SeagrassesLength,     &
+                                                Occupation             = Me%SeagOccupation,       &
                                                 WaterCellVol           = Me%WaterVolume1D,        &
                                                 STAT                   = STAT_CALL)
                             
@@ -8716,6 +8730,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         call KillMacroAlgae(Me%ObjMacroAlgae, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR70'
                         
+                        deallocate(Me%MacrOccupation, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR70.1' 
+                        
                      case(BenthicEcologyModel)
                         
                        call KillBenthicEcology(Me%ObjBenthicEcology, STAT = STAT_CALL)
@@ -8805,7 +8822,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     deallocate(Me%NintFactor, STAT = STAT_CALL)
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.29'
                                            
-                   deallocate(Me%SeagrassesLength, STAT = STAT_CALL)
+                   deallocate(Me%SeagOccupation, STAT = STAT_CALL)
                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.30'             
 
                    

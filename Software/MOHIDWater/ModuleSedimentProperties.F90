@@ -386,7 +386,8 @@ Module ModuleSedimentProperties
     end type T_External
 
    type       T_SeagrassesRoots
-        real,    pointer, dimension(:,:  )      :: Biomass     !gC/m2
+        type(T_PropertyID)                      :: ID
+        real,    pointer, dimension(:,:  )      :: Biomass     !gdw/m2
         real,    pointer, dimension(:,:  )      :: Length 
         real,    pointer, dimension(:,:,:)      :: Occupation
         real,    pointer, dimension(:,:,:)      :: NintFactor3DR
@@ -1478,10 +1479,12 @@ do1 :   do
         type(T_Property), pointer                           :: PropertyX
         
         integer, pointer, dimension(:)                      :: SeagrassesRootsPropertyList
-        integer                                             :: STAT_CALL, iflag
+        integer                                             :: STAT_CALL, iflag, ClientNumber
         real                                                :: SeagrassesRootsDT
         integer                                             :: Index = 0
         integer                                             :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                             :: i, j
+        logical                                             :: BlockFound
 
         !----------------------------------------------------------------------
         
@@ -1521,10 +1524,58 @@ do1 :   do
         allocate(Me%SeagrassesRoots%Biomass  (ILB:IUB, JLB:JUB)) !gdw/m2
         Me%SeagrassesRoots%Biomass   (:,:) = Me%SeagrassesRoots%DefaultValue
         
-        allocate(Me%SeagrassesRoots%Length  (ILB:IUB, JLB:JUB)) 
-       Me%SeagrassesRoots%Length   (:,:) = Me%SeagrassesRoots%DefaultValue * &
-                                                        Me%SeagrassesRoots%LBRatio
+        
+        
+        
+        
+             call ExtractBlockFromBuffer(Me%ObjEnterData,                                &
+                                        ClientNumber    = ClientNumber,                 &
+                                        block_begin     = "<begin_roots_biomass>",        &
+                                        block_end       = "<end_roots_biomass>",          &
+                                        BlockFound      = BlockFound,                   &
+                                        STAT            = STAT_CALL)
+cd11 :       if (STAT_CALL .EQ. SUCCESS_     ) then    
+cd12 :       if (BlockFound) then                                                  
 
+
+                call ConstructFillMatrix  (PropertyID           = Me%SeagrassesRoots%ID,           &
+                                           EnterDataID          = Me%ObjEnterData,                  &
+                                           TimeID               = Me%ObjTime,                       &
+                                           HorizontalGridID     = Me%ObjHorizontalGrid,             &
+                                           ExtractType          = FromBlock,                        &
+                                           PointsToFill2D       = Me%ExternalVar%WaterPoints2D,     &
+                                           Matrix2D             = Me%SeagrassesRoots%Biomass,      &
+                                           TypeZUV              = TypeZ_,                           &
+                                           STAT                 = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                          &
+                    stop 'CoupleSeagrassesRoots - ModuleSedimentProperties - ERR07'
+
+
+                call KillFillMatrix(Me%SeagrassesRoots%ID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)&
+                    stop 'CoupleSeagrassesRoots - ModuleSedimentProperties - ERR08'
+
+            endif cd12
+            
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'CoupleSeagrassesRoots - ModuleSedimentProperties - ERR08a'
+            
+            endif cd11
+        
+        
+        
+        
+        allocate(Me%SeagrassesRoots%Length  (ILB:IUB, JLB:JUB)) 
+        do j = JLB, JUB
+        do i = ILB, IUB
+        
+           Me%SeagrassesRoots%Length   (i,j) = Me%SeagrassesRoots%Biomass(i,j) * &
+                                                            Me%SeagrassesRoots%LBRatio
+
+        enddo
+        enddo
         allocate(Me%SeagrassesRoots%Occupation    (ILB:IUB, JLB:JUB, KLB:KUB)) 
         Me%SeagrassesRoots%Occupation(:,:,:) = 0.
         
@@ -3295,11 +3346,10 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
         !Local----------------------------------------------------------------- 
         type (T_Property),       pointer         :: PropertyX
         type (T_SedimentRate  ), pointer         :: SedimentRateX
-        integer                                  :: i, j, k, kbottom, KTop
+        integer                                  :: i, j, k, KTop
         integer                                  :: ILB, IUB, JLB, JUB,KLB, KUB
         integer                                  :: STAT_CALL
-        integer                                  :: CHUNK
-        real, dimension(:,:,:), pointer          :: Volume
+
 
         
 

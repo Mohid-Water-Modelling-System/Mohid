@@ -514,14 +514,13 @@ Module ModuleInterfaceSedimentWater
     end type  T_Consolidation
 
    Type T_Seagrasses     ! Isabella
-        real,    pointer, dimension(:,:  )      :: UptakeNH4NO3w2D
-        real,    pointer, dimension(:,:  )      :: UptakeNH4s2D
-        real,    pointer, dimension(:,:  )      :: UptakePO4w2D
-        real,    pointer, dimension(:,:  )      :: UptakePO4s2D
-        real,    pointer, dimension(:,:  )      :: LightFactor2D
-        real                                    :: NintInit
-        real                                    :: PintInit
-        real, pointer, dimension(:,:  )         :: Array2D
+   type(T_PropertyID)                               :: ID
+        real,    pointer, dimension(:,:  )          :: UptakeNH4NO3w2D
+        real,    pointer, dimension(:,:  )          :: UptakeNH4s2D
+        real,    pointer, dimension(:,:  )          :: UptakePO4w2D
+        real,    pointer, dimension(:,:  )          :: UptakePO4s2D
+        real,    pointer, dimension(:,:  )          :: LightFactor2D
+        real, pointer, dimension(:,:  )             :: Array2D
    end type T_Seagrasses
   
 
@@ -1796,74 +1795,8 @@ cd2 :           if (BlockFound) then
                     stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR05'
 
 
-
-
-                
-                 if (NewProperty%ID%IDNumber== SeagrassesN_ ) then
-             
-                 !kg N/m2
-                 ! this value is established on the basis of the initial plant's biomass and on the basis of
-                 ! the ratio gN/kgDW
-                 ! if the initial plant's biomass is (Leaves+Roots)=90 gdw and the ratio gN/kgDW = 19 the value 
-                 ! of NINTINIT must be (90/1000) * 19/1000 = 0.0017 kg N/m2
-               call GetData(Me%Seagrasses%NintInit,                       &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'NINTINIT',                                &
-                     Default        = 0.0017,                       &  ! kgN/m2
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleInterfaceSedimentWater',                          &
-                      STAT           = STAT_CALL)
-              if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR05'
-              if (iflag == 0)            stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR06'
-             
-               NewProperty%Mass_Available= Me%Seagrasses%NintInit
-             
-              ! get the value in kg (this is necessary to initialize the leaves when running modulebenthicEcology)
-               do i=ILB,IUB
-               do j=JLB,JUB             
-                if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
-                ! kg =                   kg N/m2  * m2
-               NewProperty%MassInKg(i,j) = NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
-                endif
-               enddo
-               enddo
-             
-          endif
-             
-             
-            if (NewProperty%ID%IDNumber== SeagrassesP_) then
-             
-                 ! kg P/m2
-                 ! this value is established on the basis of the initial plant's biomass and on the basis of
-                 ! the ratio gP/kgDW
-                 ! if the initial plant's biomass is (Leaves+Roots)=90 gdw and the ratio gP/kgDW = 1.8 the value 
-                 ! of PINTINIT must be (90/1000) * 1.8/1000 = 0.00016 kg P/m2
-                        call GetData(Me%Seagrasses%PintInit,                       &
-                                 Me%ObjEnterData, iflag,                                            &
-                                 Keyword        = 'PINTINIT',                                &
-                                 Default        = 0.0001,                                            &
-                                 SearchType     = FromFile,                                         &
-                                 ClientModule   = 'ModuleInterfaceSedimentWater',                          &
-                                  STAT           = STAT_CALL)
-                       if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR07'
-                       if (iflag == 0)            stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR08'
-             
-             
-                      NewProperty%Mass_Available = Me%Seagrasses%PintInit
-                     
-                     ! get the value in kg (this is necessary to initialize the leaves when running modulebenthicEcology)
-                       do i=ILB,IUB
-                       do j=JLB,JUB             
-                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
-                        ! kg =                   Kg/m2  * m2
-                       NewProperty%MassInKg (i,j)=NewProperty%Mass_Available(i,j)*Me%ExternalVar%GridCellArea(i,j)
-                        endif
-                       enddo
-                       enddo
-                     
-             
-             
-             endif
+ 
+               
              
               if (NewProperty%ID%IDNumber== SeagrassesLeaves_) then
               

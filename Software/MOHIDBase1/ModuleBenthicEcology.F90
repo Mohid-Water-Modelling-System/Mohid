@@ -65,9 +65,11 @@
 !K3                : 0.98      ! Constant to control temperature response curve shape 
 !K4                : 0.02      ! Constant to control temperature response curve shape 
 !COHESIVESED       : 1         ! ! Effect of cohesive sediment on filtration.  1 for suspension feeders, 0 for deposit feeders
-!SEDMAX            : 0.1       ! Max Sediment concentration tolerated by suspension feeders g/l (only used for suspension feeders
-!SMIN              : 0.005     ! Min consumer density that limits the growth rate (kgC/m2) 0.005 for suspension feeders, 0.002 for deposit feeders
-!SMAX              : 0.020     ! Max consumer density that limits the growth rate (kgC/m2) 0.020 for suspension feeders, 0.006 for deposit feeders
+!SEDMAX            : 0.1       ! Max Sediment concentration tolerated by susp. feeders g/l 
+!SMIN              : 0.005     ! Min consumer density that limits the growth rate (kgC/m2) 
+!                                0.005 for suspension feeders, 0.002 for deposit feeders
+!SMAX              : 0.020     ! Max consumer density that limits the growth rate (kgC/m2) 
+!                                0.020 for suspension feeders, 0.006 for deposit feeders
 
 !=========== food for suspension feeders:============
 !<begin_food>
@@ -109,7 +111,8 @@
 !K2                : 0.98     ! Constant to control temperature response curve shape 
 !K3                : 0.98     ! Constant to control temperature response curve shape 
 !K4                : 0.02     ! Constant to control temperature response curve shape 
-!COHESIVESED       : 0        ! is the grazing affected by cohesive sediment in water? 0 (for deposit feeders) , 1 for suspension feeders 
+!COHESIVESED       : 0        ! is the grazing affected by cohesive sediment in water? 
+!                               0 (for deposit feeders) , 1 for suspension feeders 
 !KFOODC            : 0.001    !  half saturation constant for Carbon uptake by benthic feeder (Kg C/m2)   
 !SMIN              : 0.002    ! Minimum consumer's biomass that limits the growth rate (Kg C/m2)
 !SMAX              : 0.006    ! Maximum consumer's biomass that limits the growth rate (Kg C/m2)  
@@ -184,7 +187,7 @@
 !K3                : 0.98      ! Constant to control temperature response curve shape 
 !K4                : 0.02      ! Constant to control temperature response curve shape 
 !LAT               : 40.5      ! Average latitude of the geographic location (used to calculate the daylight)
-
+!MORT_TYPE         : 1/2       ! mortality term as a function of temperature (1) or daylight (2)
 Module ModuleBenthicEcology
 
     use ModuleGlobalData
@@ -318,6 +321,7 @@ Module ModuleBenthicEcology
             real                                :: TMax             = null_real
             real                                :: Lat              = null_real
             real                                :: KMAX             = null_real
+            integer                             :: MortType         = null_int
        end type T_Leaves
 
       type      T_Roots
@@ -1466,7 +1470,14 @@ subroutine ReadData
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR32'
    
-
+               call GetData(Me%Leaves%MortType,                                                 &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MORT_TYPE',                                          &
+                     Default      = 1,                                                &
+                     ClientModule = 'ModuleBenthicEcology',                             &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ReadSeagrassesParameters - ModuleBenthicEcology - ERR33'
 
    
     end subroutine ReadSeagrassesParameters
@@ -4121,16 +4132,29 @@ d1:     do while(associated(Consumer))
         select case(Zone)
         
         case(NoLimitation)
-        !
-        ! Leaves and roots decay rate is expressed as a function of the daylight, 
-        ! Calculated as described in Forsythe WC, Rykiel Jr EJ, Stahl RS, Wu H, Schoolfield RM.
-        ! A model comparison for daylength as a function of latitude and day of year.
-        ! Ecological Modeling 1995; 80:87-95.
-        phi=asin(.39795*cos(.2163108 + 2*atan(.9671396*tan(.00860*(Me%JulianDay-186)))))
-        Daylight=24-(24/pi)*acos((sin(0.8333*pi/180) + sin(Me%Leaves%Lat*pi/180)*sin(phi))/ &
-                  (cos(Me%Leaves%Lat*pi/180)*cos(phi)))
         
-        fm=exp(9.5-Daylight)
+            select case (Me%Leaves%MortType)
+            case(1)
+            !
+            ! Leaves and roots decay rate expressed as a function of the daylight, 
+            ! Calculated as described in Forsythe WC, Rykiel Jr EJ, Stahl RS, Wu H, Schoolfield RM.
+            ! A model comparison for daylength as a function of latitude and day of year.
+            ! Ecological Modeling 1995; 80:87-95.
+            
+            phi=asin(.39795*cos(.2163108 + 2*atan(.9671396*tan(.00860*(Me%JulianDay-186)))))
+            Daylight=24-(24/pi)*acos((sin(0.8333*pi/180) + sin(Me%Leaves%Lat*pi/180)*sin(phi))/ &
+                      (cos(Me%Leaves%Lat*pi/180)*cos(phi)))
+            
+            
+            fm=exp(9.5-Daylight)
+            
+            case(2)
+            !Leaves and roots decay expressed as a function of temperature (tentative)
+            
+            
+            
+            fm=min (1., exp(15. - Me%ExternalVar%Temperature(index)))
+            end select
         
         ! Leaves uptake nutrients from the water column.
         ! This uptake is not calculated here in the module BenthicEcology,
@@ -4265,6 +4289,7 @@ d1:     do while(associated(Consumer))
         NutrientsLimitation = min(NitrogenLimitation,PhosphorusLimitation)
         
         
+        
         !Leaves Mortality 
         !KgDW * day-1
         LeavesMortality  = Me%ExternalVar%Mass(L, Index)      * &  ! KgDW   *
@@ -4282,7 +4307,10 @@ d1:     do while(associated(Consumer))
              !day 
                           
 
- 
+       if ((InternalNitrogenFunction .EQ. 0.).OR.(InternalPhosphorusFunction .EQ. 0.)) then
+       LeavesMortality=0.
+       RootsMortality=0.
+       endif
 
        ! gross growth
        ! KgDW * day-1
@@ -4327,14 +4355,17 @@ d1:     do while(associated(Consumer))
           ! divide by 1000. to convert g to Kg
          Me%ExternalVar%Mass(NINT, Index)     = Me%ExternalVar%Mass(NINT, Index)          + &  ! KgN            
                                                (UptakeN/1000.                             - &  !(KgN/day         
-                                                Growth*(Me%Leaves%gNKgDW/1000.)   )      * &   ! kgdW/day * gN/KgdW/1000  
-                                                 Me%DTDay                                      ! day 
+                                                Growth*(Me%Leaves%gNKgDW/1000.) )         * &   ! kgdW/day * gN/KgdW/1000  
+                                                 Me%DTDay                                 !- &     ! day 
+                                               
           
           ! divide by 1000. to convert g to Kg
          Me%ExternalVar%Mass(PINT, Index)     = Me%ExternalVar%Mass(PINT, Index)          + &  ! KgP            
                                                (UptakeP/1000.                             - &  !(KgP/day         
-                                                Growth*(Me%Leaves%gPKgDW/1000.)   )      * &   ! kgdW/day * gP/KgdW/1000  
-                                                 Me%DTDay                                      ! day 
+                                                Growth*(Me%Leaves%gPKgDW/1000.))          * &  ! kgdW/day * gP/KgdW/1000  
+                                                Me%DTDay                                  !- &   ! day 
+                                               
+                                                
 
          Me%ExternalVar%Mass(L, Index)  =     Me%ExternalVar%Mass(L, Index)               + &  ! kgdw     +
                                               ((1.-Me%Leaves%Ktr) *Growth                 - &  ! (Kgdw/day -
@@ -4402,7 +4433,7 @@ d1:     do while(associated(Consumer))
                                                       Me%Matrix(Index, L, PON)   
                                                       
                     Me%ExternalVar%MassInKgFromWater(POP, Index) = Me%ExternalVar%MassInKgFromWater(POP, Index) + &
-                                                      Me%Matrix(Index, L, POP)
+                                                      Me%Matrix(Index, L, POP)   
 
           end select
           ! END  -----This part of the algorithm is the same as in the macroalgae module--------

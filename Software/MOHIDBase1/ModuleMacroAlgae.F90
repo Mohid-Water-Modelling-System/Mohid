@@ -127,6 +127,7 @@ Module ModuleMacroAlgae
         real,       pointer, dimension(:  )         :: SWLightExctintionCoef
         real,       pointer, dimension(:,:)         :: Mass
         integer,    pointer, dimension(:  )         :: OpenPoints
+        real,       pointer, dimension(:  )         :: Occupation
     end type T_External
 
     type      T_PropIndex
@@ -1308,7 +1309,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     subroutine ModifyMacroAlgae(ObjMacroAlgaeID, Temperature, Salinity, OpenPoints, &
                                 ShearStress, SPMDepositionFlux, SWRadiation,        &
-                                SWLightExctintionCoef, Thickness, Mass, STAT)
+                                SWLightExctintionCoef, Thickness, Occupation, Mass, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjMacroAlgaeID
@@ -1319,7 +1320,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real,    dimension(:  ), pointer, optional  :: SWRadiation
         real,    dimension(:  ), pointer, optional  :: SWLightExctintionCoef
         real,    dimension(:  ), pointer, optional  :: Thickness
-
+        real,    dimension(:  ), pointer, optional  :: Occupation
         integer, dimension(:  ), pointer, optional  :: OpenPoints
         real,    dimension(:,:), pointer            :: Mass
         integer, intent(OUT), optional              :: STAT
@@ -1380,6 +1381,12 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                     stop 'ModifyMacroAlgae - ModuleMacroAlgae - ERR08'
             end if
             
+           if(present(Occupation))then
+                Me%ExternalVar%Occupation  => Occupation
+                if (.not. associated(Me%ExternalVar%Occupation)) &
+                    stop 'ModifyMacroAlgae - ModuleMacroAlgae - ERR08'
+            end if
+            
             if(present(OpenPoints))then
                 Me%ExternalVar%OpenPoints  => OpenPoints
                 if (.not. associated(Me%ExternalVar%OpenPoints)) &
@@ -1405,6 +1412,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             nullify(Me%ExternalVar%SWRadiation          )
             nullify(Me%ExternalVar%SWLightExctintionCoef)
             nullify(Me%ExternalVar%Thickness            )
+            nullify(Me%ExternalVar%Occupation           )
 
             STAT_ = SUCCESS_
         else               
@@ -1454,7 +1462,9 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer, parameter                          :: NoCompute    = 3
         integer, parameter                          :: Beached      = 4
         real                                        :: MacroAlgaeMassOld
-        real                                        :: DeadMass
+        real                                        :: DeadMass,DistanceFromTop
+        real, parameter                             :: minthickness = 0.001
+        real                                        :: DZ1, DZ2, radiation_at_top_canopy
         
         !Begin-----------------------------------------------------------------
         
@@ -1548,13 +1558,27 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
        
                 !Nutrients limiting factor
                 NutLimitingFactor = min(NitrogenLimitFactor, PhosphorusLimitFactor) 
-
-                !Light Limiting Factor
-                LightLimitingFactor =                                                                           &
-                      PhytoLightLimitationFactor(Thickness       = Me%ExternalVar%Thickness(index),             &
-                                                 TopRadiation    = Me%ExternalVar%SWRadiation(index),           &
-                                                 PExt            = Me%ExternalVar%SWLightExctintionCoef(index), &
-                                                 Photoinhibition = Parameters%Photoinhibition)
+                
+                ! DZ1 is the distance (m) between the top of the cell and the top of the canopy
+                ! (minthickness is used to avoid division by 0 if DZ1 is 0)
+                DZ1= max(minthickness, (1. - Me%ExternalVar%Occupation(index))*Me%ExternalVar%Thickness(index)) 
+                ! (minthickness is used to avoid division by 0 if DZ2 is 0)
+                DZ2= max(minthickness,Me%ExternalVar%Occupation(index)*Me%ExternalVar%Thickness(index) )  ! DZ2 is macroalgae height in the cell
+        
+                if (DZ1 == minthickness) then
+                ! the height of canopy reaches the top of the cell, so the radiation at top of cell is used
+                    radiation_at_top_canopy = Me%ExternalVar%SWRadiation(index)  
+                else
+                    radiation_at_top_canopy = Me%ExternalVar%SWRadiation(index)*exp(-DZ1*Me%ExternalVar%SWLightExctintionCoef(index))
+                 end if
+         
+               !It is assumed that the light extinction coefficient is uniform in the cell (it is rough approximation)
+         
+                LightLimitingFactor =                                                                                      &
+                          PhytoLightLimitationFactor(Thickness       = DZ2,                                         &
+                                                     TopRadiation    = radiation_at_top_canopy,                     &
+                                                     PExt            = Me%ExternalVar%SWLightExctintionCoef(index), &
+                                                     Photoinhibition = Parameters%Photoinhibition)
 
 
                 !Salt LimitingFactor

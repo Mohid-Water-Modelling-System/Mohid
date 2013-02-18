@@ -103,7 +103,7 @@ Module ModuleSeagrassWaterInteraction
         real(8),       pointer, dimension(:)           :: WaterCellVol
         real,       pointer, dimension(:  )         :: SWRadiation
         real,       pointer, dimension(:  )         :: Thickness ! Thickness of the water column
-        real,       pointer, dimension(:  )         :: SeagrassesLength
+        real,       pointer, dimension(:  )         :: Occupation
         real,       pointer, dimension(:  )         :: SWLightExctintionCoef
 
     end type T_External
@@ -948,7 +948,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                                 SWRadiation,          &
                                 SWLightExctintionCoef,&
                                 Thickness,            &
-                                SeagrassesLength,     &
+                                Occupation,           &
                                 WaterCellVol,         &
                                 STAT)
                                 
@@ -966,7 +966,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real,    dimension(:  ), pointer, optional  :: SWRadiation
         real,    dimension(:  ), pointer, optional  :: SWLightExctintionCoef
         real,    dimension(:  ), pointer, optional  :: Thickness
-        real,    dimension(:  ), pointer, optional  :: SeagrassesLength
+        real,    dimension(:  ), pointer, optional  :: Occupation
 
         integer, intent(OUT), optional              :: STAT
 
@@ -1034,9 +1034,9 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             end if
             
             
-            if(present(SeagrassesLength))then
-                Me%ExternalVar%SeagrassesLength  => SeagrassesLength
-                if (.not. associated(Me%ExternalVar%SeagrassesLength)) &
+            if(present(Occupation))then
+                Me%ExternalVar%Occupation  => Occupation
+                if (.not. associated(Me%ExternalVar%Occupation)) &
                     stop 'ModifySeagrassWaterInteraction - ModuleSeagrassWaterInteraction - ERR09'
             end if            
 
@@ -1057,7 +1057,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             nullify(Me%ExternalVar%SWRadiation          )
             nullify(Me%ExternalVar%SWLightExctintionCoef)
             nullify(Me%ExternalVar%Thickness            )
-            nullify(Me%ExternalVar%SeagrassesLength     )
+            nullify(Me%ExternalVar%Occupation     )
             nullify(Me%ExternalVar%NintFactor           )
             nullify(Me%ExternalVar%PintFactor           )
             nullify(Me%ExternalVar%WaterCellVol         )
@@ -1092,8 +1092,10 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real                                        :: UptakePO4w
         real                                        :: NintFactor
         real                                        :: PintFactor
-        
+        real, parameter                             :: minthickness = 0.001
         real                                        :: LightLimitingFactor
+        real                                        :: DistanceFromTop
+        real                                        :: DZ1, DZ2, radiation_at_top_canopy
 
         !Description-------------------------------------------------------------
         ! This subroutine calculates the uptake of ammonia, nitrate and phosphate
@@ -1118,17 +1120,28 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
          ! TopRadiation is the solar radiation on the top of the water layer k
          ! Thickness(i,j,k) = DWZ(i,j,k)= SZZ(i,j,k-1)-SZZ(i,j,k) (see module geometry)
          ! 
-         if (Me%ExternalVar%Thickness(index)>Me%ExternalVar%SeagrassesLength(Index) ) then 
-         Me%ExternalVar%Thickness(index)= Me%ExternalVar%Thickness(index)-Me%ExternalVar%SeagrassesLength(Index)
-         else
-         Me%ExternalVar%Thickness(index)= 0.001
-         endif
          
-         LightLimitingFactor =                                                                           &
-                          PhytoLightLimitationFactor(Thickness       = Me%ExternalVar%Thickness(index),             &
-                                                     TopRadiation    = Me%ExternalVar%SWRadiation(index),           &
+         ! DZ1 is the distance (m) between the top of the cell and the top of the canopy
+         ! (minthickness is used to avoid division by 0 if DZ1 is 0)
+           DZ1= max(minthickness, (1. - Me%ExternalVar%Occupation(index))*Me%ExternalVar%Thickness(index)) 
+         ! (minthickness is used to avoid division by 0 if DZ2 is 0)
+           DZ2= max(minthickness,Me%ExternalVar%Occupation(index)*Me%ExternalVar%Thickness(index) )  ! DZ2 is seagrass height in the cell
+        
+           if (DZ1 == minthickness) then
+         ! the height of canopy reaches the top of the cell, so the radiation at top of cell is used
+            radiation_at_top_canopy = Me%ExternalVar%SWRadiation(index)  
+           else
+            radiation_at_top_canopy = Me%ExternalVar%SWRadiation(index)*exp(-DZ1*Me%ExternalVar%SWLightExctintionCoef(index))
+           end if
+         
+               !It is assumed that the light extinction coefficient is uniform in the cell (it is rough approximation)
+         
+                LightLimitingFactor =                                                                                      &
+                          PhytoLightLimitationFactor(Thickness       = DZ2,                                         &
+                                                     TopRadiation    = radiation_at_top_canopy,                     &
                                                      PExt            = Me%ExternalVar%SWLightExctintionCoef(index), &
                                                      Photoinhibition = Me%Parameters%Photoinhibition)
+         
         
               
         

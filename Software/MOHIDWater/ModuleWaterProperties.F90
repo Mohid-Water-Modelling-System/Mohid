@@ -56,7 +56,7 @@
 !                                                               ! this ratio is calculated knowing that biomass of 
 !                                                                500gdw/m2 average height =0.25 (Astill & Lavery, 2001)
 !                                                                gC= 0.3*gdw (Duarte, 1990)--> 
-!0.25m/[500gdw/m2*0.3gC/gdw] = 0.002 m/gC/m2
+!                                                                0.25m/[500gdw/m2*0.3gC/gdw] = 0.002 m/gC/m2
 !   NO_FLUX_INTERIOR_CONDITION  :                   [0]         ! Check if the user wants in the domain interior to assume no flux condition along 
                                                                 ! specific faces. 
 !   RELAXATION_TIME_SCALE_NO_FLUX_LIMIT :         1000 * DT     ! Below this time scela there is no flux along a cell face. For each face 
@@ -563,7 +563,6 @@ Module ModuleWaterProperties
 
     character(LEN = StringLength), parameter    :: shading_begin        = '<begin_shading>'
     character(LEN = StringLength), parameter    :: shading_end          = '<end_shading>'
-    
 
     !T90 Calc Method
     integer, parameter                          :: Canteras             = 1
@@ -686,6 +685,7 @@ Module ModuleWaterProperties
         real,    pointer, dimension(:,:,:)      :: ShearStress3D
         real,    pointer, dimension(:,:,:)      :: SPMDepFlux3D
         real,    pointer, dimension(:,:,:)      :: Occupation
+        !real,    pointer, dimension(:,:,:)      :: DistFromTop
         real,    pointer, dimension(:,:  )      :: MaxShearStress, Height
         real,    pointer, dimension(:,:  )      :: MaxSPMDepFlux
     end type   T_MacroAlgae
@@ -1051,14 +1051,16 @@ Module ModuleWaterProperties
         real,    pointer, dimension(:,:  )      :: SurfaceRadiation
     end type T_ExtSurface
     
-          type       T_SeagrassesLeaves
+   type       T_SeagrassesLeaves
+        type(T_PropertyID)                      :: ID
         real,    pointer, dimension(:,:  )      :: Biomass     !kgC/m2
         real,    pointer, dimension(:,:  )      :: Length 
         real,    pointer, dimension(:,:,:)      :: Occupation
+        !real,    pointer, dimension(:,:,:)      :: DistFromTop
         real,    pointer, dimension(:,:,:)      :: NintFactor3D
         real,    pointer, dimension(:,:  )      :: NintFactor2D
         real,    pointer, dimension(:,:,:)      :: PintFactor3D
-        real,    pointer, dimension(:,:,:)      :: SeagrassesL3D
+        !real,    pointer, dimension(:,:,:)      :: SeagrassesL3D
         real,    pointer, dimension(:,:  )      :: PintFactor2D
         real,    pointer, dimension(:,:,:)      :: UptakeNH4NO3w3D   
         real,    pointer, dimension(:,:,:)      :: UptakePO4w3D
@@ -4708,7 +4710,7 @@ do1 :   do while (associated(PropertyX))
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR05'
-        if (iflag == 0)            stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR06'
+        if (iflag == 0)            stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR06' 
         endif
         
         allocate(Me%MacroAlgae%Height  (ILB:IUB, JLB:JUB)) !m
@@ -4747,6 +4749,9 @@ do1 :   do while (associated(PropertyX))
 
         allocate(Me%MacroAlgae%Occupation    (ILB:IUB, JLB:JUB, KLB:KUB)) 
         Me%MacroAlgae%Occupation     (:,:,:) = 0.
+        
+        !allocate(Me%MacroAlgae%DistFromTop    (ILB:IUB, JLB:JUB, KLB:KUB)) 
+        !Me%MacroAlgae%DistFromTop     (:,:,:) = 0.
 
         allocate(Me%MacroAlgae%MaxShearStress(ILB:IUB, JLB:JUB         )) 
         Me%MacroAlgae%MaxShearStress (:,:  ) = 0.
@@ -4826,10 +4831,13 @@ do1 :   do while (associated(PropertyX))
         type(T_Property), pointer                           :: PropertyX
         
         integer, pointer, dimension(:)                      :: SeagrassesLeavesPropertyList
-        integer                                             :: STAT_CALL, iflag
+        integer                                             :: STAT_CALL, iflag, ClientNumber
         real                                                :: SeagrassesLeavesDT
         integer                                             :: Index = 0
         integer                                             :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                             :: i, j
+        logical                                             :: BlockFound
+        
         
         ! this subroutine was created to allocate arrays which values 
         ! will be calculated in the module SeagrassWaterInteraction
@@ -4848,7 +4856,7 @@ do1 :   do while (associated(PropertyX))
         KLB = Me%Size%KLB
         KUB = Me%Size%KUB
 
-        !gC/m2
+        !g DW/m2
         call GetData(Me%SeagrassesLeaves%DefaultValue,                       &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'LEAVES_MASS',                                &
@@ -4881,15 +4889,63 @@ do1 :   do while (associated(PropertyX))
         allocate(Me%SeagrassesLeaves%Biomass  (ILB:IUB, JLB:JUB)) !gdw/m2
         Me%SeagrassesLeaves%Biomass   (:,:) = Me%SeagrassesLeaves%DefaultValue
         
+        
+        ! If initialization is carried out by using boxes,
+        ! the matrix values will be replaced with boxes values
+         call ExtractBlockFromBuffer(Me%ObjEnterData,                                &
+                                        ClientNumber    = ClientNumber,                 &
+                                        block_begin     = "<begin_leaves_biomass>",        &
+                                        block_end       = "<end_leaves_biomass>",          &
+                                        BlockFound      = BlockFound,                   &
+                                        STAT            = STAT_CALL)
+cd11 :       if (STAT_CALL .EQ. SUCCESS_     ) then    
+cd12 :       if (BlockFound) then                                                  
+
+
+                call ConstructFillMatrix  (PropertyID           = Me%SeagrassesLeaves%ID,           &
+                                           EnterDataID          = Me%ObjEnterData,                  &
+                                           TimeID               = Me%ObjTime,                       &
+                                           HorizontalGridID     = Me%ObjHorizontalGrid,             &
+                                           ExtractType          = FromBlock,                        &
+                                           PointsToFill2D       = Me%ExternalVar%WaterPoints2D,     &
+                                           Matrix2D             = Me%SeagrassesLeaves%Biomass,      &
+                                           TypeZUV              = TypeZ_,                           &
+                                           STAT                 = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                          &
+                    stop 'CoupleSeagrassesLeaves - ModuleWaterProperties - ERR07'
+
+
+                call KillFillMatrix(Me%SeagrassesLeaves%ID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)&
+                    stop 'CoupleSeagrassesLeaves - ModuleWaterProperties - ERR08'
+
+            endif cd12
+            
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'CoupleSeagrassesLeaves - ModuleWaterProperties - ERR08a'
+            
+            endif cd11
+        
+        
+        
         allocate(Me%SeagrassesLeaves%Length  (ILB:IUB, JLB:JUB)) !gdw/m2
-       Me%SeagrassesLeaves%Length   (:,:) = Me%SeagrassesLeaves%DefaultValue * &
+          do j = JLB, JUB
+            do i = ILB, IUB
+        
+              Me%SeagrassesLeaves%Length   (i,j) = Me%SeagrassesLeaves%Biomass(i, j) * &
                                                         Me%SeagrassesLeaves%LBRatio
+                                                        
+            enddo 
+          enddo                                          
+                                                        
         ! Allocation of arrays which values 
         ! will be calculated in the module SeagrassWaterInteraction
         allocate(Me%SeagrassesLeaves%Occupation    (ILB:IUB, JLB:JUB, KLB:KUB)) 
         Me%SeagrassesLeaves%Occupation(:,:,:) = 0.
 
-       
+        
         allocate (Me%SeagrassesLeaves%NintFactor3D(ILB:IUB,JLB:JUB,KLB:KUB))
         Me%SeagrassesLeaves%NintFactor3D(:,:,:) =0.
         
@@ -4899,9 +4955,6 @@ do1 :   do while (associated(PropertyX))
         
         allocate (Me%SeagrassesLeaves%PintFactor3D(ILB:IUB,JLB:JUB,KLB:KUB))
         Me%SeagrassesLeaves%PintFactor3D(:,:,:) =0.
-        
-        allocate (Me%SeagrassesLeaves%SeagrassesL3D(ILB:IUB,JLB:JUB,KLB:KUB))
-        Me%SeagrassesLeaves%SeagrassesL3D(:,:,:) =0.
         
         allocate (Me%SeagrassesLeaves%PintFactor2D(ILB:IUB,JLB:JUB))
         Me%SeagrassesLeaves%PintFactor2D(:,:) =0.
@@ -4939,7 +4992,7 @@ do1 :   do while (associated(PropertyX))
                 
                 if(PropertyX%ID%IDNumber == SeagrassesLeaves_)then
                 
-                
+                     
                                 
                   if(PropertyX%Evolution%AdvectionDiffusion)then
                     
@@ -4955,6 +5008,10 @@ do1 :   do while (associated(PropertyX))
                     if(PropertyX%Old)then
                         call Read_Old_Properties_2D(Me%SeagrassesLeaves%Biomass, "seagrasses leaves biomass" )
                     else
+                        
+                      !  if (PropertyX%)
+                        
+                    
                         call LeavesOccupation(Me%SeagrassesLeaves)
                        call DistributeLeaves(PropertyX, Me%SeagrassesLeaves)
                     end if
@@ -13332,6 +13389,7 @@ cd5:                if (TotalVolume > 0.) then
                                       DWZ               = Me%ExternalVar%DWZ,           &
                                       ShearStress       = Me%MacroAlgae%ShearStress3D,  &
                                       SPMFlux           = Me%MacroAlgae%SPMDepFlux3D,   &
+                                      MacrOccupation    = Me%Macroalgae%Occupation,    & 
                                       STAT              = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
                     stop 'MacroAlgae_Processes - ModuleWaterProperties - ERR02'
@@ -13431,6 +13489,7 @@ cd5:                if (TotalVolume > 0.) then
         integer                                 :: STAT_CALL
         real                                    :: Remaining_Length
         
+        
         !Begin----------------------------------------------------------------- 
 
         ILB = Me%WorkSize%ILB 
@@ -13458,7 +13517,8 @@ cd5:                if (TotalVolume > 0.) then
                     
                     if(Me%MacroAlgae%Height(i,j) .ge. WaterColumnZ(i,j))then
 
-                        Me%MacroAlgae%Occupation(i,j,kbottom:KUB) = 1
+                        Me%MacroAlgae%Occupation(i,j,kbottom:KUB) = 1.
+                        !Me%MacroAlgae%DistFromTop(i,j,kbottom:KUB)  = 0. 
 
                     else
 
@@ -13473,8 +13533,10 @@ cd5:                if (TotalVolume > 0.) then
 
                                 Me%MacroAlgae%Occupation(i,j,k)   = 1.
                                 Remaining_Length                  = Remaining_Length - Me%ExternalVar%DWZ(i,j,k)
+                                !Me%MacroAlgae%DistFromTop(i,j,k)  = 0. 
                             else
                                 Me%MacroAlgae%Occupation(i,j,k)   = Remaining_Length / Me%ExternalVar%DWZ(i,j,k)
+                                !Me%MacroAlgae%DistFromTop(i,j,k)   = Me%ExternalVar%DWZ(i,j,k)- Remaining_Length
                             end if
                             
                              k = k + 1
@@ -13500,11 +13562,13 @@ cd5:                if (TotalVolume > 0.) then
                     if(Me%MacroAlgae%Height(i,j) .ge. WaterColumnZ(i,j))then
 
                         Me%MacroAlgae%Occupation(i,j,kbottom:KUB) = 1
-
+                        !Me%MacroAlgae%DistFromTop(i,j,kbottom:KUB)  = 0. 
                     else
 
                         Me%MacroAlgae%Occupation(i,j,kbottom:KUB) = Me%MacroAlgae%Height(i,j) / &
                                                                     WaterColumnZ(i,j)
+                                                                    
+                        !Me%MacroAlgae%DistFromTop(i,j,kbottom:KUB)  = WaterColumnZ(i,j) - Me%MacroAlgae%Height(i,j)
                     end if
 
                 endif
@@ -13796,7 +13860,7 @@ cd5:                if (TotalVolume > 0.) then
             Me%SeagrassesLeaves%NintFactor3D(i,j,k)=Me%SeagrassesLeaves%NintFactor2D(i,j)
             Me%SeagrassesLeaves%PintFactor3D(i,j,k)=Me%SeagrassesLeaves%PintFactor2D(i,j)
             
-            Me%SeagrassesLeaves%SeagrassesL3D(i,j,k)=Me%SeagrassesLeaves%Length(i,j)
+           ! Me%SeagrassesLeaves%SeagrassesL3D(i,j,k)=Me%SeagrassesLeaves%Length(i,j)
             !endif        
             
             enddo
@@ -13831,7 +13895,7 @@ cd5:                if (TotalVolume > 0.) then
                                       WaterVolume       = Me%SeagrassesLeaves%Volume,            &
                                       NintFac3D         = Me%SeagrassesLeaves%NintFactor3D,      &
                                       PintFac3D         = Me%SeagrassesLeaves%PintFactor3D,      &
-                                      SeagrassesLength   = Me%SeagrassesLeaves%SeagrassesL3D,            & 
+                                      SeagOccupation    = Me%SeagrassesLeaves%Occupation,            & 
                                       DWZ               = Me%ExternalVar%DWZ,                    &
                                       STAT              = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                                     &
@@ -14175,7 +14239,9 @@ cd5:                if (TotalVolume > 0.) then
                     if(SeagrassesLeaves%Length(i,j) .ge. WaterColumnZ(i,j))then
 
                         SeagrassesLeaves%Occupation(i,j,kbottom:KUB) = 1
-
+                        
+                        !SeagrassesLeaves%DistFromTop(i,j,kbottom:KUB) = 0.
+                        !SeagrassesLeaves%DistFromTop(i,j,kbottom:KUB) = WaterColumnZ(i,j)   !new
                     else
 
                         k = kbottom    ! index for the top sediment layer
@@ -14189,9 +14255,12 @@ cd5:                if (TotalVolume > 0.) then
 
                                 SeagrassesLeaves%Occupation(i,j,k)   = 1.
                                 Remaining_leaves_Length               = Remaining_leaves_Length - Me%ExternalVar%DWZ(i,j,k)
+                                !SeagrassesLeaves%DistFromTop(i,j,k) = 0.
+                                !SeagrassesLeaves%DistFromTop(i,j,k) = Me%ExternalVar%DWZ(i,j,k)  ! new
                             else
                                 SeagrassesLeaves%Occupation(i,j,k)   = Remaining_leaves_Length / Me%ExternalVar%DWZ(i,j,k)
-
+                                !SeagrassesLeaves%DistFromTop(i,j,k) = Me%ExternalVar%DWZ(i,j,k)-Remaining_leaves_Length
+                                !SeagrassesLeaves%DistFromTop(i,j,k) = Remaining_leaves_Length  ! new
                             end if
                                 k                                   = k + 1
                         end do
@@ -14219,11 +14288,15 @@ cd5:                if (TotalVolume > 0.) then
                     if (SeagrassesLeaves%Length(i,j) .ge. WaterColumnZ(i,j))then
                         
                         SeagrassesLeaves%Occupation(i,j,kbottom:KUB) = 1.
+                        !SeagrassesLeaves%DistFromTop(i,j,kbottom:KUB) =0.
+                        !SeagrassesLeaves%DistFromTop(i,j,kbottom:KUB) =WaterColumnZ(i,j)
 
                     else
 
                         SeagrassesLeaves%Occupation(i,j,kbottom:KUB) = SeagrassesLeaves%Length(i,j) / &
                                                                       WaterColumnZ(i,j)
+                        ! SeagrassesLeaves%DistFromTop(i,j,kbottom:KUB) = WaterColumnZ(i,j) - SeagrassesLeaves%Length(i,j)                                           
+                         !  SeagrassesLeaves%DistFromTop(i,j,kbottom:KUB) = SeagrassesLeaves%Length(i,j)                                            
                     end if
 
                 endif
@@ -22623,7 +22696,8 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                     deallocate(Me%MacroAlgae%MaxShearStress)
                     deallocate(Me%MacroAlgae%MaxSPMDepFlux )
                     deallocate(Me%MacroAlgae%Height )
-
+                    !deallocate(Me%MacroAlgae%DistFromTop )
+                   
                     nullify(Me%MacroAlgae%Distribution     )
                     nullify(Me%MacroAlgae%ShearStress3D    )
                     nullify(Me%MacroAlgae%SPMDepFlux3D     )
@@ -22631,6 +22705,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                     nullify(Me%MacroAlgae%MaxShearStress   )
                     nullify(Me%MacroAlgae%MaxSPMDepFlux    )
                     nullify(Me%MacroAlgae%Height    )
+                    !nullify(Me%MacroAlgae%DistFromTop )
 
                 end if
                 
@@ -22647,11 +22722,12 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                  deallocate(Me%SeagrassesLeaves%NintFactor3D               )
                  deallocate(Me%SeagrassesLeaves%NintFactor2D               )
                  deallocate(Me%SeagrassesLeaves%PintFactor3D               )
-                 deallocate(Me%SeagrassesLeaves%SeagrassesL3D               )
+                 !deallocate(Me%SeagrassesLeaves%SeagrassesL3D               )
                  deallocate(Me%SeagrassesLeaves%PintFactor2D               )
                  deallocate(Me%SeagrassesLeaves%UptakeNH4NO3w3D            )
                  deallocate(Me%SeagrassesLeaves%UptakePO4w3D               )
                  deallocate(Me%SeagrassesLeaves%LightFactor3D                )
+                 !deallocate(Me%SeagrassesLeaves%DistFromTop )
                  !deallocate(Me%SeagrassesLeaves%Volume                )
 
                  
@@ -22668,6 +22744,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                  nullify(Me%SeagrassesLeaves%UptakeNH4NO3w3D            )
                  nullify(Me%SeagrassesLeaves%UptakePO4w3D               )
                  nullify(Me%SeagrassesLeaves%LightFactor3D                )
+                 !nullify(Me%SeagrassesLeaves%DistFromTop )
                  !nullify(Me%SeagrassesLeaves%Volume                )
                
                 
