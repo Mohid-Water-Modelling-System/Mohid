@@ -1,3 +1,4 @@
+
 !------------------------------------------------------------------------------
 !        IST/MARETEC, Water Modelling Group, Mohid modelling system
 !------------------------------------------------------------------------------
@@ -10,6 +11,26 @@
 ! DATE          : May 2012
 ! REVISION      : Isabella Ascione Kenov
 ! DESCRIPTION   : Module to compute simple benthic ecology processes
+!
+!
+!
+!
+! LOG OF INPUTS
+! 24-09-2012 - Generic DEB algorithm for bivalves growth (T Dabrowski code from EASYCO), by M Mateus
+!             
+!              ******************************************************************
+!
+!              Shellfish growth model based on DEB theory developed at the Irish 
+!              Marine Institute as part of the EASYCO project funded under
+!              the Interreg IVB Atlantic Area Programme.
+!
+!              References:
+!	           Dabrowski, T., Lyons, K., Curé, M., Berry, A., Nolan, G., (Accepted)
+!              Numerical modelling of spatio-temporal variability of growth of Mytilus edulis (L.)
+!              and influence of its cultivation on ecosystem functioning. Journal of Sea Research.
+!
+!              ******************************************************************
+!
 !
 !------------------------------------------------------------------------------
 !
@@ -34,46 +55,6 @@
 
 !DT                : 120.
 !PELAGIC_MODEL     : WaterQuality
-
-!NITROGEN          : 1
-!PHOSPHORUS        : 1
-!SILICA            : 0
-!OXYGEN            : 1
-!PHYTOFILT         : 1
-!PON_DECAY_RATE    : 0.01
-!PON_DECAY_TFACTOR : 1.02
-!NC_RATIO          : 0.18
-!POP_DECAY_RATE    : 0.01
-!POP_DECAY_TFACTOR : 1.08
-!PC_RATIO          : 0.024
-! ========CONSUMERS: Suspension feeders========================================================
-!<begin_consumer>
-!NAME              : suspension feeders  
-!BETA20            : 0.002     ! mortality rate in 1/day
-!GRMAX             : 0.216E3  ! GRMAX = 0.216E3 l/d/g C = filtration rate for suspension feedrs 
-!RESP20            : 0.013     ! suspension feeder respiration rate in d-1
-!ASS_EFIC          : 0.8       ! assimilation efficiency (dimensionless) 0.8 for suspension feeders, 0.25 for deposit feeders
-!TFAC              : 1.08      ! dimensionless temperature decay factor
-!NCRATIO           : 0.18      ! Ratio N:C in consumer
-!PCRATIO           : 0.024     ! Ratio P:C in consumer
-!TOPTMIN           : 13.       ! Minimum temperature of the optimal interval for consumer growth ºC 
-!TOPTMAX           : 28.       ! Maximum temperature of the optimal interval for suspension feeders growth ºC 
-!TMIN              : 6.        ! Minimum temparature filter feeders growth ºC
-!TMAX              : 37.       ! Maximum temparature filter feeders growth ºC 
-!K1                : 0.3       ! Constant to control temperature response curve shape
-!K2                : 0.98      ! Constant to control temperature response curve shape 
-!K3                : 0.98      ! Constant to control temperature response curve shape 
-!K4                : 0.02      ! Constant to control temperature response curve shape 
-!COHESIVESED       : 1         ! ! Effect of cohesive sediment on filtration.  1 for suspension feeders, 0 for deposit feeders
-!SEDMAX            : 0.1       ! Max Sediment concentration tolerated by susp. feeders g/l 
-!SMIN              : 0.005     ! Min consumer density that limits the growth rate (kgC/m2) 
-!                                0.005 for suspension feeders, 0.002 for deposit feeders
-!SMAX              : 0.020     ! Max consumer density that limits the growth rate (kgC/m2) 
-!                                0.020 for suspension feeders, 0.006 for deposit feeders
-
-!=========== food for suspension feeders:============
-!<begin_food>
-!NAME              : phytoplankton
 !NCRATIO           : 0.18
 !PCRATIO           : 0.024
 !NITROGEN_USE      : 0
@@ -188,6 +169,52 @@
 !K4                : 0.02      ! Constant to control temperature response curve shape 
 !LAT               : 40.5      ! Average latitude of the geographic location (used to calculate the daylight)
 !MORT_TYPE         : 1/2       ! mortality term as a function of temperature (1) or daylight (2)
+
+
+! T Dabrowski algorithm (EASYCO) for bivalves
+!(values and description provided by the author)
+!
+!NINDM2         100.                              ! Number of individuals per m2
+!MAXEQUE        2190000000.0                      ! Max. equilibrium energy density in J m-3
+!EGCC           1900000000.0                      ! Energetic growth cost per unit growth in structural body volume in J m-3
+!MAXSAING       22.7778                           ! Max. surface-area-specific ingestion rate in J m-2 s -1
+!ASSEFFIC       0.75                              ! Assimilation efficiency (= Pam/Pxm)
+!SOMACOST       277.7778                          ! Somatic maintenance cost in J m -3 s -1
+!FLUXRESFRAC    0.70                              ! Fraction of flux from reserve spent on somaticmaintenance
+!SATCOEF        1.77                              ! Saturation coefficient - food density at which ingestion rate is half the maximum in mg (chl-a) m -3
+!REPOREFFIC     0.9                               ! Reproduction efficiency
+!ENERCONT       17550.0                           ! Energy content of 1g of reserve
+!WWTODW         0.20                              ! WW to DW converter
+!SPAWEFFIC      0.90                              ! proportion of the reproductive buffer emptied at each spawning
+!TSPAWN         2.0                               ! temperature threshold trigeering spawning in degC
+!GSOMINDEX      0.4                               ! Gonado-somatic index triggering spawning (fraction)                          
+!JDAYSPAWN      180                               ! Julian day for spawning, NOTE it is an array, so follow namelist formats
+!NSPAWND        1                                 ! Number of spawning days in a year (MUST be same as SpawnDay array dimension)
+!VOLADULT       0.00000006                        ! volume specifying a change from juvenile to adult in m 3 
+!SHAPEPARAM     0.287                             ! shape parameter
+!REFTEMP        293.0                             ! Ref. temp for rate constants in K
+!TEMPARRH       5800.0                            ! Arrhenius temperature in K
+!TEMPLOW        275.0                             ! Lower boundary of tolerance range in K
+!THRESP         296.0                             ! Upper boundary of tolerance range for respiration in K
+!THING          296.0                             ! Upper boundary of tolerance range for ingestion in K
+!TAL            45430.0                           ! Arrhenius temp. for rate of decrease at lower boundary in K
+!TAHRESP        31376.0                           ! Arrhenius temp. for rate of decrease at upper boundary for respiration in K
+!TAHING         31376.0                           ! Arrhenius temp. for rate of decrease at upper boundary for ingestion in K
+!FECALDECAY     2.1222e-4                         ! Corresponds to T90 of 3hrs assumed after document 'MOHID modules', in s-1
+!ENERGPHY       47.7546                           ! energetic value of phyt C in J mg-1 C (Platt and Irwin, 1973)
+!ENERGO2        14.3                              ! energetic value of oxygen (=14.3 J mg-1 O2)
+
+! Accessory keywords (not in the original algorithm)
+! These Keywords are used for enabling teh original code to comply with the MOHID code architecture
+
+!CCHLABIV       60.0                              ! C to Chla ratio used in the bivalve DEB model to converto Phyto to Chla
+!NH4EXCFRAC     0                                 ! To define NH4 excretion as a fraction of N ingested (defiend by the name of the bivalve in the original)
+!BILENINIC      0.05                              ! Initial bivalve lenght in m
+
+
+
+
+
 Module ModuleBenthicEcology
 
     use ModuleGlobalData
@@ -217,6 +244,9 @@ Module ModuleBenthicEcology
     private ::          ConstructConsumers
     private ::              AddConsumer
     private ::              ConstructConsumerParameters
+    private ::          ConstructBivalveDEB
+    private ::              AddBivalveDEB
+    private ::              ConstructBivalveDEBParameters
    ! private ::          ConstructDecomposers
    ! private ::              AddDecomposer
    ! private ::              ConstructDecomposerParameters
@@ -241,6 +271,7 @@ Module ModuleBenthicEcology
     public  :: ModifyBenthicEcology
     private ::      ComputeBenthicProducers
     private ::      ComputeBenthicConsumers
+    private ::      ComputeBenthicBivalveDEB   
     private ::      ComputeBenthicPhyto
     private ::      ComputeSeagrasses
     private ::      ComputeBenthicSilica
@@ -355,7 +386,7 @@ Module ModuleBenthicEcology
         real, pointer, dimension(:  )       :: LightExtCoefField
         real, pointer, dimension(:  )       :: Thickness
         real, pointer, dimension(:  )       :: ShearStress
-        real, pointer, dimension(:,:)       :: Mass 
+        real, pointer, dimension(:,:)       :: Mass
         real, pointer, dimension(:  )       :: UptakeNH4NO3w
         real, pointer, dimension(:  )       :: UptakeNH4s
         real, pointer, dimension(:  )       :: UptakePO4w
@@ -420,6 +451,7 @@ Module ModuleBenthicEcology
         type(T_PropIndex    )                        :: PropIndex
         type(T_Producer     ), pointer               :: FirstProducer
         type(T_Consumer     ), pointer               :: FirstConsumer
+        type(T_BivalveDEB   ), pointer               :: FirstBivalveDEB
         type(T_External     )                        :: ExternalVar
         integer                                      :: ObjEnterData = 0
         type(T_BenthicEcology), pointer              :: Next
@@ -516,35 +548,104 @@ Module ModuleBenthicEcology
             real                        :: KFoodC           = FillValueReal
             type(T_Food), pointer       :: FirstFood
         end type T_Grazing
+
+
+! Bivalve DEB model 
+
+
+    private :: T_BiSV
+        type       T_BiSV
+            integer                                 :: Bivol       = null_int
+            integer                                 :: Bivenerg    = null_int         
+            integer                                 :: Bivenerep   = null_int
+            integer                                 :: Bivinddw    = null_int         
+            integer                                 :: Bivtotaldw  = null_int
+                        
+        end type T_BiSV
+
+   private :: T_BivalveDEB 
+   type     T_BivalveDEB
+        type(T_ID)                                  :: ID
+        type(T_BiSV)                                :: BiSv
+        type(T_BivalveDEB    ), pointer             :: Next
+                                              
+        real                                        :: Em               = null_real  ! Max. equilibrium energy density in J m-3
+        real                                        :: Eg               = null_real  ! Energetic growth cost per unit growth in structural
+                                                                                           ! body volume in J m-3
+        real                                        :: Pxm              = null_real  ! Max. surface-area-specific ingestion rate
+                                                                                           ! in J m-2 s -1
+        real                                        :: ka               = null_real  ! Assimilation efficiency (= Pam/Pxm)
+        real                                        :: Pm               = null_real  ! Somatic maintenance cost in J m -3 s -1
+        real                                        :: kappa            = null_real  ! Fraction of flux from reserve spent on somatic
+                                                                                            ! maintenance
+        real                                        :: Xk               = null_real  ! Saturation coefficient - food density at which
+                                                                                           ! ingestion rate is half the maximum
+                                                                                           ! in mg (chl-a) m -3
+        real                                        :: kR               = null_real  ! Reproduction efficiency
+        real                                        :: Conv_fac         = null_real  ! Energy content of 1g of reserve
+        real                                        :: St_DW_perc       = null_real  ! WW to DW converter
+        real                                        :: spawn_eff        = null_real  ! proportion of the reproductive buffer emptied at each spawning
+        real                                        :: Tspawn           = null_real  ! temperature threshold triggering spawning
+        real                                        :: RGS              = null_real  ! Gonado-somatic index triggering spawning (fraction)
  
-   private :: T_Consumer 
+        integer                                     :: spawnD                        ! Number of spawning days in a year (MUST be same as SpawnDay array dimension)
+        integer, dimension(:), pointer              :: spawnDay                      ! Julian Day(s) to spawn (if no spawning then set spawnD to zero)
+        integer                                     :: NInd                          ! Number of individuals per m2
+        
+        real                                        :: volp             = null_real  ! volume specifying a change from juvenile to adult
+                                                                                           ! in m 3
+        real                                        :: delm             = null_real  ! shape parameter
+        real                                        :: Tref             = null_real  ! Ref. temp for rate constants in K
+        real                                        :: Ta               = null_real  ! Arrhenius temperature in K
+        real                                        :: TL               = null_real  ! Lower boundary of tolerance range in K
+        real                                        :: THresp           = null_real  ! Upper boundary of tolerance range for respiration in K
+        real                                        :: THing            = null_real  ! Upper boundary of tolerance range for ingestion in K
+        real                                        :: TAL              = null_real  ! Arrhenius temp. for rate of decrease at lower boundary in K
+        real                                        :: TAHresp          = null_real  ! Arrhenius temp. for rate of decrease at upper boundary for respiration in K
+        real                                        :: TAHing           = null_real  ! Arrhenius temp. for rate of decrease at upper boundary for ingestion in K
+        
+        real                                        :: kd               = null_real  ! Corresponds to T90 of 3hrs assumed after document 'MOHID modules', in s-1
+        
+        real                                        :: Ec               = null_real  ! energetic value of phyt C in J mg-1 C (Platt and Irwin, 1973)
+        
+        real                                        :: etaO2            = null_real  ! energetic value of oxygen (=14.3 J mg-1 O2)
+ 
+        !  Accessory variables (not in the original algorithm)
+        real                                        :: CtoChla          = null_real  ! C to Chla ratio used in the bivalve DEB model to converto Phyto to Chla 
+        integer                                     :: NH4Frac                       ! To define NH4 excretion as a fraction of N ingested
+        real                                        :: BiLen1           = null_real  ! Initial bivalve lenght in m
+ 
+ end type T_BivalveDEB
+ 
+ 
+ 
+ private :: T_Consumer 
    type     T_Consumer
         type(T_ID)                                       :: ID
         type(T_Food), pointer                            :: FirstFood 
         type(T_PoolIndex)                                :: PoolIndex
         type(T_Consumer    ), pointer                    :: Next 
         type(T_Grazing     )                             :: Grazing
-        real                                             :: RespirationRate  = null_real  
-        real                                             :: MortalityRate    = null_real
-        real                                             :: BETA20           = null_real
-        real                                             :: TemperatureFactor= null_real
-        real                                             :: GRMAX            = null_real 
-        real                                             :: RESP20           = null_real  ! [1/day]
-        real                                             :: NCratio          = null_real
-        real                                             :: PCratio          = null_real    
-        real                                             :: TOptMin          = null_real
-        real                                             :: TOptMax          = null_real
-        real                                             :: TMin             = null_real
-        real                                             :: TMax             = null_real
-        real                                             :: K1               = null_real
-        real                                             :: K2               = null_real
-        real                                             :: K3               = null_real
-        real                                             :: K4               = null_real
+        real                                             :: RespirationRate   = null_real  
+        real                                             :: MortalityRate     = null_real
+        real                                             :: BETA20            = null_real
+        real                                             :: TemperatureFactor = null_real
+        real                                             :: GRMAX             = null_real ! l/day/gC
+        real                                             :: RESP20            = null_real  ! [1/day]
+        real                                             :: NCratio           = null_real
+        real                                             :: PCratio           = null_real    
+        real                                             :: TOptMin           = null_real
+        real                                             :: TOptMax           = null_real
+        real                                             :: TMin              = null_real
+        real                                             :: TMax              = null_real
+        real                                             :: K1                = null_real
+        real                                             :: K2                = null_real
+        real                                             :: K3                = null_real
+        real                                             :: K4                = null_real
         real                                             :: SMIN             = null_real
         real                                             :: SMAX             = null_real
         real                                             :: KO2              = null_real
  end type T_Consumer
- 
 
     
     
@@ -695,6 +796,8 @@ subroutine ReadData
 
         call ConstructConsumers
         
+        call ConstructBivalveDEB
+                
        ! call ConstructDecomposers
 
     end subroutine ReadData
@@ -709,6 +812,7 @@ subroutine ReadData
         !Local-----------------------------------------------------------------
         type(T_Producer),      pointer             :: Producer
         type(T_Consumer),      pointer             :: Consumer
+        type(T_BivalveDEB),    pointer             :: BivalveDEB
        ! type(T_Decomposer),    pointer             :: Decomposer
         integer                                    :: Index
         !Local-----------------------------------------------------------------
@@ -731,6 +835,7 @@ subroutine ReadData
                 Index                               = Index + 1
                 Producer%PoolIndex%Nitrogen         = Index
                 Me%Prop%IUB                         = Me%Prop%IUB + 1
+                
                 Index                               = Index + 1
                 Producer%PoolIndex%Phosphorus       = Index
                 Me%Prop%IUB                         = Me%Prop%IUB + 1
@@ -748,14 +853,46 @@ subroutine ReadData
                 Index                               = Index + 1
                 Consumer%PoolIndex%Nitrogen         = Index
                 Me%Prop%IUB                         = Me%Prop%IUB + 1
-                
-                
+                                
                 Index                               = Index + 1
                 Consumer%PoolIndex%Phosphorus       = Index
                 Me%Prop%IUB                         = Me%Prop%IUB + 1
 
                 Consumer => Consumer%Next
             end do
+   
+   
+           !Bivalve (DEB) index number
+            BivalveDEB => Me%FirstBivalveDEB
+            do while(associated(BivalveDEB))
+                
+                Index                               = Index + 1
+                BivalveDEB%BiSV%Bivol               = Index
+                Me%Prop%IUB                         = Me%Prop%IUB + 1
+                
+                Index                               = Index + 1
+                BivalveDEB%BiSV%Bivenerg            = Index
+                Me%Prop%IUB                         = Me%Prop%IUB + 1
+                
+                
+                Index                               = Index + 1
+                BivalveDEB%BiSV%Bivenerep           = Index
+                Me%Prop%IUB                         = Me%Prop%IUB + 1
+                
+                Index                               = Index + 1
+                BivalveDEB%BiSV%Bivinddw            = Index
+                Me%Prop%IUB                         = Me%Prop%IUB + 1
+                
+                Index                               = Index + 1
+                BivalveDEB%BiSV%Bivtotaldw          = Index
+                Me%Prop%IUB                         = Me%Prop%IUB + 1
+
+                BivalveDEB => BivalveDEB%Next
+            end do
+   
+       
+      
+   
    
         !Decomposer index number
           !  Decomposer => Me%FirstDecomposer
@@ -768,6 +905,9 @@ subroutine ReadData
 
             !    Decomposer => Decomposer%Next
            ! end do
+           
+           
+           
         
         Me%Prop%IUB                     = Me%Prop%IUB + 1
         Me%PropIndex%Oxygen             = Me%Prop%IUB
@@ -891,6 +1031,7 @@ subroutine ReadData
         !Local-----------------------------------------------------------------
         type(T_Producer),      pointer             :: Producer
         type(T_Consumer),      pointer             :: Consumer
+        type(T_BivalveDEB),    pointer             :: BivalveDEB
         !type(T_Decomposer),    pointer             :: Decomposer
         integer                                    :: Index
         !Local-----------------------------------------------------------------
@@ -991,6 +1132,27 @@ subroutine ReadData
 
                 Consumer => Consumer%Next
             end do
+            
+            
+         !Bivalve index number
+            BivalveDEB => Me%FirstBivalveDEB
+            do while(associated(BivalveDEB))
+                
+
+                Me%PropertyList(BivalveDEB%BiSV%Bivol)      = &
+                            GetPropertyIDNumber(trim(BivalveDEB%ID%name)//" volume")
+                Me%PropertyList(BivalveDEB%BiSV%Bivenerg)   = &
+                            GetPropertyIDNumber(trim(BivalveDEB%ID%name)//" energy")
+                Me%PropertyList(BivalveDEB%BiSV%Bivenerep)  = &
+                            GetPropertyIDNumber(trim(BivalveDEB%ID%name)//" reproduct energy")
+                Me%PropertyList(BivalveDEB%BiSV%Bivinddw)  = &
+                            GetPropertyIDNumber(trim(BivalveDEB%ID%name)//" individual dw")
+                Me%PropertyList(BivalveDEB%BiSV%Bivtotaldw)  = &
+                            GetPropertyIDNumber(trim(BivalveDEB%ID%name)//" total dw")
+
+               BivalveDEB => BivalveDEB%Next
+            end do
+   
    
         !Decomposer index number
           !  Decomposer => Me%FirstDecomposer
@@ -2252,6 +2414,434 @@ cd2 :           if (BlockFound) then
 !--------------------------------------------------------------------------
 
 
+! Bivalve (DEB) model
+
+   subroutine ConstructBivalveDEB
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        type (T_BivalveDEB),      pointer         :: NewBivalveDEB
+        integer                                   :: ClientNumber, STAT_CALL
+        logical                                   :: BlockFound
+
+        !Begin-----------------------------------------------------------------
+
+
+do1 :   do
+            call ExtractBlockFromBuffer(Me%ObjEnterData,                        &
+                                        ClientNumber    = ClientNumber,         &
+                                        block_begin     = '<begin_BivalveDEB>', &
+                                        block_end       = '<end_BivalveDEB>',   &
+                                        BlockFound      = BlockFound,           &
+                                        STAT            = STAT_CALL)
+cd1 :       if(STAT_CALL .EQ. SUCCESS_)then
+cd2 :           if (BlockFound) then                                                  
+                    
+                    call AddBivalveDEB                  (NewBivalveDEB)
+
+                    call ConstructBivalveDEBParameters  (NewBivalveDEB, ClientNumber)
+
+                    nullify(NewBivalveDEB)
+
+                else cd2
+                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+
+                    if (STAT_CALL .NE. SUCCESS_)                                &
+                        stop       'ConstructBivalveDEB - ModuleBenthicEcology - ERROR #1'
+
+                    exit do1
+                end if cd2
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then cd1
+                write(*,*)  
+                write(*,*) 'Error calling ExtractBlockFromBuffer. '
+                    stop       'ConstructBivalveDEB - ModuleBenthicEcology - ERROR #2'
+            else cd1
+                    stop       'ConstructBivalveDEB - ModuleBenthicEcology - ERROR #3'
+            end if cd1
+        end do do1
+
+    end subroutine ConstructBivalveDEB
+
+
+   !--------------------------------------------------------------------------
+
+
+   !--------------------------------------------------------------------------
+
+
+    subroutine AddBivalveDEB (ObjBivalveDEB)
+
+        !Arguments-------------------------------------------------------------
+        type (T_BivalveDEB),      pointer           :: ObjBivalveDEB
+        !Local-----------------------------------------------------------------
+        type (T_BivalveDEB),      pointer           :: PreviousBivalveDEB
+        type (T_BivalveDEB),      pointer           :: NewBivalveDEB
+        integer, save                               :: NextBivalveDEBID = 1
+
+        !Allocates new BivalveDEB
+        allocate (NewBivalveDEB)
+        nullify  (NewBivalveDEB%Next)
+
+        !Insert new BivalveDEB into list and makes current ?? point to it
+        if (.not. associated(Me%FirstBivalveDEB)) then
+            Me%FirstBivalveDEB            => NewBivalveDEB
+            ObjBivalveDEB                 => NewBivalveDEB
+        else
+            PreviousBivalveDEB            => Me%FirstBivalveDEB
+            ObjBivalveDEB                 => Me%FirstBivalveDEB%Next
+
+            do while (associated(ObjBivalveDEB))
+                PreviousBivalveDEB        => ObjBivalveDEB
+                ObjBivalveDEB             => ObjBivalveDEB%Next
+            enddo
+            ObjBivalveDEB                 => NewBivalveDEB
+            PreviousBivalveDEB%Next       => NewBivalveDEB
+        endif
+
+        !Attributes ID
+        ObjBivalveDEB%ID%ID               = NextBivalveDEBID
+
+        NextBivalveDEBID                  = NextBivalveDEBID + 1
+
+
+    end subroutine AddBivalveDEB
+    
+    !--------------------------------------------------------------------------
+
+
+subroutine ConstructBivalveDEBParameters (NewBivalveDEB, ClientNumber)
+
+        !Arguments-------------------------------------------------------------
+        type (T_BivalveDEB),      pointer           :: NewBivalveDEB
+        integer                                     :: ClientNumber
+        !External--------------------------------------------------------------
+        integer                                     :: iflag, STAT_CALL
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: FromBlock 
+        integer                                     :: STATUS, i
+        real, dimension(:), allocatable             :: AuxVector
+
+        !Begin-----------------------------------------------------------------
+
+        call GetExtractType    (FromBlock = FromBlock)
+
+        call GetData(NewBivalveDEB%ID%Name,                     &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'NAME',                     &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #1'
+        
+        
+
+        if(.not. CheckPropertyName(trim(NewBivalveDEB%ID%Name)//" volume"))&
+       stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #2'
+ 
+       
+       call GetData(NewBivalveDEB%NInd,                                    &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'NINDM2',                              &  
+                     Default      = 100,                                   &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #4'
+ 
+       call GetData(NewBivalveDEB%EM,                                      &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'MAXEQUE',                             &  
+                     Default      = 2190.0e6,                              &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #5'
+      
+       call GetData(NewBivalveDEB%Eg,                                      &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'EGCC',                                &  
+                     Default      = 1900.0e6,                              &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #6'
+      
+        call GetData(NewBivalveDEB%Pxm,                                    &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'MAXSAING',                            &  
+                     Default      = 22.7778,                               &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #7'
+
+        call GetData(NewBivalveDEB%ka,                                     &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'ASSEFFIC',                            &  
+                     Default      = 0.75,                                  &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #8'
+         
+        call GetData(NewBivalveDEB%Pm,                                     &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'SOMACOST',                            &  
+                     Default      = 277.7778,                              &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #9'
+        
+        call GetData(NewBivalveDEB%kappa,                                  &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'FLUXRESFRAC',                         &  
+                     Default      = 0.70,                                  &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #10'
+                                      
+        call GetData(NewBivalveDEB%Xk,                                      &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'SATCOEF',                                &  
+                     Default      = 1.77,                              &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #11'
+                                  
+        call GetData(NewBivalveDEB%kR,                                     &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'REPOREFFIC',                          &  
+                     Default      = 0.9,                                   &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #12'
+                                  
+        call GetData(NewBivalveDEB%Conv_fac,                               &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'ENERCONT',                            &  
+                     Default      = 17550.0,                               &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #13'
+                              
+        call GetData(NewBivalveDEB%St_DW_perc,                             &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'WWTODW',                              &  
+                     Default      = 0.20,                                  &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #14'
+                            
+        call GetData(NewBivalveDEB%spawn_eff,                              &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'SPAWEFFIC',                           &  
+                     Default      = 0.90,                                  &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #15'
+                                   
+         call GetData(NewBivalveDEB%Tspawn,                                &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'TSPAWN',                              &  
+                     Default      = 2.0,                                   &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #16'
+                                
+         call GetData(NewBivalveDEB%RGS,                                   &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'GSOMINDEX',                           &  
+                     Default      = 0.4,                                   &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #17'
+                
+        call GetData(NewBivalveDEB%spawnD,                                 &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'NSPAWND',                             &  
+                     Default      = 1,                                     &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #18'
+        
+        allocate (NewBivalveDEB%spawnDay(1:NewBivalveDEB%spawnD), STAT = STATUS)
+        allocate (AuxVector(1:NewBivalveDEB%spawnD), STAT = STATUS)
+        
+            call GetData(AuxVector, Me%ObjEnterData, iflag,                    &
+                         SearchType   = FromBlock,                             &
+                         keyword      = 'JDAYSPAWN',                           &
+                         Default      = 180.,                                  & 
+                         STAT         = STATUS)
+            if (STATUS .NE. SUCCESS_ .or. iflag == 0) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #19'
+                         
+                         do i = 1, NewBivalveDEB%spawnD
+                            NewBivalveDEB%spawnDay(i) = AuxVector(i)
+                         enddo
+
+        deallocate (AuxVector)                       
+                       
+                        
+        call GetData(NewBivalveDEB%volp,                                   &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'VOLADULT',                            &  
+                     Default      = 0.06e-6,                               &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #20'
+                                 
+        call GetData(NewBivalveDEB%delm,                                   &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'SHAPEPARAM',                          &  
+                     Default      = 0.287,                                 &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #21'
+                                 
+        call GetData(NewBivalveDEB%Tref,                                   &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'REFTEMP',                             &  
+                     Default      = 293.0,                                 &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #22'
+                          
+        call GetData(NewBivalveDEB%Ta,                                     &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'TEMPARRH',                            &  
+                     Default      = 5800.0,                                &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #23'
+
+        call GetData(NewBivalveDEB%TL,                                     &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'TEMPLOW',                             &  
+                     Default      = 275.0,                                 &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #24'
+
+        call GetData(NewBivalveDEB%THresp,                                 &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'THRESP',                              &  
+                     Default      = 296.0,                                 &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #25'
+                                  
+        call GetData(NewBivalveDEB%THing,                                  &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'THING',                               &  
+                     Default      = 296.0,                                 &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #26'
+
+        call GetData(NewBivalveDEB%TAL,                                    &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'TAL',                                 &  
+                     Default      = 45430.0,                               &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #27'
+                             
+        call GetData(NewBivalveDEB%TAHresp,                                &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'TAHRESP',                             &  
+                     Default      = 31376.0,                               &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #28'
+
+        call GetData(NewBivalveDEB%TAHing,                                 &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'TAHING',                              &  
+                     Default      = 31376.0,                               &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #29'
+                             
+        call GetData(NewBivalveDEB%kd,                                     &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'FECALDECAY',                          &  
+                     Default      = 2.1222e-4,                             &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #30'
+
+        call GetData(NewBivalveDEB%Ec,                                     &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'ENERGPHY',                            &  
+                     Default      = 47.7546,                               &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #31'
+                                  
+            call GetData(NewBivalveDEB%etaO2,                              &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'ENERGO2',                             &  
+                     Default      = 14.3,                                  &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #32'
+                                
+            call GetData(NewBivalveDEB%CtoChla,                            &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'CCHLABIV',                            &  
+                     Default      = 60.0,                                  &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #33'
+
+            call GetData(NewBivalveDEB%NH4Frac,                            &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'NH4EXCFRAC',                          &  
+                     Default      = 0,                                     &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #34'
+
+               call GetData(NewBivalveDEB%BiLen1,                          &
+                     Me%ObjEnterData, iflag,                               &
+                     SearchType   = FromBlock,                             &
+                     keyword      = 'BILENINIC',                           &  
+                     Default      = 0.05,                                  &  
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructBivalveDEBParameters - ModuleBenthicEcology - ERROR #35'
+ 
+    
+ end subroutine ConstructBivalveDEBParameters
+!--------------------------------------------------------------------------
+
 
 
 subroutine ConstructGrazing (Grazing, ClientNumber)
@@ -2715,6 +3305,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
 
+       
+       
         subroutine UnGetBenthicEcology(BenthicEcologyID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2746,6 +3338,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end subroutine UnGetBenthicEcology
     
      !--------------------------------------------------------------------------
+        
+        
+        
         subroutine GetBenthicEcologyRateFlux(BenthicEcologyID, FirstProp, SecondProp, RateFlux, STAT)
 
 
@@ -2804,6 +3399,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
     
+      
+      
       subroutine UnGetBenthicEcologyRateFlux(BenthicEcologyID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2970,7 +3567,10 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                     
                     call ComputeBenthicProducers      (Index)
                     
-                     call ComputeBenthicConsumers    (Index)
+                    call ComputeBenthicConsumers      (Index)
+                    
+                    call ComputeBenthicBivalveDEB     (Index)
+                    
                 
                     if(Me%ComputeOptions%Nitrogen  ) call ComputeBenthicNitrogen    (Index)
                     
@@ -2980,7 +3580,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                     
                     if(Me%ComputeOptions%Seagrasses) call ComputeSeagrasses         (index)
                     
-                    if(Me%ComputeOptions%Phyto) call ComputeBenthicPhyto         (index)
+                    if(Me%ComputeOptions%Phyto)      call ComputeBenthicPhyto       (index)
                 
                 endif
 
@@ -3341,10 +3941,7 @@ d1:     do while(associated(Producer))
             Producer => Producer%Next
         end do d1
 
-
-
-
-        
+      
         end subroutine ComputeBenthicProducers
     
     
@@ -3798,10 +4395,493 @@ d1:     do while(associated(Consumer))
         end subroutine ComputeBenthicConsumers
     
     
-    
     !-----------------------------------------------------------------------------------
     
-        subroutine ComputeBenthicNitrogen(Index)
+    
+    
+    
+    !---------------------------------------------------------------------------------------
+    
+    subroutine ComputeBenthicBivalveDEB (index)
+    
+    !Arguments---------------------------------------------------------------
+
+        integer, intent(IN) :: index
+
+    !Local-------------------------------------------------------------------
+        type(T_BivalveDEB),      pointer           :: BivalveDEB
+        integer                                    :: PON
+        integer                                    :: Phyto
+        integer                                    :: AM
+        integer                                    :: O2
+        
+        ! Add to comply to MOHID structure
+        integer                                    :: BivalveDEB_V
+        integer                                    :: BivalveDEB_E
+        integer                                    :: BivalveDEB_ER
+        integer                                    :: BivalveDEB_IDW
+        integer                                    :: BivalveDEB_TDW
+        integer                                    :: NInd
+        
+        real                                       :: ConcPhy
+        real                                       :: ConcChla                       ! Available food in in mg (chl-a) m -3
+        real                                       :: consump_O2                     ! O2 consuption rate in kg O2
+        
+        ! DEB model parameters
+        real                                       :: Pxm_T,Pam_T,Pm_T,Jw_T          ! Temperature adjusted values of Pxm, Pam, Pm and Jw
+        real                                       :: fresp                          ! Holling II Organism response function to available food
+        real                                       :: Px                             ! Energy ingestion rate in J s-1
+        real                                       :: Pa                             ! The assimilation rate in J s-1
+        real                                       :: Pc                             ! Energy utilisation rate i.e. energy both fixed and
+                                                                                     ! dissipated consumed by body tissues from reserve in J s-1
+        real                                       :: Pj                             ! Energy flow to maturity maintanence in J s-1
+        real                                       :: Pr                             ! Energy flow to reproductive buffer in J s-1
+        real                                       :: shrink_Pm, shrink_Pj           ! Shrinking (maintanence, maturity, 
+        real                                       :: shrink_Er, shrink_V, shrink    ! repro, structure, total) in J s-1
+        real                                       :: dV                             ! Change in the volume of bivalve in m-3 s-1
+        real                                       :: dE                             ! Change in the energy reserve in J s-1
+        real                                       :: dEr                            ! Change in reproductive energy store in J s-1
+        real                                       :: bi_area_scale                  ! Bivalve area scale in m2 - NOT ACTUAL SHELL AREA
+        real                                       :: Pam                            ! Max. surface area specific assimilation rate in J m-2 s-1
+        real                                       :: energy_surplus                 ! Energy which goes to structural growth  in J s-1
+        real                                       :: e_dens                         ! Energy density in J m-3
+        real                                       :: cff1,cff2                      ! temporary variables
+        real                                       :: Tresp,Ting                     ! temperature correction factor
+        real                                       :: bi_len        
+        integer                                    :: seq
+ 
+ 
+        !output variables in the original code
+        real                                       :: tot_DW                ! total DW in g,
+        real                                       :: Er_DW_perc            ! repro energy percentage of DW
+        real                                       :: bi_consump_chla       ! chlorophyll_a consumption rate in mg chla s-1
+        real                                       :: Nexcrt                ! N-NH4 excretion rate mmol N s-1 
+        real                                       :: Ceg, Neg              ! egested C and N in faeces in mmolC s-1 and mmolN s-1
+        real                                       :: Cresp                 ! respired C in mmol C s-1                               
+        real                                       :: Cs                    ! Fecal contamination in bivalves in CFU (or MPN)  
+        real                                       :: bi_consump_oxy_mass   ! oxygen consumption rate in mmolO2 s-1
+        
+      
+        
+            
+            !********* OXYGEN ***********************
+        real                                       :: bi_consump_oxy                 ! oxygen consumption rate in mgO2 s-1
+        
+            !********* FAECES PRODUCTION ***************
+        real                                       :: Cing                           ! ingested C in mmol C s-1
+        real                                       :: Ning                           ! ingested N in mmol N s-1     
+        real                                       :: Cst, Nst, Ce, Ne, Cer, Ner     !all in mmol s-1
+        real                                       :: Cflesh, Nflesh, Csh, Nsh       !all in mmol s-1
+
+           !********* PATHOGEN ************************
+        !real                                       :: ku, Csdep           ! filtration rate (m3 s-1 g-1), new CFU in bivalves
+        !real                                       :: bi_consump_CH2O     ! E coli consumption rate in CFU s-1 (per individual mussel)
+        
+        
+        BivalveDEB => Me%FirstBivalveDEB
+        
+        PON     = Me%PropIndex%PON
+        AM      = Me%PropIndex%Ammonia
+        Phyto   = Me%PropIndex%Phyto
+        O2      = Me%PropIndex%Oxygen
+        
+        
+        
+        !Calculate concentration from mass and volume in each cell
+        ConcPhy = Me%ExternalVar%MassInKgFromWater(Phyto, index) / Me%ExternalVar%WaterVolume(Index)  ! gC/l
+        
+        ConcChla = ConcPhy * (1. / BivalveDEB%CtoChla) * 10.0e6                                        ! mg (chl-a) m -3
+        
+       
+            
+!   bi_vol = (NewBivalveDEB%BiLen1 * NewBivalveDEB%delm)**3.0   !volume in m3 (0.05 is L in m)
+!   bi_energy = 0.8 * NewBivalveDEB%EM * bi_vol           
+               
+        
+        
+        
+
+d1:     do while(associated(BivalveDEB))
+
+        !State-variables for the DEB model
+        BivalveDEB_V   = BivalveDEB%BiSV%Bivol
+        
+        BivalveDEB_E   = BivalveDEB%BiSV%Bivenerg
+        
+        BivalveDEB_ER  = BivalveDEB%BiSV%Bivenerep
+        
+        BivalveDEB_IDW = BivalveDEB%BiSV%Bivinddw
+        
+        BivalveDEB_TDW = BivalveDEB%BiSV%Bivtotaldw  
+
+
+
+    !     % Temperature correction factors
+    Tresp = exp(BivalveDEB%Ta / BivalveDEB%Tref - BivalveDEB%Ta / (273.15 + Me%ExternalVar%Temperature(index))) /           &
+            (1.0 + exp(BivalveDEB%TAL / (273.15 + Me%ExternalVar%Temperature(index)) - BivalveDEB%TAL / BivalveDEB%TL) +    &
+            exp(BivalveDEB%TAHresp / BivalveDEB%THresp - BivalveDEB%TAHresp / (273.15 + Me%ExternalVar%Temperature(index))))
+
+    Ting = exp(BivalveDEB%Ta / BivalveDEB%Tref - BivalveDEB%Ta / (273.15 + Me%ExternalVar%Temperature(index))) /            &
+            (1.0 + exp(BivalveDEB%TAL / (273.15 + Me%ExternalVar%Temperature(index)) - BivalveDEB%TAL / BivalveDEB%TL) +    &
+            exp(BivalveDEB%THing / BivalveDEB%THing - BivalveDEB%THing / (273.15 + Me%ExternalVar%Temperature(index))))
+
+
+
+
+    ! Update rates for temperature:
+    
+    Pxm_T = BivalveDEB%Pxm * Ting
+    
+    Pm_T  = BivalveDEB%Pm * Tresp
+
+
+     fresp = ConcChla/(BivalveDEB%Xk + ConcChla)
+          
+
+     bi_area_scale = (Me%ExternalVar%Mass(BivalveDEB_V, Index) / Me%ExternalVar%CellArea(Index)) ** (2.0/3.0)  
+
+     Px = Pxm_T * fresp * bi_area_scale
+
+     Pam_T = BivalveDEB%ka * Pxm_T
+     
+     Pa = BivalveDEB%ka * Px       ! assimilation flux
+
+
+
+
+    ! Energy density:
+    
+     e_dens = (Me%ExternalVar%Mass(BivalveDEB_E, Index)/ Me%ExternalVar%CellArea(Index)) / &
+               (Me%ExternalVar%Mass(BivalveDEB_V, Index)/ Me%ExternalVar%CellArea(Index))
+
+       if ((Me%ExternalVar%Mass(BivalveDEB_E, Index)/ Me%ExternalVar%CellArea(Index)) .eq. 0.0) then
+         
+             Pc = 0.0
+         
+           else
+           
+             cff1 = (BivalveDEB%Eg * Pam_T * bi_area_scale / BivalveDEB%Em) + Pm_T * &
+                     (Me%ExternalVar%Mass(BivalveDEB_V, Index)/ Me%ExternalVar%CellArea(Index))
+                       
+             cff2 = e_dens/(BivalveDEB%Eg + BivalveDEB%kappa * e_dens)
+             
+             Pc = cff2 * cff1
+       
+       endif
+
+   energy_surplus = max(0.0 , BivalveDEB%kappa * Pc - Pm_T * (Me%ExternalVar%Mass(BivalveDEB_V, Index)/ &
+                     Me%ExternalVar%CellArea(Index)))  ! (J/s) flow to structural growth
+
+
+
+    ! % maturity maintenance and reproduction :
+    
+        if ((Me%ExternalVar%Mass(BivalveDEB_V, Index)/ Me%ExternalVar%CellArea(Index)) .LT. BivalveDEB%volp) then
+        
+            Pj = Me%ExternalVar%Mass(BivalveDEB_V, Index) / Me%ExternalVar%CellArea(Index)* &
+                 ((1.0-BivalveDEB%kappa) / BivalveDEB%kappa) * Pm_T  !Flow to maturity maintanence
+            
+        else
+            
+                Pj = BivalveDEB%volp * ((1.0 - BivalveDEB%kappa) / BivalveDEB%kappa) * Pm_T    !Flow to maturity maintenance
+                
+                Pr = max(0.0 , (1.0 - BivalveDEB%kappa) * Pc - Pj)       !Allocation to reprod buffer
+        
+        endif
+
+
+
+
+    ! % Lysis and shrinking :
+
+    shrink_Pm = max(0.0, (Pm_T * (Me%ExternalVar%Mass(BivalveDEB_V, Index) / Me%ExternalVar%CellArea(Index)) - &
+                   BivalveDEB%kappa * Pc))  ! to pay maint. struct.
+    
+    shrink_Pj = max(0.0, (Pj - (1.0 - BivalveDEB%kappa) * Pc))                    ! to pay maint. maturity
+    
+    shrink = shrink_Pm + shrink_Pj
+
+
+       if (shrink .gt. 0.0) then                 !Take energy from repro buffer to pay maintenance costs
+         
+         shrink_Er = shrink / BivalveDEB%kR      !pay from reproductive buffer
+         
+         shrink_V = 0.0                          !don't pay from structure
+       
+       else
+             
+             shrink_Er = 0.0
+             
+             shrink_V = 0.0
+       
+       endif
+
+    dE = Pa - Pc
+    
+    dV = energy_surplus / BivalveDEB%Eg - shrink_V 
+    
+    dEr = (Pr * BivalveDEB%kR) - shrink_Er
+
+
+
+    ! Calculate total DW in g
+
+    tot_DW = (Me%ExternalVar%Mass(BivalveDEB_V, Index) / Me%ExternalVar%CellArea(Index))* BivalveDEB%St_DW_perc * 1.0e6 + &
+             (Me%ExternalVar%Mass(BivalveDEB_E, Index)/ Me%ExternalVar%CellArea(Index) + &
+              Me%ExternalVar%Mass(BivalveDEB_ER, Index)/ Me%ExternalVar%CellArea(Index)) / BivalveDEB%Conv_fac   ! *1e6 is for converting bi_vol from m3 to cm3
+
+    ! Calculate individusl DW in kg
+    Me%ExternalVar%Mass(BivalveDEB_IDW, Index) = (tot_DW/1000) * Me%ExternalVar%CellArea(Index)
+    ! Total DW in Kg/m2
+    Me%ExternalVar%Mass(BivalveDEB_TDW, Index) = Me%ExternalVar%Mass(BivalveDEB_IDW, Index) * (BivalveDEB%NInd) !LLP
+    ! SPAWNING
+
+    ! % Gono-somatic index
+    
+    Er_DW_perc = ((Me%ExternalVar%Mass(BivalveDEB_ER, Index) / Me%ExternalVar%CellArea(Index)) / BivalveDEB%Conv_fac) / &
+                      tot_DW
+    
+
+
+    ! NOTE Jday is a global variable and must be calculated before the call to the subroutine
+    ! Jday is the Julian day of the current year (i.e. referred to start of the current year)
+   
+
+    !  Integrate the state variables
+ 
+        ! conversion of DT from days (DEB) to s (MOHID)
+        Me%ExternalVar%Mass(BivalveDEB_V, Index) = (Me%ExternalVar%Mass(BivalveDEB_V, Index) + &
+                                                    ((dV * Me%ExternalVar%CellArea(Index))* Me%DT)) !LLP
+       
+
+        Me%ExternalVar%Mass(BivalveDEB_E, Index) = max(0.0 , (Me%ExternalVar%Mass(BivalveDEB_E, Index) + &
+                                                    ((dE * Me%ExternalVar%CellArea(Index))* Me%DT))) !LLP max in order to avoid negative values
+
+        Me%ExternalVar%Mass(BivalveDEB_ER, Index) = max(0.0 ,(Me%ExternalVar%Mass(BivalveDEB_ER, Index) + &
+                                                     ((dEr * Me%ExternalVar%CellArea(Index))* Me%DT))) !LLP
+                                                     
+    ! test LLP
+        if (Me%ExternalVar%Mass(BivalveDEB_ER, Index) .LT. 0) then
+            write(*,*)'ER negativo1', Index, Me%ExternalVar%Mass(BivalveDEB_ER, Index), dEr, Pr, BivalveDEB%kR, shrink_Er
+            stop
+        endif
+            
+
+
+     !Update of BivalveDEB_ER if spawning occurs
+d2:  do seq = 1, BivalveDEB%spawnD
+     
+         if (BivalveDEB%spawnDay(seq) .GT. 0) then
+         
+            if ((BivalveDEB%spawnDay(seq) .EQ. Me%JulianDay) .AND. (Er_DW_perc .GT. BivalveDEB%RGS) .AND.   &
+                     (Me%ExternalVar%Temperature(index) .GT. BivalveDEB%Tspawn)) then
+            
+                    Me%ExternalVar%Mass(BivalveDEB_ER, Index) = max(0.0, Me%ExternalVar%Mass(BivalveDEB_ER, Index) - &
+                                                                Me%ExternalVar%Mass(BivalveDEB_ER, Index) * &
+                                                                BivalveDEB%spawn_eff) !LLP add max(0.0,...) to avoid negative values
+                    
+                    tot_DW = (Me%ExternalVar%Mass(BivalveDEB_V, Index) / Me%ExternalVar%CellArea(Index))* BivalveDEB%St_DW_perc * 1.0e6 + &
+                             (Me%ExternalVar%Mass(BivalveDEB_E, Index)/ Me%ExternalVar%CellArea(Index) + &
+                              Me%ExternalVar%Mass(BivalveDEB_ER, Index)/ Me%ExternalVar%CellArea(Index)) / BivalveDEB%Conv_fac!LLP
+                              
+                    Me%ExternalVar%Mass(BivalveDEB_IDW, Index) = (tot_DW*1000) * Me%ExternalVar%CellArea(Index)
+                    
+                    Me%ExternalVar%Mass(BivalveDEB_TDW, Index) = Me%ExternalVar%Mass(BivalveDEB_IDW, Index) * (BivalveDEB%NInd) !LLP
+            
+            if (Me%ExternalVar%Mass(BivalveDEB_ER, Index) .LT. 0.0) then
+              write(*,*)'ER negativo2', Index, Me%ExternalVar%Mass(BivalveDEB_ER, Index),dEr, Me%DT, Me%ExternalVar%CellArea(Index)
+              stop
+            endif
+         
+            endif
+                 
+         endif
+    
+     end do d2
+
+  !_________________________________THIS IS THE END OF GROWTH & BIOENERGETICS 
+
+
+
+
+  ! _________________________________CALCULATE FEEDBACKS 
+  
+  
+   !CALCULATE CHLA CONSUMPTION 
+   
+   !convert chla consumption rate from mg chla s-1 (energy based approach) to kg chla s-1
+   bi_consump_chla = (Px / (BivalveDEB%Ec * BivalveDEB%CtoChla)) / 10.0e6           
+  
+    
+  ! OXYGEN UPTAKE 
+  ! Bourles et al. (2009) (IFREMER's  model) relates O2 consumption to the catabolic energy flux, Pc. Therefore:
+   
+    bi_consump_oxy = (Pc / BivalveDEB%etaO2)     ! in mgO2 s-1
+    
+  !Convert from mg O2 s-1 to kg O2 s-1 used by MOHID
+    
+    bi_consump_oxy_mass = (bi_consump_oxy / 10.0e6) 
+
+
+
+  ! INGESTION OF FOOD *********************
+  ! Ingested C & N:
+  
+   Cing = Px / (BivalveDEB%Ec * 12.0)   !ingested C in mmol C s-1
+  
+   Ning = Cing / 6.625                  !ingested N in mmol N s-1
+
+
+
+  ! EGESTION OF FEACES ********************
+  ! Egested C & N
+  
+   Ceg = (1.0 - BivalveDEB%ka) * Cing     !egested C in mmol C s-1
+  
+   Neg = (1.0 - BivalveDEB%ka) * Ning     !egested N in mmol N s-1
+
+
+    ! Calculate assimilation for M.edulis, composition of other species unknown
+    ! For M.edulis NH4 excretion is then calculated from mass balance equation
+    ! For other species NH4 excreted is set as a fraction of N ingested
+    ! In MOHID this option is activated by using a KEYWORD 
+    !     (NH4EXCFRAC = 1 then NH4 is excreted as a fraction of N ingested) 
+  
+  
+  
+  
+   if(BivalveDEB%NH4Frac .eq. 0)then
+
+    !******* ASSIMILATION OF MATTER ****************
+    ! C & N in structural tissue (always >= 0)
+   
+       Cst = 0.4 * energy_surplus * 1000.0 / (23000.0 * 12.0)        !stuctural tissue in mmol C s-1
+       
+       Nst = 0.4 * energy_surplus * 1000.0 / (23000.0 * 4.82 * 14.0) !structural tissue in mmol N s-1
+
+
+    ! C & N in energy reserves
+       
+       Ce = 0.4 * dE * 1000.0 /(23000.0 * 12.0)          !energy reserves in mmol C s-1
+    
+       Ne = 0.4 * dE * 1000.0 /(23000.0 * 4.82 * 14.0)   !energy reserves in mmol N s-1
+
+
+    ! C & N in reproductive energy
+   
+       Cer = 0.4 * dEr * 1000.0 /(23000.0 * 12.0)         !reproductive energy in mmol C s-1
+   
+       Ner = 0.4 * dEr * 1000.0 /(23000.0 * 4.82 * 14.0)  !reproductive energy in mmol N s-1
+
+
+    ! Total C & N in flesh
+   
+       Cflesh = Cst + Ce + Cer
+   
+       Nflesh = Nst + Ne + Ner
+
+
+
+    ! NOTE: If total energy increased or unchanged (i.e. Cflesh >= 0) then excess C is respired and excess N is excreted
+    !       If total energy decreased, then Cresp and Nexcrt are greater than assimilated (i.e. lysis)
+
+    ! C respired and N excreted:
+        if (Cflesh.GE.0.0) then
+        
+             Csh = Cflesh * 0.08 / 0.92
+             
+             Nsh = Nflesh * 0.12 / 0.88                    !ratios after Rodhouse and Roden (1984) (Figure 7)
+             
+             Cresp = max(0.0, Cing - Ceg - Cflesh - Csh)
+             
+             Nexcrt = max(0.0, Ning - Neg - Nflesh - Nsh)  !max here just in case it goes negative
+       
+            else
+         
+                 Cresp = Cing - Ceg - Cflesh
+         
+                 Nexcrt = Ning - Neg - Nflesh
+       
+         end if
+
+     else
+    
+    ! if other than M.edulis
+    
+    Nexcrt = 0.45 * Ning                !factor can be modified by the user
+
+  end if
+
+!_____________________________________________ END OF FEEDBACKS
+  
+  
+  
+  
+  !___________________________________________ SHELLFISH - PATHOGEN MODEL
+  
+!   ku = bi_consump_chla / (Xf * bi_vol * 1e6)       ! Volume filtration rate per g wet weight and time (m3 g-1 s-1)
+
+    ! Calculate E coli uptake rate in CFU s-1 (per individua)l
+!    bi_consump_CH2O = ku * CH2O * bi_vol * 1e6
+
+!    Csdep = (ku * CH2O - kd * Cs) * dt + Cs          ! New Cs in CFU g-1 (g is g wet weight)
+ 
+!    if(Csdep .lt. 0.0) Csdep=0.0
+        
+!    Cs = Csdep
+!
+! ****  END OF SHELLFISH - PATHOGEN MODEL *******
+  
+  
+  
+  
+ !Upadate of the properties  
+    
+ consump_O2 = bi_consump_oxy_mass * Me%DT * (BivalveDEB%NInd * Me%ExternalVar%CellArea(Index)) !kg O2
+ if (consump_O2 .GE. Me%ExternalVar%MassInKgFromWater(O2, Index)) consump_O2 = 0.0
+ 
+ 
+ 
+ Me%ExternalVar%MassInKgFromWater(O2, Index) = Me%ExternalVar%MassInKgFromWater(O2, Index) - &
+                                               consump_O2 !LLP                                                    
+ 
+ !converted from mmol N to kg N
+
+ Me%ExternalVar%MassInKgFromWater(AM, Index) = Me%ExternalVar%MassInKgFromWater(AM, Index) + &
+                                               (Nexcrt * 14.01 / 10.0e6) * Me%DT * &          
+                                               (BivalveDEB%NInd * Me%ExternalVar%CellArea(Index)) !LLP
+                                               
+ !converted from kg chla s-1 to kg C
+ Me%ExternalVar%MassInKgFromWater(Phyto, Index) = Me%ExternalVar%MassInKgFromWater(Phyto, Index)- &
+                                                 bi_consump_chla * Me%DT * BivalveDEB%CtoChla * &
+                                                 (BivalveDEB%NInd * Me%ExternalVar%CellArea(Index)) !LLP
+
+ !converted from mmol N to kg N
+ Me%ExternalVar%Mass(PON, Index) = Me%ExternalVar%Mass(PON, Index) + &
+                                   (Neg * 14.01 / 10.0e6) * Me%DT * &
+                                   (BivalveDEB%NInd * Me%ExternalVar%CellArea(Index)) !LLP
+  
+  
+    !Only for output purposes in cm
+    ! Recalculate length as the output from deb_bivalve_evolution is volume of the animal
+    bi_len = ((Me%ExternalVar%Mass(BivalveDEB_V, Index) * Me%ExternalVar%CellArea(Index))**(1.0/3.0) / &
+                     BivalveDEB%delm) * 100.0
+  
+    
+      BivalveDEB => BivalveDEB%Next
+        end do d1
+
+        
+    end subroutine ComputeBenthicBivalveDEB  
+    
+       
+    !-----------------------------------------------------------------------------------
+    
+    
+    
+    !-----------------------------------------------------------------------------------
+        
+    subroutine ComputeBenthicNitrogen(Index)
 
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                         :: Index
@@ -4379,10 +5459,10 @@ d1:     do while(associated(Consumer))
          
          
         Me%ExternalVar%MassInKgFromWater(O2, Index)  = Me%ExternalVar%MassInKgFromWater(O2, Index)  +  &  ! KgO2         
-                                                                                               Growth *  &  ! KgdW/day      
-                                                                              (Me%Leaves%gCKgDW/1000) *  &  ! gC/KgdW/1000. = KgC/KgO2 = gO2/gC 
-                                                                                       (32.0 / 12.0)  *  &  ! gO2/gC        = KgO2/KgC 
-                                                                                            Me%DTDay        ! day
+                                                       Growth *  &                                        ! KgdW/day      
+                                                       (Me%Leaves%gCKgDW/1000) *  &        ! gC/KgdW/1000. = KgC/KgO2 = gO2/gC 
+                                                       (32.0 / 12.0)  *  &                 ! gO2/gC        = KgO2/KgC 
+                                                       Me%DTDay                                        ! day
          
           case(Erosion)
           
@@ -4582,6 +5662,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Deallocates instance
         deallocate (Me)
         nullify    (Me) 
+        
 
             
     end subroutine DeallocateInstance

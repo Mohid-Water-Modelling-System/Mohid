@@ -103,6 +103,7 @@
 !   TIME_SERIE                  : 0/1              [0]          !Ouputs results in time series  
 !   BOX_TIME_SERIE              : 0/1              [0]          !Ouputs results in box time series
 !   OUTPUT_HDF                  : 0/1              [0]          !Ouputs results in HDF5 format
+!   OUTHDF_ORIGIN_UNIT          : 0/1              [0]          !Ouputs results in the original units (other than concentration)
 !<endproperty>
 !
 
@@ -462,6 +463,7 @@ Module ModuleInterfaceSedimentWater
          logical                                    :: TimeSerie            = .false.
          logical                                    :: BoxTimeSerie         = .false.
          logical                                    :: OutputHDF            = .false.
+         logical                                    :: OutHDFOrigin         = .false.
          type(T_Property_2D)                        :: MolecularDifCoef
          type(T_Evolution)                          :: Evolution
          type(T_Property), pointer                  :: Next
@@ -498,6 +500,7 @@ Module ModuleInterfaceSedimentWater
          type(T_Coupling)                           :: TimeSerie
          type(T_Coupling)                           :: BoxTimeSerie
          type(T_Coupling)                           :: OutputHDF
+         type(T_Coupling)                           :: OutHDFOrigin
     end type T_Coupled
 
     type       T_Statistics
@@ -2282,8 +2285,20 @@ cd2 :           if (BlockFound) then
                      ClientModule   = 'ModuleInterfaceSedimentWater',                   &
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
-            stop 'Construct_PropertyOutPut - ModuleInterfaceSedimentWater - ERR01'
-           
+            stop 'Construct_PropertyOutPut - ModuleInterfaceSedimentWater - ERR01a'
+        
+        !Checks out if the user pretends to write property values in the original units
+        !(when units are other than concentration)
+        call GetData(NewProperty%OutHDForigin,                                          &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'OUTHDF_ORIGIN_UNITS',                            &
+                     Default        = .false.,                                          &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleInterfaceSedimentWater',                   &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'Construct_PropertyOutPut - ModuleInterfaceSedimentWater - ERR01b'
+               
         ! Checks out if the user pretends to write a time serie for this property
         call GetData(NewProperty%TimeSerie,                                             &
                      Me%ObjEnterData, iflag,                                            &
@@ -6372,11 +6387,25 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         PropertyX   => Me%FirstProperty
         do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
-                call WriteTimeSerie(Me%ObjTimeSerie,                            &
-                                    Data2D  = PropertyX%Mass_Available,         &
+                        
+                if(PropertyX%OutHDForigin) then
+                             
+                        call WriteTimeSerie(Me%ObjTimeSerie,                         &
+                                    Data2D  = PropertyX%MassInKg,                    &
                                     STAT    = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                      &
-                    stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR02'
+                     if (STAT_CALL /= SUCCESS_)                                      &
+                        stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR02a'     
+                             
+                    else
+                                 
+                        call WriteTimeSerie(Me%ObjTimeSerie,                            &
+                                            Data2D  = PropertyX%Mass_Available,         &
+                                            STAT    = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR02b'
+
+                end if
+            
             endif
             PropertyX=>PropertyX%Next
         enddo
@@ -6421,9 +6450,19 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                 do J = JLB, JUB
                 do I = ILB, IUB
                     if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
-                        Me%Scalar2D(i,j) = PropertyX%Mass_Available(i, j) * &
-                                           Me%ExternalVar%GridCellArea(i,j)
-                    endif
+                    
+                        if(PropertyX%OutHDForigin) then 
+                    
+                            Me%Scalar2D(i,j) = PropertyX%MassinKg(i, j) * &
+                                               Me%ExternalVar%GridCellArea(i,j)
+                        
+                        else
+                        
+                            Me%Scalar2D(i,j) = PropertyX%Mass_Available(i, j) * &
+                                               Me%ExternalVar%GridCellArea(i,j)
+                        end if
+                                            
+                    end if
                 end do
                 end do
                 !$OMP END DO
@@ -8069,13 +8108,27 @@ PropX:      do while (associated(PropertyX))
                 if(PropertyX%OutputHDF)then
 
                     if(PropertyX%Mass_Limitation)then
-
-                        call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyX%ID%Name,                &
-                                             PropertyX%ID%Name, PropertyX%ID%Units,                     &
-                                             Array2D = PropertyX%Mass_Available,                        &
-                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) &
-                            stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR06'
+                    
+                        if(PropertyX%OutHDForigin) then
+                                                                        
+                            call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyX%ID%Name,                &
+                                                 PropertyX%ID%Name, PropertyX%ID%Units,                     &
+                                                 Array2D = PropertyX%MassInKg,                              &
+                                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) &
+                                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR06a'
+                        
+                        else
+                    
+                            call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyX%ID%Name,                &
+                                                 PropertyX%ID%Name, PropertyX%ID%Units,                     &
+                                                 Array2D = PropertyX%Mass_Available,                        &
+                                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) &
+                                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR06b'
+                            
+                        end if
+                            
                     end if
 
                     if(PropertyX%Evolution%WaterFluxes)then
