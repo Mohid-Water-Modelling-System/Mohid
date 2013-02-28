@@ -111,7 +111,7 @@ Module ModuleCALMETFormat
         type(T_Date),                 pointer               :: FirstDate
         character(len=StringLength), dimension(:), pointer  :: FieldsToConvert
         character(len=StringLength), dimension(:), pointer  :: FieldsToRead
-        logical                                             :: TimeWindow
+        logical                                             :: TimeWindow               = .false.
         type(T_Time)                                        :: StartTime, EndTime
         real                                                :: OutputDTInterval = null_real
         
@@ -1942,7 +1942,7 @@ if1:    if (Me%TimeWindow) then
         !Local-----------------------------------------------------------------
         real,    dimension(6), target                   :: AuxTime
         real,    dimension(:), pointer                  :: TimePtr
-        integer                                         :: STAT_CALL, OutputNumber
+        integer                                         :: STAT_CALL, OutputNumber, i,j
         type(T_Field), pointer                          :: Field
         type(T_Date), pointer                           :: CurrentDate, PreviousOutputDate
         real                                            :: dt
@@ -2072,8 +2072,13 @@ if2:                if(Field%nDimensions == 2)then
                                 
                                 allocate(Field%Values2D(Field%WorkSize%ILB:Field%WorkSize%IUB, &
                                                         Field%WorkSize%JLB:Field%WorkSize%JUB))
-                                
-                                Field%Values2D = Field%Values3D(:,:, Field%WorkSize%KUB)
+                               
+                                do j = Field%WorkSize%JLB, Field%WorkSize%JUB
+                                do i = Field%WorkSize%ILB, Field%WorkSize%IUB 
+                                    Field%Values2D(i,j) =  Field%Values3D(i,j, Field%WorkSize%KUB)
+                                enddo
+                                enddo
+                                !Field%Values2D = Field%Values3D(:,:, Field%WorkSize%KUB)
 
                                 call HDF5WriteData(Me%ObjHDF5,                                   &
                                                 "/Results/"//GetPropertyName(WaterLevel_),       &
@@ -2083,6 +2088,7 @@ if2:                if(Field%nDimensions == 2)then
                                                 OutputNumber = Field%OutputNumber,               &
                                                 STAT         = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR82'
+                                deallocate(Field%Values2D)
 
                             endif                                
 
