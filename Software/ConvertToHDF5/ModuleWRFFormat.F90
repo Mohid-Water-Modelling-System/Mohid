@@ -20,6 +20,7 @@
 !   WRITE_XYZ                   : 0/1              [0]          !Flag to write xyz center grid cells
 !   WRITE_TERRAIN               : 0/1              [0]          !Flag to write WRF TERRAIN fields
 !   WRITE_HEADERS               : 0/1              [0]          !Flag to output WRF ans TERRAIN headers in final HDF5 file
+!   WRITE_LANDUSE               : 0/1              [0]          !Flag to output land use final HDF5 file
 !   COMPUTE_WINDSTRESS          : 0/1              [0]          !Flag to compute and write wind shear stress fields
 !   COMPUTE_RELATIVE_HUMIDITY   : 0/1              [0]          !Flag to compute and write relative humidity fields at 2-m
 !   COMPUTE_RELATIVE_HUMIDITY_3D: 0/1              [0]          !Flag to compute and write relative humidity 3D fields
@@ -201,6 +202,7 @@ Module ModuleWRFFormat
         logical                                             :: ComputeTemperature3D     = .false.
         logical                                             :: ComputeVerticalZ         = .false.
         logical                                             :: WriteTerrain             = .false.
+        logical                                             :: WriteLandUse             = .false.
         logical                                             :: TerrainFileNotSpecified  = .false.
         logical                                             :: OutputGridNotSpecified   = .false.
         ! to run in MOHID as an imposed solution
@@ -442,7 +444,16 @@ Module ModuleWRFFormat
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR09'
         
+        call GetData(Me%WriteLandUse,                                   &
+                     Me%ObjEnterData, iflag,                            &
+                     SearchType   = FromBlock,                          &
+                     keyword      = 'WRITE_LANDUSE',                    &
+                     Default      = OFF,                                &
+                     ClientModule = 'ModuleWRFFormat',                  &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR09a'
 
+        
         call GetData(Me%StartTime,                                      &
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromBlock,                          &
@@ -1363,7 +1374,7 @@ if1:    if (Me%TimeWindow) then
         integer                                         :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
         real            , pointer, dimension(:,:,:,:)   :: DataAux
         logical                                         :: Bathymetry_OK  = .false.
-        !logical                                         :: LandUse_OK     = .false.        
+        logical                                         :: LandUse_OK     = .false.        
         logical                                         :: CenterX_OK     = .false.
         logical                                         :: CenterY_OK     = .false.
         logical                                         :: ConnectionX_OK = .false.
@@ -1482,20 +1493,38 @@ if1:    if (Me%TimeWindow) then
 
                     ConnectionY_OK = .true.
 
+                case ('LU_INDEX')
+
+                    !Memory Order = XY => JI
+                    !Staggered = X
+
+                    allocate(DataAux(WJUB,WIUB, 1,1))
+
+                    status = nf90_get_var(ncid, varid, DataAux, start=(/1,1,1/), count=(/WJUB, WIUB, 1/))
+                    call handle_error(status); if (status /= NF90_NOERR) stop 'ReadGridData - ModuleWRFFormat - ERR02'
+
+                    allocate(Me%LandUse(ILB:IUB, JLB:JUB))
+
+                    Me%LandUse(WILB:WIUB, WJLB:WJUB) = transpose(DataAux(WJLB:WJUB, WILB:WIUB, 1, 1))
+
+                    deallocate(DataAux)
+
+                    LandUse_OK = .true.
+                    
                 case default
 
             end select
 
             if (ConnectionX_OK .and. ConnectionY_OK) call CorrectCorners
 
-            if (Bathymetry_OK  .and. & !LandUse_OK .and. &
+            if (Bathymetry_OK  .and. & LandUse_OK .and. &
                 CenterX_OK     .and. CenterY_OK .and. &
                 ConnectionX_OK .and. ConnectionY_OK) exit
 
         enddo
         
         if (.not. Bathymetry_OK)    stop 'Missing HGT - ReadGridData - ModuleWRFFormat - ERR08'
-        !if (.not. LandUse_OK)       stop 'Missing LU_INDEX - ReadGridData - ModuleWRFFormat - ERR09'
+        if (.not. LandUse_OK)       stop 'Missing LU_INDEX - ReadGridData - ModuleWRFFormat - ERR09'
         if (.not. CenterX_OK)       stop 'Missing XLAT - ReadGridData - ModuleWRFFormat - ERR10'
         if (.not. CenterY_OK)       stop 'Missing XLONG - ReadGridData - ModuleWRFFormat - ERR11'
         if (.not. ConnectionX_OK)   stop 'Missing XLAT_U - ReadGridData - ModuleWRFFormat - ERR12'
@@ -1808,11 +1837,12 @@ if1:    if (Me%TimeWindow) then
                              Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleWRFFormat - ERR02a'
 
+        if (Me%WriteLandUse) then
+            call HDF5WriteData   (Me%ObjHDF5, "/Grid", "LandUse", "-",       &
+                                  Array2D =  Me%LandUse, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleWRFFormat - ERR03a'
+        endif
         
-        !call HDF5WriteData   (Me%ObjHDF5, "/Grid", "LandUse", "-",       &
-        !                      Array2D =  Me%LandUse, STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleWRFFormat - ERR03a'
-
         if(Me%OutputGridNotSpecified)then
 
             call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB+1,&
