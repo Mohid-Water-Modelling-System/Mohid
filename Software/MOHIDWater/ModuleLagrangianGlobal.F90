@@ -506,7 +506,11 @@ Module ModuleLagrangianGlobal
     ! Monitorization
     integer, parameter                          :: Arithmetic               = 1
     integer, parameter                          :: Geometric                = 2
+    
+    !Odours
+    real, parameter                             :: PeakFactor               = 0.005833      ! = (60./3600.)^0.35
 
+    
     character(LEN = StringLength), parameter    :: block_begin              = '<BeginOrigin>'
     character(LEN = StringLength), parameter    :: block_end                = '<EndOrigin>'
     character(LEN = StringLength), parameter    :: statistic_begin          = '<BeginStatistic>'
@@ -630,6 +634,7 @@ Module ModuleLagrangianGlobal
         real,    dimension(:, :, :),       pointer          :: TauErosionGrid
         real,    dimension(:, :, :),       pointer          :: MassSedGrid
 
+        
     end type T_Lag2Euler
 
     type T_PropStatistic
@@ -814,7 +819,8 @@ Module ModuleLagrangianGlobal
         logical                                 :: Density              = OFF
         logical                                 :: Booms                = OFF
         logical                                 :: OutputTracerInfo     = OFF
-        logical                                 :: OilSedimentation     = OFF
+        logical                                 :: OilSedimentation     = OFF        
+        logical                                 :: Odour                = OFF
     end type T_State
 
     !IO
@@ -1030,6 +1036,8 @@ Module ModuleLagrangianGlobal
         logical                                 :: EqualToAmbient           = OFF
         real                                    :: Risk                     = null_real  
         logical                                 :: MeteoOceanFiles          = OFF      
+        logical                                 :: HasOdour                 = OFF
+        real                                    :: OdourConcThreshold       = null_real        
     end type T_Property
 
 
@@ -2761,6 +2769,7 @@ d1:     do em = 1, Me%EulerModelNumber
                     Me%EulerModel(em)%Lag2Euler%GridMaxMass   (:,:,:,:,:) = 0.                
                 endif
             endif
+            
         enddo d1
 
 
@@ -3408,6 +3417,7 @@ BF:         if (BlockFound) then
         logical                                     :: WP_HaveProperty, SedimentDefined = .false.
         logical                                     :: SalOK = .false., TempOK = .false., PressureCorrection
         integer                                     :: em
+        real                                        :: OdourConcThreshold
 
         !Begin-----------------------------------------------------------------
 
@@ -3618,6 +3628,7 @@ iMV:                if (NewOrigin%EstimateMinVol) then
                                      ClientModule ='ModuleLagrangianGlobal',            &
                                      STAT         = STAT_CALL)        
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR392'
+                    endif iMV ! Rosa
 
                         call GetData(NewOrigin%MaxVol,                                  &
                                      Me%ObjEnterData,                                   &
@@ -3628,8 +3639,7 @@ iMV:                if (NewOrigin%EstimateMinVol) then
                                      ClientModule ='ModuleLagrangianGlobal',            &
                                      STAT         = STAT_CALL)        
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR393'
-
-                    endif iMV
+                    
 
 iDF:                if (.not. NewOrigin%Default) then
                         call StartTimeSerieInput(NewOrigin%TimeSerieInputFlow,          &
@@ -3779,7 +3789,7 @@ i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR384.'
 
                 if (TotalVolume > 0.) then
-                    NewOrigin%PointVolume = max (TotalVolume/real(NewOrigin%MaxPart), Me%OriginDefault%PointVolume)
+                    NewOrigin%PointVolume = max (TotalVolume/real(NewOrigin%MaxPart), NewOrigin%PointVolume)
                     if (NewOrigin%PointVolume > NewOrigin%MaxVol) then
                         write(*,*) 'Particle volume ', NewOrigin%PointVolume, 'larger than maximum volume allowed ',NewOrigin%MaxVol
                         stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR385.'
@@ -4855,18 +4865,6 @@ DOPROP: do
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1180'
 
-                !Concentration of the Property
-                call GetData(NewProperty%Concentration,                                 &
-                             Me%ObjEnterData,                                           &
-                             flag,                                                      &
-                             SearchType   = FromBlockInBlock,                           &
-                             keyword      ='CONCENTRATION',                             &
-                             ClientModule ='ModuleLagrangianGlobal',                    &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1190'
-                if (flag == 0) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1200'
-
-
                 !Concentration variable in time
                 call GetData(NewProperty%ConcVariable,                                  &
                              Me%ObjEnterData,                                           &
@@ -4923,6 +4921,19 @@ DOPROP: do
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1220'
                     if (flag == 0) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1230'
+
+                else 
+
+                    !Concentration of the Property
+                    call GetData(NewProperty%Concentration,                                 &
+                                 Me%ObjEnterData,                                           &
+                                 flag,                                                      &
+                                 SearchType   = FromBlockInBlock,                           &
+                                 keyword      ='CONCENTRATION',                             &
+                                 ClientModule ='ModuleLagrangianGlobal',                    &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1190'
+                    if (flag == 0) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1200'                    
 
                 endif
 
@@ -5391,6 +5402,55 @@ SP:             if (NewProperty%SedimentPartition%ON) then
 
                 endif
 
+                call GetData(NewProperty%HasOdour,                               &
+                             Me%ObjEnterData,                                    &
+                             flag,                                               &
+                             SearchType   = FromBlockInBlock,                    &
+                             keyword      ='HAS_ODOUR',                          &
+                             ClientModule ='ModuleLagrangianGlobal',             &
+                             Default    = .false.,                               &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1453'
+                
+                if (NewProperty%Units /= 'mg/m3' .and. (NewProperty%ID == Methane_ .or. & 
+                    NewProperty%ID==HydrogenSulfide_ .or. NewProperty%ID==MethylMercaptan_)) then
+                    write(*,*) 'Property with odour : ', trim(NewProperty%Name), ' must have units of mg/m3'
+                    stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1453'
+                endif
+                
+                if (NewProperty%HasOdour) then
+                    
+                    NewOrigin%State%Odour = .true.
+                    Me%State%Odour        = .true.
+                    
+                    ! Default values from bibliography
+                    ! Given by Enga Lisete Epifaneo, Simarsul, from Metcalf & Eddy (1991)
+                    ! Default units are mg/m3 because threshold value are very low.
+                    
+                    OdourConcThreshold = 0.0
+                    select case (NewProperty%ID)                         
+                    case (Methane_)
+                        OdourConcThreshold = 25.16
+                    case (HydrogenSulfide_)
+                        OdourConcThreshold = 6.58e-4
+                    case (MethylMercaptan_)
+                        OdourConcThreshold = 2.00e-3
+                    end select 
+                    
+                    call GetData(NewProperty%OdourConcThreshold,                 &
+                             Me%ObjEnterData,                                    &
+                             flag,                                               &
+                             SearchType   = FromBlockInBlock,                    &
+                             keyword      ='ODOUR_CONC_THRESHOLD',               &
+                             ClientModule ='ModuleLagrangianGlobal',             &
+                             Default    = OdourConcThreshold,                    &
+                             STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1454'
+                                                    
+                endif  ! HasOdour
+                
+                
+                
                 !Insert Property into list of properties
                 call InsertPropertyToList(NewOrigin, NewProperty, SetStates = .true.)
 
@@ -8599,7 +8659,12 @@ em1:    do em =1, Me%EulerModelNumber
             
             FileName(:) = ' '
             
-            FileName = trim(Me%Files%TransientHDF(1:ic-4))//"_"//trim(Me%EulerModel(em)%Name)//".hdf5"
+            if (Me%EulerModelNumber == 1) then
+                FileName = trim(Me%Files%TransientHDF(1:ic-4))//".hdf5"
+            else
+                FileName = trim(Me%Files%TransientHDF(1:ic-4))//"_"//trim(Me%EulerModel(em)%Name)//".hdf5"
+            endif
+            
 
             !Opens HDF File
             call ConstructHDF5      (Me%ObjHDF5(em), trim(FileName), HDF5_CREATE, STAT = STAT_CALL)
@@ -15670,6 +15735,14 @@ CurrOr: do while (associated(CurrentOrigin))
     end subroutine NewParticleMass
 
     !--------------------------------------------------------------------------
+    
+    subroutine ComputeOdourGridConcentration
+    
+    
+    end subroutine ComputeOdourGridConcentration
+
+    !--------------------------------------------------------------------------
+    
 
     subroutine CheckConcLimits ()
 
@@ -20014,6 +20087,7 @@ d1:     do em =1, Me%EulerModelNumber
         logical                                         :: FoundSediment, PartInside
         integer                                         :: Sediment_ID, np, em, ig, STAT_CALL
 
+                                
         !Begin----------------------------------------------------------------------
 
 
@@ -20422,7 +20496,6 @@ g3:             do ig = 1, Me%NGroups
 
         enddo d2
 
-
     end subroutine FillGridConcentration
 
     !--------------------------------------------------------------------------
@@ -20435,7 +20508,7 @@ g3:             do ig = 1, Me%NGroups
 
         !Local-----------------------------------------------------------------
         integer, dimension(:, :, :   ), pointer     :: WaterPoints3D
-        real, dimension(:, :, :), pointer           :: GridConc3D
+        real, dimension(:, :, :), pointer           :: GridConc3D, GridGroupSum3D, GridTotalSum3D
         real, dimension(:, :   ), pointer           :: GridConc2D 
         integer                                     :: ig, p
         type (T_Property), pointer                  :: CurrentProperty
@@ -20448,30 +20521,39 @@ g3:             do ig = 1, Me%NGroups
 
         ig = 1
 
+        ILB    = Me%EulerModel(em)%Size%ILB
+        IUB    = Me%EulerModel(em)%Size%IUB
+        JLB    = Me%EulerModel(em)%Size%JLB
+        JUB    = Me%EulerModel(em)%Size%JUB
+        KLB    = Me%EulerModel(em)%Size%KLB
+        KUB    = Me%EulerModel(em)%Size%KUB
+
+        WS_ILB = Me%EulerModel(em)%WorkSize%ILB
+        WS_IUB = Me%EulerModel(em)%WorkSize%IUB
+        WS_JLB = Me%EulerModel(em)%WorkSize%JLB
+        WS_JUB = Me%EulerModel(em)%WorkSize%JUB
+        WS_KLB = Me%EulerModel(em)%WorkSize%KLB
+        WS_KUB = Me%EulerModel(em)%WorkSize%KUB
+
+        WaterPoints3D    => Me%EulerModel(em)%WaterPoints3D
+
+
+        !Allocates auxiliar variable
+        allocate (GridConc3D (ILB:IUB, JLB:JUB, KLB:KUB         ))
+
+        if (Me%State%Deposition) allocate (GridConc2D (ILB:IUB, JLB:JUB      ))
+
+        if (Me%State%Odour) then
+            allocate (GridGroupSum3D (ILB:IUB, JLB:JUB, KLB:KUB          ))
+            allocate (GridTotalSum3D (ILB:IUB, JLB:JUB, KLB:KUB          ))
+            GridGroupSum3D = 0.0
+            GridTotalSum3D = 0.0
+        endif
+        
 d2:     do ig = 1, Me%nGroups
-
-            ILB    = Me%EulerModel(em)%Size%ILB
-            IUB    = Me%EulerModel(em)%Size%IUB
-            JLB    = Me%EulerModel(em)%Size%JLB
-            JUB    = Me%EulerModel(em)%Size%JUB
-            KLB    = Me%EulerModel(em)%Size%KLB
-            KUB    = Me%EulerModel(em)%Size%KUB
-
-            WS_ILB = Me%EulerModel(em)%WorkSize%ILB
-            WS_IUB = Me%EulerModel(em)%WorkSize%IUB
-            WS_JLB = Me%EulerModel(em)%WorkSize%JLB
-            WS_JUB = Me%EulerModel(em)%WorkSize%JUB
-            WS_KLB = Me%EulerModel(em)%WorkSize%KLB
-            WS_KUB = Me%EulerModel(em)%WorkSize%KUB
-
-            WaterPoints3D    => Me%EulerModel(em)%WaterPoints3D
-
-
-            !Allocates auxiliar variable
-            allocate (GridConc3D (ILB:IUB, JLB:JUB, KLB:KUB         ))
-
-            if (Me%State%Deposition) allocate (GridConc2D (ILB:IUB, JLB:JUB      ))
-
+            
+            if (Me%State%Odour) GridGroupSum3D = 0.0
+            
             !Writes the Group to an auxiliar string
             write (AuxChar, fmt='(i3)') ig
 
@@ -20574,7 +20656,27 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                                                    OutputNumber = OutputNumber)
 
                     endif
+                    
+                    if (Me%State%Odour) then
+                        
+                        GridConc3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridConc(:, :, :, p, ig)                                                
+                        GridConc3D(:,:,:) = GridConc3D(:,:,:) * PeakFactor / CurrentProperty%OdourConcThreshold
 
+                        GridGroupSum3D = GridGroupSum3D + GridConc3D
+                        GridTotalSum3D = GridTotalSum3D + GridConc3D
+                        
+                        AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                                    "/Data_3D_Odour/"//trim(CurrentProperty%Name)
+
+                        !HDF 5
+                        call HDF5WriteData    (Me%ObjHDF5(em),                      &
+                                                trim(AuxChar3),                     &
+                                                trim(CurrentProperty%Name),         &
+                                                'odour units',                      &
+                                                Array3D = GridConc3D,               &
+                                                OutputNumber = OutputNumber)
+                    endif
+                    
                 endif ih
 
                 CurrentProperty => CurrentProperty%Next
@@ -20586,7 +20688,6 @@ ih:             if (CurrentProperty%WritesPropHDF) then
 
             AuxChar3 = trim(AuxChar2)//"Number"
 
-
             GridConc3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridTracerNumber(:, :, :, ig)
 
             !HDF 5
@@ -20596,13 +20697,45 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                                        Array3D = GridConc3D,                            &
                                        OutputNumber = OutputNumber)
 
+            if (Me%State%Odour) then
+                 
+                AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                            "/Data_3D_Odour/Group_Odour"
+            
+                !HDF 5
+                call HDF5WriteData    (Me%ObjHDF5(em),                      &
+                                        trim(AuxChar3),                     &
+                                        "Group_Odour",                      &
+                                        'odour units',                      &
+                                        Array3D = GridGroupSum3D,           &
+                                        OutputNumber = OutputNumber)
+            endif
+                        
+            
         enddo d2
 !        enddo d1
+
+        if (Me%State%Odour) then
+                
+            !HDF 5
+            call HDF5WriteData    (Me%ObjHDF5(em),                      &
+                                    "/Results/Total_Odour",             &
+                                    "Total_Odour",                      &
+                                    'odour units',                      &
+                                    Array3D = GridTotalSum3D,           &
+                                    OutputNumber = OutputNumber)
+                    
+        endif
 
         nullify(GridConc3D  )
         nullify(WaterPoints3D)
         nullify(GridConc2D  )  
 
+        if (Me%State%Odour) then
+            nullify(GridGroupSum3D  )
+            nullify(GridTotalSum3D  )
+        endif
+        
 
     end subroutine WriteGridConcentration
 
