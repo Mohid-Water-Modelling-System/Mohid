@@ -505,7 +505,8 @@ Module ModuleGlobalData
     integer, parameter :: CO2AtmosphericPressure_           = 617
     integer, parameter :: O2AtmosphericPressure_            = 618
     integer, parameter :: WindModulusBeaufort_              = 619
-
+    integer, parameter :: HydrogenSulfide_                  = 620
+    integer, parameter :: MethylMercaptan_                  = 621
 
     !Basin Properties
     integer, parameter :: RefEvapotrans_                    = 708
@@ -1347,10 +1348,11 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_WindModulus              = 'wind modulus'
     character(StringLength), private, parameter :: Char_WindModulusBeaufort      = 'wind modulus beaufort'    
     character(StringLength), private, parameter :: Char_WindDirection            = 'wind direction'
-    character(StringLength), private, parameter :: Char_SpecificHumidity         = 'specific humidity'
-
-    character(StringLength), private, parameter :: Char_CO2AtmosphericPressure   = 'CO2 atmospheric pressure'
-    character(StringLength), private, parameter :: Char_O2AtmosphericPressure    = 'O2 atmospheric pressure'
+    character(StringLength), private, parameter :: Char_SpecificHumidity         = 'specific humidity'    
+    character(StringLength), private, parameter :: Char_CO2AtmosphericPressure   = 'CO2 atmospheric pressure'    
+    character(StringLength), private, parameter :: Char_O2AtmosphericPressure    = 'O2 atmospheric pressure'    
+    character(StringLength), private, parameter :: Char_HydrogenSulfide          = 'hydrogen sulfide'           ! H2S
+    character(StringLength), private, parameter :: Char_MethylMercaptan          = 'methyl mercaptan'           ! or methanethiol 
 
     
     !Sand Transport
@@ -2482,7 +2484,8 @@ Module ModuleGlobalData
             call AddPropList (WindModulus_ ,            Char_WindModulus         ,      ListNumber)
             call AddPropList (WindModulusBeaufort_ ,    Char_WindModulusBeaufort ,      ListNumber)            
             call AddPropList (WindDirection_ ,          Char_WindDirection       ,      ListNumber)
-
+            call AddPropList (HydrogenSulfide_ ,        Char_HydrogenSulfide     ,      ListNumber)
+            call AddPropList (MethylMercaptan_ ,        Char_MethylMercaptan     ,      ListNumber)            
          
             call AddPropList (RPOM_ ,                   Char_RPOM                ,      ListNumber)
             call AddPropList (LPOM_ ,                   Char_LPOM                ,      ListNumber)
