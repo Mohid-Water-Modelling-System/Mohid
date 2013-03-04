@@ -38,6 +38,7 @@ program ConvertToHDF5
     use ModuleCowamaAsciiWind
 #endif
     use ModuleSWAN
+    use ModuleReadSWANNonStationary
     use ModuleHDF5ToASCIIandBIN
     use ModuleGFSasciiWind
 #ifndef _NO_NETCDF    
@@ -88,6 +89,7 @@ program ConvertToHDF5
     character(len = StringLength), parameter:: ConvertToTecnocean           = 'CONVERT TECNOCEAN ASCII'
     character(len = StringLength), parameter:: ConvertToCowama              = 'CONVERT COWAMA ASCII WIND'
     character(len = StringLength), parameter:: ConvertToAndFromSWAN         = 'CONVERT TO AND FROM SWAN'
+    character(len = StringLength), parameter:: ConvertFromSWANNonStationary = 'CONVERT FROM SWAN NONSTATIONARY'
     character(len = StringLength), parameter:: ConvertHDF5ToSWANorMOHID     = 'CONVERT FROM HDF5 TO SWAN OR MOHID'
     character(len = StringLength), parameter:: ConvertToAladinFormat        = 'CONVERT ALADIN FORMAT'    
     character(len = StringLength), parameter:: ConvertMOG2DFormatToHDF5     = 'CONVERT MOG2D FORMAT'    
@@ -401,6 +403,11 @@ if2 :           if (BlockFound) then
 
                             call StartGlueHDF5Files(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR150'
+                            
+                        case(ConvertFromSWANNonStationary)
+                            
+                            call ConvertSWANNonStationary(ObjEnterData, ClientNumber, STAT = STAT_CALL)
+                            if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR160'
 
 
 #ifdef _USE_MODIS

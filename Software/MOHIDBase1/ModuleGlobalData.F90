@@ -671,6 +671,8 @@ Module ModuleGlobalData
     integer, parameter ::  PeakDirectionX_                 = 3530    
     integer, parameter ::  PeakDirectionY_                 = 3531        
     integer, parameter ::  SignificantWaveHeightBeaufort_  = 3532
+    integer, parameter ::  MeanAbsoluteZeroCrossingPeriod_  = 3533
+    integer, parameter ::  MeanAbsoluteWavePeriodEnergy_   = 3534
 !____________________________________________________________________________________
 !________________________________________________________exclusive use @ modulelife__
 
@@ -1399,6 +1401,8 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_WindSeaPeakFrequency     = 'wind sea peak frequency'
     character(StringLength), private, parameter :: Char_WindSeaPeakDirection     = 'wind sea peak direction'
     character(StringLength), private, parameter :: Char_WaveSwellHeight          = 'wave swell height'
+    character(StringLength), private, parameter :: Char_MeanAbsoluteZeroCrossingPeriod   = 'mean absolute zero-crossing period'
+    character(StringLength), private, parameter :: Char_MeanAbsoluteWavePeriodEnergy     = 'mean absolute wave period energy'
 
 
     !Consolidation
@@ -2604,6 +2608,8 @@ Module ModuleGlobalData
             call AddPropList (WindSeaPeakFrequency_,    Char_WindSeaPeakFrequency,       ListNumber)
             call AddPropList (WindSeaPeakDirection_,    Char_WindSeaPeakDirection,       ListNumber)
             call AddPropList (WaveSwellHeight_     ,    Char_WaveSwellHeight,            ListNumber)
+            call AddPropList (MeanAbsoluteZeroCrossingPeriod_, Char_MeanAbsoluteZeroCrossingPeriod,      ListNumber)
+            call AddPropList (MeanAbsoluteWavePeriodEnergy_, Char_MeanAbsoluteWavePeriodEnergy,          ListNumber)
             
             call AddPropList (ConsolidationFlux_,       Char_ConsolidationFlux,          ListNumber)
             call AddPropList (Porosity_,                Char_Porosity,                   ListNumber)

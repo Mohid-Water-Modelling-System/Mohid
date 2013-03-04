@@ -346,6 +346,7 @@
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleHellermanRosensteinAscii.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleHYCOMFormat.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
+		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleIHRadarFormat.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleInterpolateGrids.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleInterpolateTime.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleLevitusFormat.F90"/>
@@ -359,6 +360,7 @@
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleNetCDFCF_2_HDF5MOHID.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModulePatchHDF5Files.F90"/>
+		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleReadSWANNonStationary.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleSWAN.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleTecnoceanAscii.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleWOAFormat.F90">
