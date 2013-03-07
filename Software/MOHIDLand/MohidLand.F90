@@ -61,6 +61,8 @@ program MohidLand
     character(len=StringLength)         :: ModelName
     character(PathLength)               :: OutputFile
     logical                             :: SaveOutput = .false.
+    character(PathLength)               :: DataFile  = 'nomfich.dat'
+    logical                             :: ConfigByArgument = .false.    
 
     !Other Stuff
     type (T_Time)                       :: InitialSystemTime, FinalSystemTime
@@ -71,6 +73,7 @@ program MohidLand
 
 #ifndef _OPENMI_
 
+    call ReadArguments
     call ConstructMohidLand
     call ModifyMohidLand
     call KillMohidLand
@@ -86,12 +89,100 @@ program MohidLand
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+    subroutine ReadArguments
+    
+        integer         :: i
+        integer         :: n_args
+        character(1024) :: arg
+        integer         :: last_arg = 0
+        
+        n_args = command_argument_count()
+        
+        do i = 1, n_args
+           
+            call get_command_argument(i, arg)
+
+            select case (arg)
+            
+            case ('-v', '--version')
+            
+                call print_version()
+                stop
+                
+            case ('-h', '--help')
+               
+                call print_help()
+                stop
+                                               
+            case ('-c', '--config')
+                if (last_arg > 0) then             
+                
+                     print *, 'Invalid parameter.'
+                
+                     if (i > n_args) then
+                        call print_help()
+                        stop                   
+                     endif
+                endif
+                
+                last_arg = 2                
+            
+            case default
+                select case (last_arg)
+                    
+                case (2)
+                   
+                    call get_command_argument(i, DataFile)
+                    ConfigByArgument = .true.
+                    
+                case default
+                   
+                   print *, 'Invalid parameter: ', arg
+                   stop
+                   
+                end select
+                
+                last_arg = 0
+                
+            end select
+        end do    
+    
+    end subroutine ReadArguments
+    
+    subroutine print_help()
+        print '(a)', ''
+        print '(a)', 'MohidLand usage: MohidLand [OPTIONS]'
+        print '(a)', ''
+        print '(a)', 'MohidLand options:'
+        print '(a)', ''
+        print '(a)', '  [-v, --version]     : print version information and exit'
+        print '(a)', '  [-h, --help]        : Print usage information and exit'
+        print '(a)', '  [-c, --config] file : Uses "file" as input configuration (nomfich.dat by default)'
+        print '(a)', ''        
+    end subroutine print_help    
+    
+    subroutine print_version ()
+        print '(a)', ''
+#if defined (CODEPLEXVERSION)
+        print '(a, i0)', 'HDF5Exporter version (codeplex): ', CODEPLEXVERSION
+#else
+        print '(a)', 'HDF5Exporter version : PERSONAL'
+#endif
+        print '(a)', ''
+    end subroutine print_version
+    
+    !--------------------------------------------------------------------------
+
     subroutine ConstructMohidLand
 
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
+
+        if (ConfigByArgument) then
+            call SetInputFullPath (DataFile)
+        endif
 
         call StartupMohid ("Mohid Land")
 

@@ -1349,7 +1349,7 @@ cd2 :           if (BlockFound) then
         character(StringLength)                     :: obj_name
         integer                                     :: obj_type
         integer(HID_T)                              :: gr_id, dset_id
-        integer(HID_T)                              :: datatype_id, class_id, size
+        integer(HID_T)                              :: datatype_id, class_id, size        
         integer                                     :: STAT_CALL
         character(StringLength)                     :: NewGroupName
         integer                                     :: ItensNumber
@@ -1447,7 +1447,7 @@ cd2 :           if (BlockFound) then
                     call h5dopen_f(ID, trim(adjustl(obj_name)), dset_id, STAT_CALL)
                     !Gets datatype
                     call h5dget_type_f (dset_id, datatype_id,   STAT_CALL)
-                    call h5tget_size_f (datatype_id, size,      STAT_CALL)
+                    !call h5tget_size_f (datatype_id, size,      STAT_CALL)
                     call h5tget_class_f(datatype_id, class_id,  STAT_CALL) 
 
                     if (class_id == H5T_FLOAT_F) then

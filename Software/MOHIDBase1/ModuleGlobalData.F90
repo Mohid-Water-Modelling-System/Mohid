@@ -1799,6 +1799,23 @@ Module ModuleGlobalData
     
     !--------------------------------------------------------------------------
     
+    subroutine SetInputFullPath (Path)
+
+        !Arguments------------------------------------
+        character(LEN=*) :: Path
+
+        !Begin------------------------------------
+
+        if (trim(Path) /= '') then
+            FilesName = trim(Path)
+        else
+            FilesName = 'nomfich.dat'
+        endif
+
+    end subroutine SetInputFullPath    
+    
+    !--------------------------------------------------------------------------
+    
     subroutine RegisterModule (iModule)
     
         !Arguments-------------------------------------------------------------

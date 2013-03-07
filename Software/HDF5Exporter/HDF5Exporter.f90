@@ -41,13 +41,10 @@ program HDF5Exporter
 
     integer                     :: ObjExportHDF5ToTimeSerieID = 0
 
-    character(PathLength)       :: DataFile  = 'ConvertToHDF5Action.dat'
+    character(PathLength)       :: DataFile  = 'HDF5Exporter.dat'
     logical                     :: ConfigByArgument = .false.
-    
-#ifdef _COMMAND_LINE_ARGS     
+      
     call ReadArguments
-#endif     
-    
     call ConstructHDF5Exporter
     call ModifyHDF5Exporter
     call KillHDF5Exporter
@@ -55,8 +52,7 @@ program HDF5Exporter
     contains
     
     !--------------------------------------------------------------------------    
-    
-#ifdef _COMMAND_LINE_ARGS     
+      
     subroutine ReadArguments
     
         integer         :: i
@@ -71,26 +67,17 @@ program HDF5Exporter
             call get_command_argument(i, arg)
 
             select case (arg)
+            
+            case ('-v', '--version')
+            
+                call print_version()
+                stop
                 
             case ('-h', '--help')
                
                 call print_help()
                 stop
-                
-            case ('-w', '--watch')
-               
-                if (last_arg > 0) then             
-                
-                     print *, 'Invalid parameter.'
-                
-                     if (i > n_args) then
-                        call print_help()
-                        stop                   
-                     endif
-                endif
-                
-                last_arg = 1
-                
+                                               
             case ('-c', '--config')
                 if (last_arg > 0) then             
                 
@@ -106,11 +93,6 @@ program HDF5Exporter
             
             case default
                 select case (last_arg)
-                   
-                case (1)
-                   
-                    !call get_command_argument(i, WatchFile)                
-                    !Watch = .true.  
                     
                 case (2)
                    
@@ -132,20 +114,28 @@ program HDF5Exporter
     end subroutine ReadArguments
     
     subroutine print_help()
-        !print '(a)', ''
-        !print '(a)', 'ConvertToHDF5 usage: ConvertToHDF5 [OPTIONS]'
-        !print '(a)', ''
-        !print '(a)', 'Without further options, ConvertToHDF5 uses "ConvertToHDF5Action.dat" as input file.'
-        !print '(a)', ''
-        !print '(a)', 'ConvertToHDF5 options:'
-        !print '(a)', ''
-        !print '(a)', '  [-v, --version]     print version information and exit'
-        !print '(a)', '  [-h, --help]        print usage information and exit'
-        !print '(a)', '  [-w, --watch] file  Monitor performance and save data to "file"'
-        !print '(a)', '  [-c, --config] file Uses "file" as input configuration'
-        !print '(a)', ''
+        print '(a)', ''
+        print '(a)', 'HDF5Exporter usage: HDF5Exporter [OPTIONS]'
+        print '(a)', ''
+        print '(a)', 'ConvertToHDF5 options:'
+        print '(a)', ''
+        print '(a)', '  [-v, --version]     : print version information and exit'
+        print '(a)', '  [-h, --help]        : Print usage information and exit'
+        print '(a)', '  [-c, --config] file : Uses "file" as input configuration'
+        print '(a)', ''        
+        print '(a)', 'Without -c option, HDF5Exporter uses "nomfich.dat" to know the name of input file.'
+        print '(a)', 'The name of the input file is provided using IN_MODEL keyword, inside "nomfich.dat"'
     end subroutine print_help    
-#endif        
+    
+    subroutine print_version ()
+        print '(a)', ''
+#if defined (CODEPLEXVERSION)
+        print '(a, i0)', 'HDF5Exporter version (codeplex): ', CODEPLEXVERSION
+#else
+        print '(a)', 'HDF5Exporter version : PERSONAL'
+#endif
+        print '(a)', ''
+    end subroutine print_version
     
     !--------------------------------------------------------------------------
 

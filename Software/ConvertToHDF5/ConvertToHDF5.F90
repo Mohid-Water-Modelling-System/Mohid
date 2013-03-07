@@ -110,13 +110,12 @@ program ConvertToHDF5
     character(len = StringLength), parameter:: PatchHD5Files                = 'PATCH HDF5 FILES'
     character(len = StringLength), parameter:: ConvertIHRadarFormatToHDF5   = 'CONVERT IH RADAR FORMAT'
 
+    logical               :: WatchPassedAsArgument = .false.
     logical               :: Watch     = .false.
     character(PathLength) :: WatchFile
     character(PathLength) :: DataFile  = 'ConvertToHDF5Action.dat'    
     
-#ifdef _COMMAND_LINE_ARGS     
-    call ReadArguments
-#endif        
+    call ReadArguments     
     
     call StartConvertToHDF5; call KillConvertToHDF5
 
@@ -136,8 +135,7 @@ program ConvertToHDF5
     end subroutine StartConvertToHDF5
     
     !--------------------------------------------------------------------------
-
-#ifdef _COMMAND_LINE_ARGS     
+   
     subroutine ReadArguments
     
         integer         :: i
@@ -190,6 +188,7 @@ program ConvertToHDF5
                    
                 case (1)
                    
+                    WatchPassedAsArgument = .true.
                     call get_command_argument(i, WatchFile)                
                     Watch = .true.  
                     
@@ -225,7 +224,6 @@ program ConvertToHDF5
         print '(a)', '  [-c, --config] file Uses "file" as input configuration'
         print '(a)', ''
     end subroutine print_help    
-#endif    
     
     !--------------------------------------------------------------------------
 
@@ -263,26 +261,26 @@ program ConvertToHDF5
         !    MonitorPerformance  = .true.
         !endif
         
-#ifndef _COMMAND_LINE_ARGS        
-        call GetData(WatchFile,                                             &
-                     ObjEnterData, iflag,                                   &
-                     SearchType   = FromFile,                               &
-                     keyword      = 'OUTWATCH',                             &
-                     ClientModule = 'ConvertToHDF5',                        &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR02'
-        if (iflag == 0)then
-            MonitorPerformance  = .false.
+        if (.not. WatchPassedAsArgument) then
+            call GetData(WatchFile,                                             &
+                         ObjEnterData, iflag,                                   &
+                         SearchType   = FromFile,                               &
+                         keyword      = 'OUTWATCH',                             &
+                         ClientModule = 'ConvertToHDF5',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR02'
+            if (iflag == 0)then
+                MonitorPerformance  = .false.
+            else
+                STAT_CALL = CreateWatchGroup (WatchFile)
+                MonitorPerformance  = .true.
+            endif
         else
-            STAT_CALL = CreateWatchGroup (WatchFile)
-            MonitorPerformance  = .true.
-        endif
-#else
-        if (Watch) then
-            STAT_CALL = CreateWatchGroup (WatchFile)
-            MonitorPerformance  = .true.           
-        endif
-#endif        
+            if (Watch) then
+                STAT_CALL = CreateWatchGroup (WatchFile)
+                MonitorPerformance  = .true.           
+            endif
+        endif      
 
 do1 :   do
             call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                 &

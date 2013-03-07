@@ -335,6 +335,550 @@ Module ModulePhreeqC
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#ifdef _PHREEQC_X64_
+    interface 
+        subroutine pmStart [ALIAS:'?pm_start@@YAXPEAH0@Z'](a, b)
+            integer*4 a [REFERENCE]
+            integer*4 b [REFERENCE]
+        end
+        
+        subroutine pm_conc_use [ALIAS:'?pm_conc_use@@YAXPEAH0000000@Z'] (a, b, c, d, e, f, g, h)
+            integer*4 a [REFERENCE] 
+            integer*4 b [REFERENCE] 
+            integer*4 c [REFERENCE]
+            integer*4 d [REFERENCE]
+            integer*4 e [REFERENCE] 
+            integer*4 f [REFERENCE] 
+            integer*4 g [REFERENCE]
+            integer*4 h [REFERENCE]
+        end
+        
+        subroutine pm_conc_as [ALIAS:'?pm_conc_as@@YAXPEAHPEAD0H@Z'] (a, b, c)
+            integer*4        a [REFERENCE] 
+            character(Len=*) b [REFERENCE] 
+            integer*4        c [REFERENCE]
+        end
+        
+        subroutine pm_use_ppa [ALIAS:'?pm_use_ppa@@YAXPEAH00@Z'] (a, b, c)
+            integer*4 a [REFERENCE] 
+            integer*4 b [REFERENCE] 
+            integer*4 c [REFERENCE]
+        end          
+
+        subroutine pm_use_exa [ALIAS:'?pm_use_exa@@YAXPEAH00@Z'] (a, b, c)
+            integer*4 a [REFERENCE] 
+            integer*4 b [REFERENCE] 
+            integer*4 c [REFERENCE]
+        end
+
+        subroutine pm_use_sa [ALIAS:'?pm_use_sa@@YAXPEAH00@Z'] (a, b, c)
+            integer*4 a [REFERENCE] 
+            integer*4 b [REFERENCE] 
+            integer*4 c [REFERENCE]
+        end        
+        
+        subroutine pmSetUse [ALIAS:'?pm_set_use@@YAXPEAH000000@Z'] (a, b, c, d, e, f, g)
+            integer*4 a [REFERENCE] 
+            integer*4 b [REFERENCE] 
+            integer*4 c [REFERENCE]
+            integer*4 d [REFERENCE] 
+            integer*4 e [REFERENCE]
+            integer*4 f [REFERENCE] 
+            integer*4 g [REFERENCE] 
+        end        
+                
+        subroutine pm_get_species_index [ALIAS:'?pm_get_species_index@@YAXPEAHPEAD00H@Z'] (a, b, c, d)
+            integer*4        a [REFERENCE] 
+            character(Len=*) b [REFERENCE] 
+            integer*4        c [REFERENCE]
+            integer*4        d [REFERENCE]
+        end
+    
+        subroutine pmRunPhreeqC [ALIAS:'?pm_run_model@@YAXPEAH0@Z'](a, b)
+	        integer*4 a [REFERENCE]
+	        integer*4 b [REFERENCE]
+	    end
+
+        subroutine pmSetupModel [ALIAS:'?pm_setup_model@@YAXPEAH0@Z'](a, b)
+	        integer*4 a [REFERENCE]
+	        integer*4 b [REFERENCE]
+	    end
+
+        subroutine pmLoadDatabase [ALIAS:'?pm_read_database@@YAXPEAHPEAD0@Z'] (a, b, c)
+            integer*4        a [REFERENCE] 
+            character(Len=*) b [REFERENCE] 
+            integer*4        c [REFERENCE]
+        end
+
+        subroutine pmKill [ALIAS:'?pm_kill@@YAXPEAH0@Z'](a, b)
+	        integer*4 a [REFERENCE]
+	        integer*4 b [REFERENCE]
+	    end        
+    end interface
+       
+    interface pmSetSolutionData
+	    subroutine PMSetSolutionDataA [ALIAS: '?pm_solution_data@@YAXPEAHPEAN0110@Z'] (a, b, c, d, e, f)
+	        integer*4 a [REFERENCE]
+	        real*8    b [REFERENCE]
+	        integer*4 c [REFERENCE]
+	        real*8    d [REFERENCE]
+	        real*8    e [REFERENCE]
+	        integer*4 f [REFERENCE]
+	    end
+	    
+!	    subroutine PMSetSolutionDataB [ALIAS: '?pm_solution_data@@YAXPAHPAN0110@Z'] (a, b, c, d, e, f)
+!	        integer*4 a [REFERENCE]
+!	        real*16   b [REFERENCE]
+!	        integer*4 c [REFERENCE]
+!	        real*16   d [REFERENCE]
+!	        real*16   e [REFERENCE]
+!	        integer*4 f [REFERENCE]
+!	    end
+!	    
+!	    subroutine PMSetSolutionDataC [ALIAS: '?pm_solution_data@@YAXPAHPAN0110@Z'] (a, b, c, d, e, f)
+!	        integer*4 a [REFERENCE]
+!	        real*4    b [REFERENCE]
+!	        integer*4 c [REFERENCE]
+!	        real*4    d [REFERENCE]
+!	        real*4    e [REFERENCE]
+!	        integer*4 f [REFERENCE]
+!	    end
+	end interface
+           
+    interface pm_solution_redox
+        subroutine pm_solution_redoxA [ALIAS: '?pm_solution_redox@@YAXPEAHPEADPEAM120HH@Z'](a1, a2, a3, a4, a5, a6)
+            integer*4        a1 [REFERENCE]
+            character(Len=*) a2 [REFERENCE]
+            real*4           a3 [REFERENCE]
+            character(Len=*) a4 [REFERENCE]
+            real*4           a5 [REFERENCE]
+            integer*4        a6 [REFERENCE]
+        end
+        
+        subroutine pm_solution_redoxB [ALIAS: '?pm_solution_redox@@YAXPEAHPEADPEAN120HH@Z'](b1, b2, b3, b4, b5, b6)
+            integer*4        b1 [REFERENCE]
+            character(Len=*) b2 [REFERENCE]
+            real*8           b3 [REFERENCE]
+            character(Len=*) b4 [REFERENCE]
+            real*8           b5 [REFERENCE]
+            integer*4        b6 [REFERENCE]
+        end
+        
+        subroutine pm_solution_redoxC [ALIAS: '?pm_solution_redox@@YAXPEAHPEADPEAO120HH@Z'](c1, c2, c3, c4, c5, c6)
+            integer*4        c1 [REFERENCE]
+            character(Len=*) c2 [REFERENCE]
+            real*16          c3 [REFERENCE]
+            character(Len=*) c4 [REFERENCE]
+            real*16          c5 [REFERENCE]
+            integer*4        c6 [REFERENCE]
+        end        
+    end interface       
+    
+    interface pm_conc_add
+        subroutine pm_conc_addA [ALIAS:'?pm_conc_add@@YAXPEAHPEADPEAM0H@Z'] (a1, a2, a3, a4)
+            integer*4        a1 [REFERENCE] 
+            character(Len=*) a2 [REFERENCE]
+            real*4           a3 [REFERENCE]
+            integer*4        a4 [REFERENCE]
+        end
+        
+        subroutine pm_conc_addB [ALIAS:'?pm_conc_add@@YAXPEAHPEADPEAN0H@Z'] (b1, b2, b3, b4)
+            integer*4        b1 [REFERENCE] 
+            character(Len=*) b2 [REFERENCE]
+            real*8           b3 [REFERENCE]
+            integer*4        b4 [REFERENCE]
+        end
+        
+        subroutine pm_conc_addC [ALIAS:'?pm_conc_add@@YAXPEAHPEADPEAO0H@Z'] (c1, c2, c3, c4)
+            integer*4        c1 [REFERENCE] 
+            character(Len=*) c2 [REFERENCE]
+            real*16          c3 [REFERENCE]
+            integer*4        c4 [REFERENCE]
+        end
+    end interface
+    
+    interface pm_conc_gfw
+        subroutine pm_conc_gfwA [ALIAS:'?pm_conc_gfw@@YAXPEAHPEAM0@Z'] (a1, a2, a3)
+            integer*4 a1 [REFERENCE] 
+            real*4    a2 [REFERENCE] 
+            integer*4 a3 [REFERENCE]
+        end
+        
+        subroutine pm_conc_gfwB [ALIAS:'?pm_conc_gfw@@YAXPEAHPEAN0@Z'] (b1, b2, b3)
+            integer*4 b1 [REFERENCE] 
+            real*8    b2 [REFERENCE] 
+            integer*4 b3 [REFERENCE]
+        end
+                
+        subroutine pm_conc_gfwC [ALIAS:'?pm_conc_gfw@@YAXPEAHPEAO0@Z'] (c1, c2, c3)
+            integer*4 c1 [REFERENCE] 
+            real*16   c2 [REFERENCE] 
+            integer*4 c3 [REFERENCE]
+        end    
+    end interface
+
+    interface pm_conc_phase
+        subroutine pm_conc_phaseA [ALIAS:'?pm_conc_phase@@YAXPEAHPEADPEAM0@Z'] (a1, a2, a3, a4)
+            integer*4        a1 [REFERENCE] 
+            character(Len=*) a2 [REFERENCE] 
+            real*4           a3 [REFERENCE]
+            integer*4        a4 [REFERENCE]
+        end
+
+        subroutine pm_conc_phaseB [ALIAS:'?pm_conc_phase@@YAXPEAHPEADPEAN0@Z'] (b1, b2, b3, b4)
+            integer*4        b1 [REFERENCE] 
+            character(Len=*) b2 [REFERENCE] 
+            real*8           b3 [REFERENCE]
+            integer*4        b4 [REFERENCE]
+        end
+
+        subroutine pm_conc_phaseC [ALIAS:'?pm_conc_phase@@YAXPEAHPEADPEAO0@Z'] (c1, c2, c3, c4)
+            integer*4        c1 [REFERENCE] 
+            character(Len=*) c2 [REFERENCE] 
+            real*16          c3 [REFERENCE]
+            integer*4        c4 [REFERENCE]
+        end
+    end interface
+
+    interface pm_conc_redox
+        subroutine pm_conc_redoxA [ALIAS:'?pm_conc_redox@@YAXPEAHPEADPEAM120HH@Z'] (a1, a2, a3, a4, a5, a6)
+            integer*4        a1 [REFERENCE] 
+            character(Len=*) a2 [REFERENCE] 
+            real*4           a3 [REFERENCE]
+            character(Len=*) a4 [REFERENCE] 
+            real*4           a5 [REFERENCE]
+            integer*4        a6 [REFERENCE]
+        end
+        
+        subroutine pm_conc_redoxB [ALIAS:'?pm_conc_redox@@YAXPEAHPEADPEAN120HH@Z'] (b1, b2, b3, b4, b5, b6)
+            integer*4        b1 [REFERENCE] 
+            character(Len=*) b2 [REFERENCE] 
+            real*8           b3 [REFERENCE]
+            character(Len=*) b4 [REFERENCE] 
+            real*8           b5 [REFERENCE]
+            integer*4        b6 [REFERENCE]
+        end
+
+        subroutine pm_conc_redoxC [ALIAS:'?pm_conc_redox@@YAXPEAHPEADPEAO120HH@Z'] (c1, c2, c3, c4, c5, c6)
+            integer*4        c1 [REFERENCE] 
+            character(Len=*) c2 [REFERENCE] 
+            real*16          c3 [REFERENCE]
+            character(Len=*) c4 [REFERENCE] 
+            real*16          c5 [REFERENCE]
+            integer*4        c6 [REFERENCE]
+        end
+    end interface
+
+    interface pm_conc_save
+        subroutine pm_conc_saveA [ALIAS:'?pm_conc_save@@YAXPEAH00PEAM0@Z'] (a1, a2, a3, a4, a5)
+            integer*4 a1 [REFERENCE] 
+            integer*4 a2 [REFERENCE] 
+            integer*4 a3 [REFERENCE]
+            real*4    a4 [REFERENCE]
+            integer*4 a5 [REFERENCE]
+        end
+
+        subroutine pm_conc_saveB [ALIAS:'?pm_conc_save@@YAXPEAH00PEAN0@Z'] (b1, b2, b3, b4, b5)
+            integer*4 b1 [REFERENCE] 
+            integer*4 b2 [REFERENCE] 
+            integer*4 b3 [REFERENCE]
+            real*8    b4 [REFERENCE]
+            integer*4 b5 [REFERENCE]
+        end
+
+        subroutine pm_conc_saveC [ALIAS:'?pm_conc_save@@YAXPEAH00PEAO0@Z'] (c1, c2, c3, c4, c5)
+            integer*4 c1 [REFERENCE] 
+            integer*4 c2 [REFERENCE] 
+            integer*4 c3 [REFERENCE]
+            real*16   c4 [REFERENCE]
+            integer*4 c5 [REFERENCE]
+        end
+    end interface
+
+    interface pm_ppa_pp 
+        subroutine pm_ppa_ppA [ALIAS:'?pm_ppa_pp@@YAXPEAHPEAD1PEAM20000HH@Z'] (a1, a2, a3, a4, a5, a6, a7, a8, a9)
+            integer*4        a1 [REFERENCE] 
+            character(Len=*) a2 [REFERENCE] 
+            character(Len=*) a3 [REFERENCE]
+            real*4           a4 [REFERENCE]
+            real*4           a5 [REFERENCE] 
+            integer*4        a6 [REFERENCE] 
+            integer*4        a7 [REFERENCE]
+            integer*4        a8 [REFERENCE]
+            integer*4        a9 [REFERENCE]
+        end
+    
+        subroutine pm_ppa_ppB [ALIAS:'?pm_ppa_pp@@YAXPEAHPEAD1PEAN20000HH@Z'] (b1, b2, b3, b4, b5, b6, b7, b8, b9)
+            integer*4        b1 [REFERENCE] 
+            character(Len=*) b2 [REFERENCE] 
+            character(Len=*) b3 [REFERENCE]
+            real*8           b4 [REFERENCE]
+            real*8           b5 [REFERENCE] 
+            integer*4        b6 [REFERENCE] 
+            integer*4        b7 [REFERENCE]
+            integer*4        b8 [REFERENCE]
+            integer*4        b9 [REFERENCE]
+        end
+
+        subroutine pm_ppa_ppC [ALIAS:'?pm_ppa_pp@@YAXPEAHPEAD1PEAO20000HH@Z'] (c1, c2, c3, c4, c5, c6, c7, c8, c9)
+            integer*4        c1 [REFERENCE] 
+            character(Len=*) c2 [REFERENCE] 
+            character(Len=*) c3 [REFERENCE]
+            real*16          c4 [REFERENCE]
+            real*16          c5 [REFERENCE] 
+            integer*4        c6 [REFERENCE] 
+            integer*4        c7 [REFERENCE]
+            integer*4        c8 [REFERENCE]
+            integer*4        c9 [REFERENCE]
+        end
+    end interface
+
+    interface pm_exa_exchanger
+        subroutine pm_exa_exchangerA [ALIAS:'?pm_exa_exchanger@@YAXPEAHPEAD01PEAM00HH@Z'] (a1, a2, a3, a4, a5, a6, a7)
+            integer*4        a1 [REFERENCE] 
+            character(Len=*) a2 [REFERENCE] 
+            integer*4        a3 [REFERENCE]
+            character(Len=*) a4 [REFERENCE] 
+            real*4           a5 [REFERENCE]
+            integer*4        a6 [REFERENCE]
+            integer*4        a7 [REFERENCE]
+        end
+
+        subroutine pm_exa_exchangerB [ALIAS:'?pm_exa_exchanger@@YAXPEAHPEAD01PEAN00HH@Z'] (b1, b2, b3, b4, b5, b6, b7)
+            integer*4        b1 [REFERENCE] 
+            character(Len=*) b2 [REFERENCE] 
+            integer*4        b3 [REFERENCE]
+            character(Len=*) b4 [REFERENCE] 
+            real*8           b5 [REFERENCE]
+            integer*4        b6 [REFERENCE]
+            integer*4        b7 [REFERENCE]
+        end
+
+        subroutine pm_exa_exchangerC [ALIAS:'?pm_exa_exchanger@@YAXPEAHPEAD01PEAO00HH@Z'] (c1, c2, c3, c4, c5, c6, c7)
+            integer*4        c1 [REFERENCE] 
+            character(Len=*) c2 [REFERENCE] 
+            integer*4        c3 [REFERENCE]
+            character(Len=*) c4 [REFERENCE] 
+            real*16          c5 [REFERENCE]
+            integer*4        c6 [REFERENCE]
+            integer*4        c7 [REFERENCE]
+        end
+    end interface
+
+    interface pm_sa_options
+        subroutine pm_sa_optionsA [ALIAS:'?pm_sa_options@@YAXPEAH00PEAM00@Z'] (a1, a2, a3, a4, a5, a6)
+            integer*4        a1 [REFERENCE] 
+            integer*4        a2 [REFERENCE] 
+            integer*4        a3 [REFERENCE]
+            real*4           a4 [REFERENCE] 
+            integer*4        a5 [REFERENCE]
+            integer*4        a6 [REFERENCE]
+        end
+
+        subroutine pm_sa_optionsB [ALIAS:'?pm_sa_options@@YAXPEAH00PEAN00@Z'] (b1, b2, b3, b4, b5, b6)
+            integer*4        b1 [REFERENCE] 
+            integer*4        b2 [REFERENCE] 
+            integer*4        b3 [REFERENCE]
+            real*8           b4 [REFERENCE] 
+            integer*4        b5 [REFERENCE]
+            integer*4        b6 [REFERENCE]
+        end
+
+        subroutine pm_sa_optionsC [ALIAS:'?pm_sa_options@@YAXPEAH00PEAO00@Z'] (c1, c2, c3, c4, c5, c6)
+            integer*4        c1 [REFERENCE] 
+            integer*4        c2 [REFERENCE] 
+            integer*4        c3 [REFERENCE]
+            real*16          c4 [REFERENCE] 
+            integer*4        c5 [REFERENCE]
+            integer*4        c6 [REFERENCE]
+        end
+    end interface
+
+    interface pm_sa_surface
+        subroutine pm_sa_surfaceA [ALIAS:'?pm_sa_surface@@YAXPEAH0PEAD1PEAM22000HH@Z'] (a1, a2, a3, a4, a5, a6, a7, a8)
+            integer*4        a1 [REFERENCE] 
+            integer*4        a2 [REFERENCE] 
+            character(Len=*) a3 [REFERENCE]
+            character(Len=*) a4 [REFERENCE]
+            real*4           a5 [REFERENCE] 
+            real*4           a6 [REFERENCE] 
+            real*4           a7 [REFERENCE]
+            integer*4        a8 [REFERENCE]
+        end
+
+        subroutine pm_sa_surfaceB [ALIAS:'?pm_sa_surface@@YAXPEAH0PEAD1PEAN22000HH@Z'] (b1, b2, b3, b4, b5, b6, b7, b8)
+            integer*4        b1 [REFERENCE] 
+            integer*4        b2 [REFERENCE] 
+            character(Len=*) b3 [REFERENCE]
+            character(Len=*) b4 [REFERENCE]
+            real*8           b5 [REFERENCE] 
+            real*8           b6 [REFERENCE] 
+            real*8           b7 [REFERENCE]
+            integer*4        b8 [REFERENCE]
+        end
+
+        subroutine pm_sa_surfaceC [ALIAS:'?pm_sa_surface@@YAXPEAH0PEAD1PEAO22000HH@Z'] (c1, c2, c3, c4, c5, c6, c7, c8)
+            integer*4        c1 [REFERENCE] 
+            integer*4        c2 [REFERENCE] 
+            character(Len=*) c3 [REFERENCE]
+            character(Len=*) c4 [REFERENCE]
+            real*16          c5 [REFERENCE] 
+            real*16          c6 [REFERENCE] 
+            real*16          c7 [REFERENCE]
+            integer*4        c8 [REFERENCE]
+        end
+    end interface
+
+    interface pm_set_required_data
+        subroutine pm_set_required_dataA [ALIAS:'?pm_set_required_data@@YAXPEAHPEAM110@Z'] (a1, a2, a3, a4, a5)
+            integer*4        a1 [REFERENCE] 
+            real*4           a2 [REFERENCE] 
+            real*4           a3 [REFERENCE] 
+            real*4           a4 [REFERENCE] 
+            integer*4        a5 [REFERENCE]
+        end
+
+        subroutine pm_set_required_dataB [ALIAS:'?pm_set_required_data@@YAXPEAHPEAN110@Z'] (b1, b2, b3, b4, b5)
+            integer*4        b1 [REFERENCE] 
+            real*8           b2 [REFERENCE] 
+            real*8           b3 [REFERENCE] 
+            real*8           b4 [REFERENCE] 
+            integer*4        b5 [REFERENCE]
+        end
+
+        subroutine pm_set_required_dataC [ALIAS:'?pm_set_required_data@@YAXPEAHPEAO110@Z'] (c1, c2, c3, c4, c5)
+            integer*4        c1 [REFERENCE] 
+            real*16          c2 [REFERENCE] 
+            real*16          c3 [REFERENCE] 
+            real*16          c4 [REFERENCE] 
+            integer*4        c5 [REFERENCE]
+        end
+    end interface
+
+    interface pmSetInputValue
+        subroutine pm_set_input_valueA [ALIAS:'?pm_set_input_value@@YAXPEAH00PEAM0@Z'] (a1, a2, a3, a4, a5)
+            integer*4        a1 [REFERENCE] 
+            integer*4        a2 [REFERENCE] 
+            integer*4        a3 [REFERENCE] 
+            real*4           a4 [REFERENCE] 
+            integer*4        a5 [REFERENCE]
+        end           
+
+        subroutine pm_set_input_valueB [ALIAS:'?pm_set_input_value@@YAXPEAH00PEAN0@Z'] (b1, b2, b3, b4, b5)
+            integer*4        b1 [REFERENCE] 
+            integer*4        b2 [REFERENCE] 
+            integer*4        b3 [REFERENCE] 
+            real*8           b4 [REFERENCE] 
+            integer*4        b5 [REFERENCE]
+        end           
+
+        subroutine pm_set_input_valueC [ALIAS:'?pm_set_input_value@@YAXPEAH00PEAO0@Z'] (c1, c2, c3, c4, c5)
+            integer*4        c1 [REFERENCE] 
+            integer*4        c2 [REFERENCE] 
+            integer*4        c3 [REFERENCE] 
+            real*16          c4 [REFERENCE] 
+            integer*4        c5 [REFERENCE]
+        end           
+    end interface
+
+    interface pmGetResultValue
+        subroutine pm_get_result_valueA [ALIAS:'?pm_get_result_value@@YAXPEAH00PEAM0@Z'] (a1, a2, a3, a4, a5)
+            integer*4        a1 [REFERENCE] 
+            integer*4        a2 [REFERENCE] 
+            integer*4        a3 [REFERENCE] 
+            real*4           a4 [REFERENCE] 
+            integer*4        a5 [REFERENCE]
+        end
+        
+        subroutine pm_get_result_valueB [ALIAS:'?pm_get_result_value@@YAXPEAH00PEAN0@Z'] (b1, b2, b3, b4, b5)
+            integer*4        b1 [REFERENCE] 
+            integer*4        b2 [REFERENCE] 
+            integer*4        b3 [REFERENCE] 
+            real*8           b4 [REFERENCE] 
+            integer*4        b5 [REFERENCE]
+        end
+        
+        subroutine pm_get_result_valueC [ALIAS:'?pm_get_result_value@@YAXPEAH00PEAO0@Z'] (c1, c2, c3, c4, c5)
+            integer*4        c1 [REFERENCE] 
+            integer*4        c2 [REFERENCE] 
+            integer*4        c3 [REFERENCE] 
+            real*16          c4 [REFERENCE] 
+            integer*4        c5 [REFERENCE]
+        end
+    end interface
+
+    interface pmGetSolutionData
+        subroutine pm_get_dataA [ALIAS:'?pm_get_data@@YAXPEAHPEAM110@Z'] (a1, a2, a3, a4, a5)
+            integer*4        a1 [REFERENCE] 
+            real*4           a2 [REFERENCE] 
+            real*4           a3 [REFERENCE] 
+            real*4           a4 [REFERENCE] 
+            integer*4        a5 [REFERENCE]
+        end
+
+        subroutine pm_get_dataB [ALIAS:'?pm_get_data@@YAXPEAHPEAN110@Z'] (b1, b2, b3, b4, b5)
+            integer*4        b1 [REFERENCE] 
+            real*8           b2 [REFERENCE] 
+            real*8           b3 [REFERENCE] 
+            real*8           b4 [REFERENCE] 
+            integer*4        b5 [REFERENCE]
+        end
+
+        subroutine pm_get_dataC [ALIAS:'?pm_get_data@@YAXPEAHPEAO110@Z'] (c1, c2, c3, c4, c5)
+            integer*4        c1 [REFERENCE] 
+            real*16          c2 [REFERENCE] 
+            real*16          c3 [REFERENCE] 
+            real*16          c4 [REFERENCE] 
+            integer*4        c5 [REFERENCE]
+        end
+    end interface
+
+    interface pmSetPH
+        subroutine pm_set_phA [ALIAS: '?pm_set_ph@@YAXPEAH0PEAM0@Z'] (a1, a2, a3, a4)
+            integer*4        a1 [REFERENCE]
+            integer*4        a2 [REFERENCE]
+            real*4           a3 [REFERENCE]
+            integer*4        a4 [REFERENCE]
+        end
+
+        subroutine pm_set_phB [ALIAS: '?pm_set_ph@@YAXPEAH0PEAN0@Z'] (b1, b2, b3, b4)
+            integer*4        b1 [REFERENCE]
+            integer*4        b2 [REFERENCE]
+            real*8           b3 [REFERENCE]
+            integer*4        b4 [REFERENCE]
+        end
+
+        subroutine pm_set_phC [ALIAS: '?pm_set_ph@@YAXPEAH0PEAO0@Z'] (c1, c2, c3, c4)
+            integer*4        c1 [REFERENCE]
+            integer*4        c2 [REFERENCE]
+            real*16          c3 [REFERENCE]
+            integer*4        c4 [REFERENCE]
+        end
+    end interface
+
+    interface pmSetPE
+        subroutine pm_set_peA [ALIAS: '?pm_set_pe@@YAXPEAH0PEAM0@Z'] (a1, a2, a3, a4)
+            integer*4        a1 [REFERENCE]
+            integer*4        a2 [REFERENCE]
+            real*4           a3 [REFERENCE]
+            integer*4        a4 [REFERENCE]
+        end
+        
+        subroutine pm_set_peB [ALIAS: '?pm_set_pe@@YAXPEAH0PEAN0@Z'] (b1, b2, b3, b4)
+            integer*4        b1 [REFERENCE]
+            integer*4        b2 [REFERENCE]
+            real*8           b3 [REFERENCE]
+            integer*4        b4 [REFERENCE]
+        end
+
+        subroutine pm_set_peC [ALIAS: '?pm_set_pe@@YAXPEAH0PEAO0@Z'] (c1, c2, c3, c4)
+            integer*4        c1 [REFERENCE]
+            integer*4        c2 [REFERENCE]
+            real*16          c3 [REFERENCE]
+            integer*4        c4 [REFERENCE]
+        end
+    end interface
+#else
     interface 
         subroutine pmStart [ALIAS:'?pm_start@@YAXPAH0@Z'](a, b)
             integer*4 a [REFERENCE]
@@ -877,6 +1421,7 @@ Module ModulePhreeqC
             integer*4        c4 [REFERENCE]
         end
     end interface
+#endif
 
     contains
 

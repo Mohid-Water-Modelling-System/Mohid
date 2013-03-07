@@ -911,7 +911,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         endif
         
-        !Discharges
+        
         call GetData(Me%OverlandChannelInteractionMethod,                   &
                      ObjEnterData, iflag,                                   &  
                      keyword      = 'OVERLAND_CHANNEL_INTERACTION_METHOD',  &
@@ -920,6 +920,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = 1,                                      &
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR364'          
+        if (iflag == 0) then               
+            call GetData(Me%OverlandChannelInteractionMethod,                   &
+                         ObjEnterData, iflag,                                   &  
+                         keyword      = 'CHANNEL_LINK_METHOD',                  &
+                         ClientModule = 'ModuleRunOff',                         &
+                         SearchType   = FromFile,                               &
+                         Default      = 1,                                      &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR365'         
+        else
+            write (*,*) 'OVERLAND_CHANNEL_INTERACTION_METHOD keyword is deprecated.'
+            write (*,*) 'Use CHANNEL_LINK_METHOD instead.'
+            stop 'ReadDataFile - ModuleRunOff - ERR366'
+        endif        
         
         !Discharges
         call GetData(Me%Discharges,                                         &

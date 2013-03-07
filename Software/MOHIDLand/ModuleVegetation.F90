@@ -539,6 +539,7 @@ Module ModuleVegetation
         real                                            :: FrGrow2
         real                                            :: FrGrowLAIDecline
         real                                            :: LAIMax
+        real                                            :: LAIDecRate
         real                                            :: MaxCanopyHeight
         real                                            :: OptimalHarvestIndex
         real                                            :: MinimumHarvestIndex
@@ -699,6 +700,8 @@ Module ModuleVegetation
 
         logical                                         :: AdjustRUEForCO2
         logical                                         :: AdjustRUEForVPD
+        
+        logical                                         :: UseLAIDecRate
 
         logical                                         :: Continuous
         logical                                         :: StopOnWrongDate
@@ -1578,7 +1581,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0310'
-
+        
+        call GetData(Me%ComputeOptions%UseLAIDecRate,                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'USE_LAI_DEC_RATE',                               &
+                     Default        = .false.,                                          &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleVegetation',                               &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0311'
+                
         call GetData(Me%ComputeOptions%Continuous,                                      &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
@@ -5398,6 +5410,20 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         write(*,*)'Missing maximum LAI in growth parameters definition -',                                   &
                                    trim(Me%VegetationTypes(ivt)%Name)
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR205'
+                    endif
+                    
+                    if (Me%ComputeOptions%UseLAIDecRate) then
+                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%LAIDecRate, GrowthObjEnterData,  iflag,                     &
+                                     SearchType     = FromBlock,                                                          &
+                                     keyword        = 'LAI_DEC_RATE',                                                                 &
+                                     ClientModule   = 'ModuleVegetation',                                                        &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR206'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing LAI Decline rate in growth parameters definition -',                                   &
+                                       trim(Me%VegetationTypes(ivt)%Name)
+                            stop 'ReadGrowthDatabase - ModuleVegetation - ERR207'
+                        endif
                     endif
 
                     call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MaximumRootDepth, GrowthObjEnterData,  iflag,           &
@@ -11148,13 +11174,23 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
                         Me%LAISenescence(i,j) = .true.
             
-                        if(.not. Me%ComputeOptions%ChangeLAISenescence) then
+                        if (Me%ComputeOptions%UseLAIDecRate) then
+                        
+                            Me%LAIDeclineFraction(i,j) = Me%VegetationTypes(VegetationID)%GrowthDatabase%LAIDecRate
+                            
+                        elseif(.not. Me%ComputeOptions%ChangeLAISenescence) then
+                        
                             Me%LAIDeclineFraction(i,j) = (1.0 - HUAcc) / (1.0 - FrGrowLAIDecline)
+                            
                         else
                             if (HUAcc .gt. HUAcc_Old) then
+                            
                                 Me%LAIDeclineFraction(i,j) = (1.0 - HUAcc) / (1.0 - HUAcc_Old)
+                                
                             else
+                            
                                 Me%LAIDeclineFraction(i,j) = 1.0
+                                
                             endif
                         endif
                     endif
@@ -13138,18 +13174,24 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
                             LAIDeclineFraction = Me%LAIDeclineFraction(i,j)
 
-                            if(.not. Me%ComputeOptions%ChangeLAISenescence) then
+
+                            if (Me%ComputeOptions%UseLAIDecRate) then
+                                Me%StateVariables%LeafAreaIndex(i,j) = (LAI * (1.0 - LAIDeclineFraction))   &
+                                                                        - (LAI * BiomassGrazedFraction)     &
+                                                                        - (LAI * BiomassHarvestedFraction)                            
+
+                            elseif(.not. Me%ComputeOptions%ChangeLAISenescence) then
 
                                 !LAI Computed from maximum value reached and not from last (SWAT theory). If grazing or 
                                 !harvesting occurr during senescence LAI is increased due to the computation formulation.
-                                Me%StateVariables%LeafAreaIndex(i,j) = Me%LAIBeforeSenescence(i,j) * LAIDeclineFraction  &
-                                                                        - (LAI * BiomassGrazedFraction)                        &
+                                Me%StateVariables%LeafAreaIndex(i,j) = Me%LAIBeforeSenescence(i,j) * LAIDeclineFraction &
+                                                                        - (LAI * BiomassGrazedFraction)                 &
                                                                         - (LAI * BiomassHarvestedFraction)
                             else
                                 !LAI computed from last value. It avoids erorrs when grazing or harvesting occurrs 
                                 !during senescence.
-                                Me%StateVariables%LeafAreaIndex(i,j) = (LAI * LAIDeclineFraction)                        &
-                                                                        - (LAI * BiomassGrazedFraction)                        &
+                                Me%StateVariables%LeafAreaIndex(i,j) = (LAI * LAIDeclineFraction)           &
+                                                                        - (LAI * BiomassGrazedFraction)     &
                                                                         - (LAI * BiomassHarvestedFraction)
                             endif
                         endif
