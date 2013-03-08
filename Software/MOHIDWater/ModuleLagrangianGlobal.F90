@@ -12775,7 +12775,9 @@ dts:        do ts = 1, 2
                                 
                                 if(CurrentOrigin%State%HumanBody .and. CurrentOrigin%HumanBody%Drowned)then
                                     if (PositionCorrected) then
+                                    
                                         CurrentPartic%AtTheBottom = ON
+                                        
                                     endif
                                 endif
 
