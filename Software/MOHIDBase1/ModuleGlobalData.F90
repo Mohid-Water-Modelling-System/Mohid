@@ -818,6 +818,7 @@ Module ModuleGlobalData
     
     !floating object
     integer, parameter :: FloatingObject_                   = 20001
+    integer, parameter :: HumanBody_                        = 20002
 
     !Spatial emission discharge
     integer, parameter :: DischPoint_                       = 1
@@ -994,6 +995,7 @@ Module ModuleGlobalData
 
     character(StringLength), private, parameter :: Char_Oil                  = 'oil'
     character(StringLength), private, parameter :: Char_FloatingObject       = 'floating object'
+    character(StringLength), private, parameter :: Char_HumanBody            = 'human body'
     character(StringLength), private, parameter :: Char_OilThickness         = 'oil thickness'
     character(StringLength), private, parameter :: Char_Ciliate              = 'ciliate'
     character(StringLength), private, parameter :: Char_Bacteria             = 'bacteria'
@@ -2283,6 +2285,7 @@ Module ModuleGlobalData
             call AddPropList (T90_E_Coli_,              Char_T90_E_Coli,                ListNumber)
             call AddPropList (Oil_,                     Char_Oil,                       ListNumber)
             call AddPropList (FloatingObject_,          Char_FloatingObject,            ListNumber)
+            call AddPropList (HumanBody_,               Char_HumanBody,                 ListNumber)
             call AddPropList (OilThickness_,            Char_OilThickness,              ListNumber)            
             call AddPropList (Ciliate_,                 Char_Ciliate,                   ListNumber)
             call AddPropList (Bacteria_,                Char_Bacteria,                  ListNumber)

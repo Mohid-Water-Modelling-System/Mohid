@@ -498,8 +498,7 @@ Module ModuleLagrangianGlobal
     integer, parameter                          :: Canteras                 = 1
     integer, parameter                          :: Chapra                   = 2
     integer, parameter                          :: FromTimeSerie            = 3
-
-
+    
     !Online Emission options 
     integer, parameter                          :: ParticleOne              = 1
     integer, parameter                          :: Particle100              = 2
@@ -815,6 +814,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: ComputeRisk          = OFF
         logical                                 :: Waves                = OFF
         logical                                 :: FloatingObject       = OFF 
+        logical                                 :: HumanBody            = OFF
         logical                                 :: MeteoOcean           = OFF
         logical                                 :: Density              = OFF
         logical                                 :: Booms                = OFF
@@ -1057,7 +1057,9 @@ Module ModuleLagrangianGlobal
         logical                                 :: KillPartic               = OFF
         logical                                 :: Freazed                  = OFF
         logical                                 :: Beached                  = OFF
-        logical                                 :: Deposited                = OFF
+        logical                                 :: Deposited                = OFF        
+        logical                                 :: AtTheBottom              = OFF        
+        real                                    :: HumanBodySinkingVel      = null_real
         real                                    :: TauErosion               = null_real
         real                                    :: ErosionRateProbability   = null_real
         real                                    :: U, V, W                  = null_real
@@ -1113,6 +1115,11 @@ Module ModuleLagrangianGlobal
         real                                    :: WaterDragCoef          = null_real
         real                                    :: ImmersionRatio         = null_real
     end type T_FloatingObject    
+    
+    type T_HumanBody
+        logical                                 :: Drowned                = OFF
+        logical                                 :: AtTheBottom            = OFF
+    end type T_HumanBody    
 
     !Origin list
     type T_Origin
@@ -1188,6 +1195,7 @@ Module ModuleLagrangianGlobal
         real                                    :: AccidentProbDefault = FillValueReal
         logical                                 :: AreaVTS           = .true.
         type (T_FloatingObject)                 :: FloatingObject        
+        type (T_HumanBody)                      :: HumanBody        
         logical                                 :: StartWithTriang   = .false.
         character(PathLength)                   :: OutputTracerInfoFileName  
         integer                                 :: troUnit  
@@ -5740,6 +5748,47 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1680'
 
         endif
+        
+        if (NewOrigin%State%HumanBody) then
+
+            call GetData(NewOrigin%HumanBody%Drowned,                         &
+                         Me%ObjEnterData,                                     &
+                         flag,                                                &
+                         SearchType   = FromBlock,                            &
+                         keyword      ='DROWNED',                             &
+                         ClientModule ='ModuleLagrangianGlobal',              &
+                         Default      = OFF,                                  &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1710'
+
+                    
+            if(NewOrigin%HumanBody%Drowned)then
+            
+                NewOrigin%State%FloatingObject = OFF
+                
+            else
+                
+                NewOrigin%State%FloatingObject = ON
+                Me%State%Density               = ON
+                NewOrigin%State%Density        = ON
+                Me%State%Wind                  = ON
+                NewOrigin%State%FloatingObject = ON
+                NewOrigin%Movement%Float       = ON
+
+            endif
+                    
+            
+            if(NewOrigin%State%FloatingObject)then
+            
+                NewOrigin%FloatingObject%AirDragCoef    = 1.
+
+                NewOrigin%FloatingObject%WaterDragCoef  = 1.
+
+                NewOrigin%FloatingObject%ImmersionRatio = 90.
+            
+            end if
+           
+        endif
 
     end subroutine ConstructOneOrigin
 
@@ -7708,7 +7757,7 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         !Local-----------------------------------------------------------------
         integer                                     :: nP, emp
         type (T_Partic), pointer                    :: NewParticle
-        real                                        :: ParticleVolume
+        real                                        :: ParticleVolume, random
 
         !Begin-----------------------------------------------------------------
 
@@ -7792,6 +7841,23 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                 !Volume of the Seed Particle
                 NewParticle%Geometry%Volume = CurrentOrigin%PointVolume /                &
                                               CurrentOrigin%NbrParticlesIteration
+                                              
+                if(CurrentOrigin%State%HumanBody)then
+
+                    if(CurrentOrigin%HumanBody%Drowned)then
+
+                        call random_number(random)
+
+                        if(random < 0.5)then
+                            NewParticle%HumanBodySinkingVel = -1. * random 
+                        else
+                            NewParticle%HumanBodySinkingVel = 0.
+                        endif
+
+                    else
+                        NewParticle%HumanBodySinkingVel = 0.0
+                    end if
+                endif
 
             end select            
 
@@ -9343,6 +9409,11 @@ CurrOr: do while (associated(CurrentOrigin))
                 Me%State%Density        = ON
                 Origin%State%Density    = ON
                 Me%State%Wind           = ON
+
+            case (HumanBody_                      )
+                Me%State%HumanBody      = ON
+                Origin%State%HumanBody  = ON
+                
 
             case (Fecal_Coliforms_, E_Coli_       )
                 Origin%State%FC         = ON
@@ -11921,7 +11992,7 @@ CT:         do while (ComputeTrajectory)
                     Velocity_V => Me%EulerModel(emp)%Velocity_V
                 endif
 
-BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited) then
+BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited .or. CurrentPartic%AtTheBottom) then
 
                     if (CurrentPartic%Deposited) then
 
@@ -12483,6 +12554,7 @@ iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(CurrentPartic%Positi
 
             if (CurrentPartic%Beached           .or.                                    &
                 CurrentPartic%Deposited         .or.                                    &
+                CurrentPartic%AtTheBottom       .or.                                    &
                 CurrentPartic%KillPartic) then
                 MovePartic = .false.
             endif 
@@ -12700,6 +12772,12 @@ dts:        do ts = 1, 2
 
                                 !Stores New Position
                                 CurrentPartic%Position  = NewPosition
+                                
+                                if(CurrentOrigin%State%HumanBody .and. CurrentOrigin%HumanBody%Drowned)then
+                                    if (PositionCorrected) then
+                                        CurrentPartic%AtTheBottom = ON
+                                    endif
+                                endif
 
                                 if (CurrentOrigin%State%Deposition) then
                             
@@ -13004,7 +13082,7 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         real                                        :: CompZ1_Up, CompZ1_Down
         real                                        :: AuxCompMisturaZ_Up, AuxCompMisturaZ_Down
         real                                        :: EspSup, Esp, EspInf
-        real                                        :: VELQZ, D50M, VQ1, VELFLOAT, VELLARVAE
+        real                                        :: VELQZ, D50M, VQ1, VELFLOAT, VELLARVAE, VELBODY
         real                                        :: WStandardDeviation
         real                                        :: W, WD
         real                                        :: Radius, Area, VolOld, VolNew, dVol
@@ -13358,6 +13436,15 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                         endif SU1                       
                                       
                 endif
+                
+                
+                VELBODY = 0.0
+                
+                if(CurrentOrigin%State%HumanBody)then
+                
+                    VELBODY = CurrentPartic%HumanBodySinkingVel
+
+                endif
 
                 !Velocity due plume
     PL:         if (CurrentOrigin%State%FarFieldBuoyancy) then    
@@ -13431,7 +13518,7 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
                     CurrentPartic%W    = 0.
 
-                    NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT + VELLARVAE) *  DT_Vert
+                    NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT + VELLARVAE + VELBODY) *  DT_Vert
                 endif PL
 
             endif MF
@@ -17319,11 +17406,14 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
                 Position%Z = EulerModel%SZZ(I, J, KFloor-1) -  &
                              CurrentOrigin%Deposition%BottomDistance / 2.
 
+            elseif(CurrentOrigin%State%HumanBody)then
+
+                Position%Z = EulerModel%SZZ(I, J, KFloor)
+                             
             else
 
                 Position%Z = EulerModel%SZZ(I, J, KFloor) +  &
                              EulerModel%DWZ(I, J, KFloor) * 0.9
-
             endif
 
             PositionCorrected_ = .true.
@@ -18214,6 +18304,37 @@ i1:             if (nP>0) then
                             endif
                     
                         endif
+                        
+                        
+                        if (CurrentOrigin%State%HumanBody .and. CurrentOrigin%HumanBody%Drowned) then
+
+                            CurrentPartic   => CurrentOrigin%FirstPartic
+                            nP = 0
+                            do while (associated(CurrentPartic))
+                                nP = nP + 1
+                                if (CurrentPartic%AtTheBottom) then 
+
+                                    Matrix1D(nP)  = 1 
+
+                                else
+
+                                    Matrix1D(nP)  = 2
+
+                                end if
+
+
+                                CurrentPartic => CurrentPartic%Next
+                            enddo            
+                            if (nP > 0) then
+                                !HDF 5
+                                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/At The Bottom", &
+                                                    "At The Bottom",  "ON/OFF", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR301'
+                            endif
+                    
+                        endif
+
 
 
                         CurrentProperty => CurrentOrigin%FirstProperty
