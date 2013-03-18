@@ -1197,7 +1197,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Me%ObjEnterData, iflag,                                    &
                      SearchType     = FromFile,                                 &
                      keyword        ='CUT_OFF_THETA_LOW',                       &
-                     Default        = 0.001,                                    &
+                     Default        = 1.0e-15,                                  &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
@@ -1222,7 +1222,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Me%ObjEnterData, iflag,                                    &
                      SearchType     = FromFile,                                 &
                      keyword        ='CUT_OFF_THETA_HIGH_GW_TABLE',             &
-                     Default        = Me%CV%LimitThetaHi,                       &
+                     Default        = 0.99,                                     &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
