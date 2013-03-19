@@ -681,6 +681,24 @@ Module ModuleHydrodynamic
          character(len=PathLength) :: BoxFluxesFileName
          character(len=PathLength) :: Energy
     end type T_Files
+    
+    private :: T_DomainDecomposition
+    type       T_DomainDecomposition        
+        logical                             :: ON = .false. 
+        logical                             :: Master
+        integer                             :: Master_MPI_ID
+        integer                             :: Nslaves
+        integer, dimension(:), pointer      :: Slaves_MPI_ID
+        type (T_Size2D), dimension(:), pointer  :: Slaves_Size, Slaves_Inner, Slaves_Mapping, Slaves_HaloMap
+        integer                             :: MPI_ID
+        type (T_Size2D)                     :: Global, Mapping, Inner, HaloMap
+        real(8), pointer, dimension(:)      :: VECG  
+        real(8), pointer, dimension(:)      :: VECW
+        real,    pointer, dimension(:,:)    :: WaterLevel_New
+        type(T_Coef_2D ), pointer           :: Coef
+        integer                             :: NeighbourSouth, NeighbourWest, NeighbourEast, NeighbourNorth    
+        integer                             :: Halo_Points
+    end type T_DomainDecomposition
 
     !Generic 4D
     private :: T_Generic4D
@@ -1337,6 +1355,8 @@ Module ModuleHydrodynamic
         type(T_Generic4D     ) :: Generic4D
         type(T_Drag          ) :: Drag
         type(T_Scraper       ) :: Scraper
+        
+        type(T_DomainDecomposition) :: DomainDecomposition
                 
         logical                :: FirstIteration = .true.
 #ifdef _USE_SEQASSIMILATION
@@ -1482,6 +1502,7 @@ Module ModuleHydrodynamic
 #ifdef _ENABLE_CUDA
                                   CudaID,                                               &
 #endif _ENABLE_CUDA
+                                  MPI_ID,                                               &
                                   STAT)
 
 !
@@ -1503,7 +1524,7 @@ Module ModuleHydrodynamic
 #ifdef _ENABLE_CUDA
         integer                       :: CudaID
 #endif _ENABLE_CUDA
-
+        integer, intent (IN)          :: MPI_ID
 ! !OUTPUT PARAMETERS:                                          
         
         integer, optional, intent(OUT):: STAT                          
@@ -1550,6 +1571,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 #ifdef _ENABLE_CUDA
             Me%ObjCuda          = AssociateInstance (mCUDA_,             CudaID)
 #endif _ENABLE_CUDA
+
+            Me%DomainDecomposition%MPI_ID = MPI_ID
 
             call Construct_Hydrodynamic (DischargesID,  AssimilationID)
 
@@ -1703,6 +1726,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Do the first output
         call Hydrodynamic_OutPut
+        
+        call ConstructDomainDecomposition
 
         !call External Modules
         call ReadUnLock_External_Modules
@@ -1734,6 +1759,234 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !End----------------------------------------------------------------
 
+    subroutine ConstructDomainDecomposition
+
+#ifdef _USE_MPI
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                             :: GILB, GIUB, GJLB, GJUB, JImin, JImax, STAT_CALL
+        integer                             :: AuxHalo
+        type (T_Size2D)                     :: Mapping
+        !----------------------------------------------------------------------
+
+        write(*,*) 'Construct DD ', Me%DomainDecomposition%MPI_ID
+
+        Me%DomainDecomposition%ON = .true.
+
+        if (Me%DomainDecomposition%MPI_ID == 0) then
+            Me%DomainDecomposition%Master = .true.
+        else            
+            Me%DomainDecomposition%Master = .false.
+        endif
+        
+        Me%DomainDecomposition%Halo_Points = 2        
+
+        Me%DomainDecomposition%Global%ILB = 1
+        Me%DomainDecomposition%Global%IUB = 290
+        Me%DomainDecomposition%Global%JLB = 1
+        Me%DomainDecomposition%Global%JUB = 241
+        
+        GILB = Me%DomainDecomposition%Global%ILB - 1
+        GIUB = Me%DomainDecomposition%Global%IUB + 1       
+        GJLB = Me%DomainDecomposition%Global%JLB - 1
+        GJUB = Me%DomainDecomposition%Global%JUB + 1               
+
+        if (Me%DomainDecomposition%Master) then
+        
+            write(*,*) 'Allocate DD ', Me%DomainDecomposition%MPI_ID        
+        
+            JImin = min (GILB, GJLB)
+            JImax = min (GIUB, GJUB)
+            
+            write(*,*) 'Allocate DD a', Me%DomainDecomposition%MPI_ID
+
+            allocate (Me%DomainDecomposition%VECG(JImin : JImax), STAT = STAT_CALL)
+            allocate (Me%DomainDecomposition%VECW(JImin : JImax), STAT = STAT_CALL)
+            
+             write(*,*) 'Allocate DD aa', Me%DomainDecomposition%MPI_ID
+
+            Me%DomainDecomposition%VECG(:) = 0
+            Me%DomainDecomposition%VECW(:) = 0
+            
+            write(*,*) 'Allocate DD b', Me%DomainDecomposition%MPI_ID
+            
+            allocate(Me%DomainDecomposition%Coef)
+
+            allocate (Me%DomainDecomposition%Coef%D    (GILB:GIUB, GJLB:GJUB)) 
+            allocate (Me%DomainDecomposition%Coef%E    (GILB:GIUB, GJLB:GJUB)) 
+            allocate (Me%DomainDecomposition%Coef%Eaux (GILB:GIUB, GJLB:GJUB))         
+            allocate (Me%DomainDecomposition%Coef%F    (GILB:GIUB, GJLB:GJUB)) 
+            allocate (Me%DomainDecomposition%Coef%Ti   (GILB:GIUB, GJLB:GJUB)) 
+            allocate (Me%DomainDecomposition%Coef%TiAux(GILB:GIUB, GJLB:GJUB)) 
+            
+            write(*,*) 'Allocate DD c', Me%DomainDecomposition%MPI_ID
+            
+            Me%DomainDecomposition%Coef%D    (:,:)= 0
+            Me%DomainDecomposition%Coef%E    (:,:)= 1
+            Me%DomainDecomposition%Coef%Eaux (:,:)= 1
+            Me%DomainDecomposition%Coef%F    (:,:)= 0
+            Me%DomainDecomposition%Coef%Ti   (:,:)= 0
+            Me%DomainDecomposition%Coef%TiAux(:,:)= 0
+            
+            write(*,*) 'Allocate DD 2', Me%DomainDecomposition%MPI_ID  
+            
+            allocate (Me%DomainDecomposition%WaterLevel_New(GILB:GIUB, GJLB:GJUB)) 
+            
+            Me%DomainDecomposition%WaterLevel_New(:,:) = 0.
+            
+            write(*,*) 'Allocate DD 3', Me%DomainDecomposition%MPI_ID        
+        endif
+        
+        write(*,*) 'Allocate DD 4', Me%DomainDecomposition%MPI_ID  
+        
+        if      (Me%DomainDecomposition%MPI_ID == 0) then
+            Mapping%ILB = 1
+            Mapping%IUB = 145
+            Mapping%JLB = 1
+            Mapping%JUB = 120
+
+            Me%DomainDecomposition%NeighbourSouth = FillValueInt
+            Me%DomainDecomposition%NeighbourWest  = FillValueInt
+            Me%DomainDecomposition%NeighbourEast  = 1
+            Me%DomainDecomposition%NeighbourNorth = 2 
+            
+        else if (Me%DomainDecomposition%MPI_ID == 1) then
+        
+            Mapping%ILB = 1 
+            Mapping%IUB = 145
+            Mapping%JLB = 121
+            Mapping%JUB = 241
+
+            Me%DomainDecomposition%NeighbourSouth = FillValueInt
+            Me%DomainDecomposition%NeighbourWest  = 0
+            Me%DomainDecomposition%NeighbourEast  = FillValueInt
+            Me%DomainDecomposition%NeighbourNorth = 3 
+        
+        else if (Me%DomainDecomposition%MPI_ID == 2) then
+        
+            Mapping%ILB = 146 
+            Mapping%IUB = 290
+            Mapping%JLB = 1
+            Mapping%JUB = 120
+
+            Me%DomainDecomposition%NeighbourSouth = 0
+            Me%DomainDecomposition%NeighbourWest  = FillValueInt
+            Me%DomainDecomposition%NeighbourEast  = 3
+            Me%DomainDecomposition%NeighbourNorth = FillValueInt
+
+        else if (Me%DomainDecomposition%MPI_ID == 3) then
+        
+            Mapping%ILB = 146 
+            Mapping%IUB = 290
+            Mapping%JLB = 121
+            Mapping%JUB = 241
+
+            Me%DomainDecomposition%NeighbourSouth = 1
+            Me%DomainDecomposition%NeighbourWest  = 2
+            Me%DomainDecomposition%NeighbourEast  = FillValueInt
+            Me%DomainDecomposition%NeighbourNorth = FillValueInt
+        
+        endif
+        
+        write(*,*) 'Allocate DD 5', Me%DomainDecomposition%MPI_ID        
+        
+        Me%DomainDecomposition%Mapping = Mapping
+        
+        if (Me%DomainDecomposition%NeighbourSouth /= FillValueInt) then         
+            AuxHalo = Me%DomainDecomposition%Halo_Points
+        else
+            AuxHalo = 0.
+        endif
+        
+        Me%DomainDecomposition%Inner%ILB    = Me%WorkSize%ILB                    + AuxHalo
+        Me%DomainDecomposition%HaloMap%ILB  = Me%DomainDecomposition%Mapping%ILB - AuxHalo
+        
+        write(*,*) 'Allocate DD 6', Me%DomainDecomposition%MPI_ID          
+                
+        if (Me%DomainDecomposition%NeighbourNorth /= FillValueInt) then         
+            AuxHalo = Me%DomainDecomposition%Halo_Points
+        else
+            AuxHalo = 0.
+        endif
+        
+        Me%DomainDecomposition%Inner%IUB    = Me%WorkSize%IUB                    - AuxHalo
+        Me%DomainDecomposition%HaloMap%IUB  = Me%DomainDecomposition%Mapping%IUB + AuxHalo
+        
+        if (Me%DomainDecomposition%HaloMap%IUB - Me%DomainDecomposition%HaloMap%ILB /=  &
+            Me%WorkSize%IUB                    - Me%WorkSize%ILB) then
+            
+            write(*,*) "Decomposition domains is inconsistent with the grid data input - Lines "
+            write(*,*) 'WorkSize ILB,IUB, =',Me%WorkSize%ILB,Me%WorkSize%IUB
+            write(*,*) 'HaloMap  ILB,IUB, =',Me%DomainDecomposition%HaloMap%ILB,Me%DomainDecomposition%HaloMap%IUB
+            stop "ConstructDomainDecomposition - ModuleHydrodynamic - ERR10"
+
+        endif          
+        
+        write(*,*) 'Allocate DD 7', Me%DomainDecomposition%MPI_ID  
+        
+        if (Me%DomainDecomposition%NeighbourWest /= FillValueInt) then         
+            AuxHalo = Me%DomainDecomposition%Halo_Points
+        else
+            AuxHalo = 0.
+        endif
+        
+        Me%DomainDecomposition%Inner%JLB    = Me%WorkSize%JLB                    + AuxHalo
+        Me%DomainDecomposition%HaloMap%JLB  = Me%DomainDecomposition%Mapping%JLB - AuxHalo
+        
+        write(*,*) 'Allocate DD 8', Me%DomainDecomposition%MPI_ID  
+                
+        if (Me%DomainDecomposition%NeighbourEast /= FillValueInt) then         
+            AuxHalo = Me%DomainDecomposition%Halo_Points
+        else
+            AuxHalo = 0.
+        endif
+        
+        write(*,*) 'Allocate DD 9', Me%DomainDecomposition%MPI_ID          
+    
+        Me%DomainDecomposition%Inner%JUB   = Me%WorkSize%JUB                     - AuxHalo
+        Me%DomainDecomposition%HaloMap%JUB = Me%DomainDecomposition%Mapping%JUB  + AuxHalo
+        
+        if (Me%DomainDecomposition%HaloMap%JUB - Me%DomainDecomposition%HaloMap%JLB /=  &
+            Me%WorkSize%JUB                    - Me%WorkSize%JLB) then
+            
+            write(*,*) "Decomposition domains is inconsistent with the grid data input - Columns "
+            write(*,*) 'WorkSize JLB,JUB, =',Me%WorkSize%JLB,Me%WorkSize%JUB
+            write(*,*) 'HaloMap  JLB,JUB, =',Me%DomainDecomposition%HaloMap%JLB,Me%DomainDecomposition%HaloMap%JUB
+            stop "ConstructDomainDecomposition - ModuleHydrodynamic - ERR20"
+
+        endif            
+        
+        
+        write(*,*) 'Domains DD ', Me%DomainDecomposition%HaloMap%IUB, Me%DomainDecomposition%HaloMap%JUB, Me%DomainDecomposition%MPI_ID        
+        
+        
+        if (Me%DomainDecomposition%Master) then
+        
+            Me%DomainDecomposition%Nslaves = 3
+            
+            Me%DomainDecomposition%Master_MPI_ID = 0     
+        
+            allocate(Me%DomainDecomposition%Slaves_MPI_ID (Me%DomainDecomposition%Nslaves))
+            allocate(Me%DomainDecomposition%Slaves_Inner  (Me%DomainDecomposition%Nslaves))
+            allocate(Me%DomainDecomposition%Slaves_Size   (Me%DomainDecomposition%Nslaves))
+            allocate(Me%DomainDecomposition%Slaves_Mapping(Me%DomainDecomposition%Nslaves))
+            allocate(Me%DomainDecomposition%Slaves_HaloMap(Me%DomainDecomposition%Nslaves))
+        
+            Me%DomainDecomposition%Slaves_MPI_ID(1) = 1
+            Me%DomainDecomposition%Slaves_MPI_ID(2) = 2
+            Me%DomainDecomposition%Slaves_MPI_ID(3) = 3
+        
+        endif
+        
+        write(*,*) 'End construct DD ', Me%DomainDecomposition%MPI_ID        
+
+#endif _USE_MPI        
+
+    end subroutine ConstructDomainDecomposition
+
+    !End----------------------------------------------------------------
 
 
     Subroutine InitialHydrodynamicField(DischargesID, AssimilationID)
@@ -19928,6 +20181,11 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                     Me%ComputeOptions%VolumeRelMax,                                      &
                     Me%ComputeOptions%Upwind2H,                                          &
                      Me%ComputeOptions%Upwind2V) 
+
+        !Compute the momentum discharge 
+        if (Me%ComputeOptions%MomentumDischarge)                            &
+            call ModifyMomentumDischargeVert 
+
        !----Boundary condition
         call VerticalMomentumBoundary
         
@@ -22343,13 +22601,17 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         if (.not. Me%CyclicBoundary%ON .or.                                              &
                  (Me%CyclicBoundary%ON .and. Me%CyclicBoundary%Direction == Me%Direction%YX))  then
 
-            !griflet: old call
-            !call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, DCoef_2D, ECoef_2D,       &
-            !               FCoef_2D, TiCoef_2D, WaterLevel_New,                          &
-            !               Me%VECG_2D, Me%VECW_2D)
-            !griflet: new call
-            call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, Me%THOMAS2D, WaterLevel_New, Me%ModelName)
 
+            if (Me%DomainDecomposition%ON) then
+                call THOMAS_2D_DomainDecomposition
+            else
+                !griflet: old call
+                !call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, DCoef_2D, ECoef_2D,       &
+                !               FCoef_2D, TiCoef_2D, WaterLevel_New,                          &
+                !               Me%VECG_2D, Me%VECW_2D)
+                !griflet: new call
+                call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, Me%THOMAS2D, WaterLevel_New, Me%ModelName)
+            endif
         else
 
             call WaterLevel_CyclicBoundary
@@ -22385,6 +22647,483 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 
 
     !------------------------------------------------------------------------------
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine computes the thomaz 2D in parallel following a                       ! 
+    ! domain decomposition approach                                                        !
+    !                                                                                      !
+    ! Input : Coefficients of the  linear system equation                                  !
+    ! OutPut: Water level                                                                  !
+    ! Author: Paulo Chambel (2013/2)                                                       !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine THOMAS_2D_DomainDecomposition     
+    
+#ifdef _USE_MPI
+
+        !Arguments------------------------------------------------------------
+
+        !Local---------------------------------------------------------------
+        real,    dimension(:,:), pointer :: DCoef_2D, FCoef_2D, TiCoef_2D
+        real(8), dimension(:,:), pointer :: ECoef_2D
+        real,    dimension(:,:), pointer :: WaterLevel_New
+        real(8), dimension(:  ), pointer :: VECG, VECW        
+        integer                          :: STAT_CALL, IUB, ILB, JUB, JLB
+        integer                          :: IJmin, IJmax
+        integer                          :: JImin, JImax
+        integer                          :: di,    dj
+        
+        
+        !Begin---------------------------------------------------------------
+    
+        call AggregatesThomasCoefs
+        
+        !write(*,*) 'End AggregatesThomasCoefs DD ', Me%DomainDecomposition%MPI_ID        
+
+        !Waits for all processes
+        call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
+        
+        if (Me%DomainDecomposition%Master) then
+        
+            IUB = Me%DomainDecomposition%Global%IUB
+            ILB = Me%DomainDecomposition%Global%ILB
+            JUB = Me%DomainDecomposition%Global%JUB
+            JLB = Me%DomainDecomposition%Global%JLB
+
+            di          =  Me%Direction%di
+            dj          =  Me%Direction%dj
+            
+            DCoef_2D  => Me%DomainDecomposition%Coef%D
+            ECoef_2D  => Me%DomainDecomposition%Coef%E
+            FCoef_2D  => Me%DomainDecomposition%Coef%F
+            TiCoef_2D => Me%DomainDecomposition%Coef%Ti
+            
+            VECG      => Me%DomainDecomposition%VECG
+            VECW      => Me%DomainDecomposition%VECW
+            
+            WaterLevel_New  => Me%DomainDecomposition%WaterLevel_New
+            
+        
+            IJmin = ILB * dj + JLB * di
+            IJmax = IUB * dj + JUB * di
+
+            JImin = ILB * di + JLB * dj
+            JImax = IUB * di + JUB * dj        
+            
+            !write(*,*) 'Start Thomas DD ', Me%DomainDecomposition%MPI_ID 
+            !write(*,*) 'IJmin, IJmax, JImin, JImax, di,    dj', IJmin, IJmax, JImin, JImax, di,    dj
+            !write(*,*) 'DCoef_2D(120,146), ECoef_2D(120,146), FCoef_2D(120,146), TiCoef_2D(120,146),                     &
+            !               WaterLevel_New(120,146), VECG(1), VECW(1)', &
+            !               DCoef_2D(120,146), ECoef_2D(120,146), FCoef_2D(120,146), TiCoef_2D(120,146),                     &
+            !               WaterLevel_New(120,146), VECG(1), VECW(1)
+            !PCL - Retirar - testes
+            !call THOMAS_2D(IJmin, IJmax, JImin, JImax, di,    dj,                       &
+            !               DCoef_2D, ECoef_2D, FCoef_2D, TiCoef_2D,                     &
+            !               WaterLevel_New, VECG, VECW)                           
+        
+            !write(*,*) 'End Thomas DD ', Me%DomainDecomposition%MPI_ID                    
+            
+        endif
+        
+        !Waits for all processes
+        call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
+        
+        !write(*,*) 'Start Thomas DD ', Me%DomainDecomposition%MPI_ID                            
+        
+        call BroadcastThomasResult()
+        
+        !Waits for all processes
+        call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
+
+        !write(*,*) 'End Thomas DD ', Me%DomainDecomposition%MPI_ID                            
+        
+#endif _USE_MPI
+
+    end subroutine THOMAS_2D_DomainDecomposition         
+
+    !------------------------------------------------------------------------------
+    
+#ifdef _USE_MPI    
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine aggregates in one global domain the thomas                           !
+    ! coefficients of all domains                                                          !
+    !                                                                                      !
+    ! Input : Coefficients of the linear system equation for each domain                   !
+    ! OutPut: Coefficients of the linear system equation for the global domain             !
+    ! Author: Paulo Chambel (2013/2)                                                       !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine AggregatesThomasCoefs     
+    
+
+        !Arguments------------------------------------------------------------
+
+        !Local---------------------------------------------------------------
+        real,    dimension(:,:), pointer :: D, F, Ti
+        real(8), dimension(:,:), pointer :: E
+        
+        integer                          :: STAT_CALL, IUB, ILB, JUB, JLB
+        integer                          :: di,    dj, i
+        
+        integer                          :: Source, Destination         
+        integer                          :: iSize
+        integer, save                    :: Precision
+        integer                          :: status(MPI_STATUS_SIZE)       
+        
+        integer, pointer, dimension(:)   :: Aux1D
+        type(T_Size2D)                   :: Inner, Mapping
+        
+        
+        !Begin---------------------------------------------------------------
+        
+        if (Me%FirstIteration) then
+        
+            !PCL - Master slave mapping
+            !write(*,*) 'Start master slave mapping', Me%DomainDecomposition%MPI_ID
+            iSize = 16
+            allocate(Aux1D(iSize))
+                    
+            if (Me%DomainDecomposition%Master) then
+            
+                do i=1, Me%DomainDecomposition%Nslaves
+
+                    Precision = MPI_INTEGER
+                    Source    = i
+                    
+                    !write(*,*) 'Start receive slave mapping', Me%DomainDecomposition%MPI_ID
+                    
+                    call MPI_Recv (Aux1D(1:iSize), iSize, Precision,   Source, 30001, MPI_COMM_WORLD, status, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
+                
+                    !write(*,*) 'End receive slave mapping', Me%DomainDecomposition%MPI_ID                
+                
+                    Me%DomainDecomposition%Slaves_Inner  (i)%ILB = Aux1D(1)
+                    Me%DomainDecomposition%Slaves_Inner  (i)%IUB = Aux1D(2)
+                    Me%DomainDecomposition%Slaves_Inner  (i)%JLB = Aux1D(3)
+                    Me%DomainDecomposition%Slaves_Inner  (i)%JUB = Aux1D(4)
+
+                    Me%DomainDecomposition%Slaves_HaloMap(i)%ILB = Aux1D(5)
+                    Me%DomainDecomposition%Slaves_HaloMap(i)%IUB = Aux1D(6)
+                    Me%DomainDecomposition%Slaves_HaloMap(i)%JLB = Aux1D(7)
+                    Me%DomainDecomposition%Slaves_HaloMap(i)%JUB = Aux1D(8)
+
+                    Me%DomainDecomposition%Slaves_Size   (i)%ILB = Aux1D(9)
+                    Me%DomainDecomposition%Slaves_Size   (i)%IUB = Aux1D(10)
+                    Me%DomainDecomposition%Slaves_Size   (i)%JLB = Aux1D(11)
+                    Me%DomainDecomposition%Slaves_Size   (i)%JUB = Aux1D(12)
+
+                    Me%DomainDecomposition%Slaves_Mapping(i)%ILB = Aux1D(13)
+                    Me%DomainDecomposition%Slaves_Mapping(i)%IUB = Aux1D(14)
+                    Me%DomainDecomposition%Slaves_Mapping(i)%JLB = Aux1D(15)
+                    Me%DomainDecomposition%Slaves_Mapping(i)%JUB = Aux1D(16)
+
+                enddo
+
+            else
+            
+                Aux1D(1) = Me%DomainDecomposition%Inner%ILB
+                Aux1D(2) = Me%DomainDecomposition%Inner%IUB
+                Aux1D(3) = Me%DomainDecomposition%Inner%JLB
+                Aux1D(4) = Me%DomainDecomposition%Inner%JUB
+                
+                Aux1D(5) = Me%DomainDecomposition%HaloMap%ILB
+                Aux1D(6) = Me%DomainDecomposition%HaloMap%IUB
+                Aux1D(7) = Me%DomainDecomposition%HaloMap%JLB
+                Aux1D(8) = Me%DomainDecomposition%HaloMap%JUB
+
+                Aux1D(9) = Me%WorkSize2D%ILB
+                Aux1D(10)= Me%WorkSize2D%IUB
+                Aux1D(11)= Me%WorkSize2D%JLB
+                Aux1D(12)= Me%WorkSize2D%JUB            
+
+                Aux1D(13) = Me%DomainDecomposition%Mapping%ILB
+                Aux1D(14) = Me%DomainDecomposition%Mapping%IUB
+                Aux1D(15) = Me%DomainDecomposition%Mapping%JLB
+                Aux1D(16) = Me%DomainDecomposition%Mapping%JUB
+           
+                Precision   = MPI_INTEGER
+                Destination = Me%DomainDecomposition%Master_MPI_ID
+                
+                !write(*,*) 'Start send slave mapping', Me%DomainDecomposition%MPI_ID
+        
+                call MPI_Send (Aux1D(1:iSize), iSize, Precision, Destination, 30001, MPI_COMM_WORLD, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
+
+                !write(*,*) 'End send slave mapping', Me%DomainDecomposition%MPI_ID
+            
+            endif
+            
+            deallocate(Aux1d)        
+            
+        endif            
+
+        IUB = Me%DomainDecomposition%Global%IUB
+        ILB = Me%DomainDecomposition%Global%ILB
+        JUB = Me%DomainDecomposition%Global%JUB
+        JLB = Me%DomainDecomposition%Global%JLB
+
+        di  = Me%Direction%di
+        dj  = Me%Direction%dj
+ 
+        if (Me%DomainDecomposition%Master) then
+        
+            !write(*,*) 'Start copy thomas coefs', Me%DomainDecomposition%MPI_ID
+
+            call CopyThomasCoefs(D = Me%Coef%D2%D, E  = Me%Coef%D2%E,                   &
+                                 F = Me%Coef%D2%F, Ti = Me%Coef%D2%Ti,                  &
+                                 Inner   = Me%DomainDecomposition%Inner,                &
+                                 Mapping = Me%DomainDecomposition%Mapping)
+                                 
+            !write(*,*) 'End copy thomas coefs', Me%DomainDecomposition%MPI_ID                                 
+            
+            do i=1, Me%DomainDecomposition%Nslaves
+            
+                Inner   = Me%DomainDecomposition%Slaves_Inner  (i)
+                
+                Mapping = Me%DomainDecomposition%Slaves_Mapping(i)
+                
+                allocate(D (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
+                allocate(E (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
+                allocate(F (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
+                allocate(Ti(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
+                
+                iSize     = (Inner%IUB-Inner%ILB+1) * (Inner%JUB-Inner%JLB+1)
+                
+                Precision = MPIKind(D)
+                
+                Source    =  Me%DomainDecomposition%Slaves_MPI_ID(i)
+                
+                !write(*,*) 'Start receive thomas coefs', Me%DomainDecomposition%MPI_ID                
+                
+                call MPI_Recv (D(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
+                               Source, 20001, MPI_COMM_WORLD, status, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
+
+                call MPI_Recv (F(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
+                               Source, 20002, MPI_COMM_WORLD, status, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
+
+                call MPI_Recv (Ti(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
+                               Source, 20003, MPI_COMM_WORLD, status, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
+                
+                Precision = MPI_DOUBLE_PRECISION
+
+                call MPI_Recv (E(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
+                               Source, 20004, MPI_COMM_WORLD, status, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
+                
+                !write(*,*) 'End receive thomas coefs', Me%DomainDecomposition%MPI_ID                
+                
+                !write(*,*) 'Start copy thomas coefs', Me%DomainDecomposition%MPI_ID                
+
+                call CopyThomasCoefs(D = D, E  = E, F = F, Ti = Ti, Inner = Inner, Mapping = Mapping)
+                
+                !write(*,*) 'End copy thomas coefs', Me%DomainDecomposition%MPI_ID
+
+                deallocate(D )
+                deallocate(E )
+                deallocate(F )
+                deallocate(Ti)
+
+
+            enddo
+            
+        else
+        
+            D => Me%Coef%D2%D
+            E => Me%Coef%D2%E
+            F => Me%Coef%D2%F
+            Ti=> Me%Coef%D2%Ti
+            
+            Inner       = Me%DomainDecomposition%Inner        
+            iSize       = (Inner%IUB-Inner%ILB+1) * (Inner%JUB-Inner%JLB+1)
+            Precision   = MPIKind(D)
+            Destination = Me%DomainDecomposition%Master_MPI_ID
+            
+            !write(*,*) 'Start send thomas coefs', Me%DomainDecomposition%MPI_ID                
+    
+            call MPI_Send (D(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
+                           Destination, 20001, MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
+
+            call MPI_Send (F(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
+                           Destination, 20002, MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
+
+            call MPI_Send (Ti(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
+                           Destination, 20003, MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
+            
+            Precision = MPI_DOUBLE_PRECISION
+
+            call MPI_Send (E(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
+                           Destination, 20004, MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
+            
+            !write(*,*) 'End send thomas coefs', Me%DomainDecomposition%MPI_ID    
+        
+        endif
+
+        nullify(D )
+        nullify(E )
+        nullify(F )
+        nullify(Ti)        
+        
+
+    end subroutine AggregatesThomasCoefs         
+
+    !------------------------------------------------------------------------------
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine broadcast for each domain the thomas algorithm results               !
+    ! (new water level)                                                                    !
+    !                                                                                      !
+    ! Input : water level for the global domain                                            !
+    ! OutPut: water level for each domain                                                  !
+    ! Author: Paulo Chambel (2013/2)                                                       !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine BroadcastThomasResult()     
+    
+
+        !Arguments------------------------------------------------------------
+
+        !Local---------------------------------------------------------------
+        real,    dimension(:,:), pointer :: WL
+
+        integer                          :: STAT_CALL, IUB, ILB, JUB, JLB
+        integer                          :: di,    dj, i
+        
+        integer                          :: Source, Destination         
+        integer                          :: iSize
+        integer, save                    :: Precision
+        integer                          :: status(MPI_STATUS_SIZE)        
+        
+        type(T_Size2D)                   :: WorkSize, HaloMap
+        
+        
+        !Begin---------------------------------------------------------------
+
+        IUB = Me%DomainDecomposition%Global%IUB
+        ILB = Me%DomainDecomposition%Global%ILB
+        JUB = Me%DomainDecomposition%Global%JUB
+        JLB = Me%DomainDecomposition%Global%JLB
+
+        di  =  Me%Direction%di
+        dj  =  Me%Direction%dj
+ 
+        if (Me%DomainDecomposition%Master) then
+        
+            WorkSize = Me%WorkSize2D
+            HaloMap  = Me%DomainDecomposition%HaloMap
+        
+            Me%WaterLevel%New(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =   &
+                Me%DomainDecomposition%WaterLevel_New(HaloMap%ILB:HaloMap%IUB,          &
+                                                      HaloMap%JLB:HaloMap%JUB)
+
+            do i=1, Me%DomainDecomposition%Nslaves
+            
+                WorkSize =  Me%DomainDecomposition%Slaves_Size   (i)
+                HaloMap  =  Me%DomainDecomposition%Slaves_HaloMap(i)
+                
+                allocate(WL (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))
+                
+                WL(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =               &
+                    Me%DomainDecomposition%WaterLevel_New(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB)
+                
+                iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
+                
+                Precision   = MPIKind(WL)
+                
+                Destination =  Me%DomainDecomposition%Slaves_MPI_ID(i)
+                
+                call MPI_Send (WL(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
+                               Destination, 20006, MPI_COMM_WORLD, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BroadcastThomasResult - ModuleHydrodynamic - ERR10'
+                
+                deallocate(WL )
+
+            enddo
+            
+        else
+        
+            WL => Me%WaterLevel%New
+            
+            WorkSize    = Me%WorkSize2D        
+            iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
+            Precision   = MPIKind(WL)
+            Source      = Me%DomainDecomposition%Master_MPI_ID
+    
+            call MPI_Recv (WL(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
+                           Source, 20006, MPI_COMM_WORLD, status, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BroadcastThomasResult - ModuleHydrodynamic - ERR20'
+            !PCL - Retirar - testes
+            WL(:,:) = 0.
+            
+        endif
+
+        nullify(WL)
+        
+
+    end subroutine BroadcastThomasResult         
+
+    !------------------------------------------------------------------------------
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine copys  the thomas coefficients from one domain to the global one     !
+    !                                                                                      !
+    ! Input : Coefficients of the linear system equation for each domain                   !
+    ! OutPut: Coefficients of the linear system equation for the global domain             !
+    ! Author: Paulo Chambel (2013/2)                                                       !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine CopyThomasCoefs(D, F, Ti, E, Inner, Mapping)
+    
+
+        !Arguments------------------------------------------------------------
+        real,    dimension(:,:), pointer :: D, F, Ti
+        real(8), dimension(:,:), pointer :: E
+        type (T_Size2D)                  :: Inner, Mapping        
+        
+        !Local---------------------------------------------------------------
+        real,    dimension(:,:), pointer :: DCoef_2D, FCoef_2D, TiCoef_2D
+        real(8), dimension(:,:), pointer :: ECoef_2D
+
+        
+        !Begin---------------------------------------------------------------
+ 
+        DCoef_2D  => Me%DomainDecomposition%Coef%D
+        ECoef_2D  => Me%DomainDecomposition%Coef%E
+        FCoef_2D  => Me%DomainDecomposition%Coef%F
+        TiCoef_2D => Me%DomainDecomposition%Coef%Ti
+
+        
+        Dcoef_2D(Mapping%ILB:Mapping%IUB, Mapping%JLB:Mapping%JUB) =                    &
+               D(Inner%ILB  :Inner%IUB  , Inner%JLB  :Inner%JUB  )                
+
+        Ecoef_2D(Mapping%ILB:Mapping%IUB, Mapping%JLB:Mapping%JUB) =                    &
+               E(Inner%ILB  :Inner%IUB  , Inner%JLB  :Inner%JUB  )                
+    
+
+        Fcoef_2D(Mapping%ILB:Mapping%IUB, Mapping%JLB:Mapping%JUB) =                    &
+               F(Inner%ILB  :Inner%IUB  , Inner%JLB  :Inner%JUB  )                
+
+        Ticoef_2D(Mapping%ILB:Mapping%IUB, Mapping%JLB:Mapping%JUB) =                   &
+               Ti(Inner%ILB  :Inner%IUB  , Inner%JLB  :Inner%JUB  )    
+               
+    end subroutine CopyThomasCoefs                       
+
+#endif _USE_MPI
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -24365,10 +25104,6 @@ cd24:   if (Me%Relaxation%RefBoundWaterLevel) then
         
         real                                :: MinLeavingComponent,  MinLeavingVelocity, LocalWLa, LocalWLb
 
-        !This local variable is an auxiliar variable use when 
-        !there is a local solution and the cold start option is active
-        real                                :: AuxFlatherCold
-
         integer                             :: IUB, ILB, JUB, JLB, KUB,         &
                                                i1, i2, i3, i4, j1, j2, j3, j4,  &
                                                db, kbottom,                     &
@@ -24501,10 +25236,6 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
 
         endif cd0 
 
-        !This local variable is an auxiliar variable use when 
-        !there is a local solution and the cold start option is active
-        AuxFlatherCold = 0.
-
 
 ifa:    if (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.                  & 
             Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.               &
@@ -24590,13 +25321,11 @@ i35:                    if (Me%External_Var%ComputeFaces3D_V(i, j, KUB) == Cover
             endif
 
             DT_RunPeriod = Me%CurrentTime - Me%BeginTime
+            
+            SlowCoef = 1.            
 
-            if (Me%ComputeOptions%FlatherColdPeriod <= DT_RunPeriod) then
-                SlowCoef = 1.
-            else
+            if (Me%ComputeOptions%FlatherColdPeriod > DT_RunPeriod) then
                 SlowCoef = (DT_RunPeriod / Me%ComputeOptions%FlatherColdPeriod) 
-
-                AuxFlatherCold = Me%ComputeOptions%FlatherColdSeaLevel
             endif
 
             if      (Me%Direction%XY == DirectionX_) then
@@ -24746,8 +25475,7 @@ cd1:        if  (BoundaryFacesUV  (i, j     )  == Boundary     .and.            
 
                     if (LocalAssimila) then
 
-                        Aux1 = dble(Bathymetry(i_int, j_int) + AuxFlatherCold +         &
-                                    SlowCoef * (AssimilaWaterLevel(i_int, j_int) - AuxFlatherCold))
+                        Aux1 = dble(Bathymetry(i_int, j_int) + SlowCoef * AssimilaWaterLevel(i_int, j_int))
 
                     else
 
@@ -24891,8 +25619,8 @@ cd15:           if (LocalSolution) then
                     endif
 
                     if (LocalAssimila) then
-                        LocalWLa = LocalWLa + AuxFlatherCold + SlowCoef * (AssimilaWaterLevel(ib   , jb   ) - AuxFlatherCold)
-                        LocalWLb = LocalWLb + AuxFlatherCold + SlowCoef * (AssimilaWaterLevel(i_int, j_int) - AuxFlatherCold)
+                        LocalWLa = LocalWLa + SlowCoef * AssimilaWaterLevel(ib   , jb   )
+                        LocalWLb = LocalWLb + SlowCoef * AssimilaWaterLevel(i_int, j_int)
                     endif
 
 
@@ -30845,6 +31573,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         real(8)                            :: MomentumDischarge
         real                               :: DischargeFlow, DischargeVelocity, AuxFlowK, AuxFlowIJ, SectionHeight
         real                               :: WaterLevelByPass !, Depth
+        real                               :: CoordinateX, CoordinateY
 
         integer                            :: DirectionXY, DischargesNumber, DischargeID
         integer                            :: i, j, k, kd, kmin, kmax, di, dj, STAT_CALL, iNorth, jEast, KUB, n
@@ -30854,7 +31583,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         integer                            :: FlowDistribution, nCells, nCellsAux
         integer, dimension(:    ), pointer :: VectorI, VectorJ, VectorK
 
-        logical                            :: ByPassON, IgnoreOK !, DepthON
+        logical                            :: ByPassON, IgnoreOK, CoordinatesON
 
         integer                            :: DischVertical
         
@@ -30904,10 +31633,21 @@ do1:    do DischargeID = 1, DischargesNumber
                                                WaterColumnZ  = Me%External_Var%Watercolumn,&
                                                Bathymetry    = Bathymetry,              &
                                                OpenPoints3D  = Me%External_Var%OpenPoints3D,&
+                                               CoordinateX   = CoordinateX,             &
+                                               CoordinateY   = CoordinateY,             & 
+                                               CoordinatesON = CoordinatesON,           &                                               
                                                TimeX         = Me%CurrentTime,          &
                                                STAT = STAT_CALL)   
 
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR30'
+        
+            if (CoordinatesON) then
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, I, J, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR40'
+
+                call CorrectsCellsDischarges(Me%ObjDischarges, DischargeID, I, J, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR45'                
+            endif                   
 
 
             !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
@@ -30991,7 +31731,7 @@ i2:             if      (FlowDistribution == DischByCell_       ) then
                 endif i2
             endif i1
 
-            AuxFlowIJ = DischargeFlow
+            AuxFlowIJ = abs(DischargeFlow)
 
             CHUNK = CHUNK_K(kmin,kmax)
                 
@@ -31199,6 +31939,294 @@ dk:             do k = kmin,kmax
 
     
     !End ----------------------------------------------------------------------
+
+
+Subroutine ModifyMomentumDischargeVert 
+      
+
+        !Arguments------------------------------------------------------------
+
+        !Local---------------------------------------------------------------------
+
+        real,    dimension(:,:,:), pointer :: Velocity_W, DWZ
+        real,    dimension(:,:  ), pointer :: Bathymetry, WaterColumnZ
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_W
+        integer, dimension(:,:  ), pointer :: KFloor_Z
+        real,    dimension(:    ), pointer :: DistributionCoef
+        real(8)                            :: MomentumDischarge
+        real                               :: DischargeFlow, DischargeVelocity, AuxFlowK, AuxFlowIJ, SectionHeight
+        real                               :: WaterLevelByPass, CoordinateX, CoordinateY
+        
+        integer                            :: DischargesNumber, DischargeID
+        integer                            :: i, j, k, kd, kmin, kmax, STAT_CALL, KUB, n
+        integer                            :: ib, jb !, kbottom, k1
+        integer                            :: n_i, n_j
+
+        integer                            :: FlowDistribution, nCells, nCellsAux
+        integer, dimension(:    ), pointer :: VectorI, VectorJ, VectorK
+
+        logical                            :: ByPassON, IgnoreOK, CoordinatesON
+
+        integer                            :: DischVertical
+        
+        !Begin----------------------------------------------------------------
+
+
+        !Begin - Shorten variables name 
+
+        KUB         = Me%WorkSize%KUB
+
+        ComputeFaces3D_W     => Me%External_Var%ComputeFaces3D_W
+        Velocity_W           => Me%Velocity%Vertical%Cartesian
+        KFloor_Z             => Me%External_Var%KFloor_Z
+        WaterColumnZ         => Me%External_Var%WaterColumn
+        DWZ                  => Me%External_Var%DWZ
+
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleHydrodynamic", "ModifyMomentumDischargeVert")
+        endif     
+
+
+        !End - Shorten variables name 
+        call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_)stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR10'
+             
+
+        !Gets a pointer to Bathymetry
+        call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR20'
+
+do1:    do DischargeID = 1, DischargesNumber
+
+            call GetDischargeON(Me%ObjDischarges,DischargeID, IgnoreOK, STAT = STAT_CALL)   
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR25'
+
+            if (IgnoreOK) cycle
+
+            call GetDischargesGridLocalization(Me%ObjDischarges,                        &
+                                               DischargeID,                             &
+                                               Igrid         = I,                       &
+                                               JGrid         = J,                       &
+                                               KGrid         = kd,                      &
+                                               IByPass       = Ib,                      &
+                                               JByPass       = Jb,                      &
+                                               DischVertical = DischVertical,           &
+                                               WaterColumnZ  = WaterColumnZ,            &
+                                               Bathymetry    = Bathymetry,              &
+                                               OpenPoints3D  = Me%External_Var%OpenPoints3D,&
+                                               CoordinateX   = CoordinateX,             &
+                                               CoordinateY   = CoordinateY,             & 
+                                               CoordinatesON = CoordinatesON,           &                                               
+                                               TimeX         = Me%CurrentTime,          &
+                                               STAT = STAT_CALL)   
+
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR30'
+
+
+            if (CoordinatesON) then
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, I, J, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR40'
+
+                call CorrectsCellsDischarges(Me%ObjDischarges, DischargeID, I, J, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR45'                
+            endif            
+
+            !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
+            call GetByPassON(Me%ObjDischarges, DischargeID, ByPassON, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR50'
+
+            if (ByPassON) then
+                WaterLevelByPass = Me%WaterLevel%Old(ib, jb)
+            else
+                WaterLevelByPass = FillValueReal
+            endif
+
+            call GetDischargeWaterFlow(Me%ObjDischarges,                    &
+                                       Me%CurrentTime, DischargeID,         &
+                                       Me%WaterLevel%Old(I, J),             &
+                                       DischargeFlow,                       &
+                                       SurfaceElevation2 = WaterLevelByPass,&
+                                       STAT = STAT_CALL)             
+
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR60'
+
+            call GetDischargeFlowVelocity(Me%ObjDischarges,                 &
+                                       Me%CurrentTime, DischargeID,         &
+                                       VelocityW = DischargeVelocity, STAT = STAT_CALL)             
+
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR70'
+
+
+
+            call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
+                                              VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)             
+
+            if (STAT_CALL/=SUCCESS_)                                                     &
+                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR90'
+
+
+i1:         if (nCells > 1) then
+                allocate(DistributionCoef(1:nCells))
+i2:             if      (FlowDistribution == DischByCell_       ) then
+                    
+                    nCellsAux = 0
+                    do n = 1, nCells
+                        n_i      = VectorI(n)
+                        n_j      = VectorJ(n)
+
+                        if (ComputeFaces3D_W(n_i,      n_j,     KUB) == Covered) then
+                            nCellsAux = nCellsAux + 1
+                        endif
+                    enddo
+                    
+                    if (nCellsAux > 0) then
+                        DistributionCoef(1:nCells) = 1./float(nCellsAux)
+                    else
+                        DistributionCoef(1:nCells) = FillValueReal
+                    endif
+
+                else i2
+                    
+                    stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR100'
+
+                endif i2
+            endif i1
+
+            AuxFlowIJ = abs(DischargeFlow)
+
+            if (Me%OutPut%TimeSerieDischON) then
+                Me%OutPut%TimeSerieDischProp(DischargeID,4) = 0.
+            endif
+        
+dn:         do n=1, nCells
+
+                if (nCells > 1) then
+                    i         = VectorI(n)
+                    j         = VectorJ(n)
+                    kd        = VectorK(n)
+
+                    call GetDischargeWaterFlow(Me%ObjDischarges,                        &
+                                               Me%CurrentTime, DischargeID,             &
+                                               Me%WaterLevel%Old(I, J),                 &
+                                               AuxFlowIJ,                               &
+                                               SurfaceElevation2 = WaterLevelByPass,    &    
+                                               FlowDistribution  = DistributionCoef(n), &                                      
+                                               STAT              = STAT_CALL)     
+
+                    if (STAT_CALL/=SUCCESS_)                                            &
+                        stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR95'
+
+                endif
+
+                if (DischVertical == DischUniform_) then
+                
+                    if (kmin == FillValueInt) kmin = KFloor_Z(i, j)
+
+                    if (kmax == FillValueInt) kmax = KUB
+                    
+                    SectionHeight = 0     
+
+                    do k=kmin, kmax                            
+                        SectionHeight = SectionHeight + DWZ(i,j,k)                        
+                    enddo                    
+                                 
+                else
+            
+                    kmin = kd; kmax = kd
+
+                endif
+
+                MomentumDischarge = 0.
+
+dk:             do k = kmin,kmax
+
+                    AuxFlowK = AuxFlowIJ
+
+                    if (ComputeFaces3D_W(i, j, k) == Covered) then
+
+                        if (DischVertical == DischUniform_) AuxFlowK = DWZ(i,j,k) / SectionHeight * AuxFlowIJ
+
+                        ![m/s*m^3/s]                  = [m^3] * [m/s] / [s] 
+                        ! if (DischargeFlow > 0.) then
+
+                            MomentumDischarge  = AuxFlowK * DischargeVelocity
+                            
+                            Me%WaterFluxes%DischargesVelUV(i, j, k) = DischargeVelocity
+                            
+                       ! else
+
+                         !   MomentumDischarge  = AuxFlowK * Velocity_W(i, j, k)
+                            
+                         !   Me%WaterFluxes%DischargesVelUV(i, j, k) = Velocity_W(i, j, k)
+            
+                        !endif 
+
+                        Me%Coef%D3%Ti (i, j, k) = Me%Coef%D3%Ti (i, j, k) + MomentumDischarge                       
+
+                            
+                    else if (abs(MomentumDischarge) > AllmostZero) then
+                        write(*,*) 'WARNING_ - The Model is trying to discharge Momentum in a No Compute Face'
+                        write(*,*) 'WARNING_ - ModifyMomentumDischargeVert - ModuleHydrodynamic - WARN01'
+                    endif 
+                    
+                    if (Me%OutPut%TimeSerieDischON) then
+                        Me%OutPut%TimeSerieDischProp(DischargeID,4) = Me%OutPut%TimeSerieDischProp(DischargeID,4) + &
+                                                                      MomentumDischarge
+                 
+                    endif                    
+
+                enddo dk
+
+            enddo dn
+
+            
+            if (Me%OutPut%TimeSerieDischON) then
+               if (Me%OutPut%TimeSerieDischProp(DischargeID,1) /=0) then
+                    Me%OutPut%TimeSerieDischProp(DischargeID,4) = Me%OutPut%TimeSerieDischProp(DischargeID,4)/ &
+                                                                  Me%OutPut%TimeSerieDischProp(DischargeID,1)
+                else
+                    Me%OutPut%TimeSerieDischProp(DischargeID,4) = 0.
+                endif   
+            endif            
+
+            if (nCells>1) deallocate(DistributionCoef)
+
+            call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)             
+            if (STAT_CALL/=SUCCESS_)                                                    &
+                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR110'
+
+            call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)             
+            if (STAT_CALL/=SUCCESS_)                                                    &
+                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR120'
+
+            call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)             
+            if (STAT_CALL/=SUCCESS_)                                                    &
+                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR130'
+
+        enddo do1
+        
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleHydrodynamic", "ModifyMomentumDischargeVert")
+        endif        
+
+        !Nullify auxiliar pointers
+        nullify (ComputeFaces3D_W    )
+        nullify (Velocity_W          )
+        nullify (KFloor_Z            )
+        nullify (WaterColumnZ        )
+        nullify (DWZ                 )
+
+
+        !Disposes pointer to the Bathymetry
+        call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR140'
+
+
+    End Subroutine ModifyMomentumDischargeVert
+
+    
+    !End ----------------------------------------------------------------------
+
 
     subroutine Modify_ScraperEffect
         
@@ -44501,7 +45529,6 @@ cd1:    if(Me%ComputeOptions%AltimetryAssimilation%Yes) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-
             !Window to send
             ILB = Window%ILB
             IUB = Window%IUB
@@ -44512,7 +45539,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (InitialField) then
 
-           
                 !Gets Compute time step
                 call GetComputeTimeStep(Me%ObjTime, DT, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR01'
@@ -44538,23 +45564,22 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call MPI_Send (DT, 1, Precision, Destination, 1003, MPI_COMM_WORLD, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR05'
 
-                !Assuming that all other variables have the same kind
-                Precision = MPIKind(Me%Velocity%Horizontal%U%New)
-
             endif
-
+            
             !Sends last iteration
             call ExtractDate (Me%LastIteration, AuxTime(1), AuxTime(2), AuxTime(3),      &
                               AuxTime(4), AuxTime(5), AuxTime(6))
             
-            
+            !Assuming that all other variables have the same kind
+            Precision = MPIKind(Me%Velocity%Horizontal%U%New)
+
             call MPI_Send (AuxTime, 6, Precision, Destination, 1004, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR06'
-
+            
             !Gets OpenPoints
             call GetOpenPoints3D      (Me%ObjMap, Open3DFather, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR07'
-
+            
             !Gets ComputeFaces
             call GetComputeFaces3D    (Me%ObjMap, ComputeFacesU3D = Faces3D_UFather,     &
                                        ComputeFacesV3D = Faces3D_VFather,                &
@@ -44572,27 +45597,24 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                        DVZ =  DVZFather, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR10'
 
-
             !UFather
             iSize = (IUB-ILB+1) * (JUB+1-JLB+1) * (KUB-KLB+1)
+            
             call MPI_Send (Me%Velocity%Horizontal%U%New(ILB:IUB, JLB:JUB+1, KLB:KUB),    &
                            iSize, Precision, Destination, 1005, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR11'
-                           
 
             !VFather
             iSize = (IUB+1-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
             call MPI_Send (Me%Velocity%Horizontal%V%New(ILB:IUB+1, JLB:JUB, KLB:KUB),    &
                            iSize, Precision, Destination, 1006, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR12'
-                          
             
             !FluxXFather
             iSize = (IUB-ILB+1) * (JUB+1-JLB+1) * (KUB-KLB+1)
             call MPI_Send (Me%WaterFluxes%X(ILB:IUB, JLB:JUB+1, KLB:KUB),                &
                            iSize, MPI_DOUBLE_PRECISION, Destination, 1007, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR13'
-
 
             !FluxYFather
             iSize = (IUB+1-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
@@ -44656,8 +45678,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                            iSize, Precision, Destination, 1014, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR22'
 
-
-
             !Ungets information
             call UnGetMap       (Me%ObjMap,      Open3DFather,    STAT = STAT_CALL)
             call UnGetMap       (Me%ObjMap,      Faces3D_UFather, STAT = STAT_CALL)
@@ -44671,7 +45691,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
             STAT_ = SUCCESS_
-
+            
         else              
          
             STAT_ = ready_
@@ -44725,7 +45745,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         call Ready(HydrodynamicID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
-
 
             call GetHorizontalGridSize (FatherGridID, Size = Size,                       &
                                         WorkSize = WorkSize, STAT = STAT_CALL)
