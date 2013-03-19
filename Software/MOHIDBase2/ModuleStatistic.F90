@@ -215,7 +215,7 @@ Module ModuleStatistic
     !--------------------------------------------------------------------------
 
     subroutine ConstructStatistic (StatisticID, ObjTime, ObjHDF5,                        &
-                                   Size, WorkSize, DataFile, Name, GroupName, STAT)
+                                   Size, WorkSize, DataFile, Name, GroupName, Rank, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: StatisticID
@@ -225,6 +225,7 @@ Module ModuleStatistic
         character(len=*)                            :: DataFile
         character(len=*)                            :: Name
         character(len=*), optional                  :: GroupName
+        integer, optional                           :: Rank
         integer, optional                           :: STAT
 
         !Local-----------------------------------------------------------------
@@ -275,6 +276,20 @@ Module ModuleStatistic
 
             !Reads Data File            
             call ReadDataFile (DataFile)
+            
+            if (present(Rank)) then
+                if     (Rank == 2) then
+                
+                    Me%Methodology = Value2DStat2D_
+                
+                elseif (Rank == 3) then
+                
+                    Me%Methodology = Value3DStat3D_
+                
+                endif
+            
+            endif
+            
 
             if (Me%Methodology == Value3DStatLayers_) then
                 call AllocateLayerMatrixes
