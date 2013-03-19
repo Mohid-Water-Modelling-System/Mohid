@@ -1405,8 +1405,9 @@ cd2 :           if (BlockFound) then
                 if (obj_type == H5G_DATASET_F) then
 
                     ! All itens except OpenPoints and VerticalZ are time independent
-                    if ((Me%LastSubGroup /= "OpenPoints") .and.                 &
-                        (Me%LastSubGroup /= "VerticalZ")) then 
+                    if ( Me%LastSubGroup /= "OpenPoints"  .and.                 &
+                         Me%LastSubGroup /= "VerticalZ"   .and.                 &
+                         Me%LastSubGroup /= "ScraperPosition") then 
 
                         !Add to list of time independent itens
                         nullify(NewItem)
@@ -1542,6 +1543,7 @@ cd2 :           if (BlockFound) then
         character(StringLength)                     :: Name
         integer                                     :: ItensNumber
         integer(HID_T)                              :: gr_id
+        
 
         !Begin-----------------------------------------------------------------
 
@@ -1595,7 +1597,11 @@ cd2 :           if (BlockFound) then
 
             !Assume real data type
             ObjParameter%NumType = Me%HDFNativeReal
-                  
+            
+            if (Name(1:15)=="ScraperPosition") then
+                ObjParameter%NumType = Me%HDFNativeInteger
+            endif
+
             ObjParameter => ObjParameter%Next
 
         enddo
