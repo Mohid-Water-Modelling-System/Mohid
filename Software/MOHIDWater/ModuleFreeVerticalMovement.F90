@@ -134,6 +134,8 @@ Module ModuleFreeVerticalMovement
         integer                                 :: Ws_Type          = SPMFunction
         logical                                 :: Deposition       = .true.
         logical                                 :: WithCompression  = .true.
+        real                                    :: SVI              = FillValueReal
+        real                                    :: Clarification    = FillValueReal
         real, pointer, dimension(:,:,:)         :: FreeConvFlux
         real, pointer, dimension(:,:,:)         :: Velocity
         type(T_Property), pointer               :: Next, Prev
@@ -904,7 +906,41 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleFreeVerticalMovement',               &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR130'             
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR130'
+
+        call GetData(NewProperty%SVI,                                           &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType   = FromBlock,                                  &
+                     keyword      = 'SVI',                                      &
+                     Default      = 120.,                                       &
+                     ClientModule = 'ModuleFreeVerticalMovement',               &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR140'
+            
+        if (NewProperty%SVI < 10 .or. NewProperty%SVI > 500) then
+            write(*,*) 'SVI = ', NewProperty%SVI
+            write(*,*) 'out of bounds, min. 10 and máx. 500'
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR140'
+        endif
+
+        call GetData(NewProperty%Clarification,                                 &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType   = FromBlock,                                  &
+                     keyword      = 'CLARIFICATION',                            &
+                     Default      = 1.,                                         &
+                     ClientModule = 'ModuleFreeVerticalMovement',               &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR150'
+            
+        if (NewProperty%Clarification < 0.1 .or. NewProperty%Clarification > 1) then
+            write(*,*) 'CLARIFICATION = ', NewProperty%Clarification
+            write(*,*) 'out of bounds, min. 0.1 and máx. 1'
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR160'
+        endif
+            
+
             
     end subroutine Construct_PropertyParameters
 
@@ -1374,7 +1410,12 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExternalVar%OpenPoints3D(i, j, k)== OpenPoint) then
-                    PropertyX%Velocity(i, j, k)=-SettlingVelSecondaryClarifier (SPM(i, j, k)*SPMISCoef, PropertyX%WithCompression)
+
+                    PropertyX%Velocity(i, j, k)=-SettlingVelSecondaryClarifier (                &
+                                                   Cx              = SPM(i, j, k)*SPMISCoef,    &
+                                                   WithCompression = PropertyX%WithCompression, &
+                                                   SVI             = PropertyX%SVI,             & 
+                                                   Clarification   = PropertyX%Clarification)
                 else
                     PropertyX%Velocity(i, j, k)= 0.                                            
                 end if
