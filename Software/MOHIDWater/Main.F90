@@ -126,6 +126,7 @@ program MohidWater
     type T_ModelLink
         logical                                             :: Hydro   = .false.
         logical                                             :: Water   = .false.
+        logical                                             :: Nesting = .false.
         integer                                             :: nProp
         integer, dimension(:), pointer                      :: PropertyIDNumbers
         type (T_Size2D)                                     :: Window
@@ -582,9 +583,14 @@ program MohidWater
                     open(UNIT   = UnitDT, FILE   = DTLogFile, STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR10'
                 end if
+                
+                !PCL 
+                write(*,*) "Construct modelo MPI ID =", CurrentModel%MPI_ID
 
-                call ConstructModel(LagInstance, ModelNames,                            &
-                                    NumberOfModels, ObjLagrangianGlobal, CurrentModel%ModelID, InitialSystemTime, STAT = STAT_CALL)
+                call ConstructModel(LagInstance, ModelNames, NumberOfModels,            &
+                                    ObjLagrangianGlobal, CurrentModel%ModelID,          &
+                                    InitialSystemTime, CurrentModel%MPI_ID,             &
+                                    STAT = STAT_CALL)
                 
                 !Get the Instance IDs of the Objects which are necessary for Model/SubModel
                 !comunication
@@ -787,6 +793,12 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                                               CurrentModel%FatherLink%nProp,             &
                                               STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR140'
+                    
+                    if (CurrentModel%FatherLink%Hydro .or. CurrentModel%FatherLink%Water) then
+                        CurrentModel%FatherLink%Nesting = .true.
+                    else
+                        CurrentModel%FatherLink%Nesting = .false.
+                    endif
 
 
                     if (CurrentModel%FatherLink%Water) then
@@ -1196,10 +1208,10 @@ doNext:     do while (associated(NextModel))
             
             !The which was here has been refactored into a function, 
             !so it can be called from here and from OpenMP
-            Running = DoOneTimeStep ()
+            Running = DoOneTimeStep (DTmin)
             
         enddo
-    
+        
         if (MonitorPerformance) then
             call StopWatch ("Main", "ModifyMohidWater")
         endif
@@ -1208,20 +1220,27 @@ doNext:     do while (associated(NextModel))
     
     !--------------------------------------------------------------------------
 
-    logical function DoOneTimeStep ()
+    logical function DoOneTimeStep (DTMinParallel)
 
         !Arguments-------------------------------------------------------------
-
+        real                                        :: DTMinParallel
         !Local-----------------------------------------------------------------
         type (T_MohidWater), pointer                :: CurrentModel
         logical                                     :: DoNextStep
         integer                                     :: STAT_CALL
         real                                        :: DTmin, DTmax, DT_Father
+        real                                        :: Year, Month, Day, hour, minute, second
+
 
         !Search for initial Min and Max Time Step
-        DTmin   = - FillValueReal
-        DTmax   =   FillValueReal
-        call SearchMinMaxTimeStep (DTmin, DTmax)
+        
+        if (RunInParallel) then
+            DTmin   =   DTMinParallel
+        else
+            DTmin   = - FillValueReal
+            DTmax   =   FillValueReal
+            call SearchMinMaxTimeStep (DTmin, DTmax)
+        endif
         
         GlobalCurrentTime = GlobalCurrentTime + DTmin
         
@@ -1230,14 +1249,15 @@ doNext:     do while (associated(NextModel))
             DoOneTimeStep = .false.
             return 
         endif
-
+        
         if (RunInParallel) then
-
+        
             CurrentModel => FirstModel
+            
             do while (associated(CurrentModel))
-
+            
                 if (CurrentModel%MPI_ID == myMPI_ID) then
-
+                
                     call UpdateTimeAndMapping    (CurrentModel%ModelID, GlobalCurrentTime, DoNextStep, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR10'
                     
@@ -1252,8 +1272,8 @@ doNext:     do while (associated(NextModel))
                         !Frank Fev 2011                        
                     
                         DT_Father = ModelDTs(CurrentModel%FatherModel%MPI_ID+1)
-                        write(*,*)"CurrentModel%FatherModel%MPI_ID: ", CurrentModel%FatherModel%MPI_ID
-                        write(*,*)"DT_Father                      : ", DT_Father
+                        !write(*,*)"CurrentModel%FatherModel%MPI_ID: ", CurrentModel%FatherModel%MPI_ID
+                        !write(*,*)"DT_Father                      : ", DT_Father
                         !call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
                         !if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR20'
                     else
@@ -1263,35 +1283,36 @@ doNext:     do while (associated(NextModel))
                     if (DoNextStep) then
                         !Waits for information from father
                         if (associated(CurrentModel%FatherModel)) then
+                            
+                            if (CurrentModel%FatherLink%Nesting) then
+                        
+                                !Post next recieve...
+                                if (CurrentModel%CurrentTime == CurrentModel%InfoTime) then
+                                    call ReceiveInformationMPI (CurrentModel)
+                                else if (CurrentModel%CurrentTime < CurrentModel%InfoTime) then 
+                                    call UpdateSubModelValues (CurrentModel)
+                                else if (CurrentModel%CurrentTime > CurrentModel%InfoTime) then
 
-                            !Post next recieve...
-                            if (CurrentModel%CurrentTime == CurrentModel%InfoTime) then
+                                    stop 'ModifyMohidWater - MohidWater - ERR30'
 
-                                call ReceiveInformationMPI (CurrentModel)
-
-                            else if (CurrentModel%CurrentTime < CurrentModel%InfoTime) then 
-
-                                call UpdateSubModelValues (CurrentModel)
-
-                            else if (CurrentModel%CurrentTime > CurrentModel%InfoTime) then
-
-                                stop 'ModifyMohidWater - MohidWater - ERR30'
-
-                            endif
+                                endif
+                                
+                            endif                                
 
                         endif
-
+                        !pcl
                         call RunModel(CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR40'
-
-                        call SendInformationMPI (CurrentModel)
+                        if (CurrentModel%FatherLink%Nesting) then
+                            call SendInformationMPI (CurrentModel)
+                        endif
                     endif
-
                 endif
-
+                
                 CurrentModel => CurrentModel%Next
+                
             enddo
-
+            
         else
 
             CurrentModel => FirstModel
@@ -1331,14 +1352,13 @@ doNext:     do while (associated(NextModel))
             call SearchMinMaxTimeStep (DTmin, DTmax)
         endif
         
-
         if (abs(GlobalCurrentTime - GlobalEndTime) > DTmin / 10.0) then
             DoOneTimeStep = .true.
         else
             DoOneTimeStep = .false.
         endif
-
-    end function
+        
+    end function DoOneTimeStep
     
     !--------------------------------------------------------------------------
 
@@ -1642,21 +1662,27 @@ do1:        do i=2,StringLength
         integer                                     :: STAT_CALL
         type (T_MohidWater), pointer                :: CurrentModel
         integer                                     :: status(MPI_STATUS_SIZE)
+        logical                                     :: Variable
 
         !Get the DT of the current model
         CurrentModel => FirstModel
         do while (associated(CurrentModel))
             if (CurrentModel%MPI_ID == myMPI_ID) then
-                call GetModelTimeStep (CurrentModel%ModelID, DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'UpdateTimeStepsByMPI - MohidWater - ERR01'
+                call GetModelTimeStep (CurrentModel%ModelID, DT, Variable, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'UpdateTimeStepsByMPI - MohidWater - ERR10'
+                
+                if (associated(CurrentModel%FatherModel))  then
+                    if (Variable) then
+                        write(*,*) 'Parallel processing and nesting can not have variable DT'
+                        stop 'UpdateTimeStepsByMPI - MohidWater - ERR20'
+                    endif
+                endif
             endif
             CurrentModel => CurrentModel%Next
         enddo
 
-
         !Sends the information to all the others 
         call MPI_Allgather(DT, 1, Precision, ModelDTs, 1, Precision, MPI_COMM_WORLD, status)
-
     
     end subroutine UpdateTimeStepsByMPI
 #endif _USE_MPI
