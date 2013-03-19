@@ -5527,19 +5527,15 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                 call ConstructParticOil (NewOrigin, ClientNumber)
             endif
 
-            if (NewOrigin%Movement%Float == OFF) then
-
-                call GetData(NewOrigin%CDispOilOff,                                  &
-                             Me%ObjEnterData,                                        &
-                             flag,                                                   &
-                             SearchType   = FromBlock,                               &
-                             keyword      ='CDISP_OIL_OFF',                          &
-                             ClientModule ='ModuleLagrangianGlobal',                 &
-                             Default      = 1.,                                      &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1510'
-            
-             endif
+            call GetData(NewOrigin%CDispOilOff,                                  &
+                         Me%ObjEnterData,                                        &
+                         flag,                                                   &
+                         SearchType   = FromBlock,                               &
+                         keyword      ='CDISP_OIL_OFF',                          &
+                         ClientModule ='ModuleLagrangianGlobal',                 &
+                         Default      = 1.,                                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1510'
 
         endif
         call GetData(NewOrigin%State%Age,                                               &
@@ -13519,6 +13515,10 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                 else PL
 
                     CurrentPartic%W    = 0.
+                    
+                    if (Me%ExternalVar%Backtracking) then
+                        VELLARVAE = - VELLARVAE
+                    endif
 
                     NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT + VELLARVAE + VELBODY) *  DT_Vert
                 endif PL
