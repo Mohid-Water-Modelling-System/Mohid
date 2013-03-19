@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioUserFile ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{DD4BF52A-DA2B-49B5-871F-133150FDB18C}">
 	<Configurations>
-		<Configuration Name="Debug|Win32" WorkingDirectory="X:\Proj_361_MYWATER\Simula\Testing\Extractor\Test1"/>
+		<Configuration Name="Debug|Win32" WorkingDirectory="X:\Proj_387_Frielas_Decantador\simula\HDF5Extract"/>
 		<Configuration Name="Release|Win32" WorkingDirectory="Z:\Proj_344_Argomarine\Simula\AquaSafeServerTesting\test3"/>
 		<Configuration Name="Debug OpenMP|Win32"/>
 		<Configuration Name="Debug Double PhreeqC|Win32"/>

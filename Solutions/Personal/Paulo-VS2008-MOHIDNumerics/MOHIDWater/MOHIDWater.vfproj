@@ -5,8 +5,8 @@
 		<Platform Name="x64"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug;..\MOHIDBase2\Debug;..\..\..\..\ExternalLibs\NetCDF\Include" PreprocessorDefinitions="_GOOGLEMAPS; _LAGRANGIAN_GLOBAL_" Interfaces="true" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
-				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_debug_single.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Debug;..\MOHIDBase2\Debug;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\lib;..\..\..\..\ExternalLibs\NetCDF\Lib" IgnoreDefaultLibraryNames="LIBCMT.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib libfproj4.lib"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug;..\MOHIDBase2\Debug;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\MPI\IntelFortran11\Include" PreprocessorDefinitions="_GOOGLEMAPS; _LAGRANGIAN_GLOBAL_;_INCREASE_MAXINSTANCES" Interfaces="true" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_debug_single.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Debug;..\MOHIDBase2\Debug;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\lib;..\..\..\..\ExternalLibs\NetCDF\Lib;..\..\..\..\IntelFortran11\Lib" IgnoreDefaultLibraryNames="LIBCMT.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib libfproj4.lib "/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -15,8 +15,8 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release;..\MOHIDBase2\Release;..\..\..\..\ExternalLibs\NetCDF\Include" PreprocessorDefinitions="_GOOGLEMAPS; _LAGRANGIAN_GLOBAL_" OpenMPConditionalCompilation="false" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RuntimeChecks="rtChecksNone"/>
-				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_release_single.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Release;..\MOHIDBase2\Release;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\Lib;..\..\..\..\ExternalLibs\NetCDF\Lib" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib libfproj4.lib"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release;..\MOHIDBase2\Release;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\MPI\IntelFortran11\Include" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_;_GOOGLEMAPS" OpenMPConditionalCompilation="false" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_release_single.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Release;..\MOHIDBase2\Release;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\Lib;..\..\..\..\ExternalLibs\NetCDF\Lib;..\..\..\..\ExternalLibs\MPI\IntelFortran11\Lib" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib libfproj4.lib fmpich2.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -280,10 +280,7 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleInterfaceWaterAir.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleJet.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangian.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangianGlobal.F90">
-			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release|Win32">
-				<Tool Name="VFFortranCompilerTool" RealKIND="realKIND4"/></FileConfiguration></File>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangianGlobal.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleModel.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOil.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOil_0D.F90"/>
