@@ -2161,7 +2161,7 @@ do1 :       do II = JImin+1, JImax+1
                 MM = JImax+JImin+1-II
                 I  = IJ*dj + MM*di
                 J  = IJ*di + MM*dj
-
+                
                 ANSWER(I,J) = VECW(MM) * ANSWER(I+di,J+dj) + VECG(MM)
             end do do1
         end do do2
@@ -4951,19 +4951,17 @@ d3:                     do dij=1,dijmax
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructPropertyID (PropertyID, ObjEnterData, ExtractType, CheckProperty)
+    subroutine ConstructPropertyID (PropertyID, ObjEnterData, ExtractType)
 
         !Arguments-------------------------------------------------------------
         type (T_PropertyID)                         :: PropertyID
         integer                                     :: ObjEnterData
         integer                                     :: ExtractType
-        logical, optional                           :: CheckProperty
 
         !Local-----------------------------------------------------------------
         integer                                     :: flag
         integer                                     :: STAT_CALL
-        logical                                     :: check
-        
+
         !Property Name
         call GetData(PropertyID%Name, ObjEnterData, flag,                                &
                      SearchType   = ExtractType,                                         &
@@ -4975,19 +4973,11 @@ d3:                     do dij=1,dijmax
             stop 'ConstructPropertyID - ModuleFunctions - ERR02'
         endif
 
-        if (present(CheckProperty)) then
-            check = CheckProperty
-        else
-            check = .true.
+        if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
+            write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
+            stop 'ConstructPropertyID - ModuleFunctions - ERR03'
         endif
-        
-        if (check) then
-            if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
-                write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
-                stop 'ConstructPropertyID - ModuleFunctions - ERR03'
-            endif
-        endif
-            
+ 
         !Units
         call GetData(PropertyID%Units, ObjEnterData, flag,                               &
                      SearchType   = ExtractType,                                         &
@@ -8928,28 +8918,64 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 
     end function SettlingVelocity
 
-    real function SettlingVelSecondaryClarifier (Cx, WithCompression)
+    real function SettlingVelSecondaryClarifier (Cx, WithCompression, SVI, Clarification, Cin)
         
         !Arguments-------------------------------------------------
-        real,       intent(IN) :: Cx     !kg/m3 or g/l 
-        logical,    intent(IN) :: WithCompression
+        real,       intent(IN)           :: Cx     !kg/m3 or g/l 
+        logical,    intent(IN)           :: WithCompression
+        real,       intent(IN), optional :: SVI, Clarification, Cin
         
         !Local-----------------------------------------------------
-        real(8)                :: v0max, v0, Rh, Rf, Fns, Cmin, vs, Cy
-        real(8)                :: Vcorr, Vres, Rcorr1, Rcorr2, Xcorr1, Xcorr2 
+        real(8)                :: v0max, v0, Rh, Rf, Fns, Cmin, vs, Cy, Cin_
+        real(8)                :: Vcorr, Vres, Rcorr1, Rcorr2, Xcorr1, Xcorr2, Clar 
+        real(8)                :: fcorr1, fcorr2, fcorr3, fcorr4, fcorr5, fcorr6, fcorr7, fcorr8, fcorr9
         
         !Begin-----------------------------------------------------
+
         
-        !Parameters - Hindering settling - PhD Thesis Takács (2008)
-        ![m/day]
-        v0max   = 360
-        ! 120 - 370
-        v0      = 240
-        ![l/g]
-        !0.2 - 1
-        Rh      = 1
-        !5 - 100
-        Rf      = 100
+        if (present(SVI)) then
+            !GPSX default values
+            fcorr1 = 709.7
+            fcorr2 =  -4.67
+            fcorr3 =   0.018
+            fcorr4 =   2.66e-4
+            fcorr5 =  -2.85e-6
+            fcorr6 =   2.5e-8
+            fcorr7 =  -1.62e-4
+            fcorr8 =   4.9e-3
+            fcorr9 =   6.47e-4
+                                    
+            !Parameters - Hindering settling function of SVI - GPSX 
+            ![m/day]
+            v0      = fcorr1 + fcorr2 * SVI + fcorr3 * SVI * SVI
+            v0max   = v0
+            ![l/mg]
+            Rh      = fcorr4 + fcorr5 * SVI + fcorr6 * SVI * SVI
+            ![l/g]  
+            Rh      = Rh * 1000
+            
+            if (present(Clarification)) then
+                Clar = Clarification
+            else
+                Clar = 1.
+            endif
+            
+            ![l/mg]
+            Rf      = fcorr7 + fcorr8 * Clar + fcorr9 * Clar * Clar
+            ![l/g]  
+            Rf      = Rf * 1000
+        else
+            !Parameters - Hindering settling - PhD Thesis Takács (2008)
+            ![m/day]
+            v0max   = 360
+            ! 120 - 370
+            v0      = 240
+            ![l/g]
+            !0.2 - 1
+            Rh      = 1
+            !5 - 100
+            Rf      = 100
+        endif            
         ![-]
         !No settling fraction
         !1e-3 : 3e-3
@@ -8967,9 +8993,14 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         Xcorr1  = 4.     
         Xcorr2  = 8.
         
+        if (present(Cin)) then
+            Cin_ = Cin
+        else
+            Cin_ = 3.
+        endif            
 
         !g/l
-        Cmin = Cx * Fns
+        Cmin = Cin_ * Fns
         Cy   = Cx - Cmin
         
         !Hindering settling (m/day)
