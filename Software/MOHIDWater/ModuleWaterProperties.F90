@@ -17205,7 +17205,7 @@ dn:         do n=1, nCells
                                                                   
                                 endif i2
                                 
-                            else
+                            else i1
                                                             
                                 PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i , j , k) 
                                 
