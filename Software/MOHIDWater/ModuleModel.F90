@@ -43,7 +43,7 @@ Module ModuleModel
     use ModuleMap,                      only : ConstructMap,            KillMap,         &
                                                UpdateComputeFaces3D
     use ModuleTurbulence,               only : ConstructTurbulence, Turbulence,          &
-                                               KillTurbulence, GetTurbulenceOptions
+                                               KillTurbulence
 #ifndef _USE_SEQASSIMILATION
     use ModuleHydrodynamic,             only : StartHydrodynamic, GetWaterLevel,         &
                                                GetHorizontalVelocity, GetChezy,          &
@@ -62,12 +62,14 @@ Module ModuleModel
 #ifndef _USE_SEQASSIMILATION
     use ModuleWaterProperties,          only : Construct_WaterProperties,                &
                                                GetDensity, GetSigmaNoPressure, GetSigma, &
+                                               GetDensityOptions, GetConcentration,      &
                                                UnGetWaterProperties,                     &
                                                WaterProperties_Evolution,                &
                                                KillWaterProperties
 #else
     use ModuleWaterProperties,          only : Construct_WaterProperties,                &
                                                GetDensity, GetSigmaNoPressure, GetSigma, &
+                                               GetDensityOptions, GetConcentration,      &
                                                UnGetWaterProperties,                     &
                                                WaterProperties_Evolution,                &
                                                KillWaterProperties,                      &
@@ -182,11 +184,14 @@ Module ModuleModel
     type T_ExternalVar
         real, dimension(:,:,:), pointer         :: Density, SigmaDens       => null()
         real, dimension(:,:,:), pointer         :: SigmaNoPressure          => null()
+        real, dimension(:,:,:), pointer         :: Temperature              => null()
+        real, dimension(:,:,:), pointer         :: Salinity                 => null()        
         real, dimension(:,:,:), pointer         :: VelocityX                => null()
         real, dimension(:,:,:), pointer         :: VelocityY                => null()
         real, dimension(:,:,:), pointer         :: VelocityZ                => null()
         real, dimension(:,:  ), pointer         :: Chezy, WaterLevel        => null()
-        logical                                 :: NeedsSigmaNoPressure
+        integer                                 :: DensMethod
+        logical                                 :: CorrecPress
     end type T_ExternalVar
 
     !Groups modules of the WaterColumn
@@ -218,6 +223,7 @@ Module ModuleModel
         character(StringLength)                   :: ModelName
 
         integer                                 :: NumberOfModels
+        integer                                 :: MPI_ID = FillValueInt
         integer                                 :: ObjLagrangian
 !        integer                                 :: ObjLagrangianX
         integer                                 :: ObjLagrangianGlobal
@@ -309,13 +315,16 @@ Module ModuleModel
     !In this subroutine is read the model structure (number of parallel models and their sub-models)
     ! and the necessary memory is allocate and store in a structure of pointer lists
 
-    subroutine ConstructModel (LagInstance, ModelNames, NumberOfModels, ObjLagrangianGlobal, ModelID, InitialSystemTime, STAT)
+    subroutine ConstructModel (LagInstance, ModelNames, NumberOfModels,                 &
+                               ObjLagrangianGlobal, ModelID, InitialSystemTime,         &
+                               MPI_ID, STAT)
 
         !Arguments-------------------------------------------------------------
         integer         , dimension(:,:), pointer   :: LagInstance
         character(len=*), dimension(:  ), pointer   :: ModelNames
         integer                                     :: NumberOfModels, ObjLagrangianGlobal, ModelID
         type (T_Time)                               :: InitialSystemTime
+        integer, intent(IN ), optional              :: MPI_ID
         integer, intent(OUT), optional              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -380,10 +389,15 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 #endif
 
             Me%InitialSystemTime = InitialSystemTime
-
+            
             !Gets the name of the data file
             call ReadFileName('IN_MODEL', DataFile, "Compute Time Data File", STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR10'
+
+            if (present(MPI_ID)) then
+                write(*,*) 'MPI_ID =',MPI_ID
+                write(*,*) 'DataFile =', trim(DataFile)
+            endif
 
             !Constructs EnterData
             call ConstructEnterData (ObjEnterData, DataFile, STAT = STAT_CALL)
@@ -398,6 +412,12 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                   Me%GmtReference, Me%DTPredictionInterval)
             Me%InitialDT = Me%DT
             Me%Iteration = 0
+            
+            if (present(MPI_ID)) then
+                Me%MPI_ID = MPI_ID
+            else
+                Me%MPI_ID = FillValueInt
+            endif
 
 #ifdef      _ONLINE_
 
@@ -663,11 +683,6 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR240'
 
-            call GetTurbulenceOptions   (TurbulenceID        = Me%ObjTurbulence,        &
-                                         NeedsSigmaNoPressure= Me%ExternalVar%NeedsSigmaNoPressure, &
-                                         STAT                = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR250'
-
             !Constructs hydrodynamic
             call StartHydrodynamic      (ModelName        = trim(Me%ModelName),         &  
                                          HydrodynamicID   = Me%ObjHydrodynamic,         &
@@ -684,6 +699,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 #ifdef _ENABLE_CUDA
                                          CudaID           = Me%ObjCuda,                 &
 #endif
+                                         MPI_ID           = Me%MPI_ID,                  &
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR260'
 
@@ -1250,11 +1266,12 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
     !--------------------------------------------------------------------------
 
-    subroutine GetModelTimeStep (ModelID, DT, STAT)
+    subroutine GetModelTimeStep (ModelID, DT, Variable, STAT)
 
         !Arguments------------------------------------------------------------ 
         integer                                     :: ModelID
         real, intent(OUT)                           :: DT
+        logical,       intent(OUT),   optional      :: Variable
         integer,       intent(OUT),   optional      :: STAT
 
         !Local-----------------------------------------------------------------
@@ -1272,6 +1289,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
             call GetComputeTimeStep  (Me%ObjTime, DT, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'GetModelTimeStep - ModuleModel - ERR01'
+            
+            if (present(Variable)) Variable = Me%VariableDT
                 
             STAT_ = SUCCESS_
         else 
@@ -1758,21 +1777,21 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                                            LagrangianID = Me%ObjLagrangian,             &
 #endif               
                                            STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR00'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR10'
 
 #ifndef _AIR_
             
         !Gets Waterpoints
         call GetWaterPoints2D (Me%Water%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR20'
 
         !Starts Atmosphere
         call ModifyAtmosphere  (Me%ObjAtmosphere, MappingPoints = WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR30'
 
         !Gets Unget Waterpoints
         call UnGetHorizontalMap (Me%Water%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR40'
 
         call ModifyInterfaceWaterAir (Me%ObjInterfaceWaterAir,                          &
 #ifdef  _LAGRANGIAN_GLOBAL_          
@@ -1781,100 +1800,113 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                                       LagrangianID = Me%ObjLagrangian,                  &
 #endif               
                                       STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR50'
 #endif
 #ifndef _WAVES_
         if(Me%RunWaves)then
                             
             call ModifyWaves(Me%ObjWaves, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR60'
             
         end if
 #endif
-        call GetDensity(Me%ObjWaterProperties, Me%ExternalVar%Density,              &
+        call GetDensity(Me%ObjWaterProperties, Me%ExternalVar%Density,                  &
                         Me%CurrentTime,  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR06'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR70'
 
-        call GetSigma(Me%ObjWaterProperties, Me%ExternalVar%SigmaDens,              &
+        call GetSigma(Me%ObjWaterProperties, Me%ExternalVar%SigmaDens,                  &
                         Me%CurrentTime,  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR06a'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR80'
 
+        call GetSigmaNoPressure(Me%ObjWaterProperties, Me%ExternalVar%SigmaNoPressure,  &
+                                Me%CurrentTime, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'RunOneModel - ModuleModel - ERR90'
+        
+        call GetDensityOptions(Me%ObjWaterProperties, Me%ExternalVar%DensMethod,        &
+                               Me%ExternalVar%CorrecPress, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'RunOneModel - ModuleModel - ERR100'
 
-        if(Me%ExternalVar%NeedsSigmaNoPressure)then
+        call GetConcentration (Me%ObjWaterProperties, Me%ExternalVar%Temperature,       &
+                               PropertyXIDNumber = Temperature_, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_) stop 'RunOneModel - ModuleModel - ERR110'
+        
+        call GetConcentration (Me%ObjWaterProperties, Me%ExternalVar%Salinity,          &
+                               PropertyXIDNumber = Salinity_, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_)stop 'RunOneModel - ModuleModel - ERR120'        
 
-            call GetSigmaNoPressure(Me%ObjWaterProperties, Me%ExternalVar%SigmaNoPressure,   &
-                                    Me%CurrentTime, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'RunOneModel - ModuleModel - ERR07'
-
-
-        endif
-
-        call GetHorizontalVelocity(Me%ObjHydrodynamic,                              &
-                                   Me%ExternalVar%VelocityX,                        &
-                                   Me%ExternalVar%VelocityY,                        &
+        call GetHorizontalVelocity(Me%ObjHydrodynamic,                                  &
+                                   Me%ExternalVar%VelocityX,                            &
+                                   Me%ExternalVar%VelocityY,                            &
                                    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR130'
 
-        call GetVerticalVelocity(HydrodynamicID = Me%ObjHydrodynamic,               &
-                                   Velocity_W = Me%ExternalVar%VelocityZ,           &
+        call GetVerticalVelocity(HydrodynamicID = Me%ObjHydrodynamic,                   &
+                                   Velocity_W = Me%ExternalVar%VelocityZ,               &
                                    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunModel - ModuleModel - ERR11'
+        if (STAT_CALL /= SUCCESS_) stop 'RunModel - ModuleModel - ERR140'
 
         call GetChezy(Me%ObjHydrodynamic, Me%ExternalVar%Chezy, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR12'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR150'
                     
-        call Turbulence(Me%ObjTurbulence,                                           &
-                        Me%ExternalVar%VelocityX,                                   &
-                        Me%ExternalVar%VelocityY,                                   &
-                        Me%ExternalVar%VelocityZ,                                   &
-                        Me%ExternalVar%Chezy,                                       &
-                        Me%ExternalVar%SigmaNoPressure,                             &
+        call Turbulence(Me%ObjTurbulence,                                               &
+                        Me%ExternalVar%VelocityX,                                       &
+                        Me%ExternalVar%VelocityY,                                       &
+                        Me%ExternalVar%VelocityZ,                                       &
+                        Me%ExternalVar%Chezy,                                           &
+                        Me%ExternalVar%Temperature,                                     &
+                        Me%ExternalVar%Salinity,                                        &
+                        Me%ExternalVar%SigmaNoPressure,                                 &
+                        Me%ExternalVar%DensMethod,                                      &
+                        Me%ExternalVar%CorrecPress,                                     &
                         STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR13'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR160'
 
-        call UnGetHydrodynamic(Me%ObjHydrodynamic,                                  &
+        call UnGetHydrodynamic(Me%ObjHydrodynamic,                                      &
                                Me%ExternalVar%VelocityX, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR14'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR170'
 
-        call UnGetHydrodynamic(Me%ObjHydrodynamic,                                  &
+        call UnGetHydrodynamic(Me%ObjHydrodynamic,                                      &
                                Me%ExternalVar%VelocityY, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR15'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR180'
         
-        call UnGetHydrodynamic(Me%ObjHydrodynamic,                                  &
+        call UnGetHydrodynamic(Me%ObjHydrodynamic,                                      &
                                Me%ExternalVar%VelocityZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR16'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR190'
 
-        call UnGetHydrodynamic(Me%ObjHydrodynamic,                                  &
+        call UnGetHydrodynamic(Me%ObjHydrodynamic,                                      &
                                Me%ExternalVar%Chezy, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR17'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR200'
 
         PredictedDT%DT = Me%DT             
-        call Modify_Hydrodynamic(Me%ObjHydrodynamic,                                &
-                                 Me%ExternalVar%Density,                            &
-                                 Me%ExternalVar%SigmaDens,                          &
-                                 PredHydroDT,                                       &
+        call Modify_Hydrodynamic(Me%ObjHydrodynamic,                                    &
+                                 Me%ExternalVar%Density,                                &
+                                 Me%ExternalVar%SigmaDens,                              &
+                                 PredHydroDT,                                           &
                                  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR18'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR210'
                 
-            call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%Density,    &
+        call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%Density,        &
                                   STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR19'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR220'
 
-        call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%SigmaDens,  &
+        call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%SigmaDens,      &
                                   STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR19a'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR230'
 
+        call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%SigmaNoPressure,&
+                                  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR240'
 
-        if(Me%ExternalVar%NeedsSigmaNoPressure)then
-
-            call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%SigmaNoPressure, &
-                                      STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR20'
-
-        end if
+        call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%Temperature,    &
+                                  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR250'
+                
+        call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%Salinity,       &
+                                  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR260'
 
         call WaterProperties_Evolution(Me%ObjWaterProperties, PredWaterDT, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR22'
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR270'
 
         if (Me%VariableDT) then
 
@@ -1904,10 +1936,10 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         if(Me%RunSediments)then
             
             call ModifyConsolidation(Me%ObjConsolidation, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR23'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR280'
 
             call SedimentProperties_Evolution(Me%ObjSedimentProperties, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR24'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR290'
 
         end if
 #endif
@@ -1918,12 +1950,12 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 #ifdef  _LAGRANGIAN_GLOBAL_          
             if (Me%InstanceID == Me%NumberOfModels .and. Me%ObjLagrangianGlobal /= 0) then
                 call ModifyLagrangianGlobal   (Me%ObjLagrangianGlobal, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR30'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR300'
             endif
 #else
          if (Me%ObjLagrangian /= 0) then           
             call ModifyLagrangian   (Me%ObjLagrangian, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR40'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR310'
         endif      
 #endif
 #endif 
