@@ -63,7 +63,7 @@
 Module ModuleTurbulence
 
     use ModuleEnterData  
-    use ModuleFunctions,        only : SetMatrixValue, CHUNK_J, CHUNK_K
+    use ModuleFunctions,        only : SetMatrixValue, CHUNK_J, CHUNK_K, Sigma
     use ModuleGlobalData
     use ModuleGridData,         only : GetGridData, UngetGridData   
     use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,          &
@@ -128,7 +128,6 @@ Module ModuleTurbulence
     public  :: GetMixingLengthHorizontal            !rcm
     public  :: GetMLD_Surf
     public  :: GetContinuousGOTM
-    public  :: GetTurbulenceOptions
 
     public  :: SetTurbulenceBottomRugosity
 
@@ -315,7 +314,11 @@ Module ModuleTurbulence
         real,    pointer, dimension(:,:  )          :: DZY
 
         !WaterProperties
+        real,    dimension(:,:,:), pointer          :: Temperature
+        real,    dimension(:,:,:), pointer          :: Salinity
         real,    dimension(:,:,:), pointer          :: SigmaNoPressure
+        integer                                     :: DensMethod
+        logical                                     :: CorrecPress
 
         !Bottom
         real                                        :: BottomRugosity
@@ -1339,16 +1342,6 @@ cd2 :   if (flag .EQ. 0) then
                       Default      = .false.,               &
                       STAT         = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR07'
-
-        !Careful, this getdata is already made in the ModuleWaterProperties 
-        call GetData (Me%TurbOptions%DensityMethod,                                      &
-                     Me%ObjEnterData, flag,                                              &
-                     SearchType = FromFile,                                              &
-                     keyword    = 'DENSITY_METHOD',                                      &
-                     Default    = UNESCOState_,                                          &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT       = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR08'
 
         call GetData(Me%TurbOptions%PressureCorrec,                                      &
                      Me%ObjEnterData, flag,                                              &
@@ -2876,53 +2869,6 @@ cd1 :   if ((ready_ == IDLE_ERR_     ) .OR.                                     
     end subroutine GetContinuousGOTM
 
     !--------------------------------------------------------------------------
-    
-    subroutine GetTurbulenceOptions(TurbulenceID, NeedsSigmaNoPressure, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                         :: TurbulenceID
-        logical,           intent(OUT)  :: NeedsSigmaNoPressure
-        integer, optional, intent(OUT)  :: STAT
-
-        !External--------------------------------------------------------------
-        integer :: ready_              
-
-        !Local-----------------------------------------------------------------
-        integer :: STAT_            
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(TurbulenceID, ready_)  
-        
-cd1 :   if ((ready_ == IDLE_ERR_     ) .OR.                             &
-            (ready_ == READ_LOCK_ERR_)) then
-
-            if (Me%TurbOptions%MODTURB       == Constant_       .or.    &
-                Me%TurbOptions%DensityMethod == ConstantDensity_) then
-
-                NeedsSigmaNoPressure = .false.
-
-            else
-
-                NeedsSigmaNoPressure = .true.
-
-            endif
-
-            STAT_ = SUCCESS_
-
-        else cd1
-
-            STAT_ = ready_
-
-        end if cd1
-
-        if (present(STAT)) STAT = STAT_
-
-    end subroutine GetTurbulenceOptions
-
-    !--------------------------------------------------------------------------
 
     subroutine UngetTurbulence3D(TurbulenceID, Array, STAT)
 
@@ -3059,16 +3005,22 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
 
     subroutine Turbulence(TurbulenceID, VelocityX, VelocityY, VelocityZ, Chezy, &
-                          SigmaNoPressure, STAT)
+                          Temperature, Salinity, SigmaNoPressure, DensMethod,   &
+                          CorrecPress, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer, optional, intent(OUT)                  :: STAT
         integer                                         :: TurbulenceID
         real, dimension(:,:,:), pointer                 :: VelocityX
         real, dimension(:,:,:), pointer                 :: VelocityY
         real, dimension(:,:,:), pointer                 :: VelocityZ
-        real, dimension(:,:,:), pointer                 :: SigmaNoPressure
         real, dimension(:,:  ), pointer                 :: Chezy
+        real, dimension(:,:,:), pointer                 :: Temperature
+        real, dimension(:,:,:), pointer                 :: Salinity
+        real, dimension(:,:,:), pointer                 :: SigmaNoPressure
+        integer          , intent(IN )                  :: DensMethod
+        logical          , intent(IN )                  :: CorrecPress
+        integer, optional, intent(OUT)                  :: STAT
+
 
         !External--------------------------------------------------------------
         integer                                         :: ready_              
@@ -3109,9 +3061,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             Me%ExternalVar%VelocityZ          => VelocityZ
             Me%ExternalVar%Chezy              => Chezy
             
-i1 :        if      (.not.(Me%TurbOptions%MODTURB .EQ. Constant_)) then            
-                Me%ExternalVar%SigmaNoPressure => SigmaNoPressure
-            endif i1
+            Me%ExternalVar%SigmaNoPressure    => SigmaNoPressure
+            
+            Me%ExternalVar%Temperature        => Temperature
+            Me%ExternalVar%Salinity           => Salinity
+        
+            Me%ExternalVar%DensMethod         = DensMethod
+            Me%ExternalVar%CorrecPress        = CorrecPress
+            
 
 
             call GetGridData(Me%ObjGridData, Me%ExternalVar%Bathymetry, STAT = STAT_CALL)
@@ -3956,7 +3913,7 @@ do1 :           do K = kbottom, KUB+1
         real,    pointer, dimension(:,:,:)      :: ZCellCenter
         real,    pointer, dimension(:,:,:)      :: SZZ
         real,    dimension(:,:,:), pointer      :: VelocityX, VelocityY
-        real,    dimension(:,:,:), pointer      :: SigmaNoPressure
+        real,    dimension(:,:,:), pointer      :: SigmaNoPressure, Temperature, Salinity
         integer, dimension(:,:,:), pointer      :: ComputeFacesU3D, ComputeFacesV3D
         integer, dimension(:,:  ), pointer      :: KFloorZ
         real                                    :: RICH
@@ -3979,7 +3936,10 @@ do1 :           do K = kbottom, KUB+1
         SZZ             => Me%ExternalVar%SZZ
         ZCellCenter     => Me%ExternalVar%ZCellCenter
         KFloorZ         => Me%ExternalVar%KFloorZ
+        Temperature     => Me%ExternalVar%Temperature        
+        Salinity        => Me%ExternalVar%Salinity
         SigmaNoPressure => Me%ExternalVar%SigmaNoPressure
+        
         VelocityX       => Me%ExternalVar%VelocityX
         VelocityY       => Me%ExternalVar%VelocityY
         ComputeFacesU3D => Me%ExternalVar%ComputeFacesU3D
@@ -4013,10 +3973,18 @@ do1 :       do k = kbottom, KUB-1
                       VelocityY(i,  j,  k+1) * ComputeFacesV3D(i,  j,  k+1)) / 2.0
 
                  !griflet: bypass the sigma density calculation
-                 Depth   = -1.0 * ZCellCenter(i,j,k+1)
-                 RO      = SigmaNoPressure(i, j, k+1)
-                 RO_PERT = SigmaNoPressure(i, j, k  )
-                 
+                 if (Me%ExternalVar%CorrecPress) then
+                     Depth   = -1.0 * ZCellCenter(i,j,k+1)                 
+                     
+                     RO      = Sigma(Me%ExternalVar%DensMethod, Me%ExternalVar%CorrecPress, &
+                                     Temperature(i, j, k+1), Salinity(i, j, k+1), Depth)
+                                     
+                     RO_PERT = Sigma(Me%ExternalVar%DensMethod, Me%ExternalVar%CorrecPress, &
+                                     Temperature(i, j, k  ), Salinity(i, j, k  ), Depth)
+                 else
+                     RO      = SigmaNoPressure(i, j, k+1)
+                     RO_PERT = SigmaNoPressure(i, j, k  )
+                 endif                 
                  !griflet: end of bypass
                  
                  DRODZ = (RO - RO_PERT) / DZZ(i,j,k)
@@ -6112,6 +6080,16 @@ cd7 :           if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
                    nullify(Me%TurbVar%MLD_surf)
                    if(Me%TurbOptions%MLD_Calc_Bot) nullify(Me%TurbVar%MLD_Bot)
                 end if
+                
+                !Nullify External
+                nullify(Me%ExternalVar%VelocityX       )
+                nullify(Me%ExternalVar%VelocityY       )
+                nullify(Me%ExternalVar%VelocityZ       )
+                nullify(Me%ExternalVar%Chezy           )
+            
+                nullify(Me%ExternalVar%SigmaNoPressure )
+                nullify(Me%ExternalVar%Temperature     )
+                nullify(Me%ExternalVar%Salinity        )
 
                 call DeallocateInstance
 
