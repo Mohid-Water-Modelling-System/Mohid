@@ -345,7 +345,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%WindowWithData    = .true. 
 
             call ConstructFile(ExtractType)
-            
+        
             if (present(Extrapolate)) then
                 Me%Extrapolate = Extrapolate
             else
@@ -400,7 +400,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ReadGridFromFile
                 
             endif
-
+           
+            if (Me%File%NumberOfInstants == 1) then
+                Me%WindowWithData = .false.
+            endif
+            
 wwd:        if (Me%WindowWithData) then            
             
                 call GetHorizontalGridSize(HorizontalGridID = Me%ObjHorizontalGrid,         &
