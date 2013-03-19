@@ -145,7 +145,7 @@ program HDF5Exporter
         integer                     :: STAT_CALL
 
         call StartUpMohid("HDF5Exporter")
-
+        
         if (.not. ConfigByArgument) then
             call ReadFileName('IN_MODEL', DataFile, "HDF5Exporter", STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - HDF5Exporter - ERR10'        
