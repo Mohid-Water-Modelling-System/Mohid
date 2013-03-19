@@ -170,10 +170,13 @@ Module ModuleDischarges
     type       T_WaterVelocity
         logical                                 :: UVariable
         logical                                 :: VVariable
+        logical                                 :: WVariable        
         integer                                 :: UColumn               
-        integer                                 :: VColumn               
+        integer                                 :: VColumn
+        integer                                 :: WColumn        
         real                                    :: Uscalar = FillValueReal
         real                                    :: Vscalar = FillValueReal
+        real                                    :: Wscalar = FillValueReal        
     end type T_WaterVelocity
 
     type       T_FlowOver
@@ -1422,16 +1425,25 @@ i3:     if (NewDischarge%ByPass%ON) then
 
 
         !By default the property value in the domain is zero
-        allocate(aux(2))
+        allocate(aux(3))
         call GetData(Aux, Me%ObjEnterData, flag,                                         &
                      keyword    = 'DEFAULT_VELOCITY_VALUE',                              &
                      default    = 0.,                                                    &
                      SearchType = FromBlock,                                             &
                      ClientModule = 'ModuleDischarges',                                  &
                      STAT       = STAT_CALL)
+                     
+        if   (flag /= 0 .and. flag /=2 .and. flag /=3 ) then    
+            stop "ModuleDischarges - Construct_VelocityValues - ERR10"
+        endif                 
 
         NewDischarge%VelocityFlow%UScalar = Aux(1)
         NewDischarge%VelocityFlow%VScalar = Aux(2)
+        if     (flag == 2) then
+            NewDischarge%VelocityFlow%WScalar = 0.
+        elseif (flag == 0 .or. flag == 3) then
+            NewDischarge%VelocityFlow%WScalar = Aux(3)
+        endif
         deallocate(aux)
 
         !Searches for the velocity U column (if the discharge is read from a data base)
@@ -1462,6 +1474,20 @@ i3:     if (NewDischarge%ByPass%ON) then
                 NewDischarge%VelocityFlow%VVariable = .true.
             else
                 NewDischarge%VelocityFlow%VVariable = .false.
+            endif
+
+            call GetData(NewDischarge%VelocityFlow%WColumn,                              &
+                         Me%ObjEnterData, flag,                                          &
+                         keyword    = 'W_COLUMN',                                        &
+                         default    = FillValueInt,                                      &
+                         SearchType = FromBlock,                                         &
+                         ClientModule = 'ModuleDischarges',                              &
+                         STAT       = STAT_CALL)
+
+            if (flag == 1) then
+                NewDischarge%VelocityFlow%WVariable = .true.
+            else
+                NewDischarge%VelocityFlow%WVariable = .false.
             endif
 
         endif
@@ -2886,11 +2912,11 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
     !--------------------------------------------------------------------------
 
     subroutine GetDischargeFlowVelocity(DischargesID, TimeX, DischargeIDNumber,          &
-                                        VelocityU, VelocityV ,STAT)
+                                        VelocityU, VelocityV, VelocityW, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
-        real,    optional, intent(OUT)              :: VelocityU, VelocityV
+        real,    optional, intent(OUT)              :: VelocityU, VelocityV, VelocityW
         integer, optional, intent(OUT)              :: STAT
         integer,           intent(IN )              :: DischargeIDNumber
         type(T_Time),      intent(IN )              :: TimeX
@@ -2910,7 +2936,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            if (.not. present(VelocityU) .and. .not. present(VelocityV))                 &
+            if (.not. present(VelocityU) .and. .not. present(VelocityV) .and. .not. present(VelocityW))   &
                 stop 'Subroutine GetDischargeFlowVelocity; Module ModuleDischarges. ERR01.'
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber = DischargeIDNumber)
@@ -2952,6 +2978,20 @@ cd6:            if (DischargeX%VelocityFlow%VVariable) then
 
             endif cd5
 
+
+cd7 :       if (Present(VelocityW)) then 
+
+cd8:            if (DischargeX%VelocityFlow%WVariable) then
+
+                    VelocityW = TimeSerieValue(DischargeX%TimeSerie,                    &
+                                               DischargeX%UseOriginalValues, TimeX,     &
+                                               DischargeX%VelocityFlow%WColumn)
+                else
+                    VelocityW = DischargeX%VelocityFlow%WScalar
+
+                end if cd8
+
+            endif cd7
 
             nullify(DischargeX)
 
