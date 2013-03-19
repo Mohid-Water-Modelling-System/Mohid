@@ -1633,7 +1633,7 @@ BF:         if (BlockFound) then
                              SearchType   = FromBlockInBlock,                           &
                              keyword      = 'STARTS_180W',                              &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
-                             default      = .false.,                                    &
+                             default      = .true.,                                     &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
                 
@@ -4158,8 +4158,10 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         do j=1, Me%LongLat%jmax
         do i=1, Me%LongLat%imax        
             Aux = GetNetCDFValue(Me%LongLat%LongIn, Dim1 = j, Dim2 = i)
-            if (Aux >= 180) then
-                call SetNetCDFValue(Me%LongLat%LongIn, Aux-360., Dim1 = j, Dim2 = i)
+            if (Me%LongLat%Starts180W) then
+                if (Aux >= 180) then
+                    call SetNetCDFValue(Me%LongLat%LongIn, Aux-360., Dim1 = j, Dim2 = i)
+                endif
             endif
         enddo
         enddo            
