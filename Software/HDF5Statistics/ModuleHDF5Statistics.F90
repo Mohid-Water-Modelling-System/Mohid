@@ -322,6 +322,7 @@ Module ModuleHDF5Statistics
                                          DataFile      = Me%DataFile,                   &
                                          Name          = ObjParameter%Name,             &
 !                                         GroupName     = trim(Me%StatisticGroupName),   &
+                                         Rank          = ObjParameter%Rank,             &
                                          STAT          = STAT_CALL)                                 
                 if (STAT_CALL /= SUCCESS_)                                              & 
                     stop 'ConstructHDF5Statistics - ModuleHDF5Statistics - ERR01'
@@ -402,24 +403,6 @@ Module ModuleHDF5Statistics
             stop 'ReadGlobalData - ModuleHDF5Statistics - ERR04'
         endif
 
-        ! Obtain HDF5 file's Map variable name
-        call GetData(Me%Mapping%Name, Me%ObjEnterData, iflag,                           &
-                     keyword      = 'HDF5_MAP_ITEM',                                    &
-                     SearchType   = FromFile,                                           &
-                     ClientModule = 'HDF5Statistics',                                   &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
-        stop 'ReadGlobalData - ModuleHDF5Statistics - ERR05'            
-    
-        ! Obtain HDF5 file's dimension (3D or 2D)
-        call GetData(Me%File3D, Me%ObjEnterData, iflag,                                 &
-                     keyword      = '3D_HDF5',                                          &
-                     default      = .false.,                                            &
-                     SearchType   = FromFile,                                           &
-                     ClientModule = 'HDF5Statistics',                                   &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
-        stop 'ReadGlobalData - ModuleHDF5Statistics - ERR06'            
 
     end subroutine ReadGlobalData
 
@@ -490,12 +473,14 @@ cd2 :           if (BlockFound) then
         !Arguments-------------------------------------------------------------
           
         !Local-----------------------------------------------------------------
-        integer                                         :: STAT_CALL, ClientNumber, iflag
+        integer                                         :: STAT_CALL, ClientNumber, iflag, i
         type (T_HDF5File),       pointer                :: NewHDF5File
         logical                                         :: BlockFound
         logical                                         :: AtLeastOneBlock = .false.
 
         !Begin-----------------------------------------------------------------
+
+        i = 0
 
         !Read input HDF5 files names
 do1 :   do
@@ -511,8 +496,10 @@ cd2 :           if (BlockFound) then
                     AtLeastOneBlock = .true.
 
                     call AddHDF5File                     (NewHDF5File)
+                    
+                    i = i + 1
 
-                    call ConstructHDF5File               (NewHDF5File)
+                    call ConstructHDF5File               (NewHDF5File, i)
 
                     nullify(NewHDF5File)
 
@@ -628,6 +615,7 @@ cd2 :           if (BlockFound) then
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'HDF_GROUP',                &
+                     default      = "/Results/"//trim(NewParameter%Name),&                     
                      ClientModule = 'HDF5Statistics',           &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                            &
@@ -671,13 +659,15 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructHDF5File(NewHDF5File)
+    subroutine ConstructHDF5File(NewHDF5File, i)
 
         !Arguments-------------------------------------------------------------
         type (T_HDF5File),      pointer           :: NewHDF5File
+        integer                                   :: i
 
         !External--------------------------------------------------------------
-        integer                                   :: iflag, STAT_CALL
+        integer                                   :: iflag, STAT_CALL, HDF5_READ, ObjHDF5
+        logical                                   :: ReadWaterPointsName, Exist
         
         !Local-----------------------------------------------------------------
 
@@ -691,7 +681,79 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'HDF5Statistics',                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                    &
-        stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR01'
+        stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR10'
+        
+        if (i==1) then
+
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+            
+            ObjHDF5 = 0
+
+            !Open HDF5 file
+            call ConstructHDF5 (ObjHDF5, trim(NewHDF5File%Name), HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR20'
+            
+            ReadWaterPointsName = .true.
+
+            call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/WaterPoints2D",      &
+                                      Exist = Exist, STAT= STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR30'
+
+            if (Exist) then
+                Me%Mapping%Name        = "WaterPoints2D"
+                ReadWaterPointsName    = .false. 
+                Me%File3D             = .false.
+            endif            
+            
+            call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/BasinPoints",        &
+                                      Exist = Exist, STAT= STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR40'
+
+            if (Exist) then
+                Me%Mapping%Name        = "BasinPoints"
+                ReadWaterPointsName    = .false. 
+                Me%File3D             = .false.
+            endif                  
+
+            call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/WaterPoints3D",      &
+                                      Exist = Exist, STAT= STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR50'
+
+            if (Exist) then
+                Me%Mapping%Name        = "WaterPoints3D"
+                ReadWaterPointsName    = .false. 
+                Me%File3D             = .true.                
+            endif  
+            
+            if (ReadWaterPointsName) then
+
+                ! Obtain HDF5 file's Map variable name
+                call GetData(Me%Mapping%Name, Me%ObjEnterData, iflag,                   &
+                             keyword      = 'HDF5_MAP_ITEM',                            &
+                             SearchType   = FromFile,                                   &
+                             ClientModule = 'HDF5Statistics',                           &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                              &
+                stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR60'            
+
+                ! Obtain HDF5 file's dimension (3D or 2D)
+                call GetData(Me%File3D, Me%ObjEnterData, iflag,                         &
+                             keyword      = '3D_HDF5',                                  &
+                             default      = .false.,                                    &
+                             SearchType   = FromFile,                                   &
+                             ClientModule = 'HDF5Statistics',                           &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                              &
+                stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR70'            
+
+            endif            
+    
+            !Kill HDF5 file
+            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR80'
+            
+        endif
+        
 
     end subroutine ConstructHDF5File
 
@@ -2292,7 +2354,7 @@ do2 :       do while(associated(ObjParameter))
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError (FATAL_, INTERNAL_,                                           &
                            'CalculateHDF5Statistics3D - ModuleHDF5Statistics - ERR02')
-
+                           
         call GetStatisticParameters (StatisticsID,                                      &
                                      Value3DStatLayers = Value3DStatLayers,             &
                                      Depth             = Depth,                         &
