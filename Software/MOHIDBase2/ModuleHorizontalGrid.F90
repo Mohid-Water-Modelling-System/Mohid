@@ -166,6 +166,7 @@ Module ModuleHorizontalGrid
     interface  ConstructHorizontalGrid
         module procedure ConstructHorizontalGridV1
         module procedure ConstructHorizontalGridV2
+        module procedure ConstructHorizontalGridV3
     end interface  ConstructHorizontalGrid
 
 
@@ -335,6 +336,9 @@ Module ModuleHorizontalGrid
         !Other
         type (T_Size2D)                         :: Size, WorkSize
         character(PathLength)                   :: FileName
+        
+        !Instances
+        integer                                 :: ObjHDF5 = 0
 
         type (T_HorizontalGrid), pointer        :: Next
 
@@ -471,6 +475,68 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ConstructHorizontalGridV2
  
     !--------------------------------------------------------------------------
+    
+
+    !--------------------------------------------------------------------------
+    subroutine ConstructHorizontalGridV3(HorizontalGridID, HDF5ID, STAT)
+
+
+        !Arguments-------------------------------------------------------------
+        integer                                 :: HorizontalGridID
+        integer                                 :: HDF5ID
+        integer, optional,  intent(OUT)         :: STAT    
+
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_, ready_, nUsers
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        !Assures nullification of the global variable
+        if (.not. ModuleIsRegistered(mHorizontalGrid_)) then
+            nullify (FirstHorizontalGrid)
+            call RegisterModule (mHorizontalGrid_) 
+        endif
+
+        call Ready(HorizontalGridID, ready_)    
+
+cd2 :   if (ready_ .EQ. OFF_ERR_) then
+
+            call AllocateInstance 
+            
+            !Associates Horizontal Grid
+            Me%ObjHDF5 = AssociateInstance (mHDF5_, HDF5ID)
+            
+            nullify (Me%FirstFatherGrid)
+            nullify (Me%LastFatherGrid )
+            
+            call ConstructGlobalVariablesV2()
+            
+            !Associates Horizontal Grid
+            nUsers     = DeassociateInstance (mHDF5_, HDF5ID)
+            if (nUsers == 0) stop 'HorizontalGrid - ConstructHorizontalGridV3 - ERR10'
+            
+
+            call GenerateGrid
+
+            !Returns ID
+            HorizontalGridID    = Me%InstanceID
+
+            STAT_ = SUCCESS_
+        else 
+            
+            stop 'HorizontalGrid - ConstructHorizontalGridV3 - ERR20' 
+
+        end if cd2
+
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine ConstructHorizontalGridV3
+ 
+    !--------------------------------------------------------------------------
+
 
     subroutine GenerateGrid
     
@@ -622,7 +688,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (Me%CoordType == SIMPLE_GEOG_ .and. .not. Me%ReadCartCorners .and. Me%ProjType == PAULO_PROJECTION_) then
                 if (ObjHorizontalGridFather%Longitude /= Me%Longitude) then
                     stop 'ConstructFatherGridLocation - ModuleHorizontalGrid - ERR10'
-                    write(*,*) 'both grids must have the same values in keyword LATITUDE and LONGITUDE'
                 endif
                 if (ObjHorizontalGridFather%Latitude /= Me%Latitude) then
                     stop 'ConstructFatherGridLocation - ModuleHorizontalGrid - ERR20'
@@ -2091,6 +2156,126 @@ BF1:    if (Me%ReadCartCorners) then
     end subroutine ConstructGlobalVariablesV1
 
     !--------------------------------------------------------------------------    
+    
+    subroutine ConstructGlobalVariablesV2()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                 :: Imax, Jmax, STAT_CALL
+        !----------------------------------------------------------------------
+
+        !Nullify T_Distances
+        nullify (Me%XX )
+        nullify (Me%YY )
+        nullify (Me%DXX)
+        nullify (Me%DYY)
+        nullify (Me%DZX)
+        nullify (Me%DZY)
+        nullify (Me%DUX)
+        nullify (Me%DUY)
+        nullify (Me%DVX)
+        nullify (Me%DVY)
+        nullify (Me%XX_IE)
+        nullify (Me%YY_IE)
+        nullify (Me%Compute%XX_Z )
+        nullify (Me%Compute%YY_Z )
+        nullify (Me%Compute%XX_U )
+        nullify (Me%Compute%YY_U )
+        nullify (Me%Compute%XX_V )
+        nullify (Me%Compute%YY_V )
+        nullify (Me%Compute%XX_Cross)
+        nullify (Me%Compute%YY_Cross)
+        nullify (Me%XX_AlongGrid)
+        nullify (Me%YY_AlongGrid)
+
+        !Nullify Other
+        nullify (Me%LatitudeZ    )
+        nullify (Me%LongitudeZ   )
+        nullify (Me%F            )
+        nullify (Me%GridCellArea )
+        nullify (Me%LatitudeConn )
+        nullify (Me%LongitudeConn)
+        
+        call GetHDF5ArrayDimensions (HDF5ID = Me%ObjHDF5, GroupName = "/Grid",          &
+                                    ItemName = "Bathymetry", Imax = Imax, Jmax = Jmax,  &
+                                    STAT = STAT_CALL)
+    
+        Me%WorkSize%ILB = 1
+        Me%WorkSize%IUB = Imax
+
+        Me%WorkSize%JLB = 1
+        Me%WorkSize%JUB = Jmax
+ 
+
+        Me%Size%ILB     = Me%WorkSize%ILB-1 
+        Me%Size%IUB     = Me%WorkSize%IUB+1 
+
+        Me%Size%JLB     = Me%WorkSize%JLB-1 
+        Me%Size%JUB     = Me%WorkSize%JUB+1 
+
+
+        !Reads COORD_TIP
+        Me%CoordType = SIMPLE_GEOG_
+
+        
+        Me%Datum = WGS_84_DATUM
+        
+        
+        Me%ProjType = PAULO_PROJECTION_
+        
+        Me%Xorig = 0
+        Me%Yorig = 0
+
+        Me%Grid_Angle = 0
+        
+        Me%Distortion      = .false. 
+        Me%RegularRotation = .false. 
+        Me%CornersXYInput  = .false. 
+        
+        Me%CornersXYInput = .true.
+                
+        !Allocates XX and YY
+        allocate(Me%XX(Me%Size%JLB+1 : Me%Size%JUB+1))
+        allocate(Me%YY(Me%Size%ILB+1 : Me%Size%IUB+1))
+
+        allocate(Me%XX_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+        allocate(Me%YY_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+        
+        allocate(Me%LatitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+        allocate(Me%LongitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+        allocate(Me%DefineCellsMap(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+        allocate(Me%XX_AlongGrid(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+        allocate(Me%YY_AlongGrid(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+
+        Me%XX    = null_real
+        Me%YY    = null_real
+        Me%XX_IE = null_real
+        Me%YY_IE = null_real
+
+        Me%LatitudeConn  = null_real
+        Me%LongitudeConn = null_real
+        
+        Me%DefineCellsMap(:,:)  = 1
+        
+        call ReadHDF5HorizontalGrid()
+        
+        Me%YY_IE = Me%LatitudeConn
+        Me%XX_IE = Me%LongitudeConn
+        
+        Me%Latitude   = Me%LatitudeConn (1,1)
+        Me%Longitude  = Me%LongitudeConn(1,1)
+     
+        !Allocates variables common to the module
+        call AllocateVariables
+
+    end subroutine ConstructGlobalVariablesV2
+
+    !--------------------------------------------------------------------------    
+    
 
     subroutine AllocateVariables()
 
@@ -7302,6 +7487,66 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
 
     end subroutine WriteHorizontalGrid 
+
+    !--------------------------------------------------------------------------
+
+    !----------------------------------------------------------------------------
+
+
+    subroutine ReadHDF5HorizontalGrid ()
+
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: WorkILB, WorkIUB
+        integer                                     :: WorkJLB, WorkJUB
+        integer                                     :: STAT_CALL
+        logical                                     :: Exist
+        !Begin-----------------------------------------------------------------
+ 
+
+        !WorkSize
+        WorkILB = Me%WorkSize%ILB
+        WorkIUB = Me%WorkSize%IUB
+        WorkJLB = Me%WorkSize%JLB
+        WorkJUB = Me%WorkSize%JUB
+
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (Me%ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR02'
+
+        call HDF5ReadData   (Me%ObjHDF5, "/Grid", "Longitude",                          &
+                              Array2D = Me%LongitudeConn,                               &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR05'
+
+        call HDF5ReadData   (Me%ObjHDF5, "/Grid", "Latitude",                           &
+                              Array2D = Me%LatitudeConn,                                &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR06'
+
+        if (Me%CornersXYInput) then
+        
+            call GetHDF5DataSetExist (Me%ObjHDF5, DataSetName ="/Grid/Define Cells",    &
+                                      Exist = Exist, STAT= STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR07'
+
+            if (Exist) then
+
+                call HDF5ReadData   (Me%ObjHDF5, "/Grid", "Define Cells",               &
+                                      Array2D = Me%DefineCellsMap,                      &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR09'
+
+            endif
+
+        endif
+
+
+    end subroutine ReadHDF5HorizontalGrid 
 
     !--------------------------------------------------------------------------
 
