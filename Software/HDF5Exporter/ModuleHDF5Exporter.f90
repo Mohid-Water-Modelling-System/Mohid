@@ -233,6 +233,7 @@ Module ModuleExportHDF5ToTimeSerie
         logical                                     :: GridFileNameON
         logical                                     :: MaskIs3D
         real                                        :: AreaFillValue
+        logical                                     :: UseAreaFillValue
         character(PathLength)                       :: PolygonsFile
         logical                                     :: PolygonON
         real, dimension(:,:), pointer               :: mask_2D
@@ -473,11 +474,14 @@ Module ModuleExportHDF5ToTimeSerie
                          keyword      = 'AREA_FILL_VALUE',            &
                          SearchType   = FromFile,                     &
                          ClientModule = 'ExportToTimeSerie',          &
-                         Default      = -99.0,                        & 
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
                 stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR051'                                     
-
+            if (iflag == 1) then
+                Me%UseAreaFillValue = .true.                
+            else
+                Me%UseAreaFillValue = .false.
+            endif
         endif
             
         call GetData(Me%CheckPropertyName,                      &
@@ -2559,7 +2563,6 @@ do2:        do item = 1, nItems
         integer                                     :: i, j, k
         integer                                     :: parameter_index, ts_index, p_index
         real                                        :: val   
-        logical                                     :: go
 
         !Begin-----------------------------------------------------------------
 
@@ -2662,41 +2665,41 @@ do2:        do item = 1, nItems
                         !First do the sum of the values, by ID of TimeSeries
                         do i = 1, Me%Size2D%IUB
                         do j = 1, Me%Size2D%JUB
-                        
-                            go = .false.
                             
-                            if (.not. Me%UsePointsMatrix) then
-                                go = .true.
-                            else
-                                if (Me%WaterPoints2D(i,j) == 1) then
-                                    go = .true.
-                                endif
+                            if (Me%UsePointsMatrix .and. &
+                                (Me%WaterPoints2D(i,j) /= 1)) then
+                                cycle                                
                             endif
-                            
-                            if (go) then
-                                if ((mask_2d(i,j) > 0) .and. (ObjParameter%CurrentField%Values2D(i, j) .ne. Me%AreaFillValue)) then
-                                    TS => Me%FirstTimeSeriesData
-do_ts1:                             do while (associated(TS))
-                                        if (mask_2d(i, j) == TS%ID) then
-                                            val      = ObjParameter%CurrentField%Values2D(i, j)
-                                            TS%Sum   = TS%Sum + val
-                                            TS%Count = TS%Count + 1
-                                            if (TS%First) then
-                                                TS%Max = val
-                                                TS%Min = val
-                                                TS%First = .false.
-                                            else
-                                                if (TS%Max < val) TS%Max = val
-                                                if (TS%Min > val) TS%Min = val
-                                            endif
-                                            exit do_ts1
-                                        
-                                        endif
+                            if (mask_2d(i,j) <= 0) then
+                                cycle
+                            endif
+                            if (Me%UseAreaFillValue .and. &
+                                (ObjParameter%CurrentField%Values2D(i, j) == Me%AreaFillValue)) then
+                                cycle
+                            endif                            
+                          
+                            TS => Me%FirstTimeSeriesData
+
+do_ts1:                     do while (associated(TS))
+                                if (mask_2d(i, j) == TS%ID) then
+                                    val      = ObjParameter%CurrentField%Values2D(i, j)
+                                    TS%Sum   = TS%Sum + val
+                                    TS%Count = TS%Count + 1
+                                    if (TS%First) then
+                                        TS%Max = val
+                                        TS%Min = val
+                                        TS%First = .false.
+                                    else
+                                        if (TS%Max < val) TS%Max = val
+                                        if (TS%Min > val) TS%Min = val
+                                    endif
+                                    exit do_ts1
                                 
-                                        TS => TS%Next
-                                    enddo do_ts1
                                 endif
-                            endif
+                        
+                                TS => TS%Next
+                            enddo do_ts1
+
                         enddo
                         enddo
                         
@@ -2714,33 +2717,33 @@ do_ts1:                             do while (associated(TS))
                         
                         !Compute (x - xm)^2
                         do i = 1, Me%Size2D%IUB
-                        do j = 1, Me%Size2D%JUB
+                        do j = 1, Me%Size2D%JUB 
                             
-                            go = .false.
-                            
-                            if (.not. Me%UsePointsMatrix) then
-                                go = .true.
-                            else
-                                if (Me%WaterPoints2D(i,j) == 1) then
-                                    go = .true.
-                                endif
+                            if (Me%UsePointsMatrix .and. &
+                                (Me%WaterPoints2D(i,j) /= 1)) then
+                                cycle                                
                             endif
-                            
-                            if (go) then                        
-                                if ((mask_2d(i,j) > 0)  .and. (ObjParameter%CurrentField%Values2D(i, j) .ne. Me%AreaFillValue)) then
-                                    TS => Me%FirstTimeSeriesData
-do_ts2:                             do while (associated(TS))
-                                        if (mask_2d(i, j) == TS%ID) then
-                                            val      = ObjParameter%CurrentField%Values2D(i, j)
-                                            TS%QSum  = TS%QSum + (val - TS%Mean)**2
-                                            exit do_ts2
-                                        
-                                        endif
-                                
-                                        TS => TS%Next
-                                    enddo do_ts2
+                            if (mask_2d(i,j) <= 0) then
+                                cycle
+                            endif
+                            if (Me%UseAreaFillValue .and. &
+                                (ObjParameter%CurrentField%Values2D(i, j) == Me%AreaFillValue)) then
+                                cycle
+                            endif    
+
+                            TS => Me%FirstTimeSeriesData
+
+do_ts2:                     do while (associated(TS))
+
+                                if (mask_2d(i, j) == TS%ID) then                                
+                                    val      = ObjParameter%CurrentField%Values2D(i, j)
+                                    TS%QSum  = TS%QSum + (val - TS%Mean)**2
+                                    exit do_ts2                                
                                 endif
-                            endif                            
+                        
+                                TS => TS%Next
+                            enddo do_ts2
+                 
                         enddo
                         enddo            
 
@@ -2767,41 +2770,39 @@ ifIs3D:                 if (Me%MaskIs3D) then
                             do j = 1, Me%Size3D%JUB
                             do k = 1, Me%Size3D%KUB
                                 
-                                go = .false.
-                            
-                                if (.not. Me%UsePointsMatrix) then
-                                    go = .true.
-                                else
-                                    if (Me%WaterPoints3D(i,j,k) == 1) then
-                                        go = .true.
-                                    endif
+                                if (Me%UsePointsMatrix .and. &
+                                    (Me%WaterPoints3D(i,j,K) /= 1)) then
+                                    cycle                                
                                 endif
+                                if (mask_3d(i,j,K) <= 0) then
+                                    cycle
+                                endif
+                                if (Me%UseAreaFillValue .and. &
+                                    (ObjParameter%CurrentField%Values3D(i,j,K) == Me%AreaFillValue)) then
+                                    cycle
+                                endif   
                             
-                                if (go) then                                  
-                                    TS => Me%FirstTimeSeriesData
-do_ts3:                             do while (associated(TS))
+                                TS => Me%FirstTimeSeriesData
+do_ts3:                         do while (associated(TS))
 
-                                        if (mask_3d(i,j,k) == TS%ID .and.               &
-                                            ObjParameter%CurrentField%Values3D(i, j, k) &
-                                            /= Me%AreaFillValue) then
-                                            
-                                            val      = ObjParameter%CurrentField%Values3D(i,j,k)
-                                            TS%Sum   = TS%Sum + val
-                                            TS%Count = TS%Count + 1
-                                            if (TS%First) then
-                                                TS%Max = val
-                                                TS%Min = val
-                                                TS%First = .false.
-                                            else
-                                                if (TS%Max < val) TS%Max = val
-                                                if (TS%Min > val) TS%Min = val
-                                            endif
-                                            exit do_ts3                                        
+                                    if (mask_3d(i,j,k) == TS%ID) then
+                                        val      = ObjParameter%CurrentField%Values3D(i,j,k)
+                                        TS%Sum   = TS%Sum + val
+                                        TS%Count = TS%Count + 1
+                                        if (TS%First) then
+                                            TS%Max = val
+                                            TS%Min = val
+                                            TS%First = .false.
+                                        else
+                                            if (TS%Max < val) TS%Max = val
+                                            if (TS%Min > val) TS%Min = val
                                         endif
-                                
-                                        TS => TS%Next
-                                    enddo do_ts3
-                                endif                                
+                                        exit do_ts3                                        
+                                    endif
+                            
+                                    TS => TS%Next
+                                enddo do_ts3
+                          
                             enddo
                             enddo
                             enddo
@@ -2822,32 +2823,32 @@ do_ts3:                             do while (associated(TS))
                             do i = 1, Me%Size3D%IUB
                             do j = 1, Me%Size3D%JUB
                             do k = 1, Me%Size3D%KUB
-                                go = .false.
-                            
-                                if (.not. Me%UsePointsMatrix) then
-                                    go = .true.
-                                else
-                                    if (Me%WaterPoints3D(i,j,k) == 1) then
-                                        go = .true.
-                                    endif
+
+                                if (Me%UsePointsMatrix .and. &
+                                    (Me%WaterPoints3D(i,j,K) /= 1)) then
+                                    cycle                                
                                 endif
+                                if (mask_3d(i,j,K) <= 0) then
+                                    cycle
+                                endif
+                                if (Me%UseAreaFillValue .and. &
+                                    (ObjParameter%CurrentField%Values3D(i,j,K) == Me%AreaFillValue)) then
+                                    cycle
+                                endif   
                             
-                                if (go) then                                  
-                                    TS => Me%FirstTimeSeriesData
-do_ts4:                             do while (associated(TS))
-                                        if (mask_3d(i,j,k) == TS%ID .and.               &
-                                            ObjParameter%CurrentField%Values3D(i, j, k) &
-                                            /= Me%AreaFillValue) then
-                                            val      = ObjParameter%CurrentField%Values3D(i,j,k)
-                                            TS%QSum  = TS%QSum + (val - TS%Mean)**2
-                                            exit do_ts4
-                                        
-                                        endif
+                                TS => Me%FirstTimeSeriesData
                                 
-                                        TS => TS%Next
-                                    enddo do_ts4
-                                endif
-                         
+do_ts4:                         do while (associated(TS))
+
+                                    if (mask_3d(i,j,k) == TS%ID) then
+                                        val      = ObjParameter%CurrentField%Values3D(i,j,k)
+                                        TS%QSum  = TS%QSum + (val - TS%Mean)**2
+                                        exit do_ts4                                            
+                                    endif
+                            
+                                    TS => TS%Next
+                                enddo do_ts4
+                              
                             enddo
                             enddo
                             enddo            
@@ -2879,31 +2880,30 @@ do_ts4:                             do while (associated(TS))
                                 do i = 1, Me%Size3D%IUB
                                 do j = 1, Me%Size3D%JUB  
                                 
-                                    go = .false.
-                                    if (.not. Me%UsePointsMatrix) then
-                                        go = .true.
-                                    elseif (Me%WaterPoints3D(i,j,k) == 1) then
-                                        go = .true.
-                                    endif                                            
+                                    if (Me%UsePointsMatrix .and. &
+                                        (Me%WaterPoints3D(i,j,K) /= 1)) then
+                                        cycle                                
+                                    endif
+                                    if (mask_2d(i,j) <= 0) then
+                                        cycle
+                                    endif
+                                    if (Me%UseAreaFillValue .and. &
+                                        (ObjParameter%CurrentField%Values3D(i,j,K) == Me%AreaFillValue)) then
+                                        cycle
+                                    endif                                           
                                 
-                                    if (go) then                                                              
-                                        if (mask_2d(i,j) > 0 .and.                      &
-                                            ObjParameter%CurrentField%Values3D(i, j, k) &
-                                            /= Me%AreaFillValue) then
-                                            if (mask_2d(i,j) == TS%ID) then
-                                                val      = ObjParameter%CurrentField%Values3D(i,j,k)
-                                                TS%Sum   = TS%Sum + val
-                                                TS%Count = TS%Count + 1
-                                                if (TS%First) then
-                                                    TS%Max = val
-                                                    TS%Min = val
-                                                    TS%First = .false.
-                                                else
-                                                    if (TS%max < val) TS%Max = val
-                                                    if (TS%min > val) TS%Min = val
-                                                endif                                       
-                                            endif
-                                        endif
+                                    if (mask_2d(i,j) == TS%ID) then
+                                        val      = ObjParameter%CurrentField%Values3D(i,j,k)
+                                        TS%Sum   = TS%Sum + val
+                                        TS%Count = TS%Count + 1
+                                        if (TS%First) then
+                                            TS%Max = val
+                                            TS%Min = val
+                                            TS%First = .false.
+                                        else
+                                            if (TS%max < val) TS%Max = val
+                                            if (TS%min > val) TS%Min = val
+                                        endif                                       
                                     endif
                                                                             
                                 enddo
@@ -2921,26 +2921,22 @@ do_ts4:                             do while (associated(TS))
                                 do i = 1, Me%Size3D%IUB
                                 do j = 1, Me%Size3D%JUB  
                                 
-                                    go = .false.
-                                    if (.not. Me%UsePointsMatrix) then
-                                        go = .true.
-                                    elseif (Me%WaterPoints3D(i,j,k) == 1) then
-                                        go = .true.
+                                    if (Me%UsePointsMatrix .and. &
+                                        (Me%WaterPoints3D(i,j,K) /= 1)) then
+                                        cycle                                
                                     endif
-                            
-                                    if (go) then                                                              
-                                
-                                        if (mask_2d(i,j) > 0 .and.                      &
-                                            ObjParameter%CurrentField%Values3D(i, j, k) &
-                                            /= Me%AreaFillValue) then
+                                    if (mask_2d(i,j) <= 0) then
+                                        cycle
+                                    endif
+                                    if (Me%UseAreaFillValue .and. &
+                                        (ObjParameter%CurrentField%Values3D(i,j,K) == Me%AreaFillValue)) then
+                                        cycle
+                                    endif
 
-                                            if (mask_2d(i,j) == TS%ID) then
-                                                val      = ObjParameter%CurrentField%Values3D(i,j,k)
-                                                TS%QSum  = TS%QSum + (val - TS%Mean)**2
-                                            endif                                            
-                                        
-                                        endif
-                                    endif    
+                                    if (mask_2d(i,j) == TS%ID) then
+                                        val      = ObjParameter%CurrentField%Values3D(i,j,k)
+                                        TS%QSum  = TS%QSum + (val - TS%Mean)**2
+                                    endif                                                                                     
                                     
                                 enddo
                                 enddo  
