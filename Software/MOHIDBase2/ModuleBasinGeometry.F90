@@ -1572,7 +1572,7 @@ do1:        do
         nullify (Me%FirstLake)
 
     end subroutine RemoveAllDepressions
-    
+
     !--------------------------------------------------------------------------
 
     subroutine UpStreamAreas 
@@ -1656,6 +1656,9 @@ do1:            do
         integer                                     :: iCen, jCen
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: NumberOfNodes
+        logical                                     :: IsolatedOutletNode, ConfluenceInOutletNode
+        integer                                     :: iTarget, jTarget
+        logical                                     :: NodesChanged
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -1665,23 +1668,119 @@ do1:            do
         !Sets Points equal to NoRiverPoints
         Me%RiverPoints = NoRiverPoint
 
-        !Set Nodes where Drained Area is superior to Treshold Area
+        !Set Nodes where Drained Area is superior to Treshold Area.
+        !Update: for several outlet mode isolated nodes may appear
+        !without reach. To account a node it has to have a reach associated. 
+        !Also outlets with more than one upstream nodes will not be considered
+        !for drainage network consistency - network will stop upstream. David Fev 2013
+        
         NumberOfNodes = 0 
+        NodesChanged = .false.
         do jCen = JLB, JUB
         do iCen = ILB, IUB
             if (Me%BoundaryPoints (iCen, jCen) == Not_Boundary     .and.    &
                 Me%UpStreamArea(iCen, jCen) >= Me%RiverTresholdArea) then
-                NumberOfNodes          = NumberOfNodes + 1
-                Me%NodeIDs(iCen, jCen) = NumberOfNodes
-                Me%RiverPoints (iCen, jCen) = RiverPoint
+                
+                IsolatedOutletNode     = .false.
+                ConfluenceInOutletNode = .false.
+                
+                if (.not. Me%DelineateBasin) then    
+                    
+                    call TargetPoint (Me%DrainageDirection(iCen, jCen), iCen, jCen, iTarget, jTarget)
+                    
+                    if (Me%BoundaryPoints(iTarget, jTarget) == Boundary) then
+                        !this is an outlet
+                        !if outlet is isolated, do not consider it
+                        if (NumberOfUpstreamNodes(iCen, jCen) .eq. 0) then
+                            IsolatedOutletNode = .true.
+                        !if outlet has more than one upstream node, do not consider it
+                        elseif (NumberOfUpstreamNodes(iCen, jCen) .gt. 1) then
+                            ConfluenceInOutletNode = .true.
+                            NodesChanged = .true.                            
+                        endif             
+                    endif
+                endif
+                
+                if ((.not. IsolatedOutletNode) .and. (.not. ConfluenceInOutletNode)) then
+                    NumberOfNodes          = NumberOfNodes + 1
+                    Me%NodeIDs(iCen, jCen) = NumberOfNodes
+                    Me%RiverPoints (iCen, jCen) = RiverPoint
+                endif             
+            
             endif
         enddo
         enddo
-
+        
+        !if a concluence node was removed maybe the isolated node and confluence node are now upstream
+        !everytime a confluence is removed the check has to be redone
+        !isolated nodes removal does not take problem upstream since there will be no more nodes
+        if (.not. Me%DelineateBasin) then
+            do while (NodesChanged)
+                NodesChanged = .false.
+                do jCen = JLB, JUB
+                do iCen = ILB, IUB
+                    if (Me%RiverPoints (iCen, jCen) == RiverPoint) then
+                        call TargetPoint (Me%DrainageDirection(iCen, jCen), iCen, jCen, iTarget, jTarget)
+                        !test the new outlets
+                        if (Me%RiverPoints(iTarget, jTarget) == NoRiverPoint) then
+                            !removing nodes created a isolated node upstream of boundary
+                            if (NumberOfUpstreamNodes(iCen, jCen) .eq. 0) then
+                                Me%NodeIDs(iCen, jCen)      = 0
+                                Me%RiverPoints (iCen, jCen) = NoRiverPoint
+                            !removing nodes created a confluence upstream
+                            elseif (NumberOfUpstreamNodes(iCen, jCen) .gt. 1) then
+                                Me%NodeIDs(iCen, jCen)      = 0
+                                Me%RiverPoints (iCen, jCen) = NoRiverPoint 
+                                NodesChanged = .true.                       
+                            endif
+                        endif
+                    endif
+                enddo
+                enddo
+            enddo
+        endif
+        
     end subroutine NodeDefinition
 
     !--------------------------------------------------------------------------
 
+    integer function NumberOfUpstreamNodes(iCen, jCen)
+        !Arguments-------------------------------------------------------------
+        integer                                      :: iCen, jCen
+        !Local-----------------------------------------------------------------
+        integer                                      :: i, j, iAdj, jAdj, iTarget, jTarget
+        
+        !go trough the neighbours and count how many point to it and are really nodes (UpstreamArea >= TresholdArea)
+        NumberOfUpstreamNodes = 0
+        
+        do j = -1, 1
+        do i = -1, 1
+
+            if (.not. (i == 0 .and. j == 0)) then
+                
+                iAdj = iCen + i
+                jAdj = jCen + j
+
+                if (Me%BoundaryPoints(iAdj, jAdj) == Not_Boundary) then
+                    
+                    call TargetPoint (Me%DrainageDirection(iAdj, jAdj), iAdj, jAdj, iTarget, jTarget)
+                    
+                    if ((iTarget .eq. iCen) .and. (jTarget .eq. jCen)                 &
+                        .and. (Me%UpstreamArea(iAdj, jAdj) .ge. Me%RiverTresholdArea)) then
+                        NumberOfUpstreamNodes = NumberOfUpstreamNodes + 1            
+                    endif
+                
+                endif
+                
+            endif
+        
+        enddo
+        enddo
+                
+    end function NumberOfUpstreamNodes
+    
+    !--------------------------------------------------------------------------
+    
     subroutine TargetPoint (Direction, iCen, jCen, TargetI, TargetJ)
 
         !Arguments-------------------------------------------------------------
@@ -1975,6 +2074,7 @@ do1:            do
                                   Me%OutletJ, iOutletTarget, jOutletTarget)
                 
                 Me%NodeIDs (iOutletTarget, jOutletTarget) = iNode
+            
             endif
 
 
@@ -2029,7 +2129,7 @@ do1:            do
                 write (unit, *)"TERRAIN_LEVEL      : ", Me%ExtVar%Topography(iOutletTarget, jOutletTarget)
                 write (unit, *)"GRID_I             : ", iOutletTarget
                 write (unit, *)"GRID_J             : ", jOutletTarget
-                write (unit, *)"<EndNode>"
+                write (unit, *)"<EndNode>"           
             
             endif
 
@@ -2178,15 +2278,15 @@ do1:            do
             
             if (Me%WriteBasinPoints) then
             
-    	        call WriteGridData  (Me%BasinPointsFile,                                        &
-		                             COMENT1          = "Created using BasinDelineator.",       &
-		                             COMENT2          = "BasinPoints 2D GridData: ",            &
-		                             HorizontalGridID = Me%ObjHorizontalGrid,                   &
-		                             FillValue        = -99.0,                                  &
-		                             OverWrite        = .true.,                                 &
-		                             GridData2D_Int   = Me%BasinPoints,                         &
-		                             STAT             = STAT_CALL)   
-                if (STAT_CALL /= SUCCESS_) stop 'WriteBasinASCII - ModuleBasinGeometry - ERR06a'            
+            call WriteGridData  (Me%BasinPointsFile,                                        &
+                                     COMENT1          = "Created using BasinDelineator.",       &
+                                     COMENT2          = "BasinPoints 2D GridData: ",            &
+                                     HorizontalGridID = Me%ObjHorizontalGrid,                   &
+                                     FillValue        = -99.0,                                  &
+                                     OverWrite        = .true.,                                 &
+                                     GridData2D_Int   = Me%BasinPoints,                         &
+                                     STAT             = STAT_CALL)   
+            if (STAT_CALL /= SUCCESS_) stop 'WriteBasinASCII - ModuleBasinGeometry - ERR06a'            
             
             endif
             

@@ -505,7 +505,7 @@ Module ModuleBasin
         real, dimension(:), pointer                 :: TimeSeriesBuffer3 !Properties Balance
         real, dimension(:), pointer                 :: TimeSeriesBuffer4 !Water Fluxes
         real, dimension(:), pointer                 :: TimeSeriesBuffer5 !Properties Fluxes
-        real(8), dimension(:), pointer              :: BWBBuffer !buffer to be used for Basin Water Balance
+        real, dimension(:), pointer                 :: BWBBuffer !buffer to be used for Basin Water Balance
         
         !Basin Water Balance
         type (T_BasinWaterBalance)                  :: BWB

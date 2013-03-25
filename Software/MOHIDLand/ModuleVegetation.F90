@@ -1089,7 +1089,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             call ConstructVegetationGrids
 
-            call CheckRootDepth
+            !call CheckRootDepth
             
             if (Me%ComputeOptions%Dormancy) then
                 call CheckLatitude
@@ -4452,58 +4452,57 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
    !--------------------------------------------------------------------------
 
-
-    subroutine CheckRootDepth
-
-        !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL
-        integer                                 :: i, j, kTop, kFloor
-        real                                    :: MaxRootDepth, SoilDepth
-        
-        !Begin------------------------------------------------------------------
-
-        call GetGeometryDistances(Me%ObjGeometry,                                       &
-                                  SZZ         = Me%ExternalVar%SZZ,                     &
-                                  STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR01'
-
-        call GetGeometryKFloor(Me%ObjGeometry,                                          &
-                               Z    = Me%ExternalVar%KFloor,                            &
-                               STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR02'
-
-        do j = Me%Size%JLB, Me%Size%JUB
-        do i = Me%Size%ILB, Me%Size%IUB
-            
-            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
-                
-                !Check maximum root depth
-                MaxRootDepth = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%MaximumRootDepth
-                kTop    = Me%WorkSize%KUB
-                kFloor  = Me%ExternalVar%KFloor(i,j)
-                
-                SoilDepth = (-1. * Me%ExternalVar%SZZ(i,j,kTop)) - (-1.* Me%ExternalVar%SZZ(i,j,kFloor))
-
-                if(MaxRootDepth .gt. SoilDepth) then
-                    
-                    Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%MaximumRootDepth = SoilDepth
-                    write(*,*)'Maximum Root Depth is greater then soil depth. Maximum root depth was set to soil depth'
-                    write(*,*)'Cell:', i, j
-                
-                endif
-            
-            endif
-        
-        enddo
-        enddo
-
-        call UnGetGeometry( Me%ObjGeometry, Me%ExternalVar%KFloor,       STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR03'
-        
-        call UnGetGeometry( Me%ObjGeometry, Me%ExternalVar%SZZ,          STAT = STAT_CALL )        
-        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR04'
-
-    end subroutine CheckRootDepth
+!    subroutine CheckRootDepth
+!
+!        !External--------------------------------------------------------------
+!        integer                                 :: STAT_CALL
+!        integer                                 :: i, j, kTop, kFloor
+!        real                                    :: MaxRootDepth, SoilDepth
+!        
+!        !Begin------------------------------------------------------------------
+!
+!        call GetGeometryDistances(Me%ObjGeometry,                                       &
+!                                  SZZ         = Me%ExternalVar%SZZ,                     &
+!                                  STAT        = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR01'
+!
+!        call GetGeometryKFloor(Me%ObjGeometry,                                          &
+!                               Z    = Me%ExternalVar%KFloor,                            &
+!                               STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR02'
+!
+!        do j = Me%Size%JLB, Me%Size%JUB
+!        do i = Me%Size%ILB, Me%Size%IUB
+!            
+!            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+!                
+!                !Check maximum root depth
+!                MaxRootDepth = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%MaximumRootDepth
+!                kTop    = Me%WorkSize%KUB
+!                kFloor  = Me%ExternalVar%KFloor(i,j)
+!                
+!                SoilDepth = (-1. * Me%ExternalVar%SZZ(i,j,kTop)) - (-1.* Me%ExternalVar%SZZ(i,j,kFloor))
+!
+!                if(MaxRootDepth .gt. SoilDepth) then
+!                    
+!                    Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%MaximumRootDepth = SoilDepth
+!                    write(*,*)'Maximum Root Depth is greater then soil depth. Maximum root depth was set to soil depth'
+!                    write(*,*)'Cell:', i, j
+!                
+!                endif
+!            
+!            endif
+!        
+!        enddo
+!        enddo
+!
+!        call UnGetGeometry( Me%ObjGeometry, Me%ExternalVar%KFloor,       STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR03'
+!        
+!        call UnGetGeometry( Me%ObjGeometry, Me%ExternalVar%SZZ,          STAT = STAT_CALL )        
+!        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR04'
+!
+!    end subroutine CheckRootDepth
 
    !--------------------------------------------------------------------------
 
@@ -8760,9 +8759,6 @@ do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer, intent(IN)                             :: i, j
         !Local-----------------------------------------------------------------
         integer                                         :: JulDay, JulDay_Old 
-        !SandBoxTest-----------------------------------------------------------
-!        Me%ExternalVar%Integration%AverageAirTempDuringDT(i,j) = Me%ExternalVar%AirTemperature(i,j)
-!        Me%HeatUnits%PotentialHUTotal(i,j) = Me%ComputeOptions%PotentialHUTotal !5475. !15ºC * 365 days
         !----------------------------------------------------------------------
 
         Me%HeatUnits%PotentialHUBase_Old(i,j) = Me%HeatUnits%PotentialHUBase(i,j)
@@ -8805,7 +8801,6 @@ do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                         :: JulDay, JulDay_Old 
         integer                                         :: TreeYearsToMaturity
         real                                            :: TreeMaximumBiomass
-        !SandBoxTest-----------------------------------------------------------
         !----------------------------------------------------------------------
 
         call JulianDay(Me%ExternalVar%Now, JulDay)
@@ -8884,9 +8879,6 @@ do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            ::  PotentialHUBase_Old
         integer                                         ::   JulDay, JulDay_Old
         character (Len = StringLength)                  :: WarningString
-        !SandBoxTest-----------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%PlantingJulianDay = -99
-!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%PlantingHUBase = Me%ComputeOptions%PlantingHUBase
         !Begin-----------------------------------------------------------------
 
 
@@ -8947,36 +8939,6 @@ do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         endif
 
 
-!        if (Me%PlantingOccurred(i,j)) then
-!REVIEW NULLIFY VARIABLES
-!        Me%
-!        Me%PlantingOccurred(i,j) = .false. !melhor aqui ou no fim?
-!        endif
-
-      
-
-!          j = 0
-!        j = ihru
-
-!        igro(j) = 1
-!        idorm(j) = 0
-!        phuacc(j) = 0.
-!        plantn(j) = 0.
-!        plantp(j) = 0.
-!        plt_et(j) = 0.
-!        plt_pet(j) = 0.                                          
-!        laimxfr(j) = 0.
-!        hvstiadj(j) = 0.
-!        olai(j) = 0.
-!        rwt(j) = 0.
-!        icr(j) = icr(j) + 1
-
-        !! initialize transplant variables
-!        if (lai_init(nro(j),icr(j),j) > 0.) then
-!          laiday(j) = lai_init(nro(j),icr(j),j)
-!          bio_ms(j) = bio_init(nro(j),icr(j),j)
-!        endif
-
     end subroutine CheckPlanting
 
     !--------------------------------------------------------------------------
@@ -8992,9 +8954,6 @@ do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            ::  AverageTempDuringDT
         real                                            :: PlantBaseTemperature
         real                                            :: HUAcc, AccumulatedTemperature
-        !SandBoxTest-----------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%PlantHUatMaturity = Me%ComputeOptions%PlantHUatMaturity
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantBaseTemperature = 0.
         !Begin-----------------------------------------------------------------
 
         VegetationID         = Me%VegetationID(i,j)
@@ -9015,8 +8974,6 @@ do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         Me%HeatUnits%PlantHUAccumulated    (i,j) = Me%HeatUnits%PlantHUAccumulated (i,j) + PlantHUVariation
         !Debug
         HUAcc = Me%HeatUnits%PlantHUAccumulated (i,j)
-
-
 
     end subroutine ComputePlantGrowingStage
 
@@ -9175,22 +9132,10 @@ do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: IncreaseUptake, ReduceUptake
         integer                                         :: k, KUB, KLB
         logical                                         :: UptakeAllowed
-        !SandBoxTest-----------------------------------------------------------
-!        Me%ExternalVar%FieldCapacity(:,:,:) = 0.3 !m3/m3
-!        Me%ExternalVar%ResidualWaterContent(:,:,:) = 0.0 
-!        Me%ExternalVar%PotentialTranspiration(i,j) = 1e-8 !m/s - 1 mm/dia
         !Begin-----------------------------------------------------------------
         
-!        if (ep_max <= 0.01) then
-!        strsw(j) = 1.
-!        else
-        !! initialize variables
-!        gx = 0.
-!        ir = 0
-!        sump = 0.
-!        wuse = 0.
-!        xx = 0.
-
+        !Aeration stress from SWAT not implmented yet
+        
         !!  compute aeration stress
 !       if (sol_sw(j) > sol_sumfc(j)) then
 !          satco = (sol_sw(j) - sol_sumfc(j)) / (sol_sumul(j) - 
@@ -9374,36 +9319,6 @@ do3 :               do k = KUB, KLB, -1
         real                                            :: P2L, P2H, R2L, R2H, TP        
         !Begin-----------------------------------------------------------------
 
-
-!                if (Me%ExtVar%WaterPoints3D(i, j, Me%WorkSize%KUB) == 1  ) then   
-! 
-!  !first of all,it calculates the layer of the roots. 
-!              
-!   ! calculate root layer!
-!       deep = 0
-!       w    = Me%WorkSize%KUB
-!       seguir = .True.
-!
-!       Do While( w>0.and. seguir==.True.) 
-!
-!       deep = deep + Me%ExtVar%DWZ(i,j,w)
-!       y = Me%ExtVar%rootdepth(i,j)
-!
-!           write(*,*)'A profunidade ate onde descem as raizes é', deep            
-!            If(y-deep<=0.001 .or. deep>y) then
-!            
-!               layerroot = (Me%WorkSize%KUB-w) +1
-!               seguir = .False.
-!                    
-!           write(*,*)'Alayer das raizes e', layerroot         
-!
-!            Else
-!
-!            w = w-1
-!
-!           End If 
-!       Enddo
-        
         MappingPoints => Me%ExternalVar%MappingPoints2D
         
         !Fluxes Nullification
@@ -10692,6 +10607,7 @@ do3 :               do k = KUB, KLB, -1
     !--------------------------------------------------------------------------
 
     subroutine NitrogenFixationSWAT
+!This process is not yet implemented
 
         !Local-----------------------------------------------------------------
 !        integer, dimension(:,:), pointer                     :: MappingPoints
@@ -10819,16 +10735,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 endif
 
                 if (Me%IsPlantGrowing(i,j) .and. .not. Dormant .and. Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) then     
-
-        !SandBoxTest-----------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%ExtinctCoef = 0.65
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%BiomassEnergyRatio = 30.0
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%CO2ConcHigh = 660.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%BiomassEnergyRatioHigh = 39.0
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%RUEDeclineRate = 6.0
-!        Me%ExternalVar%Integration%AverageRadiationDuringDT(i,j) = Me%ExternalVar%SolarRadiation(i,j)
-!        Me%ExternalVar%Integration%AverageAirHumidityDuringDT(i, j) = Me%ExternalVar%RelativeHumidity(i,j)
-        !----------------------------------------------------------------------- 
         
                     VegetationID           =   Me%VegetationID(i,j)
                     ExtinctCoef            =   Me%VegetationTypes(VegetationID)%GrowthDatabase%ExtinctCoef
@@ -10904,14 +10810,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         Me%Growth%PotentialBiomass(i,j) = Me%StateVariables%TotalPlantBiomass(i,j) + PotentialBiomassGrowth
                     endif
 
-
-            !!MOVE TO MANAGEMENT
-            !          !! auto fertilization-nitrogen demand (non-legumes only)
-            !          select case (idc(idp))
-            !            case (4, 5, 6, 7)
-            !            if (auto_nstrs(j) > 0.) call anfert
-            !          end select
-
                     !! reduce predicted biomass due to stress on plant
                     call ComputeGlobalStress(i,j)
 
@@ -10926,18 +10824,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     Me%Fluxes%BiomassGrowth(i,j) = PotentialBiomassGrowth * Me%Growth%GlobalStress(i,j)
                     !Duplication to be used in nutrient uptake. 
                     Me%Growth%BiomassGrowthOld(i,j)     = Me%Fluxes%BiomassGrowth(i,j)
-
-            !TREE CYCLE NOT YET USED - TO DO - COUNTER TO TREE AGE
-            !        if (PlantType == 7) then
-            !           if (mat_yrs(idp) > 0) then
-            !              rto = float(curyr_mat(j)) / float(mat_yrs(idp))
-            !              biomxyr = rto * bmx_trees(idp)
-            !              bio_ms(j) = Min (bio_ms(j), biomxyr)
-            !            else
-            !              rto = 1.
-            !            end if
-            !          end if
-                
                 
                 endif
 
@@ -11103,16 +10989,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 if (HasLeaves .and. Me%IsPlantGrowing(i,j) .and. .not. Dormant                         &
                 .and. Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) then  
-
-        !SandBoxTest-----------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%FrLAIMax1 = 0.05
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%FrLAIMax2 = 0.95
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%FrGrow1   = 0.05
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%FrGrow2   = 0.45
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%FrGrowLAIDecline = 0.50
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%LAIMax    = 4.0
-        !----------------------------------------------------------------------
-            
+           
                     VegetationID = Me%VegetationID(i,j)
                     FrLAIMax1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%FrLAIMax1
                     FrLAIMax2 = Me%VegetationTypes(VegetationID)%GrowthDatabase%FrLAIMax2
@@ -11221,15 +11098,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: KillPlantHU
         real                                            :: HarvestHU
         logical                                         :: Dormant
-        !SandBoxTest-----------------------------------------------------------
-!        allocate(Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestPlantHU(1))
-!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestKillJulianDay = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestKillPlantHU   = 1.2
-!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestJulianDay     = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestPlantHU(1)    = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestPlantHU(2)    = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%KillJulianDay        = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%KillPlantHU          = -99.
         !Begin-----------------------------------------------------------------
 
 
@@ -11333,7 +11201,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer, dimension(:,:), pointer                   :: MappingPoints
         integer                                         :: i, j
         character (Len = StringLength)                  :: WarningString
-        !SandBoxTest-----------------------------------------------------------
         !Begin-----------------------------------------------------------------
         
         MappingPoints => Me%ExternalVar%MappingPoints2D
@@ -11386,12 +11253,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: NitrogenClipping, PhosphorusClipping
         real                                            :: Clip, HarvestEfficiency
         real                                            :: BiomassHarvestedFraction
-        !SandBoxTest-----------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%OptimalHarvestIndex      = 0.40
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%MinimumHarvestIndex      = 0.20
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%NitrogenFractionInYeld   = 0.0250
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PhosphorusFractionInYeld = 0.0022
-!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestEfficiency    = 1.0
         !Begin-----------------------------------------------------------------
 
 
@@ -11464,30 +11325,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             Clip = 0.0
         endif
 
-!! update residue on soil surface
-!      sol_rsd(1,j) = resnew + sol_rsd(1,j)
-!      sol_rsd(1,j) = Max(sol_rsd(1,j),0.)
-
-
-
-!      if (hi_ovr(nro(j),ncut(j),j) > 0.) then
-!        !! calculate nutrients removed with yield
-!        yieldn = 0.
-!        yieldp = 0.
-!        yieldn = yield * pltfr_n(j)
-!        yieldp = yield * pltfr_p(j)
-!        yieldn = Min(yieldn, 0.9 * plantn(j))
-!        yieldp = Min(yieldp, 0.9 * plantp(j))
-!        !! calculate nutrients removed with clippings
-!        clipn = 0.
-!        clipp = 0.
-!        clipn = clip * pltfr_n(j)
-!        clipp = clip * pltfr_p(j)
-!        clipn = Min(clipn,plantn(j)-yieldn)
-!        clipp = Min(clipp,plantp(j)-yieldp)
-!      else
-
-
         !!Biomass to soil. The fraction left by clippings
         Me%Fluxes%ToSoil%HarvestKillBiomassToSoil(i,j) = Clip
         
@@ -11552,81 +11389,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         endif
 
-
-
-
-
-!        Me%HarvestOnlyOccurred(i,j) = .true.
-!
-!! adjust foliar pesticide for plant removal
-!      if (hrupest(j) == 1) then
-!        do k = 1, npmx
-!          !! calculate amount of pesticide removed with yield and clippings
-!          yldpst = 0.
-!          clippst = 0.
-!          if (hvsti(idplt(nro(j),icr(j),j)) > 1.001) then
-!            yldpst = plt_pst(k,j)
-!            plt_pst(k,j) = 0.
-!          else
-!            yldpst = hiad1 * plt_pst(k,j)
-!            plt_pst(k,j) = plt_pst(k,j) - yldpst
-!            if (plt_pst(k,j) < 0.) plt_pst(k,j) = 0.
-!          endif
-!          clippst = yldpst * (1. - harveff(nro(j),ncut(j),j))
-!          if (clippst < 0.) clippst = 0.
-!          !! add pesticide in clippings to soil surface
-!          sol_pst(k,j,1) = sol_pst(k,j,1) + clippst
-!        end do   
-!      end if
-      
-
-!! calculate modifier for autofertilization target nitrogen content
-!      tnyld(nro(j),icr(j),j) = 0.
-!      tnyld(nro(j),icr(j),j) = (1. - rwt(j)) * bio_ms(j) * pltfr_n(j) * &
-!     &                                                       auto_eff(j)
-!      if (icr(j) > 1) then
-!        tnyld(nro(j),icr(j)-1,j) = tnyld(nro(j),icr(j),j)
-!      else
-!        tnyld(nro(j),icr(j)+1,j) = tnyld(nro(j),icr(j),j)
-!      end if
-
-!! summary calculations
-!      if (curyr > nyskip) then
-!        wshd_yldn = wshd_yldn + yieldn * hru_dafr(j)
-!        wshd_yldp = wshd_yldp + yieldp * hru_dafr(j)
-!        yldkg(nro(j),icr(j),j) = yldkg(nro(j),icr(j),j) + yield + clip
-!        yldanu(j) = yldanu(j) + (yield + clip) / 1000.
-!
-!       ! select case (idc(idplt(nro(j),icr(j),j)))
-!       !   case (3, 6, 7)
-!       !     bio_hv(nro(j),icr(j),j) = (yield + clip) + bio_hv(nro(j),icr(j),j)
-!       !     bio_yrms(j) = bio_yrms(j) + (yield + clip) / 1000.
-!       !   case default
-!           bio_hv(nro(j),icr(j),j) = bio_ms(j) + bio_hv(nro(j),icr(j),j)
-!            bio_yrms(j) = bio_yrms(j) + bio_ms(j) / 1000.
-!       ! end select
-!      endif
-
-
-!! reset leaf area index and fraction of growing season
-!      xx = 0.
-!      xx = bio_ms(j)
-!      if (xx > 0.001) then
-!        bio_ms(j) = bio_ms(j) - yield - clip
-!        if (bio_ms(j) < 0.) bio_ms(j) = 0.
-!        laiday(j) = laiday(j) * bio_ms(j) / xx
-!        phuacc(j) = phuacc(j) * bio_ms(j) / xx
-!        rwt(j) = rwt(j) * xx / bio_ms(j)
-!      else
-!        bio_ms(j) = 0.
-!        laiday(j) = 0.
-!        phuacc(j) = 0.
-!      endif
-
-!! increment harvest sequence number
-!      ncut(j) = ncut(j) + 1
-
-
     end subroutine HarvestOperation
 
     !--------------------------------------------------------------------------
@@ -11644,11 +11406,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: NitrogenFractionInYeld, PhosphorusFractionInYeld
         real                                            :: TotalPlantNitrogen, TotalPlantPhosphorus
         real                                            :: NitrogenToSoil, PhosphorusToSoil, FertilizationEfficiency
-        !SandBoxTest-----------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%OptimalHarvestIndex      = 0.40
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%MinimumHarvestIndex      = 0.20
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%NitrogenFractionInYeld   = 0.0250
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PhosphorusFractionInYeld = 0.0022
         !Begin-----------------------------------------------------------------
 
 !HARVEST INDEX OVERRIDE not yet implemented
@@ -11705,11 +11462,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (Residue .lt. 0.0) then
             Residue = 0.0
         endif
-        
-!! update residue on soil surface
-!      sol_rsd(1,j) = resnew + sol_rsd(1,j)
-!      sol_rsd(1,j) = Max(sol_rsd(1,j),0.)
-
         
         !!Biomass to soil. The fraction not removed by yeld because plant will die
         Me%Fluxes%ToSoil%HarvestKillBiomassToSoil(i,j) = Residue
@@ -11776,50 +11528,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             Me%NitrogenYeldTarget(i,j) = AerialBiomass * NitrogenFractionInYeld * FertilizationEfficiency
         endif
         
-
-!! adjust foliar pesticide for plant removal
-!      if (hrupest(j) == 1) then
-!        do k = 1, npmx
-!          !! calculate amount of pesticide removed with yield
-!          yldpst = 0.
-!          if (hvsti(idplt(nro(j),icr(j),j)) > 1.001) then
-!            yldpst = plt_pst(k,j)
-!            plt_pst(k,j) = 0.
-!          else
-!            yldpst = hiad1 * plt_pst(k,j)
-!            plt_pst(k,j) = plt_pst(k,j) - yldpst
-!            if (plt_pst(k,j) < 0.) plt_pst(k,j) = 0.
-!          endif
-!          !! add pesticide in residue to soil surface
-!          sol_pst(k,j,1) = sol_pst(k,j,1) + plt_pst(k,j)
-!          plt_pst(k,j) = 0.
-!        end do
-!      end if
-
-!! calculate modifier for autofertilization target nitrogen content
-!      tnyld(nro(j),icr(j),j) = 0.
-!      tnyld(nro(j),icr(j),j) = (1. - rwt(j)) * bio_ms(j) * pltfr_n(j) * &
-!     &                                                       auto_eff(j)
-!      if (icr(j) > 1) then
-!        tnyld(nro(j),icr(j)-1,j) = tnyld(nro(j),icr(j),j)
-!      else
-!        tnyld(nro(j),icr(j)+1,j) = tnyld(nro(j),icr(j),j)
-!      end if
-
-
-!! reset variables
-!      igro(j) = 0
-!      idorm(j) = 0
-!      bio_ms(j) = 0.
-!      plantn(j) = 0.
-!      plantp(j) = 0.
-!      strsw(j) = 1.
-!      laiday(j) = 0.
-!      hvstiadj(j) = 0.
-!      phuacc(j) = 0.
-
-
-
     end subroutine HarvestKillOperation
 
     !--------------------------------------------------------------------------
@@ -11830,12 +11538,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer, intent(IN)                             :: i, j
         !Local-----------------------------------------------------------------
         real                                            :: AerialBiomass, Residue
-        !SandBoxTest-----------------------------------------------------------
-
-
-!      if (curyr > nyskip) then
-!        ncrops(nro(j),icr(j),j) = ncrops(nro(j),icr(j),j) + 1
-!      endif
 
         AerialBiomass     = Me%StateVariables%TotalPlantBiomass(i,j) - Me%StateVariables%RootBiomass(i,j)
         Residue           = 0.0
@@ -11845,9 +11547,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         Me%Fluxes%ToSoil%HarvestKillBiomassToSoil(i,j) = Residue
         !The remaining biomass in soil - Not accounted in SWAT because N and P to soil come from all plant
         Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil(i,j) = Me%StateVariables%RootBiomass(i,j)
-
-!      sol_rsd(1,j) = sol_rsd(1,j) + resnew
-!      sol_rsd(1,j) = Max(sol_rsd(1,j),0.)
 
         if (Me%ComputeOptions%ModelNitrogen) then
             !Nitrogen to soil
@@ -11863,33 +11562,12 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Instead a warning variable is constructed and when state variables are updated, 
         !model knows that it needs to kill plant.
 
-
         Me%Growth%WaterStress(i,j)       = 1.0
         Me%Growth%TemperatureStress(i,j) = 1.0
         Me%Growth%NitrogenStress(i,j)    = 1.0
         Me%Growth%PhosphorusStress(i,j)  = 1.0
         Me%Growth%TreeCurrentYear(i,j)   = 0
 
-
-!      if (hrupest(j) == 1) then
-!        do k = 1, npmx
-!          sol_pst(k,j,1) = sol_pst(k,j,1) + plt_pst(k,j)
-!          plt_pst(k,j) = 0.
-!        end do
-!      end if
-
-
-!! reset variables
-!      igro(j) = 0
-!      idorm(j) = 0
-!      bio_ms(j) = 0.
-!      plantn(j) = 0.
-!      plantp(j) = 0.
-!      strsw(j) = 1.
-!      laiday(j) = 0.
-!      hvstiadj(j) = 0.
-!      phuacc(j) = 0.
-!
     end subroutine KillOperation
 
     !--------------------------------------------------------------------------
@@ -12129,23 +11807,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             Me%Growth%NitrogenStress(i,j)    = 1.0
                             Me%Growth%PhosphorusStress(i,j)  = 1.0
 
-
-    !            sol_rsd(1,j) = sol_rsd(1,j) + resnew
-    !            sol_rsd(1,j) = Max(sol_rsd(1,j),0.)
-    !            sol_fon(1,j) = resnew * pltfr_n(j) + sol_fon(1,j)
-    !            sol_fop(1,j) = resnew * pltfr_p(j) + sol_fop(1,j)
-    !            bio_hv(nro(j),icr(j),j) = bio_ms(j) +                       &
-    !     &                                           bio_hv(nro(j),icr(j),j)
-    !            bio_yrms(j) = bio_yrms(j) + bio_ms(j) / 1000.
-    !            bio_ms(j) = .2 * bio_ms(j) *                                &
-    !     &                           (1. - bio_leaf(idplt(nro(j),icr(j),j)))
-    !            plantn(j) = 0.
-    !            plantp(j) = 0.
-    !            strsw(j) = 1.
-    !            laiday(j) = alai_min(idplt(nro(j),icr(j),j))
-    !            phuacc(j) = 0.
-                
-                
                         !cool season plants (2,5)
                         case (2,5)
                         
@@ -12157,21 +11818,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                     end select
 
-
-    !            sol_rsd(1,j) = sol_rsd(1,j) + resnew
-    !            sol_rsd(1,j) = Max(sol_rsd(1,j),0.)
-    !            sol_fon(1,j) = sol_fon(1,j) + bm_dieoff * plantn(j)
-    !            sol_fop(1,j) = sol_fop(1,j) + bm_dieoff * plantp(j)
-    !            bio_hv(nro(j),icr(j),j) = bio_ms(j) * bm_dieoff +           &
-    !    &                                           bio_hv(nro(j),icr(j),j)
-    !            bio_yrms(j) = bio_yrms(j) + bio_ms(j) * bm_dieoff / 1000.
-    !            bio_ms(j) = (1. - bm_dieoff) * bio_ms(j)
-    !            plantn(j) = (1. - bm_dieoff) * plantn(j)
-    !            plantp(j) = (1. - bm_dieoff) * plantp(j)
-    !            strsw(j) = 1.
-    !            laiday(j) = alai_min(idplt(nro(j),icr(j),j))
-    !            phuacc(j) = 0.
-                
                 endif
             endif
 
@@ -12205,14 +11851,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: HUAcc, HUAcc_Old
         real                                            :: GrazingStartPlantHU
 !        integer                                         :: Op
-
-        !SandBoxTest-----------------------------------------------------------
-!        allocate(Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%GrazingStartPlantHU(1))
-       
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingStartJulianDay = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrazingKillDatabase%GrazingStartPlantHU(1) = 0.5
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrazingKillDatabase%GrazingStartPlantHU(2) = 0.8
-
         !Begin-----------------------------------------------------------------
         
 !        if (.not. Me%GrazingFinished(i,j)) then
@@ -12330,13 +11968,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%IsPlantGrowing(i,j) .and. Me%IsPlantBeingGrazed(i,j)      &
                     .and. .not. PlantKilled) then     
 
-            !SandBoxTest-----------------------------------------------------------
-    !         Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingDays = 10
-    !         Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingMinimumBiomass = 10.
-    !         Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingBiomass = 70.
-    !         Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%TramplingBiomass = 30.
-            !----------------------------------------------------------------------
-                
                     GrazingMinimumBiomass = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingMinimumBiomass
                     TotalPlantBiomass     = Me%StateVariables%TotalPlantBiomass(i,j)
                 
@@ -12454,78 +12085,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                         endif
 
-                    
-
-            ! SEND TO FLUXES TO SOIL - DEPENDS ON BIOMASS EVALUATION
-            !                !! remove trampled biomass and add to residue
-            !                dmii = 0.
-            !                dmii = bio_ms(j)
-            !                bio_ms(j) = bio_ms(j) - bio_trmp(nro(j),ngr(j),j)
-            !                if (bio_ms(j) < bio_min(j))  then
-            !                  sol_rsd(1,j) = sol_rsd(1,j) + dmii - bio_min(j)
-            !                  bio_ms(j) = bio_min(j)
-            !                else
-            !                  sol_rsd(1,j) = sol_rsd(1,j) + bio_trmp(nro(j),ngr(j),j)
-            !                endif
-            !                sol_rsd(1,j) = Max(sol_rsd(1,j),0.)
-            !                bio_ms(j) = Max(bio_ms(j),0.)
-
-                        !! adjust nutrient content of residue and biomass for
-                        !! trampling
-            !                if (dmii - bio_ms(j) > 0.) then
-            !                  sol_fon(1,j) = (dmii - bio_ms(j)) * pltfr_n(j) + sol_fon(1,j)
-            !                 sol_fop(1,j) = (dmii - bio_ms(j)) * pltfr_p(j) + sol_fop(1,j) 
-            !                end if
-
-
-            !RECHECK AFTER TO INCLUDE MANURE PROCESSES
-            !        !! apply manure
-            !       it = 0
-            !        it = manure_id(nro(j),ngr(j),j)
-            !        if (manure_kg(nro(j),ngr(j),j) > 0.) then
-            !          l = 1
-            !
-            !          sol_no3(l,j) = sol_no3(l,j) + manure_kg(nro(j),ngr(j),j) *    &
-            !     &                 (1. - fnh3n(it)) * fminn(it)
-            !          sol_fon(l,j) = sol_fon(l,j) + manure_kg(nro(j),ngr(j),j) *    &
-            !     &                 forgn(it)
-            !          sol_nh3(l,j) = sol_nh3(l,j) + manure_kg(nro(j),ngr(j),j) *    &
-            !     &                 fnh3n(it) * fminn(it)
-            !          sol_solp(l,j) = sol_solp(l,j) + manure_kg(nro(j),ngr(j),j) *  &
-            !     &                 fminp(it)
-            !          sol_fop(l,j) = sol_fop(l,j) + manure_kg(nro(j),ngr(j),j) *    &
-            !     &                 forgp(it)
-            !
-            !! add bacteria - #cfu/g * t(manure)/ha * 1.e6 g/t * ha/10,000 m^2 = 100.
-            !! calculate ground cover
-            !          gc = 0.
-            !          gc = (1.99532 - Erfc(1.333 * laiday(j) - 2.)) / 2.1
-            !          if (gc < 0.) gc = 0.
-            !
-            !          gc1 = 0.
-            !          gc1 = 1. - gc
-            !
-            !          swf = .15
-            !
-            !          frt_t = 0.
-            !          frt_t = bact_swf * manure_kg(nro(j),ngr(j),j) / 1000.
-            !
-            !          bactp_plt(j) = gc * bactpdb(it) * frt_t * 100. + bactp_plt(j)
-            !          bactlp_plt(j) = gc * bactlpdb(it) * frt_t * 100.+bactlp_plt(j)
-            !
-            !         bactpq(j) = gc1 * bactpdb(it)  * frt_t * 100. + bactpq(j)
-            !          bactpq(j) = bactkddb(it) * bactpq(j)
-            !
-            !          bactps(j) = gc1 * bactpdb(it) * frt_t * 100. + bactps(j)
-            !          bactps(j) = (1. - bactkddb(it)) * bactps(j)
-            !
-            !          bactlpq(j) = gc1 * bactlpdb(it) * frt_t * 100. + bactlpq(j)     
-            !          bactlpq(j) = bactkddb(it) * bactlpq(j)
-            !
-            !          bactlps(j) = gc1 * bactlpdb(it) * frt_t * 100. + bactlps(j)
-            !          bactlps(j) = (1. - bactkddb(it)) * bactlps(j)
-            !
-            !        endif
 
                         !! leaf area index and fraction of growing season fluxes
                         BiomassGrazedFraction = (BiomassGrazed + BiomassTrampled)/TotalPlantBiomass
@@ -12997,23 +12556,31 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
         integer, dimension(:,:), pointer                   :: MappingPoints
-        integer                                         :: i, j !, STAT_CALL
+        integer                                         :: i, j, kTop, KFloor, STAT_CALL
         logical                                         :: PlantKilled
-        real                                            :: MaxRootDepth, RootBiomassFraction
+        real                                            :: MaxRootDepth, RootBiomassFraction, SoilDepth
         integer                                         :: VegetationID, PlantType
         !Begin-----------------------------------------------------------------
         
         MappingPoints => Me%ExternalVar%MappingPoints2D
+
+
+        call GetGeometryDistances(Me%ObjGeometry,                                       &
+                                  SZZ         = Me%ExternalVar%SZZ,                     &
+                                  STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR01'
+
+        call GetGeometryKFloor(Me%ObjGeometry,                                          &
+                               Z    = Me%ExternalVar%KFloor,                            &
+                               STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR02'
+
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
             if (MappingPoints (i, j) == 1 .and. Me%IsPlantGrowing(i,j)) then
             
-            
-        !SandBox---------------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%MaximumRootDepth = 1.30
-        !----------------------------------------------------------------------- 
                 !To send to PMP to source/sinks fluxes computed in vegetation
                 !Specially needed in the case of kill where it would not compute fluxes in PMP
                 Me%RootDepthOld(i,j) = Me%StateVariables%RootDepth(i,j)
@@ -13051,15 +12618,19 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     VegetationID = Me%VegetationID(i,j)
                     PlantType    = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantType
                     MaxRootDepth = Me%VegetationTypes(VegetationID)%GrowthDatabase%MaximumRootDepth
-!                    if(MaxRootDepth .gt. Me%ExternalVar%Topography(i,j)) then
-!                        MaxRootDepth = Me%ExternalVar%Topography(i,j)
-!                    endif
-
+                    kTop         = Me%WorkSize%KUB
+                    kFloor       = Me%ExternalVar%KFloor(i,j)
+                    !SZZ has the altitude (negative) of top face. For the Kfloor - 1 is also defined
+                    SoilDepth    = (-1. * Me%ExternalVar%SZZ(i,j,kTop)) - (-1.* Me%ExternalVar%SZZ(i,j,kFloor - 1))
+                    if(MaxRootDepth .gt. SoilDepth) then
+                        MaxRootDepth = SoilDepth
+                    endif
+                    
                     select case (PlantType)
                         case (1, 2, 4, 5)
             
                             Me%StateVariables%RootDepth(i,j) = 2.5 * Me%HeatUnits%PlantHUAccumulated (i,j) * MaxRootDepth
-            
+                                                       
                             if (Me%StateVariables%RootDepth(i,j) .gt. MaxRootDepth) then
                                 Me%StateVariables%RootDepth(i,j) = MaxRootDepth
                             endif
@@ -13080,6 +12651,11 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         enddo do2
         enddo do1 
 
+        call UnGetGeometry( Me%ObjGeometry, Me%ExternalVar%KFloor,       STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR03'
+        
+        call UnGetGeometry( Me%ObjGeometry, Me%ExternalVar%SZZ,          STAT = STAT_CALL )        
+        if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR04'
 
     end subroutine UpdateRootProperties
 
@@ -13104,12 +12680,7 @@ do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
             if (MappingPoints (i, j) == 1 .and. Me%IsPlantGrowing(i,j) ) then
-            
-            
-        !SandBoxTest----------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ComputeLeaf = .true.
-        !---------------------------------------------------------------------
-        
+                   
                 if (Me%VegetationTypes(Me%VegetationID(i,j))%HasLeaves) then
 
                     PlantKilled = .false.
@@ -13252,11 +12823,6 @@ do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
             if (MappingPoints (i, j) == 1 .and. Me%IsPlantGrowing(i,j)) then
-            
-        !SandBoxTest-----------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%MaxCanopyHeight = 0.9
-        !----------------------------------------------------------------------
-        
 
                 Me%ChangeCanopyEnabled(i,j) = .false.
                 PlantKilled = .false.
