@@ -12650,7 +12650,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         case (1, 2, 4, 5)
             
                             Me%StateVariables%RootDepth(i,j) = 2.5 * Me%HeatUnits%PlantHUAccumulated (i,j) * MaxRootDepth
-                                                       
+            
                             if (Me%StateVariables%RootDepth(i,j) .gt. MaxRootDepth) then
                                 Me%StateVariables%RootDepth(i,j) = MaxRootDepth
                             endif
