@@ -116,7 +116,7 @@ Module ModuleHDF5Extractor
     type       T_IntervalHDF5
         character(len=PathLength)                   :: Name
         integer                                     :: ObjEnterData         = 0
-        type(T_IntervalHDF5),       pointer               :: Next  => null()
+        type(T_IntervalHDF5),       pointer         :: Next  => null()
     end type T_IntervalHDF5
 
     ! Definition of Interval
@@ -160,7 +160,7 @@ Module ModuleHDF5Extractor
         logical                                     :: TimeDependent
         integer(HID_T)                              :: NumType     = 0
         type(T_Field),              pointer         :: FirstField
-        type(T_Item),               pointer               :: Next  => null()
+        type(T_Item),               pointer         :: Next  => null()
     end type T_Item
 
     ! Definition of type T_ExtractHDF5   
@@ -187,12 +187,12 @@ Module ModuleHDF5Extractor
         character(StringLength)                     :: CurrentGroup, LastSubGroup
         integer(HID_T)                              :: HDFNativeReal, HDFNativeInteger
         integer(HID_T)                              :: FileID
-        type(T_ExtractHDF5),        pointer               :: Next  => null()
+        type(T_ExtractHDF5),        pointer         :: Next  => null()
     end type  T_ExtractHDF5
 
     !Global Module Variables
-    type (T_ExtractHDF5),           pointer               :: FirstObjExtractHDF5
-    type (T_ExtractHDF5),           pointer               :: Me
+    type (T_ExtractHDF5),           pointer         :: FirstObjExtractHDF5
+    type (T_ExtractHDF5),           pointer         :: Me
 
     integer                                         :: mExtractHDF5_ = 0 !just to compile
 

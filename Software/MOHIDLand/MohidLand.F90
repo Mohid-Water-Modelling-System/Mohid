@@ -164,9 +164,9 @@ program MohidLand
     subroutine print_version ()
         print '(a)', ''
 #if defined (CODEPLEXVERSION)
-        print '(a, i0)', 'HDF5Exporter version (codeplex): ', CODEPLEXVERSION
+        print '(a, i0)', 'MohidLand version (codeplex): ', CODEPLEXVERSION
 #else
-        print '(a)', 'HDF5Exporter version : PERSONAL'
+        print '(a)', 'MohidLand version : PERSONAL'
 #endif
         print '(a)', ''
     end subroutine print_version

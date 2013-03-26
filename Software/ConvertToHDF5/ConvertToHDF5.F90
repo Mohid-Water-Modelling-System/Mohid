@@ -156,6 +156,11 @@ program ConvertToHDF5
                 call print_help()
                 stop
                 
+            case ('-v', '--version')
+            
+                call print_version()
+                stop                
+                
             case ('-w', '--watch')
                
                 if (last_arg > 0) then             
@@ -224,6 +229,16 @@ program ConvertToHDF5
         print '(a)', '  [-c, --config] file Uses "file" as input configuration'
         print '(a)', ''
     end subroutine print_help    
+    
+    subroutine print_version ()
+        print '(a)', ''
+#if defined (CODEPLEXVERSION)
+        print '(a, i0)', 'ConvertToHDF5 version (codeplex): ', CODEPLEXVERSION
+#else
+        print '(a)', 'ConvertToHDF5 version : PERSONAL'
+#endif
+        print '(a)', ''
+    end subroutine print_version    
     
     !--------------------------------------------------------------------------
 

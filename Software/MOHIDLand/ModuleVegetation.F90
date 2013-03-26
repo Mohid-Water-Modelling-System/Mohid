@@ -2354,7 +2354,8 @@ cd0:    if (Exist) then
         logical                                 :: BlockFound
         integer                                 :: ObjHDF5, NumberOfInstants, iflag, ObjTimeSerie
         integer                                 :: AgricPractIDScalar, HDFInstant, TimeSerieInstant
-        character(len=StringLength)             :: FileInTime, FileName
+        integer                                 :: column
+        character(len=StringLength)             :: FileInTime, FileName, field_name
         !type (T_PropertyID)                     :: AgricPractID
         integer                                 :: HDF5_READ, DataValues
 !        type (T_PropertyID)                     :: AgricPract
@@ -2440,7 +2441,26 @@ cd0:    if (Exist) then
                              ClientModule = 'ModuleVegetation',                     &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                        &
-                    stop 'ConstructVegetationList - ModuleVegetation - ERR50'                    
+                    stop 'ConstructVegetationList - ModuleVegetation - ERR50'     
+                    
+                call GetData(column,                                                &
+                             Me%ObjEnterData,iflag,                                 &
+                             SearchType   = FromFile,                               &
+                             keyword      = 'DATA_COLUMN',                          &
+                             default      = 2,                                      &
+                             ClientModule = 'ModuleVegetation',                     &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'ConstructVegetationList - ModuleVegetation - ERR51'     
+                    
+                call GetData(field_name,                                            &
+                             Me%ObjEnterData,iflag,                                 &
+                             SearchType   = FromFile,                               &
+                             keyword      = 'HDF_FIELD_NAME',                       &
+                             ClientModule = 'ModuleVegetation',                     &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'ConstructVegetationList - ModuleVegetation - ERR52'                                            
 
                 select case (trim(adjustl(FileInTime)))
                     case ("Hdf",        "HDF",          "hdf")
@@ -2470,8 +2490,8 @@ cd0:    if (Exist) then
                         do HDFInstant = 1, NumberOfInstants 
                             
                             !Read every instant and save grid
-                            call HDF5ReadData   (ObjHDF5, "/Results/"//"AgricPractID",                   &
-                                                 "AgricPractID",                                         &
+                            call HDF5ReadData   (ObjHDF5, "/Results/"//field_name,                       &
+                                                 field_name,                                             &
                                                  Array2D = AgricPractIDMatrix,                           &
                                                  OutputNumber = HDFInstant,                              &
                                                  STAT    = STAT_CALL)
@@ -2510,7 +2530,7 @@ cd0:    if (Exist) then
                         !Analyse every instant to check for agricultural practices
                         do TimeSerieInstant = 1, DataValues
                             !Get ID that will be the same for every domain
-                            AgricPractIDScalar  = NINT(DataMatrix (TimeSerieInstant, 2))
+                            AgricPractIDScalar  = NINT(DataMatrix (TimeSerieInstant, column))
                             
                             !and check if that agricultural practice is already present   
                             call CheckVegetationList(AgricPractIDScalar)
