@@ -18316,7 +18316,7 @@ i1:             if (nP>0) then
                                 
                                 nP = nP + 1
                                 
-                                if(CurrentOrigin%HumanBody%Drowned)then
+                                if(.not. CurrentOrigin%HumanBody%Drowned)then
                                 
                                     Matrix1D(nP)  = 0 
                                     
