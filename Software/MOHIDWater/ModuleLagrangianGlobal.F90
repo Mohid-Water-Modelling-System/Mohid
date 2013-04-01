@@ -18308,29 +18308,37 @@ i1:             if (nP>0) then
                         endif
                         
                         
-                        if (CurrentOrigin%State%HumanBody .and. CurrentOrigin%HumanBody%Drowned) then
+                        if (CurrentOrigin%State%HumanBody) then
 
                             CurrentPartic   => CurrentOrigin%FirstPartic
                             nP = 0
                             do while (associated(CurrentPartic))
+                                
                                 nP = nP + 1
-                                if (CurrentPartic%AtTheBottom) then 
-
-                                    Matrix1D(nP)  = 1 
-
+                                
+                                if(CurrentOrigin%HumanBody%Drowned)then
+                                
+                                    Matrix1D(nP)  = 0 
+                                    
                                 else
+                                    
+                                    if (CurrentPartic%AtTheBottom) then 
 
-                                    Matrix1D(nP)  = 2
+                                        Matrix1D(nP)  = 1 
 
-                                end if
+                                    else
 
+                                        Matrix1D(nP)  = 2
+
+                                    end if
+                                endif
 
                                 CurrentPartic => CurrentPartic%Next
                             enddo            
                             if (nP > 0) then
                                 !HDF 5
-                                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/At The Bottom", &
-                                                    "At The Bottom",  "ON/OFF", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
+                                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/At The Bottom",    &
+                                                    "At The Bottom",  "ON/OFF", Array1D = Matrix1D, OutputNumber = OutPutNumber, &
                                                      STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR301'
                             endif
@@ -20782,7 +20790,7 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                     
                     if (Me%State%Odour) then
                         
-                        GridConc3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridConc(:, :, :, p, ig)                                                
+                        GridConc3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridConc(:, :, :, p, ig)
                         GridConc3D(:,:,:) = GridConc3D(:,:,:) * PeakFactor / CurrentProperty%OdourConcThreshold
 
                         GridGroupSum3D = GridGroupSum3D + GridConc3D
