@@ -82,7 +82,10 @@
                                                             !One file per node, with all variables in the headers list
                                                             !if FALSE, its one file per variable with nodes in the headers.
 
-!<BeginNodeTimeSerie>  / <EndNodeTimeSerie>
+!<BeginNodeTimeSerie>  
+!NODE_ID                  : integer                         !Node ID to create TimeSeries
+!NAME                     : char                            !Node Name that will appear in TimeSeries
+! <EndNodeTimeSerie>
 
 
 !<beginproperty>
@@ -550,6 +553,7 @@ Module ModuleDrainageNetwork
         integer, dimension (:), pointer             :: UpstreamReaches
         integer, dimension (:), pointer             :: DownstreamReaches
         logical                                     :: TimeSerie                = .FALSE.
+        character(LEN = StringLength)               :: TimeSerieName            = ''
         logical                                     :: Discharges               = .FALSE.
         type (T_CrossSection)                       :: CrossSection                             
         character(len=StringLength)                 :: StationName              = ''
@@ -3141,13 +3145,21 @@ if2:              if (BlockFound) then
         
         
         !Local-----------------------------------------------------------------
-        character(LEN = StringLength)               :: str_UpNode, str_DownNode
-
+        character(LEN = StringLength)               :: str_UpNode, str_DownNode, str_Length, TextFormat
+        
+        write (str_Length, '(i10)') StringLength
+        TextFormat   = '(a'//trim(adjustl(adjustr(str_Length)))//')'
         str_UpNode   =''
         str_DownNode =''
-        write(str_UpNode  , '(i10)') CurrReach%UpstreamNode
-        write(str_DownNode, '(i10)') CurrReach%DownstreamNode
-
+        
+        write(str_UpNode, TextFormat) Me%Nodes(CurrReach%UpstreamNode)%TimeSerieName
+        
+        if (len(trim(adjustl(adjustr(Me%Nodes(CurrReach%DownstreamNode)%TimeSerieName)))) == 0) then
+            write(str_DownNode, '(i10)') CurrReach%DownstreamNode
+        else
+            write(str_DownNode, TextFormat) Me%Nodes(CurrReach%DownstreamNode)%TimeSerieName
+        endif
+        
         Name = 'Reach_'//trim(adjustl(adjustr(str_UpNode)))//           &
                     '_'//trim(adjustl(adjustr(str_DownNode)))        
 
@@ -5679,33 +5691,39 @@ if1:    if (flag==1) then
                                      Me%TimeSerie%Location, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                      &
                 stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR03'
-        
-            !Nodes--------------------------------------------------------------
-            call ExtractBlockFromBuffer(Me%TimeSerie%ObjEnterData, ClientNumber,    &
-                                        BeginNodeTimeSerie, EndNodeTimeSerie,       &
-                                        BlockFound, FirstLine, LastLine, STAT_CALL) 
+            
+do1:        do
+            
+                !Nodes--------------------------------------------------------------
+                call ExtractBlockFromBuffer(Me%TimeSerie%ObjEnterData, ClientNumber,    &
+                                            BeginNodeTimeSerie, EndNodeTimeSerie,       &
+                                            BlockFound, FirstLine, LastLine, STAT_CALL) 
 
-            if (STAT_CALL .EQ. SUCCESS_) then    
+                if (STAT_CALL .EQ. SUCCESS_) then    
 
-                if (BlockFound) then                 
-                    
-                    line = FirstLine
-                    do while (line < LastLine - 1)
-
-                        line = line + 1                    
-
+                    if (BlockFound) then                 
+                        
                         call GetData(NodeID, Me%TimeSerie%ObjEnterData,             &
-                                     flag, Buffer_Line  = line,                     &
+                                     flag,                                          &
+                                     keyword      = 'NODE_ID',                      &
+                                     ClientModule = 'DrainageNetwork',              &
+                                     SearchType   = FromBlock,                      &
                                      STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                  &
                             stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR04'
-
+                        if (flag == 0) then
+                            write (*,*) 'Node time series are now defined by NODE_ID and NAME'
+                            write (*,*) 'inside block <BeginNodeTimeSerie> / <EndNodeTimeSerie>'                           
+                            write (*,*) 'One block for each node'
+                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR05'
+                        endif
+                        
                         call FindNodePosition (NodeID, NodePos, Found)
 
                         if (.NOT.Found) then
                             write (*,*) 'Node not found'
                             write (*,*) 'Node ID = ', NodeID                           
-                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR05'
+                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR06'
                         end if
 
                         
@@ -5713,7 +5731,7 @@ if1:    if (flag==1) then
                         
                         if (CurrNode%TimeSerie) then
                             write (*,*) 'Repeated node in time series: ', CurrNode%ID
-                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR05a'
+                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR07'
                         end if
                             
                         CurrNode%TimeSerie = .TRUE.
@@ -5728,22 +5746,35 @@ if1:    if (flag==1) then
                             call SetError(FATAL_, KEYWORD_, aux2, ON)
                         end if
 
+                        call GetData(Me%Nodes(NodePos)%TimeSerieName,               &
+                                     Me%TimeSerie%ObjEnterData,                     &
+                                     flag,                                          &
+                                     keyword      = 'NAME',                         &
+                                     ClientModule = 'DrainageNetwork',              &
+                                     SearchType   = FromBlock,                      &
+                                     STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                  &
+                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR08'
+                        if (flag == 0) then
+                            write (*,*) 'Node time series are now defined by NODE_ID and NAME'
+                            write (*,*) 'inside block <BeginNodeTimeSerie> / <EndNodeTimeSerie>'                           
+                            write (*,*) 'One block for each node'
+                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR09'
+                        endif
+                                                                                          
+                    else 
 
-                    end do
-                                      
-                else 
+                        call Block_Unlock(Me%TimeSerie%ObjEnterData, ClientNumber)
+                        exit do1
+                        
+                    end if
 
-                    call Block_Unlock(Me%TimeSerie%ObjEnterData, ClientNumber)
-                    call RewindBlock (Me%TimeSerie%ObjEnterData, ClientNumber)
+                else if (STAT_CALL .EQ. BLOCK_END_ERR_) then 
+
+                    stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR11'
 
                 end if
-
-            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then 
-
-                stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR06'
-
-            end if
-        
+            enddo do1
         end if if1
 
 
@@ -5759,7 +5790,7 @@ if1:    if (flag==1) then
         !Local------------------------------------------------------------------
         type (T_Property), pointer                          :: Property
         integer                                             :: i, NodePos
-        character(LEN = StringLength)                       :: aux
+        character(LEN = StringLength)                       :: aux, str_Length, TextFormat
 
         
              
@@ -5809,7 +5840,10 @@ if0:    if (Me%TimeSerie%ByNodes) then
                     
                     i = i + 1                    
                     aux = ''
-                    write(aux,'(i10)') Me%Nodes(NodePos)%ID                    
+                    write (str_Length, '(i10)') StringLength
+                    TextFormat   = '(a'//trim(adjustl(adjustr(str_Length)))//')'
+                    
+                    write(aux,TextFormat) Me%Nodes(NodePos)%TimeSerieName                    
                     Me%TimeSerie%Name(i)  = 'Node_'//trim(adjustl(adjustr(aux)))
                     Me%TimeSerie%X(i)     = Me%Nodes(NodePos)%X
                     Me%TimeSerie%Y(i)     = Me%Nodes(NodePos)%Y
@@ -5863,7 +5897,7 @@ if0:    if (Me%TimeSerie%ByNodes) then
         integer                                              :: STAT_CALL
         integer                                              :: NodePos, ReachPos        
         integer                                              :: nNodes, nReaches, i
-        character(LEN = StringLength)                        :: aux
+        character(LEN = StringLength)                        :: aux, str_Length, TextFormat
         character(LEN = StringLength), dimension(:), pointer :: NodeHeaderList 
         character(LEN = StringLength), dimension(:), pointer :: ReachHeaderList 
         character(LEN = StringLength), dimension(:), pointer :: PropHeaderList 
@@ -5908,7 +5942,10 @@ if2:        if (Me%TimeSerie%ByNodes) then
                 
                     if (Me%Nodes(NodePos)%TimeSerie) then
                         aux = ''
-                        write(aux,'(i10)') Me%Nodes(NodePos)%ID                    
+                        write (str_Length, '(i10)') StringLength
+                        TextFormat   = '(a'//trim(adjustl(adjustr(str_Length)))//')'
+                        
+                        write(aux,TextFormat) Me%Nodes(NodePos)%TimeSerieName                    
                         NodeHeaderList(nNodes) = 'Node_'//trim(adjustl(adjustr(aux)))
                         nNodes = nNodes + 1 
                     endif                

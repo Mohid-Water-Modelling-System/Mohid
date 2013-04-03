@@ -432,6 +432,7 @@ Module ModuleBasin
         logical                                     :: Continuous           = .false.
         logical                                     :: StopOnWrongDate      = .true.
         logical                                     :: VerifyGlobalMass     = .false.
+        logical                                     :: VerifyAtmosphereValues = .true.
         logical                                     :: Calibrating1D        = .false.
         logical                                     :: ConcentrateRain      = .false.
         logical                                     :: EvapFromWaterColumn
@@ -958,6 +959,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR060'
         
+        !Verify if do not exist negative values in atmospheric properties 
+        !they may be causes of error that the user does not get aware
+        call GetData(Me%VerifyAtmosphereValues,                                          &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'VERIFY_ATMOSPHERE_VALUES',                          &
+                     default      = .true.,                                              &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR061'
+        
         call GetData(Me%ComputeBasinWaterBalance,                                        &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromFile,                                            &
@@ -965,7 +977,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR060a'       
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR062'       
         
         if (Me%ComputeBasinWaterBalance) then
         !Gets TimeSerieLocationFile
@@ -976,7 +988,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule = 'ModuleBasin',                                   &
                          Default      = Me%Files%ConstructData,                          &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR060b'        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR063'        
         
         endif
 
@@ -2641,6 +2653,7 @@ i1:         if (CoordON) then
                                          GridDataID         = Me%ObjGridData,            &
                                          HorizontalGridID   = Me%ObjHorizontalGrid,      &
                                          MappingPoints      = Me%ExtVar%BasinPoints,     &
+                                         CheckValues        = Me%VerifyAtmosphereValues, &
                                          STAT               = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR010'
         endif

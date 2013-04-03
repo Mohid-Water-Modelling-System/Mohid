@@ -238,6 +238,8 @@ Module ModuleAtmosphere
         logical                                     :: PropsAddedByRain         = .false.
         logical                                     :: PropsAddedByIrri         = .false.
         
+        logical                                     :: CheckPropertyValues
+        
         !Instance of Module HDF5
         integer                                     :: ObjHDF5 = 0
 
@@ -289,6 +291,7 @@ Module ModuleAtmosphere
                                GridDataID,                                      &
                                HorizontalGridID,                                &
                                MappingPoints,                                   &
+                               CheckValues,                                     &
                                STAT)
 
         !Arguments--------------------------------------------------------------
@@ -298,6 +301,7 @@ Module ModuleAtmosphere
         integer                                     :: GridDataID     
         integer                                     :: HorizontalGridID
         integer, dimension(:, :), pointer           :: MappingPoints
+        logical, optional                           :: CheckValues
         integer, optional, intent(OUT)              :: STAT  
 
         !External--------------------------------------------------------------
@@ -334,6 +338,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
 
             Me%ExternalVar%MappingPoints2D => MappingPoints
+            
+            if (present(CheckValues)) Me%CheckPropertyValues = CheckValues
+            
             call ReadLockExternalVar
 
             !Read the name file of the Atmosphere module
@@ -356,6 +363,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Constructs the property list 
             call ConstructPropertyList
+
+            if (Me%CheckPropertyValues) then
+                call CheckPropertyValues (Constructing = .true.)
+            endif
 
             call ConstructTimeSerie
 
@@ -767,8 +778,7 @@ cd2 :           if (BlockFound) then
             enddo
             enddo
         endif
-
-
+        
         !If Solar radiation exists, add ATMTransmitivity
         call SearchProperty(PropertyX, SolarRadiation_, .false., STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) then
@@ -799,6 +809,56 @@ cd2 :           if (BlockFound) then
         call CheckForObsoleteNames
 
     end subroutine ConstructPropertyList
+
+    !--------------------------------------------------------------------------
+
+    subroutine CheckPropertyValues(Constructing)
+        
+        !Argument--------------------------------------------------------------
+        logical                                     :: Constructing
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX        => null()
+        real                                        :: Year, Month, Day, Hour, Minute, Second
+        integer                                     :: STAT_CALL, i, j
+        !Begin-----------------------------------------------------------------
+
+        !Gets Current Time
+        call GetComputeCurrentTime(Me%ObjTime, Me%ActualTime, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckPropertyValues - ModuleAtmosphere - ERR01'
+        
+        call ExtractDate(Me%ActualTime, Year, Month, Day, Hour, Minute, Second)
+        
+        PropertyX => Me%FirstAtmosphereProp
+        
+        !Properties that can not be negative. Stop the model and warn the user
+        do while (associated(PropertyX)) 
+            if    (     PropertyX%ID%IDNumber==Precipitation_      &
+                   .or. PropertyX%ID%IDNumber==SolarRadiation_     &
+                   .or. PropertyX%ID%IDNumber==RelativeHumidity_   &
+                   .or. PropertyX%ID%IDNumber==WindModulus_) then
+                
+                !check always in construction phase. only check in modify if the prop has solution from file
+                if (Constructing .or. PropertyX%ID%SolutionFromFile) then
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+                            if (PropertyX%Field(i, j) < 0.0) then
+                                write(*,*) 'Negative values in Atmosphere Property at instant'
+                                write(*,'(6f5.0)') Year, Month, Day, Hour, Minute, Second
+                                write(*,*)'ThisProperty can not be negative: ', trim(PropertyX%ID%Name)
+                                stop 'CheckPropertyValues - ModuleAtmosphere - ERR10'
+                            endif
+                        endif    
+                    enddo
+                    enddo
+                endif
+            endif
+            PropertyX => PropertyX%Next
+        end do 
+
+        nullify(PropertyX)
+    
+    end subroutine CheckPropertyValues
 
     !--------------------------------------------------------------------------
 
@@ -1721,10 +1781,10 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         type(T_Property), pointer                   :: PropertyX    => null()
         type(T_Property), pointer                   :: PropertyY    => null()
         integer                                     :: STAT_, ready_
+        character(len = StringLength)               :: WarningString
 
         !External--------------------------------------------------------------
         integer                                     :: STAT_CALL
-        character(len = StringLength)               :: WarningString
         !Begin------------------------------------------------------------------------
 
 
@@ -1794,6 +1854,11 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
             
             if (Me%PropsAddedByRain) then
                 call ModifyPropByRain
+            endif
+            
+            !avoid negative values if read from files
+            if (Me%CheckPropertyValues) then
+                call CheckPropertyValues (Constructing = .false.)
             endif
             
             WarningString = 'Modify'
