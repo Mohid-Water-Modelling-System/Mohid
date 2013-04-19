@@ -155,7 +155,11 @@ Module ModuleInterpolateGrids
         
         character(len=StringLength), dimension(:), pointer  :: SubGroups
         character(len=StringLength), dimension(:), pointer  :: SubSubGroups
-
+        
+        real                       , dimension(:), pointer  :: ConstantDepths
+        logical                                             :: ConstantDepthsON = .false.
+        integer                                             :: ConstantDepthsValues
+        
         real                                                :: ExtrapolateValue
         type (T_StationaryMap)                              :: StationaryMap
     end type  T_InterpolateGrids
@@ -244,6 +248,10 @@ Module ModuleInterpolateGrids
         
         if (Me%StationaryMap%ON) then
             call KillFillingCells
+        endif
+        
+        if (Me%ConstantDepthsON) then
+            deallocate(Me%ConstantDepths)
         endif
 
         deallocate(Me)
@@ -674,6 +682,8 @@ Module ModuleInterpolateGrids
 
         
         call ReadFieldsToConvert(ClientNumber)
+        
+        call ReadDepths         (ClientNumber)
 
     !------------------------------------------------------------------------------------------------------
 
@@ -750,7 +760,76 @@ Module ModuleInterpolateGrids
 
 
     !--------------------------------------------------------------------------
+    
 
+    subroutine ReadDepths(ClientNumber)
+
+        !Arguments-------------------------------------------------------------
+        integer                             :: ClientNumber
+
+        !Local-----------------------------------------------------------------
+        integer                             :: flag, STAT_CALL
+        integer                             :: StartLine, EndLine, Count
+        integer                             :: CurrentLineNumber
+        logical                             :: BlockFound
+        real                                :: DepthValue
+
+        !Begin-----------------------------------------------------------------
+        
+
+        call ExtractBlockFromBlock(Me%ObjEnterData,                                     &
+                                    ClientNumber,                                       &
+                                    '<<BeginDepths>>',                                  &
+                                    '<<EndDepths>>',                                    &
+                                    BlockFound,                                         &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDepths - ModuleInterpolateGrids - ERR10'
+
+        if(BlockFound)then
+    
+            Me%ConstantDepthsON = .true.
+    
+            call GetBlockSize(Me%ObjEnterData,                                          &
+                              ClientNumber,                                             &
+                              StartLine,                                                &
+                              EndLine,                                                  &
+                              FromBlockInBlock,                                         &
+                              STAT = STAT_CALL)
+
+            Me%ConstantDepthsValues = EndLine - StartLine - 1
+
+            allocate(Me%ConstantDepths(1:Me%ConstantDepthsValues))
+        
+            Count = Me%ConstantDepthsValues
+
+            do CurrentLineNumber = StartLine + 1 , EndLine - 1
+
+                call GetData(DepthValue,                                                &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType  = FromBlock_,                                  &
+                             Buffer_Line = CurrentLineNumber,                           &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDepths - ModuleInterpolateGrids - ERR20'
+
+                Me%ConstantDepths(Count) = DepthValue
+
+                Count = Count - 1
+
+            end do
+
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDepths - ModuleInterpolateGrids - ERR30'
+        
+        else
+
+            Me%ConstantDepthsON = .false. 
+
+        endif
+
+    end subroutine ReadDepths    
+
+    !--------------------------------------------------------------------------
 
     subroutine OpenAndReadFatherHDF5File
 
@@ -1799,8 +1878,16 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                         exit
                     endif
                 enddo
-
-                Depth (Aux:Me%Father%WorkSize3D%KUB) = - ZCellCenterAux    (i,j, Aux:Me%Father%WorkSize3D%KUB)
+                if (Me%ConstantDepthsON) then
+                    if (Me%ConstantDepthsValues /= Me%Father%WorkSize3D%KUB) then
+                        write(*,*) 'Number of defined layers  via block <<BeginDepths>> / <<BeginDepths>>'
+                        write(*,*) 'different from the number of hdf5 file'
+                        stop 'VerticalInterpolation - ModuleInterpolateGrids - ERR30'
+                    endif
+                    Depth (Aux:Me%Father%WorkSize3D%KUB) = Me%ConstantDepths(Aux:Me%Father%WorkSize3D%KUB)
+                else
+                    Depth (Aux:Me%Father%WorkSize3D%KUB) = - ZCellCenterAux    (i,j, Aux:Me%Father%WorkSize3D%KUB)
+                endif
                 Values(Aux:Me%Father%WorkSize3D%KUB) =   AuxField%Values3D (i,j, Aux:Me%Father%WorkSize3D%KUB)
 
                 NDEPTHS = Me%Father%WorkSize3D%KUB - Aux  + 1
