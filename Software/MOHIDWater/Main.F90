@@ -1229,7 +1229,6 @@ doNext:     do while (associated(NextModel))
         logical                                     :: DoNextStep
         integer                                     :: STAT_CALL
         real                                        :: DTmin, DTmax, DT_Father
-        real                                        :: Year, Month, Day, hour, minute, second
 
 
         !Search for initial Min and Max Time Step
