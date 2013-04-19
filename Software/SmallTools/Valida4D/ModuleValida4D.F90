@@ -639,10 +639,10 @@ i1:                 if (exist) then
                                                       TimeID        = Me%ObjTime,           &   
                                                       LatReference  = (Me%Ymin+Me%Ymax)/2., &
                                                       LonReference  = (Me%Xmin+Me%Xmax)/2., & 
-                                                      !LatMin        = Me%Ymin,              & 
-                                                      !LatMax        = Me%Ymax,              & 
-                                                      !LonMin        = Me%Xmin,              & 
-                                                      !LonMax        = Me%Xmax,              & 
+                                                      LatMin        = Me%Ymin,              & 
+                                                      LatMax        = Me%Ymax,              & 
+                                                      LonMin        = Me%Xmin,              & 
+                                                      LonMax        = Me%Xmax,              & 
                                                       Extrapolate   = Me%Extrapolate,       & 
                                                       PropertyID    = Me%Properties(iP)%ID, &   
                                                       STAT          = STAT_CALL)
