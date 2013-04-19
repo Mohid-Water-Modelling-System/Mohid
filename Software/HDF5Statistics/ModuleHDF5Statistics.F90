@@ -17,7 +17,10 @@
 !
 !   <BeginHDF5File>                                                                 
 !   NAME                    : char                  [-]         !Name of HDF5 file with data for statistics 
+!   START_TIME              : YYYY MM DD HH MM SS   [-]         !Date from which the statiscally analysis will start for this file
+!   END_TIME                : YYYY MM DD HH MM SS   [-]         !Date from which the statiscally analysis will end for this file
 !   <EndHDF5File>                                               !(specify one block for each HDF5 file to use)
+
 !                                                                                    
 !   START_TIME              : YYYY MM DD HH MM SS   [-]         !Start date of time window for statistics' calculation
 !   END_TIME                : YYYY MM DD HH MM SS   [-]         !End date of time window for statistics' calculation
@@ -122,6 +125,7 @@ Module ModuleHDF5Statistics
         character(len=StringLength)                         :: Units
         integer                                             :: IDNumber
         type(T_Time)                                        :: Date
+        real, dimension(:    ),     pointer                 :: Values1D        
         real, dimension(:,:  ),     pointer                 :: Values2D
         real, dimension(:,:,: ),    pointer                 :: Values3D 
         type(T_Field),              pointer                 :: Next                     => null()
@@ -170,6 +174,8 @@ Module ModuleHDF5Statistics
         type(T_Time)                                        :: EndTime
         type(T_Time)                                        :: StartFieldTime
         type(T_Time)                                        :: EndFieldTime
+        logical                                             :: StartTimeDefault
+        logical                                             :: EndTimeDefault
         integer                                             :: Rank
         integer                                             :: NumberOfInstants
         type(T_Time), dimension(:), pointer                 :: InstantsArray 
@@ -195,6 +201,7 @@ Module ModuleHDF5Statistics
         integer                                             :: ObjTime                  = 0
         real                                                :: DT, RegularDT
         logical                                             :: VariableDT
+        logical                                             :: CheckRelevance           = .true.
         type(T_StatisticsTime), pointer                     :: FirstStatisticsTime
         character(len=PathLength)                           :: OutputFileName
         type(T_Grid)                                        :: Bathymetry
@@ -379,7 +386,7 @@ Module ModuleHDF5Statistics
                      ClientModule = 'HDF5Statistics',                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
-        stop 'ReadGlobalData - ModuleHDF5Statistics - ERR01'   
+        stop 'ReadGlobalData - ModuleHDF5Statistics - ERR10'   
 
         ! End Time 
         call GetData(Me%EndTime,   Me%ObjEnterData, iflag,                              &
@@ -388,22 +395,20 @@ Module ModuleHDF5Statistics
                      ClientModule = 'HDF5Statistics',                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
-        stop 'ReadGlobalData - ModuleHDF5Statistics - ERR02'   
+        stop 'ReadGlobalData - ModuleHDF5Statistics - ERR20'   
 
         ! Verifies Time Variables
         if (Me%EndTime .lt. Me%StartTime) then
             write (*,*) 'Statistics End Time is BEFORE Statistics Start Time'
             write (*,*) 'Module :','HDF5Statistics'
-            stop 'ReadGlobalData - ModuleHDF5Statistics - ERR03'
+            stop 'ReadGlobalData - ModuleHDF5Statistics - ERR30'
         endif
 
         if (Me%EndTime .eq. Me%StartTime) then
             write (*,*) 'Statistics End Time is EQUAL Statistics Start Time'
             write (*,*) 'Module :','HDF5Statistics'
-            stop 'ReadGlobalData - ModuleHDF5Statistics - ERR04'
+            stop 'ReadGlobalData - ModuleHDF5Statistics - ERR40'
         endif
-
-
     end subroutine ReadGlobalData
 
     !--------------------------------------------------------------------------
@@ -666,13 +671,53 @@ cd2 :           if (BlockFound) then
         integer                                   :: i
 
         !External--------------------------------------------------------------
+        real,   dimension(6)                      :: Aux6
         integer                                   :: iflag, STAT_CALL, HDF5_READ, ObjHDF5
         logical                                   :: ReadWaterPointsName, Exist
         
         !Local-----------------------------------------------------------------
 
         !Begin-----------------------------------------------------------------
+
+        !Instant from which the statistcs analysis will start for this hdf5 file
+        call GetData(Aux6,                                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'START_TIME_FILE',                                  &
+                     ClientModule = 'HDF5Statistics',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+        stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR10'
         
+        if (iflag == 6) then
+            call SetDate (NewHDF5File%StartTime, Aux6(1), Aux6(2),                      &
+                                                 Aux6(3), Aux6(4),                      &
+                                                 Aux6(5), Aux6(6))
+            NewHDF5File%StartTimeDefault = .false.
+        else
+            NewHDF5File%StartTimeDefault = .true.
+        endif
+
+        !Instant from which the statistcs analysis will end for this hdf5 file
+        call GetData(Aux6,                                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'END_TIME_FILE',                                    &
+                     ClientModule = 'HDF5Statistics',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+        stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR20'
+        
+        if (iflag == 6) then
+            call SetDate (NewHDF5File%EndTime, Aux6(1), Aux6(2),                        &
+                                               Aux6(3), Aux6(4),                        &
+                                               Aux6(5), Aux6(6))
+            NewHDF5File%EndTimeDefault = .false.
+        else
+            NewHDF5File%EndTimeDefault = .true.
+        endif
+                
+       
         ! Obtain HDF5 file name
         call GetData(NewHDF5File%Name,                                  &
                      Me%ObjEnterData, iflag,                            &
@@ -681,7 +726,9 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'HDF5Statistics',                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                    &
-        stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR10'
+        stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR30'
+        
+        
         
         if (i==1) then
 
@@ -691,23 +738,34 @@ cd2 :           if (BlockFound) then
 
             !Open HDF5 file
             call ConstructHDF5 (ObjHDF5, trim(NewHDF5File%Name), HDF5_READ, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR20'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR40'
             
             ReadWaterPointsName = .true.
 
             call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/WaterPoints2D",      &
                                       Exist = Exist, STAT= STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR50'
 
             if (Exist) then
                 Me%Mapping%Name        = "WaterPoints2D"
                 ReadWaterPointsName    = .false. 
                 Me%File3D             = .false.
-            endif            
+            endif      
+            
+
+            call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/WaterPoints",      &
+                                      Exist = Exist, STAT= STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR60'
+
+            if (Exist) then
+                Me%Mapping%Name        = "WaterPoints"
+                ReadWaterPointsName    = .false. 
+                Me%File3D             = .false.
+            endif                   
             
             call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/BasinPoints",        &
                                       Exist = Exist, STAT= STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR40'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR70'
 
             if (Exist) then
                 Me%Mapping%Name        = "BasinPoints"
@@ -717,7 +775,7 @@ cd2 :           if (BlockFound) then
 
             call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/WaterPoints3D",      &
                                       Exist = Exist, STAT= STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR50'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR80'
 
             if (Exist) then
                 Me%Mapping%Name        = "WaterPoints3D"
@@ -734,7 +792,7 @@ cd2 :           if (BlockFound) then
                              ClientModule = 'HDF5Statistics',                           &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                              &
-                stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR60'            
+                stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR90'            
 
                 ! Obtain HDF5 file's dimension (3D or 2D)
                 call GetData(Me%File3D, Me%ObjEnterData, iflag,                         &
@@ -744,13 +802,13 @@ cd2 :           if (BlockFound) then
                              ClientModule = 'HDF5Statistics',                           &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                              &
-                stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR70'            
+                stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR110'            
 
             endif            
     
             !Kill HDF5 file
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR80'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDF5File - ModuleHDF5Statistics - ERR120'
             
         endif
         
@@ -800,19 +858,23 @@ cd2 :           if (BlockFound) then
                                 HDF5_READ, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
             stop 'OpenAndDateHDF5Files - ModuleHDF5Statistics - ERR02'
-
+            
             !Obtain start and end times of HDF5 file
             !(obtain number of instants) 
             call GetHDF5GroupNumberOfItems(HDF5FileX%HDFID, "/Time",                &
                                            HDF5FileX%NumberOfInstants, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            & 
             stop 'OpenAndDateHDF5Files - ModuleHDF5Statistics - ERR03'
+            
+            if (HDF5FileX%StartTimeDefault) then
+                !(obtain HDF5 start time)
+                HDF5FileX%StartTime = HDF5TimeInstant(1, HDF5FileX)
+            endif
 
-            !(obtain HDF5 start time)
-            HDF5FileX%StartTime = HDF5TimeInstant(1, HDF5FileX)
-
-            !(obtain HDF5 end time)
-            HDF5FileX%EndTime = HDF5TimeInstant(HDF5FileX%NumberOfInstants, HDF5FileX)
+            if (HDF5FileX%EndTimeDefault) then
+                !(obtain HDF5 end time)
+                HDF5FileX%EndTime = HDF5TimeInstant(HDF5FileX%NumberOfInstants, HDF5FileX)
+            endif
 
             !Get info about the rank and variables present
             !(only data needed for checking are obtained from each file)
@@ -1072,7 +1134,7 @@ cd2 :           if (BlockFound) then
 
                 !Start statistics time is after start time of file
                 HDF5FileX%StartFieldTime = Me%StartTime
-                HDF5FileX%EndFieldTime = HDF5FileX%EndTime
+                HDF5FileX%EndFieldTime   = HDF5FileX%EndTime
 
                 Relevant = .TRUE.
 
@@ -1080,7 +1142,7 @@ cd2 :           if (BlockFound) then
 
                 !Start statistics time is before start time of file
                 HDF5FileX%StartFieldTime = HDF5FileX%StartTime
-                HDF5FileX%EndFieldTime = HDF5FileX%EndTime
+                HDF5FileX%EndFieldTime   = HDF5FileX%EndTime
 
                 Relevant = .TRUE.
 
@@ -1091,7 +1153,7 @@ cd2 :           if (BlockFound) then
 
             !End statistics time is before end time of file
             HDF5FileX%StartFieldTime = HDF5FileX%StartTime
-            HDF5FileX%EndFieldTime = Me%EndTime
+            HDF5FileX%EndFieldTime   = Me%EndTime
 
             Relevant = .TRUE.
 
@@ -1100,7 +1162,7 @@ cd2 :           if (BlockFound) then
 
             !Statistics period is contained in file
             HDF5FileX%StartFieldTime = Me%StartTime
-            HDF5FileX%EndFieldTime = Me%EndTime
+            HDF5FileX%EndFieldTime   = Me%EndTime
 
             Relevant = .TRUE.
 
