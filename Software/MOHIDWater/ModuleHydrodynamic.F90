@@ -812,6 +812,7 @@ Module ModuleHydrodynamic
         real,    dimension (:, :, :), pointer :: Altim_Relax_Aceleration
         real,    dimension (:,:),     pointer :: TidePotentialLevel
         real,    dimension (:, :, :), pointer :: Scraper_Aceleration
+        real,    dimension (:, :, :), pointer :: ThinWalls_Dissipation
     end type T_Forces
 
     private :: T_HorAdvection
@@ -1051,9 +1052,21 @@ Module ModuleHydrodynamic
         integer, dimension(:,:,:), pointer  :: Position
         logical                             :: UOn,  VOn,  WOn
         real                                :: VelLimit = -1e8
+        real                                :: TimeScale
     end type T_Scraper
 
-
+    type T_ThinWalls
+        integer, dimension(:),     pointer  :: FaceU_I, FaceU_J, FaceU_K
+        integer, dimension(:),     pointer  :: FaceV_I, FaceV_J, FaceV_K
+        integer, dimension(:),     pointer  :: FaceW_I, FaceW_J, FaceW_K
+        logical                             :: UOn,  VOn,  WOn, ON
+        integer                             :: Nu, Nv, Nw
+        integer                             :: ObjTimeSerie, CloseFlagColumn
+        logical                             :: VariableInTime
+        real                                :: GradWL_Limit
+                                               !CloseFlag = 1 close, CloseFlag = 0 open
+        integer                             :: CloseFlag
+    end type T_ThinWalls
 
     type       T_HydroCoupling                  
          type(T_Time)                           :: NextCompute
@@ -1355,6 +1368,7 @@ Module ModuleHydrodynamic
         type(T_Generic4D     ) :: Generic4D
         type(T_Drag          ) :: Drag
         type(T_Scraper       ) :: Scraper
+        type(T_Thinwalls     ) :: Thinwalls
         
         type(T_DomainDecomposition) :: DomainDecomposition
                 
@@ -1719,6 +1733,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructMatrixesOutput
 
         if (Me%OutPut%ProfileON) call Construct_Output_Profile
+        
+        if (Me%ThinWalls%ON) then
+            call ConstructThinWalls
+        endif
         
 
         !call External Modules
@@ -2753,6 +2771,272 @@ Cov2:       if ( Me%External_Var%ComputeFaces3D_V(I, J, K) == Covered) then
 
     end subroutine ConstructScraper
 
+    !-----------------------------------------------------------------------------------
+
+    subroutine ConstructThinWalls
+
+        !Local-----------------------------------------------------------------
+        integer, dimension(3)                   :: Cell
+        character(len = PathLength  )           :: TimeSerieFile
+        character(len = StringLength)           :: BeginBlock, EndBlock
+        integer                                 :: STAT_CALL, ClientNumber
+        integer                                 :: FirstLine, LastLine, n, l, iflag
+        logical                                 :: BlockFound
+        type(T_Time)                            :: Time1, Time2
+        real                                    :: Value1, Value2
+        logical                                 :: TimeCycle        
+
+        !----------------------------------------------------------------------
+        
+        Me%ThinWalls%UOn = .false.
+        Me%ThinWalls%Nu  = FillValueInt
+
+        Me%ThinWalls%VOn = .false.
+        Me%ThinWalls%Nv  = FillValueInt
+
+        Me%ThinWalls%WOn = .false.
+        Me%ThinWalls%Nw  = FillValueInt
+
+        BeginBlock = "<begin_thinwalls_u>"
+        EndBlock   = "<end_thinwalls_u>"
+        
+        !Searches for drag coefficients block
+        call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                             &
+                                     BeginBlock, EndBlock,                                      &
+                                     BlockFound, FirstLine, LastLine, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR10'
+        
+        if (BlockFound) then
+        
+            Me%ThinWalls%UOn = .true.
+            
+            Me%ThinWalls%Nu  = LastLine - FirstLine - 1
+            
+            allocate(Me%ThinWalls%FaceU_I(Me%ThinWalls%Nu))
+            allocate(Me%ThinWalls%FaceU_J(Me%ThinWalls%Nu))
+            allocate(Me%ThinWalls%FaceU_K(Me%ThinWalls%Nu))
+            
+d1:         do l = FirstLine+1, LastLine-1
+
+                call GetData(Cell, Me%ObjEnterData, iflag, Buffer_Line  = l, STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ConstructThinWalls - ModuleHydrodynamic - ERR20'
+                endif                    
+                    
+                if (iflag /= 3) then                    
+                    stop 'ConstructThinWalls - ModuleHydrodynamic - ERR30'
+                endif
+                
+                n = l - FirstLine
+
+                Me%ThinWalls%FaceU_I(n) = cell(1)
+                Me%ThinWalls%FaceU_J(n) = cell(2)
+                Me%ThinWalls%FaceU_K(n) = cell(3)
+                
+            enddo d1
+                            
+        else
+
+            write(*,*) 'Block not found'
+            write(*,*) 'Begin = ',trim(BeginBlock)
+            write(*,*) 'End   = ',trim(EndBlock)
+
+        endif
+
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR40'
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR50'
+
+
+        BeginBlock = "<begin_thinwalls_v>"
+        EndBlock   = "<end_thinwalls_v>"
+        
+        !Searches for drag coefficients block
+        call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                             &
+                                     BeginBlock, EndBlock,                                      &
+                                     BlockFound, FirstLine, LastLine, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR60'
+        
+        if (BlockFound) then
+        
+            Me%ThinWalls%VOn = .true.
+            
+            Me%ThinWalls%Nv  = LastLine - FirstLine - 1
+            
+            allocate(Me%ThinWalls%FaceV_I(Me%ThinWalls%Nv))
+            allocate(Me%ThinWalls%FaceV_J(Me%ThinWalls%Nv))
+            allocate(Me%ThinWalls%FaceV_K(Me%ThinWalls%Nv))
+            
+d2:         do l = FirstLine+1, LastLine-1
+
+                call GetData(Cell, Me%ObjEnterData, iflag, Buffer_Line  = l, STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ConstructThinWalls - ModuleHydrodynamic - ERR70'
+                endif                    
+                    
+                if (iflag /= 3) then                    
+                    stop 'ConstructThinWalls - ModuleHydrodynamic - ERR80'
+                endif
+                
+                n = l - FirstLine
+
+                Me%ThinWalls%FaceV_I(n) = cell(1)
+                Me%ThinWalls%FaceV_J(n) = cell(2)
+                Me%ThinWalls%FaceV_K(n) = cell(3)
+                
+            enddo d2
+                            
+        else
+
+            write(*,*) 'Block not found'
+            write(*,*) 'Begin = ',trim(BeginBlock)
+            write(*,*) 'End   = ',trim(EndBlock)
+
+        endif
+
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR90'
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR100'
+
+
+        BeginBlock = "<begin_thinwalls_w>"
+        EndBlock   = "<end_thinwalls_w>"
+        
+        !Searches for drag coefficients block
+        call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                             &
+                                     BeginBlock, EndBlock,                                      &
+                                     BlockFound, FirstLine, LastLine, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR110'
+        
+        if (BlockFound) then
+        
+            Me%ThinWalls%WOn = .true.
+            
+            Me%ThinWalls%Nw  = LastLine - FirstLine - 1
+            
+            allocate(Me%ThinWalls%FaceW_I(Me%ThinWalls%Nw))
+            allocate(Me%ThinWalls%FaceW_J(Me%ThinWalls%Nw))
+            allocate(Me%ThinWalls%FaceW_K(Me%ThinWalls%Nw))
+            
+d3:         do l = FirstLine+1, LastLine-1
+
+                call GetData(Cell, Me%ObjEnterData, iflag, Buffer_Line  = l, STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ConstructThinWalls - ModuleHydrodynamic - ERR120'
+                endif                    
+                    
+                if (iflag /= 3) then                    
+                    stop 'ConstructThinWalls - ModuleHydrodynamic - ERR130'
+                endif
+                
+                n = l - FirstLine
+
+                Me%ThinWalls%FaceW_I(n) = cell(1)
+                Me%ThinWalls%FaceW_J(n) = cell(2)
+                Me%ThinWalls%FaceW_K(n) = cell(3)
+                
+            enddo d3
+                            
+        else
+
+            write(*,*) 'Block not found'
+            write(*,*) 'Begin = ',trim(BeginBlock)
+            write(*,*) 'End   = ',trim(EndBlock)
+
+        endif
+
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR140'
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR150'
+        
+        call GetData(Me%ThinWalls%VariableInTime,                                       & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'THIN_WALLS_VARIABLE',                                &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR160'
+
+        if (Me%ThinWalls%VariableInTime) then
+
+            call GetData(TimeSerieFile,                                                 & 
+                         Me%ObjEnterData, iflag,                                        & 
+                         Keyword    = 'THIN_WALLS_TIME_SERIE',                          &
+                         SearchType = FromFile,                                         &
+                         ClientModule ='ModuleHydrodynamic',                            &
+                         STAT       = STAT_CALL)          
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR170'
+            
+
+            !Starts Time Serie
+            call StartTimeSerieInput(Me%ThinWalls%ObjTimeSerie,                         &
+                                     TimeSerieFile,                                     &
+                                     Me%ObjTime,                                        &
+                                     STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR180'
+
+            call GetData(Me%ThinWalls%GradWL_Limit,                                     & 
+                         Me%ObjEnterData, iflag,                                        & 
+                         Keyword    = 'WATER_LEVEL_GRAD_LIMIT',                         &
+                         !units = water level gradient [m/m]
+                         Default    = 0.001,                                            &
+                         SearchType = FromFile,                                         &
+                         ClientModule ='ModuleHydrodynamic',                            &
+                         STAT       = STAT_CALL)       
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR190'
+            
+
+            allocate(Me%Forces%ThinWalls_Dissipation(Me%Size%ILB:Me%Size%IUB,           &
+                                          Me%Size%JLB:Me%Size%JUB,                      &
+                                          Me%Size%KLB:Me%Size%KUB))
+                    
+            Me%Forces%ThinWalls_Dissipation(:,:,:) = 0.                             
+
+            call GetData(Me%ThinWalls%CloseFlagColumn,                                  & 
+                         Me%ObjEnterData, iflag,                                        & 
+                         Keyword    = 'TIME_FLAG_COLUMN',                               &
+                         Default    = 2,                                                &
+                         SearchType = FromFile,                                         &
+                         ClientModule ='ModuleHydrodynamic',                            &
+                         STAT       = STAT_CALL)       
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR200'
+
+
+            !Gets Value for current Time
+            call GetTimeSerieValue (Me%ThinWalls%ObjTimeSerie, Me%CurrentTime,          &
+                                    Me%ThinWalls%CloseFlagColumn,                       &
+                                    Time1, Value1, Time2, Value2, TimeCycle,            &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR210'       
+
+            if (Value1 == 1. .and. Value2 == 1) then                
+                Me%ThinWalls%CloseFlag = 1
+            else
+                Me%ThinWalls%CloseFlag = 0
+            endif
+            
+        else
+        
+            Me%ThinWalls%CloseFlag = 1
+            
+        endif   
+        
+                          
+
+
+    end subroutine ConstructThinWalls
+
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -3045,7 +3329,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         real    :: InertialPeriods, AtmospherePeriod
 
-        real    :: TideSlowStartCoef, SmoothInitialPeriod
+        real    :: TideSlowStartCoef, SmoothInitialPeriod, DT_Model
         
         integer :: VelTangentialBoundary, VelNormalBoundary, ComputeWind
 
@@ -6145,6 +6429,46 @@ cd21:   if (Baroclinic) then
 
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1150')
+
+        !<BeginKeyword>
+            !Keyword          : SCRAPER_TIME_SCALE
+            !<BeginDescription>       
+               ! 
+               !Checks what is the time scale for computing the accelaration induced by scraper
+               !in the flow
+
+               ! 
+            !<EndDescription>
+            !Type             : real
+            !Default          : 10*DT 
+            !File keyword     : IN_DAD3D 
+            !Search Type      : From File
+        !<EndKeyword>
+        
+        call GetComputeTimeStep(Me%ObjTime, DT_Model, STAT = STAT_CALL)        
+
+        call GetData(Me%Scraper%TimeScale,                                              & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'SCRAPER_TIME_SCALE',                                 &
+                     Default    = 10.*DT_Model,                                         &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1160')
+
+        call GetData(Me%ThinWalls%ON,                                                   & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'THIN_WALLS',                                         &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1170')
+
 
     End Subroutine Construct_Numerical_Options
 
@@ -19399,8 +19723,10 @@ cd3:        if (Previous_Direction == DirectionY_) then
                                                        Me%CurrentTime,                  &
                                                        Me%Generic4D%TimeSerieColumn) 
 
+        if (Me%ThinWalls%ON) then
+            call ModifyThinWallsMapping
+        endif
  
-
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Actualises_Hydrodynamic")
 
     End Subroutine Actualises_Hydrodynamic
@@ -28332,7 +28658,12 @@ cd3:                   if (Manning) then
             
         !Effect of a scraper in a settling tank
         if (Me%ComputeOptions%Scraper)                                          &
-            call Modify_ScraperEffect           
+            call Modify_ScraperEffect 
+            
+        !Controlling the flow adding dissipation if a thinwall is open
+        if (Me%ThinWalls%ON) then
+            call ModifyThinWallsDissipation
+        endif                              
 
         !Adds a force that relax the velocity field to a reference field
         if (Me%Relaxation%Force)                                                &
@@ -31635,7 +31966,7 @@ do1:    do DischargeID = 1, DischargesNumber
                                                OpenPoints3D  = Me%External_Var%OpenPoints3D,&
                                                CoordinateX   = CoordinateX,             &
                                                CoordinateY   = CoordinateY,             & 
-                                               CoordinatesON = CoordinatesON,           &                                               
+                                               CoordinatesON = CoordinatesON,           &
                                                TimeX         = Me%CurrentTime,          &
                                                STAT = STAT_CALL)   
 
@@ -32016,7 +32347,7 @@ do1:    do DischargeID = 1, DischargesNumber
                                                OpenPoints3D  = Me%External_Var%OpenPoints3D,&
                                                CoordinateX   = CoordinateX,             &
                                                CoordinateY   = CoordinateY,             & 
-                                               CoordinatesON = CoordinatesON,           &                                               
+                                               CoordinatesON = CoordinatesON,           &
                                                TimeX         = Me%CurrentTime,          &
                                                STAT = STAT_CALL)   
 
@@ -32294,25 +32625,19 @@ dk:             do k = kmin,kmax
 do1:    do j = JLB, JUB
 do2:    do i = ILB, IUB
 
-
             if (Me%External_Var%WaterPoints3D(I, J, KUB) == WaterPoint) then 
-
 
                 kbottom = Me%External_Var%KFloor_Z(I, J)
                 
 do3:            do k = kbottom, KUB
 
-                    if (dj == 1) then
-                        if (Me%Scraper%VelU(i, j  , k) > Me%Scraper%VelLimit .and. &
-                            Me%Scraper%VelU(i, j+1, k) > Me%Scraper%VelLimit) then
+                        if (Me%Scraper%VelU(i, j  , k) > Me%Scraper%VelLimit) then
                             Me%Scraper%Position(i,j,k) = 0
                         endif                            
-                    else                        
-                        if (Me%Scraper%VelV(i,   j, k) > Me%Scraper%VelLimit .and. &
-                            Me%Scraper%VelV(i+1, j, k) > Me%Scraper%VelLimit) then
+
+                        if (Me%Scraper%VelV(i,   j, k) > Me%Scraper%VelLimit) then
                             Me%Scraper%Position(i,j,k) = 0
                         endif
-                    endif
                     
                 enddo do3
 
@@ -32349,7 +32674,7 @@ do6:            do k = kbottom, KUB
                     
                         ![m/s2]              =    [m/s] / [s]
                         Me%Forces%Scraper_Aceleration(i, j, k) =                        &
-                            (VelScraper - Me%Velocity%Horizontal%UV%New(I,J,K)) / Me%Velocity%DT
+                            (VelScraper - Me%Velocity%Horizontal%UV%New(I,J,K)) / Me%Scraper%TimeScale
 
                     endif
                     
@@ -32368,7 +32693,168 @@ do6:            do k = kbottom, KUB
         endif
 
     end subroutine Modify_ScraperEffect  
- 
+
+    !End ----------------------------------------------------------------------
+
+    subroutine ModifyThinWallsDissipation
+        
+        !Local---------------------------------------------------------------------
+        real                                :: CurrentWLGrad, AuxWLGrad 
+        integer                             :: di, dj, i, j, k, n, nFaces
+        logical                             :: ComputeDissipation
+        
+
+        !Begin---------------------------------------------------------------------
+        ! If the thinwalls are variable in time and are in open Mode
+        if (Me%ThinWalls%CloseFlag == 0) then
+        
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleHydrodynamic", "ModifyThinWallsDissipation")
+            endif
+
+            di  = Me%Direction%di
+            dj  = Me%Direction%dj
+            
+            Me%Forces%ThinWalls_Dissipation(:,:,:) = 0.
+            
+            ComputeDissipation = .false.
+            
+            if (dj == 1) then 
+                if (Me%ThinWalls%UOn) then
+                    nFaces = Me%ThinWalls%nU
+                    ComputeDissipation = .true.
+                endif                    
+            else
+                if (Me%ThinWalls%VOn) then
+                    nFaces = Me%ThinWalls%nV
+                    ComputeDissipation = .true.
+                endif   
+            endif
+            
+            if (ComputeDissipation) then
+     
+                do n=1, nFaces
+
+                    if (dj == 1) then
+                        i = Me%ThinWalls%FaceU_I(n)
+                        j = Me%ThinWalls%FaceU_J(n)
+                        k = Me%ThinWalls%FaceU_K(n)
+                    else
+                        i = Me%ThinWalls%FaceV_I(n)
+                        j = Me%ThinWalls%FaceV_J(n)
+                        k = Me%ThinWalls%FaceV_K(n)
+                    endif
+                    
+                    if (Me%External_Var%ComputeFaces3D_UV(i, j, k) == Covered) then 
+                        CurrentWLGrad = (Me%WaterLevel%New(i,j) - Me%WaterLevel%New(i-di,j-dj)) / Me%External_Var%DZX_ZY(i-di, j-dj)
+                        
+                        if (CurrentWLGrad < 0.) then
+                            if (CurrentWLGrad < - Me%ThinWalls%GradWL_Limit) then
+                                AuxWLGrad = CurrentWLGrad + Me%ThinWalls%GradWL_Limit
+                            else    
+                                AuxWLGrad = 0.
+                            endif                            
+                        else
+                            if (CurrentWLGrad > Me%ThinWalls%GradWL_Limit) then
+                                AuxWLGrad = CurrentWLGrad - Me%ThinWalls%GradWL_Limit
+                            else    
+                                AuxWLGrad = 0.
+                            endif             
+                        endif
+
+                        if (abs(AuxWLGrad) > 0.) then
+                            ![m/s2]              =    [m/s2] * [m/m]
+                            Me%Forces%ThinWalls_Dissipation(i, j, k) = Gravity * AuxWLGrad 
+                        endif                        
+                    endif
+                    
+                enddo 
+        
+            endif
+        
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleHydrodynamic", "ModifyThinWallsDissipation")
+            endif
+            
+        endif            
+
+    end subroutine ModifyThinWallsDissipation 
+
+    !End ---------------------------------------------------------------------- 
+
+
+    subroutine ModifyThinWallsMapping
+        
+        !Local---------------------------------------------------------------------
+        integer                             :: STAT_CALL
+        type (T_Time)                       :: Time1, Time2
+        real                                :: Value1, Value2
+        logical                             :: TimeCycle
+
+        !Begin---------------------------------------------------------------------
+
+        !Gets Value for current Time
+        call GetTimeSerieValue (Me%ThinWalls%ObjTimeSerie, Me%CurrentTime,          &
+                                Me%ThinWalls%CloseFlagColumn,                       &
+                                Time1, Value1, Time2, Value2, TimeCycle,            &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR110'       
+
+        if (Value1 == 1. .and. Value2 == 1) then                
+            Me%ThinWalls%CloseFlag = 1
+        else
+            Me%ThinWalls%CloseFlag = 0
+        endif
+
+        
+        ! If the thinwalls are in close Mode
+        if (Me%ThinWalls%CloseFlag == 1) then
+        
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleHydrodynamic", "ModifyThinWallsMapping")
+            endif
+
+            if      (Me%ThinWalls%UOn) then
+                
+                call UpdateComputeFaces3D(Map_ID        = Me%ObjMap,                    &
+                                          FaceType      = TypeU_,                       &
+                                          nFaces        = Me%ThinWalls%Nu,              &
+                                          VectorI       = Me%ThinWalls%FaceU_I,         &
+                                          VectorJ       = Me%ThinWalls%FaceU_J,         &
+                                          VectorK       = Me%ThinWalls%FaceU_K,         &
+                                          STAT          = STAT_CALL)                   
+                
+            elseif  (Me%ThinWalls%VOn) then
+                
+                call UpdateComputeFaces3D(Map_ID        = Me%ObjMap,                    &
+                                          FaceType      = TypeV_,                       &
+                                          nFaces        = Me%ThinWalls%Nv,              &
+                                          VectorI       = Me%ThinWalls%FaceV_I,         &
+                                          VectorJ       = Me%ThinWalls%FaceV_J,         &
+                                          VectorK       = Me%ThinWalls%FaceV_K,         &
+                                          STAT          = STAT_CALL)                   
+
+            elseif  (Me%ThinWalls%WOn) then
+                
+                call UpdateComputeFaces3D(Map_ID        = Me%ObjMap,                    &
+                                          FaceType      = TypeW_,                       &
+                                          nFaces        = Me%ThinWalls%Nw,              &
+                                          VectorI       = Me%ThinWalls%FaceW_I,         &
+                                          VectorJ       = Me%ThinWalls%FaceW_J,         &
+                                          VectorK       = Me%ThinWalls%FaceW_K,         &
+                                          STAT          = STAT_CALL)                   
+                
+            endif        
+        
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleHydrodynamic", "ModifyThinWallsMapping")
+            endif
+            
+        endif            
+
+    end subroutine ModifyThinWallsMapping 
+
+    !End ---------------------------------------------------------------------- 
 
     subroutine Modify_ObstacleDrag
         
@@ -36714,6 +37200,10 @@ dok:            do  k = kbottom, KUB
                     if (Me%ComputeOptions%Scraper)                                      &
                         TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
                                                                   Me%Forces%Scraper_Aceleration(i, j, k)  
+                                                                  
+                    if (Me%ThinWalls%ON .and. Me%ThinWalls%CloseFlag == 0)              &
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
+                                                                  Me%Forces%ThinWalls_Dissipation(i,j,k)
 
 
                     !Aceleration due to barotropic water Pressure 
@@ -38703,6 +39193,11 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *               &
                                                   Me%Forces%Scraper_Aceleration(i, j, kbottom)  
                                                   
+                if (Me%ThinWalls%ON .and. Me%ThinWalls%CloseFlag == 0)                  &
+                    AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *               &
+                                                  Me%Forces%ThinWalls_Dissipation(i,j,kbottom)
+                                                  
+                                                  
 
                 !baroclinic pressure in the bottom layer
                 ![m^3/s]     = [m^3/s]      + [m^2] * [s] * [M/m^3] * [m/s^2] / [M/m^3]  
@@ -39172,6 +39667,11 @@ dok:            do  k = kbottom, KUB
                         ![m^3/s]     = [m^3/s]      +     [s]     * [m^2]  * [m/s^2]
                         AuxExplicit  = AuxExplicit  + DT_Velocity * Area_UV(I, J, K)   *     &
                                                       Me%Forces%Scraper_Aceleration(I, J, K) 
+                                                      
+                    if (Me%ThinWalls%ON .and. Me%ThinWalls%CloseFlag == 0)                  &
+                        ![m^3/s]     = [m^3/s]      +     [s]     * [m^2]  * [m/s^2]
+                        AuxExplicit  = AuxExplicit  + DT_Velocity * Area_UV(I, J, K)   *     &
+                                                      Me%Forces%ThinWalls_Dissipation(I, J, K)
 
                     !Baroclinic pressure
 
@@ -44236,11 +44736,60 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
 
         deallocate(Me%Aux3DFlux)
+        
+        if (Me%ThinWalls%ON) then
+            call KillThinWalls
+        endif        
        !----------------------------------------------------------------------
 
     end subroutine DeallocateVariables   
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine KillThinWalls
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_CALL
+
+        !----------------------------------------------------------------------
+        
+        if (Me%ThinWalls%UOn) then
+            
+            deallocate(Me%ThinWalls%FaceU_I)
+            deallocate(Me%ThinWalls%FaceU_J)
+            deallocate(Me%ThinWalls%FaceU_K)
+            
+        endif
+
+        if (Me%ThinWalls%VOn) then
+            
+            deallocate(Me%ThinWalls%FaceV_I)
+            deallocate(Me%ThinWalls%FaceV_J)
+            deallocate(Me%ThinWalls%FaceV_K)
+           
+        endif
+
+        if (Me%ThinWalls%WOn) then
+        
+            deallocate(Me%ThinWalls%FaceW_I)
+            deallocate(Me%ThinWalls%FaceW_J)
+            deallocate(Me%ThinWalls%FaceW_K)
+            
+        endif
+
+        if (Me%ThinWalls%VariableInTime) then
+            deallocate(Me%Forces%ThinWalls_Dissipation)
+            call KillTimeSerie(TimeSerieID         = Me%ThinWalls%ObjTimeSerie,         &
+                                 STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'KillThinWalls - Hydrodynamic - ERR10'
+
+        endif   
+
+    end subroutine KillThinWalls
+
+    !--------------------------------------------------------------------------    
 
     subroutine KillMatrixesOutput
 

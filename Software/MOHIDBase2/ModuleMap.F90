@@ -151,12 +151,14 @@ module ModuleMap
 
     private :: UpdateSoilComputeFaces3D
     private :: UpdateMovBoundCompFaces3D
+    private :: UpdateThinWallsFaces
 
     interface  UpdateComputeFaces3D
         module procedure UpdateSoilComputeFaces3D
         module procedure UpdateMovBoundCompFaces3D
         module procedure UpdateSedimentCompFaces3D
         module procedure UpdateUnsaturatedComputeFaces3D
+        module procedure UpdateThinWallsFaces
     end interface  UpdateComputeFaces3D
 
     private :: UngetMap3D
@@ -865,6 +867,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
         real                                        :: MinWaterColumn
         integer                                     :: CHUNK
+        type (T_Time)                               :: AuxTime
 
         !----------------------------------------------------------------------
 
@@ -940,12 +943,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             enddo
 
             !$OMP END PARALLEL
-
+            
             if (MonitorPerformance) call StopWatch ("ModuleMap", "UpdateMovBoundCompFaces3D")
 
             !Updates all ComputefacesW
             call UpdateComputeFacesW()
-        
+            
             !Updates all points which have at least one Computeface
             call UpdateOpenPoints3D()
 
@@ -1286,6 +1289,79 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine UpdateSedimentCompFaces3D
 
     !--------------------------------------------------------------------------
+
+    subroutine UpdateThinWallsFaces(Map_ID, FaceType, nFaces, VectorI, VectorJ, VectorK, STAT)   
+        
+        !Arguments-------------------------------------------------------------
+        integer                                     :: Map_ID
+        integer, dimension(:), pointer              :: VectorI, VectorJ, VectorK
+        integer,           intent(IN )              :: FaceType, nFaces
+        integer, optional, intent(OUT)              :: STAT      
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_          
+        integer                                     :: i, j, k, n
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (Map_ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleMap", "UpdateThinWallsFaces")
+            endif
+            
+            if      (FaceType == TypeU_) then
+                
+                do n=1, nFaces
+                    i = VectorI(n)
+                    j = VectorJ(n)
+                    k = VectorK(n)
+                    Me%ComputeFaces3D%U(i, j, k) = 0
+                enddo
+                
+            else if (FaceType == TypeV_) then
+
+                do n=1, nFaces
+                    i = VectorI(n)
+                    j = VectorJ(n)
+                    k = VectorK(n)
+                    Me%ComputeFaces3D%V(i, j, k) = 0
+                enddo
+
+            else if (FaceType == TypeW_) then
+                        
+                do n=1, nFaces
+                    i = VectorI(n)
+                    j = VectorJ(n)
+                    k = VectorK(n)
+                    Me%ComputeFaces3D%W(i, j, k) = 0
+                enddo
+
+                STAT_ = SUCCESS_
+                
+            endif                
+
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleMap", "UpdateThinWallsFaces")
+            endif
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine UpdateThinWallsFaces
+
+    !--------------------------------------------------------------------------
+    
     subroutine UpDateWaterPoints3D(Map_ID, WaterPoints3D, STAT)  
 
         !Arguments-------------------------------------------------------------
