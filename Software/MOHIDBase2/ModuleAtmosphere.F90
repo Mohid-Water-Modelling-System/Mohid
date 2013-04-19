@@ -2281,11 +2281,11 @@ do2 :   do while (associated(PropertyX))
         if (PropPrecipitation%FirstActualization .or. .not. PropPrecipitation%Constant) then
 
             if(PropPrecipitation%AccumulateValueInTime) then
-                if (PropPrecipitation%ID%Units /= 'mm') then
+                if (trim(PropPrecipitation%ID%Units) /= 'mm') then
                     write(*,*)'Invalid Precipitation Units for accumulated rain'
                     write(*,*)'Use mm'
                     stop 'ModifyPrecipitation - ModuleAtmosphere - ERR01b'
-                endif
+                endif   
             endif
 
             if (trim(adjustl(PropPrecipitation%ID%Units)) /= 'm3/s') then
@@ -2301,8 +2301,14 @@ do2 :   do while (associated(PropertyX))
                     ConversionFactor = 1. / 3600.         !In mm/s
                 
                 case ('mm')
-
-                    ConversionFactor = 1.                 !In mm
+                
+                    if(.not. PropPrecipitation%AccumulateValueInTime) then
+                        write(*,*)'when using "mm" as units for precipitation'
+                        write(*,*)'you must use ACCUMULATE_VALUES = 1'
+                        stop 'ModifyPrecipitation - ModuleAtmosphere - ERR01c'
+                    endif
+                    
+                    ConversionFactor = 1.                 !In mm/s => Fillmatrix converted from mm to mm/s
 
                 case default
 
