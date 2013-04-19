@@ -322,6 +322,8 @@ Module ModuleGeometry
         type (T_Size3D)                         :: WorkSize
         
         logical                                 :: IsWindow
+        
+        logical                                 :: BathymNotCorrect = .false. 
        
         character(len=Pathlength)               :: InputFile
 
@@ -2023,7 +2025,7 @@ doi:                do i = ILB, IUB
 
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
-
+        
         !Gets a pointer to the Bathymetry
         call GetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructKFloor - Geometry - ERR01'
@@ -2197,6 +2199,11 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                         if (LayerBottomDepthMin <= AuxDepth .and. LayerBottomDepthMax >= AuxDepth) then
 
                             Me%KFloor%Z(i, j) = iLayer
+                            FoundKFloor = .true.
+                            
+                        else if (Me%BathymNotCorrect .and. LayerBottomDepthMin > AuxDepth) then
+
+                            Me%KFloor%Z(i, j) = iLayer + 1
                             FoundKFloor = .true.
 
                         else
@@ -2487,11 +2494,12 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
 
     end subroutine ComputeInitialGeometry
 
-    subroutine UpdateKfloor(GeometryID, SurfaceElevation, STAT)
+    subroutine UpdateKfloor(GeometryID, SurfaceElevation, BathymNotCorrect, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: GeometryID
         real, dimension(:, :), pointer, optional    :: SurfaceElevation
+        logical,                        optional    :: BathymNotCorrect
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -2505,6 +2513,13 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
         call Ready(GeometryID, ready_)    
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            
+            if (present(BathymNotCorrect)) then
+                Me%BathymNotCorrect = BathymNotCorrect
+            else
+                Me%BathymNotCorrect = .false. 
+            endif
 
            !Updates the Matrixes which contains the Ks - KFloor, etc...
             if (present(SurfaceElevation)) then
