@@ -48,7 +48,7 @@ Module ModuleField4D
                                        ComputeInitialGeometry, GetGeometryDistances,    &
                                        UnGetGeometry, KillGeometry
     use ModuleMap 
-    use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData,                     &
+    use ModuleHDF5,             only : ConstructHDF5, HDF5ReadWindow,                   &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
                                        HDF5WriteData, HDF5FlushMemory, HDF5WriteData,   &
@@ -289,19 +289,19 @@ Module ModuleField4D
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructField4D(Field4DID, EnterDataID, ExtractType, FileName, MaskDim,&
-                                TimeID, HorizontalGridID, BathymetryID,                 &
+    subroutine ConstructField4D(Field4DID, EnterDataID, ExtractType, FileName, TimeID,  &
+                                MaskDim, HorizontalGridID, BathymetryID,                &
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
                                 LonReference, LatMin, LatMax, LonMin, LonMax,           &
-                                Extrapolate, STAT)
+                                Extrapolate, PropertyID, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,                intent(INOUT)               :: Field4DID
         integer,                intent(IN )                 :: EnterDataID
         integer,                intent(IN )                 :: ExtractType        
         character(*),           intent(IN )                 :: FileName
-        integer,                intent(IN )                 :: MaskDim        
         integer,                intent(IN )                 :: TimeID
+        integer,      optional, intent(IN )                 :: MaskDim                
         integer,      optional, intent(IN )                 :: HorizontalGridID
         integer,      optional, intent(IN )                 :: BathymetryID
         integer,      optional, intent(IN )                 :: HorizontalMapID
@@ -314,8 +314,9 @@ Module ModuleField4D
         real,         optional, intent(IN )                 :: LonMin
         real,         optional, intent(IN )                 :: LonMax
         logical,      optional, intent(IN )                 :: Extrapolate
+        type (T_PropertyID), optional, intent(IN )          :: PropertyID
         integer,      optional, intent(OUT)                 :: STAT     
-
+        
         !Local-------------------------------------------------------------------
         type (T_PropField), pointer                         :: NewPropField        
         integer                                             :: ready_, STAT_, nUsers, STAT_CALL
@@ -340,7 +341,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
 
             Me%File%FileName     = trim(FileName)
-            Me%MaskDim           = MaskDim
+            if (present(MaskDim)) then
+                Me%MaskDim           = MaskDim
+            else
+                Me%MaskDim           = DimUnknown
+            endif
             
             Me%WindowWithData    = .true. 
 
@@ -476,6 +481,12 @@ wwd:        if (Me%WindowWithData) then
                 endif
                 
                 call AllocatePropertyField  (NewPropField, Me%MaskDim)
+                
+                if (present(PropertyID)) then
+                    NewPropField%ID = PropertyID
+                else
+                    call ConstructPropertyID (NewPropField%ID, Me%ObjEnterData, ExtractType)
+                endif
                 
                 call ReadOptions            (NewPropField, ExtractType)     
                 
@@ -685,14 +696,14 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                  STAT   = STAT_CALL)                                     
             if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR30'
                                         
-            call HDF5ReadData(HDF5ID        = Me%File%Obj,                              &
+            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                              &
                               GroupName     = "/Grid",                                  &
                               Name          = trim(Me%File%LatStagName),                &
                               Array2D       = LatStag,                                  &
                               STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR40'
             
-            call HDF5ReadData(HDF5ID        = Me%File%Obj,                              &
+            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                              &
                               GroupName     = "/Grid",                                  &
                               Name          = trim(Me%File%LonStagName),                &
                               Array2D       = LonStag,                                  &
@@ -777,10 +788,10 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
             
             endif
             
-            ILB = max(WindowDomain(1,1) - 1,1   )
-            IUB = min(WindowDomain(1,2) + 1,Imax)
-            JLB = max(WindowDomain(2,1) - 1,1   )
-            JUB = min(WindowDomain(2,2) + 1,Jmax)
+            ILB = max(WindowDomain(1,1) - 3,1   )
+            IUB = min(WindowDomain(1,2) + 3,Imax)
+            JLB = max(WindowDomain(2,1) - 3,1   )
+            JUB = min(WindowDomain(2,2) + 3,Jmax)
             
             deallocate (WindowDomain)
             
@@ -872,7 +883,7 @@ wwd1:        if (Me%WindowWithData) then
                                                        JLB = JLB, JUB = JUB,            &
                                  STAT   = STAT_CALL)                                                    
                                         
-            call HDF5ReadData(HDF5ID        = Me%File%Obj,                              &
+            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                              &
                               GroupName     = "/Grid",                                  &
                               Name          = trim(Me%File%BathymName),                 &
                               Array2D       = Bathym,                                   &
@@ -961,7 +972,7 @@ wwd1:        if (Me%WindowWithData) then
                                      
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR30'
                                             
-                call HDF5ReadData(HDF5ID        = Me%File%Obj,                              &
+                call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                              &
                                   GroupName     = "/Grid",                                  &
                                   Name          = trim(Me%File%MaskName),                   &
                                   Array3D       = Mask3D,                                   &
@@ -1001,7 +1012,7 @@ wwd1:        if (Me%WindowWithData) then
                                      
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR60'
                                             
-                call HDF5ReadData(HDF5ID        = Me%File%Obj,                              &
+                call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                              &
                                   GroupName     = "/Grid",                                  &
                                   Name          = trim(Me%File%MaskName),                   &
                                   Array2D       = Mask2D,                                   &
@@ -1121,7 +1132,7 @@ wwd1:        if (Me%WindowWithData) then
             
             call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,            &
                                                        JLB = JLB, JUB = JUB,            &
-                                                       KLB = KLB-1, KUB = KUB,             &
+                                                       KLB = KLB-1, KUB = KUB,          &
                                  STAT   = STAT_CALL)                                
                                  
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR10'
@@ -1132,10 +1143,11 @@ wwd1:        if (Me%WindowWithData) then
             
             if (Exist) then
                                         
-                call HDF5ReadData(HDF5ID        = Me%File%Obj,                              &
-                                  GroupName     = "/Grid/VerticalZ",                        &
-                                  Name          = "Vertical_00001",                         &
-                                  Array3D       = SZZ,                                      &
+                call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
+                                  GroupName     = "/Grid/VerticalZ",                    &
+                                  Name          = "Vertical_00001",                     &
+                                  Array3D       = SZZ,                                  &
+                                  OffSet3       = 0,                                    &       
                                   STAT          = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR20'
                 
@@ -1175,7 +1187,7 @@ wwd1:        if (Me%WindowWithData) then
                                  
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR40'
 
-            call HDF5ReadData(HDF5ID        = Me%File%Obj,                              &
+            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                              &
                               GroupName     = "/Grid",                                  &
                               Name          = trim(Me%File%MaskName),                   &
                               Array3D       = Mask,                                     &
@@ -1268,8 +1280,6 @@ wwd1:        if (Me%WindowWithData) then
         logical                                         :: LastGroupEqualField
 
         !---------------------------------------------------------------------
-        
-        call ConstructPropertyID (PropField%ID, Me%ObjEnterData, ExtractType)        
         
         !Property ValuesType (Interpolated, accumulate, original value) 
         call GetData(PropField%ValuesType,                                              &
@@ -1528,7 +1538,7 @@ wwd1:        if (Me%WindowWithData) then
             
             
             if (Me%MaskDim == DimUnknown) then
-                call GetHDF5DataSetExist (Me%File%Obj, 'WaterPoints3D', exist, STAT= STAT_CALL)
+                call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints3D', exist, STAT= STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR45'
                 
                 if (exist) then
@@ -2067,7 +2077,7 @@ it:     if (NewPropField%ChangeInTime) then
 
         allocate(TimeVector(6))
 
-        call HDF5ReadData   (HDF5ID         = Me%File%Obj,                           &
+        call HDF5ReadWindow (HDF5ID         = Me%File%Obj,                              &
                              GroupName      = "/Time",                                  &
                              Name           = "Time",                                   &
                              Array1D        = TimeVector,                               &
@@ -2245,7 +2255,7 @@ it:     if (NewPropField%ChangeInTime) then
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR30'
             
                  
-            call HDF5ReadData(Me%File%Obj, trim(NewPropField%VGroupPath),                   &
+            call HDF5ReadWindow(Me%File%Obj, trim(NewPropField%VGroupPath),                   &
                               trim(NewPropField%FieldName),                                 &
                               Array2D = Field, OutputNumber = Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR40'
@@ -2362,7 +2372,7 @@ it:     if (NewPropField%ChangeInTime) then
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR30'
             
                  
-            call HDF5ReadData(Me%File%Obj, trim(NewPropField%VGroupPath),                   &
+            call HDF5ReadWindow(Me%File%Obj, trim(NewPropField%VGroupPath),                   &
                               trim(NewPropField%FieldName),                                 &
                               Array3D = FieldAux, OutputNumber = Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR40'
