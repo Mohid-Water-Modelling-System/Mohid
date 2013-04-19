@@ -1203,6 +1203,7 @@ Module ModuleLagrangianGlobal
         real                                    :: Fdisp               = 0
         real                                    :: Fblowout            = 1
         real                                    :: CDispOilOff         = null_real
+        real                                    :: OilDropletsD50      = null_real
     end type T_Origin
 
     type T_OptionsStat
@@ -2410,7 +2411,7 @@ i1:         if (PropertyFound) then
         type(T_PropertyID)                              :: PropertyID
         real                                            :: West, East, South, North
         logical                                         :: PropertyFound
-        integer                                         :: STAT_CALL, nProp, i, flag, emMax, iP 
+        integer                                         :: STAT_CALL, nProp, i, flag, emMax, iP
         !Begin-----------------------------------------------------------------
 
 DOPROP: do nProp = 1, Me%MeteoOcean%PropNumber
@@ -2449,14 +2450,16 @@ di:             do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
                     
                     call GetGridBorderLimits(Me%EulerModel(emMax)%ObjHorizontalGrid,    &
                                              West, East, South, North, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ER40'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR40'
+                    
+                    
 
                     call ConstructField4D(Field4DID     = Me%MeteoOcean%Prop(nProp)%Field(i)%ID,        &
                                           EnterDataID   = Me%ObjEnterData,                              &
-                                          ExtractType   = FromBlockInBlock,                             &
+                                          ExtractType   = FromBlockinBlock,                             &
                                           FileName      = Me%MeteoOcean%Prop(nProp)%Field(i)%FileName,  &
-                                          MaskDim       = Me%MeteoOcean%Prop(nProp)%MaskDim,            &
                                           TimeID        = Me%ExternalVar%ObjTime,                       &   
+                                          MaskDim       = Me%MeteoOcean%Prop(nProp)%MaskDim,            &
                                           LatReference  = Me%EulerModel(emMax)%Grid%LatDefault,         &
                                           LonReference  = Me%EulerModel(emMax)%Grid%LongDefault,        & 
                                           LatMin        = South,                                        & 
@@ -2466,7 +2469,7 @@ di:             do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
                                           Extrapolate   = .false.,                                      &    
                                           STAT          = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR50'
-                    
+                                        
                 enddo di              
 
             else i1
@@ -5536,6 +5539,17 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                          Default      = 1.,                                      &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1510'
+
+            call GetData(NewOrigin%OilDropletsD50,                               &
+                         Me%ObjEnterData,                                        &
+                         flag,                                                   &
+                         SearchType   = FromBlock,                               &
+                         keyword      ='OIL_DROPLETS_D50',                       &
+                         ClientModule ='ModuleLagrangianGlobal',                 &
+                         !50 microns
+                         Default      = 50e-6,                                   &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1515'
 
         endif
         call GetData(NewOrigin%State%Age,                                               &
@@ -10429,7 +10443,7 @@ dem:        do em = 1, Me%EulerModelNumber
                 call GetWaterLevel(Me%EulerModel(em)%ObjHydrodynamic, SurfaceElevation, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanBathym - ModuleLagrangianGlobal - ERR70'
 
-                call UpdateKfloor(Me%EulerModel(em)%ObjGeometry, SurfaceElevation, STAT = STAT_CALL)
+                call UpdateKfloor(Me%EulerModel(em)%ObjGeometry, SurfaceElevation, BathymNotCorrect = .true., STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanBathym - ModuleLagrangianGlobal - ERR80'
                 
                 call UpDateWaterPoints3D(Me%EulerModel(em)%ObjMap, STAT = STAT_CALL)
@@ -13088,11 +13102,11 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         real                                        :: r1, r2, correction
         real                                        :: WaveHeight
         real                                        :: DT_Vert        
-        real(8)                                     :: DensRel, dc, dpx
         integer                                     :: Light_Index 
         real                                        :: BottomDepth, SurfaceDepth
         real                                        :: BreakingWaveHeight
         type(T_Larvae), pointer                     :: LarvaePtr
+        integer                                     :: STAT_CALL
 
         !------------------------------------------------------------------------
 
@@ -13200,19 +13214,9 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                         
                     else if (CurrentOrigin%Movement%SedimentationType .EQ. DensDynamic_) then   
                     
-                        DensRel = CurrentOrigin%Movement%Density/(Me%EulerModel(emp)%Density(i, j, k))
-                        
-                        dc = ((9.62 * WaterCinematicVisc**2)/(Gravity*(1-DensRel)))**0.333
-                        
-                        dpx = CurrentOrigin%Movement%D50
-                        
-                        if (dpx < dc) then
-                            VELQZ = Gravity*dpx**2*(1-DensRel)/18./WaterCinematicVisc
-                        else
-                            VELQZ = sqrt(8./3.*Gravity*dpx*(1-DensRel))
-                        endif
-                        
-                        if (DensRel>1) VELQZ = - VELQZ
+                        VELQZ = DropletsFloatVel(ParticleDensity = CurrentOrigin%Movement%Density, &
+                                                 WaterDensity    = Me%EulerModel(emp)%Density(i, j, k), &
+                                                 D50             = CurrentOrigin%Movement%D50)
                         
                         CurrentPartic%D50vel = VELQZ 
                         
@@ -13412,12 +13416,18 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                                     NewPosition%Z = min(r2 * 1.5 * BreakingWaveHeight + SurfaceDepth, BottomDepth)
                                     
                                     !ROD TO DO: D50 SHOULD BE COMPUTED IN THE FUTURE
-                                    CurrentPartic%Geometry%OilDropletsD50 = 0.000050
+                                    !CurrentPartic%Geometry%OilDropletsD50 = 0.000050
+                                    CurrentPartic%Geometry%OilDropletsD50 = CurrentOrigin%OilDropletsD50
 
-                                    VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 & 
-                                               * CurrentPartic%Geometry%OilDropletsD50 & 
-                                               * (1. - (CurrentPartic%OilDensity/Me%EulerModel(emp)%Density (i, j, k)) ) &
-                                               / (18. * WaterCinematicVisc)
+                                    !VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 & 
+                                    !           * CurrentPartic%Geometry%OilDropletsD50 & 
+                                    !           * (1. - (CurrentPartic%OilDensity/Me%EulerModel(emp)%Density (i, j, k)) ) &
+                                    !           / (18. * WaterCinematicVisc)
+                                               
+
+                                    VELFLOAT = DropletsFloatVel(ParticleDensity = CurrentPartic%OilDensity, &
+                                                                WaterDensity    = Me%EulerModel(emp)%Density (i, j, k), &
+                                                                D50             = CurrentOrigin%OilDropletsD50)
                                     
                                 else
                                      NewPosition%Z = SurfaceDepth
@@ -13428,9 +13438,25 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                             CurrentPartic%W    = 0.
                         else SU1
                             CurrentPartic%W    = 0.                  
-                            VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 * CurrentPartic%Geometry%OilDropletsD50 &
-                                       * (1. - (CurrentPartic%OilDensity/Me%EulerModel(emp)%Density (i, j, k)) ) &
-                                       / (18. * WaterCinematicVisc)
+                            !VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 * CurrentPartic%Geometry%OilDropletsD50 &
+                            !           * (1. - (CurrentPartic%OilDensity/Me%EulerModel(emp)%Density (i, j, k)) ) &
+                            !           / (18. * WaterCinematicVisc)
+
+                            CurrentPartic%Geometry%OilDropletsD50 = CurrentOrigin%OilDropletsD50
+                            
+                            !This situation can be verified in the case of a underwater release of oil
+                            !The particle oil density is only initialized if the particle is at some point has the float condition
+                            if (CurrentPartic%OilDensity < 0.) then
+                                call GetOilDensityOil(OilID      = CurrentOrigin%ObjOil,&
+                                                      OilDensity = CurrentPartic%OilDensity,&
+                                                      STAT       = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'MoveParticVertical - ModuleLagrangianGlobal - ERR10'
+                            endif                                
+
+                            VELFLOAT = DropletsFloatVel(ParticleDensity = CurrentPartic%OilDensity, &
+                                                        WaterDensity    = Me%EulerModel(emp)%Density (i, j, k), &
+                                                        D50             = CurrentPartic%Geometry%OilDropletsD50)
+                                       
                         endif SU1                       
                                       
                 endif
@@ -13530,6 +13556,41 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
         !------------------------------------------------------------------------
 
     end subroutine MoveParticVertical
+    
+    !--------------------------------------------------------------------------    
+    
+    real function DropletsFloatVel(ParticleDensity, WaterDensity, D50)
+    
+        !Arguments----------------------------------------------------------------------
+        real            :: ParticleDensity, WaterDensity, D50
+        
+        !Local--------------------------------------------------------------------------
+        real            :: DensRel, dc, dpx
+        
+        !Begin--------------------------------------------------------------------------
+            
+        DensRel = ParticleDensity/WaterDensity
+        
+        if (DensRel <1) then
+        
+            dc = ((9.62 * WaterCinematicVisc**2)/(Gravity*(1-DensRel)))**0.333
+            
+            dpx = D50
+            
+            if (dpx < dc) then
+                DropletsFloatVel = Gravity*dpx**2*(1-DensRel)/18./WaterCinematicVisc
+            else
+                DropletsFloatVel = sqrt(8./3.*Gravity*dpx*(1-DensRel))
+            endif   
+        
+        else
+
+            DropletsFloatVel = 0.
+            
+        endif
+        
+        
+    end function DropletsFloatVel                         
 
     !--------------------------------------------------------------------------
 
@@ -18322,23 +18383,24 @@ i1:             if (nP>0) then
                                     
                                 else
                                     
-                                    if (CurrentPartic%AtTheBottom) then 
+                                if (CurrentPartic%AtTheBottom) then 
 
-                                        Matrix1D(nP)  = 1 
+                                    Matrix1D(nP)  = 1 
 
-                                    else
+                                else
 
-                                        Matrix1D(nP)  = 2
+                                    Matrix1D(nP)  = 2
 
-                                    end if
+                                end if
                                 endif
 
                                 CurrentPartic => CurrentPartic%Next
                             enddo            
                             if (nP > 0) then
                                 !HDF 5
-                                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/At The Bottom",    &
-                                                    "At The Bottom",  "ON/OFF", Array1D = Matrix1D, OutputNumber = OutPutNumber, &
+                                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//&
+                                                    "/At The Bottom", "At The Bottom",  "ON/OFF",           &
+                                                     Array1D = Matrix1D, OutputNumber = OutPutNumber,       &
                                                      STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR301'
                             endif
