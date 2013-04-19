@@ -677,8 +677,8 @@ i1:         if (PropertyFound) then
                               EnterDataID   = Me%ObjEnterData,                          &
                               ExtractType   = FromBlock,                                &
                               FileName      = Me%HDFSolution(it)%FileIn,                &
-                              MaskDim       = Me%HDFSolution(it)%MaskDim,               &
                               TimeID        = Me%ObjTime,                               &   
+                              MaskDim       = Me%HDFSolution(it)%MaskDim,               &
                               LatReference  = Me%LatDefault,                            &
                               LonReference  = Me%LongDefault,                           & 
                               Extrapolate   = Me%Extrapolate,                           &    
