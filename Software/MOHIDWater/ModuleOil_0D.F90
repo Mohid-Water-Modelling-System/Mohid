@@ -2178,6 +2178,7 @@ cd2 :       if (LagrangianTime .GE. Me%NextInternalComputeTime) then
 
                 do while (LagrangianTime .GE. Me%NextInternalComputeTime) 
                     Me%Now                      = Me%NextInternalComputeTime            
+                    Me%Var%Time                 = Me%Var%Time + Me%Var%DTOilInternalProcesses
 
                     if (AreaTotal >= 0.) then
 
@@ -2461,7 +2462,7 @@ cd3:           if (Me%Var%VolPC(n)-(Me%Var%VEvaporatedPCDT(n))                  
 
             if (Me%Var%Fingas_Evap_EqType .EQ.Logarithmic) then
                 
-                Me%Var%Time = Me%Var%Time + Me%Var%DTOilInternalProcesses
+            !    Me%Var%Time = Me%Var%Time + Me%Var%DTOilInternalProcesses
 
                 if (Me%Var%Fingas_Evap_Emp_Data) then
                 
@@ -2796,7 +2797,7 @@ cd3:    if (Me%Var%MassOil - (Me%Var%MSedimentedDT) * Me%Var%DTOilInternalProces
         !------------------------------------------------------------------------
 
         Me%Var%SolubilityOilInWater = Me%Var%SolubilityOilInWater * exp(-CDiss_decayment*   &
-                                      ((Me%Var%DTOilInternalProcesses)/3600.0))
+                                      ((Me%Var%Time)/3600.0))
 
         Me%Var%MDissolvedDT         = (CDiss_KTransfMass/3600) * (1 - Me%Var%MWaterContent) &
                                            * Me%ExternalVar%Area * Me%Var%SolubilityOilInWater
@@ -4088,6 +4089,7 @@ cd3 :           if (Me%State%TimeSerie) then
 
         if (ready_ .EQ. IDLE_ERR_) then
 
+            write (UnitID)  Me%Var%Time
             write (UnitID) Me%Var%OilType
             write (UnitID) Me%Var%API
             write (UnitID) Me%Var%PourPoint
@@ -4169,8 +4171,8 @@ ifevap:     if (Me%Var%OilEvaporation) then
                 
                     write (UnitID)  Me%Var%Fingas_Evap_EqType
              
-                    if (Me%Var%Fingas_Evap_EqType .EQ.Logarithmic)                      &
-                        write (UnitID)  Me%Var%Time
+!                    if (Me%Var%Fingas_Evap_EqType .EQ.Logarithmic)                      &
+!                        write (UnitID)  Me%Var%Time
              
                     write (UnitID) Me%Var%Fingas_Evap_Emp_Data
                 
@@ -4291,6 +4293,7 @@ ifdiss:     if (Me%Var%OilDissolution) then
 
         if (ready_ .EQ. IDLE_ERR_) then
 
+            read (UnitID)  Me%Var%Time
             read (UnitID) Me%Var%OilType
             read (UnitID) Me%Var%API
             read (UnitID) Me%Var%PourPoint
@@ -4367,9 +4370,9 @@ ifevap:     if (Me%Var%OilEvaporation) then
                 
                     read (UnitID)  Me%Var%Fingas_Evap_EqType
              
-                    if (Me%Var%Fingas_Evap_EqType .EQ.Logarithmic) then
-                        read (UnitID)  Me%Var%Time
-                    endif
+!                    if (Me%Var%Fingas_Evap_EqType .EQ.Logarithmic) then
+!                        read (UnitID)  Me%Var%Time
+!                    endif
 
                     read (UnitID) Me%Var%Fingas_Evap_Emp_Data
                 

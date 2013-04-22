@@ -13573,7 +13573,7 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
         
         if (DensRel <1) then
         
-            dc = ((9.62 * WaterCinematicVisc**2)/(Gravity*(1-DensRel)))**0.333
+            dc = ((9.52 * WaterCinematicVisc**2)/(Gravity*(1-DensRel)))**0.333
             
             dpx = D50
             
