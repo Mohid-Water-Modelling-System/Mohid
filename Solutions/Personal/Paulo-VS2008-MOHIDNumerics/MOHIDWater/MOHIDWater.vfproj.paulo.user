@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioUserFile ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{141470D5-4F1E-4328-828C-8767F85E9629}">
 	<Configurations>
-		<Configuration Name="Debug|Win32" WorkingDirectory="E:\Aplica\MohidTests\BIOPCOMSUP\WestIberiaUP\exe"/>
+		<Configuration Name="Debug|Win32" WorkingDirectory="X:\Proj_BrasilCostalModelAquaSafePiloto\Simula\BlowOutScenario\AquaSafeOSS_Approach\MultiSolution\exe"/>
 		<Configuration Name="Release|Win32" WorkingDirectory="F:\Aplica3\Proj_388_MalaccaStrait\SoftwareImplementation\OilSpillDesktopSimulator\EXECUTION_FAILED_2013-03-14_16h44m19s_0120c4c7-450c-43ca-900d-e154e04dced6\MultiSolution\exe"/>
 		<Configuration Name="Debug Double|Win32"/>
 		<Configuration Name="Release Double|Win32"/>
