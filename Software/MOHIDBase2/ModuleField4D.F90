@@ -1486,7 +1486,7 @@ wwd1:        if (Me%WindowWithData) then
         real,    dimension(6)                           :: InitialDate
         real(8), dimension(:), pointer                  :: Instants
         integer                                         :: STAT_CALL, i, NCDF_READ, HDF5_READ, iflag
-        logical                                         :: exist
+        logical                                         :: exist, exist3D, exist2D
 
 
         !Begin-----------------------------------------------------------------
@@ -1538,14 +1538,24 @@ wwd1:        if (Me%WindowWithData) then
             
             
             if (Me%MaskDim == DimUnknown) then
-                call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints3D', exist, STAT= STAT_CALL)
+                call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints3D', exist3D, STAT= STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR45'
+
+                call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints2D', exist2D, STAT= STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR45'
+
                 
-                if (exist) then
+                if (exist3d) then
                     Me%MaskDim = Dim3D
-                else
+                endif
+                if (exist2D) then
                     Me%MaskDim = Dim2D
                 endif
+                
+                if (exist2D .and. exist3D) then
+                    Me%MaskDim = Dim2D
+                endif
+                
                 
             endif                
             
