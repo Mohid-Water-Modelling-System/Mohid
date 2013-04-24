@@ -4267,15 +4267,17 @@ Module ModuleHDF5
                 endif
 
                 !Reads Units
-                call h5aopen_name_f     (dset_id, "Units", attr_id, STAT_CALL)
-                call h5Tcopy_f          (H5T_NATIVE_CHARACTER, type_id, STAT_CALL)
-                call h5Tset_size_f      (type_id, int(StringLength,8), STAT_CALL)
-                call h5aread_f          (attr_id, type_id, Units_, dims, STAT_CALL)
-                call h5aclose_f         (attr_id, STAT_CALL) 
-                call h5Tclose_f         (type_id, STAT_CALL)
-                
                 if(present(Units))then
+                
+                    call h5aopen_name_f     (dset_id, "Units", attr_id, STAT_CALL)
+                    call h5Tcopy_f          (H5T_NATIVE_CHARACTER, type_id, STAT_CALL)
+                    call h5Tset_size_f      (type_id, int(StringLength,8), STAT_CALL)
+                    call h5aread_f          (attr_id, type_id, Units_, dims, STAT_CALL)
+                    call h5aclose_f         (attr_id, STAT_CALL) 
+                    call h5Tclose_f         (type_id, STAT_CALL)
+                    
                     Units = Units_
+                    
                 endif
 
 
