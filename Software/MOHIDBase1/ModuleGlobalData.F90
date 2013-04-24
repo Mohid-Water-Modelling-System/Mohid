@@ -75,7 +75,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  84
+    integer, parameter  :: MaxModules           =  85
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -1670,6 +1670,7 @@ Module ModuleGlobalData
     integer, parameter ::  mSEAGRASSWATERINTERAC_   = 82     ! Isabella
     integer, parameter ::  mBivalve_                = 83
     integer, parameter ::  mTimeSeriesAnalyser_     = 84
+    integer, parameter ::  mNetworkStatistics_      = 85
 
     type T_Size1D
         integer                 :: ILB            = null_int
@@ -1766,7 +1767,8 @@ Module ModuleGlobalData
         T_Module(mField4D_               , "Field4D"),               T_Module(mBENTHICECOLOGY_         , "BenthicEcology"),        &! isab
         T_Module(mWWTPQ_                  , "WWTPQ") ,               T_Module(mSEAGRASSWATERINTERAC_   , "SeagrassWaterInteraction"),&
         T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
-        T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ) /)
+        T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics")     /)
+        
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
