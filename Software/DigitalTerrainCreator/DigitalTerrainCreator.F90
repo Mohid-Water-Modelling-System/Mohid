@@ -35,6 +35,7 @@
 !   SMOOTH                      : 0/1               -           !Use radius method to fill unknown values
 !       RADIUS                  : real             [0]          !Radius within which points are used to compute 
 !                                                               !bathymetry value
+!   FILL_METHOD                 : 1/2              [1]          !1 - Average value, 2 - Minimum value
 !   NO_DATA_POINT               : real            [-99]         !Value to attribute to points with no value
 !   LAND_POINT                  : real            [-99]         !Value to attribute to land points
 
@@ -152,6 +153,9 @@ program DigitalTerrainCreator
 
     integer, parameter                              :: GridDataType                 = 1
     integer, parameter                              :: CellsType                    = 2
+    
+    integer, parameter                              :: Average_                     = 1
+    integer, parameter                              :: Minimum_                     = 2    
 
 
 
@@ -245,6 +249,8 @@ program DigitalTerrainCreator
 
         logical                                     :: WindowOutPut
         integer, dimension(4)                       :: WindowLimits
+        
+        integer                                     :: FillMethod
 
         type(T_ExternalVar)                         :: ExtVar
         type(T_Triang     )                         :: Triang
@@ -678,7 +684,6 @@ i2:         if      (trim(AuxChar) == 'j') then
 
         end if
 
-
         call GetData(Me%UseSmooth,                                                      &
                      Me%ObjEnterData, flag,                                             &
                      SearchType   = FromFile_,                                          &
@@ -854,6 +859,16 @@ i2:         if      (trim(AuxChar) == 'j') then
             endif
 
         endif
+
+
+        call GetData(Me%FillMethod,                                                     &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType   = FromFile_,                                          &
+                     keyword      ='FILL_METHOD',                                       &
+                     Default      = Average_,                                           &
+                     ClientModule ='DigitalTerrainCreator',                             &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR100'
 
 
 
@@ -1860,7 +1875,7 @@ i2:         if      (Me%River%MainAxe == AlongLine  ) then
 
         !Local-----------------------------------------------------------------
         type (T_PointF),   pointer          :: GridPoint
-        real                                :: SumOfDepths
+        real                                :: SumOfDepths, MinimumDepth
         integer                             :: nPointsInside, CurrentPoint
         integer                             :: i, j
         real                                :: XSW, YSW, XSE, YSE, XNE, YNE, XNW, YNW
@@ -1868,7 +1883,7 @@ i2:         if      (Me%River%MainAxe == AlongLine  ) then
         !Begin-----------------------------------------------------------------
 
         write(*,*)"Filling cells with known data..."
-
+        
         do i = Me%ExtVar%WorkSize%ILB,  Me%ExtVar%WorkSize%IUB
         do j = Me%ExtVar%WorkSize%JLB , Me%ExtVar%WorkSize%JUB
                        
@@ -1907,6 +1922,7 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
 
                     SumOfDepths   = 0.
                     nPointsInside = 0
+                    MinimumDepth  = - FillValueReal                    
 
                     !loop through all xyz points
                     Me%CurrentXYZPoints => Me%XYZPoints
@@ -1924,6 +1940,9 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
     
                                 if(IsPointInsidePolygon(Me%AuxPoint, Me%Rect))then
                                     SumOfDepths   = SumOfDepths + Me%CurrentXYZPoints%Z(CurrentPoint)
+                                    if (Me%CurrentXYZPoints%Z(CurrentPoint) < MinimumDepth) then
+                                        MinimumDepth = Me%CurrentXYZPoints%Z(CurrentPoint)
+                                    endif
                                     nPointsInside = nPointsInside + 1
                                     Me%CurrentXYZPoints%Inside(CurrentPoint) = .true.
                                 end if
@@ -1938,7 +1957,11 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
                     if(nPointsInside .eq. 0)then
                         Me%Depth(i, j) = Me%NoDataPoint
                     else
-                        Me%Depth(i, j) = SumOfDepths / nPointsInside
+                        if      (Me%FillMethod == Average_) then
+                            Me%Depth(i, j) = SumOfDepths / nPointsInside
+                        elseif  (Me%FillMethod == Minimum_) then
+                            Me%Depth(i, j) = MinimumDepth
+                        endif
                     end if
 
                 end if
@@ -1964,6 +1987,7 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
         !Local-----------------------------------------------------------------
         type (T_PointF),         pointer    :: GridPoint
         real   , dimension(:,:), pointer    :: SumOfDepths  
+        real   , dimension(:,:), pointer    :: MinimumDepth
         integer, dimension(:,:), pointer    :: nPointsInside
         integer                             :: i, j, CurrentPoint
         integer                             :: ILB, IUB, JLB, JUB
@@ -1979,10 +2003,13 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
         JUB = Me%ExtVar%WorkSize%JUB
 
         allocate(SumOfDepths  (ILB:IUB, JLB:JUB))
+        allocate(MinimumDepth (ILB:IUB, JLB:JUB))
         allocate(nPointsInside(ILB:IUB, JLB:JUB))
 
         SumOfDepths  (:, :) = 0.
         nPointsInside(:, :) = 0
+        
+        MinimumDepth (:, :) = - FillValueReal
 
         !loop through all xyz points
         Me%CurrentXYZPoints => Me%XYZPoints
@@ -2016,6 +2043,9 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
                         if (i <= IUB .and. i >= ILB .and. j <= JUB .and. j >= JLB) then
                             SumOfDepths  (i, j) = SumOfDepths  (i, j) + Me%CurrentXYZPoints%Z(CurrentPoint)
                             nPointsInside(i, j) = nPointsInside(i, j) + 1
+                            if (Me%CurrentXYZPoints%Z(CurrentPoint) < MinimumDepth (i, j)) then
+                                MinimumDepth (i, j) = Me%CurrentXYZPoints%Z(CurrentPoint)
+                            endif
                             Me%CurrentXYZPoints%Inside(CurrentPoint) = .true.
                         endif
                     end if
@@ -2034,14 +2064,20 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
             if(nPointsInside(i, j) .eq. 0)then
                 Me%Depth(i, j) = Me%NoDataPoint
             else
-                Me%Depth(i, j) = SumOfDepths(i, j) / nPointsInside(i, j)
+                if      (Me%FillMethod == Average_) then
+                    Me%Depth(i, j) = SumOfDepths(i,j) / nPointsInside(i, j)
+                elseif  (Me%FillMethod == Minimum_) then
+                    Me%Depth(i, j) = MinimumDepth(i, j)
+                endif
             end if
+            
 
         end do
         end do
 
         deallocate(SumOfDepths  )
         deallocate(nPointsInside)
+        deallocate(MinimumDepth )
 
 
         do j = JLB, JUB
