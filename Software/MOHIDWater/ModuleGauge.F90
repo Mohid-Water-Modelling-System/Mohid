@@ -294,17 +294,6 @@ Module ModuleGauge
                 stop       'ConstructGauges - ModuleGauges - ERR38'
             endif
 
-
-            call GetData(Me%TidePREDICTION,                                             &
-                         Me%ObjEnterData, iflag,                                        &
-                         SearchType = FromFile,                                         &
-                         keyword    = 'PREVISION',                                      &
-                         Default    = Task2000_,                                        &
-                         ClientModule ='ModuleGauge',                                   &
-                         STAT       = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR40' 
-            
-
             call GetData(Me%ComputeAdmittance,                                          &
                          Me%ObjEnterData, iflag,                                        &
                          SearchType = FromFile,                                         &
@@ -2443,7 +2432,7 @@ if5:            if (PresentGauge%VelEvolution == TimeSerie)  then
         call GetNumberWaves(PresentGauge, NWaves)
         
         ! JPW: Define to prevent using random value
-        Nmax = 0
+        Nmax = NWaves
         if (Me%ComputeAdmittance) then
             Nmax = NWaves + NAdmit
         endif
