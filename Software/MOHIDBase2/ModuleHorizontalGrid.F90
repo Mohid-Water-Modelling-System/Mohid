@@ -3275,8 +3275,26 @@ Inp:    if (Me%CornersXYInput) then
 
 
         if      (GridBorder%Type_ == ComplexPolygon_) then 
+
+            Nvert = 0
+
+            if ((IUB-ILB)>=2) then
+                            
+                Nvert = 2*(IUB-ILB-1)
+                
+            else
             
-            Nvert = 2*(IUB-ILB+JUB-JLB) - 4
+                Nvert = 0
+            
+            endif
+            
+
+            if ((JUB-JLB)>=2) then
+                            
+                Nvert = Nvert + 2*(JUB-JLB-1)
+
+            endif
+                
 
 !        else if (GridBorder%Type_ == RotatedRectang_) then 
         else
