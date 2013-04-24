@@ -634,7 +634,7 @@ i1:                 if (exist) then
 
                                 call ConstructField4D(Field4DID     = Me%Properties(iP)%Field(iH)%ID,&
                                                       EnterDataID   = Me%ObjEnterData,      &
-                                                      ExtractType   = FromBlock,            &
+                                                      ExtractType   = FromFile,             &
                                                       FileName      = Me%HDF5Files(iH)%Name,&
                                                       TimeID        = Me%ObjTime,           &   
                                                       LatReference  = (Me%Ymin+Me%Ymax)/2., &
