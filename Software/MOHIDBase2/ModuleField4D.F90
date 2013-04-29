@@ -965,17 +965,17 @@ wwd1:        if (Me%WindowWithData) then
            !Read horizontal grid
             if      (Me%File%Form == HDF5_  ) then
                 
-                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,            &
-                                                           JLB = JLB, JUB = JUB,            &
-                                                           KLB = 1, KUB = Kmax,          &
+                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,        &
+                                                           JLB = JLB, JUB = JUB,        &
+                                                           KLB = 1, KUB = Kmax,         &
                                      STAT   = STAT_CALL)                                
                                      
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR30'
                                             
-                call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                              &
-                                  GroupName     = "/Grid",                                  &
-                                  Name          = trim(Me%File%MaskName),                   &
-                                  Array3D       = Mask3D,                                   &
+                call HDF5ReadWindow(HDF5ID      = Me%File%Obj,                          &
+                                  GroupName     = "/Grid",                              &
+                                  Name          = trim(Me%File%MaskName),               &
+                                  Array3D       = Mask3D,                               &
                                   STAT          = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR40'
 #ifndef _NO_NETCDF
@@ -1320,7 +1320,7 @@ wwd1:        if (Me%WindowWithData) then
                      default      = "/Results",                                         &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFiel4D - ERR20'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFiel4D - ERR40'
 
         call GetData(PropField%MultiplyingFactor,                                       &
                      Me%ObjEnterData , iflag,                                           &
@@ -1329,7 +1329,7 @@ wwd1:        if (Me%WindowWithData) then
                      default      = 1.,                                                 &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFiel4D - ERR30'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFiel4D - ERR50'
         
         if (iflag == 1)then
             PropField%HasMultiplyingFactor = .true.
@@ -1342,7 +1342,7 @@ wwd1:        if (Me%WindowWithData) then
                      default      = 0.,                                                 &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFiel4D - ERR40'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFiel4D - ERR60'
         
         if (iflag == 1)then
             PropField%HasAddingFactor = .true.
@@ -1355,7 +1355,7 @@ wwd1:        if (Me%WindowWithData) then
                      default      = trim(PropField%ID%Name),                            &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR50'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR70'
 
         call GetData(LastGroupEqualField,                                               &
                      Me%ObjEnterData , iflag,                                           &
@@ -1364,7 +1364,7 @@ wwd1:        if (Me%WindowWithData) then
                      default      = .true.,                                             &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR60'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR80'
 
         if (LastGroupEqualField)                                                        &
             PropField%VGroupPath=trim(PropField%VGroupPath)//"/"//trim(PropField%FieldName)
@@ -1377,7 +1377,7 @@ wwd1:        if (Me%WindowWithData) then
                      default      = .false.,                                            &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleField4D - ERR70'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR90'
         
         
         call GetOutPutTime(Me%ObjEnterData,                                             &
@@ -1389,7 +1389,7 @@ wwd1:        if (Me%WindowWithData) then
                            OutPutsOn        = Me%OutPut%Yes,                            &
                            OutPutsNumber    = Me%OutPut%TotalOutputs,                   &
                            STAT             = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR80'        
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR100'        
 
         Me%OutPut%NextOutPut = 1
 
@@ -1400,7 +1400,16 @@ wwd1:        if (Me%WindowWithData) then
                      default      = Me%MaskDim,                                         &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleField4D - ERR80'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR110'
+        
+        if (iflag == 0 .and. Me%File%Form == HDF5_) then
+            call GetHDF5ArrayDimensions (Me%File%Obj, trim(PropField%VGroupPath),       &
+                              trim(PropField%FieldName), OutputNumber = 1,              &
+                              NDim = PropField%SpaceDim, STAT = STAT_CALL)
+                              
+            if (STAT_CALL /= SUCCESS_)stop 'ReadOptions - ModuleField4D - ERR120'
+        endif
+        
 
         call GetData(PropField%ChangeInTime,                                            &
                      Me%ObjEnterData , iflag,                                           &
@@ -1409,12 +1418,12 @@ wwd1:        if (Me%WindowWithData) then
                      default      = .true.,                                             &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleField4D - ERR80'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR130'
                 
         
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleField4D - ERR90' 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR140' 
 
     end subroutine ReadOptions
 
@@ -2319,7 +2328,7 @@ it:     if (NewPropField%ChangeInTime) then
         !Local-----------------------------------------------------------------
         integer                                 :: Instant
         real, dimension(:,:,:), pointer         :: Field, Aux3D, FieldAux
-        integer                                 :: Imax, Jmax, Kmax
+        integer                                 :: Imax, Jmax, Kmax, NDim
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
 
         !Begin-----------------------------------------------------------------
@@ -2377,15 +2386,18 @@ it:     if (NewPropField%ChangeInTime) then
 
 
         if      (Me%File%Form == HDF5_  ) then
-
+        
             call HDF5SetLimits  (Me%File%Obj, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR30'
             
-                 
-            call HDF5ReadWindow(Me%File%Obj, trim(NewPropField%VGroupPath),                   &
-                              trim(NewPropField%FieldName),                                 &
-                              Array3D = FieldAux, OutputNumber = Instant, STAT = STAT_CALL)
+            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
+                                GroupName     = trim(NewPropField%VGroupPath),      &
+                                Name          = trim(NewPropField%FieldName),       &
+                                Array3D       = FieldAux,                           &
+                                OutputNumber  = Instant,                            &
+                                STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR40'
+
 #ifndef _NO_NETCDF                                                   
         else if (Me%File%Form == NetCDF_) then
         
