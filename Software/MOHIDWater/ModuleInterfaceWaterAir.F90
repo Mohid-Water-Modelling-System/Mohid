@@ -4227,9 +4227,9 @@ TOut:   if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                 
                 
                 if (Me%ExternalVar%BackTracking) then  
-                    TotalTime = Me%EndTime - Me%BeginTime                  
-                    AuxPeriod = Me%ExternalVar%Now     - Me%BeginTime
-                    AuxPeriod = TotalTime  - AuxPeriod
+                    TotalTime = Me%EndTime         - Me%BeginTime                  
+                    AuxPeriod = Me%ExternalVar%Now - Me%BeginTime
+                    AuxPeriod = TotalTime          - AuxPeriod
                     
                     Aux = Me%BeginTime + AuxPeriod
                 else
@@ -4303,7 +4303,7 @@ PropX:          do while (associated(PropertyX))
 
             enddo PropX
 
-            Me%OutPut%NextOutPut = OutPutNumber + 1
+            Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
 
 
         endif  TOut    
