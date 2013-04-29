@@ -116,15 +116,16 @@ Module ModuleValida4D
         character (len = PathLength)                :: OutputTable, OutputTableTimeStat
         integer                                     :: TableColumns, PropNumber, HDF5Number, TableValues
         integer                                     :: Ninstants, NoTimeValues
-        integer                                     :: Tcolumn, Xcolumn, Ycolumn, Zcolumn
+        integer                                     :: Tcolumn, Xcolumn, Ycolumn, Zcolumn, Dcolumn
         type(T_Time)                                :: InitialDate, BeginTime, EndTime
         real                                        :: DT
         logical, dimension(:), pointer              :: NullValue        
-        real                                        :: Xmax, Ymax, Zmax
-        real                                        :: Xmin, Ymin, Zmin        
-        real,    dimension(:), pointer              :: T, X, Y, Z, PercI, PercJ
+        real                                        :: Xmax, Ymax, Zmax, Dmax
+        real                                        :: Xmin, Ymin, Zmin, Dmin        
+        real,    dimension(:), pointer              :: T, X, Y, Z, PercI, PercJ, D
         integer, dimension(:), pointer              :: i, j
         character (len = StringLength), dimension(:), pointer :: StationName
+        character (len = PathLength  )              :: OutSpace, OutProp
       
         type (T_HDF5Files),  dimension(:), pointer  :: HDF5Files
         integer                                     :: NextInstant, PrevInstant
@@ -207,7 +208,7 @@ Module ModuleValida4D
         call ReadHDF5FileName
         
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptionsFile - ModuleValida4D - ERR20'        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructValida4D - ModuleValida4D - ERR20'        
         
         if (.not. Me%Field4D) then
             call ConstructSubModules        
@@ -336,6 +337,25 @@ Module ModuleValida4D
                      STAT         = STAT_CALL)                                          
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR130'
             
+        call GetData(Me%Dcolumn,                                                        &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'D_COLUMN',                                         &
+                     default      = FillValueInt,                                       &
+                     ClientModule = 'ModuleValida4D',                                   &
+                     STAT         = STAT_CALL)                                          
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR130'
+        
+        if (Me%Zcolumn > FillValueInt .and. Me%Dcolumn > FillValueInt) then
+            write(Me%OutSpace,*) " X     Y     Z   D  "
+        else if (Me%Zcolumn > FillValueInt) then
+            write(Me%OutSpace,*) " X     Y     Z "
+        else if (Me%Dcolumn > FillValueInt) then
+            write(Me%OutSpace,*) "X     Y     D "
+        endif             
+        
+
+
         call GetData(Me%OutputTable,                                                    &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
@@ -450,9 +470,11 @@ Module ModuleValida4D
         !Arguments-------------------------------------------------------------
           
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL, ClientNumber, iP, iflag
+        integer                                     :: STAT_CALL, ClientNumber, iP, iflag, it
+        integer                                     :: lenOut, lenP
         logical                                     :: BlockFound
         logical                                     :: AtLeastOneBlock = .false.
+        character (len = StringLength)              :: AuxP
 
         !Begin-----------------------------------------------------------------
 
@@ -499,6 +521,8 @@ cd2 :           if (BlockFound) then
         !Prepares file for a new block search throughout the entire file
         call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadProperties - ModuleValida4D - ERR40'
+        
+        Me%OutProp =" "
 
 
         ! Read Properties
@@ -529,8 +553,20 @@ do2 :   do  iP = 1, Me%PropNumber
                          ClientModule = 'ModuleValida4D',                               &
                          STAT         = STAT_CALL)                                          
             if (STAT_CALL /= SUCCESS_) stop 'ReadProperties - ModuleValida4D - ERR70'
+            
+            AuxP = trim(adjustl(Me%Properties(iP)%ID%Name))
 
-        
+            lenP = len_trim(AuxP)            
+            
+            do it = 1, lenP
+                if (AuxP(it:it) ==" ") AuxP(it:it) = "_"
+            enddo
+            
+            lenOut = len_trim(Me%OutProp)
+
+            Me%OutProp(lenOut+1:lenOut+1     )= " "
+            Me%OutProp(lenOut+2:lenOut+1+lenP)= AuxP(1:lenP)
+             
 
         enddo do2
 
@@ -540,8 +576,6 @@ do2 :   do  iP = 1, Me%PropNumber
 
         if (STAT_CALL /= SUCCESS_) stop 'ReadProperties - ModuleValida4D - ERR80'
 
-        
-        
         
 
     end subroutine ReadProperties
@@ -688,6 +722,7 @@ i1:                 if (exist) then
         !Arguments-------------------------------------------------------------
           
         !Local-----------------------------------------------------------------
+        integer                                             :: is, it, ix, iy, iz, id
         integer                                             :: STAT_CALL, iflag
         integer                                             :: iLength, iAux
         integer                                             :: FirstLine, LastLine, line
@@ -701,16 +736,6 @@ i1:                 if (exist) then
         real,    dimension(:), pointer                      :: Aux_PercI, Aux_PercJ
         logical, dimension(:), pointer                      :: Aux_NullValue  
         character(len=StringLength), dimension(:), pointer  :: Aux_StationName
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
         
         !Begin-----------------------------------------------------------------
         
@@ -754,7 +779,7 @@ i1:                 if (exist) then
                                     FirstLine       = FirstLine,                        &
                                     LastLine        = LastLine,                         &
                                     STAT            = STAT_CALL)
-IS:     if (STAT_CALL == SUCCESS_) then
+I1:     if (STAT_CALL == SUCCESS_) then
 
 BF:         if (BlockFound) then
  
@@ -771,6 +796,8 @@ BF:         if (BlockFound) then
                 allocate(Me%StationName(Me%TableValues))
                 
                 if (Me%Zcolumn > FillValueInt) allocate(Me%Z(Me%TableValues))
+                
+                if (Me%Dcolumn > FillValueInt) allocate(Me%D(Me%TableValues))                
                 
                 do iP=1, Me%PropNumber
                     allocate(Me%Properties(iP)%ValueTable(Me%TableValues))
@@ -823,6 +850,8 @@ do1 :                   do i = 2, iLength
                 if (Me%Xcolumn > Me%TableColumns )                    stop 'ReadInputTable - ModuleValida4D - ERR80'
                 
                 if (Me%Ycolumn > Me%TableColumns )                    stop 'ReadInputTable - ModuleValida4D - ERR90'
+
+                if (Me%Dcolumn > Me%TableColumns )                    stop 'ReadInputTable - ModuleValida4D - ERR95'
                 
                 do iP=1, Me%PropNumber
                     if (Me%Properties(iP)%Column >  Me%TableColumns)  stop 'ReadInputTable - ModuleValida4D - ERR100'
@@ -895,6 +924,14 @@ do1 :                   do i = 2, iLength
                         if (Me%Z(iV)<Me%ZmIN) Me%Zmin = Me%Z(iV)                        
                     endif
                     
+                    if (Me%Dcolumn > FillValueInt) then
+                        Me%D(iV) = AuxVector(Me%Dcolumn)
+                        
+                        if (Me%D(iV)>Me%Dmax) Me%Dmax = Me%D(iV)
+                        if (Me%D(iV)<Me%Dmin) Me%Dmin = Me%D(iV)                        
+                    endif
+
+                        
                     do iP=1, Me%PropNumber
                         Me%Properties(iP)%ValueTable(iV) = AuxVector(Me%Properties(iP)%Column)
                     enddo                    
@@ -912,11 +949,11 @@ do1 :                   do i = 2, iLength
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ReadInputTable - ModuleValida4D - ERR140'
 
-        else   IS
+        else   I1
 
             stop 'ReadInputTable - ModuleValida4D - ERR150'
 
-        end if IS
+        end if I1
         
         call KillEnterData (Me%ObjEnterDataTable, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -946,7 +983,16 @@ do1 :                   do i = 2, iLength
             
             Me%Ninstants    = int((Me%EndTime - Me%BeginTime) / Me%DT + 1)
             Me%TableValues  =  Me%NoTimeValues * real(Me%Ninstants)
-            allocate(Aux            (1:Me%PropNumber+4,1:Me%TableValues))
+            
+            is = 3
+            if (Me%Zcolumn > FillValueInt) then
+                is = is + 1                                
+            endif                    
+            if (Me%Dcolumn > FillValueInt) then
+                is = is + 1                                
+            endif                                    
+            
+            allocate(Aux            (1:Me%PropNumber+is,1:Me%TableValues))
             allocate(Aux_i          (1:Me%TableValues))
             allocate(Aux_j          (1:Me%TableValues))
             allocate(Aux_Percj      (1:Me%TableValues))
@@ -957,12 +1003,27 @@ do1 :                   do i = 2, iLength
             do i=1,Me%Ninstants 
                 istart              = (i-1) * Me%NoTimeValues + 1
                 iend                =  i    * Me%NoTimeValues
-                Aux(1, istart:iend) = real(i-1)*Me%DT
-                Aux(2, istart:iend) = Me%X(1:Me%NoTimeValues)
-                Aux(3, istart:iend) = Me%Y(1:Me%NoTimeValues)
-                Aux(4, istart:iend) = Me%Z(1:Me%NoTimeValues)
+                is = 1
+                it = is
+                Aux(it, istart:iend) = real(i-1)*Me%DT
+                is = is + 1                
+                ix = is
+                Aux(ix, istart:iend) = Me%X(1:Me%NoTimeValues)
+                is = is + 1                                
+                iy = is                
+                Aux(iy, istart:iend) = Me%Y(1:Me%NoTimeValues)
+                if (Me%Zcolumn > FillValueInt) then
+                    is = is + 1                                
+                    iz = is                    
+                    Aux(iz, istart:iend) = Me%Z(1:Me%NoTimeValues)
+                endif                    
+                if (Me%Dcolumn > FillValueInt) then
+                    is = is + 1                                
+                    id = is
+                    Aux(is, istart:iend) = Me%D(1:Me%NoTimeValues)
+                endif                                    
                 do ip=1, Me%PropNumber
-                    Aux(4+ip, istart:iend) = Me%Properties(ip)%ValueTable(1:Me%NoTimeValues)
+                    Aux(is+ip, istart:iend) = Me%Properties(ip)%ValueTable(1:Me%NoTimeValues)
                 enddo
                 
                 Aux_i          (istart:iend) = Me%i          (1:Me%NoTimeValues)
@@ -984,19 +1045,28 @@ do1 :                   do i = 2, iLength
             allocate(Me%NullValue(Me%TableValues))          
             allocate(Me%StationName(Me%TableValues))
             
-            allocate  (Me%T(Me%TableValues), Me%X(Me%TableValues), Me%Y(Me%TableValues), Me%Z(Me%TableValues))
+            allocate  (Me%T(Me%TableValues), Me%X(Me%TableValues), Me%Y(Me%TableValues))
             
-            Me%T(:) = Aux(1,:)
-            Me%X(:) = Aux(2,:)
-            Me%Y(:) = Aux(3,:)
-            Me%Z(:) = Aux(4,:)
+            Me%T(:) = Aux(it,:)
+            Me%X(:) = Aux(ix,:)
+            Me%Y(:) = Aux(iy,:)
+            if (Me%Zcolumn > FillValueInt) then
+                allocate  (Me%Z(1:Me%TableValues))
+                Me%Z(:) = Aux(iz,:)
+            endif
+
+            if (Me%Dcolumn > FillValueInt) then
+                allocate  (Me%D(1:Me%TableValues))
+                Me%D(:) = Aux(id,:)
+            endif
+
             
             do ip=1, Me%PropNumber
                 deallocate(Me%Properties(ip)%ValueTable, Me%Properties(iP)%ValueHDF5)   
 
                 allocate(Me%Properties(iP)%ValueTable(Me%TableValues))
                 allocate(Me%Properties(iP)%ValueHDF5 (Me%TableValues))
-                Me%Properties(iP)%ValueTable(:) = Aux(4+ip,:)
+                Me%Properties(iP)%ValueTable(:) = Aux(is+ip,:)
                 
                 
             enddo
@@ -1289,7 +1359,11 @@ diV:    do iV = 1, Me%TableValues
 
                 Matrix1DX(1:nPoints) = Me%X(iStart:iEnd)
                 Matrix1DY(1:nPoints) = Me%Y(iStart:iEnd)
-                Matrix1DZ(1:nPoints) = Me%Z(iStart:iEnd)
+                if (Me%Zcolumn > FillValueInt) then
+                    Matrix1DZ(1:nPoints) = Me%Z(iStart:iEnd)
+                else
+                    Matrix1DZ(1:nPoints) = 0.
+                endif
                          
 do3:            do  iP = 1, Me%PropNumber
 
@@ -1879,9 +1953,11 @@ iN2:                if (NewFields) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                      :: iV, iP, STAT_CALL, unit
+        integer                      :: iV, iP, STAT_CALL, unit, i
         real                         :: year, month, day, hour, minutes, seconds
         character(len=1000)          :: AuxC
+      
+        
         !----------------------------------------------------------------------
         
         call UnitsManager(unit, OPEN_FILE, STAT = STAT_CALL)
@@ -1899,24 +1975,51 @@ iN2:                if (NewFields) then
         write(unit,'(A)') trim(adjustl(AuxC))
         
         AuxC = ' '
-        
-        write(unit,*) "Seconds   X     Y     Z   ", (trim(Me%Properties(iP)%ID%Name)," ", iP=1,Me%PropNumber), " StationName"
+   
+        write(AuxC,*) "Seconds ",   trim(adjustl(Me%OutSpace))," ",  trim(adjustl(Me%OutProp)), " StationName"
+        write(unit,'(A)') trim(adjustl(AuxC))
         
         write(unit,*) "<BeginTable>"
         
 diV:    do iV = 1, Me%TableValues       
+
+            if (Me%Zcolumn > FillValueInt .and. Me%Dcolumn > FillValueInt) then
+                write(AuxC,*) Me%T(iV), Me%X(iV), Me%Y(iV), Me%Z(iV), Me%D(iV)
+            else if (Me%Zcolumn > FillValueInt) then
+                write(AuxC,*) Me%T(iV), Me%X(iV), Me%Y(iV), Me%Z(iV)
+            else if (Me%Dcolumn > FillValueInt) then
+                write(AuxC,*) Me%T(iV), Me%X(iV), Me%Y(iV), Me%D(iV)
+            endif        
+
             if (Me%NullValue(iV)) then
-                write(AuxC,*) Me%T(iV), Me%X(iV), Me%Y(iV), Me%Z(iV), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
             else
-                write(AuxC,*) Me%T(iV), Me%X(iV), Me%Y(iV), Me%Z(iV), (Me%Properties(iP)%ValueHDF5(iV), iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (Me%Properties(iP)%ValueHDF5(iV), iP=1,Me%PropNumber), " , ", Me%StationName(iV)
             endif
             
             write(unit,'(A)') trim(adjustl(AuxC))
             
         enddo diV
         
-        write(unit,*) "<EndTable>"        
+        write(unit,*) "<EndTable>"     
+
+        if (Me%TColumn == FillValueInt .and. Me%DColumn > FillValueInt) then
         
+            write(unit,*) "<BeginTime>"
+            
+            do i=1, Me%TableValues, Me%NoTimeValues 
+                write(unit,*) Me%T(i)
+            enddo
+            
+            write(unit,*) "<EndTime>"
+
+
+            write(unit,*) "<BeginDistance>"
+            do i=1, Me%NoTimeValues 
+                write(unit,*) Me%D(i)
+            enddo
+            write(unit,*) "<EndDistance>"
+        endif        
         call UnitsManager(unit, CLOSE_FILE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteNewTable - ModuleValida4D - ERR30'
         
@@ -1962,8 +2065,9 @@ diV:    do iV = 1, Me%TableValues
         
         AuxC = ' '
         
-        write(unit,*) "X     Y     Z   ", (trim(Me%Properties(iP)%ID%Name)," ", iP=1,Me%PropNumber), " StationName"
-        
+       
+        write(AuxC,*) trim(adjustl(Me%OutSpace))," ",  trim(adjustl(Me%OutProp)), " StationName"
+        write(unit,'(A)') trim(adjustl(AuxC))
 
         allocate(AuxProp(1:Me%PropNumber))
         
@@ -1994,10 +2098,19 @@ diV1:   do iT = 1, Me%NoTimeValues
                 
             enddo                
             
+
+            if (Me%Zcolumn > FillValueInt .and. Me%Dcolumn > FillValueInt) then
+                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV), Me%D(iV)
+            else if (Me%Zcolumn > FillValueInt) then
+                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV)
+            else if (Me%Dcolumn > FillValueInt) then
+                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%D(iV)
+            endif              
+            
             if (NullValue) then                
-                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
             else
-                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV), (AuxProp(iP),iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (AuxProp(iP),iP=1,Me%PropNumber), " , ", Me%StationName(iV)
             endif
         
             write(unit,'(A)') trim(adjustl(AuxC))
@@ -2034,10 +2147,18 @@ diV2:   do iT = 1, Me%NoTimeValues
                 
             enddo                
             
+            if (Me%Zcolumn > FillValueInt .and. Me%Dcolumn > FillValueInt) then
+                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV), Me%D(iV)
+            else if (Me%Zcolumn > FillValueInt) then
+                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV)
+            else if (Me%Dcolumn > FillValueInt) then
+                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%D(iV)
+            endif                          
+            
             if (NullValue) then                
-                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
             else
-                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV), (AuxProp(iP),iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (AuxProp(iP),iP=1,Me%PropNumber), " , ", Me%StationName(iV)
             endif
         
             write(unit,'(A)') trim(adjustl(AuxC))
@@ -2069,12 +2190,20 @@ diV3:   do iT = 1, Me%NoTimeValues
 
                 enddo
                 
-            enddo                
+            enddo      
             
+            if (Me%Zcolumn > FillValueInt .and. Me%Dcolumn > FillValueInt) then
+                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV), Me%D(iV)
+            else if (Me%Zcolumn > FillValueInt) then
+                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV)
+            else if (Me%Dcolumn > FillValueInt) then
+                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%D(iV)
+            endif                          
+
             if (NullValue) then                
-                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*)  trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
             else
-                write(AuxC,*) Me%X(iV), Me%Y(iV), Me%Z(iV), (AuxProp(iP),iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*)  trim(adjustl(AuxC)), (AuxProp(iP),iP=1,Me%PropNumber), " , ", Me%StationName(iV)
             endif
         
             write(unit,'(A)') trim(adjustl(AuxC))
