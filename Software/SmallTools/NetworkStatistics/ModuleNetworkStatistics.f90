@@ -51,7 +51,6 @@ Module ModuleNetworkStatistics
     !Selector
     public  :: GetNetworkStatisticsPointer
     public  :: GetNetworkStatisticsInteger
-    public  :: UnGetNetworkStatistics
                      
     
     !Modifier
@@ -66,12 +65,6 @@ Module ModuleNetworkStatistics
     private ::          LocateObjNetworkStatistics 
     
     !Interfaces----------------------------------------------------------------
-    private :: UnGetNetworkStatistics3D_I
-    private :: UnGetNetworkStatistics3D_R8
-    interface  UnGetNetworkStatistics
-        module procedure UnGetNetworkStatistics3D_I
-        module procedure UnGetNetworkStatistics3D_R8
-    end interface  UnGetNetworkStatistics
 
 
     !Parameter-----------------------------------------------------------------
@@ -96,16 +89,19 @@ Module ModuleNetworkStatistics
         character(len=PathLength)                               :: InputFile, OutputFile
         
         type(T_Time)                                            :: StartTime, EndTime
-        type(T_Time), dimension(:), pointer                     :: InputTime, OutputTime
+        type(T_Time), dimension(:), pointer                     :: InputTime
         
         integer                                                 :: NInstants, NGroups, NCopyGroups
-        character(len=StringLength), dimension(:), pointer      :: AnalysisGroups, AnalysisDataSets
+        integer                                                 :: NInstantsOut
+        integer, dimension(:,:), pointer                        :: OutputInstants
+        character(len=StringLength), dimension(:), pointer      :: AnalysisGroups
         character(len=StringLength), dimension(:), pointer      :: CopyGroups
 
-        real, dimension(:), pointer                             :: ValuesToAnalyse
         integer                                                 :: DTAnalysis
-        real, dimension(:,:), pointer                           :: PeakDemandStart, PeakDemandEnd
-        real, dimension(:,:), pointer                           :: LowDemandStart,  LowDemandEnd
+        real, dimension(:),   pointer                           :: PeakDemandStart, PeakDemandEnd
+        
+        logical                                                 :: PatternsON
+        integer                                                 :: NPeakPeriods, NLowDemandPeriods
 
 	    integer                                                 :: ObjEnterData          = 0
 	    integer                                                 :: ObjTime               = 0
@@ -340,11 +336,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL, i
-        real,   dimension(:), pointer               :: Aux6
+        integer                                     :: STAT_CALL, i, out
+        real,   dimension(:), pointer               :: Aux6, AuxTime
         character(StringLength)                     :: obj_name
         integer                                     :: obj_type
         integer(HID_T)                              :: FileID_In
+        integer, dimension(:), pointer              :: Aux1D
+        integer                                     :: PreviousDay
+        
       
         !Begin-----------------------------------------------------------------
         
@@ -352,6 +351,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         allocate(Aux6(6))        
         
+        allocate(Aux1D(1:Me%Ninstants))
+                
         call GetHDF5FileID (Me%ObjHDF5_In, FileID_In,   STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CopyNetwork - ModuleNetworkStatistics - ERR10'
 
@@ -361,33 +362,81 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call h5gget_obj_info_idx_f(FileID_In, "/Time", i-1, obj_name, obj_type,  & 
                                        STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
-                stop 'ConstructInputTime - ModuleNetworkStatistics - ERR10'
+                stop 'ConstructInputTime - ModuleNetworkStatistics - ERR20'
             endif
             
+            if (Me%DTAnalysis == Day_) then
+                PreviousDay =  int(Aux6(3))
+            endif             
             
             call HDF5SetLimits  (Me%ObjHDF5_In, 1, 6, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructInputTime - ModuleNetworkStatistics - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructInputTime - ModuleNetworkStatistics - ERR30'
             
-
             call HDF5ReadData   (HDF5ID         = Me%ObjHDF5_In,                &
                                  GroupName      = "/Time",                      &
                                  Name           = trim(obj_Name),               &
                                  Array1D        = Aux6,                         &
                                  STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                          &
-                stop 'ConstructInputTime - ModuleNetworkStatistics - ERR30'
+                stop 'ConstructInputTime - ModuleNetworkStatistics - ERR40'
+
                 
             call SetDate(Me%InputTime(i), Aux6(1), Aux6(2), Aux6(3), Aux6(4), Aux6(5), Aux6(6))
             
-            if (Me%FirstOutPutInst < -99 .and. ) then
+            if (i==1) then
+                out = 1
+                Aux1D(out) = i
+            else 
+                if (Me%DTAnalysis == Day_) then
+                    if (PreviousDay /= int(Aux6(3))) then
+                        out        = out + 1
+                        Aux1D(out) = i
+                    endif
+                endif                
+            endif            
             
+        enddo      
+        
+        if (Aux1D(out) < Me%Ninstants) then
+            out = out + 1
+            Aux1D(out) = Me%Ninstants
+        endif
+        
+        Me%NInstantsOut = out - 1
+        
+        allocate(Me%OutputInstants(2,1:Me%NInstantsOut))
+        !Start instants
+        Me%OutputInstants(1,1:Me%NInstantsOut)   = Aux1D(1:Me%NInstantsOut)
+
+        !End instants
+        Me%OutputInstants(2,1:Me%NInstantsOut-1) = Aux1D(2:Me%NInstantsOut)-1
+        Me%OutputInstants(2,  Me%NInstantsOut  ) = Me%NInstants
+        
+        allocate(AuxTime(6))
+        
+        do out=1, Me%NInstantsOut
+            !Writes current time
+            i = Me%OutputInstants(1,Out)
+            call ExtractDate   (Me%InputTime(i), AuxTime(1), AuxTime(2), AuxTime(3))
             
-        enddo                            
+            AuxTime(4) = 0.
+            AuxTime(5) = 0. 
+            AuxTime(6) = 0.
+                                     
+            call HDF5SetLimits  (Me%ObjHDF5_Out, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructInputTime - ModuleNetworkStatistics - ERR50'
+
+            call HDF5WriteData  (Me%ObjHDF5_Out, "/Time", "Time", "YYYY/MM/DD HH:MM:SS", &
+                                 Array1D = AuxTime, OutputNumber = out, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructInputTime - ModuleNetworkStatistics - ERR60'
+
+        enddo        
             
-        deallocate(Aux6)
+        deallocate(Aux6   )
+        deallocate(Aux1D  )
+        deallocate(AuxTime)
         
     end subroutine ConstructInputTime
-
 
 
     !--------------------------------------------------------------------------
@@ -402,18 +451,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: i, ClientNumber, line, iflag
         integer                                     :: FirstLine, LastLine, STAT_CALL
         logical                                     :: BlockFound
+        real, dimension(:), pointer                 :: Aux6
       
         !Begin-----------------------------------------------------------------
         
-        real, dimension(:,:), pointer                           :: PeakDemandStart, PeakDemandEnd
-        real, dimension(:,:), pointer                           :: LowDemandStart,  LowDemandEnd
-
         
+        allocate(Aux6(6))
+
+        Me%PatternsON  = .true.
 
         call ExtractBlockFromBuffer(Me%ObjEnterData,                                    &
                                     ClientNumber    = ClientNumber,                     &
-                                    block_begin     = '<BeginDemandPattern>',           &
-                                    block_end       = '<EndDemandPattern>',             &
+                                    block_begin     = '<BeginPeakDemand>',              &
+                                    block_end       = '<EndPeakDemand>',                &
                                     BlockFound      = BlockFound,                       &
                                     FirstLine       = FirstLine,                        &
                                     LastLine        = LastLine,                         &
@@ -422,102 +472,50 @@ IS:     if (STAT_CALL == SUCCESS_) then
 
 BF:         if (BlockFound) then
                  
-                Me%NPatterns = LastLine - FirstLine - 1
+                Me%NPeakPeriods = LastLine - FirstLine - 1
+                !(1,:) - Hours
+                !(2,:) - Minutes
+                !(3,:) - Seconds
                 
-                allocate(Me%AnalysisGroups(Me%NGroups))
+                allocate(Me%PeakDemandStart(1:Me%NPeakPeriods))
+                allocate(Me%PeakDemandEnd  (1:Me%NPeakPeriods)) 
 
                 i=0
                 do line=FirstLine +1, LastLine-1
                     i = i + 1
-                    call GetData(Me%AnalysisGroups(i), EnterDataID = Me%ObjEnterData, flag = iflag, &
+                    call GetData(Aux6, EnterDataID = Me%ObjEnterData, flag = iflag,     &
                                  Buffer_Line = line, STAT = STAT_CALL) 
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR10'
-                    if (iflag == 0) stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR20'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructDemandPatterns - ModuleNetworkStatistics - ERR10'
+                    if (iflag == 0) stop 'ConstructDemandPatterns - ModuleNetworkStatistics - ERR20'
+                    
+                    Me%PeakDemandStart(i) = Aux6(1) + Aux6(2) / 60. + Aux6(3) / 3600.
+                    Me%PeakDemandEnd  (i) = Aux6(4) + Aux6(5) / 60. + Aux6(6) / 3600.
+
+                    if (Me%PeakDemandEnd(i) <  Me%PeakDemandStart(i)) then
+                        write(*,*) 'Ending hour of peak demand period fraction can not be lower than starting hour'
+                        stop 'ConstructDemandPatterns - ModuleNetworkStatistics - ERR60'
+                    endif
+                    
                 enddo
             
             else BF
-                Me%NGroups = 0.
+                Me%PatternsON = .false.
             endif BF
              
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)                  
         
         else IS
             
-            stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR30'
+            stop 'ConstructDemandPatterns - ModuleNetworkStatistics - ERR30'
         
         endif IS           
         
-
-
-        do i=1, Me%NGroups
-
-            call GetHDF5GroupExist (Me%ObjHDF5_In, Me%AnalysisGroups(i), GroupExist)
-
-            !check if file contains parameter required
-            if (.NOT. GroupExist) then  
-                write(*,*)'HDF5 file do not contain parameter required:'            &
-                           //trim(Me%InputFile)
-                write(*,*)'Parameter required:'//trim(Me%AnalysisGroups(i))
-                stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR40'
-            end if
-            
-        enddo        
-
-
-        call ExtractBlockFromBuffer(Me%ObjEnterData,                                    &
-                                    ClientNumber    = ClientNumber,                     &
-                                    block_begin     = '<BeginGroupsCopy>',              &
-                                    block_end       = '<EndGroupsCopy>',                &
-                                    BlockFound      = BlockFound,                       &
-                                    FirstLine       = FirstLine,                        &
-                                    LastLine        = LastLine,                         &
-                                    STAT            = STAT_CALL)
-IS1:    if (STAT_CALL == SUCCESS_) then
-
-BF1:        if (BlockFound) then
-                 
-                Me%NCopyGroups = LastLine - FirstLine - 1
-                
-                allocate(Me%CopyGroups(Me%NCopyGroups))
-
-                i=0
-                do line=FirstLine +1, LastLine-1
-                    i = i + 1
-                    call GetData(Me%CopyGroups(i), EnterDataID = Me%ObjEnterData, flag = iflag, &
-                                 Buffer_Line = line, STAT = STAT_CALL) 
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR50'
-                    if (iflag == 0) stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR60'
-                enddo
-            
-            else BF1
-                Me%NCopyGroups = 0.
-            endif BF1
-             
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)                  
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructDemandPatterns - ModuleNetworkStatistics - ERR40'
         
-        else IS1
-            
-            stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR70'
+        deallocate(Aux6)        
         
-        endif IS1           
-        
-
-
-        do i=1, Me%NCopyGroups
-
-            call GetHDF5GroupExist (Me%ObjHDF5_In, Me%CopyGroups(i), GroupExist)
-
-            !check if file contains parameter required
-            if (.NOT. GroupExist) then  
-                write(*,*)'HDF5 file do not contain parameter required:'            &
-                           //trim(Me%InputFile)
-                write(*,*)'Parameter required:'//trim(Me%CopyGroups(i))
-                stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR80'
-            end if
-            
-        enddo        
-        
-    end subroutine ConstructVGroupNames
+    end subroutine ConstructDemandPatterns
 
 
     !--------------------------------------------------------------------------
@@ -588,6 +586,8 @@ BF:         if (BlockFound) then
             
         enddo        
 
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR50'
 
         call ExtractBlockFromBuffer(Me%ObjEnterData,                                    &
                                     ClientNumber    = ClientNumber,                     &
@@ -610,8 +610,8 @@ BF1:        if (BlockFound) then
                     i = i + 1
                     call GetData(Me%CopyGroups(i), EnterDataID = Me%ObjEnterData, flag = iflag, &
                                  Buffer_Line = line, STAT = STAT_CALL) 
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR50'
-                    if (iflag == 0) stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR60'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR60'
+                    if (iflag == 0) stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR70'
                 enddo
             
             else BF1
@@ -622,12 +622,10 @@ BF1:        if (BlockFound) then
         
         else IS1
             
-            stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR70'
+            stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR80'
         
         endif IS1           
         
-
-
         do i=1, Me%NCopyGroups
 
             call GetHDF5GroupExist (Me%ObjHDF5_In, Me%CopyGroups(i), GroupExist)
@@ -637,10 +635,13 @@ BF1:        if (BlockFound) then
                 write(*,*)'HDF5 file do not contain parameter required:'            &
                            //trim(Me%InputFile)
                 write(*,*)'Parameter required:'//trim(Me%CopyGroups(i))
-                stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR80'
+                stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR90'
             end if
             
         enddo        
+        
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVGroupNames - ModuleNetworkStatistics - ERR100'
         
     end subroutine ConstructVGroupNames
 
@@ -753,7 +754,7 @@ BF1:        if (BlockFound) then
         
             call CopyNetwork
             
-            !call ModifyNetworkStatistics
+            call ComputeNetworkStatistics
 
             STAT_ = SUCCESS_
         else               
@@ -1004,8 +1005,350 @@ BF1:        if (BlockFound) then
 
     !--------------------------------------------------------------------------
     
+    subroutine ComputeNetworkStatistics
+
+
+        !Arguments-------------------------------------------------------------
+
+        
+        !Local-----------------------------------------------------------------
+        integer                 :: n
+        
+        !Begin-----------------------------------------------------------------
+        
+        do n=1, Me%NGroups
+            call ReadWriteField(Me%AnalysisGroups(n))
+        enddo
+        
+                
+    end subroutine ComputeNetworkStatistics
     
-    !--------------------------------------------------------------------------   
+    
+    
+    subroutine ReadWriteField(GroupName)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: GroupName
+        
+        !Local-----------------------------------------------------------------
+        character(StringLength)                     :: obj_name
+        integer                                     :: obj_type
+        integer(HID_T)                              :: gr_id, dset_id
+        integer(HID_T)                              :: datatype_id, class_id, size        
+        integer                                     :: STAT_CALL
+        character(StringLength)                     :: FieldName
+        integer                                     :: ItensNumber
+        integer                                     :: i, nmax, imax, n, la, j, iout
+        character(len=StringLength)                 :: Name
+        real(4),  dimension(:), pointer             :: ArrayReal1D
+        real(4),  dimension(:,:), pointer           :: ArrayOutMax
+        real(4),  dimension(:,:), pointer           :: ArrayOutMin
+        real(4),  dimension(:,:), pointer           :: ArrayOutLowDemandMax
+        real(4),  dimension(:,:), pointer           :: ArrayOutLowDemandMin
+        real(4),  dimension(:,:), pointer           :: ArrayOutPeakDemandMax
+        real(4),  dimension(:,:), pointer           :: ArrayOutPeakDemandMin
+
+                
+        character(len=StringLength)                 :: Units
+        integer                                     :: Rank, FileID_In
+        integer,dimension(7)                        :: Dimensions   
+        real,   dimension(:), pointer               :: AuxTime
+        
+        !Begin-----------------------------------------------------------------
+
+        call GetHDF5FileID (Me%ObjHDF5_In, FileID_In,   STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CopyNetwork - ModuleNetworkStatistics - ERR10'
+
+        call h5gn_members_f(FileID_In, GroupName, ItensNumber, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR10'
+        
+        if (ItensNumber /= Me%NInstants) then
+            stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR10'   
+        endif
+        
+        allocate(AuxTime(6))
+        
+        la = len_trim(GroupName)
+        do j=la,1,-1
+            if (GroupName(j:j)=="/") then
+                FieldName = GroupName(j+1:la)
+                exit
+            endif
+        enddo
+        
+        iout = 1
+  
+        do i = 1, ItensNumber
+
+            !Gets information about the group
+            call h5gget_obj_info_idx_f(FileID_In, GroupName, i-1, obj_name, obj_type, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR20'
+
+            if (obj_type /= H5G_DATASET_F) then
+                stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR20'
+            endif
+
+            !Get item specifics
+            call GetHDF5GroupID(Me%ObjHDF5_In, GroupName, i,                        &
+                                obj_name,                                           &
+                                Rank       = Rank,                                  &
+                                Dimensions = Dimensions,                            &
+                                !Units      = Units,                             &
+                                STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR30'
+            
+            !Dummy value
+            Units='-'
+            
+            if (Rank > 1) then
+                write(*,*) 'In network type files the property fields are always assumed 1D' 
+                stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR40'
+            endif
+
+            nmax = Dimensions(1)
+            
+           
+            if (i==1) then
+                allocate(ArrayReal1D(1:nmax))
+
+                call HDF5SetLimits  (Me%ObjHDF5_In, 1, nmax, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR50'
+            endif                 
+            
+            call HDF5ReadData   (HDF5ID         = Me%ObjHDF5_In,                &
+                                 GroupName      = "/"//trim(GroupName),         &
+                                 Name           = trim(obj_Name),               &
+                                 Array1D        = ArrayReal1D,                  &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                          &
+                stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR60'
+
+            if (i==1) then
+
+                call ExtractDate(Me%InputTime(i), AuxTime(1), AuxTime(2), AuxTime(3), &
+                                                  AuxTime(4), AuxTime(5), AuxTime(6))
+            
+                allocate(ArrayOutMin(1:nmax,1:7))
+                ArrayOutMin(:,1) = - FillValueReal
+                
+                allocate(ArrayOutMax(1:nmax,1:7))
+                ArrayOutMax(:,1) =   FillValueReal
+
+                do n=1, nmax
+                    ArrayOutMin(n,2:7) = AuxTime(1:6)
+                    ArrayOutMax(n,2:7) = AuxTime(1:6)
+                enddo
+                
+                call HDF5SetLimits  (Me%ObjHDF5_Out, 1, nmax, 1, 7, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR50'
+
+                
+                if (Me%PatternsON) then
+                    allocate(ArrayOutLowDemandMin(1:nmax,1:7))
+                    allocate(ArrayOutLowDemandMax(1:nmax,1:7))
+                    
+                    ArrayOutLowDemandMin(:,1) = - FillValueReal
+                    ArrayOutLowDemandMax(:,1) =   FillValueReal
+
+                    allocate(ArrayOutPeakDemandMin(1:nmax,1:7))
+                    allocate(ArrayOutPeakDemandMax(1:nmax,1:7))
+                    
+                    ArrayOutPeakDemandMin(:,1) = - FillValueReal
+                    ArrayOutPeakDemandMax(:,1) =   FillValueReal
+                    
+
+                    do n=1, nmax
+                        ArrayOutLowDemandMin (n,2:7) = AuxTime(1:6)
+                        ArrayOutLowDemandMax (n,2:7) = AuxTime(1:6)
+                        
+                        ArrayOutPeakDemandMin(n,2:7) = AuxTime(1:6)
+                        ArrayOutPeakDemandMax(n,2:7) = AuxTime(1:6)
+                    enddo                                        
+                endif
+                
+            endif
+            
+            do n=1, nmax
+                if (ArrayReal1D(n) < ArrayOutMin(n,1) ) then
+                    ArrayOutMin(n, 1  ) = ArrayReal1D(n)
+                    call ExtractDate(Me%InputTime(i), AuxTime(1), AuxTime(2), AuxTime(3), &
+                                                      AuxTime(4), AuxTime(5), AuxTime(6))
+                    ArrayOutMin(n, 2:7) = AuxTime(1:6)
+                endif                    
+
+                if (ArrayReal1D(n) > ArrayOutMax(n,1) ) then
+                    ArrayOutMax(n, 1) = ArrayReal1D(n)
+                    call ExtractDate(Me%InputTime(i), AuxTime(1), AuxTime(2), AuxTime(3), &
+                                                      AuxTime(4), AuxTime(5), AuxTime(6))                    
+                    ArrayOutMax(n, 2:7) = AuxTime(1:6)
+                endif
+                
+                if (Me%PatternsON) then        
+                    
+                    if (PeakDemandInstant(Me%InputTime(i))) then
+                        
+                        if (ArrayReal1D(n) < ArrayOutPeakDemandMin(n,1) ) then
+                            ArrayOutPeakDemandMin(n, 1  ) = ArrayReal1D(n)
+                            call ExtractDate(Me%InputTime(i), AuxTime(1), AuxTime(2), AuxTime(3), &
+                                                              AuxTime(4), AuxTime(5), AuxTime(6))                    
+                            ArrayOutPeakDemandMin(n, 2:7) = AuxTime(1:6)
+                        endif
+                        
+                        if (ArrayReal1D(n) > ArrayOutPeakDemandMax(n,1) ) then
+                            ArrayOutPeakDemandMax(n, 1  ) = ArrayReal1D(n)
+                            call ExtractDate(Me%InputTime(i), AuxTime(1), AuxTime(2), AuxTime(3), &
+                                                              AuxTime(4), AuxTime(5), AuxTime(6))                    
+                            ArrayOutPeakDemandMax(n, 2:7) = AuxTime(1:6)
+                        endif
+                        
+                        
+                    else
+                        if (ArrayReal1D(n) < ArrayOutLowDemandMin(n,1) ) then
+                            ArrayOutLowDemandMin(n, 1  ) = ArrayReal1D(n)
+                            call ExtractDate(Me%InputTime(i), AuxTime(1), AuxTime(2), AuxTime(3), &
+                                                              AuxTime(4), AuxTime(5), AuxTime(6))                    
+                            ArrayOutLowDemandMin(n, 2:7) = AuxTime(1:6)
+                        endif
+                        
+                        if (ArrayReal1D(n) > ArrayOutLowDemandMax(n,1) ) then
+                            ArrayOutLowDemandMax(n, 1  ) = ArrayReal1D(n)
+                            call ExtractDate(Me%InputTime(i), AuxTime(1), AuxTime(2), AuxTime(3), &
+                                                              AuxTime(4), AuxTime(5), AuxTime(6))                    
+                            ArrayOutLowDemandMax(n, 2:7) = AuxTime(1:6)
+                        endif                            
+                    endif
+                endif     
+            enddo
+            
+            if (i == Me%OutputInstants(2,iout)) then
+
+                call HDF5WriteData  (HDF5ID         = Me%ObjHDF5_Out,               &
+                                     GroupName      = "/"//trim(GroupName)//"/max", &
+                                     Name           = trim(FieldName),              &
+                                     Array2D        = ArrayOutMax,                  &
+                                     Units          = '-',                          &
+                                     OutputNumber   = iout,                         &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                          &
+                    stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR60'
+
+                call HDF5WriteData  (HDF5ID         = Me%ObjHDF5_Out,               &
+                                     GroupName      = "/"//trim(GroupName)//"/min", &
+                                     Name           = trim(FieldName),              &
+                                     Array2D        = ArrayOutMin,                  &
+                                     Units          = '-',                          &
+                                     OutputNumber   = iout,                         &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                          &
+                    stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR60'
+
+                ArrayOutMin(:,1) = - FillValueReal
+                ArrayOutMax(:,1) =   FillValueReal
+                
+                if (Me%PatternsON) then
+                
+                    call HDF5WriteData  (HDF5ID         = Me%ObjHDF5_Out,               &
+                                         GroupName      = "/"//trim(GroupName)//"/low_demand_max", &
+                                         Name           = trim(FieldName),              &
+                                         Array2D        = ArrayOutLowDemandMax,         &
+                                         Units          = '-',                          &
+                                         OutputNumber   = iout,                         &
+                                         STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR60'
+
+                    call HDF5WriteData  (HDF5ID         = Me%ObjHDF5_Out,               &
+                                         GroupName      = "/"//trim(GroupName)//"/low_demand_min", &
+                                         Name           = trim(FieldName),              &
+                                         Array2D        = ArrayOutLowDemandMin,         &
+                                         Units          = '-',                          &
+                                         OutputNumber   = iout,                         &
+                                         STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR60'                
+
+                    ArrayOutLowDemandMin(:,1) = - FillValueReal
+                    ArrayOutLowDemandMax(:,1) =   FillValueReal
+
+                    call HDF5WriteData  (HDF5ID         = Me%ObjHDF5_Out,               &
+                                         GroupName      = "/"//trim(GroupName)//"/peak_demand_max", &
+                                         Name           = trim(FieldName),              &
+                                         Array2D        = ArrayOutPeakDemandMax,        &
+                                         Units          = '-',                          &
+                                         OutputNumber   = iout,                         &
+                                         STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR60'
+
+                    call HDF5WriteData  (HDF5ID         = Me%ObjHDF5_Out,               &
+                                         GroupName      = "/"//trim(GroupName)//"/peak_demand_min", &
+                                         Name           = trim(FieldName),              &
+                                         Array2D        = ArrayOutPeakDemandMin,        &
+                                         Units          = '-',                          &
+                                         OutputNumber   = iout,                         &
+                                         STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        stop 'ComputeNetworkStatistics - ModuleNetworkStatistics - ERR60'                
+
+                    ArrayOutPeakDemandMin(:,1) = - FillValueReal
+                    ArrayOutPeakDemandMax(:,1) =   FillValueReal
+                                        
+                endif
+            
+                iout = iout + 1
+                
+            endif
+                
+        
+        enddo
+                            
+
+        deallocate(ArrayReal1D)
+        
+        deallocate(ArrayOutMin)
+        deallocate(ArrayOutMax)
+
+        if (Me%PatternsON) then
+        
+            deallocate(ArrayOutLowDemandMin)
+            deallocate(ArrayOutLowDemandMax)
+
+            deallocate(ArrayOutPeakDemandMin)
+            deallocate(ArrayOutPeakDemandMax)
+                                
+        endif        
+    
+    end subroutine ReadWriteField
+    
+   
+    !--------------------------------------------------------------------------
+
+    logical function PeakDemandInstant(TimeInput)    
+
+        !Arguments-----------------------------
+        type (T_Time)           :: TimeInput
+        !Local---------------------------------
+        real                    :: hours, minutes, seconds
+        real                    :: hourI
+        integer                 :: i
+        !Begin---------------------------------
+        
+        call ExtractDate(Time1 = TimeInput, hour = hours, minute = minutes, second = seconds)
+        
+        hourI = hours + minutes / 60. + seconds / 3600. 
+        
+        PeakDemandInstant = .false.
+        
+        do  i = 1, Me%NPeakPeriods
+            if (Me%PeakDemandStart(i) <= hourI .and. Me%PeakDemandEnd(i) > hourI) then
+                PeakDemandInstant = .true. 
+            endif 
+        enddo
+        
+
+    end function PeakDemandInstant
+    
+    !--------------------------------------------------------------------------
 
     function FreqAnalysis(SortArray,SizeArray, Percentil)    
 
@@ -1165,7 +1508,18 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         integer         :: STAT_CALL
         
         !Begin--------------------------------------------------------------------------
+        
+        deallocate(Me%InputTime       )
+        
+        deallocate(Me%OutputInstants  )
+        deallocate(Me%AnalysisGroups  )
+        deallocate(Me%CopyGroups      )
 
+        if (Me%PatternsON) then        
+            deallocate(Me%PeakDemandStart )
+            deallocate(Me%PeakDemandEnd   )
+         endif
+            
         !Kill HDF5 file
         call KillHDF5 (Me%ObjHDF5_In, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'KillVariablesAndFiles - ModuleNetworkStatistics - ERR10'
