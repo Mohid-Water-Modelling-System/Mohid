@@ -71,6 +71,8 @@ Module ModuleMERCATORFormat
     integer, parameter                          :: Version4     = 4
     integer, parameter                          :: PSY2V4       = 5
     integer, parameter                          :: Version6     = 6
+    integer, parameter                          :: PSY2V4R4     = 7   ! CORRECTION FOR NEW FORMAT PSY2V4R4
+
     
     
     integer, parameter                          :: MercatorLayers = 43
@@ -274,6 +276,19 @@ Module ModuleMERCATORFormat
                                   VariableDT = .false., STAT = STAT_CALL)   
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConvertMERCATORFormat - ModuleMERCATORFormat - ERR05'
+
+            call OpenAndReadMERCATORFileV5
+            
+        else if (Me%ReadOptionType == PSY2V4R4) then    ! CORRECTION FOR NEW FORMAT PSY2V4R4
+
+            !The time in Mercator PSY2V4R1 is computed in seconds from 2006/10/11 : 0h:0m:0s
+            !The time in Mercator PSY2V4R2 is computed in seconds from 2010/10/07 : 0h:0m:0s
+            call SetDate (Me%RefDateTime, Year=2006, Month=10, Day=11, Hour=0, Minute=0, Second=0) 
+
+            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
+                                  VariableDT = .false., STAT = STAT_CALL)   
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConvertMERCATORFormat - ModuleMERCATORFormat - ERR06'
 
             call OpenAndReadMERCATORFileV5
 
@@ -1497,8 +1512,57 @@ i2:             if (exist) then
                     endif
 
                     status = NF90_GET_VAR(ncid,n,Depth)
-                    if (status /= nf90_noerr)                                           &
-                        stop 'OpenAndReadBathymMERCATORV3 - ModuleMERCATORFormat - ERR190'
+psy1:              if (status /= nf90_noerr) then   ! START CORRECTION FOR NEW FORMAT PSY2V4R4
+                               
+                    ! the format PSY2V4R4 comes with a set of files which contain 
+                    ! 2D and 3D matrices. The water level is contained in files with 2D matrices, 
+                    ! without information about the depth
+                    ! if one of these 2D files is found, depth will be retrieved from the next file in the list
+                                
+                    status = nf90_inq_varid(ncid, 'sossheig', n)
+                    if (status /= nf90_noerr)  &
+                       stop 'OpenAndReadBathymMERCATORV3 - ModuleMERCATORFormat - ERR182'
+                                
+                       !write(*,*), 'The file ',trim(InputDepthFile), ' does not have information about depth'     
+                                 
+                       status=NF90_CLOSE(ncid)
+                       if (status /= nf90_noerr)                                                   &
+                       stop 'OpenAndReadBathymMERCATORV3 - ModuleMERCATORFormat - ERR184'
+                                 
+                       !write(*,*), 'Opening the next file in the list'
+                       call GetData(InputDepthFile, EnterDataID = Me%ObjEnterData, flag = iflag, &
+                                    Buffer_Line = FirstLine + 2, STAT = STAT_CALL)
+                      if (STAT_CALL /= SUCCESS_)                                              &
+                                    stop 'OpenAndReadBathymMERCATORV3 - ModuleMERCATORFormat - ERR186'
+
+                      inquire(file = InputDepthFile, exist = exist) 
+                            if (exist) then
+                               status=NF90_OPEN(trim(InputDepthFile),NF90_NOWRITE,ncid)
+                               if (status /= nf90_noerr)                                           &
+                                   stop 'OpenAndReadBathymMERCATORV3 - ModuleMERCATORFormat - ERR188'
+                                 
+                                   status = nf90_inq_varid(ncid, 'deptht', n)
+                                       if (status /= nf90_noerr) then
+                                    
+                                          status = nf90_inq_varid(ncid, 'depthu', n)
+
+                                             if (status /= nf90_noerr) then
+
+                                               status = nf90_inq_varid(ncid, 'depthv', n)
+
+                                                 if (status /= nf90_noerr)                                   &
+                                                    stop 'OpenAndReadBathymMERCATORV3 - ModuleMERCATORFormat - ERR190'
+
+                                             endif
+                                       endif
+
+                           endif
+                                
+                          status = NF90_GET_VAR(ncid,n,Depth)
+                         ! write(*,*), 'Depth retrieved from file  ',trim(InputDepthFile)
+                                 
+                                 
+                       endif   psy1 ! END CORRECTION FOR NEW FORMAT PSY2V4R4
 
                     status=NF90_CLOSE(ncid)
                     if (status /= nf90_noerr)                                                   &
@@ -4025,8 +4089,16 @@ i2:         if (CheckNameV3(nameAux, MohidName)) then
 d1:             do ni = 1, nInst
 
                     iOut = OutputInstants(MohidName)
+                    
+                    if (Me%ReadOptionType == PSY2V4R4) then
+                    ! correction of 12 hour is not necessary for format 7
 
+                    FieldTime = Me%RefDateTime + (AuxDays(ni))
+                    else
+                   ! The mercator files format 1 to 6 have an error of 12 hours, 
+                   ! and this is corrected as follows:
                     FieldTime = Me%RefDateTime + (AuxDays(ni) - 43200.)
+                    endif
 
                     if      (nDimensions == 4) then
                         
