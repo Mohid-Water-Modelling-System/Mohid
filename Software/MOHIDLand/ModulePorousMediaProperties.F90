@@ -260,6 +260,7 @@ Module ModulePorousMediaProperties
         integer, pointer, dimension(:,:,:)          :: ComputeFacesU3D
         integer, pointer, dimension(:,:,:)          :: ComputeFacesV3D
         integer, pointer, dimension(:,:,:)          :: ComputeFacesW3D         !from basin
+        integer, pointer, dimension(:,:)            :: KFloor
         real                                        :: PorousMediapropDT
         type(T_Time)                                :: Now
         type(T_Time)                                :: BeginTime
@@ -2835,7 +2836,23 @@ do1 :   do
                 stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR110'
             NewProperty%Mass_Created(:,:,:) = 0.
         endif
+        
+        !if vegetation nitrogen uptake than nitrate need mass created
+        if ((NewProperty%ID%IDNumber == Nitrate_) .and. (Me%ExtVar%ModelNitrogen)       &
+             .and. (.not. NewProperty%Evolution%MinConcentration)) then
+            write(*,*) 'Using vegetation nitrogen uptake so MIN_VALUE should be active'
+            write(*,*) 'in nitrate property in porous media properties'
+            stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR111'
+        endif
 
+        !if vegetation phosphorus uptake than inorganic phosphorus need mass created
+        if ((NewProperty%ID%IDNumber == Inorganic_Phosphorus_) .and. (Me%ExtVar%ModelPhosphorus)       &
+             .and. (.not. NewProperty%Evolution%MinConcentration)) then
+            write(*,*) 'Using vegetation phosphorus uptake so MIN_VALUE should be active'
+            write(*,*) 'in inorganic phosphorus property in porous media properties'
+            stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR112'
+        endif
+        
         !This variable is a logic one is true if the property is old
         !and the user wants to continue the run with results of a previous run.
         call GetData(NewProperty%Old,                                                   &
@@ -5514,7 +5531,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     end subroutine InterfaceFluxes
  
     !-----------------------------------------------------------------------------
-    ! This routine solves mass sources due to vegetation. - needs BIG revision
+    ! This routine solves mass sources due to vegetation. - needs BIG revision it is highly inefficient. David B.
     
     subroutine VegetationInterfaceFluxes 
 
@@ -5548,6 +5565,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR01'  
 
+        call GetGeometryKFloor(Me%ObjGeometry,                                          &
+                               Z    = Me%ExtVar%KFloor,                                 &
+                               STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, "InterfaceFluxes; ModulePorousMediaProperties. ERR10")
 
         !s
         ModelDT         = Me%ExtVar%DT
@@ -5568,7 +5590,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 FoundEnd     = .false.
                 BottomDepth  = 0.
           
-    do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1                
+    do3:        do K = Me%WorkSize%KUB, Me%ExtVar%KFloor(i,j), -1                
                 
                     
                     if (FoundEnd) then
@@ -6167,6 +6189,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR1070'  
 
+        call UnGetGeometry( Me%ObjGeometry, Me%ExtVar%KFloor,       STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, "InterfaceFluxes; ModulePorousMediaProperties. ERR1080")
 
 
     end subroutine VegetationInterfaceFluxes

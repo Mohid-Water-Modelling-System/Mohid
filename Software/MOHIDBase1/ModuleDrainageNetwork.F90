@@ -818,6 +818,7 @@ Module ModuleDrainageNetwork
         real                                        :: MinimumWaterDepth
         real                                        :: MinimumWaterDepthProcess
         real                                        :: MinimumWaterDepthAdvection
+        real                                        :: HminChezy
         
         integer                                     :: HydrodynamicApproximation
         real                                        :: NumericalScheme
@@ -1343,6 +1344,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write (*,*)'Invalid Number of Minimum Water Level for advection [MIN_WATER_DEPTH_ADVECTION]'
             stop 'ModuleDrainageNetwork - ReadDataFile - ERR16b'
         end if
+
+        !Min water column for chezy computation - used if erosion active
+        call GetData(Me%HminChezy,                                                  &
+                     Me%ObjEnterData, flag,                                         &
+                     SearchType   = FromFile,                                       &
+                     keyword      = 'HMIN_CHEZY',                                   &
+                     Default      =  AlmostZero,                                    & 
+                     ClientModule = 'ModuleDrainageNetwork',                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR16c' 
+        if (Me%HminChezy .lt. 0.0) then
+            write(*,*)'Minimum water column height for chezy computation HMIN_CHEZY can not be negative'
+            stop 'ModuleDrainageNetwork - ReadDataFile - ERR16cd'
+        endif
 
 !        !Method for computing water column in the face (1 - Using max height and max bottom; 2- using average of WC)
 !        call GetData(Me%ComputeOptions%FaceWaterColumn,                     &
@@ -8091,9 +8106,6 @@ do2 :   do while (associated(PropertyX))
                 
                 Me%OutletFlowVolume = 0.0
             else
-
-                !needs update after all computation (so that modules get the last level)
-                call UpdateAreasAndMappings
                 
                 !Runs Advection / Diffusion
                 if (Me%ComputeOptions%AdvectionDiffusion) call TransportProperties      (LocalDT)
@@ -8118,6 +8130,9 @@ do2 :   do while (associated(PropertyX))
             endif
 
         enddo
+        
+        !needs update after all computation (so that modules get the last level)
+        call UpdateCrossSections
                 
         !DB       
         if (Niter <= Me%LastGoodNiter) then            
@@ -9255,6 +9270,7 @@ do2 :   do while (associated(PropertyX))
         type (T_Reach), pointer                     :: CurrReach
         integer                                     :: CHUNK
         integer                                     :: n_restart
+        logical                                     :: ForceRestart
 
 
         CHUNK = Me%TotalNodes / 8 !8 Cores ?
@@ -9288,11 +9304,14 @@ do2 :   do while (associated(PropertyX))
 
             !Updates Volumes
             n_restart = 0
+            ForceRestart = .false.
             do NodeID = 1, Me%TotalNodes
                 call ModifyNode          (NodeID, LocalDT)
-                call VerifyMinimumVolume (NodeID, Restart, Niter)
-                                
-                !if (Restart) exit
+                call VerifyMinimumVolume (NodeID, Restart, ForceRestart, Niter)
+                
+                !if negative volume found (ForceRestart is true) restart without evaluating more nodes                
+                if (ForceRestart) exit
+                
                 if (Restart) then
                     n_restart = n_restart + 1
                     if (n_restart > Me%MinNodesToRestart) then
@@ -10133,11 +10152,11 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
     !---------------------------------------------------------------------------            
 
-    subroutine VerifyMinimumVolume (NodeID, Restart, Niter)
+    subroutine VerifyMinimumVolume (NodeID, Restart, ForceRestart, Niter)
 
         !Arguments--------------------------------------------------------------
         integer                                     :: NodeID
-        logical                                     :: Restart
+        logical                                     :: Restart, ForceRestart
         integer                                     :: Niter
 
         !Local-----------------------------------------------------------------
@@ -10165,6 +10184,8 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             endif
             
             Restart = .true.
+            !always restart on minimum volume. Minimum nodes to restart only used in Stabilize
+            ForceRestart = .true.
             return
         endif
 
@@ -10211,7 +10232,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         real(8)                                     :: InFlow, OutFlow
         real(8)                                     :: OutFlowNew, OutFlowOld, Vol
         integer                                     :: iter, MaxIter
-        logical                                     :: Iterate
+        logical                                     :: Iterate, ForceRestart
         real                                        :: Error, Tolerance        
 
         Tolerance = 0.001
@@ -10262,7 +10283,7 @@ do2:            do while (Iterate)
                     else
 
                         Iterate = .false.      
-                        call VerifyMinimumVolume (NodeID, Restart, Niter)
+                        call VerifyMinimumVolume (NodeID, Restart, ForceRestart, Niter)
                         if (restart) exit                    
 
                     end if
@@ -11853,12 +11874,28 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
         integer                                     :: ReachID
         type (T_Reach), pointer                     :: CurrReach
         real                                        :: Chezy
+        type (T_Node), pointer                      :: DownstreamNode
+        type (T_Node), pointer                      :: UpstreamNode
+        real                                        :: MaxBottom, WaterDepth
  
         do ReachID = 1, Me%TotalReaches
+            
+            CurrReach => Me%Reaches (ReachID)
 
-            if (Me%ComputeFaces(ReachID) == Compute) then
+            DownstreamNode => Me%Nodes (CurrReach%DownstreamNode)
+            UpstreamNode   => Me%Nodes (CurrReach%UpstreamNode  )
+            
+            !verify if minimum level is met because low water levels may create unreal erosion
+            MaxBottom  = max(UpstreamNode%CrossSection%BottomLevel, DownstreamNode%CrossSection%BottomLevel)
+            if (CurrReach%FlowNew .gt. 0.0) then
+                WaterDepth = max(UpstreamNode%WaterLevel - MaxBottom, 0.0)
+            else
+                WaterDepth = max(DownstreamNode%WaterLevel - MaxBottom, 0.0)
+            endif
+
+            if ((Me%ComputeFaces(ReachID) == Compute) .and. (WaterDepth .gt. Me%HminChezy)) then
                 
-                CurrReach => Me%Reaches (ReachID)
+                !CurrReach => Me%Reaches (ReachID)
 
                 if (CurrReach%HydraulicRadius > AllmostZero) then
                     Chezy = Gravity * CurrReach%Manning**2.0   &

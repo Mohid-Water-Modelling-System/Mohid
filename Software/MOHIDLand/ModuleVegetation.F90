@@ -2761,7 +2761,8 @@ doV:    do while (associated(VegetationInList))
         if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
             
             if(Me%ComputeOptions%HarvestKill .or. Me%ComputeOptions%Grazing .or. Me%ComputeOptions%Dormancy         &
-               .or. Me%ComputeOptions%Fertilization .or. Me%ComputeOptions%NutrientFluxesWithSoil                   &
+!               .or. Me%ComputeOptions%Fertilization .or. Me%ComputeOptions%NutrientFluxesWithSoil                   &
+               .or. Me%ComputeOptions%Fertilization                                                                  &
                .or. Me%ComputeOptions%Pesticide) then
                 
                 write(*,*    ) 
