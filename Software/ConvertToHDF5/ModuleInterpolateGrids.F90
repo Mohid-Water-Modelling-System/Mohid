@@ -2846,7 +2846,8 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
 
         else
 
-            k_ = 1
+            !k_ = 1
+            k_ = Me%Father%Worksize3D%KUB
 
         endif
 
