@@ -712,7 +712,7 @@ Module ModuleInterpolateGrids
                                     '<<EndFields>>',            &
                                     BlockFound,                 &
                                     STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldsToConvert - ModuleInterpolateGrids - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldsToConvert - ModuleInterpolateGrids - ERR10'
 
         if(BlockFound)then
     
@@ -739,7 +739,7 @@ Module ModuleInterpolateGrids
                              SearchType  = FromBlock_,              &
                              Buffer_Line = CurrentLineNumber,       &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadFieldsToConvert - ModuleInterpolateGrids - ERR02'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadFieldsToConvert - ModuleInterpolateGrids - ERR20'
 
                 Me%FieldsToInterpolate(Count) = PropertyName
 
@@ -747,8 +747,8 @@ Module ModuleInterpolateGrids
 
             end do
 
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ReadFieldsToConvert - ModuleInterpolateGrids - ERR03'
+            call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFieldsToConvert - ModuleInterpolateGrids - ERR30'
         
         else
 
@@ -818,7 +818,7 @@ Module ModuleInterpolateGrids
 
             end do
 
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+            call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
             if (STAT_CALL /= SUCCESS_) stop 'ReadDepths - ModuleInterpolateGrids - ERR30'
         
         else
