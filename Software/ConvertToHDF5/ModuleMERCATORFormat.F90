@@ -73,8 +73,6 @@ Module ModuleMERCATORFormat
     integer, parameter                          :: Version6     = 6
     integer, parameter                          :: PSY2V4R4     = 7   ! CORRECTION FOR NEW FORMAT PSY2V4R4
 
-    
-    
     integer, parameter                          :: MercatorLayers = 43
 
     character(LEN = StringLength), parameter    :: input_files_begin   = '<<begin_input_files>>'
@@ -149,6 +147,7 @@ Module ModuleMERCATORFormat
         type(T_Time)                            :: RefDateTime    
         integer, dimension(12)                  :: Instants(1:12) = 0
         logical                                 :: ComputeBarotropicVel = .false.
+        logical                                 :: MyOceanPSY4QV2R2 = .false.
     end type  T_MERCATORFormat
 
     type(T_MERCATORFormat), pointer             :: Me
@@ -534,6 +533,18 @@ Module ModuleMERCATORFormat
             endif
 
         endif
+        
+        !Read MYOCEAN_PSY4QV2R2 specific options for file type 6
+        call GetData(Me%MyOceanPSY4QV2R2,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'MYOCEAN_PSY4QV2R2',                                &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleMERCATORFormat',                             &
+                     STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleMERCATORFormat - ERR150'
+        
+        
 
     end subroutine ReadOptions
 
@@ -2127,10 +2138,25 @@ i1:             if (exist) then
                     status=NF90_OPEN(trim(ME%InputGridFile),NF90_NOWRITE,ncid)
                     if (status /= nf90_noerr)                                           &
                     stop 'OpenAndReadBathymMERCATORV6- ModuleMERCATORFormat - ERR20'
+                    
+                    if(Me%MyOceanPSY4QV2R2)then
+                    
+                        status=NF90_INQ_DIMID(ncid,"time_counter",dimid)
+                        if (status /= nf90_noerr) then
+                        
+                            status=NF90_INQ_DIMID(ncid,"time",dimid)
+                            if (status /= nf90_noerr)                                           &
+                                stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR21'
+                                
+                        end if
 
-                    status=NF90_INQ_DIMID(ncid,"time",dimid)
-                    if (status /= nf90_noerr)                                           &
-                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR30'
+                    else
+                    
+                        status=NF90_INQ_DIMID(ncid,"time",dimid)
+                        if (status /= nf90_noerr)                                           &
+                            stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR30'
+
+                    endif
 
                     status=NF90_INQUIRE_DIMENSION(ncid,dimid,len = Ninst)
                     if (status /= nf90_noerr)                                           &
@@ -2269,13 +2295,31 @@ i2:                     if (CheckName(nameAux, MohidName)) then
                     enddo d0
 
                     Me%SZZ(:,:,:) = FillValueReal
-
-   !MJ ***********************************************
-                    do k=WKUB,WKLB,-1
-                        LayersInterface(k)=Depth(WKUB - WKLB - k + 2)
-                    enddo
                     
-                    LayersInterface(WKLB-1) = LayersInterface(WKLB) + LayersInterface(WKLB) - LayersInterface(WKLB+1)
+                    
+                    if(Me%MyOceanPSY4QV2R2)then
+                    
+                        LayersInterface(WKUB) = 0.
+            
+                        do k=WKUB, WKLB, -1
+                            !Bathymetry with one centimetry precision
+                            LayersInterface(k-1) = LayersInterface(k) +                     &
+                                                   (Depth(WKUB + 1 - k) -                   &
+                                                   LayersInterface(k)) * 2
+                            LayersInterface(k-1) = real(int(LayersInterface(k-1)*100))/100.
+                        enddo
+                            
+                    
+                    else
+                        !MJ ***********************************************
+                        do k=WKUB,WKLB,-1
+                            LayersInterface(k)=Depth(WKUB - WKLB - k + 2)
+                        enddo
+                        
+                        LayersInterface(WKLB-1) = LayersInterface(WKLB) + LayersInterface(WKLB) - LayersInterface(WKLB+1)
+        
+                    endif
+
 
                     Me%BathymetryMax(:,:) = LayersInterface(WKLB-1)                        
 
@@ -3605,22 +3649,52 @@ i1:         if (CheckName(nameAux, MohidName)) then
         
        
         !Begin----------------------------------------------------------------
+        
 
         !Verifies if file exists
         status=NF90_OPEN(trim(InputFile),NF90_NOWRITE,ncid)
         if (status /= nf90_noerr) stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR10'
 
-        status=NF90_INQ_DIMID(ncid,"time",dimid)
-        if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR20'
+        if(Me%MyOceanPSY4QV2R2)then
+
+            status=NF90_INQ_DIMID(ncid,"time_counter",dimid)
+            if (status /= nf90_noerr) then
+            
+                status=NF90_INQ_DIMID(ncid,"time",dimid)
+                if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR11'
+                
+            endif
+
+        else
+
+            status=NF90_INQ_DIMID(ncid,"time",dimid)
+            if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR20'
+
+        endif
+
 
         status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = nInst)
         if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR30'
 
         allocate(AuxDays(1:nInst))
+        
+        if(Me%MyOceanPSY4QV2R2)then
 
-        status = nf90_inq_varid(ncid, 'time', n)
-        if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR40'
+            status = nf90_inq_varid(ncid, 'time_counter', n)
+            if (status /= nf90_noerr) then
+            
+                status = nf90_inq_varid(ncid, 'time', n)
+                if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR31'
+                
+            endif
 
+        else
+
+            status = nf90_inq_varid(ncid, 'time', n)
+            if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR40'
+
+        endif
+        
         status = NF90_GET_VAR(ncid,n,AuxDays)
         if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR50'
         
@@ -3679,15 +3753,22 @@ i1:         if (CheckName(nameAux, MohidName)) then
                 if (status /= nf90_noerr) status=NF90_GET_ATT(ncid,n,"units_long",unity)
                     if (status /= nf90_noerr)                                                   &
                     stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR82a'
- 
-                if( trim(unity) .eq. 'Kelvin' .and. trim(nameAux) .eq. 'temperature')  AddOffSet = AddOffSet - 273.15 
+                
+                
+                if(MohidName == GetPropertyName(Temperature_))then
+                    AddOffSet = AddOffSet - 273.15 
+                endif
 
                 do ni = 1, nInst                
                 
                     iOut = OutputInstants(MohidName)
 
                     !FieldTime = Me%RefDateTime + (AuxDays * 86400. + 43200.)
-                    FieldTime = Me%RefDateTime + (AuxDays(ni)/24. * 86400. + 43200.) !time is in hours
+                    if(Me%MyOceanPSY4QV2R2)then
+                        FieldTime = Me%RefDateTime + (AuxDays(ni)/24. * 86400.) !time is correct, does not need 12 extra hours
+                    else
+                        FieldTime = Me%RefDateTime + (AuxDays(ni)/24. * 86400. + 43200.) !time is in hours
+                    endif
 
                     if      (nDimensions == 4) then
                         
