@@ -2285,7 +2285,7 @@ do2 :   do while (associated(PropertyX))
                     write(*,*)'Invalid Precipitation Units for accumulated rain'
                     write(*,*)'Use mm'
                     stop 'ModifyPrecipitation - ModuleAtmosphere - ERR01b'
-                endif   
+                endif
             endif
 
             if (trim(adjustl(PropPrecipitation%ID%Units)) /= 'm3/s') then

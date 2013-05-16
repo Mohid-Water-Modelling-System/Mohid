@@ -529,6 +529,7 @@ Module ModuleBasin
         logical                                     :: UsePotLAI                = .false.
         real                                        :: KcMin                    = 0.3
         logical                                     :: UseKcMin                 = .false.
+        logical                                     :: UseRefEVTPIfNeeded       = .true.
         
         !Instance IDs
         integer                                     :: ObjTime                  = 0
@@ -1393,6 +1394,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         else
             Me%UseKcMin = .true.
         endif
+
+        call GetData(Me%UseRefEVTPIfNeeded,                                              &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'USE_REF_EVTP_IF_NEEDED',                            &
+                     default      = .false.,                                              &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR410'   
 
     end subroutine ReadDataFile
     !--------------------------------------------------------------------------
@@ -2958,7 +2968,9 @@ cd2 :           if (BlockFound) then
             if (ErrorCount /= SUCCESS_) stop 'ConstructPropertyList - ModuleBasin - ERR03'
             
             !Define the conversion factor for ET0 based on the UNITS given by the user
-            if (trim(adjustl(PropertyX%ID%Units)) .EQ. "mm/d") then
+            if (trim(adjustl(PropertyX%ID%Units)) .EQ. "mm/8d") then
+                Me%ETConversionFactor = 1. / 691200000.
+            elseif (trim(adjustl(PropertyX%ID%Units)) .EQ. "mm/d") then
                 Me%ETConversionFactor = 1. / 86400000.
             elseif (trim(adjustl(PropertyX%ID%Units)) .EQ. "mm/h") then 
                 Me%ETConversionFactor = 1. / 3600000.
@@ -2981,7 +2993,7 @@ cd2 :           if (BlockFound) then
                 write(*,*) 'Unknown unit for reference evapotranspiration property. '
                 write(*,*) 'The available units (L/T) are: '
                 write(*,*) 'L: mm, cm, m '
-                write(*,*) 'T: d (for days), h (for hours), s (for seconds) '
+                write(*,*) 'T: d (for days), h (for hours), s (for seconds), 8d (for 8 days) '
                 stop 'ConstructPropertyList - ModuleBasin - ERR04'
             endif
             
@@ -3873,6 +3885,7 @@ cd2 :           if (BlockFound) then
         logical                                     :: EvaporateFromCanopy      = .false.
         logical                                     :: EvaporateFromWaterColumn = .false.
         logical                                     :: CalcET0                  = .false.
+        logical                                     :: CalcET0OnlyForNoData     = .false.
         real(8)                                     :: Evaporation
         real, dimension(:,:), pointer               :: EvaporationMatrix => null()
 !        real                                        :: LAI
@@ -3903,6 +3916,13 @@ cd2 :           if (BlockFound) then
                 
         !CalcET0             = .NOT. (RefEvapotrans%ID%SolutionFromFile .OR. RefEvapotrans%Constant)
         CalcET0             = (.not. RefEvapotrans%ID%SolutionFromFile) .and. (.not. RefEvapotrans%Constant) .and. (.not. RefEvapotrans%ConstantInSpace)
+        
+        if (Me%UseRefEVTPIfNeeded) then
+            CalcET0 = .true.
+            CalcET0OnlyForNoData = .true.
+        else
+            CalcET0OnlyForNoData = .false.
+        endif
                 
         if ((CalcET0) .OR. (Me%EvapMethod .EQ. LatentHeatMethod)) then
             !Gets Horizontal Sun Radiation [W/m2]
@@ -3931,7 +3951,7 @@ cd2 :           if (BlockFound) then
 
             if (Me%ExtVar%BasinPoints(i, j) .EQ. WaterPoint) then
                
-                if (CalcET0) then
+                if (CalcET0 .and. ((.not. CalcET0OnlyForNoData ) .or. (RefEvapotrans%Field(i,j) < 0.0)))then
             
                     !Calculate Psicrometric constant
                     !Calculation of the atmospheric pressure based on the heigth simplification of the ideal gas law

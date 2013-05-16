@@ -826,6 +826,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = 1,                                      &
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR313'     
+        if (Me%MinIterations < 1) then
+            write (*,*) 'MIN_ITERATIONS must be greater or equal to 1'
+            stop 'ReadDataFile - ModuleRunOff - ERR313a'
+        endif
         
         call GetData(Me%CheckDecreaseOnly,                                  &
                      ObjEnterData, iflag,                                   &  
@@ -3014,7 +3018,7 @@ doIter:         do while (iter <= Niter)
                     call ReadUnLockExternalVar (StaticOnly = .false.)
                     
                     if (Restart) then                       
-                        Me%NextNiter = max(int(Me%NextNiter * Me%InternalTimeStepSplit), Me%NextNiter + 1)
+                        !Me%NextNiter = max(int(Me%NextNiter * Me%InternalTimeStepSplit), Me%NextNiter + 1)
                         exit doIter
                     endif
 
@@ -6053,56 +6057,71 @@ doIter:         do while (iter <= Niter)
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         real                                        :: variation
+        logical                                     :: negativeVolumeFound
 
         !Begin-----------------------------------------------------------------
 
-
-        !if (Me%Stabilize .and. Niter .ge. Me%MaxIterations) then
-        if (Niter .ge. Me%MaxIterations) then
-             write(*,*)'Number of iterations above maximum: ', Niter
-             write(*,*)'Check configurations [MAX_ITERATIONS]'
-             stop 'CheckStability - ModuleRunoff - ERR01'
-        endif
+        Restart             = .false.
+        negativeVolumeFound = .false.
         
         !Verifies negative volumes
-        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-                if (Me%myWaterVolume (i, j) < -1.0 * AllmostZero) then    
-                    Restart = .true.
-                    return
+                if (Me%myWaterVolume (i, j) < -1.0 * AllmostZero) then   
+                    Restart             = .true.
+                    negativeVolumeFound = .true.                    
+                    exit do1
                 else if (Me%myWaterVolume (i, j) < 0.0) then  
                     Me%myWaterVolume (i, j) = 0.0                 
                 endif
             endif
         enddo
-        enddo
+        enddo do1
         
-        
-        !Verifies stabilize criteria
-        if (Me%Stabilize) then
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            
-                if (Me%StabilityPoints(i, j) == BasinPoint) then
-            
-                    if ((.not. Me%CheckDecreaseOnly) .or. (Me%myWaterVolumeOld(i, j) > Me%myWaterVolume(i, j))) then
-                        if (Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j) > Me%MinimumWaterColumnStabilize) then
-                            
-                            variation = abs(Me%myWaterVolume(i, j) - Me%myWaterVolumeOld(i, j)) / Me%myWaterVolumeOld(i, j)
-                            
-                            if (variation > Me%MaxVariation) Me%MaxVariation = variation
-                            
-                            if (variation > Me%StabilizeFactor) then
-                                Restart = .true.
-                                return
+        if (.not. Restart) then
+            !Verifies stabilize criteria
+            if (Me%Stabilize) then
+do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                    if (Me%StabilityPoints(i, j) == BasinPoint) then
+                
+                        if ((.not. Me%CheckDecreaseOnly) .or. (Me%myWaterVolumeOld(i, j) > Me%myWaterVolume(i, j))) then
+                            if (Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j) > Me%MinimumWaterColumnStabilize) then
+                                
+                                variation = abs(Me%myWaterVolume(i, j) - Me%myWaterVolumeOld(i, j)) / Me%myWaterVolumeOld(i, j)
+                                
+                                if (variation > Me%MaxVariation) Me%MaxVariation = variation
+                                
+                                if (variation > Me%StabilizeFactor) then
+                                    Restart = .true.
+                                    exit do2
+                                endif
                             endif
                         endif
                     endif
-                endif
-            enddo
-            enddo
-        endif
+                enddo
+                enddo do2
+            endif
+         endif
+        
+        if (Restart) then        
+            Me%NextNiter = max(int(Me%NextNiter * Me%InternalTimeStepSplit), Me%NextNiter + 1)
+                 
+            if (Me%NextNiter >= Me%MaxIterations) then
+                 write(*,*)'Number of iterations above maximum: ', Me%NextNiter
+                 if (negativeVolumeFound) then
+                    write(*,*)'Negative volume found.'
+                 endif
+                 write(*,*)'Cell(', i, ',', j, ')'
+                 write(*,*)'Old Volume: ', Me%myWaterVolumeOld(i, j)
+                 write(*,*)'New Volume: ', Me%myWaterVolume(i, j)
+                 write(*,*)'Check configurations [MAX_ITERATIONS]'
+                 stop 'CheckStability - ModuleRunoff - ERR01'
+            endif 
+                         
+        endif   
         
         
     end subroutine CheckStability

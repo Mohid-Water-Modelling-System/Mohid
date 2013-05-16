@@ -2012,7 +2012,6 @@ Module ModuleHDF5
         if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleHDF5 - ERR04'
 
         !Verifies if group exists, if not create it
-        
         call CheckGroupExistence (FileID, GroupName)
 
         !Opens the Group
@@ -2357,7 +2356,10 @@ Module ModuleHDF5
 
             !Opens the Group
             call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR4_3D - ModuleHDF5 - ERR05'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Group name ', GroupName, ' not found.'
+                stop 'HDF5ReadDataR4_3D - ModuleHDF5 - ERR05'
+            endif
 
             !Opens the DataSet
             if (present(OutputNumber)) then
@@ -2367,8 +2369,10 @@ Module ModuleHDF5
             endif
 
             call h5dopen_f (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR4_3D - ModuleHDF5 - ERR05'
-
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Dataset ', AuxChar, ' not found.'
+                stop 'HDF5ReadDataR4_3D - ModuleHDF5 - ERR05b'
+            endif
             
             AllocateMatrix = .false.
                                    
@@ -5227,7 +5231,7 @@ Module ModuleHDF5
                 stop 'GetHDF5GroupID - ModuleHDF5 - ERR10'
             endif
                     
-            call h5gget_obj_info_idx_f(gr_id, FatherGroupName, GroupPosition-1, &   
+            call h5gget_obj_info_idx_f(Me%FileID, trim(adjustl(FatherGroupName)), GroupPosition-1, &   
                                        GroupName, GroupType, STAT_CALL)
 
             if (GroupType == H5G_DATASET_F) then

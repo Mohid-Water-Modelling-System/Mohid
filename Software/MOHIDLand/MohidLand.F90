@@ -293,7 +293,7 @@ program MohidLand
         !Local-----------------------------------------------------------------
         !integer                                     :: STAT_CALL
         !real                                        :: CPUTime, LastCPUTime = 0.
-        logical                                      :: finished
+        logical                                      :: one_more = .true.
 
 #ifndef _OUTPUT_OFF_
         write(*, *)"-------------------------- MOHID -------------------------"
@@ -302,12 +302,10 @@ program MohidLand
         write(*, *)                    
 #endif
 
-        do
+        do while (one_more)
 
-            finished = DoOneTimeStep()
+            one_more = DoOneTimeStep()
             
-            if (finished) exit 
-
         enddo
 
     end subroutine ModifyMohidLand
@@ -360,12 +358,19 @@ program MohidLand
             DT = DT / 10.0
 
             !Fit last Iteration
-            if (CurrentTime + DT > EndTime) then
+            if (CurrentTime >= EndTime) then
+                    DoOneTimeStep = .false.
+                    return            
+            elseif (CurrentTime + DT > EndTime) then
                 DT = EndTime - CurrentTime
-                if (abs(DT) < 1e-5) then
-                    DoOneTimeStep = .true.
-                    return
-                endif 
+!                if (abs(DT) < 1e-5) then
+!                    DoOneTimeStep = .false.
+!                    return
+!                endif 
+            else
+                if ((EndTime - (CurrentTime + DT)) < 1e-5) then
+                    DT = EndTime - CurrentTime 
+                endif
             endif
                 
             call ActualizeDT(TimeID = ObjComputeTime, DT = DT, STAT = STAT_CALL)     
@@ -375,7 +380,7 @@ program MohidLand
 
             !Fit last Iteration
             if (CurrentTime .GE. EndTime) then
-                DoOneTimeStep = .true.
+                DoOneTimeStep = .false.
                 return
             endif
 
@@ -386,9 +391,9 @@ program MohidLand
             LastCPUTime = CPUTime
             call PrintProgress(ObjComputeTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidLand - MohidLand - ERR05'
-        endif
+        endif        
 
-        DoOneTimeStep = .false.
+        DoOneTimeStep = .true.
     
     end function
 

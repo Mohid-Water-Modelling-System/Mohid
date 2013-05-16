@@ -1715,7 +1715,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
             dt_lag = int(error_aux * dt)
             write(*,*) 
             write(*,*) 'DTSECONDS is not multiple of the run period.'
-            write(*,*) trim(model_name())//' wont be computed in the last', dt_lag, ' seconds.'
+            write(*,*) trim(model_name)//' wont be computed in the last', dt_lag, ' seconds.'
             write(*,*) 'CheckDT - ModuleInterface - WRN010.'
         endif   
         

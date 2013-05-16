@@ -520,6 +520,7 @@ Module ModuleGlobalData
     integer, parameter :: EVTPCropCoefficient_              = 716
     integer, parameter :: CanopyHeight_                     = 718
     integer, parameter :: PotLeafAreaIndex_                 = 719
+    integer, parameter :: BoundaryLeafAreaIndex_            = 720
 
 !____used @ moduleCEQUALW2______________________________________________
     integer, parameter :: RPOM_                             = 2001
@@ -1423,6 +1424,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_EVTPCropCoefficient      = 'crop coefficient'
     character(StringLength), private, parameter :: Char_CanopyHeight             = 'canopy height'
     character(StringLength), private, parameter :: Char_PotLeafAreaIndex         = 'potential leaf area index'
+    character(StringLength), private, parameter :: Char_BoundaryLeafAreaIndex    = 'boundary leaf area index'
 
     !Cohesive Fractions - Drainage Network
     character(StringLength), private, parameter :: Char_TSS                      = 'TSS'
@@ -1768,7 +1770,6 @@ Module ModuleGlobalData
         T_Module(mWWTPQ_                  , "WWTPQ") ,               T_Module(mSEAGRASSWATERINTERAC_   , "SeagrassWaterInteraction"),&
         T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
         T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics")     /)
-        
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
@@ -2649,6 +2650,7 @@ Module ModuleGlobalData
             call AddPropList (EVTPCropCoefficient_,     Char_EVTPCropCoefficient,        ListNumber)
             call AddPropList (CanopyHeight_,            Char_CanopyHeight,               ListNumber)
             call AddPropList (PotLeafAreaIndex_,        Char_PotLeafAreaIndex,           ListNumber)
+            call AddPropList (BoundaryLeafAreaIndex_,   Char_BoundaryLeafAreaIndex,      ListNumber)
 
             call AddPropList (TSS_,                     Char_TSS,                        ListNumber)
             call AddPropList (COHSED_FINE_,             Char_Cohsed_fine,                ListNumber)

@@ -4548,7 +4548,7 @@ dConv:  do while (iteration <= Niteration)
  
                 Me%UnsatVelWFinal(I,J,KUB+1) = Me%UnsatVelW(I,J,KUB+1)
 
-                    
+                   
                 if (-1.0 * Me%UnsatVelW(i, j, KUB+1) > Me%WaterColumn(i, j) / Me%CV%CurrentDT) then  
                     
                     Me%UnsatVelW(i, j, KUB+1)  = -1.0 * Me%WaterColumn(i, j) / Me%CV%CurrentDT
@@ -5286,7 +5286,6 @@ dConv:  do while (iteration <= Niteration)
                 Me%WaterColumn(i,j) = Me%WaterColumn(i,j)  - dh
                 
                 Me%Infiltration(i,j)= Me%Infiltration(i,j) + dh
-                
                 
                 if (abs(Me%WaterColumn(i, j)) < AllmostZero) Me%WaterColumn(i, j) = 0.0
                 

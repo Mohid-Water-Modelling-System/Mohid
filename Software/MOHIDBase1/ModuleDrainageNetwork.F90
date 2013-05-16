@@ -804,6 +804,7 @@ Module ModuleDrainageNetwork
         type (T_Coupled  )                          :: Coupled
         type (T_StormWaterModelLink)                :: StormWaterModelLink
         logical                                     :: Continuous
+        logical                                     :: PropertyContinuous
         logical                                     :: StopOnWrongDate
         type (T_Property), pointer                  :: FirstProperty         => null()
         type (T_Property), pointer                  :: LastProperty          => null()
@@ -896,7 +897,7 @@ Module ModuleDrainageNetwork
         logical                                     :: LimitDTCourant               = .false.
         logical                                     :: LimitDTVariation             = .true.
         real                                        :: MaxCourant                   = 1.0
-        integer                                     :: MinNodesToRestart            = 10
+        integer                                     :: MinNodesToRestart            = 0
         integer                                     :: MinIterations                = 1
         logical                                     :: CheckDecreaseOnly            = .false.
         
@@ -1379,6 +1380,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR17'        
 
         if (Me%Continuous) then
+            call GetData(Me%PropertyContinuous,                                     &
+                         Me%ObjEnterData, flag,                                     &  
+                         keyword      = 'PROP_CONTINUOUS',                          &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromFile,                                   &
+                         Default      = ON,                                         &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR17a'
+
             call ReadFileName('DRAINAGE_NETWORK_INI', Me%Files%Initial,         &
                               Message = "Drainage Network Initial File",        &
                               STAT = STAT_CALL)
@@ -1455,7 +1465,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          keyword      = 'MIN_NODES_TO_RESTART',                 &
                          ClientModule = 'DrainageNetwork',                      &
                          SearchType   = FromFile,                               &
-                         Default      = 10,                                     &
+                         Default      = 0,                                      &
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'                
             
@@ -1509,7 +1519,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = 1.5,                                    &
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR30'        
-        if (Me%DTFactor <= 1.0) then
+        if (Me%InternalTimeStepSplit <= 1.0) then
             write (*,*)'Invalid DT Factor [DT_SPLIT_FACTOR]'
             write (*,*)'Value must be greater then 1.0'
             stop 'ModuleDrainageNetwork - ReadDataFile - ERR31'              
@@ -4531,7 +4541,7 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
         Property => Me%FirstProperty
         do while (associated(Property))
                
-            if (.not. Me%Continuous) then
+            if ((.not. Me%Continuous) .or. (.not. Me%PropertyContinuous)) then
                 Property%Concentration = Property%InitialValue
                 
                 do OutletPos = 1, Me%TotalOutlets 
@@ -4819,19 +4829,23 @@ if1:    if (Me%HasGrid) then
         read(InitialFile)Me%Nodes%WaterLevel
         read(InitialFile)Me%Reaches%FlowNew
 
-        Property => Me%FirstProperty
-        do while (associated(Property))
-            read (InitialFile) Property%Concentration
-            Property => Property%Next
-        end do
+        if (Me%PropertyContinuous) then
+            Property => Me%FirstProperty
+            do while (associated(Property))
+                read (InitialFile) Property%Concentration
+                Property => Property%Next
+            end do
+        endif
 
         read(InitialFile)Me%LastGoodNiter
 
-        Property => Me%FirstProperty
-        do while (associated(Property))
-            read (InitialFile, err=10) Property%BottomConc
-            Property => Property%Next
-        end do
+        if (Me%PropertyContinuous) then
+            Property => Me%FirstProperty
+            do while (associated(Property))
+                read (InitialFile, err=10) Property%BottomConc
+                Property => Property%Next
+            end do
+        endif
 
     10  continue
 
@@ -8761,8 +8775,10 @@ do2 :   do while (associated(PropertyX))
                 !    nextDTVariation = Me%ExtVar%DT * Me%DTFactor
                 !endif
 
-                if (Me%NextNIter == 1 .OR. Me%NextNiter < Me%LastGoodNiter) then    
+                if (Me%NextNIter == 1) then 
                     nextDTVariation = Me%ExtVar%DT * Me%DTFactor                
+                else if (Me%NextNiter < Me%LastGoodNiter) then    
+                    nextDTVariation = Me%ExtVar%DT
                 else
                     nextDTVariation = Me%ExtVar%DT / Me%NextNIter * Me%MinIterations
                     Me%NextNIter = Me%MinIterations

@@ -48,12 +48,16 @@
 ! FERTILIZER_DATABASE              : string      -         -      !Readed if growth simulation and if FERTILIZATION : 1
 ! FEDDES_DATABASE                  : string      -         -      !Readed if not usding growth simulation
 !
-! WATER_STRESS                     : 0/1         -        1       !Connects/disconnects water limitation on plant growth
-! NITROGEN_STRESS                  : 0/1         -        1       !Connects/disconnects N limitation on plant growth
-! PHOSPHORUS_STRESS                : 0/1         -        1       !Connects/disconnects P limitation on plant growth
-! TEMPERATURE_STRESS               : 0/1         -        1       !Connects/disconnects temp. limitation on plant growth
-! ADJUST_RUE_FOR_CO2               : 0/1         -        1       !Connects/disconnects CO2 limitation on plant growth
-! ADJUST_RUE_FOR_VPD               : 0/1         -        1       !Connects/disconnects Vapour Pressure Deficit limitation
+! MODEL_EVOLUTION                  : integer     -         -      !Global properties evolution: 
+!                                                                     !1-Read from file
+!                                                                     !2-Vegetation growth model
+!
+! WATER_STRESS                     : 0/1         -         1      !Connects/disconnects water limitation on plant growth
+! NITROGEN_STRESS                  : 0/1         -         1      !Connects/disconnects N limitation on plant growth
+! PHOSPHORUS_STRESS                : 0/1         -         1      !Connects/disconnects P limitation on plant growth
+! TEMPERATURE_STRESS               : 0/1         -         1      !Connects/disconnects temp. limitation on plant growth
+! ADJUST_RUE_FOR_CO2               : 0/1         -         1      !Connects/disconnects CO2 limitation on plant growth
+! ADJUST_RUE_FOR_VPD               : 0/1         -         1      !Connects/disconnects Vapour Pressure Deficit limitation
 !                                                                  plant growth
 !
 ! GRAZING                          : 0/1         -        [0]     !Connects/disconnects grazing
@@ -100,8 +104,12 @@
 
 ! <beginproperty>
 !  See module fillmatrix
-! EVOLUTION                        : integer     -         1      !Property evolution: 1-Read from file
-!                                                                 !2-vegetation growth model
+! EVOLUTION                        : integer     -         *      !Property evolution: 
+!                                                                     !1-Read from file
+!                                                                     !2-vegetation growth model
+!                                                                     !*Default value is the value set in MODEL_EVOLUTION
+!                                                                     !If MODEL_EVOLUTION is set to 1, than property can be 
+!                                                                     !only set to 1 also
 ! <endproperty>
 
 !------------------------------------------------------------------------------------------------------------
@@ -385,6 +393,9 @@ Module ModuleVegetation
     end interface UngetVegetation
 
     !Parameters----------------------------------------------------------------
+    !Vegetation Points
+    integer, parameter                          :: NoVegetationPoint             = 0
+    integer, parameter                          :: VegetationPoint               = 1
     !Property Evolution
     integer, parameter                          :: ReadValue                     = 1
     integer, parameter                          :: SWAT                          = 2
@@ -415,6 +426,17 @@ Module ModuleVegetation
 
     character(StringLength), parameter          :: beginsoilconc                 = '<beginsoilconc>'
     character(StringLength), parameter          :: endsoilconc                   = '<endsoilconc>'
+    
+    !Plant Type
+    integer, parameter                          :: NotAPlant                     = 0
+    integer, parameter                          :: WarmSeasonAnnualLegume        = 1
+    integer, parameter                          :: ColdSeasonAnnualLegume        = 2
+    integer, parameter                          :: PerennialLegume               = 3
+    integer, parameter                          :: WarmSeasonAnnual              = 4
+    integer, parameter                          :: ColdSeasonAnnual              = 5
+    integer, parameter                          :: Perennial                     = 6
+    integer, parameter                          :: Trees                         = 7
+    
 
     !Types---------------------------------------------------------------------
     type       T_ID
@@ -445,22 +467,21 @@ Module ModuleVegetation
         real, dimension(:,:,:), pointer                 :: DWZ
         real, dimension(:,:,:), pointer                 :: SZZ
         integer, dimension(:,:), pointer                :: KFloor
-        !integer, dimension(:,:  ), pointer              :: OpenPoints2D         
-        integer, dimension(:,:  ), pointer              :: MappingPoints2D
-        integer, dimension(:,:  ), pointer              :: BasinPoints       
-        real, dimension(:,:  ), pointer                 :: Topography           
-        real, dimension(:,:  ), pointer                 :: AirTemperature                 !ºC
-        real, dimension(:,:  ), pointer                 :: SolarRadiation                 !W/m2
-        real, dimension(:,:  ), pointer                 :: RelativeHumidity               !0-1
-        real, dimension(:,:  ), pointer                 :: PotentialTranspiration         !m/s     
-        real, dimension(:,:  ), pointer                 :: Latitude                       !deg
+        integer, dimension(:,:), pointer                :: MappingPoints
+        integer, dimension(:,:), pointer                :: BasinPoints       
+        real, dimension(:,:), pointer                   :: Topography           
+        real, dimension(:,:), pointer                   :: AirTemperature                 !ºC
+        real, dimension(:,:), pointer                   :: SolarRadiation                 !W/m2
+        real, dimension(:,:), pointer                   :: RelativeHumidity               !0-1
+        real, dimension(:,:), pointer                   :: PotentialTranspiration         !m/s     
+        real, dimension(:,:), pointer                   :: Latitude                       !deg
         real, dimension(:,:,:), pointer                 :: SoilWaterContent               !m3H2O/m3soil
         real, dimension(:,:,:), pointer                 :: Head                           !m
         real, dimension(:,:,:), pointer                 :: ResidualWaterContent           !m3H2O/m3soil                    
         real, dimension(:,:,:), pointer                 :: SoilNitrate                    !ug/m3H2O    
         real, dimension(:,:,:), pointer                 :: SoilPhosphorus                 !ug/m3H2O   
         real, dimension(:,:,:), pointer                 :: FieldCapacity                  !m3H2O/m3soil  
-        real, dimension(:,:  ), pointer                 :: GridCellArea
+        real, dimension(:,:), pointer                   :: GridCellArea
         real(8), dimension(:,:,:), pointer              :: CellVolume
         type(T_Integration)                             :: Integration
         real, dimension(:,:,:), pointer                 :: ECw        
@@ -537,6 +558,9 @@ Module ModuleVegetation
         real                                            :: FrLAIMax2
         real                                            :: FrGrow1
         real                                            :: FrGrow2
+        real                                            :: LAIShape1
+        real                                            :: LAIShape2
+        logical                                         :: Evergreen
         real                                            :: FrGrowLAIDecline
         real                                            :: LAIMax
         real                                            :: LAIDecRate
@@ -653,10 +677,10 @@ Module ModuleVegetation
     end type   T_TranspirationMOHID
 
     type T_Evolution
-        logical                                         :: ReadNeeded     = .false.
-        logical                                         :: GrowthModelNeeded    = .false.
-        logical                                         :: ModelSWAT      = .false.
-        logical                                         :: ModelDEB       = .false.
+        logical                                         :: ReadNeeded        = .false.
+        logical                                         :: GrowthModelNeeded = .false.
+        logical                                         :: ModelSWAT         = .false.
+        logical                                         :: ModelDEB          = .false.
     end type T_Evolution 
 
     type       T_ComputeOptions
@@ -666,7 +690,8 @@ Module ModuleVegetation
         logical                                         :: Fertilization        = .false.
         logical                                         :: Pesticide            = .false.
         logical                                         :: AutoFertilization    = .false. !fertilization when plant needs
-        logical                                         :: FertilizationApp     = .false. !scheduled fertilization      
+        logical                                         :: FertilizationApp     = .false. !scheduled fertilization  
+        logical                                         :: CheckSpinUp    
         integer                                         :: RootProfile          
         integer                                         :: TranspirationMethod
         integer                                         :: NutrientUptakeMethod
@@ -710,6 +735,7 @@ Module ModuleVegetation
 
         type(T_TranspirationMOHID)                      :: TranspirationMOHID
         type(T_Evolution)                               :: Evolution
+        integer                                         :: GlobalEvolution
     end type   T_ComputeOptions
 
     type       T_HeatUnits
@@ -831,7 +857,7 @@ Module ModuleVegetation
         real, dimension(:,:,:), pointer                 :: PhosphorusUptakeLayer
         real, dimension(:,:  ), pointer                 :: PhosphorusUptake
         real, dimension(:,:  ), pointer                 :: BiomassGrowth
-        real, dimension(:,:  ), pointer                 :: LAIGrowth
+        real, dimension(:,:  ), pointer                 :: LAIChange
         real, dimension(:,:  ), pointer                 :: BiomassRemovedInHarvest
         real, dimension(:,:  ), pointer                 :: NitrogenRemovedInHarvest
         real, dimension(:,:  ), pointer                 :: PhosphorusRemovedInHarvest
@@ -874,111 +900,109 @@ Module ModuleVegetation
 
     private :: T_Vegetation
     type       T_Vegetation
-        integer                                         :: InstanceID
-        type(T_Size3D)                                  :: Size, WorkSize
-        type(T_Size2D)                                  :: Size2D, WorkSize2D
-        type(T_External)                                :: ExternalVar
-        type(T_Files)                                   :: Files
-        type(T_OutPut)                                  :: OutPut
-        type(T_Time     )                               :: BeginTime
-        type(T_Time     )                               :: EndTime
-        type(T_Time     )                               :: ActualTime
-        type(T_Time     )                               :: NextCompute
-        type(T_Time     )                               :: NextIntegration
-        type(T_Time     )                               :: LastOutPutHDF5
-        type(T_Property    ), pointer                   :: FirstProperty
-        type(T_Property    ), pointer                   :: LastProperty
-        integer                                         :: PropertiesNumber     = 0
+        integer                                                 :: InstanceID
+        type(T_Size3D)                                          :: Size, WorkSize
+        type(T_Size2D)                                          :: Size2D, WorkSize2D
+        type(T_External)                                        :: ExternalVar
+        type(T_Files)                                           :: Files
+        type(T_OutPut)                                          :: OutPut
+        type(T_Time     )                                       :: BeginTime
+        type(T_Time     )                                       :: EndTime
+        type(T_Time     )                                       :: ActualTime
+        type(T_Time     )                                       :: NextCompute
+        type(T_Time     )                                       :: NextIntegration
+        type(T_Time     )                                       :: LastOutPutHDF5
+        type(T_Property    ), pointer                           :: FirstProperty
+        type(T_Property    ), pointer                           :: LastProperty
+        integer                                                 :: PropertiesNumber     = 0
 
-        type(T_VegetationType    ), pointer             :: FirstVegetation
-        type(T_VegetationType    ), pointer             :: LastVegetation
-        integer                                         :: VegetationsNumber     = 0
+        type(T_VegetationType    ), pointer                     :: FirstVegetation
+        type(T_VegetationType    ), pointer                     :: LastVegetation
+        integer                                                 :: VegetationsNumber     = 0
 
         !DataMatrixes
-        integer, dimension(:,:), pointer                :: AgricPractID            !ID's from user - SWAT ID'S
-        type (T_PropertyID)                             :: AgricPract
-        integer, dimension(:,:), pointer                :: VegetationID            !ordered ID's to save space (max value = number
-                                                                                   ! of different ID's)
-        integer                                         :: ObjEnterData         = 0
-        integer                                         :: ObjTime              = 0
-        integer                                         :: ObjGridData          = 0
-        integer                                         :: ObjHorizontalGrid    = 0
-        integer                                         :: ObjHorizontalMap     = 0
-        integer                                         :: ObjGeometry          = 0
-        integer                                         :: ObjBasinGeometry     = 0
-        integer                                         :: ObjTimeSerie         = 0
-        integer                                         :: ObjTimeSerieToSoil   = 0
-        integer                                         :: ObjTimeSerieAtm      = 0
-        integer                                         :: ObjFillMatrix        = 0
-        integer                                         :: ObjAtmosphere        = 0
-        integer                                         :: ObjPorousMedia       = 0
-        integer                                         :: ObjHDF5              = 0
-        type(T_Vegetation), pointer                     :: Next
+        integer, dimension(:,:), pointer                        :: AgricPractID !ID's from user - SWAT ID'S
+        type (T_PropertyID)                                     :: AgricPract
         
-        logical                                         :: UsePotLAI = .false.
+        !ordered ID's to save space (max value = number of different ID's)
+        integer, dimension(:,:), pointer                        :: VegetationID    
+                                                                                   
+        integer                                                 :: ObjEnterData         = 0
+        integer                                                 :: ObjTime              = 0
+        integer                                                 :: ObjGridData          = 0
+        integer                                                 :: ObjHorizontalGrid    = 0
+        integer                                                 :: ObjHorizontalMap     = 0
+        integer                                                 :: ObjGeometry          = 0
+        integer                                                 :: ObjBasinGeometry     = 0
+        integer                                                 :: ObjTimeSerie         = 0
+        integer                                                 :: ObjTimeSerieToSoil   = 0
+        integer                                                 :: ObjTimeSerieAtm      = 0
+        integer                                                 :: ObjFillMatrix        = 0
+        integer                                                 :: ObjAtmosphere        = 0
+        integer                                                 :: ObjPorousMedia       = 0
+        integer                                                 :: ObjHDF5              = 0
+        type(T_Vegetation), pointer                             :: Next
         
-        logical, dimension(:,:), pointer                :: IsPlantGrowing       
-        logical, dimension(:,:), pointer                :: PlantingOccurred      
-        logical, dimension(:,:), pointer                :: KillOccurred        
-        logical, dimension(:,:), pointer                :: HarvestOnlyOccurred   
-        logical, dimension(:,:), pointer                :: HarvestKillOccurred
-!        logical, dimension(:,:), pointer                :: FertilizationOccurred
-        logical, dimension(:,:), pointer                :: IsPlantDormant       
-        logical, dimension(:,:), pointer                :: PlantGoingDormant    
-        logical, dimension(:,:), pointer                :: IsPlantBeingGrazed
-        logical, dimension(:,:), pointer                :: LAISenescence        
-!        logical, dimension(:,:), pointer                :: HarvestFinished
-!        logical, dimension(:,:), pointer                :: GrazingFinished
-        logical, dimension(:,:), pointer                :: ChangeCanopyEnabled      
-        logical, dimension(:,:), pointer                :: SoilFluxesActive
+        logical                                                 :: UsePotLAI      = .false.
+        logical                                                 :: UseBoundaryLAI = .false.
+        
+        logical, dimension(:,:), pointer                        :: IsPlantGrowing       
+        logical, dimension(:,:), pointer                        :: PlantingOccurred      
+        logical, dimension(:,:), pointer                        :: KillOccurred        
+        logical, dimension(:,:), pointer                        :: HarvestOnlyOccurred   
+        logical, dimension(:,:), pointer                        :: HarvestKillOccurred
+        logical, dimension(:,:), pointer                        :: IsPlantDormant       
+        logical, dimension(:,:), pointer                        :: PlantGoingDormant    
+        logical, dimension(:,:), pointer                        :: IsPlantBeingGrazed
+        logical, dimension(:,:), pointer                        :: LAISenescence        
+        logical, dimension(:,:), pointer                        :: ChangeCanopyEnabled      
+        logical, dimension(:,:), pointer                        :: SoilFluxesActive
 
         !global variables to be used in several routines
-        real, dimension(:,:), pointer                   :: PlantNitrogenFraction
-        real, dimension(:,:), pointer                   :: PlantPhosphorusFraction
-        real, dimension(:,:), pointer                   :: PlantLAIMaxFraction
-        real, dimension(:,:), pointer                   :: LAIBeforeSenescence
-        real, dimension(:,:  ), pointer                 :: LAIDeclineFraction
-        real, dimension(:,:), pointer                   :: DayLength
-        real, dimension(:,:), pointer                   :: MinimumDayLength
-        integer, dimension(:,:), pointer                :: TranspirationBottomLayer
+        real, dimension(:,:), pointer                           :: PlantNitrogenFraction
+        real, dimension(:,:), pointer                           :: PlantPhosphorusFraction
+        real, dimension(:,:), pointer                           :: PlantLAIMaxFraction
+        real, dimension(:,:), pointer                           :: LAIBeforeSenescence
+        real, dimension(:,:  ), pointer                         :: LAIDeclineFraction
+        real, dimension(:,:), pointer                           :: DayLength
+        real, dimension(:,:), pointer                           :: MinimumDayLength
+        integer, dimension(:,:), pointer                        :: TranspirationBottomLayer
         
-        character(len = StringLength)                   :: GrowthDatabase
-        character(len = StringLength)                   :: FertilizerDatabase
-        character(len = StringLength)                   :: PesticideDatabase
-        character(len = StringLength)                   :: FeddesDatabase
+        character(len = StringLength)                           :: GrowthDatabase
+        character(len = StringLength)                           :: FertilizerDatabase
+        character(len = StringLength)                           :: PesticideDatabase
+        character(len = StringLength)                           :: FeddesDatabase
 
         !global counter
-        real, dimension(:,:), pointer                   :: DaysOfGrazing                    !counter to days of grazing
-        real, dimension(:,:), pointer                   :: AnnualNitrogenFertilized
-        real, dimension(:,:), pointer                   :: AnnualPhosphorusFertilized
-        real, dimension(:,:), pointer                   :: OptimalTotalPlantNitrogen
-        real, dimension(:,:), pointer                   :: OptimalTotalPlantPhosphorus
-!        integer, dimension(:,:), pointer                :: HarvestOperations
-!        integer, dimension(:,:), pointer                :: GrazingOperations
-!        integer, dimension(:,:), pointer                :: HarvestKillOperations
-!        integer, dimension(:,:), pointer                :: KillOperations
-        integer                                         :: nIterations                      !counter to atmosphere integration
+        real, dimension(:,:), pointer                           :: DaysOfGrazing                    !counter to days of grazing
+        real, dimension(:,:), pointer                           :: AnnualNitrogenFertilized
+        real, dimension(:,:), pointer                           :: AnnualPhosphorusFertilized
+        real, dimension(:,:), pointer                           :: OptimalTotalPlantNitrogen
+        real, dimension(:,:), pointer                           :: OptimalTotalPlantPhosphorus
+        integer                                                 :: nIterations                      !counter to atmosphere integration
         
-        integer, dimension(:), pointer                       :: PesticideListID
-        character(len = StringLength), dimension(:), pointer :: PesticideListName
+        integer, dimension(:), pointer                          :: PesticideListID
+        character(len = StringLength), dimension(:), pointer    :: PesticideListName
+       
+        type(T_VegetationType), dimension(:), pointer           :: VegetationTypes  => null()
+        type(T_ComputeOptions)                                  :: ComputeOptions
+        type(T_HeatUnits)                                       :: HeatUnits
+        type(T_Growth)                                          :: Growth
+        type(T_Fluxes)                                          :: Fluxes
+        type(T_StateVariables)                                  :: StateVariables
         
-!        integer                                         :: VegetationsNumber     = 0
-        type(T_VegetationType), dimension(:), pointer   :: VegetationTypes  => null()
-        type(T_ComputeOptions)                          :: ComputeOptions
-        type(T_HeatUnits)                               :: HeatUnits
-        type(T_Growth)                                  :: Growth
-        type(T_Fluxes)                                  :: Fluxes
-        type(T_StateVariables)                          :: StateVariables
-        
-        real, dimension(:,:), pointer                   :: RootDepthOld
+        real, dimension(:,:), pointer                           :: RootDepthOld
         
         !Auto fertilization target
-        integer                                         :: SimulationYear = 1
-        real, dimension(:,:), pointer                   :: NitrogenYeldEstimate
-        real, dimension(:,:), pointer                   :: NitrogenYeldTarget
+        integer                                                 :: SimulationYear = 1
+        real, dimension(:,:), pointer                           :: NitrogenYeldEstimate
+        real, dimension(:,:), pointer                           :: NitrogenYeldTarget
         
-        real, dimension(:,:,:), pointer                 :: ECw => null()        
-
+        real, dimension(:,:,:), pointer                         :: ECw => null()      
+        
+        logical                                                 :: AllowNegativeLAI   = .false.
+        logical                                                 :: CorrectNegativeLAI = .false.
+        real                                                    :: ValueInsteadNegativeLAI
 
     end type  T_Vegetation
 
@@ -1022,7 +1046,7 @@ Module ModuleVegetation
         integer                                         :: HorizontalMapID
         integer                                         :: AtmosphereID
         integer                                         :: PorousMediaID
-        integer, dimension(:, :), pointer               :: MappingPoints
+        integer, dimension(:,:), pointer                :: MappingPoints
         integer                                         :: GeometryID
         integer                                         :: BasinGeometryID
         logical                                         :: CoupledAtmosphere
@@ -1049,7 +1073,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
 
-            Me%UsePotLAI = .false.
+            Me%UsePotLAI          = .false.
+            Me%UseBoundaryLAI     = .false.
+            Me%AllowNegativeLAI   = .false.
+            Me%CorrectNegativeLAI = .false.
+            
+            Me%ValueInsteadNegativeLAI = 0.0
             
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
@@ -1061,31 +1090,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjAtmosphere     = AssociateInstance (mATMOSPHERE_,     AtmosphereID    )
             Me%ObjPorousMedia    = AssociateInstance (mPOROUSMEDIA_,    PorousMediaID   )
             
-            Me%ExternalVar%MappingPoints2D    => MappingPoints
-            Me%ExternalVar%CoupledAtmosphere  =  CoupledAtmosphere                       
+            Me%ExternalVar%MappingPoints => MappingPoints
+            Me%ExternalVar%CoupledAtmosphere = CoupledAtmosphere                       
 
             call ReadVegetationFileNames
 
             
             call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetation - ModuleVegetation - ERR01' 
+                                                
+            call ConstructGlobalVariables   !Read Data file Options
+            call AllocateVariables          !Allocate global variables
+            call AllocateEvolutionVariables !Allocate evolution method dependent variables
             
-            !Read Data file Options
-            call ConstructGlobalVariables
-
-            call ConstructPropertyList
-            
-!            call ConstructSoilConcList
+            call ConstructPropertyList      !Constructs the list of vegetation properties            
+            call CreatePropertiesAlias      !Creates the aliases for the properties
 
             call ConstructVegetationList
-
-            call ConstructVegetationParameters 
-            
+            call ConstructVegetationParameters             
             call CheckOptionsConsistence
-
+            call AllocatePropertyVariables  !Allocate property dependent variables
             
-            !Grid operations
-            call AllocateVariables
+            !Grid operations            
             
             call ConstructVegetationGrids
 
@@ -1102,11 +1128,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             !Initial conditions read if "real" continuous simulation
-            if (Me%ComputeOptions%Continuous .and. Me%ComputeOptions%StopOnWrongDate    &
-            .and. Me%ComputeOptions%Evolution%ModelSWAT) then
+            if (Me%ComputeOptions%CheckSpinUp) then
+                if (Me%ComputeOptions%Continuous .and. Me%ComputeOptions%StopOnWrongDate    &
+                    .and. Me%ComputeOptions%Evolution%ModelSWAT) then
+                    call ReadInitialHDF
+                else
+                    Me%Growth%TreeCurrentYear (:,:) = 0
+                    Me%Growth%TreeComingFromContinuous (:,:) = .false.                
+                endif
+            else if (Me%ComputeOptions%Continuous .and. Me%ComputeOptions%Evolution%ModelSWAT) then
                 call ReadInitialHDF
-!                call ReadInitialFile
-!                call CheckPlantGrowing
+            else
+                Me%Growth%TreeCurrentYear (:,:) = 0
+                Me%Growth%TreeComingFromContinuous (:,:) = .false.
             endif
 
             !Output
@@ -1239,15 +1273,43 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                  WorkSize = Me%WorkSize,                                &
                                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation  - ERR030'
-        
 
-!        call GetData(Me%Files%VegetationIDFile,                                         &
-!                     Me%ObjEnterData, iflag,                                            &
-!                     Keyword        = 'VEGETATION_ID_FILE',                             &
-!                     SearchType     = FromFile,                                         &
-!                     ClientModule   = 'ModuleVegetation',                               &
-!                     STAT           = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR040'
+        call GetData(Me%ComputeOptions%GlobalEvolution,                                 &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'MODEL_EVOLUTION',                                      &                     
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleVegetation',                               &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR040'
+        if (iflag /= 1) then
+            write (*,*) ''
+            write (*,*) 'ATTENTION'
+            write (*,*) 'The keyword MODEL_EVOLUTION is missing in the vegetation input file.'
+            write (*,*) 'The possible values are:'
+            write (*,*) '  1 - Vegetation growth will NOT be modeled.'
+            write (*,*) '  2 - SWAT method will be used to model vegetation growth.'
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR041'
+        endif
+        select case (Me%ComputeOptions%GlobalEvolution)
+        case (1)
+            Me%ComputeOptions%Evolution%ReadNeeded        = .true.
+            Me%ComputeOptions%Evolution%GrowthModelNeeded = .false.
+            Me%ComputeOptions%Evolution%ModelSWAT         = .false.
+            Me%ComputeOptions%Evolution%ModelDEB          = .false.        
+        case (2)
+            Me%ComputeOptions%Evolution%ReadNeeded        = .false.
+            Me%ComputeOptions%Evolution%GrowthModelNeeded = .true.
+            Me%ComputeOptions%Evolution%ModelSWAT         = .true.
+            Me%ComputeOptions%Evolution%ModelDEB          = .false.                
+        case default
+            write (*,*) ''
+            write (*,*) 'ATTENTION'
+            write (*,*) 'The keyword GROWTH_METHOD value in the vegetation input file is INVALID.'
+            write (*,*) 'The possible values are:'
+            write (*,*) '  1 - Vegetation growth will NOT be modeled.'
+            write (*,*) '  2 - SWAT method will be used to model vegetation growth.'
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR042'        
+        end select
 
         call GetData(Me%ComputeOptions%ModelTemperatureStress,                          &
                      Me%ObjEnterData, iflag,                                            &
@@ -1440,24 +1502,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR200'
 
-
-        !Tests with initial conditions for one cell. Model in the future should try to contruct initial conditions for grid
- !       call GetData(Me%ComputeOptions%IsPlantGrowing,                                  &
- !                    Me%ObjEnterData, iflag,                                            &
- !                    Keyword        = 'ISPLANTGROWING',                                 &
- !                    Default        = .false.,                                          &
- !                    SearchType     = FromFile,                                         &
- !                    ClientModule   = 'ModuleVegetation',                               &
- !                    STAT           = STAT_CALL)
- !       if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0130'
- !       call GetData(Me%ComputeOptions%PotentialHUBASE,                                 &
- !                    Me%ObjEnterData, iflag,                                            &
- !                    Keyword        = 'POTENTIALHUBASE',                                &
- !                    Default        = 0.,                                               &
- !                    SearchType     = FromFile,                                         &
- !                    ClientModule   = 'ModuleVegetation',                               &
- !                    STAT           = STAT_CALL)
- !       if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0140'
         call GetData(PotentialHUTotal,                                                  &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'POTENTIALHUTOTAL',                               &
@@ -1473,6 +1517,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             stop 'ConstructGlobalVariables - ModuleVegetation - ERR210'
         endif
 
+        call GetData(Me%ComputeOptions%CheckSpinUp,                                     &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'CHECK_SPINUP',                                   &
+                     Default        = .true.,                                           &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleVegetation',                               &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR211'    
 
         call GetData(Me%ComputeOptions%Grazing,                                         &
                      Me%ObjEnterData, iflag,                                            &
@@ -1694,6 +1746,42 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%NextCompute = Me%ExternalVar%Now !+ Me%ComputeOptions%VegetationDT
 
         Me%NextIntegration = Me%ExternalVar%Now !+ Me%ComputeOptions%IntegrationDT
+        
+        call GetData(Me%AllowNegativeLAI,                                                &
+                     Me%ObjEnterData, iflag,                                             &
+                     keyword      = 'ALLOW_NEGATIVE_LAI',                                &
+                     Default      = .false.,                                             &
+                     SearchType   = FromFile,                                            &
+                     ClientModule = 'ModuleVegetation',                                  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR440'        
+        if (.not. Me%AllowNegativeLAI) then       
+            call GetData(Me%CorrectNegativeLAI,                                          &
+                         Me%ObjEnterData, iflag,                                         &
+                         keyword      = 'CORRECT_NEGATIVE_LAI',                          &
+                         SearchType   = FromFile,                                        &
+                         ClientModule = 'ModuleVegetation',                              &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                 &
+                stop 'ConstructGlobalVariables - ModuleVegetation - ERR450'        
+            if (iflag /= 1) then
+                write (*,*) "ATTENTION"
+                write (*,*) "ALLOW_NEGATIVE_LAI is set to FALSE and"
+                write (*,*) "CORRECT_NEGATIVE_LAI is missing. Check your"
+                write (*,*) "vegetation input file"
+                stop 'ConstructGlobalVariables - ModuleVegetation - ERR460'        
+            endif
+            call GetData(Me%ValueInsteadNegativeLAI,                                     &
+                         Me%ObjEnterData, iflag,                                         &
+                         keyword      = 'VALUE_INSTEAD_NEGATIVE_LAI',                    &
+                         SearchType   = FromFile,                                        &
+                         default      = 0.0,                                             &
+                         ClientModule = 'ModuleVegetation',                              &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                 &
+                stop 'ConstructGlobalVariables - ModuleVegetation - ERR470'  
+        endif
 
     end subroutine ConstructGlobalVariables
 
@@ -1828,13 +1916,16 @@ cd2 :           if (BlockFound) then
             write(*,*)'has not OLD keyword active but global keyword CONTINUOUS is.'
             stop 'ConstructPropertyValues - ModuleVegetation - ERR06'
         endif
-        !Do not use old property values if on spin-up periods (final HDF file will have different date) 
-        if(Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate .and. NewProperty%Old) then
-            write(*,*)'ERROR! Property ', trim(adjustl(NewProperty%ID%name))
-            write(*,*)'has OLD keyword active but user is running spin-up with "wrongdate" on.'
-            stop 'ConstructPropertyValues - ModuleVegetation - ERR06.5'
+        
+        if (Me%ComputeOptions%CheckSpinUp) then
+            !Do not use old property values if on spin-up periods (final HDF file will have different date) 
+            if(Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate .and. NewProperty%Old) then
+                write(*,*)'ERROR! Property ', trim(adjustl(NewProperty%ID%name))
+                write(*,*)'has OLD keyword active but user is running spin-up with "wrongdate" on.'
+                stop 'ConstructPropertyValues - ModuleVegetation - ERR06.5'
+            endif
         endif
-
+        
         ! if the property is not 'OLD' the property values in the domain and 
         ! in the boundaries are initialized
         ! if it's true ('OLD') this same values are read from the final file of the
@@ -1845,7 +1936,7 @@ cd2 :           if (BlockFound) then
                                        TimeID               = Me%ObjTime,                       &
                                        HorizontalGridID     = Me%ObjHorizontalGrid,             &
                                        ExtractType          = FromBlock,                        &
-                                       PointsToFill2D       = Me%ExternalVar%MappingPoints2D,   &
+                                       PointsToFill2D       = Me%ExternalVar%MappingPoints,     &
                                        Matrix2D             = NewProperty%Field,                &
                                        TypeZUV              = TypeZ_,                           &
                                        STAT                 = STAT_CALL)
@@ -1900,7 +1991,7 @@ cd2 :           if (BlockFound) then
         do I = ILB, IUB
         do J = JLB, JUB
             
-            if (Me%ExternalVar%MappingPoints2D(i, j) == BasinPoint) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
                                
                 if (NewProperty%Field(i, j) < 0.) then
 
@@ -2036,36 +2127,46 @@ cd0:    if (Exist) then
                      SearchType   = FromBlock,                                           &
                      keyword      = 'EVOLUTION',                                         &
                      ClientModule = 'ModuleVegetation',                                  &
-                     Default      = ReadValue,                                           &
+                     Default      = Me%ComputeOptions%GlobalEvolution,                   &
                      STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_)                                                      &
-            stop 'Construct_PropertyEvolution - ModuleVegetation - ERR01'
+        if(STAT_CALL /= SUCCESS_) stop 'ConstructPropertyEvolution - ModuleVegetation - ERR010'
+
+        if (NewProperty%Evolution == ReadValue) then
+            Me%ComputeOptions%Evolution%ReadNeeded = .true.
+        elseif (Me%ComputeOptions%GlobalEvolution == ReadValue) then
+            write(*,*) 
+            write(*,*) 'ATTENTION. Property: ', NewProperty%ID%Name 
+            write(*,*) 'Global EVOLUTION keyword is set to 1 (no vegetation growth will be modeled)'
+            write(*,*) 'But the property EVOLUTION keyword is set to a diferent value.' 
+            write(*,*) 'If no vegetation growth will be modeled, all properties'
+            write(*,*) 'must be provided (property EVOLUTION = 1)'
+            stop 'Construct_PropertyEvolution - ModuleVegetation - ERR020'              
+        elseif (NewProperty%Evolution /= Me%ComputeOptions%GlobalEvolution) then
+            write(*,*) 
+            write(*,*) 'ATTENTION. Property: ', NewProperty%ID%Name 
+            write(*,*) 'If the property EVOLUTION keyword is set to a DIFFERENT value than 1, '
+            write(*,*) 'Than it must be the same than the GLOBAL keyword EVOLUTION.' 
+            stop 'Construct_PropertyEvolution - ModuleVegetation - ERR030'        
+        endif
+
+        if (NewProperty%ID%IDNumber .EQ. BoundaryLeafAreaIndex_) then
+            if (NewProperty%Evolution /= ReadValue) then
+                write(*,*) 
+                write(*,*) "'boundary Leaf area index' property can't be modeled."
+                write(*,*) 'EVOLUTION keyword must be set to 1 (= READ)'
+                stop 'Construct_PropertyEvolution - ModuleVegetation - ERR040'                
+            endif
+            
+            Me%UseBoundaryLAI = .true.        
+        endif    
 
         if (NewProperty%Evolution == DEB) then
             write(*,*) 
             write(*,*) 'DEB vegetation model is not yet implemented.'
             write(*,*) 'Check EVOLUTION keyword options'
-            stop 'Construct_PropertyEvolution - ModuleVegetation - ERR010'
-        
+            stop 'Construct_PropertyEvolution - ModuleVegetation - ERR050'        
         endif
         
-        if (NewProperty%Evolution == ReadValue) then
-            Me%ComputeOptions%Evolution%ReadNeeded = .true.
-        elseif (NewProperty%Evolution == SWAT) then
-            Me%ComputeOptions%Evolution%GrowthModelNeeded = .true.
-            Me%ComputeOptions%Evolution%ModelSWAT   = .true.
-        elseif (NewProperty%Evolution == DEB) then
-            Me%ComputeOptions%Evolution%GrowthModelNeeded = .true.
-            Me%ComputeOptions%Evolution%ModelDEB    = .true.
-        else
-            write(*,*    ) 
-            write(*,*    ) 'Fatal error ! Option for vegetation evolution' 
-            write(*,*    ) 'not known. For now it is possible to run a Vegetation'
-            write(*,*    ) 'model (SWAT) or read from file. Check EVOLUTION keyword '
-            stop 'ConstructPropertyEvolution - ModuleVegetation - ERR020'  
-
-        endif
-
         call GetData(NewProperty%IsConstant,                                             &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromBlock,                                           &
@@ -2074,14 +2175,14 @@ cd0:    if (Exist) then
                      Default      = .false.,                                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_)                                                      &
-            stop 'Construct_PropertyEvolution - ModuleVegetation - ERR030'
+            stop 'Construct_PropertyEvolution - ModuleVegetation - ERR060'
 
         if (.not. NewProperty%Evolution == ReadValue .and. NewProperty%IsConstant) then
             write(*,*    ) 
             write(*,*    ) 'Fatal error ! Property ', trim(NewProperty%ID%Name) 
             write(*,*    ) 'in Vegetation file has model and constant value options active.'
             write(*,*    ) 'Check EVOLUTION and REMAIN_CONSTANT keywords. '
-            stop 'ConstructPropertyEvolution - ModuleVegetation - ERR040'  
+            stop 'ConstructPropertyEvolution - ModuleVegetation - ERR070'  
         endif
 
         if (.not. NewProperty%Evolution == ReadValue .and. NewProperty%ID%SolutionFromFile) then
@@ -2089,7 +2190,7 @@ cd0:    if (Exist) then
             write(*,*    ) 'Fatal error ! Property ', trim(NewProperty%ID%Name)
             write(*,*    ) 'in Vegetation file has model and read value options active.'
             write(*,*    ) 'Check EVOLUTION and FILE_IN_TIME keywords. '
-            stop 'ConstructPropertyEvolution - ModuleVegetation - ERR050'  
+            stop 'ConstructPropertyEvolution - ModuleVegetation - ERR080'  
         endif
 
         if (NewProperty%IsConstant) then
@@ -2101,9 +2202,8 @@ cd0:    if (Exist) then
                          Default      = 0.,                                              &
                          STAT         = STAT_CALL)
             if(STAT_CALL .NE. SUCCESS_)                                                  &
-                stop 'Construct_PropertyEvolution - ModuleVegetation - ERR060'
-        endif
-            
+                stop 'Construct_PropertyEvolution - ModuleVegetation - ERR090'
+        endif            
 
     end subroutine ConstructPropertyEvolution
 
@@ -2356,20 +2456,10 @@ cd0:    if (Exist) then
         integer                                 :: AgricPractIDScalar, HDFInstant, TimeSerieInstant
         integer                                 :: column
         character(len=StringLength)             :: FileInTime, FileName, field_name
-        !type (T_PropertyID)                     :: AgricPractID
         integer                                 :: HDF5_READ, DataValues
-!        type (T_PropertyID)                     :: AgricPract
+
         !Begin----------------------------------------------------------------
     
-!        !Gets Vegetation IDs
-!        ObjGD = 0
-!        call ConstructGridData  (ObjGD, Me%ObjHorizontalGrid, FileName = Me%Files%VegetationIDFile, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR03'
-!        
-!        !allocate (AuxID(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-!        call GetGridData (ObjGD, AgricPractIDMatrix, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR04'
-
         call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR00'
         
@@ -2389,18 +2479,14 @@ cd0:    if (Exist) then
             
             allocate (AgricPractIDMatrix(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             AgricPractIDMatrix = FillValueReal
-            
-!            !Gets Basin Points
-!            call GetBasinPoints (Me%ObjBasinGeometry, Me%ExternalVar%BasinPoints, STAT_CALL)
-!            if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR015'  
-            
+                        
             !fill the first grid (in case of solution from file) or the unique grid
-            call ConstructFillMatrix  (PropertyID           = Me%AgricPract,                       &
+            call ConstructFillMatrix  (PropertyID           = Me%AgricPract,                    &
                                        EnterDataID          = Me%ObjEnterData,                  &
                                        TimeID               = Me%ObjTime,                       &
                                        HorizontalGridID     = Me%ObjHorizontalGrid,             &
                                        ExtractType          = FromBlock,                        &
-                                       PointsToFill2D       = Me%ExternalVar%MappingPoints2D,   &
+                                       PointsToFill2D       = Me%ExternalVar%MappingPoints,     &
                                        Matrix2D             = AgricPractIDMatrix,               &
                                        TypeZUV              = TypeZ_,                           &
                                        STAT                 = STAT_CALL)
@@ -2559,17 +2645,6 @@ cd0:    if (Exist) then
         else
             stop 'ConstructVegetationList - ModuleVegetation - ERR130'
         endif            
-
-   
-
-        !deallocate (AuxID)
-        
-!        call UnGetGridData (ObjGD, AgricPractIDMatrix, STAT = STAT_CALL)        
-!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR08'
-!       
-!        
-!        call KillGridData (ObjGD, STAT = STAT_CALL)   
-!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR09'
         
     end subroutine ConstructVegetationList
 
@@ -2588,13 +2663,13 @@ cd0:    if (Exist) then
         do j = Me%Size%JLB, Me%Size%JUB
         do i = Me%Size%ILB, Me%Size%IUB
             
-            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
                 
                 !Found boundary or negative values inside the domain
-                if (AgricPractID(i,j).lt.0.) then
-                    write(*,*)'Vegetation ID negative inside the domain.'
-                    write(*,*)'Check in vegetation grid provided the ID:', NINT(AgricPractID(i,j))
-                    stop 'CheckVegetationListMatrix - ModuleVegetation - ERR10'                
+                if (AgricPractID(i,j) < 0) then
+                    write(*,*)'Practice ID negative inside the domain.'
+                    write(*,*)'Check in practices grid the ID:', NINT(AgricPractID(i,j))
+                    stop 'CheckVegetationListMatrix - ModuleVegetation - ERR010'
                 endif
                 
                 !Search for the agricultural practices ID in the vegetation list
@@ -2618,7 +2693,6 @@ doV:            do while (associated(VegetationInList))
                     nullify  (VegetationX%Prev,VegetationX%Next)
                     
                     VegetationX%ID           = NINT(AgricPractID(i,j))     !vegetation type ID
-!                    VegetationX%VegetationID = AuxID(i,j)     !crop ID growing - for now is the same
                    
                     call AddVegetation(VegetationX)
 
@@ -3220,51 +3294,17 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
     end subroutine SearchProperty
 
     !--------------------------------------------------------------------------
-
-    subroutine AllocateVariables
+    
+    subroutine CreatePropertiesAlias
+    
 
         !Arguments-------------------------------------------------------------
                                                     
         !Local-----------------------------------------------------------------
-        integer                                             :: ILB, IUB, JLB, JUB
-        integer                                             :: KLB, KUB, JulDay  
-        integer                                             :: STAT_CALL
-        real                                                :: InitialHUBase
         type (T_property), pointer                          :: PropertyX
-        integer                                             :: Pest
-        !Begin-----------------------------------------------------------------
-
-
-        !Bounds
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
+        integer                                             :: STAT_CALL
         
-!        allocate(Me%StateVariables%TotalPlantBiomass       (ILB:IUB,JLB:JUB))
-!        allocate(Me%StateVariables%TotalPlantNitrogen      (ILB:IUB,JLB:JUB))
-!        allocate(Me%StateVariables%TotalPlantPhosphorus    (ILB:IUB,JLB:JUB))
-!        allocate(Me%StateVariables%RootBiomass             (ILB:IUB,JLB:JUB))
-!        allocate(Me%StateVariables%RootDepth               (ILB:IUB,JLB:JUB))
-!        allocate(Me%StateVariables%LeafAreaIndex           (ILB:IUB,JLB:JUB))
-!        allocate(Me%StateVariables%CanopyHeight            (ILB:IUB,JLB:JUB))
-!        allocate(Me%StateVariables%SpecificLeafStorage     (ILB:IUB,JLB:JUB))
-!        allocate(Me%StateVariables%EVTPCropCoefficient     (ILB:IUB,JLB:JUB))
-!        
-!        Me%StateVariables%TotalPlantBiomass                (:,:) = FillValueReal
-!        Me%StateVariables%TotalPlantNitrogen               (:,:) = FillValueReal
-!        Me%StateVariables%TotalPlantPhosphorus             (:,:) = FillValueReal
-!        Me%StateVariables%RootBiomass                      (:,:) = FillValueReal
-!        Me%StateVariables%RootDepth                        (:,:) = FillValueReal
-!        Me%StateVariables%LeafAreaIndex                    (:,:) = FillValueReal
-!        Me%StateVariables%CanopyHeight                     (:,:) = FillValueReal
-!        Me%StateVariables%SpecificLeafStorage              (:,:) = FillValueReal
-!        Me%StateVariables%EVTPCropCoefficient              (:,:) = FillValueReal
-        
+        !Begin-----------------------------------------------------------------    
         call SearchProperty(PropertyX  , TotalPlantBiomass_    , .false., STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_)       Me%StateVariables%TotalPlantBiomass => PropertyX%Field        
         call SearchProperty(PropertyX  , TotalPlantNitrogen_   , .false., STAT = STAT_CALL)        
@@ -3276,188 +3316,237 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         call SearchProperty(PropertyX  , RootDepth_            , .false., STAT = STAT_CALL)        
         if (STAT_CALL == SUCCESS_)       Me%StateVariables%RootDepth => PropertyX%Field
         call SearchProperty(PropertyX  , LeafAreaIndex_        , .false., STAT = STAT_CALL)        
-        if (STAT_CALL == SUCCESS_)       Me%StateVariables%LeafAreaIndex => PropertyX%Field
-
-        call SearchProperty(PropertyX  , PotLeafAreaIndex_     , .false., STAT = STAT_CALL)               
-        if (STAT_CALL == SUCCESS_) then
-            Me%StateVariables%PotLeafAreaIndex => PropertyX%Field  
-        else
-            Me%StateVariables%PotLeafAreaIndex => null()
-        endif                                   
-        
+        if (STAT_CALL == SUCCESS_)       Me%StateVariables%LeafAreaIndex => PropertyX%Field        
         call SearchProperty(PropertyX  , CanopyHeight_         , .false., STAT = STAT_CALL)         
         if (STAT_CALL == SUCCESS_)       Me%StateVariables%CanopyHeight => PropertyX%Field
         call SearchProperty(PropertyX  , SpecificLeafStorage_  , .false., STAT = STAT_CALL)        
         if (STAT_CALL == SUCCESS_)       Me%StateVariables%SpecificLeafStorage => PropertyX%Field
-        call SearchProperty(PropertyX  , EVTPCropCoefficient_  , .false., STAT = STAT_CALL)        
+        call SearchProperty(PropertyX  , EVTPCropCoefficient_  , .false., STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_)       Me%StateVariables%EVTPCropCoefficient => PropertyX%Field
+        call SearchProperty(PropertyX  , PotLeafAreaIndex_     , .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            Me%StateVariables%PotLeafAreaIndex => PropertyX%Field  
+        else
+            Me%StateVariables%PotLeafAreaIndex => null()
+        endif   
         
-        allocate(Me%VegetationID                                          (ILB:IUB,JLB:JUB))
+        !Actualize these state variables using property values
+        call SetMatrixValue(Me%RootDepthOld, Me%Size2D,  Me%StateVariables%RootDepth)   
+        
+        if (Me%ComputeOptions%Evolution%ModelSWAT) then 
+            if(.not. Me%ComputeOptions%ChangeLAISenescence) then
+                call SetMatrixValue(Me%LAIBeforeSenescence,           &
+                                    Me%Size2D,                        &
+                                    Me%StateVariables%LeafAreaIndex,  &
+                                    Me%ExternalVar%MappingPoints)           
+            endif    
+        endif
+    end subroutine CreatePropertiesAlias    
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine AllocateVariables
+    
+        !Arguments-------------------------------------------------------------
+                                                    
+        !Local-----------------------------------------------------------------
+        integer                                             :: ILB, IUB, JLB, JUB
+        integer                                             :: KLB, KUB                                  
+        
+        !Begin-----------------------------------------------------------------    
+    
+        !Bounds
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+
+        KLB = Me%Size%KLB
+        KUB = Me%Size%KUB  
+        
+        allocate(Me%VegetationID (ILB:IUB,JLB:JUB))
         Me%VegetationID (:,:) = FillValueInt
 
-        allocate(Me%AgricPractID(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%AgricPractID (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         Me%AgricPractID (:,:) = FillValueInt
         
-        allocate(Me%RootDepthOld                                      (ILB:IUB,JLB:JUB))
-        call SetMatrixValue(Me%RootDepthOld, Me%Size2D,  Me%StateVariables%RootDepth  )
+        allocate(Me%RootDepthOld (ILB:IUB,JLB:JUB))
+        Me%RootDepthOld (:,:) = 0.0
 
         !Soil Fluxes
-        allocate(Me%Fluxes%WaterUptake                                    (ILB:IUB,JLB:JUB))  
-        allocate(Me%Fluxes%WaterUptakeLayer                       (ILB:IUB,JLB:JUB,KLB:KUB))  
-!        allocate(Me%Fluxes%FromSoil%WaterUptakeFromSoil                   (ILB:IUB,JLB:JUB))  
-        Me%Fluxes%WaterUptake                                             (:,:  ) = 0.0 
-        Me%Fluxes%WaterUptakeLayer                                        (:,:,:) = 0.0 
-        allocate(Me%Growth%WaterStress                                    (ILB:IUB,JLB:JUB)) 
-        Me%Growth%WaterStress                                             (:,:  ) = 1.0
-        allocate(Me%TranspirationBottomLayer                              (ILB:IUB,JLB:JUB))
+        allocate(Me%Fluxes%WaterUptake (ILB:IUB,JLB:JUB))  
+        Me%Fluxes%WaterUptake (:,:) = 0.0 
+        
+        allocate(Me%Fluxes%WaterUptakeLayer (ILB:IUB,JLB:JUB,KLB:KUB))  
+        Me%Fluxes%WaterUptakeLayer (:,:,:) = 0.0 
+                
+        allocate(Me%Growth%WaterStress (ILB:IUB,JLB:JUB)) 
+        Me%Growth%WaterStress (:,:) = 1.0
+        
+        allocate(Me%TranspirationBottomLayer (ILB:IUB,JLB:JUB))        
         if (Me%ComputeOptions%ModelWater) then
             Me%TranspirationBottomLayer = KLB
         else
             Me%TranspirationBottomLayer = FillValueInt
         endif
-
-        allocate(Me%Growth%TemperatureStress                          (ILB:IUB,JLB:JUB)) 
-        allocate(Me%Growth%NitrogenStress                             (ILB:IUB,JLB:JUB)) 
-        allocate(Me%Growth%PhosphorusStress                           (ILB:IUB,JLB:JUB)) 
-        Me%Growth%TemperatureStress                                   (:,:  ) = 1.0
-        Me%Growth%NitrogenStress                                      (:,:  ) = 1.0
-        Me%Growth%PhosphorusStress                                    (:,:  ) = 1.0
+        
+        allocate(Me%Growth%TemperatureStress (ILB:IUB,JLB:JUB)) 
+        Me%Growth%TemperatureStress (:,:) = 1.0
+        
+        allocate(Me%Growth%NitrogenStress (ILB:IUB,JLB:JUB)) 
+        Me%Growth%NitrogenStress (:,:) = 1.0
+        
+        allocate(Me%Growth%PhosphorusStress (ILB:IUB,JLB:JUB))                 
+        Me%Growth%PhosphorusStress (:,:) = 1.0
             
         if (Me%ComputeOptions%ModelNitrogen) then
-            allocate(Me%Fluxes%NitrogenUptake                             (ILB:IUB,JLB:JUB))
-            allocate(Me%Fluxes%NitrogenUptakeLayer                (ILB:IUB,JLB:JUB,KLB:KUB))  
-            Me%Fluxes%NitrogenUptake                                      (:,:  ) = 0.0 
-            Me%Fluxes%NitrogenUptakeLayer                                 (:,:,:) = 0.0 
+            allocate(Me%Fluxes%NitrogenUptake (ILB:IUB,JLB:JUB))
+            Me%Fluxes%NitrogenUptake (:,:) = 0.0 
+            
+            allocate(Me%Fluxes%NitrogenUptakeLayer (ILB:IUB,JLB:JUB,KLB:KUB))              
+            Me%Fluxes%NitrogenUptakeLayer (:,:,:) = 0.0 
         endif
 
         if (Me%ComputeOptions%ModelPhosphorus) then
-            allocate(Me%Fluxes%PhosphorusUptake                           (ILB:IUB,JLB:JUB))
-            allocate(Me%Fluxes%PhosphorusUptakeLayer              (ILB:IUB,JLB:JUB,KLB:KUB))  
-            Me%Fluxes%PhosphorusUptake                                    (:,:  ) = 0.0 
-            Me%Fluxes%PhosphorusUptakeLayer                               (:,:,:) = 0.0 
-        endif
-
-                
+            allocate(Me%Fluxes%PhosphorusUptake (ILB:IUB,JLB:JUB))
+            Me%Fluxes%PhosphorusUptake (:,:) = 0.0 
+            
+            allocate(Me%Fluxes%PhosphorusUptakeLayer (ILB:IUB,JLB:JUB,KLB:KUB))              
+            Me%Fluxes%PhosphorusUptakeLayer (:,:,:) = 0.0 
+        endif   
+        
         !Nutrient uptake fluxes in porous media properties
         if (Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
-            allocate(Me%SoilFluxesActive                                  (ILB:IUB,JLB:JUB))
-!            Me%SoilFluxesActive(:,:) = .false.  
+            allocate(Me%SoilFluxesActive (ILB:IUB,JLB:JUB))
+            Me%SoilFluxesActive (:,:) = .false.
         endif
 
-
-        allocate(Me%ExternalVar%Integration%SumPotTP                      (ILB:IUB,JLB:JUB))
-        allocate(Me%ExternalVar%Integration%AveragePotTPDuringDT          (ILB:IUB,JLB:JUB))
-        Me%ExternalVar%Integration%SumPotTP         (:,:) = 0.0
+        allocate(Me%ExternalVar%Integration%SumPotTP (ILB:IUB,JLB:JUB))
+        Me%ExternalVar%Integration%SumPotTP (:,:) = 0.0                     
         
-        if (Me%ComputeOptions%Evolution%ModelSWAT) then
-            allocate(Me%IsPlantGrowing                                    (ILB:IUB,JLB:JUB))
-            allocate(Me%PlantingOccurred                                  (ILB:IUB,JLB:JUB))
-            !Give values if not already read (continuous simulation)
-!            if (.not. Me%ComputeOptions%Continuous .or.                              &
-!                (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then
-            
+        allocate(Me%ExternalVar%Integration%AveragePotTPDuringDT (ILB:IUB,JLB:JUB))
+        Me%ExternalVar%Integration%AveragePotTPDuringDT (:,:) = 0.0
+    
+    end subroutine AllocateVariables
+    
+    !--------------------------------------------------------------------------
+
+    subroutine AllocateEvolutionVariables
+
+        !Arguments-------------------------------------------------------------
+                                                    
+        !Local-----------------------------------------------------------------
+        integer                                             :: ILB, IUB, JLB, JUB
+        integer                                             :: KLB, KUB, JulDay                 
+        real                                                :: InitialHUBase        
+        integer                                             :: Pest
+        !Begin-----------------------------------------------------------------
+
+        !Bounds
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+
+        KLB = Me%Size%KLB
+        KUB = Me%Size%KUB
+               
+        if (Me%ComputeOptions%Evolution%ModelSWAT) then                        
             call JulianDay(Me%ExternalVar%Now, JulDay)
-            Me%ExternalVar%JulianDay_Old  = JulDay
-!            if (.not. Me%ComputeOptions%Continuous) then
-            if (.not. Me%ComputeOptions%Continuous .or.                              &
-                (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then
-                !By default Plant is not growing - it woud require to know the already heat units accumulated
-                !and nutrients
-                Me%IsPlantGrowing       (:,:) = .false.         
-            endif            
+            Me%ExternalVar%JulianDay_Old = JulDay
             
-           
-            allocate(Me%HeatUnits%PotentialHUTotal                        (ILB:IUB,JLB:JUB)) 
-            allocate(Me%HeatUnits%PotentialHUBase                         (ILB:IUB,JLB:JUB)) 
-            allocate(Me%HeatUnits%PotentialHUBase_Old                     (ILB:IUB,JLB:JUB)) 
-            allocate(Me%HeatUnits%PlantHUAccumulated                      (ILB:IUB,JLB:JUB)) 
-            allocate(Me%HeatUnits%PlantHUAccumulated_Old                  (ILB:IUB,JLB:JUB)) 
-            allocate(Me%ExternalVar%Integration%AverageAirTempDuringDT    (ILB:IUB,JLB:JUB))  
+            allocate(Me%PlantingOccurred (ILB:IUB,JLB:JUB))
+            Me%PlantingOccurred = .false.            
+
+            allocate(Me%IsPlantGrowing (ILB:IUB,JLB:JUB))
+            Me%IsPlantGrowing (:,:) = .false.                                            
+            
+            allocate(Me%ExternalVar%Integration%SumTemperature (ILB:IUB,JLB:JUB))  
+            Me%ExternalVar%Integration%SumTemperature (:,:) = 0.0
+            
+            allocate(Me%ExternalVar%Integration%SumHumidity (ILB:IUB,JLB:JUB)) 
+            Me%ExternalVar%Integration%SumHumidity (:,:) = 0.0  
+            
+            allocate(Me%ExternalVar%Integration%SumRadiation (ILB:IUB,JLB:JUB))
+            Me%ExternalVar%Integration%SumRadiation (:,:) = 0.0
+                             
+            allocate(Me%HeatUnits%PotentialHUTotal (ILB:IUB,JLB:JUB)) 
+            Me%HeatUnits%PotentialHUTotal (:,:) = 0.0           
+            
+            allocate(Me%HeatUnits%PotentialHUBase_Old (ILB:IUB,JLB:JUB)) 
+            Me%HeatUnits%PotentialHUBase_Old(:,:) = 0.0 
+            
+            allocate(Me%HeatUnits%PlantHUAccumulated (ILB:IUB,JLB:JUB)) 
+            Me%HeatUnits%PlantHUAccumulated (:,:) = 0.0
+                         
+            allocate(Me%HeatUnits%PlantHUAccumulated_Old (ILB:IUB,JLB:JUB)) 
+            Me%HeatUnits%PlantHUAccumulated_Old (:,:) = 0.0
+            
+            allocate(Me%ExternalVar%Integration%AverageAirTempDuringDT (ILB:IUB,JLB:JUB))
+            Me%ExternalVar%Integration%AverageAirTempDuringDT (:,:) = 0.0
+              
             allocate(Me%ExternalVar%Integration%AverageAirHumidityDuringDT(ILB:IUB,JLB:JUB)) 
-            allocate(Me%ExternalVar%Integration%AverageRadiationDuringDT  (ILB:IUB,JLB:JUB))
-            allocate(Me%ExternalVar%Integration%SumTemperature            (ILB:IUB,JLB:JUB))  
-            allocate(Me%ExternalVar%Integration%SumHumidity               (ILB:IUB,JLB:JUB)) 
-            allocate(Me%ExternalVar%Integration%SumRadiation              (ILB:IUB,JLB:JUB))
+            Me%ExternalVar%Integration%AverageAirHumidityDuringDT (:,:) = 0.0
             
-
-            Me%ExternalVar%Integration%SumTemperature   (:,:) = 0.0
-            Me%ExternalVar%Integration%SumHumidity      (:,:) = 0.0  
-            Me%ExternalVar%Integration%SumRadiation     (:,:) = 0.0
+            allocate(Me%ExternalVar%Integration%AverageRadiationDuringDT (ILB:IUB,JLB:JUB))                                                
+            Me%ExternalVar%Integration%AverageRadiationDuringDT (:,:) = 0.0
             
-            !Give values if not already read (continuous simulation)
-            if (.not. Me%ComputeOptions%Continuous .or.                              &
-                (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then
-!            if (.not. Me%ComputeOptions%Continuous) then
-                !!Construct fraction of HU at the beggining of simulation
-                !Estimated based on fraction of the year - assumes that HU are equally distributed in the year
-                !just to get one idea of where in the year (in terms of HU) the simulation starts
-                !HU base is used to see when is time to plant
-                call JulianDay(Me%ExternalVar%Now, JulDay)
-                InitialHUBase = JulDay / 365.
-                Me%HeatUnits%PotentialHUBase (:,:) = InitialHUBase
-                Me%HeatUnits%PotentialHUBase_Old(:,:) = 0.0 
-                Me%HeatUnits%PlantHUAccumulated (:,:) = 0.0             
-                Me%HeatUnits%PlantHUAccumulated_Old (:,:) = 0.0             
-            endif
+            !Construct fraction of HU at the beggining of simulation
+            !Estimated based on fraction of the year - assumes that HU are equally distributed in the year
+            !just to get one idea of where in the year (in terms of HU) the simulation starts
+            !HU base is used to see when is time to plant
+            allocate(Me%HeatUnits%PotentialHUBase (ILB:IUB,JLB:JUB)) 
+            call JulianDay(Me%ExternalVar%Now, JulDay)
+            InitialHUBase = JulDay / 365.
+            Me%HeatUnits%PotentialHUBase (:,:) = InitialHUBase                                                         
 
-            allocate(Me%Growth%GlobalStress                               (ILB:IUB,JLB:JUB))
-            Me%Growth%GlobalStress                                        (:,:  ) = 1.0
+            allocate(Me%Growth%GlobalStress (ILB:IUB,JLB:JUB))
+            Me%Growth%GlobalStress (:,:) = 1.0
 
-            allocate(Me%Growth%TreeCurrentYear                            (ILB:IUB,JLB:JUB))
-            allocate(Me%Growth%TreeComingFromContinuous                   (ILB:IUB,JLB:JUB))       
-            allocate(Me%Growth%TreeFractionToMaturity                     (ILB:IUB,JLB:JUB))        
-            allocate(Me%Growth%TreeMaximumAnnualBiomass                   (ILB:IUB,JLB:JUB))        
+            allocate(Me%Growth%TreeCurrentYear (ILB:IUB,JLB:JUB))
+            Me%Growth%TreeCurrentYear (:,:) = 0
+            
+            allocate(Me%Growth%TreeComingFromContinuous (ILB:IUB,JLB:JUB))       
+            Me%Growth%TreeComingFromContinuous (:,:) = .false.
+            
+            allocate(Me%Growth%TreeFractionToMaturity (ILB:IUB,JLB:JUB))        
+            Me%Growth%TreeFractionToMaturity (:,:) = 0
+            
+            allocate(Me%Growth%TreeMaximumAnnualBiomass (ILB:IUB,JLB:JUB))
+            Me%Growth%TreeMaximumAnnualBiomass (:,:) = 0
           
-            !Give values if not already read (continuous simulation)
-            if (.not. Me%ComputeOptions%Continuous .or.                              &
-                (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then
-!            if (.not. Me%ComputeOptions%Continuous) then
-                Me%Growth%TreeCurrentYear (:,:) = 0
-                Me%Growth%TreeComingFromContinuous (:,:) = .false.
-            else
-                !Tree years will be read fromfinal hdf
-                Me%Growth%TreeComingFromContinuous (:,:) = .true.
-            endif
-
             !Soil fluxes
             if(Me%ComputeOptions%ModelNitrogen) then
-                allocate(Me%PlantNitrogenFraction                         (ILB:IUB,JLB:JUB)) 
-                allocate(Me%OptimalTotalPlantNitrogen                     (ILB:IUB,JLB:JUB)) 
-                if (.not. Me%ComputeOptions%Continuous .or.                              &
-                    (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then
-                    Me%PlantNitrogenFraction(:,:) = 0.0
-                endif          
-!                allocate(Me%Fluxes%FromSoil%NitrogenUptakeFromSoil        (ILB:IUB,JLB:JUB)) 
-!                Me%OptimalTotalPlantNitrogen (:,:) = 0.0              
+                allocate(Me%PlantNitrogenFraction (ILB:IUB,JLB:JUB)) 
+                Me%PlantNitrogenFraction(:,:) = 0.0
+                
+                allocate(Me%OptimalTotalPlantNitrogen (ILB:IUB,JLB:JUB)) 
+                Me%OptimalTotalPlantNitrogen (:,:) = 0.0 
             endif
             
             if (Me%ComputeOptions%ModelPhosphorus) then
-                allocate(Me%PlantPhosphorusFraction                       (ILB:IUB,JLB:JUB))
-                allocate(Me%OptimalTotalPlantPhosphorus                   (ILB:IUB,JLB:JUB)) 
-                if (.not. Me%ComputeOptions%Continuous .or.                              &
-                    (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then
-                    Me%PlantPhosphorusFraction(:,:) = 0.0
-                endif          
-!                allocate(Me%Fluxes%FromSoil%PhosphorusUptakeFromSoil      (ILB:IUB,JLB:JUB)) 
-!                Me%OptimalTotalPlantPhosphorus (:,:) = 0.0              
+                allocate(Me%PlantPhosphorusFraction (ILB:IUB,JLB:JUB))
+                Me%PlantPhosphorusFraction(:,:) = 0.0
+                
+                allocate(Me%OptimalTotalPlantPhosphorus (ILB:IUB,JLB:JUB))
+                Me%OptimalTotalPlantPhosphorus (:,:) = 0.0                 
             endif
             
             !Aerial Fluxes
-            allocate(Me%Fluxes%LAIGrowth                                  (ILB:IUB,JLB:JUB)) 
-            allocate(Me%LAIDeclineFraction                                (ILB:IUB,JLB:JUB)) 
-            allocate(Me%LAISenescence                                     (ILB:IUB,JLB:JUB)) 
-            Me%LAISenescence(:,:) = .false.            
-            allocate(Me%PlantLAIMaxFraction                               (ILB:IUB,JLB:JUB)) 
+            allocate(Me%Fluxes%LAIChange (ILB:IUB,JLB:JUB)) 
+            Me%Fluxes%LAIChange (:,:) = 0.0
+            
+            allocate(Me%LAISenescence (ILB:IUB,JLB:JUB)) 
+            Me%LAISenescence(:,:) = .false.  
+                      
+            allocate(Me%PlantLAIMaxFraction (ILB:IUB,JLB:JUB)) 
+            Me%PlantLAIMaxFraction (:,:) = 0.0
+
             if(.not. Me%ComputeOptions%ChangeLAISenescence) then
-                allocate(Me%LAIBeforeSenescence                           (ILB:IUB,JLB:JUB)) 
-                call SetMatrixValue(Me%LAIBeforeSenescence,                    &
-                                    Me%Size2D,                                              &
-                                    Me%StateVariables%LeafAreaIndex,                        &
-                                    Me%ExternalVar%MappingPoints2D)
-            endif
-            if (.not. Me%ComputeOptions%Continuous .or.                              &
-                (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then
-                Me%PlantLAIMaxFraction (:,:) = 0.0
+                allocate(Me%LAIBeforeSenescence (ILB:IUB,JLB:JUB)) 
+                Me%LAIBeforeSenescence (:,:) = 0.0
             endif
 
 
@@ -3466,194 +3555,256 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
 
             if (Me%ComputeOptions%Grazing) then
-                allocate(Me%DaysOfGrazing                                     (ILB:IUB,JLB:JUB)) 
-                allocate(Me%IsPlantBeingGrazed                                (ILB:IUB,JLB:JUB)) 
-                Me%DaysOfGrazing        (:,:) = 0.0 
-                Me%IsPlantBeingGrazed   (:,:) = .false.
-!                allocate(Me%GrazingFinished                                   (ILB:IUB,JLB:JUB))
-!                allocate(Me%GrazingOperations                                 (ILB:IUB,JLB:JUB))
-!                Me%GrazingFinished      (:,:) = .false.
-!                Me%GrazingOperations    (:,:) = 1
+                allocate(Me%DaysOfGrazing (ILB:IUB,JLB:JUB)) 
+                Me%DaysOfGrazing (:,:) = 0.0 
+                
+                allocate(Me%IsPlantBeingGrazed (ILB:IUB,JLB:JUB))                 
+                Me%IsPlantBeingGrazed (:,:) = .false.
             
-                allocate(Me%Fluxes%BiomassGrazed                              (ILB:IUB,JLB:JUB)) 
-                allocate(Me%Fluxes%BiomassGrazedFraction                      (ILB:IUB,JLB:JUB)) 
-                allocate(Me%Fluxes%ToSoil%GrazingBiomassToSoil                (ILB:IUB,JLB:JUB)) 
-!                Me%Fluxes%BiomassGrazed                                       (:,:) = 0.0 
-!                Me%Fluxes%BiomassGrazedFraction                               (:,:) = 0.0 
-!                Me%Fluxes%ToSoil%GrazingBiomassToSoil                         (:,:) = 0.0 
-            
+                allocate(Me%Fluxes%BiomassGrazed (ILB:IUB,JLB:JUB)) 
+                Me%Fluxes%BiomassGrazed (:,:) = 0.0
+                
+                allocate(Me%Fluxes%BiomassGrazedFraction (ILB:IUB,JLB:JUB)) 
+                Me%Fluxes%BiomassGrazedFraction (:,:) = 0.0
+                
+                allocate(Me%Fluxes%ToSoil%GrazingBiomassToSoil (ILB:IUB,JLB:JUB)) 
+                Me%Fluxes%ToSoil%GrazingBiomassToSoil (:,:) = 0.0
+                
                 if (Me%ComputeOptions%ModelNitrogen) then
-                    allocate(Me%Fluxes%NitrogenGrazed                         (ILB:IUB,JLB:JUB))  
-                    allocate(Me%Fluxes%ToSoil%GrazingNitrogenToSoil           (ILB:IUB,JLB:JUB)) 
-!                    Me%Fluxes%NitrogenGrazed                                  (:,:) = 0.0
-!                    Me%Fluxes%ToSoil%GrazingNitrogenToSoil                    (:,:) = 0.0 
+                    allocate(Me%Fluxes%NitrogenGrazed (ILB:IUB,JLB:JUB))  
+                    Me%Fluxes%NitrogenGrazed (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%ToSoil%GrazingNitrogenToSoil (ILB:IUB,JLB:JUB)) 
+                    Me%Fluxes%ToSoil%GrazingNitrogenToSoil (:,:) = 0.0
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then
-                    allocate(Me%Fluxes%PhosphorusGrazed                       (ILB:IUB,JLB:JUB)) 
-                    allocate(Me%Fluxes%ToSoil%GrazingPhosphorusToSoil         (ILB:IUB,JLB:JUB)) 
-!                    Me%Fluxes%PhosphorusGrazed                                (:,:) = 0.0 
-!                    Me%Fluxes%ToSoil%GrazingPhosphorusToSoil                  (:,:) = 0.0 
+                    allocate(Me%Fluxes%PhosphorusGrazed (ILB:IUB,JLB:JUB)) 
+                    Me%Fluxes%PhosphorusGrazed (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%ToSoil%GrazingPhosphorusToSoil (ILB:IUB,JLB:JUB)) 
+                    Me%Fluxes%ToSoil%GrazingPhosphorusToSoil (:,:) = 0.0
                 endif
 
             endif
         
             if (Me%ComputeOptions%HarvestKill) then
-                allocate(Me%HarvestOnlyOccurred                               (ILB:IUB,JLB:JUB))
-                allocate(Me%HarvestKillOccurred                               (ILB:IUB,JLB:JUB))
-                allocate(Me%KillOccurred                                      (ILB:IUB,JLB:JUB))
-!                allocate(Me%HarvestFinished                                   (ILB:IUB,JLB:JUB))
-!                allocate(Me%HarvestOperations                                 (ILB:IUB,JLB:JUB))
-!                allocate(Me%HarvestKillOperations                             (ILB:IUB,JLB:JUB)) 
-!                allocate(Me%KillOperations                                    (ILB:IUB,JLB:JUB)) 
-                Me%HarvestOnlyOccurred  (:,:) = .false.
-                Me%HarvestKillOccurred  (:,:) = .false.
-                Me%KillOccurred         (:,:) = .false.
-!                Me%HarvestFinished      (:,:) = .false.
-!                Me%HarvestOperations    (:,:) = 1
-!                Me%HarvestKillOperations(:,:) = 1 
-!                Me%KillOperations       (:,:) = 1   
+                allocate(Me%HarvestOnlyOccurred (ILB:IUB,JLB:JUB))
+                Me%HarvestOnlyOccurred (:,:) = .false.
+
+                allocate(Me%HarvestKillOccurred (ILB:IUB,JLB:JUB))
+                Me%HarvestKillOccurred (:,:) = .false.
+
+                allocate(Me%KillOccurred (ILB:IUB,JLB:JUB))
+                Me%KillOccurred (:,:) = .false.
                       
-                allocate(Me%Fluxes%BiomassRemovedInHarvest                    (ILB:IUB,JLB:JUB)) 
-                allocate(Me%Fluxes%BiomassHarvestedFraction                   (ILB:IUB,JLB:JUB)) 
-                allocate(Me%Fluxes%ToSoil%HarvestKillBiomassToSoil            (ILB:IUB,JLB:JUB)) 
-                allocate(Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil           (ILB:IUB,JLB:JUB))
-!                Me%Fluxes%BiomassRemovedInHarvest                             (:,:) = 0.0  
-!                Me%Fluxes%BiomassHarvestedFraction                            (:,:) = 0.0
-!                Me%Fluxes%ToSoil%HarvestKillBiomassToSoil                     (:,:) = 0.0 
-!                Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil                    (:,:) = 0.0
+                allocate(Me%Fluxes%BiomassRemovedInHarvest (ILB:IUB,JLB:JUB)) 
+                Me%Fluxes%BiomassRemovedInHarvest (:,:) = 0.0
+                
+                allocate(Me%Fluxes%BiomassHarvestedFraction (ILB:IUB,JLB:JUB))
+                Me%Fluxes%BiomassHarvestedFraction (:,:) = 0.0
+                 
+                allocate(Me%Fluxes%ToSoil%HarvestKillBiomassToSoil (ILB:IUB,JLB:JUB))
+                Me%Fluxes%ToSoil%HarvestKillBiomassToSoil (:,:) = 0.0
+                 
+                allocate(Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil (ILB:IUB,JLB:JUB))
+                Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil (:,:) = 0.0
             
                 if (Me%ComputeOptions%ModelNitrogen) then            
-                    allocate(Me%Fluxes%NitrogenRemovedInHarvest               (ILB:IUB,JLB:JUB))  
-                    allocate(Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil       (ILB:IUB,JLB:JUB)) 
-!                    Me%Fluxes%NitrogenRemovedInHarvest                        (:,:) = 0.0 
-!                    Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil                (:,:) = 0.0 
+                    allocate(Me%Fluxes%NitrogenRemovedInHarvest (ILB:IUB,JLB:JUB))  
+                    Me%Fluxes%NitrogenRemovedInHarvest (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil (ILB:IUB,JLB:JUB)) 
+                    Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil (:,:) = 0.0
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then
-                    allocate(Me%Fluxes%PhosphorusRemovedInHarvest             (ILB:IUB,JLB:JUB)) 
-                    allocate(Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil     (ILB:IUB,JLB:JUB))
-!                    Me%Fluxes%PhosphorusRemovedInHarvest                      (:,:) = 0.0
-!                    Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil              (:,:) = 0.0 
+                    allocate(Me%Fluxes%PhosphorusRemovedInHarvest (ILB:IUB,JLB:JUB)) 
+                    Me%Fluxes%PhosphorusRemovedInHarvest (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil (:,:) = 0.0
                 endif
 
             endif
 
             if (Me%ComputeOptions%Dormancy) then
-                allocate(Me%DayLength                                         (ILB:IUB,JLB:JUB))
-                allocate(Me%MinimumDayLength                                  (ILB:IUB,JLB:JUB))
-                allocate(Me%IsPlantDormant                                    (ILB:IUB,JLB:JUB)) 
-                allocate(Me%PlantGoingDormant                                 (ILB:IUB,JLB:JUB))
-                if (.not. Me%ComputeOptions%Continuous .or.                              &
-                    (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then
-                    Me%IsPlantDormant       (:,:) = .false.
-                endif         
-                Me%PlantGoingDormant    (:,:) = .false.
+                allocate(Me%DayLength (ILB:IUB,JLB:JUB))
+                Me%DayLength (:,:) = 0.0
+                
+                allocate(Me%MinimumDayLength (ILB:IUB,JLB:JUB))
+                Me%MinimumDayLength (:,:) = 0.0
+                
+                allocate(Me%IsPlantDormant (ILB:IUB,JLB:JUB)) 
+                Me%IsPlantDormant (:,:) = .false.
+                
+                allocate(Me%PlantGoingDormant (ILB:IUB,JLB:JUB))
+                Me%PlantGoingDormant (:,:) = .false.
             
-                allocate(Me%Fluxes%BiomassRemovedInDormancy                   (ILB:IUB,JLB:JUB))
-    !            allocate(Me%Fluxes%BiomassDormancyFraction                    (ILB:IUB,JLB:JUB)) 
-    !           allocate(Me%Fluxes%ToSoil%DormancyBiomassToSoil               (ILB:IUB,JLB:JUB)) 
-    !            Me%Fluxes%BiomassDormancyFraction                             (:,:) = 0.0
-!                Me%Fluxes%BiomassRemovedInDormancy                            (:,:) = 0.0
-    !            Me%Fluxes%ToSoil%DormancyBiomassToSoil                        (:,:) = 0.0
+                allocate(Me%Fluxes%BiomassRemovedInDormancy (ILB:IUB,JLB:JUB))
+                Me%Fluxes%BiomassRemovedInDormancy (:,:) = 0.0
             
                 if (Me%ComputeOptions%ModelNitrogen) then
-                    allocate(Me%Fluxes%NitrogenRemovedInDormancy              (ILB:IUB,JLB:JUB))  
-    !                allocate(Me%Fluxes%ToSoil%DormancyNitrogenToSoil          (ILB:IUB,JLB:JUB)) 
-!                    Me%Fluxes%NitrogenRemovedInDormancy                       (:,:) = 0.0
-    !                Me%Fluxes%ToSoil%DormancyNitrogenToSoil                   (:,:) = 0.0
+                    allocate(Me%Fluxes%NitrogenRemovedInDormancy (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%NitrogenRemovedInDormancy (:,:) = 0.0  
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then
-                    allocate(Me%Fluxes%PhosphorusRemovedInDormancy            (ILB:IUB,JLB:JUB)) 
-    !                allocate(Me%Fluxes%ToSoil%DormancyPhosphorusToSoil        (ILB:IUB,JLB:JUB)) 
-!                    Me%Fluxes%PhosphorusRemovedInDormancy                     (:,:) = 0.0
-    !                Me%Fluxes%ToSoil%DormancyPhosphorusToSoil                 (:,:) = 0.0
+                    allocate(Me%Fluxes%PhosphorusRemovedInDormancy (ILB:IUB,JLB:JUB)) 
+                    Me%Fluxes%PhosphorusRemovedInDormancy (:,:) = 0.0 
                 endif
  
             endif
         
             if (Me%ComputeOptions%Fertilization) then
-                !allocate(Me%FertilizationOccurred                               (ILB:IUB,JLB:JUB))
-                !Me%FertilizationOccurred(:,:) = .false.
                 if (Me%ComputeOptions%AutoFertilization) then
-                    allocate(Me%NitrogenYeldEstimate                         (ILB:IUB,JLB:JUB))
-                    allocate(Me%NitrogenYeldTarget                           (ILB:IUB,JLB:JUB))
-                    Me%NitrogenYeldTarget(:,:) = 0.0
+                    allocate(Me%NitrogenYeldEstimate (ILB:IUB,JLB:JUB))
+                    Me%NitrogenYeldEstimate (:,:) = 0.0
+                    
+                    allocate(Me%NitrogenYeldTarget (ILB:IUB,JLB:JUB))
+                    Me%NitrogenYeldTarget (:,:) = 0.0
                 endif
                 
                 if (Me%ComputeOptions%ModelNitrogen) then
-                    allocate(Me%AnnualNitrogenFertilized                  (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilNitrateInSurface          (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilNitrateInSubSurface       (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilAmmoniaInSurface          (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilAmmoniaInSubSurface       (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilOrganicNInSurface         (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilOrganicNParticInFluff     (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilOrganicNInSubSurface      (ILB:IUB,JLB:JUB))
-                    !Give values if not already read (continuous simulation)
-                    if (.not. Me%ComputeOptions%Continuous .or.                              &
-                        (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then
-                        Me%AnnualNitrogenFertilized                           (:,:) = 0.0
-                    endif
+                    allocate(Me%AnnualNitrogenFertilized (ILB:IUB,JLB:JUB))
+                    Me%AnnualNitrogenFertilized (:,:) = 0.0 
+                    
+                    allocate(Me%Fluxes%FertilNitrateInSurface (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilNitrateInSurface (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%FertilNitrateInSubSurface (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilNitrateInSubSurface (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%FertilAmmoniaInSurface (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilAmmoniaInSurface (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%FertilAmmoniaInSubSurface (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilAmmoniaInSubSurface (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%FertilOrganicNInSurface (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilOrganicNInSurface (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%FertilOrganicNParticInFluff (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilOrganicNParticInFluff (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%FertilOrganicNInSubSurface (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilOrganicNInSubSurface (:,:) = 0.0
                 endif
                 if (Me%ComputeOptions%ModelPhosphorus) then
-                    allocate(Me%AnnualPhosphorusFertilized                (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilOrganicPInSurface         (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilOrganicPInSubSurface      (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilOrganicPParticInFluff     (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilMineralPInSurface         (ILB:IUB,JLB:JUB))
-                    allocate(Me%Fluxes%FertilMineralPInSubSurface      (ILB:IUB,JLB:JUB))
-                    !Give values if not already read (continuous simulation)
-                    if (.not. Me%ComputeOptions%Continuous .or.                              &
-                        (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then                    
-                        Me%AnnualPhosphorusFertilized                         (:,:) = 0.0
-                    endif
+                    allocate(Me%AnnualPhosphorusFertilized (ILB:IUB,JLB:JUB))
+                    Me%AnnualPhosphorusFertilized (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%FertilOrganicPInSurface (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilOrganicPInSurface (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%FertilOrganicPInSubSurface (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilOrganicPInSubSurface (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%FertilOrganicPParticInFluff (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilOrganicPParticInFluff (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%FertilMineralPInSurface (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilMineralPInSurface (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%FertilMineralPInSubSurface (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%FertilMineralPInSubSurface (:,:) = 0.0
                 endif
 
             endif
 
             if (Me%ComputeOptions%Pesticide) then
                 do  Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
-                    allocate (Me%Fluxes%Pesticides%Application(Pest)%Soil(ILB:IUB,JLB:JUB))
-                    allocate (Me%Fluxes%Pesticides%Application(Pest)%Vegetation(ILB:IUB,JLB:JUB))                        
-!                    allocate (Me%Fluxes%Pesticides%Application(Pest)%PesticideAppOccurred(ILB:IUB,JLB:JUB)) 
-!                    Me%Fluxes%Pesticides%Application(Pest)%PesticideAppOccurred(:,:) = .false.
+                    allocate (Me%Fluxes%Pesticides%Application(Pest)%Soil (ILB:IUB,JLB:JUB))
+                    Me%Fluxes%Pesticides%Application(Pest)%Soil (:,:) = 0.0
+                    
+                    allocate (Me%Fluxes%Pesticides%Application(Pest)%Vegetation (ILB:IUB,JLB:JUB))                        
+                    Me%Fluxes%Pesticides%Application(Pest)%Vegetation (:,:) = 0.0
                 enddo                            
-            endif            
-
-            if (Me%ComputeOptions%ModelPlantBiomass) then
-                allocate(Me%Fluxes%BiomassGrowth                              (ILB:IUB,JLB:JUB)) 
-                allocate(Me%Growth%BiomassGrowthOld                           (ILB:IUB,JLB:JUB))  
-                allocate(Me%Growth%PAR                                        (ILB:IUB,JLB:JUB))  
-                allocate(Me%Growth%RUE                                        (ILB:IUB,JLB:JUB))  
-                allocate(Me%Growth%PotentialGrowth                            (ILB:IUB,JLB:JUB))  
-                allocate(Me%Growth%PotentialBiomass                           (ILB:IUB,JLB:JUB))  
-!                Me%Fluxes%BiomassGrowth (:,:) = 0.0 
-                Me%Growth%BiomassGrowthOld(:,:) = 0.0 
-            endif
-
-            if (Me%ComputeOptions%ModelCanopyHeight) then
-                allocate(Me%ChangeCanopyEnabled                               (ILB:IUB,JLB:JUB)) 
-!                Me%ChangeCanopyEnabled  (:,:) = .false.
-            endif 
-                   
+            endif                              
         endif
 
         if (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) then
-            allocate(Me%ComputeOptions%TranspirationMOHID%FeddesType    (ILB:IUB,JLB:JUB))
-            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH1  (ILB:IUB,JLB:JUB))
-            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH2  (ILB:IUB,JLB:JUB))
-            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH3  (ILB:IUB,JLB:JUB))
-            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH4  (ILB:IUB,JLB:JUB))
+            allocate(Me%ComputeOptions%TranspirationMOHID%FeddesType (ILB:IUB,JLB:JUB))
+            Me%ComputeOptions%TranspirationMOHID%FeddesType (:,:) = 0
+            
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH1 (ILB:IUB,JLB:JUB))
+            Me%ComputeOptions%TranspirationMOHID%RootFeddesH1 (:,:) = 0.0
+            
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH2 (ILB:IUB,JLB:JUB))
+            Me%ComputeOptions%TranspirationMOHID%RootFeddesH2 (:,:) = 0.0
+            
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH3 (ILB:IUB,JLB:JUB))
+            Me%ComputeOptions%TranspirationMOHID%RootFeddesH3 (:,:) = 0.0
+            
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH4 (ILB:IUB,JLB:JUB))
+            Me%ComputeOptions%TranspirationMOHID%RootFeddesH4 (:,:) = 0.0
+            
             allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH3L (ILB:IUB,JLB:JUB))
+            Me%ComputeOptions%TranspirationMOHID%RootFeddesH3L (:,:) = 0.0
+            
             allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH3H (ILB:IUB,JLB:JUB))
+            Me%ComputeOptions%TranspirationMOHID%RootFeddesH3H (:,:) = 0.0
+            
             allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesR2L (ILB:IUB,JLB:JUB))
+            Me%ComputeOptions%TranspirationMOHID%RootFeddesR2L (:,:) = 0.0
+            
             allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesR2H (ILB:IUB,JLB:JUB))
-        endif
-        
+            Me%ComputeOptions%TranspirationMOHID%RootFeddesR2H (:,:) = 0.0
+        endif        
 
-    end subroutine AllocateVariables
+    end subroutine AllocateEvolutionVariables
+
+    !--------------------------------------------------------------------------
+    
+    subroutine AllocatePropertyVariables
+    
+        !Arguments-------------------------------------------------------------
+                                                    
+        !Local-----------------------------------------------------------------
+        integer                                             :: ILB, IUB, JLB, JUB
+        integer                                             :: KLB, KUB                                          
+        !Begin-----------------------------------------------------------------
+
+        !Bounds
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+
+        KLB = Me%Size%KLB
+        KUB = Me%Size%KUB
+            
+        if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
+        
+            if (Me%ComputeOptions%ModelPlantBiomass) then
+                allocate(Me%Fluxes%BiomassGrowth (ILB:IUB,JLB:JUB)) 
+                Me%Fluxes%BiomassGrowth (:,:) = 0.0
+                
+                allocate(Me%Growth%BiomassGrowthOld (ILB:IUB,JLB:JUB))  
+                Me%Growth%BiomassGrowthOld (:,:) = 0.0
+                
+                allocate(Me%Growth%PAR (ILB:IUB,JLB:JUB))  
+                Me%Growth%PAR (:,:) = 0.0
+                
+                allocate(Me%Growth%RUE (ILB:IUB,JLB:JUB))  
+                Me%Growth%RUE (:,:) = 0.0
+                
+                allocate(Me%Growth%PotentialGrowth (ILB:IUB,JLB:JUB))
+                Me%Growth%PotentialGrowth (:,:) = 0.0
+                
+                allocate(Me%Growth%PotentialBiomass (ILB:IUB,JLB:JUB))  
+                Me%Growth%PotentialBiomass (:,:) = 0.0                               
+            endif
+
+            if (Me%ComputeOptions%ModelCanopyHeight) then
+                allocate(Me%ChangeCanopyEnabled (ILB:IUB,JLB:JUB)) 
+                Me%ChangeCanopyEnabled (:,:) = .false.
+            endif 
+        
+        endif
+    
+    end subroutine AllocatePropertyVariables
 
     !--------------------------------------------------------------------------
 
@@ -3783,7 +3934,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                 Me%ObjTime,                                     &
                                 TimeSerieLocationFile,                          &
                                 PropertyList, "srvg",                           &
-                                WaterPoints2D = Me%ExternalVar%MappingPoints2D, &
+                                WaterPoints2D = Me%ExternalVar%MappingPoints,   &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
                 stop 'Construct_Time_Serie - ModuleVegetation - ERR03'
@@ -3833,7 +3984,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                         Me%ObjTime,                                                 &
                                         TimeSerieLocationFile,                                      &
                                         PropertyList, "srvgs",                                      &
-                                        WaterPoints2D = Me%ExternalVar%MappingPoints2D,             &
+                                        WaterPoints2D = Me%ExternalVar%MappingPoints,               &
                                         STAT           = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleVegetation - ERR06'
 
@@ -3987,8 +4138,8 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                     call StartTimeSerie(Me%ObjTimeSerieToSoil,                                      &
                                         Me%ObjTime,                                                 &
                                         TimeSerieLocationFile,                                      &
-                                        PropertyList, "srvgf",                                        &
-                                        WaterPoints2D = Me%ExternalVar%MappingPoints2D,             &
+                                        PropertyList, "srvgf",                                      &
+                                        WaterPoints2D = Me%ExternalVar%MappingPoints,               &
                                         STAT           = STAT_CALL) 
                     if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleVegetation - ERR06'
 
@@ -4130,7 +4281,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                           STAT     = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR30'
 
-                if (Me%ExternalVar%MappingPoints2D(Id, Jd) /= WaterPoint) then
+                if (Me%ExternalVar%MappingPoints(Id, Jd) /= VegetationPoint) then
                      write(*,*) 'Time Serie in a outside boundaries cell - ',trim(TimeSerieName)
                 endif
 
@@ -4393,7 +4544,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             do j = Me%Size%JLB, Me%Size%JUB
             do i = Me%Size%ILB, Me%Size%IUB
                 
-                if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+                if (Me%ExternalVar%MappingPoints(i, j) == VegetationPoint) then
                     
                     Me%AgricPractID(i,j) = NINT(AgricPractIDMatrix(i,j))
                     
@@ -4418,7 +4569,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         do j = Me%Size%JLB, Me%Size%JUB
         do i = Me%Size%ILB, Me%Size%IUB
-            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
                 do ivt = 1, Me%VegetationsNumber
                     !if (Me%VegetationTypes(ivt)%ID == NINT(AgricPractIDMatrix(i, j))) then
                     if (Me%VegetationTypes(ivt)%ID == Me%AgricPractID(i, j)) then
@@ -4450,8 +4601,11 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             !Fill first nitrogen yeld estimate
             do j = Me%Size%JLB, Me%Size%JUB
             do i = Me%Size%ILB, Me%Size%IUB
-                if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+                if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
                     
+                    !Plant type 0 is NO PLANT, so no operations should happen
+                    if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+
                     !kgN/kgYeld 
                     NitrogenFractionInYeld = Me%VegetationTypes(Me%VegetationID(i, j))%GrowthDatabase%NitrogenFractionInYeld
                     !kg/ha/(MJ/m2) = 10-1 g/MJ
@@ -4544,7 +4698,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         do j = Me%Size%JLB, Me%Size%JUB
         do i = Me%Size%ILB, Me%Size%IUB
             
-            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
                 
                 if (Me%ExternalVar%Latitude(i,j) .gt. 90.) then
                     write(*,*) ' Computing vegetation dormancy and Latitude is greater than 90.'
@@ -4570,32 +4724,40 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         !Local----------------------------------------------------------------
         integer                                      :: i,j
+        integer                                      :: veg_id
+        integer                                      :: veg_type
         !Begin----------------------------------------------------------------   
     
 
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then 
+                veg_id = Me%VegetationID(i,j)
+                veg_type = Me%VegetationTypes(veg_id)%GrowthDatabase%PlantType
+                                      
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (veg_type == NotAPlant) cycle
+            
                 Me%ComputeOptions%TranspirationMOHID%FeddesType(i,j) = &
-                Me%VegetationTypes(Me%VegetationID(i, j))%FeddesType 
+                    Me%VegetationTypes(veg_id)%FeddesType 
 
                 Me%ComputeOptions%TranspirationMOHID%RootFeddesH1(i,j) = &
-                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesH1 
+                    Me%VegetationTypes(veg_id)%RootFeddesH1 
                 Me%ComputeOptions%TranspirationMOHID%RootFeddesH2(i,j) = &
-                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesH2 
+                    Me%VegetationTypes(veg_id)%RootFeddesH2 
                 Me%ComputeOptions%TranspirationMOHID%RootFeddesH3(i,j) = &
-                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesH3 
+                    Me%VegetationTypes(veg_id)%RootFeddesH3 
                 Me%ComputeOptions%TranspirationMOHID%RootFeddesH4(i,j) = &
-                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesH4 
+                    Me%VegetationTypes(veg_id)%RootFeddesH4 
                 
                 Me%ComputeOptions%TranspirationMOHID%RootFeddesH3L(i,j) = &
-                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesH3L 
+                    Me%VegetationTypes(veg_id)%RootFeddesH3L 
                 Me%ComputeOptions%TranspirationMOHID%RootFeddesH3H(i,j) = &
-                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesH3H 
+                    Me%VegetationTypes(veg_id)%RootFeddesH3H 
                 Me%ComputeOptions%TranspirationMOHID%RootFeddesR2L(i,j) = &
-                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesR2L 
+                    Me%VegetationTypes(veg_id)%RootFeddesR2L 
                 Me%ComputeOptions%TranspirationMOHID%RootFeddesR2H(i,j) = &
-                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesR2H 
+                    Me%VegetationTypes(veg_id)%RootFeddesR2H 
             endif
         enddo
         enddo
@@ -5157,6 +5319,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
         integer                                     :: GrowthObjEnterData
         integer                                     :: VegetationID
         integer                                     :: GrowthClientNumber
+        type(T_GrowthDatabase), pointer             :: gdb !gdb is a pointer to the GrowthDataBase structure
         !Begin-----------------------------------------------------------------
 
         GrowthObjEnterData = 0
@@ -5168,7 +5331,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
         VegetationFound = .false. 
             
 doH1:   do 
-            call ExtractBlockFromBuffer(GrowthObjEnterData,                                    &
+            call ExtractBlockFromBuffer(GrowthObjEnterData,                                       &
                                         ClientNumber      = GrowthClientNumber,                   &
                                         block_begin       = '<begingrowthdatabase>',              &
                                         block_end         = '<endgrowthdatabase>',                &
@@ -5193,8 +5356,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                     VegetationFound = .true.
                     
                     !Reads Growth Parameters
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantType, GrowthObjEnterData,  iflag,                  &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantType, GrowthObjEnterData,  iflag,               &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'PLANT_TYPE',                                                              &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5203,9 +5366,12 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         write(*,*)'Missing plant type in growth parameters definition -', trim(Me%VegetationTypes(ivt)%Name)
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR15'
                     endif
+                    
+                    !Vegetation TYPE 0 is NO VEGETATION.
+                    if (Me%VegetationTypes(ivt)%GrowthDatabase%PlantType == NotAPlant) cycle                    
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN1, GrowthObjEnterData,  iflag,            &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN1, GrowthObjEnterData,  iflag,         &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'OPTIMAL_NITROGENFRACTION_N1',                                             &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5216,8 +5382,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR25'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN2, GrowthObjEnterData,  iflag,            &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN2, GrowthObjEnterData,  iflag,         &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'OPTIMAL_NITROGENFRACTION_N2',                                             &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5228,8 +5394,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR35'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN3, GrowthObjEnterData,  iflag,            &
-                                 SearchType     = FromBlock,                                                          & 
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN3, GrowthObjEnterData,  iflag,         &
+                                 SearchType     = FromBlock,                                                                 & 
                                  keyword        = 'OPTIMAL_NITROGENFRACTION_N3',                                             &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5240,8 +5406,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR45'
                     endif
                     
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP1, GrowthObjEnterData,  iflag,            &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP1, GrowthObjEnterData,  iflag,         &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'OPTIMAL_PHOSPHORUSFRACTION_P1',                                           &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5252,8 +5418,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR55'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP2, GrowthObjEnterData,  iflag,            &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP2, GrowthObjEnterData,  iflag,         &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'OPTIMAL_PHOSPHORUSFRACTION_P2',                                           &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5264,8 +5430,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR65'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP3, GrowthObjEnterData,  iflag,            &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP3, GrowthObjEnterData,  iflag,         &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'OPTIMAL_PHOSPHORUSFRACTION_P3',                                           &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5276,8 +5442,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR75'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantBaseTemperature, GrowthObjEnterData,  iflag,       &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantBaseTemperature, GrowthObjEnterData,  iflag,    &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'BASE_TEMPERATURE',                                                        &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5288,8 +5454,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR85'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantOptimalTemperature, GrowthObjEnterData,  iflag,    &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantOptimalTemperature, GrowthObjEnterData,  iflag, &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'OPTIMAL_TEMPERATURE',                                                     &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5300,8 +5466,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR95'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%ExtinctCoef, GrowthObjEnterData,  iflag,                &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%ExtinctCoef, GrowthObjEnterData,  iflag,             &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'RADIATION_EXTINCTION_COEF',                                               &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5312,8 +5478,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR105'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassEnergyRatio, GrowthObjEnterData,  iflag,         &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassEnergyRatio, GrowthObjEnterData,  iflag,      &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'BIOMASS_ENERGY_RATIO',                                                    &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5324,8 +5490,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR115'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%CO2ConcHigh, GrowthObjEnterData,  iflag,                &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%CO2ConcHigh, GrowthObjEnterData,  iflag,             &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'CO2_HIGH',                                                                &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5336,8 +5502,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR125'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassEnergyRatioHigh, GrowthObjEnterData,  iflag,     &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassEnergyRatioHigh, GrowthObjEnterData,  iflag,  &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'BIOMASS_ENERGY_RATIO_HIGH',                                               &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5348,8 +5514,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR135'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%RUEDeclineRate, GrowthObjEnterData,  iflag,             &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%RUEDeclineRate, GrowthObjEnterData,  iflag,          &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'RUE_DECLINE_RATE',                                                        &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5360,8 +5526,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR145'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrLAIMax1, GrowthObjEnterData,  iflag,                  &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrLAIMax1, GrowthObjEnterData,  iflag,               &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'OPTIMAL_LAIMAXFRACTION_1',                                                &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5372,8 +5538,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR155'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrLAIMax2, GrowthObjEnterData,  iflag,                  &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrLAIMax2, GrowthObjEnterData,  iflag,               &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'OPTIMAL_LAIMAXFRACTION_2',                                                &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5384,8 +5550,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR165'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrow1, GrowthObjEnterData,  iflag,                    &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrow1, GrowthObjEnterData,  iflag,                 &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'GROWFRACTION_1',                                                          &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5396,8 +5562,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR175'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrow2, GrowthObjEnterData,  iflag,                    &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrow2, GrowthObjEnterData,  iflag,                 &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'GROWFRACTION_2',                                                          &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5407,21 +5573,50 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                    trim(Me%VegetationTypes(ivt)%Name)
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR185'
                     endif
+                
+                    !Computes LAIShape1 and LAIShape2
+                    gdb => Me%VegetationTypes(ivt)%GrowthDatabase
+                    call ComputeShapeCoefficients (gdb%FrLAIMax1, gdb%FrLAIMax2, gdb%FrGrow1, gdb%FrGrow2, gdb%LAIShape1, gdb%LAIShape2)
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrowLAIDecline, GrowthObjEnterData,  iflag,           &
-                                 SearchType     = FromBlock,                                                          &
-                                 keyword        = 'GROWFRACTION_LAIDECLINE',                                                 &
+                    !LAI decline will not happen to EVERGREEN plants.
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%Evergreen, GrowthObjEnterData,  iflag,               &
+                                 SearchType     = FromBlock,                                                                 &
+                                 keyword        = 'EVERGREEN',                                                               &
+                                 default        = .false.,                                                                   &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR190'
-                    if (iflag /= 1) then
-                        write(*,*)'Missing grow stage fraction asscoiated with LAI curve in growth parameters definition -', &
-                                   trim(Me%VegetationTypes(ivt)%Name)
-                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR195'
+                                        
+                    if (.not. Me%VegetationTypes(ivt)%GrowthDatabase%Evergreen) then
+                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrowLAIDecline, GrowthObjEnterData,  iflag,        &
+                                     SearchType     = FromBlock,                                                                 &
+                                     keyword        = 'GROWFRACTION_LAIDECLINE',                                                 &
+                                     ClientModule   = 'ModuleVegetation',                                                        &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR192'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing grow stage fraction asscoiated with LAI curve in growth parameters definition -', &
+                                       trim(Me%VegetationTypes(ivt)%Name)
+                            stop 'ReadGrowthDatabase - ModuleVegetation - ERR193'
+                        endif
+                        
+                        if (Me%ComputeOptions%UseLAIDecRate) then
+                            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%LAIDecRate, GrowthObjEnterData,  iflag,          &
+                                         SearchType     = FromBlock,                                                             &
+                                         keyword        = 'LAI_DEC_RATE',                                                        &
+                                         ClientModule   = 'ModuleVegetation',                                                    &
+                                         STAT           = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR194'
+                            if (iflag /= 1) then
+                                write(*,*)'Missing LAI Decline rate in growth parameters definition -',                          &
+                                           trim(Me%VegetationTypes(ivt)%Name)
+                                stop 'ReadGrowthDatabase - ModuleVegetation - ERR195'
+                            endif
+                        endif                        
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%LAIMax, GrowthObjEnterData,  iflag,                     &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%LAIMax, GrowthObjEnterData,  iflag,                  &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'LAI_MAX',                                                                 &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5432,22 +5627,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR205'
                     endif
                     
-                    if (Me%ComputeOptions%UseLAIDecRate) then
-                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%LAIDecRate, GrowthObjEnterData,  iflag,                     &
-                                     SearchType     = FromBlock,                                                          &
-                                     keyword        = 'LAI_DEC_RATE',                                                                 &
-                                     ClientModule   = 'ModuleVegetation',                                                        &
-                                     STAT           = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR206'
-                        if (iflag /= 1) then
-                            write(*,*)'Missing LAI Decline rate in growth parameters definition -',                                   &
-                                       trim(Me%VegetationTypes(ivt)%Name)
-                            stop 'ReadGrowthDatabase - ModuleVegetation - ERR207'
-                        endif
-                    endif
-
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MaximumRootDepth, GrowthObjEnterData,  iflag,           &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MaximumRootDepth, GrowthObjEnterData,  iflag,        &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'ROOT_DEPTH_MAX',                                                          &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5458,8 +5639,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR215'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MaxCanopyHeight, GrowthObjEnterData,  iflag,            &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MaxCanopyHeight, GrowthObjEnterData,  iflag,         &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'CANOPY_HEIGHT_MAX',                                                       &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5470,8 +5651,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR225'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%OptimalHarvestIndex, GrowthObjEnterData,  iflag,        &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%OptimalHarvestIndex, GrowthObjEnterData,  iflag,     &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'OPTIMAL_HARVEST_INDEX',                                                   &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5482,8 +5663,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR235'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MinimumHarvestIndex, GrowthObjEnterData,  iflag,        &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MinimumHarvestIndex, GrowthObjEnterData,  iflag,     &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'MINIMUM_HARVEST_INDEX',                                                   &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5494,8 +5675,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR245'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%NitrogenFractionInYeld, GrowthObjEnterData,  iflag,     &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%NitrogenFractionInYeld, GrowthObjEnterData,  iflag,  &
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'YELD_NITROGENFRACTION',                                                   &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5506,8 +5687,8 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR255'
                     endif
 
-                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PhosphorusFractionInYeld, GrowthObjEnterData,  iflag,   &
-                                 SearchType     = FromBlock,                                                          &
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PhosphorusFractionInYeld, GrowthObjEnterData,  iflag,&
+                                 SearchType     = FromBlock,                                                                 &
                                  keyword        = 'YELD_PHOSPHORUSFRACTION',                                                 &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
@@ -5519,10 +5700,10 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                     endif
 
                     PlantType = Me%VegetationTypes(ivt)%GrowthDatabase%PlantType
-                    if (PlantType == 7) then
+                    if (PlantType == Trees) then
                     
-                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%TreeYearsToMaturity, GrowthObjEnterData,  iflag,    &
-                                     SearchType     = FromBlock,                                                      &
+                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%TreeYearsToMaturity, GrowthObjEnterData,  iflag, &
+                                     SearchType     = FromBlock,                                                             &
                                      keyword        = 'TREE_YEARSTOMATURITY',                                                &
                                      ClientModule   = 'ModuleVegetation',                                                    &
                                      STAT           = STAT_CALL)
@@ -5533,14 +5714,14 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                             stop 'ReadGrowthDatabase - ModuleVegetation - ERR275'
                         endif
 
-                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%TreeMaximumBiomass, GrowthObjEnterData,  iflag,     &
-                                     SearchType     = FromBlock,                                                      &
+                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%TreeMaximumBiomass, GrowthObjEnterData,  iflag,  &
+                                     SearchType     = FromBlock,                                                             &
                                      keyword        = 'TREE_MAXIMUMBIOMASS',                                                 &
                                      ClientModule   = 'ModuleVegetation',                                                    &
                                      STAT           = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR280'
                         if (iflag /= 1) then
-                            write(*,*)'Missing tree maximum biomass in growth parameters definition -',                      &
+                            write(*,*)'Missing tree maximum biomass in growth parameters definition -', &
                                        trim(Me%VegetationTypes(ivt)%Name)
                             stop 'ReadGrowthDatabase - ModuleVegetation - ERR285'
                         endif
@@ -5548,11 +5729,11 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                     endif
                     
                     if (Me%ComputeOptions%Dormancy) then
-                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassFracRemovedInDormancy, GrowthObjEnterData,  &
-                                     iflag,                                                                                 &
-                                     SearchType     = FromBlock,                                                     &
-                                     keyword        = 'BIOMASS_FRAC_REMOVED_DORMANCY',                                      &
-                                     ClientModule   = 'ModuleVegetation',                                                   &
+                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassFracRemovedInDormancy, GrowthObjEnterData,   &
+                                     iflag,                                                                                     &
+                                     SearchType     = FromBlock,                                                                &
+                                     keyword        = 'BIOMASS_FRAC_REMOVED_DORMANCY',                                          &
+                                     ClientModule   = 'ModuleVegetation',                                                       &
                                      STAT           = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR290'
                         if (iflag /= 1) then
@@ -6693,7 +6874,7 @@ cd0:    if (Exist) then
             call SetMatrixValue (Me%HeatUnits%PlantHUAccumulated_Old,                    &
                                  Me%Size2D,                                              &
                                  Me%HeatUnits%PlantHUAccumulated,                        &
-                                 Me%ExternalVar%MappingPoints2D)
+                                 Me%ExternalVar%MappingPoints)
 
             call HDF5ReadData   (ObjHDF5, "/Results/"//"PotentialHUBase",                &
                                  "PotentialHUBase",                                      &
@@ -6706,7 +6887,7 @@ cd0:    if (Exist) then
             call SetMatrixValue (Me%HeatUnits%PotentialHUBase_Old,                       &
                                  Me%Size2D,                                              &
                                  Me%HeatUnits%PotentialHUBase,                           &
-                                 Me%ExternalVar%MappingPoints2D)
+                                 Me%ExternalVar%MappingPoints)
 
 
             call HDF5ReadData   (ObjHDF5, "/Results/"//"TreeCurrentYear",                &
@@ -6715,6 +6896,8 @@ cd0:    if (Exist) then
                                  STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadInitialHDF - ModuleVegetation - ERR05'
+                            
+            Me%Growth%TreeComingFromContinuous (:,:) = .true.                               
 
             call HDF5ReadData   (ObjHDF5, "/Results/"//"PlantLAIMaxFraction",            &
                                  "PlantLAIMaxFraction",                                  &
@@ -6798,11 +6981,13 @@ cd0:    if (Exist) then
         do j = Me%Size%JLB, Me%Size%JUB
         do i = Me%Size%ILB, Me%Size%IUB
             
-            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i, j) == VegetationPoint) then
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle                
                 
                 Me%Growth%TreeComingFromContinuous(i,j) = .false.
                 PlantType  = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType
-                if (PlantType == 7) then
+                if (PlantType == Trees) then
                     Me%Growth%TreeComingFromContinuous(i,j) = .true.
                 endif                
                 
@@ -6858,7 +7043,7 @@ cd0:    if (Exist) then
             do j = Me%Size%JLB, Me%Size%JUB
             do i = Me%Size%ILB, Me%Size%IUB
                 
-                if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+                if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
                     
                     if(IntegerMatrix(i,j)==1) then
                         LogicalMatrix(i,j) = .true.
@@ -7441,20 +7626,20 @@ cd0:    if (Exist) then
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
 !            call Read_Lock(mVEGETATION_, Me%InstanceID)
-            if(present(ModelWater            )) ModelWater            = Me%ComputeOptions%ModelWater
-            if(present(ModelNitrogen         )) ModelNitrogen         = Me%ComputeOptions%ModelNitrogen
-            if(present(ModelPhosphorus       )) ModelPhosphorus       = Me%ComputeOptions%ModelPhosphorus
-            if(present(NutrientFluxesWithSoil)) NutrientFluxesWithSoil= Me%ComputeOptions%NutrientFluxesWithSoil
-            if(present(Grazing               )) Grazing               = Me%ComputeOptions%Grazing
-            if(present(HarvestKill           )) HarvestKill           = Me%ComputeOptions%HarvestKill
-            if(present(Dormancy              )) Dormancy              = Me%ComputeOptions%Dormancy
-            if(present(Fertilization         )) Fertilization         = Me%ComputeOptions%Fertilization
-            if(present(GrowthModel           )) GrowthModel           = Me%ComputeOptions%Evolution%GrowthModelNeeded
-            if(present(ModelCanopyHeight     )) ModelCanopyHeight     = Me%ComputeOptions%ModelCanopyHeight
-            if(present(NutrientUptakeMethod  )) NutrientUptakeMethod  = Me%ComputeOptions%NutrientUptakeMethod
-            if(present(Pesticide             )) Pesticide             = Me%ComputeOptions%Pesticide
-            if(present(NumberOfPesticides    )) NumberOfPesticides    = Me%Fluxes%Pesticides%UniquePesticides
-            if(present(VegParticFertilization )) VegParticFertilization = Me%ComputeOptions%VegParticFertilization
+            if(present(ModelWater            )) ModelWater             = Me%ComputeOptions%ModelWater
+            if(present(ModelNitrogen         )) ModelNitrogen          = Me%ComputeOptions%ModelNitrogen
+            if(present(ModelPhosphorus       )) ModelPhosphorus        = Me%ComputeOptions%ModelPhosphorus
+            if(present(NutrientFluxesWithSoil)) NutrientFluxesWithSoil = Me%ComputeOptions%NutrientFluxesWithSoil
+            if(present(Grazing               )) Grazing                = Me%ComputeOptions%Grazing
+            if(present(HarvestKill           )) HarvestKill            = Me%ComputeOptions%HarvestKill
+            if(present(Dormancy              )) Dormancy               = Me%ComputeOptions%Dormancy
+            if(present(Fertilization         )) Fertilization          = Me%ComputeOptions%Fertilization
+            if(present(GrowthModel           )) GrowthModel            = Me%ComputeOptions%Evolution%GrowthModelNeeded
+            if(present(ModelCanopyHeight     )) ModelCanopyHeight      = Me%ComputeOptions%ModelCanopyHeight
+            if(present(NutrientUptakeMethod  )) NutrientUptakeMethod   = Me%ComputeOptions%NutrientUptakeMethod
+            if(present(Pesticide             )) Pesticide              = Me%ComputeOptions%Pesticide
+            if(present(NumberOfPesticides    )) NumberOfPesticides     = Me%Fluxes%Pesticides%UniquePesticides
+            if(present(VegParticFertilization)) VegParticFertilization = Me%ComputeOptions%VegParticFertilization
             
 
             STAT_ = SUCCESS_
@@ -8063,7 +8248,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ModifyVegetation - ModuleVegetation - ERR01'
 
             !Sets External Variable
-            Me%ExternalVar%MappingPoints2D        => MappingPoints
+            Me%ExternalVar%MappingPoints => MappingPoints                        
             Me%Externalvar%PotentialTranspiration => PotentialTranspiration
         
             ! Transpiration is averaged during Integration DT until vegetation processes are called
@@ -8132,8 +8317,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 call JulianDay(Me%ExternalVar%Now, JulDay)
                 Me%ExternalVar%JulianDay_Old = JulDay
 
-                nullify (Me%ExternalVar%MappingPoints2D)
-                
+                nullify (Me%ExternalVar%MappingPoints)                
                 
                 call ReadUnLockExternalVar(ReadAtmosphere = .false.)
 
@@ -8161,7 +8345,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         
         !Local-----------------------------------------------------------------
         integer                                            :: i,j
-        integer, dimension(:,:), pointer                   :: MappingPoints
+                
         !Begin-----------------------------------------------------------------
 
         !If dt's the same use values without integration
@@ -8172,7 +8356,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             call SetMatrixValue (Me%ExternalVar%Integration%AveragePotTPDuringDT,           &
                                  Me%Size2D,                                                 &
                                  Me%ExternalVar%PotentialTranspiration,                     &
-                                 Me%ExternalVar%MappingPoints2D)
+                                 Me%ExternalVar%MappingPoints)
 
             if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
 
@@ -8182,19 +8366,19 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 call SetMatrixValue (Me%ExternalVar%Integration%AverageAirTemPDuringDT,      &
                                      Me%Size2D,                                              &
                                      Me%ExternalVar%AirTemperature,                          &
-                                     Me%ExternalVar%MappingPoints2D)
+                                     Me%ExternalVar%MappingPoints)
     
 !                Me%ExternalVar%Integration%AverageAirHumidityDuringDT => Me%ExternalVar%RelativeHumidity
                 call SetMatrixValue (Me%ExternalVar%Integration%AverageAirHumidityDuringDT,  &
                                      Me%Size2D,                                              &
                                      Me%ExternalVar%RelativeHumidity,                        &
-                                     Me%ExternalVar%MappingPoints2D)
+                                     Me%ExternalVar%MappingPoints)
 
 !                Me%ExternalVar%Integration%AverageRadiationDuringDT   => Me%ExternalVar%SolarRadiation
                 call SetMatrixValue (Me%ExternalVar%Integration%AverageRadiationDuringDT,    &
                                      Me%Size2D,                                              &
                                      Me%ExternalVar%SolarRadiation,                          &
-                                     Me%ExternalVar%MappingPoints2D)    
+                                     Me%ExternalVar%MappingPoints)    
                 
                 call ReadUnLockExternalVar(ReadAtmosphere = .true.)
 
@@ -8202,8 +8386,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         
 
         else
-        
-            MappingPoints => Me%ExternalVar%MappingPoints2D
+                    
             call ReadLockExternalVar(ReadAtmosphere = .true.)
 
             Me%nIterations = Me%nIterations + 1
@@ -8211,8 +8394,10 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-                if (MappingPoints (i, j) == 1) then  
+                if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then  
                 
+                    !Plant type 0 is NO PLANT, so no operations should happen
+                    if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
 
                     ! Atmosphere properties averaged if needed
                     if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
@@ -8369,7 +8554,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         Me%Fluxes%WaterUptake           (:,:  ) = 0.0 
         Me%Fluxes%WaterUptakeLayer      (:,:,:) = 0.0 
-        Me%Fluxes%LAIGrowth             (:,:  ) = 0.0
+        Me%Fluxes%LAIChange             (:,:  ) = 0.0
 
         if (Me%ComputeOptions%ModelNitrogen) then
             Me%Fluxes%NitrogenUptake        (:,:  ) = 0.0 
@@ -8397,11 +8582,11 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     subroutine CheckPlantState
  
        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
         integer                                            :: i,j, PlantType
         logical                                            :: Dormant
         integer                                            :: JulDay, JulDay_Old
         integer                                            :: Pest, FertApp
+        
        !Begin-----------------------------------------------------------------
         
         !If dormancy and day changed, compute day lenght
@@ -8414,13 +8599,12 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             endif
         endif
         
-        
-        MappingPoints => Me%ExternalVar%MappingPoints2D
-        
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
+                
+                PlantType  = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType                
                 
                 !Reset global state variables
                 if (Me%ComputeOptions%HarvestKill) then
@@ -8431,8 +8615,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                         if (Me%ComputeOptions%Dormancy) then
                             Me%IsPlantDormant(i,j)      = .false.
                         endif
-                        PlantType  = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType
-                        if (PlantType == 7) then                        
+                        
+                        if (PlantType == Trees) then                        
                             Me%Growth%TreeCurrentYear(i,j) = 0
                         endif
                     endif
@@ -8444,12 +8628,12 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 
                 if (Me%ComputeOptions%Fertilization) then
                     do FertApp = 1, Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%NumberFertilizerApps
-                        if (&
-                 Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
-                 Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred = .false.
+                        if (Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
+                            Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred = .false.
                         endif
                     enddo
                 endif
+                
                 if (Me%PlantingOccurred(i,j)) then
                     Me%PlantingOccurred(i,j) = .false.
                 endif
@@ -8459,11 +8643,11 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                         Me%PlantGoingDormant(i,j) = .false.
                     endif
                 endif
+                
                 if (Me%ComputeOptions%Pesticide) then
                     do Pest = 1, Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%NumberPesticideApps
-                        if (&
-                 Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred) then
-                 Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred = .false.
+                        if (Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred) then
+                            Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred = .false.
                         endif
                     enddo                
 !                    do Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
@@ -8480,43 +8664,35 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         !If agricultural practices defined in timeserie or HDF than update vegetationID grid
         !Need to be after kill variable reset and before any other plant state checks
         if (Me%AgricPract%SolutionFromFile) then
-
-            call CheckVegetationIDChanges
-        
+            call CheckVegetationIDChanges        
         endif        
 
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
                 
-
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                              
                 !SWAT Base Heat Units counter (for planting schedule)
-                if (Me%ComputeOptions%Evolution%ModelSWAT) then
-                    
-                    call ComputePlantAnnualStage(i,j)
-                
+                if (Me%ComputeOptions%Evolution%ModelSWAT) then                    
+                    call ComputePlantAnnualStage(i,j)                
                 endif
                 
                 !Check if planting will occur
                 if (.not. Me%IsPlantGrowing(i,j)) then
-
-                    call CheckPlanting(i,j)
-                
+                    call CheckPlanting(i,j)                
                 endif
                 
                  !Check if it is pesticide application time
                 if (Me%ComputeOptions%Pesticide) then
-                    
-                    call CheckPlantPesticide(i,j)
-                
+                    call CheckPlantPesticide(i,j)                
                 endif                
 
                  !Check if it is pesticide application time
-                if (Me%ComputeOptions%Fertilization .and. Me%ComputeOptions%FertilizationApp) then
-                    
-                    call CheckPlantFertilization(i,j)
-                
+                if (Me%ComputeOptions%Fertilization .and. Me%ComputeOptions%FertilizationApp) then                    
+                    call CheckPlantFertilization(i,j)                
                 endif                
 
 
@@ -8528,8 +8704,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                     else
                         if (Me%ComputeOptions%Fertilization) then
                             do FertApp = 1, Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%NumberFertilizerApps
-                                if (&
-                    Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
+                                if (Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
                                     Me%SoilFluxesActive(i,j) = .true.
                                 endif
                             enddo
@@ -8537,42 +8712,32 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                     endif
                 endif
 
-    
                 if (Me%IsPlantGrowing(i,j)) then
                     
                     !Check tree age counter
                     PlantType  = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType
-                    if (PlantType == 7) then
-                        
-                        call CheckTreeAge(i,j)
-                    
+                    if (PlantType == Trees) then                        
+                        call CheckTreeAge(i,j)                    
                     endif
                     
                     !Check if it is dormant period
-                    if (Me%ComputeOptions%Dormancy) then
-                        
-                        call CheckPlantDormancy(i,j)
-                    
+                    if (Me%ComputeOptions%Dormancy) then                        
+                        call CheckPlantDormancy(i,j)                    
                     endif
                     
                     !Check if it is grazing period
-                    if (Me%ComputeOptions%Grazing) then
-                        
-                        call CheckPlantGrazing(i,j)
-                    
+                    if (Me%ComputeOptions%Grazing) then                        
+                        call CheckPlantGrazing(i,j)                    
                     endif
  
                     !Check if HarvestKill will occurr (harvest, kill... etc)
-                    if (Me%ComputeOptions%HarvestKill) then
-                        
-                        call CheckPlantHarvestKill(i,j)
-                    
+                    if (Me%ComputeOptions%HarvestKill) then                        
+                        call CheckPlantHarvestKill(i,j)                    
                     endif
 
 
                     !SWAT Growing HU counter
-                    if (Me%ComputeOptions%Evolution%ModelSWAT) then
-                        
+                    if (Me%ComputeOptions%Evolution%ModelSWAT) then                        
                         Dormant = .false.
                         if (Me%ComputeOptions%Dormancy) then
                             if (Me%IsPlantDormant(i,j)) then
@@ -8582,14 +8747,10 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                         
                         if (.not. Dormant) then
                             call ComputePlantGrowingStage(i,j)
-                        endif
-                    
-                    endif
-                
-                endif
-            
-            endif
-        
+                        endif                    
+                    endif                
+                endif            
+            endif        
         enddo
         enddo
         
@@ -8601,7 +8762,6 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             if (JulDay_Old .gt. 364 .and. JulDay .ge. 1) then
                 Me%SimulationYear = Me%SimulationYear + 1
             endif
-            
         endif
 
 
@@ -8622,14 +8782,14 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         !Update agricultural practices MatrixID - from user
         call ModifyFillMatrix (FillMatrixID   = Me%AgricPract%ObjFillMatrix,         &
                                Matrix2D       = AgricPractID,                        &
-                               PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
+                               PointsToFill2D = Me%ExternalVar%MappingPoints,        &
                                STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CheckVegetationIDChanges - ModuleVegetation - ERR01'
         
         !Update VegetationID matrix - ordered ID's
         do j = Me%Size%JLB, Me%Size%JUB
         do i = Me%Size%ILB, Me%Size%IUB
-            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
                 
                 Me%AgricPractID(i,j) = NINT(AgricPractID(i, j))
                 
@@ -8746,24 +8906,46 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
             if (PropertyX%ID%SolutionFromFile) then
 
-                call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix, &
-                                       Matrix2D       = PropertyX%Field,            &
-                                       PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
+                call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,   &
+                                       Matrix2D       = PropertyX%Field,              &
+                                       PointsToFill2D = Me%ExternalVar%MappingPoints, &
                                        STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadSolution - ModuleAtmosphere - ERR01'
-            
+                if (STAT_CALL /= SUCCESS_) then
+                    write (*,*) "ATTENTION"
+                    write (*,*) "Was not possible to read property '", trim(PropertyX%ID%Name), "' from file."  
+                    stop 'ModifyReadedProperties - ModuleVegetation - ERR010'
+                endif
             endif
             
             !This code exists to avoid Leaf Area Index (LAI) negative
             !The best is to preprocess data to avoid negative values (maybe interpolate to fill missing values)
-            if (PropertyX%ID%IDNumber .EQ. LeafAreaIndex_) then
-do1:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    if (PropertyX%Field(i, j) < 0.0) then
-                        PropertyX%Field(i, j) = 0.0
-                    endif
-                enddo do2
-                enddo do1
+            if (((PropertyX%ID%IDNumber == LeafAreaIndex_) .or. (PropertyX%ID%IDNumber == BoundaryLeafAreaIndex_)) .and. &
+                (.not. Me%AllowNegativeLAI)) then
+                if (Me%CorrectNegativeLAI) then            
+do1:                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB 
+                        if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then                   
+                            if (PropertyX%Field(i, j) < 0.0) then
+                                PropertyX%Field(i, j) = Me%ValueInsteadNegativeLAI
+                            endif
+                        endif
+                    enddo do2
+                    enddo do1
+                else
+do3:                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do4:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB   
+                        if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then                 
+                            if (PropertyX%Field(i, j) < 0.0) then
+                                write (*,*) "ATTENTION."
+                                write (*,*) "Found negative values for property '", trim(PropertyX%ID%Name), "'"
+                                write (*,*) "Check the input file or the options ALLOW_NEGATIVE_LAI and"
+                                write (*,*) "CORRECT_NEGATIVE_LAI"
+                                Stop "ModifyReadedProperties - ModuleVegetation - ERR020"
+                            endif
+                        endif
+                    enddo do4
+                    enddo do3
+                endif
             endif
             
             PropertyX => PropertyX%Next
@@ -8933,10 +9115,12 @@ do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             endif
 
         else 
-            write(*,*    ) 
-            write(*,*    ) 'Fatal error ! Julian day and Base HU for planting' 
-            write(*,*    ) 'inconsistently defined in crop database.'
-            stop 'CheckIfPlantWillStartGrowing - ModuleVegetation - ERR10'  
+            !write(*,*    ) 
+            !write(*,*    ) 'Fatal error ! Julian day and Base HU for planting' 
+            !write(*,*    ) 'inconsistently defined in crop database.'
+            !write(*,*    ) 'Warning ! Julian day and Base HU for planting' 
+            !write(*,*    ) 'inconsistently defined in crop database.'            
+            !stop 'CheckIfPlantWillStartGrowing - ModuleVegetation - ERR10'  
 
         endif
 
@@ -9134,8 +9318,8 @@ do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     subroutine WaterUptakeSWAT
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         integer                                         :: i,j
         real                                            :: TopDepth, BottomDepth
         real                                            :: PotTP
@@ -9153,6 +9337,7 @@ do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: IncreaseUptake, ReduceUptake
         integer                                         :: k, KUB, KLB
         logical                                         :: UptakeAllowed
+        
         !Begin-----------------------------------------------------------------
         
         !Aeration stress from SWAT not implmented yet
@@ -9166,14 +9351,16 @@ do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !        else
 !          strsa(j) = 1.
 !        end if
-        
-        MappingPoints => Me%ExternalVar%MappingPoints2D
+                
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
             
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                        
                 UptakeAllowed = .true.
                 if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
                     !To by-pass no growing season periods. 
@@ -9317,8 +9504,8 @@ do3 :               do k = KUB, KLB, -1
     subroutine WaterUptakeMOHID
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         real, dimension(:,:,:), pointer                 :: UnsatK
         integer                                         :: i, j
         real                                            :: SumUptake, RootDepth, BottomDepth
@@ -9338,9 +9525,8 @@ do3 :               do k = KUB, KLB, -1
         logical                                         :: UseSalinityStress
         integer                                         :: STAT_CALL
         real                                            :: P2L, P2H, R2L, R2H, TP        
+        
         !Begin-----------------------------------------------------------------
-
-        MappingPoints => Me%ExternalVar%MappingPoints2D
         
         !Fluxes Nullification
         Me%Fluxes%WaterUptakeLayer(:,:,:) = 0.0
@@ -9359,8 +9545,11 @@ do3 :               do k = KUB, KLB, -1
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
             
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                        
                 UptakeAllowed = .true.    
                 if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
                     !To by-pass no growing season periods. 
@@ -9707,8 +9896,8 @@ do3 :               do k = KUB, KLB, -1
     subroutine NitrogenUptakeSWAT
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         integer                                         :: i, j
         integer                                         :: VegetationID
         real                                            :: TotalPlantNitrogen, TotalPlantBiomass
@@ -9733,14 +9922,16 @@ do3 :               do k = KUB, KLB, -1
         integer                                         :: k, KUB, KLB, PlantType
         logical                                         :: Dormant
         real                                            :: AmountAvailable
-       !Begin-----------------------------------------------------------------
-
-        MappingPoints => Me%ExternalVar%MappingPoints2D
+        
+       !Begin-----------------------------------------------------------------        
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
+
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
 
                 Dormant = .false.
                 if (Me%ComputeOptions%Dormancy) then
@@ -9931,8 +10122,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     subroutine NitrogenUptake_TranspConc
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         integer                                         :: i, j
         integer                                         :: VegetationID
         real                                            :: TotalPlantNitrogen, TotalPlantBiomass
@@ -9952,14 +10143,16 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: SumUptake
         integer                                         :: k, KUB, KLB, PlantType
         logical                                         :: ComputeCell !Dormant
-       !Begin-----------------------------------------------------------------
-
-        MappingPoints => Me%ExternalVar%MappingPoints2D
+        
+       !Begin-----------------------------------------------------------------        
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
+
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
 
                 ComputeCell = .false.
                 if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
@@ -10196,8 +10389,8 @@ do3:                do k = KUB, KLB, -1
     subroutine PhosphorusUptakeSWAT
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         integer                                         :: i, j
         integer                                         :: VegetationID
         real                                            :: TotalPlantBiomass, TotalPlantPhosphorus
@@ -10222,15 +10415,17 @@ do3:                do k = KUB, KLB, -1
         integer                                         :: k, KUB, KLB, PlantType
         logical                                         :: Dormant
         real                                            :: AmountAvailable
-       !Begin-----------------------------------------------------------------
         
-        MappingPoints => Me%ExternalVar%MappingPoints2D
+       !Begin-----------------------------------------------------------------
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
             
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                        
                 Dormant = .false.
                 if (Me%ComputeOptions%Dormancy) then
                     if (Me%IsPlantDormant(i,j)) then
@@ -10422,8 +10617,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     subroutine PhosphorusUptake_TranspConc
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         integer                                         :: i, j
         integer                                         :: VegetationID
         real                                            :: TotalPlantBiomass, TotalPlantPhosphorus
@@ -10442,16 +10637,18 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: LayerPhosphorusContent
         real                                            :: SumUptake
         integer                                         :: k, KUB, KLB, PlantType
-        logical                                         :: ComputeCell !Dormant 
+        logical                                         :: ComputeCell !Dormant
+         
        !Begin-----------------------------------------------------------------
-        
-        MappingPoints => Me%ExternalVar%MappingPoints2D
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints (i,j) == VegetationPoint) then
             
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                        
                 ComputeCell = .false.
                 if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
                     ComputeCell = .true.
@@ -10708,8 +10905,8 @@ do3 :               do k = KUB, KLB, -1
     subroutine BiomassGrowthFromRadiationSWAT
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                  :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         integer                                           :: i, j
         real                                              :: ExtinctCoef
         integer                                           :: VegetationID
@@ -10726,14 +10923,17 @@ do3 :               do k = KUB, KLB, -1
         real                                              :: ActualVapourPressure
         integer                                           :: PlantType
         logical                                           :: Dormant
+        
        !Begin-----------------------------------------------------------------
-
-        MappingPoints => Me%ExternalVar%MappingPoints2D
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
+                
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                
                 
                 !Allow Trees to grow
 !                PlantType              =   Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType
@@ -10872,8 +11072,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         else
             WaterStress = 1.0
         endif
-        
+                
         if (Me%ComputeOptions%ModelTemperatureStress) then
+            !Temperature stress must be computed now, because it is dependent on the plant characteristics
             call ComputeTemperatureStress(i,j)
             TemperatureStress = Me%Growth%TemperatureStress(i,j)
         else
@@ -10909,14 +11110,13 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                                 :: i, j
+        
         !Local-----------------------------------------------------------------
         real                                                :: BaseTemperature, OptimalTemperature
         real                                                :: AverageTempDuringDT
         real                                                :: Temperature1, Temperature2
-        !SandTest--------------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantOptimalTemperature = 18.0
-        !Begin-----------------------------------------------------------------
-        
+
+        !Begin-----------------------------------------------------------------        
         BaseTemperature     = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantBaseTemperature
         OptimalTemperature  = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantOptimalTemperature
         AverageTempDuringDT = Me%ExternalVar%Integration%AverageAirTempDuringDT(i,j)
@@ -10935,7 +11135,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !Ignored swat code adding 1E-6
             if (Temperature1 .ne. 0.0) then
                 Temperature2 = ((OptimalTemperature - AverageTempDuringDT) / (Temperature1)) ** 2
-!Error            Temperature2 = ((OptimalTemperature - AverageTempDuringDT) / (Temperature1 + 1.e-6)) ** 2
             endif
 
             if (Temperature2 .le. 200. .and. Temperature1 .gt. 0.) then
@@ -10945,12 +11144,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             end if
         endif
 
-!        if (tmn(j) <= tmp_an(hru_sub(j)) - 15.) strstmp(j) = 0.
-
-!        end if
-
-
-
     end subroutine ComputeTemperatureStress
 
     !--------------------------------------------------------------------------
@@ -10958,141 +11151,175 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     subroutine LAIGrowthSWAT
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                :: MappingPoints
-        integer                                         :: i, j
-        integer                                         :: VegetationID
-        real                                            :: FrLAIMax1, FrLAIMax2
-        real                                            :: FrGrow1, FrGrow2, HUAcc, HUAcc_Old
-        real                                            :: LAIShape1, LAIShape2
-        real                                            :: FractionLAIMax_Old
-        real                                            :: FrGrowLAIDecline
-        integer                                         :: PlantType
-        real                                            :: DBLAIMax
-        real                                            :: LAIMax, DeltaLAI, LAI
-        real                                            :: DeltaFractionLAIMax
-        real                                            :: GlobalStress
-        logical                                         :: Dormant, HasLeaves
-        !Begin----------------------------------------------------------
         
-        MappingPoints => Me%ExternalVar%MappingPoints2D
+        !Local-----------------------------------------------------------------        
+        integer                                         :: i, j
+        integer                                         :: veg_id
+        type(T_GrowthDatabase), pointer                 :: gdb !gdb is a pointer to the GrowthDataBase structure        
+        real                                            :: HUAcc, HUAcc_Old        
+        real                                            :: FractionLAIMax_Old                        
+        real                                            :: LAIMax, LAI
+        real                                            :: DeltaFractionLAIMax
+        real                                            :: LAIDeclineFraction
+        real                                            :: GlobalStress
+        type (T_Property), pointer                      :: BoundaryLAI
+        integer                                         :: STAT_CALL
+        logical                                         :: UseBoundaryLAI
+        logical                                         :: LAIIsGrowing
+                
+        !Begin----------------------------------------------------------        
+
+        UseBoundaryLAI = .false.
+
+        if (Me%UseBoundaryLAI) then
+            call SearchProperty(BoundaryLAI, BoundaryLeafAreaIndex_, .false., STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'LAIGrowthSWAT - ModuleVegetation - ERR001'
+            endif
+        endif
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then                                         
+            
+                veg_id = Me%VegetationID(i,j)
                 
-!                !Allow Trees to grow
-!                PlantType              =   Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType
-!                GrowAllowed = .false.
-!                select case (PlantType)
-!                    case (7)
-!                        GrowAllowed = .true.
-!                    case default
-!                        if (Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) then 
-!                            GrowAllowed = .true.
-!                        endif
-!                end select
+                gdb => Me%VegetationTypes(veg_id)%GrowthDatabase
+            
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (gdb%PlantType == NotAPlant) cycle                                            
 
-                Dormant = .false.
-                if (Me%ComputeOptions%Dormancy) then
-                    if (Me%IsPlantDormant(i,j)) then
-                        Dormant = .true.
-                        !Do not compute senescence if dormant. The only fluxes allowed will be HarvestKill and grazing
-                        Me%LAISenescence(i,j) = .false.
+                if (Me%UseBoundaryLAI) then
+                    !If LAI is negative than it do not exist for this DT.
+                    !In this case, the LAI must be computed.
+                    if (BoundaryLAI%Field(i,j) >= 0) then
+                        UseBoundaryLAI = .true.
+                    else
+                        UseBoundaryLAI = .false.
                     endif
                 endif
-                
-                HasLeaves = .false.
-                if (Me%VegetationTypes(Me%VegetationID(i,j))%HasLeaves) then
-                    HasLeaves = .true.
-                endif
 
-                if (HasLeaves .and. Me%IsPlantGrowing(i,j) .and. .not. Dormant                         &
-                .and. Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) then  
-           
-                    VegetationID = Me%VegetationID(i,j)
-                    FrLAIMax1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%FrLAIMax1
-                    FrLAIMax2 = Me%VegetationTypes(VegetationID)%GrowthDatabase%FrLAIMax2
-                    FrGrow1   = Me%VegetationTypes(VegetationID)%GrowthDatabase%FrGrow1
-                    FrGrow2   = Me%VegetationTypes(VegetationID)%GrowthDatabase%FrGrow2
-        
-                    call ComputeShapeCoefficients (FrLAIMax1, FrLAIMax2, FrGrow1, FrGrow2, LAIShape1, LAIShape2)
-        
-                    HUAcc = Me%HeatUnits%PlantHUAccumulated(i,j)
-                    HUAcc_Old = Me%HeatUnits%PlantHUAccumulated_Old(i,j)
-
-                    !Save old value. It will be used in next step
-                    if (Me%PlantingOccurred(i,j)) then
-                        Me%PlantLAIMaxFraction(i,j) = 0.0
-                    endif    
-                    FractionLAIMax_Old = Me%PlantLAIMaxFraction(i,j)
-                    !Update
-                    Me%PlantLAIMaxFraction(i,j) = HUAcc / (HUAcc + exp(LAIShape1 - LAIShape2 * HUAcc))
-        
-                    !Compute new Leaf Area Index
-                    FrGrowLAIDecline = Me%VegetationTypes(VegetationID)%GrowthDatabase%FrGrowLAIDecline
-                    PlantType        = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantType
-                    DBLAIMax         = Me%VegetationTypes(VegetationID)%GrowthDatabase%LAIMax
-
-                    Me%LAISenescence(i,j) = .false.
-         
-                    if (HUAcc .lt. FrGrowLAIDecline) then
-            
-                        LAIMax = 0.
-                        DeltaLAI = 0.
-            
-                        if (PlantType .eq. 7) then
-                            LAIMax = DBLAIMax * Me%Growth%TreeFractionToMaturity(i,j)
-                        else
-                            LAIMax = DBLAIMax
-                        endif
-            
-                        DeltaFractionLAIMax = Me%PlantLAIMaxFraction(i,j) - FractionLAIMax_Old
+                !====Start checking if growth must be computed====
+                !If plant do not has leaves, go to next cell
+                if (.not. Me%VegetationTypes(veg_id)%HasLeaves) cycle
                     
+                !If plant is dorment, go to next cell
+                if (Me%ComputeOptions%Dormancy) then
+                    if (Me%IsPlantDormant(i,j)) then                    
+                        Me%LAISenescence(i,j) = .false.
+                        
+                        if (UseBoundaryLAI) then
+                            Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j)    
+                        endif                        
+                        
+                        cycle
+                    endif
+                endif                
+                                
+                !If plant is not growing, go to next cell
+                if (.not. Me%IsPlantGrowing(i,j)) then
+                    if (UseBoundaryLAI) then
+                        Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j)    
+                    endif
+                    
+                    cycle
+                endif
+                
+                !If plant already reached maturity, go to next cell
+                LAIIsGrowing = .false.
+                HUAcc = Me%HeatUnits%PlantHUAccumulated(i,j)                
+                if (HUAcc <= 1.0) then
+                    LAIIsGrowing = .true.
+                else if (HUAcc_Old < 1.0) then
+                    LAIIsGrowing = .true.
+                else 
+                    if (UseBoundaryLAI) then
+                        Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j)    
+                    endif                
+                
+                    cycle
+                endif
+                !==================================================                                                                        
+                
+                HUAcc_Old = Me%HeatUnits%PlantHUAccumulated_Old(i,j)
+
+                !Save old value. It will be used in next step                
+                if (Me%PlantingOccurred(i,j)) then
+                    FractionLAIMax_Old = 0.0
+                else
+                    FractionLAIMax_Old = Me%PlantLAIMaxFraction(i,j)
+                endif                  
+                
+                !Update PlantLAIMaxFraction
+                Me%PlantLAIMaxFraction(i,j) = HUAcc / (HUAcc + exp(gdb%LAIShape1 - gdb%LAIShape2 * HUAcc))                
+                                                
+                !Compute new Leaf Area Index                     
+                if (LAIIsGrowing) then
+                
+                    Me%LAISenescence(i,j) = .false.
+                
+                    if (UseBoundaryLAI) then
+                    
+                        Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j)
+                    
+                    else                                        
+            
+                        !Gets the stress calculated before. Only temperature stress is computed at this routine.
                         call ComputeGlobalStress(i,j)
                         GlobalStress = Me%Growth%GlobalStress(i,j)
-                    
+                        
+                        if (gdb%PlantType .eq. 7) then
+                            LAIMax = gdb%LAIMax * Me%Growth%TreeFractionToMaturity(i,j)
+                        else
+                            LAIMax = gdb%LAIMax
+                        endif
+            
+                        DeltaFractionLAIMax = Me%PlantLAIMaxFraction(i,j) - FractionLAIMax_Old                                
                         LAI = Me%StateVariables%LeafAreaIndex(i,j)
-    !                    LAI = PropLeafAreaIndex%Field(i,j)
-
-                        DeltaLAI = (DeltaFractionLAIMax * LAIMax * (1.0 - exp(5.0 * (LAI - LAIMax)))) * sqrt(GlobalStress)
+                        Me%Fluxes%LAIChange(i,j) = (DeltaFractionLAIMax * LAIMax * (1.0 - exp(5.0 * (LAI - LAIMax)))) * sqrt(GlobalStress)
 
                         !When coming from dormancy or grazing or harvest LAI growth turns negative because of HU decline
                         !However, LAI decline due to HUAccumulated decline is already computed explicitly 
                         !for grazing and harvesting in leaf are index state variable. In order to avoid double account here
                         !flux can only be positive.
-                        if (DeltaLAI .lt. 0.0) then
-                            DeltaLAI = 0.00
+                        if (Me%Fluxes%LAIChange(i,j) .lt. 0.0) then
+                            Me%Fluxes%LAIChange(i,j) = 0.00
+                        elseif ((LAI + Me%Fluxes%LAIChange(i,j)) > LAIMax) then
+                            Me%Fluxes%LAIChange(i,j) = LAIMax - LAI
                         endif
-
-                        Me%Fluxes%LAIGrowth(i,j) = DeltaLAI
+                        
+                    endif
+    
+                else if (.not. gdb%Evergreen) then 
+                !if LAI is not growing and is not a "evergreen" plant, then the lai is declining
         
+                    Me%LAISenescence(i,j) = .true.
+                           
+                    if (Me%ComputeOptions%UseLAIDecRate) then                    
+                        LAIDeclineFraction = 1.0 - gdb%LAIDecRate                        
+                    elseif(.not. Me%ComputeOptions%ChangeLAISenescence) then                    
+                        LAIDeclineFraction = (1.0 - HUAcc) / (1.0 - gdb%FrGrowLAIDecline)                        
                     else
-            
-                        Me%LAISenescence(i,j) = .true.
-            
-                        if (Me%ComputeOptions%UseLAIDecRate) then
-                        
-                            Me%LAIDeclineFraction(i,j) = Me%VegetationTypes(VegetationID)%GrowthDatabase%LAIDecRate
-                            
-                        elseif(.not. Me%ComputeOptions%ChangeLAISenescence) then
-                        
-                            Me%LAIDeclineFraction(i,j) = (1.0 - HUAcc) / (1.0 - FrGrowLAIDecline)
-                            
-                        else
-                            if (HUAcc .gt. HUAcc_Old) then
-                            
-                                Me%LAIDeclineFraction(i,j) = (1.0 - HUAcc) / (1.0 - HUAcc_Old)
-                                
-                            else
-                            
-                                Me%LAIDeclineFraction(i,j) = 1.0
-                                
-                            endif
+                        if (HUAcc .gt. HUAcc_Old) then                        
+                            LAIDeclineFraction = (1.0 - HUAcc) / (1.0 - HUAcc_Old)                            
+                        else                        
+                            LAIDeclineFraction = 1.0                            
                         endif
                     endif
+                        
+                    if (UseBoundaryLAI) then                        
+                        Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j)
+                    else
+                        Me%Fluxes%LAIChange(i,j) = Me%StateVariables%LeafAreaIndex(i,j) * (1.0 - LAIDeclineFraction)
+                    endif
+                      
+                else if (UseBoundaryLAI) then
+                !If LAI is not growing and not declining (it's a evergreen plant at maturity), 
+                !actualize LAI if using boundary condition
                 
+                    Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j)    
+                                        
                 endif
 
             endif
@@ -11218,18 +11445,20 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     subroutine HarvestKillFluxes
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         integer                                         :: i, j
         character (Len = StringLength)                  :: WarningString
-        !Begin-----------------------------------------------------------------
         
-        MappingPoints => Me%ExternalVar%MappingPoints2D
+        !Begin-----------------------------------------------------------------
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-            if (MappingPoints (i, j) == 1  .and. Me%IsPlantGrowing(i,j)) then  
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint  .and. Me%IsPlantGrowing(i,j)) then  
+
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
 
                 if (Me%HarvestKillOccurred(i,j)) then
                     call HarvestKillOperation(i,j)
@@ -11596,13 +11825,14 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     subroutine ComputeDayLength
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         integer                                         :: JulDay
         real                                            :: SunDeclination 
         real                                            :: EarthRotationVelocity, Aux, AuxMin
         real                                            :: LatitudeRad, TresholdForDormancy
         integer                                         :: STAT_CALL, i,j
+        
         !Begin-----------------------------------------------------------------
         
         call GetGridLatitudeLongitude(Me%ObjHorizontalGrid,                     &
@@ -11618,13 +11848,15 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         SunDeclination = 23.45 * cos((172.0 - JulDay) * 2.0 * PI / 365.0) * PI / 180.0
         
         EarthRotationVelocity = 0.2618 !rad/hr = 15deg/hr
-        
-        MappingPoints => Me%ExternalVar%MappingPoints2D
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
+
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+
                 ! Compute day length (h)
                 LatitudeRad = Me%ExternalVar%Latitude(i,j) * PI / 180.0
             
@@ -11746,8 +11978,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     
     subroutine DormancyFluxes
        
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        !Local-----------------------------------------------------------------        
         integer                                            :: i, j, VegetationID
         integer                                            :: PlantType
         logical                                            :: PlantKilled
@@ -11760,13 +11991,14 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Begin-----------------------------------------------------------------
 
-        MappingPoints => Me%ExternalVar%MappingPoints2D
-
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
                 
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                                
                 PlantKilled = .false.
                 if (Me%ComputeOptions%HarvestKill) then
                     if (Me%HarvestKillOccurred(i,j) .or. Me%KillOccurred(i,j)) then
@@ -11949,8 +12181,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     subroutine GrazingFluxes
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer          :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         integer                                   :: i, j
         real                                      :: TotalPlantBiomass, PredictedBiomass
         real                                      :: BiomassRemovedInDormancy, BiomassRemovedInHarvest
@@ -11970,15 +12202,17 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                      :: BiomassGrazedFraction
         character (Len = StringLength)            :: WarningString
         logical                                   :: PlantKilled
-        !Begin-----------------------------------------------------------------
         
-        MappingPoints => Me%ExternalVar%MappingPoints2D
+        !Begin-----------------------------------------------------------------
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
-            if (MappingPoints (i, j) == 1) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
             
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                        
                 PlantKilled = .false.
                 if (Me%ComputeOptions%HarvestKill) then
                     if (Me%HarvestKillOccurred(i,j) .or. Me%KillOccurred(i,j)) then
@@ -12424,8 +12658,8 @@ if6:                    if(PotentialHU .ge. FertilizerAppHU .and. PotentialHU_Ol
     subroutine UpdateGlobalPlantProperties
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         integer                                         :: i, j, PlantType, TreeYearsToMaturity
         logical                                         :: PlantKilled
         real                                            :: PlantBiomass, BiomassGrowth, BiomassGrazed
@@ -12435,13 +12669,14 @@ if6:                    if(PotentialHU .ge. FertilizerAppHU .and. PotentialHU_Ol
         real                                            :: PlantPhosphorus, PhosphorusUptake, PhosphorusGrazed
         real                                            :: PhosphorusRemovedInHarvest, PhosphorusRemovedInDormancy
         !Begin------------------------------------------------------------------------------------------------
-        
-        MappingPoints => Me%ExternalVar%MappingPoints2D
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-            if (MappingPoints (i, j) == 1 .and. Me%IsPlantGrowing(i,j)) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint .and. Me%IsPlantGrowing(i,j)) then
+                     
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
                      
                 !Grazing fluxes
                 BiomassGrazed     = 0.0
@@ -12546,7 +12781,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 TreeYearsToMaturity  = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%TreeYearsToMaturity
 
                 !For trees, growth is slower, getting maximum biomass not in a single year. As so growth may be limited.
-                if (PlantType == 7 .and. TreeYearsToMaturity .gt. 0 ) then
+                if (PlantType == Trees .and. TreeYearsToMaturity .gt. 0 ) then
                 
                     PlantBiomass = min (PlantBiomass, Me%Growth%TreeMaximumAnnualBiomass(i,j))
 
@@ -12575,16 +12810,14 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     subroutine UpdateRootProperties
 
         !Arguments-------------------------------------------------------------
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        
+        !Local-----------------------------------------------------------------        
         integer                                         :: i, j, kTop, KFloor, STAT_CALL
         logical                                         :: PlantKilled
         real                                            :: MaxRootDepth, RootBiomassFraction, SoilDepth
         integer                                         :: VegetationID, PlantType
-        !Begin-----------------------------------------------------------------
         
-        MappingPoints => Me%ExternalVar%MappingPoints2D
-
+        !Begin-----------------------------------------------------------------
 
         call GetGeometryDistances(Me%ObjGeometry,                                       &
                                   SZZ         = Me%ExternalVar%SZZ,                     &
@@ -12600,7 +12833,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-            if (MappingPoints (i, j) == 1 .and. Me%IsPlantGrowing(i,j)) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint .and. Me%IsPlantGrowing(i,j)) then
+            
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
             
                 !To send to PMP to source/sinks fluxes computed in vegetation
                 !Specially needed in the case of kill where it would not compute fluxes in PMP
@@ -12614,7 +12850,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 endif
 
 
-                if (PlantKilled .or. Me%PlantingOccurred(i,j)) then
+                if (PlantKilled) then
         
                     if(Me%ComputeOptions%ModelRootBiomass) then
                         Me%StateVariables%RootBiomass(i,j) = 0.0
@@ -12685,24 +12921,58 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     subroutine UpdateLeafProperties
 
         !Arguments-------------------------------------------------------------
-        !Local----------------------------------------------------------
-        integer, dimension(:,:), pointer                :: MappingPoints
-        integer                                         :: i, j
+        
+        !Local----------------------------------------------------------        
+        integer                                         :: i, j, STAT_CALL
         logical                                         :: PlantKilled, PlantGoingDormant
         real                                            :: LAI, BiomassGrazedFraction, BiomassHarvestedFraction
-        real                                            :: LAIGrowth, LAIDeclineFraction
-        real                                            :: LAIMax, DBLAIMax, LAIMinDormant
-        integer                                         :: PlantType
+        real                                            :: LAIChange
+        real                                            :: LAIMax, LAIMinDormant
+        integer                                         :: PlantType  
+        logical                                         :: UseBoundaryLAI      
+        type(T_Property), pointer                       :: BoundaryLAI
+        integer                                         :: vegID
+        type(T_VegetationType)                          :: veg
         !Begin----------------------------------------------------------
+                
+        UseBoundaryLAI = .false.
+                
+        if (Me%UseBoundaryLAI) then
+            call SearchProperty(BoundaryLAI, BoundaryLeafAreaIndex_, .false., STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'UpdateLeafProperties - ModuleVegetation - ERR001'
+            endif
+        else
+            BoundaryLAI => null()
+        endif
         
-        MappingPoints => Me%ExternalVar%MappingPoints2D
-
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-            if (MappingPoints (i, j) == 1 .and. Me%IsPlantGrowing(i,j) ) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint .and. Me%IsPlantGrowing(i,j) ) then
                    
-                if (Me%VegetationTypes(Me%VegetationID(i,j))%HasLeaves) then
+                !Plant type 0 is NO PLANT, so no operations should happen
+                vegID = Me%VegetationID(i,j)
+                veg   = Me%VegetationTypes(vegID)
+                 
+                if (veg%GrowthDatabase%PlantType == NotAPlant) cycle
+                   
+                LAIMax = veg%GrowthDatabase%LAIMax 
+                if ((Me%UseBoundaryLAI)) then
+                    if (BoundaryLAI%Field(i,j) >= 0) then
+                        if (BoundaryLAI%Field(i,j) > LAIMax) then
+                            LAIMax = BoundaryLAI%Field(i,j)
+                        endif
+                        
+                        UseBoundaryLAI = .true.
+                    else
+                        UseBoundaryLAI = .false.
+                    endif
+                endif
+                   
+                PlantType = veg%GrowthDatabase%PlantType
+
+                if (veg%HasLeaves) then
 
                     PlantKilled = .false.
                     if (Me%ComputeOptions%HarvestKill) then
@@ -12710,6 +12980,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             PlantKilled = .true.
                         endif
                     endif
+                    
                     PlantGoingDormant = .false.
                     if (Me%ComputeOptions%Dormancy) then
                         if (Me%PlantGoingDormant(i,j)) then
@@ -12717,22 +12988,29 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         endif 
                     endif                   
                 
-                    if (PlantKilled .or. Me%PlantingOccurred(i,j)) then
+                    if (PlantKilled) then
 
-                        Me%StateVariables%LeafAreaIndex(i,j) = 0.0
+                        if (UseBoundaryLAI) then
+                            Me%StateVariables%LeafAreaIndex(i,j) = Me%StateVariables%LeafAreaIndex(i,j) + LAIChange  
+                        else
+                            Me%StateVariables%LeafAreaIndex(i,j) = 0.0
+                        endif
 
                     elseif (PlantGoingDormant) then
                     
-                        LAIMinDormant = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%LAIMinDormant
-                        if (Me%StateVariables%LeafAreaIndex(i,j) .gt. LAIMinDormant) then
-                            Me%StateVariables%LeafAreaIndex(i,j) = LAIMinDormant
+                        LAIMinDormant = veg%GrowthDatabase%LAIMinDormant
+                        
+                        if (UseBoundaryLAI) then
+                            Me%StateVariables%LeafAreaIndex(i,j) = Me%StateVariables%LeafAreaIndex(i,j) + LAIChange  
+                        else                        
+                            if (Me%StateVariables%LeafAreaIndex(i,j) .gt. LAIMinDormant) then
+                                Me%StateVariables%LeafAreaIndex(i,j) = LAIMinDormant
+                            endif
                         endif
-                
+                                        
                     else
 
-                        LAI               = Me%StateVariables%LeafAreaIndex(i,j)
-                        DBLAIMax          = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%LAIMax    
-                        PlantType         = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType
+                        LAI = Me%StateVariables%LeafAreaIndex(i,j)
 
                         BiomassGrazedFraction = 0.0
                         if (Me%ComputeOptions%Grazing) then
@@ -12751,71 +13029,63 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                         if (.not. Me%LAISenescence(i,j)) then
             
-                            LAIGrowth = Me%Fluxes%LAIGrowth(i,j)
-
-                            Me%StateVariables%LeafAreaIndex(i,j) = LAI + LAIGrowth                                       &
-                                                                    - (LAI * BiomassGrazedFraction)                            &
-                                                                    - (LAI * BiomassHarvestedFraction)
+                            Me%StateVariables%LeafAreaIndex(i,j) = (LAI + Me%Fluxes%LAIChange(i,j)) - &
+                                                                   (LAI * BiomassGrazedFraction) -    &
+                                                                   (LAI * BiomassHarvestedFraction)
                 
                             if(.not. Me%ComputeOptions%ChangeLAISenescence) then
-
-                                Me%LAIBeforeSenescence(i,j) = Me%StateVariables%LeafAreaIndex(i,j)
+                                Me%LAIBeforeSenescence(i,j) = Me%StateVariables%LeafAreaIndex(i,j)                                
                             endif
 
-                        elseif (Me%LAISenescence(i,j) .and. LAI .ne. 0.0) then
-            
-                            LAIDeclineFraction = Me%LAIDeclineFraction(i,j)
+                        elseif (LAI .ne. 0.0) then                           
 
-
-                            if (Me%ComputeOptions%UseLAIDecRate) then
-                                Me%StateVariables%LeafAreaIndex(i,j) = (LAI * (1.0 - LAIDeclineFraction))   &
-                                                                        - (LAI * BiomassGrazedFraction)     &
-                                                                        - (LAI * BiomassHarvestedFraction)                            
-
-                            elseif(.not. Me%ComputeOptions%ChangeLAISenescence) then
-
+                            if(.not. Me%ComputeOptions%ChangeLAISenescence) then
                                 !LAI Computed from maximum value reached and not from last (SWAT theory). If grazing or 
                                 !harvesting occurr during senescence LAI is increased due to the computation formulation.
-                                Me%StateVariables%LeafAreaIndex(i,j) = Me%LAIBeforeSenescence(i,j) * LAIDeclineFraction &
-                                                                        - (LAI * BiomassGrazedFraction)                 &
-                                                                        - (LAI * BiomassHarvestedFraction)
+                                Me%StateVariables%LeafAreaIndex(i,j) = Me%LAIBeforeSenescence(i,j)
                             else
                                 !LAI computed from last value. It avoids erorrs when grazing or harvesting occurrs 
                                 !during senescence.
-                                Me%StateVariables%LeafAreaIndex(i,j) = (LAI * LAIDeclineFraction)           &
-                                                                        - (LAI * BiomassGrazedFraction)     &
-                                                                        - (LAI * BiomassHarvestedFraction)
-                            endif
+                                Me%StateVariables%LeafAreaIndex(i,j) = LAI
+                            endif 
+                               
+                            Me%StateVariables%LeafAreaIndex(i,j) = (Me%StateVariables%LeafAreaIndex(i,j) - LAIChange) - &
+                                                                   (LAI * BiomassGrazedFraction) -                      &
+                                                                   (LAI * BiomassHarvestedFraction)                                                                      
+                            
+                        else if (UseBoundaryLAI) then
+                        
+                                Me%StateVariables%LeafAreaIndex(i,j) = Me%StateVariables%LeafAreaIndex(i,j) + LAIChange                              
+                            
                         endif
         
-                        if (PlantType .eq. 7) then
-                            LAIMax = Me%Growth%TreeFractionToMaturity(i,j) * DBLAIMax
-                        else
-                            LAIMax = DBLAIMax
+                        if ((PlantType .eq. Trees) .and. (Me%UseBoundaryLAI .EQV. .false.)) then
+                        
+                            LAIMax = Me%Growth%TreeFractionToMaturity(i,j) * LAIMax
+                        
                         endif
+        
+                    endif                                       
 
-
-                        if (Me%StateVariables%LeafAreaIndex(i,j) .gt. LAIMax) then
-            
-                            Me%StateVariables%LeafAreaIndex(i,j) = LAIMax
+                else
         
-                        endif
-                    
-                        !If in the future a leaf flux is computed explicitly than LAI can not be
-                        !taken to zero here. If mass flux .gt. LAI then flux is LAI
-                        if (Me%StateVariables%LeafAreaIndex(i,j) .lt. 0.0) then
-            
-                            Me%StateVariables%LeafAreaIndex(i,j) = 0.0
-        
-                        endif
-        
+                    if (UseBoundaryLAI) then
+                        Me%StateVariables%LeafAreaIndex(i,j) = Me%StateVariables%LeafAreaIndex(i,j) + LAIChange  
+                    else
+                        Me%StateVariables%LeafAreaIndex(i,j) = 0.0
                     endif
-
-                 else
-        
-                    Me%StateVariables%LeafAreaIndex(i,j) = 0.0
-
+                    
                 endif
+                
+                if (Me%StateVariables%LeafAreaIndex(i,j) .gt. LAIMax) then
+                    Me%StateVariables%LeafAreaIndex(i,j) = LAIMax
+                endif
+            
+                !If in the future a leaf flux is computed explicitly than LAI can not be
+                !taken to zero here. If mass flux .gt. LAI then flux is LAI
+                if (Me%StateVariables%LeafAreaIndex(i,j) .lt. 0.0) then   
+                    Me%StateVariables%LeafAreaIndex(i,j) = 0.0
+                endif                
 
             endif
             
@@ -12830,20 +13100,20 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
         integer                                         :: i, j
         logical                                         :: PlantKilled
         real                                            :: MaxCanopyHeight, CanopyHeight, NearMaximum
         integer                                         :: PlantType
         real                                            :: BiomassHarvestedFraction
         !Begin-----------------------------------------------------------------
- 
-        MappingPoints => Me%ExternalVar%MappingPoints2D
        
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-            if (MappingPoints (i, j) == 1 .and. Me%IsPlantGrowing(i,j)) then
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint .and. Me%IsPlantGrowing(i,j)) then
+
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
 
                 Me%ChangeCanopyEnabled(i,j) = .false.
                 PlantKilled = .false.
@@ -12863,7 +13133,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     MaxCanopyHeight   = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%MaxCanopyHeight
 
                     !!Compute new canopy height
-                    if (PlantType == 7) then
+                    if (PlantType == Trees) then
             
                         Me%StateVariables%CanopyHeight(i,j) = MaxCanopyHeight * Me%Growth%TreeFractionToMaturity(i,j)
         
@@ -12949,7 +13219,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     subroutine FertilizationFluxes
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
         integer                                            :: PlantType, i,j
         integer                                            :: JulDay, JulDay_Old
         real                                               :: NTreshold, PTreshold
@@ -12958,15 +13227,16 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                            :: NumberOfApplications, FertApp
         !Begin-----------------------------------------------------------------
 
-
-        MappingPoints => Me%ExternalVar%MappingPoints2D
         !Autofertilization
         if (Me%ComputeOptions%Autofertilization) then
        
 do1:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
-                if (MappingPoints (i, j) == 1) then
+                if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
+
+                    !Plant type 0 is NO PLANT, so no operations should happen
+                    if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
 
                     NumberOfApplications     = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%NumberFertilizerApps
                     if (NumberOfApplications .gt. 0) then
@@ -13054,7 +13324,10 @@ do2:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 do3:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do4:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-                if (MappingPoints (i, j) == 1) then
+                if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
+                   
+                    !Plant type 0 is NO PLANT, so no operations should happen
+                    if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
                    
                     NumberOfApplications = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%NumberFertilizerApps
                     if (NumberOfApplications .gt. 0) then
@@ -13134,7 +13407,11 @@ do4:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 !how much nitrate in soil layers - as for previous step
                 do k = KLB, KUB
                     
-                    if (Me%ExternalVar%MappingPoints2D(i,j) == 1) then
+                    if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
+                        
+                        !Plant type 0 is NO PLANT, so no operations should happen
+                        if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                        
                         !m3H20 = m3H20/m3cell * m3 cell
                         WaterVolume = Me%ExternalVar%SoilWaterContent(i,j,k) * Me%ExternalVar%CellVolume(i,j,k)
                         Area        = Me%ExternalVar%GridCellArea(i,j)
@@ -13386,8 +13663,8 @@ do4:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     
     subroutine PesticideFluxes
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+    
+        !Local-----------------------------------------------------------------        
         integer                                            :: i,j
         real                                               :: PesticideAmount
         real                                               :: ExtinctionCoef
@@ -13395,13 +13672,14 @@ do4:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                            :: NumberPestApp, UniquePest
         integer                                            :: PestApp
         !Begin-----------------------------------------------------------------
-        
-        MappingPoints => Me%ExternalVar%MappingPoints2D
-       
+
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-if1:        if (MappingPoints (i, j) == 1) then    
+if1:        if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then    
+            
+                !Plant type 0 is NO PLANT, so no operations should happen
+                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
             
                 NumberPestApp = Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%NumberPesticideApps
 if2:            if (NumberPestApp .gt. 0) then
@@ -14394,8 +14672,8 @@ do1 :   do while(associated(PropertyX))
             endif
             
             !Aerial Fluxes
-            deallocate(Me%Fluxes%LAIGrowth                                  ) 
-            deallocate(Me%LAIDeclineFraction                                ) 
+            deallocate(Me%Fluxes%LAIChange                                  ) 
+             
             deallocate(Me%LAISenescence                                     )             
             deallocate(Me%PlantLAIMaxFraction                               ) 
             if(.not. Me%ComputeOptions%ChangeLAISenescence) then

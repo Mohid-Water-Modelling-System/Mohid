@@ -248,6 +248,8 @@ Module ModuleFillMatrix
         logical                                     :: AccumulateValues
         logical                                     :: UseOriginalValues
         logical                                     :: PreviousInstantValues
+        logical                                     :: IgnoreNoDataPoint
+        real                                        :: NoDataValue
         
         logical                                     :: Backtracking         = .false.
         
@@ -932,6 +934,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR155'
 
+        call GetData(Me%IgnoreNoDataPoint,                                              &
+                     Me%ObjEnterData,  iflag,                                           &
+                     SearchType     = ExtractType,                                      &
+                     keyword        = 'IGNORE_NODATA_POINT',                            &
+                     default        = .true.,                                           &
+                     ClientModule   = 'ModuleFillMatrix',                               &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR156' 
+        
+        if (.NOT. Me%IgnoreNoDataPoint) then
+            call GetData(Me%NoDataValue,                                                &
+                         Me%ObjEnterData,  iflag,                                       &
+                         SearchType     = ExtractType,                                  &
+                         keyword        = 'NODATA_VALUE',                               &
+                         default        = -99.0,                                        &
+                         ClientModule   = 'ModuleFillMatrix',                           &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR157'                  
+        endif
         
 
         !Fill Matrix with default Value
@@ -4244,6 +4265,17 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
             
                 Me%Matrix2D = Me%HDF%NextField2D / (Me%HDF%NextTime - Me%HDF%PreviousTime)
     
+                !This will replace the processed values if the value in NextField2D is a NODATA value
+                if (.not. Me%IgnoreNoDataPoint) then
+                    do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+                    do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                        if (Me%HDF%NextField2D (i,j) == Me%NoDataValue) then
+                            Me%Matrix2D (i,j) = Me%NoDataValue
+                        endif
+                    enddo
+                    enddo
+                endif
+    
                 call PredictDTForHDF (PointsToFill2D, Me%HDF%PreviousTime, Me%HDF%NextTime, Now)
                 
             else
@@ -4257,6 +4289,17 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
                                                Matrix2          = Me%HDF%NextField2D,          &
                                                MatrixOut        = Me%Matrix2D,                 &
                                                PointsToFill2D   = PointsToFill2D)
+                                               
+                !This will replace the processed values if the value in NextField2D is a NODATA value
+                if (.not. Me%IgnoreNoDataPoint) then
+                    do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+                    do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                        if (Me%HDF%NextField2D (i,j) == Me%NoDataValue) then
+                            Me%Matrix2D (i,j) = Me%NoDataValue
+                        endif
+                    enddo
+                    enddo
+                endif                                               
             endif
             
         else
