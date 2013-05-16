@@ -168,12 +168,13 @@ Module ModuleGlueHDF5Files
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = '3D_OPEN',                                          &
-                     default      = .false.,                                            &                     
+                     default      = .false.,                                             &                     
                      ClientModule = 'ModuleGlueHDF5Files',                              &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR40'
 
-        if (Me%File_3D) Me%Open3D =.true.        
+!ROD: next line was commented since it is inconsistent with previous keyword
+!        if (Me%File_3D) Me%Open3D =.true.        
 
         call GetData(Me%BaseGroup,                                                      &
                      Me%ObjEnterData, iflag,                                            &
