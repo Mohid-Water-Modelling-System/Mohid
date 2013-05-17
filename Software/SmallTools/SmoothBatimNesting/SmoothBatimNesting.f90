@@ -19,7 +19,6 @@
 !
 !   FATHER_BATIM                : char              -           !Path to the bathymetry file of the father (or coarser) model
 !   SON_BATIM                   : char              -           !Path to the bathymetry file of the son (or higher resolution) model
-!   SMOOTH_COEF                 : char              -           !Path to the coefficient file use to smooth the bathymetry (0 - son model, 1 - Father model)
 !   NEW_SON_BATIM               : char              -           !Path to the bathymetry file to be create
 
 program SmoothBatimNesting
