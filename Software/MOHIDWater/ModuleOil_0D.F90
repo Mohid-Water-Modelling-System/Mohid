@@ -2843,10 +2843,14 @@ cd2:    if (Me%Var%MassOil - (Me%Var%MdissolvedDT) * Me%Var%DTOilInternalProcess
         Else
             Me%Var%Volume           = 0.
         End If
-
-        Me%Var%SlickThickness       = Me%Var%Volume / Me%ExternalVar%Area
-        Me%Var%OilThickness         = Me%Var%VolumeOil / Me%ExternalVar%Area
-
+        
+        if (Me%ExternalVar%Area > 0.) then
+            Me%Var%SlickThickness       = Me%Var%Volume    / Me%ExternalVar%Area
+            Me%Var%OilThickness         = Me%Var%VolumeOil / Me%ExternalVar%Area
+        else
+            Me%Var%SlickThickness       = 0.
+            Me%Var%OilThickness         = 0.
+        endif
 
         Me%Var%MDissolved           = Me%Var%MDissolved + Me%Var%MDissolvedDT           &
                                           * Me%Var%DTOilInternalProcesses
