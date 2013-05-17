@@ -1756,31 +1756,36 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'ConstructGlobalVariables - ModuleVegetation - ERR440'        
-        if (.not. Me%AllowNegativeLAI) then       
+        if (.not. Me%AllowNegativeLAI) then 
+        
+            !This is experimental...      
             call GetData(Me%CorrectNegativeLAI,                                          &
                          Me%ObjEnterData, iflag,                                         &
                          keyword      = 'CORRECT_NEGATIVE_LAI',                          &
+                         Default      = .false.,                                         &
                          SearchType   = FromFile,                                        &
                          ClientModule = 'ModuleVegetation',                              &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                 &
                 stop 'ConstructGlobalVariables - ModuleVegetation - ERR450'        
-            if (iflag /= 1) then
-                write (*,*) "ATTENTION"
-                write (*,*) "ALLOW_NEGATIVE_LAI is set to FALSE and"
-                write (*,*) "CORRECT_NEGATIVE_LAI is missing. Check your"
-                write (*,*) "vegetation input file"
-                stop 'ConstructGlobalVariables - ModuleVegetation - ERR460'        
+!            if (iflag /= 1) then
+!                write (*,*) "ATTENTION"
+!                write (*,*) "ALLOW_NEGATIVE_LAI is set to FALSE and"
+!                write (*,*) "CORRECT_NEGATIVE_LAI is missing. Check your"
+!                write (*,*) "vegetation input file"
+!                stop 'ConstructGlobalVariables - ModuleVegetation - ERR460'        
+!            endif
+            if (Me%CorrectNegativeLAI) then
+                call GetData(Me%ValueInsteadNegativeLAI,                                     &
+                             Me%ObjEnterData, iflag,                                         &
+                             keyword      = 'VALUE_INSTEAD_NEGATIVE_LAI',                    &
+                             SearchType   = FromFile,                                        &
+                             default      = 0.0,                                             &
+                             ClientModule = 'ModuleVegetation',                              &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                                 &
+                    stop 'ConstructGlobalVariables - ModuleVegetation - ERR470'  
             endif
-            call GetData(Me%ValueInsteadNegativeLAI,                                     &
-                         Me%ObjEnterData, iflag,                                         &
-                         keyword      = 'VALUE_INSTEAD_NEGATIVE_LAI',                    &
-                         SearchType   = FromFile,                                        &
-                         default      = 0.0,                                             &
-                         ClientModule = 'ModuleVegetation',                              &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                 &
-                stop 'ConstructGlobalVariables - ModuleVegetation - ERR470'  
         endif
 
     end subroutine ConstructGlobalVariables
@@ -9115,12 +9120,12 @@ do4:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             endif
 
         else 
-            !write(*,*    ) 
-            !write(*,*    ) 'Fatal error ! Julian day and Base HU for planting' 
-            !write(*,*    ) 'inconsistently defined in crop database.'
-            !write(*,*    ) 'Warning ! Julian day and Base HU for planting' 
-            !write(*,*    ) 'inconsistently defined in crop database.'            
-            !stop 'CheckIfPlantWillStartGrowing - ModuleVegetation - ERR10'  
+            write(*,*    ) 
+            write(*,*    ) 'Fatal error ! Julian day and Base HU for planting' 
+            write(*,*    ) 'inconsistently defined in crop database.'
+            write(*,*    ) 'Warning ! Julian day and Base HU for planting' 
+            write(*,*    ) 'inconsistently defined in crop database.'            
+            stop 'CheckPlanting - ModuleVegetation - ERR10'  
 
         endif
 
@@ -9130,16 +9135,16 @@ do4:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             WarningString = 'Planting'
             call UpdatePlantGrowingStage (i,j, WarningString)
             
-            if (Me%ComputeOptions%HarvestKill) then
-!                Me%HarvestOperations       = 1
-!                Me%HarvestKillOperations   = 1
-!                Me%KillOperations          = 1
-!                Me%HarvestFinished(i,j)    = .false.     
-            endif           
-            if (Me%ComputeOptions%Grazing) then
-!                Me%GrazingOperations       = 1
-!                Me%GrazingFinished(i,j)    = .false.
-            endif
+!            if (Me%ComputeOptions%HarvestKill) then
+!!                Me%HarvestOperations       = 1
+!!                Me%HarvestKillOperations   = 1
+!!                Me%KillOperations          = 1
+!!                Me%HarvestFinished(i,j)    = .false.     
+!            endif           
+!            if (Me%ComputeOptions%Grazing) then
+!!                Me%GrazingOperations       = 1
+!!                Me%GrazingFinished(i,j)    = .false.
+!            endif
             
         endif
 
@@ -9177,8 +9182,9 @@ do4:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         endif
         Me%HeatUnits%PlantHUAccumulated_Old(i,j) = Me%HeatUnits%PlantHUAccumulated (i,j)
         Me%HeatUnits%PlantHUAccumulated    (i,j) = Me%HeatUnits%PlantHUAccumulated (i,j) + PlantHUVariation
+        
         !Debug
-        HUAcc = Me%HeatUnits%PlantHUAccumulated (i,j)
+        !HUAcc = Me%HeatUnits%PlantHUAccumulated (i,j)
 
     end subroutine ComputePlantGrowingStage
 
