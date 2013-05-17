@@ -195,6 +195,9 @@ Module ModuleStatistic
         !guillaume juan
         logical                                     :: Critical = .false.
         real                                        :: CriticalValue
+        
+        logical                                     :: NormalizeFreq
+        
         type (T_Statistic      ), pointer           :: Next
     end type T_Statistic
 
@@ -402,149 +405,163 @@ Module ModuleStatistic
 
         !Constructs the data file
         call ConstructEnterData (Me%ObjEnterData, DataFile, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR01')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR10')
 
         !1 - Values 3D and Statistic 3D
         !2 - Values 3D and Statistic 2D (2D layer)
         !3 - Values 2D and Statistic 2D
-        call GetData(Me%Methodology,                                                 &
-                     Me%ObjEnterData,                                                &
-                     iflag,                                                          &
-                     SearchType   = FromFile,                                        &
-                     keyword      = 'METHOD_STATISTIC',                              &
-                     default      = Value3DStat3D_,                                  &
-                     ClientModule = 'ModuleStatistic',                               &
+        call GetData(Me%Methodology,                                                    &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'METHOD_STATISTIC',                                 &
+                     default      = Value3DStat3D_,                                     &
+                     ClientModule = 'ModuleStatistic',                                  &
                      STAT         = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR08')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR20')
 
 
 
         !Global Statistic
-        call GetData(Me%Global%On,                                                   &
-                     Me%ObjEnterData,                                                &
-                     iflag,                                                          &
-                     SearchType   = FromFile,                                        &
-                     keyword      = 'GLOBAL_STATISTIC',                              &
-                     default      = .false.,                                         &
-                     ClientModule = 'ModuleStatistic',                               &
+        call GetData(Me%Global%On,                                                      &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'GLOBAL_STATISTIC',                                 &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleStatistic',                                  &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR02')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR30')
 
 
         !Daily Statistic
-        call GetData(Me%Daily%On,                                                    &
-                     Me%ObjEnterData,                                                &
-                     iflag,                                                          &
-                     SearchType   = FromFile,                                        &
-                     keyword      = 'DAILY_STATISTIC',                               &
-                     default      = .false.,                                         &
-                     ClientModule = 'ModuleStatistic',                               &
+        call GetData(Me%Daily%On,                                                       &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'DAILY_STATISTIC',                                  &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleStatistic',                                  &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR03')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR40')
 
 
         !Monthly Statistic
-        call GetData(Me%Monthly%On,                                                  &
-                     Me%ObjEnterData,                                                &
-                     iflag,                                                          &
-                     SearchType   = FromFile,                                        &
-                     keyword      = 'MONTHLY_STATISTIC',                             &
-                     default      = .false.,                                         &
-                     ClientModule = 'ModuleStatistic',                               &
+        call GetData(Me%Monthly%On,                                                     &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MONTHLY_STATISTIC',                                &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleStatistic',                                  &
                      STAT         = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR04')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR50')
 
         !Statistics for a specific hour of day
-        call GetData(Me%SpecificHour%On,                                             &
-                     Me%ObjEnterData,                                                &
-                     iflag,                                                          &
-                     SearchType   = FromFile,                                        &
-                     keyword      = 'SPECIFIC_HOUR_STATISTIC',                       &
-                     default      = .false.,                                         &
-                     ClientModule = 'ModuleStatistic',                               &
+        call GetData(Me%SpecificHour%On,                                                &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'SPECIFIC_HOUR_STATISTIC',                          &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleStatistic',                                  &
                      STAT         = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR05')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR60')
 
         if (Me%SpecificHour%On) then
             !Statistics for a specific hour of day
-            call GetData(Me%SpecificHourValue,                                           &
-                         Me%ObjEnterData,                                                &
-                         iflag,                                                          &
-                         SearchType   = FromFile,                                        &
-                         keyword      = 'SPECIFIC_HOUR',                                 &
-                         default      = 12,                                              &
-                         ClientModule = 'ModuleStatistic',                               &
+            call GetData(Me%SpecificHourValue,                                          &
+                         Me%ObjEnterData,                                               &
+                         iflag,                                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'SPECIFIC_HOUR',                                &
+                         default      = 12,                                             &
+                         ClientModule = 'ModuleStatistic',                              &
                          STAT         = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR05a')
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR70')
         
         endif
 
         !Accumulated values
-        call GetData(Me%Accumulated,                                                 &
-                     Me%ObjEnterData,                                                &
-                     iflag,                                                          &
-                     SearchType   = FromFile,                                        &
-                     keyword      = 'ACCUMULATED',                                   &
-                     default      = .false.,                                         &
-                     ClientModule = 'ModuleStatistic',                               &
+        call GetData(Me%Accumulated,                                                    &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'ACCUMULATED',                                      &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleStatistic',                                  &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR05b')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR80')
 
 
         !Geometric Average and Standard Deviation
-        call GetData(Me%GeomMean,                                                    &
-                     Me%ObjEnterData,                                                &
-                     iflag,                                                          &
-                     SearchType   = FromFile,                                        &
-                     keyword      = 'GEOMETRIC_MEAN',                                &
-                     default      = .false.,                                         &
-                     ClientModule = 'ModuleStatistic',                               &
+        call GetData(Me%GeomMean,                                                       &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'GEOMETRIC_MEAN',                                   &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleStatistic',                                  &
                      STAT         = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR06')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR90')
 
         !guillaume juan
-        call GetData(Me%Critical,                                                    &
-                     Me%ObjEnterData,                                                &
-                     iflag,                                                          &
-                     SearchType   = FromFile,                                        &
-                     keyword      = 'CRITICAL',                             &
-                     default      = .false.,                                         &
-                     ClientModule = 'ModuleStatistic',                               &
+        call GetData(Me%Critical,                                                       &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'CRITICAL',                                         &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleStatistic',                                  &
                      STAT         = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR06b')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR100')
 
         !guillaume juan
         if (Me%Critical) then
             !Statistics for a specific hour of day
-            call GetData(Me%CriticalValue,                                           &
-                         Me%ObjEnterData,                                                &
-                         iflag,                                                          &
-                         SearchType   = FromFile,                                        &
-                         keyword      = 'CRITICAL_VALUE',                                 &
-                         default      = 0.02,                                              &
-                         ClientModule = 'ModuleStatistic',                               &
+            call GetData(Me%CriticalValue,                                              &
+                         Me%ObjEnterData,                                               &
+                         iflag,                                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'CRITICAL_VALUE',                               &
+                         default      = 0.02,                                           &
+                         ClientModule = 'ModuleStatistic',                              &
                          STAT         = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR06c')
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR110')
         
         endif
+
+
+        call GetData(Me%NormalizeFreq,                                                  &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NORMALIZE_FREQ',                                   &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleStatistic',                                  &
+                     STAT         = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR120')        
+
         
         Me%Classification%On = .false.
         nullify (Me%Classification%Classes)
@@ -2820,7 +2837,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
         real, dimension(:, :   ), pointer           :: AuxMatrix2D
         real                                        :: Aux, d1, d2
         real(8), dimension(:), allocatable          :: P,C
-        real(8)                                     :: Px,Cx
+        real(8)                                     :: Px,Cx, sumFreq
         integer                                     :: nc, n
 
         !Shorten
@@ -3504,17 +3521,48 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 enddo
                 
                 Px = Me%Classification%Percentil                
-
+                
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
-
-doClass1:       do iClass = 1, nc
-
-                    P(iClass + 1) = P(iClass) + Me%Classification%Frequency(i, j, k, iClass) * 100.
-
-                enddo doClass1
                 
+                if (Me%NormalizeFreq) then
+                
+                    sumFreq = 0.
+
+                    do iClass = 1, nc
+
+                        sumFreq = sumFreq + Me%Classification%Frequency(i, j, k, iClass)
+
+                    enddo
+                    
+                    if (sumFreq > 0.) then
+
+                        do iClass = 1, nc
+
+                            P(iClass + 1) = P(iClass) + Me%Classification%Frequency(i, j, k, iClass) / sumFreq * 100.
+
+                        enddo
+
+                    else                
+
+                        do iClass = 1, nc
+
+                            P(iClass + 1) = P(iClass) + Me%Classification%Frequency(i, j, k, iClass) * 100.
+
+                        enddo
+                        
+                    endif
+                    
+                else
+                
+doClass1:           do iClass = 1, nc
+
+                        P(iClass + 1) = P(iClass) + Me%Classification%Frequency(i, j, k, iClass) * 100.
+
+                    enddo doClass1                
+                    
+                endif                    
                 
                 
                 !Land point 
@@ -3577,22 +3625,107 @@ doClass1:       do iClass = 1, nc
 
 
                 !By default all domain belongs to the first class
-                AuxMatrix2D(:,:) = 1.
+                AuxMatrix2D(:,:) = 0.
+                
+                nc = Me%Classification%nClasses
+                
+                allocate(C(nc+1),P(nc+1))
+                
+                C(1) = Me%Classification%Classes(1, 1)
+                
+                P(1) = 0. 
+                
+                do iClass = 1, nc 
+                
+                    C(iClass+1) = Me%Classification%Classes(iClass, 2)
+                    
+                enddo
+                
+                Px = Me%Classification%Percentil  
 
                 do j = JLB, JUB
                 do i = ILB, IUB
                 Aux = 0.
-doClass2:       do iClass = 1, Me%Classification%nClasses
-
-                    Aux = Aux + Me%Classification%Frequency2D(i, j, iClass) * 100.
-
-                    if (Aux <= Me%Classification%Percentil) then
-                        AuxMatrix2D(i, j) = float(iClass)
-                    else
-                        exit doClass2
-                    endif
                 
-                enddo doClass2
+!doClass2:       do iClass = 1, Me%Classification%nClasses
+
+!                    Aux = Aux + Me%Classification%Frequency2D(i, j, iClass) / TotalFreq * 100.
+
+!                    if (Aux <= Me%Classification%Percentil) then
+!                        AuxMatrix2D(i, j) = float(iClass)
+!                    else
+!                        exit doClass2
+!                    endif
+
+                if (Me%NormalizeFreq) then
+                
+                    sumFreq = 0.
+
+                    do iClass = 1, nc
+
+                        sumFreq = sumFreq + Me%Classification%Frequency2D(i, j, iClass)
+
+                    enddo
+                    
+                    if (sumFreq > 0.) then
+
+                        do iClass = 1, nc
+
+                            P(iClass + 1) = P(iClass) + Me%Classification%Frequency2D(i, j, iClass) / sumFreq * 100.
+
+                        enddo
+
+                    else
+
+                        do iClass = 1, nc
+
+                            P(iClass + 1) = P(iClass) + Me%Classification%Frequency2D(i, j, iClass) * 100.
+
+                        enddo
+                        
+                    endif                
+                else
+                    
+doClass2:           do iClass = 1, nc
+
+                        P(iClass + 1) = P(iClass) + Me%Classification%Frequency2D(i, j, iClass) * 100.
+
+                    enddo doClass2
+                
+                endif
+                
+                
+                !Land point 
+                if (P(nc + 1) == 0.) then
+                    Cx = FillValueReal                
+                    
+                else if (Px > P(nc + 1)) then
+                    Cx = C(nc + 1)
+                    write(*,*) 'WriteValuesToFileHDF5 - ModuleStatistic - WRN35'
+                    write(*,*) 'Percentil out of range please add more classes' 
+                    write(*,*) 'Cell i=',i, ' j', j
+
+                else                
+                    ! polynomail interpolation 
+                    !call polint(P(1:nc+1),C(1:nc+1),nc+1,Px,Cx,Error, STAT = status)
+                    
+                    !if large incertanty or a error is return - linear interpolation 
+                    !if (Error > abs(C(nc+1) - C(1))/100. .or. status /= SUCCESS_) then
+                        do n = 1,nc+1
+                            if (Px>=P(n) .and. Px<=P(n+1)) then
+                                d1 = Px - P(n)
+                                d2 = P(n+1) - Px
+                                Cx = (C(n) * d2 + C(n+1) * d1) / (d2 + d1)
+                                exit
+                            endif 
+                        enddo
+                    !endif
+                    
+                endif
+
+
+                AuxMatrix2D(i, j) = Cx                     
+                
                 enddo
                 enddo
 
@@ -3603,6 +3736,7 @@ doClass2:       do iClass = 1, Me%Classification%nClasses
 
                 !Deallocates auxiliar matrix
                 deallocate (AuxMatrix2D)
+                deallocate (C,P)
 
             endif
 
