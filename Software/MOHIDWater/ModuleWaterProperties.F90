@@ -16553,17 +16553,26 @@ do1 :   do while (associated(PropertyX))
 
                                 do k = kbottom, KUB
                                     
-                                    DAux = (PropertyX%Concentration   (i, j, k) * Me%ExternalVar%VolumeZ   (i, j, k)) / &
-                                           (PropertyX%ConcentrationOld(i, j, k) * Me%ExternalVar%VolumeZOld(i, j, k)) - 1.
-                                   
-                                    if (DAux > DAuxMax) then 
-                                    
-                                        NewDT%property = PropertyX%ID%name
-                                        DAuxMax = DAux
-                                        NewDT%i = i; NewDT%j = j; NewDT%k = k;
-            
+                                    if (PropertyX%ConcentrationOld(i, j, k) > 0 .and. Me%ExternalVar%VolumeZOld(i, j, k) > 0) then
+                                        
+                                        !Percentage Variation -> (NewMass - OldMass) / OldMass
+                                        DAux = (PropertyX%Concentration   (i, j, k) * Me%ExternalVar%VolumeZ   (i, j, k)) / &
+                                               (PropertyX%ConcentrationOld(i, j, k) * Me%ExternalVar%VolumeZOld(i, j, k)) - 1.
+                                       
+                                       !Signal corrected. It was only evaluating mass gains when it should evaluate
+                                       !mass losses
+                                       !if (DAux > DAuxMax) then
+                                        if (DAux < DAuxMax) then 
+                                        
+                                            NewDT%property = PropertyX%ID%name
+                                            DAuxMax = DAux
+                                            NewDT%i = i; NewDT%j = j; NewDT%k = k;
+                
+                                        endif
+                                        
                                     endif
                                    
+                                   !This should not be here???? 
                                     PropertyX%ConcentrationOld(i,j,k) = PropertyX%Concentration(i,j,k)
 
                                 enddo
@@ -16923,21 +16932,23 @@ do3:            do k = kbottom, KUB
                         Temperature%Concentration(i, j, k) + AuxT
 
                 enddo do3
-                
-                if (Me%ExtSurface%PrecipitationON .and. associated(Me%ExtSurface%Precipitation)) then
-                
-                    ![ºC] = [ºC] + [ºC] [m/s] * [s] / [m]
-                    Temperature%Concentration(i, j, KUB) =  Temperature%Concentration(i, j, KUB) + &
-                    !For now the water percipitation temperature is assumed equal to SST but
-                    !in the future must be assumed equal to the air temperature
-                    ! It is necessary to create a Heat Precipitation Flux associated in the Interface Water Air Module 
-                                                          Temperature%Concentration(i, j, KUB) * &
-                                                          Me%ExtSurface%Precipitation(i, j) *    & 
-                                                          Temperature%Evolution%DTinterval /   &
-                                                          Me%ExternalVar%DWZ(i, j, KUB) 
-                
-                
-                endif
+                ! This calculation was not correct. Units of precipitation are m3/s and not m/s
+                !even if the units were correct, the formula is still incorrect. when the precipitation is the same height
+                !than that of the cell, the temperature duplicates with no reason.
+!                if (Me%ExtSurface%PrecipitationON .and. associated(Me%ExtSurface%Precipitation)) then
+!                
+!                    ![ºC] = [ºC] + [ºC] [m/s] * [s] / [m]
+!                    Temperature%Concentration(i, j, KUB) =  Temperature%Concentration(i, j, KUB) + &
+!                    !For now the water percipitation temperature is assumed equal to SST but
+!                    !in the future must be assumed equal to the air temperature
+!                    ! It is necessary to create a Heat Precipitation Flux associated in the Interface Water Air Module 
+!                                                          Temperature%Concentration(i, j, KUB) * &
+!                                                          Me%ExtSurface%Precipitation(i, j) *    & 
+!                                                          Temperature%Evolution%DTinterval /   &
+!                                                          Me%ExternalVar%DWZ(i, j, KUB) 
+!                
+!                
+!                endif
 
             endif cd1
 

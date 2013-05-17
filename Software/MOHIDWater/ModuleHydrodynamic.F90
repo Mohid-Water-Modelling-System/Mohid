@@ -13361,14 +13361,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                     TotalFlux = TotalFlux + Me%WaterFluxes%Z(i, j, k+1)
                 endif
 
-                if (TotalFlux > 0.1 .and. Me%External_Var%Volume_Z_New(i, j, k) > 0. ) then   !To avoid division by zero
+                if (TotalFlux > 0.0 .and. Me%External_Var%Volume_Z_New(i, j, k) > 0. ) then   !To avoid division by zero. 
                     AuxDT = Me%External_Var%Volume_Z_New(i, j, k) / TotalFlux
                     if (AuxDT < CourantDT) then
                         CourantDT = AuxDT
                         NewDT%i = i; NewDT%j = j; NewDT%k = k
                     endif
                 endif
-
+                   
             endif
         enddo
         enddo
