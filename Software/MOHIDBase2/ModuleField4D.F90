@@ -199,6 +199,8 @@ Module ModuleField4D
         real                                        :: MultiplyingFactor
         logical                                     :: HasMultiplyingFactor = .false.
         real                                        :: AddingFactor
+        real                                        :: MinValue, MaxValue
+        logical                                     :: MinValueON, MaxValueON        
         logical                                     :: HasAddingFactor = .false.
         logical                                     :: From2Dto3D   = .false.        
         type (T_Time)                               :: NextTime,  PreviousTime
@@ -1419,11 +1421,42 @@ wwd1:        if (Me%WindowWithData) then
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR130'
-                
+
+
+        call GetData(PropField%MinValue,                                                &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'MIN_VALUE',                                        &
+                     default      = FillValueReal,                                      &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR140'
+        
+        PropField%MinValueON = .false.
+        
+        if (iflag==1) then
+            PropField%MinValueON = .true.
+        endif
+
+        call GetData(PropField%MaxValue,                                                &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'MAX_VALUE',                                        &
+                     default      = -FillValueReal,                                     &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR150'
+        
+        PropField%MaxValueON = .false.
+        
+        if (iflag==1) then
+            PropField%MaxValueON = .true.
+        endif
+        
         
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR140' 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160' 
 
     end subroutine ReadOptions
 
@@ -2311,6 +2344,27 @@ it:     if (NewPropField%ChangeInTime) then
             enddo
         end if
         
+        if(NewPropField%MinValueON)then
+            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                if (Field(i,j) < NewPropField%MinValue) then
+                    Field(i,j) = 0.
+                endif
+            enddo
+            enddo
+        end if        
+
+        if(NewPropField%MaxValueON)then
+            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                if (Field(i,j) > NewPropField%MaxValue) then
+                    Field(i,j) = 0.
+                endif
+            enddo
+            enddo
+        end if        
+
+        
         nullify(Field)
 
     end subroutine ReadValues2D
@@ -2453,6 +2507,32 @@ it:     if (NewPropField%ChangeInTime) then
             enddo
 
         end if
+        
+        if(NewPropField%MinValueON)then
+            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+                if (Field(i,j,k) < NewPropField%MinValue) then
+                    Field(i,j,k) = 0.
+                endif
+            enddo
+            enddo
+            enddo
+        end if        
+
+        if(NewPropField%MaxValueON)then
+            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+                if (Field(i,j,k) > NewPropField%MaxValue) then
+                    Field(i,j,k) = 0.
+                endif
+            enddo
+            enddo
+            enddo
+        end if        
+
+        
 
         nullify(Field)
     end subroutine ReadValues3D
