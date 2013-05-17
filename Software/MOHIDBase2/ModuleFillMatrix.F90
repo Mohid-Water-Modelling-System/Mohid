@@ -29,7 +29,8 @@
 !------------------------------------------------------------------------------
 
 Module ModuleFillMatrix
-
+    
+    use ieee_arithmetic
     use ModuleGlobalData
     use ModuleTime
     use ModuleEnterData
@@ -138,8 +139,11 @@ Module ModuleFillMatrix
     integer, parameter                              :: InterpolatedValues = 1
     integer, parameter                              :: AccumulatedValues  = 2
     integer, parameter                              :: OriginalValues     = 3
-
-
+    
+    !type of values 
+    integer, parameter                              :: sponge_exp_               = 1
+    integer, parameter                              :: sponge_linear_            = 2
+    
     !Parameter-----------------------------------------------------------------
     character(LEN = StringLength), parameter :: BeginProfile      = '<BeginProfile>'
     character(LEN = StringLength), parameter :: EndProfile        = '<EndProfile>'
@@ -173,6 +177,7 @@ Module ModuleFillMatrix
         real                                        :: OutValue
         integer                                     :: Cells
         logical                                     :: Growing
+        integer                                     :: Evolution
     end type T_Sponge
 
     type T_TimeSerie
@@ -2506,6 +2511,25 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSponge - ModuleFillMatrix - ERR30'
+        
+
+        !Gets the nsponge evolution
+        call GetData(Me%Sponge%Evolution,                                               &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'SPONGE_EVOLUTION',                                 &
+                     Default      = sponge_exp_,                                        &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSponge - ModuleFillMatrix - ERR40'
+
+        if      (Me%Sponge%Evolution /= sponge_exp_ .and. Me%Sponge%Evolution /= sponge_linear_) then        
+
+            write(*,*) 'Sponge evolution can only be linear or exponential'
+            stop       'ConstructSponge - ModuleFillMatrix - ERR50'
+        
+        endif
+        
 
         if (Me%DefaultValue < Me%Sponge%OutValue) then
         
@@ -2524,14 +2548,27 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
         
         endif
         
-        do sp = 1, Me%Sponge%Cells
+        if      (Me%Sponge%Evolution == sponge_exp_) then
+        
+            do sp = 1, Me%Sponge%Cells
 
-            AuxT(sp) = log(Me%Sponge%OutValue) * real(Me%Sponge%Cells - sp) /real(Me%Sponge%Cells - 1) + &
-                       log(Me%DefaultValue)  * real(sp - 1)               /real(Me%Sponge%Cells - 1)
-                 
-            AuxT(sp) = exp(AuxT(sp))
-            
-        enddo
+                AuxT(sp) = log(Me%Sponge%OutValue) * real(Me%Sponge%Cells - sp) /real(Me%Sponge%Cells - 1) + &
+                           log(Me%DefaultValue)  * real(sp - 1)               /real(Me%Sponge%Cells - 1)
+                     
+                AuxT(sp) = exp(AuxT(sp))
+                
+            enddo
+        
+        elseif (Me%Sponge%Evolution == sponge_linear_) then        
+        
+            do sp = 1, Me%Sponge%Cells
+
+                AuxT(sp) = Me%Sponge%OutValue * real(Me%Sponge%Cells - sp) /real(Me%Sponge%Cells - 1) + &
+                           Me%DefaultValue    * real(sp - 1)               /real(Me%Sponge%Cells - 1)
+                     
+            enddo
+
+        endif        
         
         if (Me%TypeZUV == TypeU_ .or. Me%TypeZUV == TypeV_) then
             AuxT(Me%Sponge%Cells+1) = AuxT(Me%Sponge%Cells)
@@ -3108,11 +3145,17 @@ i4:         if(Me%Dim == Dim2D)then
                 do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                 do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
                 
-                    if (abs(Me%HDF%PreviousField2D(i,j)) > abs(FillValueReal))          &
+                    if (ieee_is_nan (Me%HDF%PreviousField2D(i,j)))                      &
+                        Me%HDF%PreviousField2D(i,j) = FillValueReal                
+                
+                    if (abs(Me%HDF%PreviousField2D   (i,j)) > abs(FillValueReal))       &
                         Me%HDF%PreviousField2D(i,j) = FillValueReal
+
+                    if (ieee_is_nan (Me%HDF%NextField2D    (i,j)))                      &
+                        Me%HDF%NextField2D(i,j)     = FillValueReal                
                     
-                    if (abs(Me%HDF%NextField2D    (i,j)) > abs(FillValueReal))          &
-                        Me%HDF%NextField2D    (i,j) = FillValueReal
+                    if (abs(Me%HDF%NextField2D       (i,j)) > abs(FillValueReal))       &
+                        Me%HDF%NextField2D(i,j)     = FillValueReal
                 enddo
                 enddo   
                                 
@@ -3156,12 +3199,18 @@ i4:         if(Me%Dim == Dim2D)then
                 do k=Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
                 do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+
+                    if (ieee_is_nan (Me%HDF%PreviousField3D(i,j,k)))                    &
+                        Me%HDF%PreviousField3D(i,j,k) = FillValueReal 
                 
                     if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))        &
                         Me%HDF%PreviousField3D(i,j,k) = FillValueReal
+
+                    if (ieee_is_nan (Me%HDF%NextField3D    (i,j,k)))                    &
+                        Me%HDF%NextField3D(i,j,k) = FillValueReal 
                     
                     if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))        &
-                        Me%HDF%NextField3D    (i,j,k) = FillValueReal
+                        Me%HDF%NextField3D        (i,j,k) = FillValueReal
                 enddo
                 enddo
                 enddo                
@@ -4035,6 +4084,9 @@ i4:         if(Me%Dim == Dim2D)then
                 do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
+                    if (ieee_is_nan (Me%HDF%PreviousField3D(i,j,k)))                    &
+                        Me%HDF%PreviousField3D       (i,j,k) = FillValueReal 
+                
                     if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))        &
                             Me%HDF%PreviousField3D(i,j,k) = FillValueReal
 
@@ -4050,6 +4102,10 @@ i4:         if(Me%Dim == Dim2D)then
             do k=Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
             do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
             do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+            
+
+                if (ieee_is_nan (Me%HDF%NextField3D (i,j,k)))                           &
+                    Me%HDF%NextField3D        (i,j,k) = FillValueReal 
             
                 if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))            &
                         Me%HDF%NextField3D    (i,j,k) = FillValueReal
@@ -4145,9 +4201,17 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
             do k=Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
             do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
             do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+
+                if (ieee_is_nan (Me%HDF%PreviousField3D(i,j,k)))                        &
+                    Me%HDF%PreviousField3D       (i,j,k) = FillValueReal 
+
             
                 if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))            &
                         Me%HDF%PreviousField3D(i,j,k) = FillValueReal
+                        
+                if (ieee_is_nan (Me%HDF%NextField3D    (i,j,k)))                        &
+                    Me%HDF%NextField3D           (i,j,k) = FillValueReal 
+                        
                 
                 if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))            &
                         Me%HDF%NextField3D    (i,j,k) = FillValueReal
@@ -4231,6 +4295,9 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
                 do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                 do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
                 
+                    if (ieee_is_nan (Me%HDF%PreviousField2D(i,j)))                      &
+                        Me%HDF%PreviousField2D(i,j) = FillValueReal                
+                
                     if (abs(Me%HDF%PreviousField2D(i,j)) > abs(FillValueReal))          &
                         Me%HDF%PreviousField2D(i,j) = FillValueReal
                     
@@ -4245,6 +4312,9 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
             do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
             
+                if (ieee_is_nan (Me%HDF%NextField2D(i,j)))                              &
+                    Me%HDF%NextField2D    (i,j) = FillValueReal              
+        
                 if (abs(Me%HDF%NextField2D(i,j)) > abs(FillValueReal))                  &
                     Me%HDF%NextField2D    (i,j) = FillValueReal
             enddo
@@ -4502,9 +4572,15 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
             !limit maximum values
             do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+
+                if (ieee_is_nan (Me%HDF%PreviousField2D(i,j)))                          &
+                    Me%HDF%PreviousField2D(i,j) = FillValueReal                    
             
                 if (abs(Me%HDF%PreviousField2D(i,j)) > abs(FillValueReal))              &
                     Me%HDF%PreviousField2D(i,j) = FillValueReal
+
+                if (ieee_is_nan (Me%HDF%NextField2D(i,j)))                              &
+                    Me%HDF%NextField2D    (i,j) = FillValueReal                    
                 
                 if (abs(Me%HDF%NextField2D    (i,j)) > abs(FillValueReal))              &
                     Me%HDF%NextField2D    (i,j) = FillValueReal
