@@ -1091,6 +1091,7 @@ Module ModuleHydrodynamic
         real    :: MinLeavingVelocity
         real    :: MinLeavingComponent
         real    :: InertialPeriods
+        real    :: RampPeriod
         real    :: TideSlowStartCoef
         real    :: Hmin_Advection
 
@@ -4386,7 +4387,7 @@ cd21:   if (Baroclinic) then
                 !<EndKeyword>
 
                 call GetData(InertialPeriods,                                         &
-                             Me%ObjEnterData, iflag,                     &
+                             Me%ObjEnterData, iflag,                                  &
                              Keyword    = 'INERTIAL_PERIODS',                         &
                              Default    = 1.,                                         &
                              SearchType = FromFile,                                   &
@@ -4397,34 +4398,60 @@ cd21:   if (Baroclinic) then
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR340')
 
                 Me%ComputeOptions%InertialPeriods = InertialPeriods
+                
+                if (Me%ComputeOptions%Continuous) then
 
-              if (Me%ComputeOptions%Continuous) then
-
-              !<beginkeyword>
-              !Keyword      : RAMP_START
-              !Description  : This keyword is used to read the initial data Year Month Day Hour Minutes Seconds
-              !Default      : *
-              !File keyword : 
-              !<endkeyword>
-               call GetData(Me%ComputeOptions%RAMP_BeginTime,                                                 &
-                      Me%ObjEnterData,                                             &
-                      iflag,                                                             &
-                      keyword      = 'RAMP_START',                                            &
-                      SearchType   = FromFile,                                           &
-                      ClientModule ='ModuleHydrodynamic',                                &
-                      STAT       = STAT_CALL)          
-           
-                 if (STAT_CALL /= SUCCESS_)                                            &
-                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR350')
-            
-                 if (iflag == 0) &
-                    stop 'Define RAMP_START!!! Construct_Numerical_Options - Hydrodynamic - ERR360' 
-              else
+                  !<beginkeyword>
+                  !Keyword      : RAMP_START
+                  !Description  : This keyword is used to read the initial data Year Month Day Hour Minutes Seconds
+                  !Default      : *
+                  !File keyword : 
+                  !<endkeyword>
+                   call GetData(Me%ComputeOptions%RAMP_BeginTime,                                                 &
+                          Me%ObjEnterData,                                             &
+                          iflag,                                                             &
+                          keyword      = 'RAMP_START',                                            &
+                          SearchType   = FromFile,                                           &
+                          ClientModule ='ModuleHydrodynamic',                                &
+                          STAT       = STAT_CALL)          
                
-                Me%ComputeOptions%RAMP_BeginTime = Me%BeginTime
-             
-              endif
+                     if (STAT_CALL /= SUCCESS_)                                            &
+                        call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR350')
+                
+                     if (iflag == 0) &
+                        stop 'Define RAMP_START!!! Construct_Numerical_Options - Hydrodynamic - ERR360' 
+                  else
+                   
+                    Me%ComputeOptions%RAMP_BeginTime = Me%BeginTime
                  
+                  endif
+
+                !<BeginKeyword>
+                    !Keyword          : RAMP_PERIOD
+                    !<BeginDescription>       
+                       ! 
+                       !The period after which the total effect of the baroclinic force is compute
+                       !
+                       ! 
+                    !<EndDescription>
+                    !Type             : Real
+                    !Default          : 1
+                    !File keyword     : IN_DAD3D 
+                    !Multiple Options : Do Not Have
+                    !Search Type      : From File
+                !<EndKeyword>
+
+                call GetData(Me%ComputeOptions%RampPeriod,                            &
+                             Me%ObjEnterData, iflag,                                  &
+                             Keyword    = 'RAMP_PERIOD',                              &
+                             Default    = FillValueReal,                              &
+                             SearchType = FromFile,                                   &
+                             ClientModule ='ModuleHydrodynamic',                      &
+                             STAT       = STAT_CALL)            
+
+                if (STAT_CALL /= SUCCESS_)                                            &
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR345')
+
             endif
               
        
@@ -6748,9 +6775,13 @@ cd2:        if (Me%ComputeOptions%BaroclinicRamp) then
                 Total_RunPeriod = Me%EndTime - Me%BeginTime
 
                 InertialPeriods = Me%ComputeOptions%InertialPeriods
-
-                RampPeriod = 86400. * InertialPeriods
-            
+                
+                if (Me%ComputeOptions%RampPeriod > 0.) then
+                    RampPeriod = Me%ComputeOptions%RampPeriod
+                else                    
+                    RampPeriod = 86400. * InertialPeriods
+                endif
+                
                 if (Total_RunPeriod < RampPeriod )                                       &
                     call SetError (WARNING_, KEYWORD_, &
                                   'The RAMP option only work for bigger runs. Check RAMP_START in following files')
@@ -32149,7 +32180,7 @@ dk:             do k = kmin,kmax
                         if (DischVertical == DischUniform_) AuxFlowK = DUZ_VZ(i,j,k) / SectionHeight * AuxFlowIJ
 
                         ![m/s*m^3/s]                  = [m^3] * [m/s] / [s] 
-                        if (DischargeFlow > 0.) then
+                        if (DischargeFlow >= 0.) then
 
                             MomentumDischarge  = AuxFlowK * DischargeVelocity
                             
@@ -32173,7 +32204,7 @@ dk:             do k = kmin,kmax
                                     AuxFlowK = DUZ_VZ(iNorth, jEast,k) / SectionHeight * AuxFlowIJ
 
                         ![m/s*m^3/s]                  = [m^3] * [m/s] / [s] 
-                        if (DischargeFlow > 0.) then
+                        if (DischargeFlow >= 0.) then
 
                             MomentumDischarge  = AuxFlowK * DischargeVelocity 
                             
@@ -32478,7 +32509,7 @@ dk:             do k = kmin,kmax
                         if (DischVertical == DischUniform_) AuxFlowK = DWZ(i,j,k) / SectionHeight * AuxFlowIJ
 
                         ![m/s*m^3/s]                  = [m^3] * [m/s] / [s] 
-                        ! if (DischargeFlow > 0.) then
+                        ! if (DischargeFlow >= 0.) then
 
                             MomentumDischarge  = AuxFlowK * DischargeVelocity
                             
@@ -35236,6 +35267,10 @@ cd12:   if ( BaroclinicRAMP ) then
 
             DT_RunPeriod = CurrentTime - Me%ComputeOptions%RAMP_BeginTime
 
+            if (Me%ComputeOptions%RampPeriod>0.) then            
+                TimeCoef = DT_RunPeriod / Me%ComputeOptions%RampPeriod            
+            endif
+
             InertialPeriods = Me%ComputeOptions%InertialPeriods
 
             Coriolis_Freq => Me%External_Var%Coriolis_Freq
@@ -35255,8 +35290,10 @@ cd13:           if (ComputeFaces3D_UV(i, j, KUB)== Covered) then
                     ! Interpolates Coriolis_Freq for the face 
                     F_UV = (DUX_VY(ileft, jleft) * Coriolis_Freq(I, J) + DUX_VY(I, J) * Coriolis_Freq(ileft, jleft)) / &
                            (DUX_VY(ileft, jleft) + DUX_VY(I, J))
-
-                    TimeCoef = abs (DT_RunPeriod * F_UV / (2 * Pi) / InertialPeriods)
+                           
+                    if (Me%ComputeOptions%RampPeriod<0.) then
+                        TimeCoef = abs (DT_RunPeriod * F_UV / (2 * Pi) / InertialPeriods)
+                    endif                        
 
 cd14:               if (TimeCoef < 1) then
                     
@@ -37053,7 +37090,7 @@ dok:            do k = kbottom + 1, KUB
         integer                            :: I, J, K, kbottom, di, dj, iSouth, jWest
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
-        real                               :: TimeCoef, F_UV, DT_RunPeriod, InertialPeriods
+        real                               :: TimeCoef, F_UV, DT_RunPeriod
         real                               :: TimeCoef2
         real,    dimension(:,:  ), pointer :: Coriolis_Freq
 
@@ -37127,8 +37164,6 @@ dok:            do k = kbottom + 1, KUB
 
             DT_RunPeriod = Me%CurrentTime - Me%ComputeOptions%RAMP_BeginTime
         
-            InertialPeriods = Me%ComputeOptions%InertialPeriods
-
             Coriolis_Freq => Me%External_Var%Coriolis_Freq
 
         endif
@@ -37249,22 +37284,6 @@ dok:            do  k = kbottom, KUB
 
                             endif
 
-                        elseif (Me%ComputeOptions%BaroclinicRamp) then
-
-                            ! Interpolates Coriolis_Freq for the face 
-                            F_UV = (DUX_VY(iSouth, jWest) * Coriolis_Freq(i, j) + DUX_VY(i, j) * Coriolis_Freq(iSouth, jWest)) / &
-                                (DUX_VY(iSouth, jWest) + DUX_VY(i, j))
-                    
-                            !!!! $OMP CRITICAL (VEF2_SEC01)
-                            TimeCoef2 = abs (DT_RunPeriod * F_UV / (2 * Pi) / InertialPeriods)
-                            !!!! $OMP END CRITICAL (VEF2_SEC01)
-
-                            if (TimeCoef2 < 1) then
-
-                                AtmosphericPressure_Aceleration = TimeCoef2 * AtmosphericPressure_Aceleration
-
-                            endif
-                            
                         endif
 
                     else 
