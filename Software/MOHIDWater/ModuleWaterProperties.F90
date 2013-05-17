@@ -17171,7 +17171,7 @@ dn:         do n=1, nCells
                     
  iby:                   if (ByPassON) then
                                 
-                            if (AuxFlowIJ > 0.) then                                
+                            if (AuxFlowIJ >= 0.) then                                
                                 PropertyX%DischConc(AuxCell) = PropertyX%Concentration(ib, jb, k)                        
                             else
                                 PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i , j , k)                        
@@ -17181,7 +17181,7 @@ dn:         do n=1, nCells
                         !Frank
                             !If the discharge flow is positive (Input) then the concentration
                             !to consider is the concentration supplied in the data file
- i1:                        if (AuxFlowIJ > 0.) then
+ i1:                        if (AuxFlowIJ >= 0.) then
                     
  i2:                            if (DischargeFromIntakeON) then
                                     
