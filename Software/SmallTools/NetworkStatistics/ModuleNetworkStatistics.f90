@@ -9,7 +9,8 @@
 ! AFFILIATION   : HIDROMOD
 ! DATE          : Nov2012
 ! REVISION      : Paulo Leitão - v1.0
-! DESCRIPTION   : Module to analyse (filter, interpolate, identify patterns, compare) Time Series
+! DESCRIPTION   : Module to do statistics analysis of hdf5 output files of network models 
+!                 (e.g. watergems, mohid river network, SWMM, sewergems)
 !
 !------------------------------------------------------------------------------
 !
