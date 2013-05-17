@@ -75,7 +75,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  85
+    integer, parameter  :: MaxModules           =  86
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -1673,6 +1673,7 @@ Module ModuleGlobalData
     integer, parameter ::  mBivalve_                = 83
     integer, parameter ::  mTimeSeriesAnalyser_     = 84
     integer, parameter ::  mNetworkStatistics_      = 85
+    integer, parameter ::  mTimeSeriesOperator_     = 86
 
     type T_Size1D
         integer                 :: ILB            = null_int
@@ -1767,9 +1768,11 @@ Module ModuleGlobalData
         T_Module(mCUDA_                  , "Cuda"),                                                                                &
         T_Module(mRUNOFFPROPERTIES_      , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions"),        &
         T_Module(mField4D_               , "Field4D"),               T_Module(mBENTHICECOLOGY_         , "BenthicEcology"),        &! isab
-        T_Module(mWWTPQ_                  , "WWTPQ") ,               T_Module(mSEAGRASSWATERINTERAC_   , "SeagrassWaterInteraction"),&
+        T_Module(mWWTPQ_                 , "WWTPQ") ,                T_Module(mSEAGRASSWATERINTERAC_   , "SeagrassWaterInteraction"),&
         T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
-        T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics")     /)
+        T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics"),     &
+        T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     /)
+        
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
