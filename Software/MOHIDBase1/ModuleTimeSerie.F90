@@ -217,7 +217,7 @@ Module ModuleTimeSerie
                               TimeSerieDataFile, PropertyList, Extension, WaterPoints3D, &
                               WaterPoints2D, WaterPoints1D, ResultFileName, Instance,    &
                               ModelName, CoordX, CoordY, UseTabulatedData,               &
-                              STAT)
+                              HavePath, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeSerieID
@@ -234,6 +234,7 @@ Module ModuleTimeSerie
         real, optional                              :: CoordX
         real, optional                              :: CoordY
         logical, optional, intent(IN )              :: UseTabulatedData
+        logical, optional, intent(IN )              :: HavePath
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -411,7 +412,11 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Constructs the time serie files
             if (present(ResultFileName)) then
-                call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName)
+                if (present(HavePath)) then 
+                    call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName, HavePath = HavePath)
+                else
+                    call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName)
+                endif
             else if (present(Instance)) then
                 call OpenTimeSerieFiles(Extension, PropertyList, Instance = Instance)
             else 
@@ -1095,7 +1100,8 @@ cd1:    if(present(WaterPoints3D)) then
 
     !--------------------------------------------------------------------------
 
-    subroutine OpenTimeSerieFiles(Extension, PropertyList, ResultFileName, Instance)
+    subroutine OpenTimeSerieFiles(Extension, PropertyList, ResultFileName,              &
+                                  Instance, HavePath)
 
         !Arguments-------------------------------------------------------------
 
@@ -1103,6 +1109,7 @@ cd1:    if(present(WaterPoints3D)) then
         character(len=*), dimension(:), pointer             :: PropertyList
         character(len=*), intent(IN), optional              :: ResultFileName
         character(len=*), intent(IN), optional              :: Instance
+        logical         , intent(IN), optional              :: HavePath
  
         !Local-----------------------------------------------------------------
 
@@ -1112,6 +1119,7 @@ cd1:    if(present(WaterPoints3D)) then
         character(len=PathLength)               :: RootPath
         type (T_Time)                           :: CurrentTime
         integer                                 :: iCh
+        logical                                 :: HavePath_
 
 
         !----------------------------------------------------------------------
@@ -1119,17 +1127,27 @@ cd1:    if(present(WaterPoints3D)) then
         PropNumber = size (PropertyList, DIM = 1)
 
         if (PropNumber > 1000) stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR01'
-
-        !Gets the root path from the file nomfich.dat
-        call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) then
-            call ReadFileName("ROOT", RootPath, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) then
-                call ReadFileName("RAIZ", RootPath, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) RootPath = ' '
-            endif
+        
+        if (present(HavePath)) then
+            HavePath_ = HavePath
+        else
+            HavePath_ = .false. 
         endif
 
+        if (.not. HavePath_) then
+            !Gets the root path from the file nomfich.dat
+            call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                call ReadFileName("ROOT", RootPath, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    call ReadFileName("RAIZ", RootPath, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) RootPath = ' '
+                endif
+            endif
+        else
+            RootPath=" "
+        endif
+        
         do iTimeSerie = 1, Me%NumberOfTimeSeries
 cd1 :       if (present(ResultFileName)) then
                 !Constructs the name of the file
