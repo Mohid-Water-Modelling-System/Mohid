@@ -504,11 +504,12 @@ if2 :           if (BlockFound) then
                             call StartInterpolateTime(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR260'
 
+#ifndef _NO_NETCDF
                         case(ConvertIHRadarFormatToHDF5)
                         
                             call ConvertIHRadarFormat(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR270'
-                        
+#endif                        
                         case default
                             
                             stop 'Option not known - ReadOptions - ConvertToHDF5 - ERR299'

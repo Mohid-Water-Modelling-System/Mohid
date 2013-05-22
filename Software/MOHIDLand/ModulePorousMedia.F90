@@ -1161,11 +1161,31 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Me%ObjEnterData, iflag,                                    &
                      SearchType     = FromFile,                                 &
                      keyword        ='THETA_TOLERANCE',                         &
-                     Default        = 0.001,                                    &
+                     !Default        = 0.001,                                    &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR320") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR320")         
+        if (iflag > 0) then
+            write(*,*) 'THETA_TOLERANCE is deprecated. Use STABILIZE_FACTOR instead.'
+            write(*,*) 'The value should be between 0.0 and 1.0.'
+            write(*,*) 'Default value is 0.1'
+            write(*,*) "It's the alowed % of volume change to converge"
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR321") 
+        endif
+         
+        call GetData(Me%CV%ThetaTolerance,                                      &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'STABILIZE_FACTOR',                         &
+                     ClientModule = 'ModulePorousMedia',                        &
+                     SearchType   = FromFile,                                   &
+                     Default      = 0.1,                                        &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) & 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR322") 
+        if (Me%CV%ThetaTolerance < 0 .or. Me%CV%ThetaTolerance > 1.0) &
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR323") 
+
 
         !Increase factor of currentDT when the number of iterations is smaller
         !then MinIter (lower time step multiplication factor)
@@ -5592,13 +5612,14 @@ cd2 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
 
     !--------------------------------------------------------------------------    
 
-    subroutine variation_test( StrongVariation)
+    subroutine variation_test(StrongVariation)
         
         !Arguments-------------------------------------------------------------
         logical, intent(OUT)                        :: StrongVariation        
 
         !Local-----------------------------------------------------------------        
         integer                                     :: I, J, K
+        real                                        :: variation
         !integer                                     :: nStrongs
 
         !----------------------------------------------------------------------               
@@ -5606,9 +5627,10 @@ cd2 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "variation_test")
 
         !nStrongs = 0
+        StrongVariation = .false.
 
         !Tests variations
-        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(I,J) == 1) then
             
@@ -5617,21 +5639,25 @@ cd2 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
                 !If the water column isn't suficient, DT for infiltration velocity and DT to converge are cutted
                 !in the same way.... 
                 do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB - 1
-                    if (abs(Me%CV%ThetaOld(I,J,K)-Me%Theta(I,J,K)) > Me%CV%ThetaTolerance) then
-                        
+                
+                    if (Me%Theta(I,J,K) < 0.) then
+                        StrongVariation = .true.
+                        exit do1
+                    endif
+                    
+                    variation = abs(Me%Theta(I,J,K) - Me%CV%ThetaOld(I,J,K)) / Me%CV%ThetaOld(I,J,K)
+                
+                    !if (abs(Me%CV%ThetaOld(I,J,K)-Me%Theta(I,J,K)) > Me%CV%ThetaTolerance) then
+                    if (variation > Me%CV%ThetaTolerance) then                        
                         !nStrongs = nStrongs + 1
                         StrongVariation = .true.
-                    
-                        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "variation_test")                   
-                        return
-                        
+                        exit do1                                                                                            
                     endif
                 enddo
             endif
         enddo
-        enddo
+        enddo do1    
         
-        StrongVariation = .false.
 !        if (nStrongs > 0) then
 !            StrongVariation = .true.
 !        else

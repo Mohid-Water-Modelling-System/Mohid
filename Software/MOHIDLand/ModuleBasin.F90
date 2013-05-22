@@ -8486,6 +8486,11 @@ cd2 :           if (BlockFound) then
                 NewDT = DTForNextEvent
                 ID_DT = 6
             endif
+            
+            if (NewDT > (2 * Me%DTDuringRain)) then
+                NewDT = NewDT - Me%DTDuringRain
+                ID_DT = 7
+            endif
         endif
         
         !if (ID_DT == 0) then
