@@ -769,6 +769,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                             :: LengthWithoutExt
         type (T_Size2D)                     :: Size2D
         integer                             :: STAT_CALL
+        character(len=2)                    :: FileVersion
+        integer                             :: FileVersionInt
 
         !----------------------------------------------------------------------
 
@@ -805,7 +807,34 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Comment1        = "Automatic Generated Grid Data File"
         Comment2        = "Based On "//trim(BathymetryFile)
         LengthWithoutExt= len_trim(BathymetryFile) - 4
-        BathymetryFile  = BathymetryFile(1:LengthWithoutExt)//"_"//".new2"
+        !BathymetryFile  = BathymetryFile(1:LengthWithoutExt)//"_"//".new2"
+
+        !check if already has version in name (2 carachters and can go up to 99 versions)
+        if (BathymetryFile(LengthWithoutExt-3:LengthWithoutExt-2) == "_v") then
+            
+            !read existing file version
+            FileVersion = trim(adjustl(BathymetryFile(LengthWithoutExt-1:LengthWithoutExt)))
+            read(FileVersion, *, IOSTAT = STAT_CALL) FileVersionInt
+            if (STAT_CALL /= 0) then
+                !user used a letter after "_v". it may happen in a original filename
+                FileVersionInt = 0
+            endif
+            
+            !update file version
+            FileVersionInt = FileVersionInt + 1
+            write(FileVersion, "(i2)") FileVersionInt
+            if (FileVersionInt < 10) then
+                FileVersion = "0"//FileVersion(2:2)
+            endif
+        else 
+            FileVersionInt = 1
+        endif
+        
+        if (FileVersionInt == 1) then
+            BathymetryFile  = BathymetryFile(1:LengthWithoutExt)//"_v"//"01.dat"
+        else
+            BathymetryFile  = BathymetryFile(1:LengthWithoutExt-2)//FileVersion//".dat"
+        endif
 
         call GetCheckDistortion (HorizontalGridID, Distortion, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CorrectIsolatedCells - ModuleMap - ERR12'

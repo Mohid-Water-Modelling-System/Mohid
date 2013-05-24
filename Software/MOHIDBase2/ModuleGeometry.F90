@@ -22,16 +22,21 @@
 !   ID                          : int               -           !Domain ID
 !   TYPE                        : char              -           !Type of vertical coordinate of the domain
 !                                                               !Multiple options: FIXSPACING, SIGMA,
-!                                                               !LAGRANGIAN, CARTESIAN, HARMONIC, FIXSEDIMENT
+!                                                               !CARTESIAN, HARMONIC, FIXSEDIMENT
 !   LAYERS                      : int               -           !Number of layers
 !   EQUIDISTANT                 : real             [0]          !Equidistant layers spacing in meters
 !   LAYERTHICKNESS              : real vector       -           !If not equidistant specifies layers thickness
 !                                                               !starting from bottom layer (e.g. 50. 20. 10. 5.)
-!   TOLERANCEDEPTH              : real            [0.05]        !Just for SIGMA,ISOPYCNIC, LAGRANGIAN coordinates
+!   TOLERANCEDEPTH              : real            [0.05]        !Just for SIGMA,ISOPYCNIC coordinates
 !   TOTALTHICKNESS              : real              -           !Total domain thickness 
 !                                                               !(Just for FIXSPACING, FIXSEDIMENT, SOIL_TOPLAYER)
 !   EMPTY_TOP_LAYERS            : int              [0]          !Number of empty layers counting from top
 !   DOMAINDEPTH                 : real
+!   LAGRANGIAN                  : 0/1              [0]          !Use lagrangian approach for distorting grometry? 
+!                                                               !Layers are displaced with vertical velocity
+!   MINEVOLVELAYERTHICKNESS     : real            [0.5]         !Allowed distortion in percentage of initial thickness
+!                                                               !(if LAGRANGIAN : 1)
+!   DISPLACEMENT_LIMIT          : real           [1000]         !Maximum displacement in meters (if LAGRANGIAN : 1)
 
 !------------------------------------------------------------------------------
 !
@@ -103,7 +108,7 @@ Module ModuleGeometry
     private ::          ComputeCartesian
     private ::          ComputeHarmonic
     private ::          ComputeSigma
-    private ::          ComputeLagrangian
+    private ::          ComputeLagrangianNew
     private ::      ComputeZCellCenter
     private ::      ComputeDistances
     private ::      ComputeAreas
@@ -205,7 +210,7 @@ Module ModuleGeometry
     integer, parameter :: FixSpacing            = 1
     integer, parameter :: Sigma                 = 2
     integer, parameter :: Isopycnic             = 3
-    integer, parameter :: Lagrangian            = 4
+    !integer, parameter :: Lagrangian            = 4
     integer, parameter :: Cartesian             = 5
     integer, parameter :: Harmonic              = 6
     integer, parameter :: FixSediment           = 7
@@ -227,12 +232,16 @@ Module ModuleGeometry
     type T_Domain
         integer                                 :: ID                        = FillValueInt
         integer                                 :: DomainType                = FillValueInt
+        logical                                 :: IsLagrangian              = .false.      !Lagrangian change w/ vert veloc
         integer                                 :: NumberOfLayers            = FillValueInt
         integer                                 :: EmptyTopLayers            = FillValueInt
         integer                                 :: UpperLayer, LowerLayer    = FillValueInt
+        integer                                 :: ActiveUpperLayer          = FillValueInt
         real                                    :: DomainDepth               = FillValueReal
         real                                    :: TotalThickness            = FillValueReal 
         real, dimension(:), pointer             :: LayerThickness
+        real, dimension(:), pointer             :: LayerMinThickness
+        real, dimension(:), pointer             :: LayerMaxThickness
         real                                    :: ToleranceDepth            = FillValueReal 
         real                                    :: MinInitialLayerThickness  = FillValueReal
         real                                    :: MaxThicknessGrad          = FillValueReal 
@@ -322,6 +331,8 @@ Module ModuleGeometry
         type (T_Size3D)                         :: WorkSize
         
         logical                                 :: IsWindow
+        
+        logical                                 :: LagrangianLimitsComputed = .false.
         
         logical                                 :: BathymNotCorrect = .false. 
        
@@ -891,7 +902,8 @@ Module ModuleGeometry
 
         character(len = StringLength), parameter    :: beginlayers = '<<beginlayers>>'
         character(len = StringLength), parameter    :: endlayers   = '<<endlayers>>'
-
+        
+        integer                                     :: LagrangianOld_flag
 
         character(len = StringLength)               :: DomainType
         real, dimension(:), allocatable             :: AuxVector
@@ -899,6 +911,8 @@ Module ModuleGeometry
         integer                                     :: ObjEnterData = 0
         integer                                     :: i, ActualID, ID, LastLine, FirstLine, Line
 
+        
+        LagrangianOld_flag = 0
         
         !Get Enter data parameter
         call GetExtractType(FromBlock = FromBlock, FromFile = FromFile)
@@ -996,7 +1010,23 @@ CorretID:       if (ID == ActualID) then
                     case ("SIGMA", "Sigma", "sigma")
                         NewDomain%DomainType = Sigma        
                     case ("LAGRANGIAN", "Lagrangian", "lagrangian")
-                        NewDomain%DomainType = Lagrangian   
+                        !NewDomain%DomainType = Lagrangian
+                        !for backward compatibility mark this domain as having lagrangian method
+                        !the domain type itself will be taken from intialization method some lines below
+                        LagrangianOld_flag     = 1 
+                        NewDomain%IsLagrangian = .true.
+                        
+                        write(*,*)
+                        write(*,*)
+                        write(*,*) '-------------------------------------------------------------'
+                        write(*,*) 'WARNING: Lagrangian domains are deprecated'
+                        write(*,*) 'new Keyword LAGRANGIAN : 1 in sigma or cartesian'
+                        write(*,*) 'domain blocks is now used. However, for backward compability'
+                        write(*,*) 'your domain will be processed with old keywords'
+                        write(*,*) '-------------------------------------------------------------'
+                        write(*,*)
+                        write(*,*)
+                           
                     case ("CARTESIAN", "Cartesian", "cartesian")
                         NewDomain%DomainType = Cartesian
                     case ("HARMONIC", "Harmonic", "harmonic")
@@ -1028,6 +1058,15 @@ CorretID:       if (ID == ActualID) then
                     UBo = NLayer                                                    !in the ComputeSZZ routines
                     allocate (NewDomain%LayerThickness(LBo:UBo), STAT = STATUS)
                     if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR110"
+
+                    nullify  (NewDomain%LayerMinThickness)
+                    nullify  (NewDomain%LayerMaxThickness)
+                    
+                    allocate (NewDomain%LayerMinThickness(LBo:UBo), STAT = STATUS)
+                    if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR111"
+
+                    allocate (NewDomain%LayerMaxThickness(LBo:UBo), STAT = STATUS)
+                    if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR112"
                     
                     ! Allows the definition of equidistant layers, layer thickness = constant
                     call GetData(NewDomain%Equidistant,                                 &
@@ -1103,11 +1142,23 @@ cd2 :                       if (BlockLayersFound) then
                         end do
 
                     endif cd0
-
-                    !Searches for the Tolerance Depth (TYPE == SIGMA, ISOPYCNIC or Lagrangian)
+                    
+                    !New keyword
+                    !if geometry is lagrangian than SZZ is changed by vertical velocity
+                    !and Lagragian approach can be used in any type of coordinates
+                    if (LagrangianOld_flag == 0) then    
+                        call GetData(NewDomain%IsLagrangian, ObjEnterData, iflag,       &
+                                     SearchType   = FromBlock,                          &  
+                                     keyword      = 'LAGRANGIAN',                       &
+                                     ClientModule = 'ModuleGeometry',                   &
+                                     Default      = .false.,                            &
+                                     STAT         = STATUS)
+                        if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR161"
+                   endif
+                   
+                    !Searches for the Tolerance Depth (TYPE == SIGMA or ISOPYCNIC)
                     if ((NewDomain%DomainType == Sigma)     .or.                        &
-                        (NewDomain%DomainType == IsoPycnic) .or.                        &
-                        (NewDomain%DomainType == Lagrangian)) then
+                        (NewDomain%DomainType == IsoPycnic)) then
                         
                         call GetData(NewDomain%ToleranceDepth, ObjEnterData, iflag,     &
                                      SearchType   = FromBlock,                          &  
@@ -1169,30 +1220,46 @@ cd2 :                       if (BlockLayersFound) then
                     endif
 
                     !Searches for the coeficient which indicates how much a Lagrangian layer 
-                    !can deform (MinEvolveLayerThickness)
-                    if (NewDomain%DomainType == Lagrangian) then
+                    !can deform 
+                    if (NewDomain%IsLagrangian) then
                         
+                        !The percentage of initial layer thickness that a layer can deform
+                        !it may colapse to a size as (1 - MINEVOLVELAYERTHICKNESS) * InitialThickness
+                        !and expand to (1 + MINEVOLVELAYERTHICKNESS)* InitialThickness
                         call GetData(NewDomain%MinEvolveLayerThickness,                 &
                                      ObjEnterData, iflag,                               &
                                      SearchType     = FromBlock,                        &
                                      keyword        = 'MINEVOLVELAYERTHICKNESS',        &
                                      ClientModule   = 'ModuleGeometry',                 &
-                                     Default        = 0.0,                              &
+                                     Default        = 0.5,                              &
                                      STAT           = STATUS)
                         if (STATUS /= SUCCESS_ .or. iflag == 0)                         &
                             stop "GetDomainsFromFile - Geometry - ERR210"
+                        
+                        if (NewDomain%MinEvolveLayerThickness < 0. .or. NewDomain%MinEvolveLayerThickness >= 1) then
+                            write(*,*)
+                            write(*,*)
+                            write(*,*) 'MINEVOLVELAYERTHICKNESS keyword in Geometry Doamin'
+                            write(*,*) 'can not be < 0 or >= 1. This keyword represents'
+                            write(*,*) 'a percentage of initial defined thickness and the' 
+                            write(*,*) 'limit for geometry variation'
+                            write(*,*) 'Please verify values'
+                            write(*,*)
+                            stop "GetDomainsFromFile - Geometry - ERR212"
+                        endif
+                        
+!                        call GetData(NewDomain%GridMovementDump,                        &
+!                                     ObjEnterData, iflag,                               &
+!                                     SearchType     = FromBlock,                        &
+!                                     keyword        = 'GRIDMOVEMENTDUMP',               &
+!                                     ClientModule   = 'ModuleGeometry',                 &
+!                                     Default        = 0.0,                              &
+!                                     STAT           = STATUS)
+!                        if (STATUS /= SUCCESS_)                                         &
+!                            stop "GetDomainsFromFile - Geometry - ERR220"
 
-                        call GetData(NewDomain%GridMovementDump,                        &
-                                     ObjEnterData, iflag,                               &
-                                     SearchType     = FromBlock,                        &
-                                     keyword        = 'GRIDMOVEMENTDUMP',               &
-                                     ClientModule   = 'ModuleGeometry',                 &
-                                     Default        = 0.0,                              &
-                                     STAT           = STATUS)
-                        if (STATUS /= SUCCESS_)                                         &
-                            stop "GetDomainsFromFile - Geometry - ERR220"
-
-
+                        !maximum displacement in meters. If too high will not limit more
+                        !than MINEVOLVELAYERTHICKNESS factor
                         call GetData(NewDomain%DisplacementLimit,                       &
                                      ObjEnterData, iflag,                               &
                                      keyword        = 'DISPLACEMENT_LIMIT',             &
@@ -1203,27 +1270,33 @@ cd2 :                       if (BlockLayersFound) then
                         if (STATUS /= SUCCESS_)                                         &
                             stop "GetDomainsFromFile - Geometry - ERR230"
 
-                       
-                        call GetData(DomainType,                                        &
-                                     ObjEnterData, iflag,                               &
-                                     SearchType     = FromBlock,                        &
-                                     keyword        = 'INITIALIZATION_METHOD ',         &
-                                     ClientModule   = 'ModuleGeometry',                 &
-                                     Default        = "SIGMA",                          &
-                                     STAT           = STATUS)
-                        if (STATUS /= SUCCESS_)                                         &
-                            stop "GetDomainsFromFile - Geometry - ERR240"
-
-
-                        if     (DomainType .EQ. "SIGMA"     ) then
-                            NewDomain%InitializationMethod = Sigma
-                        elseif (DomainType .EQ. "CARTESIAN" ) then
-                            NewDomain%InitializationMethod = Cartesian
-                        else
-                            write (*,*) "Initialization Method invalid"
-                            stop "GetDomainsFromFile - Geometry - ERR250"
+                       if (LagrangianOld_flag == 1) then
+                            call GetData(DomainType,                                        &
+                                         ObjEnterData, iflag,                               &
+                                         SearchType     = FromBlock,                        &
+                                         keyword        = 'INITIALIZATION_METHOD ',         &
+                                         ClientModule   = 'ModuleGeometry',                 &
+                                         Default        = "SIGMA",                          &
+                                         STAT           = STATUS)
+                            if (STATUS /= SUCCESS_)                                         &
+                                stop "GetDomainsFromFile - Geometry - ERR240"
+                            
+                            !Lagrangian is no longer a domain but a process.
+                            !As so the domaintype here will be used as the domain type
+                            !and the previous keywords are used to compute lagrangian method
+                            !in any of the two types
+                            
+                            if     (DomainType .EQ. "SIGMA"     ) then
+                                !NewDomain%InitializationMethod = Sigma
+                                NewDomain%DomainType = Sigma
+                            elseif (DomainType .EQ. "CARTESIAN" ) then
+                                !NewDomain%InitializationMethod = Cartesian
+                                NewDomain%DomainType = Cartesian
+                            else
+                                write (*,*) "Initialization Method invalid"
+                                stop "GetDomainsFromFile - Geometry - ERR250"
+                            endif                       
                         endif
-
                     endif
 
 
@@ -1233,9 +1306,7 @@ cd2 :                       if (BlockLayersFound) then
                    !In cartesian coordinates the reference layer thickness is compute for the 
                    !maximum depth
                     if (NewDomain%DomainType == Cartesian     .or.                      &
-                        NewDomain%DomainType == Harmonic      .or.                      &
-                        (NewDomain%DomainType == Lagrangian .and.                       &
-                         NewDomain%InitializationMethod == Cartesian)) then
+                        NewDomain%DomainType == Harmonic) then
 
                         call GetData(NewDomain%MinInitialLayerThickness,                &
                                      ObjEnterData, iflag,                               &
@@ -1403,18 +1474,17 @@ cd2 :                       if (BlockLayersFound) then
             !Computes UpperLayer and LowerLayer
             CurrentDomain%LowerLayer = LayersBelow + 1
             CurrentDomain%UpperLayer = LayersBelow + CurrentDomain%NumberOfLayers
+            if (CurrentDomain%ID == Me%LastDomain%ID) CurrentDomain%ActiveUpperLayer = CurrentDomain%UpperLayer
             LayersBelow = LayersBelow + CurrentDomain%NumberOfLayers
 
             !Verifies and corrects relativ layer thickness
-            !This is just done in the case of Sigma, Fixspacing, FixSediment and Lagrangian with Sigma
+            !This is just done in the case of Sigma, Fixspacing, FixSediment 
             !initialization
             if (CurrentDomain%DomainType  == Sigma              .or.                     &
                 CurrentDomain%DomainType  == Fixspacing         .or.                     &
                 CurrentDomain%DomainType  == FixSediment        .or.                     &
                 CurrentDomain%DomainType  == SigmaTop           .or.                     &
-                CurrentDomain%DomainType  == IsoPycnic          .or.                     &
-                (CurrentDomain%DomainType == Lagrangian         .and.                    &
-                 CurrentDomain%InitializationMethod == Sigma)) then
+                CurrentDomain%DomainType  == IsoPycnic) then
 
                 RelativSum = 0.
                 do iLayer = CurrentDomain%LowerLayer, CurrentDomain%UpperLayer
@@ -1501,7 +1571,7 @@ cd2 :                       if (BlockLayersFound) then
             endif
 
             !Verifies if a Lagrangian domain is above a fixspacing domain
-            if (CurrentDomain%ID > 1 .and. CurrentDomain%DomainType == Lagrangian .and.  &
+            if (CurrentDomain%ID > 1 .and. CurrentDomain%IsLagrangian .and.  &
                                  (Me%FirstDomain%DomainType == FixSpacing .or.           &
                                   Me%FirstDomain%DomainType == FixSediment)) then
                 write(*,*)'A Largragian domain type cant overlay a Fixspacing or FixSediment domain'
@@ -1543,35 +1613,40 @@ cd2 :                       if (BlockLayersFound) then
                 endif
             endif
 
-
-
-            !Verifies if the Minimal Layer thickness of a lagrangian domain is smalles then
-            !50% of the initial layer thickness
-            if (CurrentDomain%DomainType == Lagrangian) then
-                    Error = 1.e10
-                    do iLayer = CurrentDomain%LowerLayer, CurrentDomain%UpperLayer
-                        if (Error > CurrentDomain%LayerThickness(iLayer)) then
-                            Error = CurrentDomain%LayerThickness(iLayer)
-                        endif
-                    enddo
-                    if (CurrentDomain%MinEvolveLayerThickness > 0.50) then
-                        write(*,*)'The MinimalThickness of the layers should not be greater then 50% of'
-                        write(*,*)'of the initial layer thickness.'
-                        write(*,*)'Verify domain number :',CurrentDomain%ID
-                        write(*,*)'Layer                :',iLayer
-                        stop 'ComputeLayers - Geometry - ERR80.'
-                    else if (CurrentDomain%DisplacementLimit > 0.499 * Error) then
-                        write(*,*)'The DisplacementLimit of the layers is higher than half the minimum LayerThickness'
-                        stop 'ComputeLayers - Geometry - ERR90.'
-                    endif
+            !Verifies if Lagrangian method is used with SIGMA or Cartesian
+            if (CurrentDomain%IsLagrangian) then
+                if (CurrentDomain%DomainType /= Cartesian .and. CurrentDomain%DomainType /= Sigma) then
+                    write(*,*)'Lagrangian method can be used with SIGMA'
+                    write(*,*)'or CARTESIAN domains. Verify if other is used'
+                    stop 'ComputeLayers - Geometry - ERR20.'
+                endif
             endif
+
+!            !Verifies if the Minimal Layer thickness of a lagrangian domain is smalles then
+!            !50% of the initial layer thickness
+!            if (CurrentDomain%DomainType == Lagrangian) then
+!                    Error = 1.e10
+!                    do iLayer = CurrentDomain%LowerLayer, CurrentDomain%UpperLayer
+!                        if (Error > CurrentDomain%LayerThickness(iLayer)) then
+!                            Error = CurrentDomain%LayerThickness(iLayer)
+!                        endif
+!                    enddo
+!                    if (CurrentDomain%MinEvolveLayerThickness > 0.50) then
+!                        write(*,*)'The MinimalThickness of the layers should not be greater then 50% of'
+!                        write(*,*)'of the initial layer thickness.'
+!                        write(*,*)'Verify domain number :',CurrentDomain%ID
+!                        write(*,*)'Layer                :',iLayer
+!                        stop 'ComputeLayers - Geometry - ERR80.'
+!                    else if (CurrentDomain%DisplacementLimit > 0.499 * Error) then
+!                        write(*,*)'The DisplacementLimit of the layers is higher than half the minimum LayerThickness'
+!                        stop 'ComputeLayers - Geometry - ERR90.'
+!                   endif
+!            endif
 
             !Verifies if the inital Layer thickness of the cartesian coordinates is not small then 
             !then 1% 
             if  (CurrentDomain%DomainType           == Cartesian .or.                 &
-                 CurrentDomain%DomainType           == Harmonic  .or.                 &
-                (CurrentDomain%DomainType           == Lagrangian .and.               &
-                 CurrentDomain%InitializationMethod == Cartesian)) then
+                 CurrentDomain%DomainType           == Harmonic ) then
 
                     if (CurrentDomain%MinInitialLayerThickness < 0.01) then
                         write(*,*)'The MinimalThickness of the layers should not be smaller then 1% of'
@@ -1590,7 +1665,7 @@ cd2 :                       if (BlockLayersFound) then
     end subroutine ComputeLayers
 
     !--------------------------------------------------------------------------
-    !In the case that the domain is Sigma, Isopycnic or Lagrangian the Bathymetry is tested in
+    !In the case that the domain is Sigma, Isopycnic the Bathymetry is tested in
     !order to avoid layers with zero height.
     !In the case of a cartesian domain, the Bathymetry is rearranged, in order to avoid layers to thin
     subroutine VerifyBathymetry (SurfaceElevation)
@@ -1622,6 +1697,8 @@ cd2 :                       if (BlockLayersFound) then
         type (T_Size2D)                             :: Size2D
         integer                                     :: LengthWithoutExt
         real                                        :: T1, Taux, Tmax, d1, d2
+        character(len=StringLength)                 :: FileVersion
+        integer                                     :: FileVersionInt
 
         !Begin-----------------------------------------------------------------
 
@@ -1645,9 +1722,7 @@ cd2 :                       if (BlockLayersFound) then
 do1:    do while (associated(CurrentDomain))
             
 cd1:        if ((CurrentDomain%DomainType == Sigma)      .or.                            &
-                (CurrentDomain%DomainType == IsoPycnic)  .or.                            &
-                (CurrentDomain%DomainType == Lagrangian .and.                            &
-                 CurrentDomain%InitializationMethod == Sigma)) then
+                (CurrentDomain%DomainType == IsoPycnic)) then
 
                 if (CurrentDomain%ID == Me%LastDomain%ID) exit do1 !Dont correct the upper domain
                 DomainDepth = CurrentDomain%DomainDepth
@@ -1665,9 +1740,7 @@ cd1:        if ((CurrentDomain%DomainType == Sigma)      .or.                   
 
             !Correction in the case of cartesian domain
             else if (CurrentDomain%DomainType           == Cartesian .or.                &
-                     CurrentDomain%DomainType           == Harmonic  .or.                &
-                    (CurrentDomain%DomainType           == Lagrangian .and.              &
-                     CurrentDomain%InitializationMethod == Cartesian)) then
+                     CurrentDomain%DomainType           == Harmonic) then
 
                 !Gets the upper and the lower depth of the domain and calculates its
                 !thickness
@@ -1926,8 +1999,36 @@ doi:                do i = ILB, IUB
             Comment1        = "Automatic Generated Grid Data File"
             Comment2        = "Based On "//trim(BathymetryFile)
             LengthWithoutExt= len_trim(BathymetryFile) - 4
-            BathymetryFile  = BathymetryFile(1:LengthWithoutExt)//"_"//".new"
-
+            !BathymetryFile  = BathymetryFile(1:LengthWithoutExt)//"_"//".new"
+            
+            !check if already has version in name (2 carachters and can go up to 99 versions)
+            if (BathymetryFile(LengthWithoutExt-3:LengthWithoutExt-2) == "_v") then
+                
+                !read existing file version
+                FileVersion = trim(adjustl(BathymetryFile(LengthWithoutExt-1:LengthWithoutExt)))
+                read(FileVersion, *, IOSTAT = STAT_CALL) FileVersionInt
+                if (STAT_CALL /= 0) then
+                    !user used a letter after "_v". it may happen in a original filename
+                    FileVersionInt = 0
+                endif
+                
+                !update file version
+                FileVersionInt = FileVersionInt + 1
+                write(FileVersion, "(i2)") FileVersionInt
+                if (FileVersionInt < 10) then
+                    FileVersion = "0"//FileVersion(2:2)
+                endif
+            else 
+                FileVersionInt = 1
+            endif
+            
+            if (FileVersionInt == 1) then
+                BathymetryFile  = BathymetryFile(1:LengthWithoutExt)//"_v"//"01.dat"
+            else
+                BathymetryFile  = BathymetryFile(1:LengthWithoutExt-2)//FileVersion//".dat"
+            endif
+            
+            
             call GetCheckDistortion (Me%ObjHorizontalGrid, Distortion, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR140'
 
@@ -2105,13 +2206,11 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                     CurrentDomain => CurrentDomain%Next
                 enddo
 
-                !In the case of a sigma, lagrangian (init sigma) or fixspacing domain
+                !In the case of a sigma or fixspacing domain
                 !KFloorZ is always equal to LayersBelow + 1
                 if ((CurrentDomain%DomainType /= Cartesian   )     .and.                 &
                     (CurrentDomain%DomainType /= Harmonic    )     .and.                 &
-                    (CurrentDomain%DomainType /= CartesianTop)     .and.                 &
-                    (.not. (CurrentDomain%DomainType == Lagrangian .and.                 &
-                            CurrentDomain%InitializationMethod == Cartesian))) then
+                    (CurrentDomain%DomainType /= CartesianTop)) then
                     Me%KFloor%Z(i, j) = 1 + LayersBelow
                 else
                     !Domain Top Depth
@@ -2161,13 +2260,11 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                         MinimalThickness = dble(CurrentDomain%MinInitialLayerThickness)
 
                         
-                        !In the case of Cartesian, Harmonic or Lagrangian(Cartesian) domain
+                        !In the case of Cartesian, Harmonic domain
                         !the layer thickness is given in meters
                         if (CurrentDomain%DomainType            == Cartesian    .or.     &
                             CurrentDomain%DomainType            == Harmonic     .or.     &
-                            CurrentDomain%DomainType            == CartesianTop .or.     &
-                            (CurrentDomain%DomainType           == Lagrangian .and.      &
-                             CurrentDomain%InitializationMethod == Cartesian)) then
+                            CurrentDomain%DomainType            == CartesianTop) then
 
                             LayerThicknessMax   = dble(CurrentDomain%LayerThickness(iLayer))
                             LayerThicknessMin   = dble(CurrentDomain%LayerThickness(iLayer)) * &
@@ -3466,7 +3563,7 @@ cd1:    if (FacesOption == MinTickness) then
 
         CurrentDomain => Me%FirstDomain
         do while (associated(CurrentDomain))
-
+                  
             select case (CurrentDomain%DomainType)
 
                 case (FixSpacing)
@@ -3490,32 +3587,63 @@ cd1:    if (FacesOption == MinTickness) then
                     endif
                     
                 case (Sigma)
-                    if ((ComputionType == INITIALGEOMETRY) .or.                          &
-                        (CurrentDomain%ID == Me%LastDomain%ID))                 &
+                    
+                    if ((ComputionType == INITIALGEOMETRY) .or.                         &
+                        ((CurrentDomain%ID == Me%LastDomain%ID) .and.                   &
+                         (.not. CurrentDomain%IsLagrangian)))  then        
+                        
                         call ComputeSigma(SurfaceElevation, CurrentDomain)  
-                                          
-
+                    
+                    else 
+                        call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,   &
+                                                  DT_Waterlevel, CurrentDomain)
+                    endif
+                    
                 case (Isopycnic)
 !                    call ConstructIsopycnic(ObjGeometry, CurrentDomain)
-
-                case (Lagrangian)
-                    if (ComputionType == INITIALGEOMETRY) then
-                        if (CurrentDomain%InitializationMethod == Sigma) then
-                            call ComputeSigma(SurfaceElevation, CurrentDomain)
-                        else
-                            call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
-                        endif
-                    else
-                        call ComputeLagrangian(SurfaceElevation, VerticalVelocity,       &
-                                               DT_Waterlevel, CurrentDomain)
-                    endif
+                
+                !Lagrangian moved to cartesian and sigma. 
+                !Lagrangian is not a geometry but a computation method
+!                case (Lagrangian)
+!                    if (ComputionType == INITIALGEOMETRY) then
+!                        if (CurrentDomain%InitializationMethod == Sigma) then
+!                            call ComputeSigma(SurfaceElevation, CurrentDomain)
+!                        else
+!                            call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
+!                        endif
+!                    else
+!                        call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,       &
+!                                                  DT_Waterlevel, CurrentDomain)
+!                    endif
 
                 case (Cartesian)
-                    if ((ComputionType     == INITIALGEOMETRY) .or.             &
-                        (CurrentDomain%ID  == Me%LastDomain%ID))                & 
-                        call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
-
+                    
+                    if (.not. CurrentDomain%IsLagrangian) then
+                        if ((ComputionType == INITIALGEOMETRY) .or.                            &
+                            (CurrentDomain%ID == Me%LastDomain%ID)) then          
+                            
+                            call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
+                        
+                        endif
+                    else
+                        if (ComputionType == INITIALGEOMETRY) then
+                            
+                            if (CurrentDomain%ID == Me%LastDomain%ID) then 
+                                !cartesian domain has to adapt to surface elevation
+                                call ComputeCartesianNew(SurfaceElevation, CurrentDomain)    
+                            else
+                                call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
+                            endif
+                            
+                        else        
+                            call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,    &
+                                                      DT_Waterlevel, CurrentDomain)
+                        endif
+                    endif
+                    
+                !This geometry will be discontinued
                 case (Harmonic)
+
                     call ComputeHarmonic(SurfaceElevation, CurrentDomain)
 
                 case (CartesianTop)
@@ -3557,7 +3685,7 @@ cd1:    if (FacesOption == MinTickness) then
 
     end subroutine ComputeSZZ
 
-    
+
     !--------------------------------------------------------------------------
     !Computes SZZ for a FixSpacing Domain
 
@@ -3911,6 +4039,124 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
 
     end subroutine ComputeHarmonic
 
+    !--------------------------------------------------------------------------
+    !Computes SZZ for a Cartesian Domain at initial. Layers have to adapt to surface level
+
+    subroutine ComputeCartesianNew(SurfaceElevation, Domain)
+
+        !Parameter-------------------------------------------------------------
+        real, dimension(:, :), pointer          :: SurfaceElevation
+        type (T_Domain), pointer                :: Domain
+
+        !Local-----------------------------------------------------------------
+        integer, dimension(:,:), pointer        :: WaterPoints2D
+        integer                                 :: i, j, k, ILB, IUB, JLB, JUB, UpperLayer
+        integer                                 :: STAT_CALL, LowerLayer
+        real                                    :: MeanLayerThickness, LayerThickness
+        real                                    :: MinThick, TotalMinThick
+
+        !Size
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        !Gets a pointer to 2D WaterPoints
+        call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeHarmonic - Geometry - ERR01'
+
+        !Cycle
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+            if (WaterPoints2D(i, j) == WaterPoint.and.                              &
+                Domain%UpperLayer >= Me%KFloor%Z(i, j)) then
+                
+                !Lowest layer in the domain
+                LowerLayer = max(Domain%LowerLayer, Me%KFloor%Z(i, j))
+
+                !Upper layer in the domain
+                UpperLayer = Domain%UpperLayer
+                
+                !Inits SZZ
+                Me%Distances%SZZ(i, j, UpperLayer) = 0.0
+
+                !Calculates first SZZ approach. It will be rewritten in columns with
+                !level negative (below Hydrographyc Zero)
+                do k = UpperLayer - 1, LowerLayer, -1
+
+                    LayerThickness = Domain%LayerThickness(k+1)
+                    Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) + LayerThickness
+
+                enddo
+
+                !Sets SZZ(KUB) to waterlevel
+                Me%Distances%SZZ(i, j, UpperLayer)   = -1. * SurfaceElevation(i, j)
+                
+                !in negative levels, upper layer will be attached to surface but below need to
+                !be adjusted
+                if (SurfaceElevation(i, j) .lt. 0.) then
+                
+                    !Calculates cartesian down (as harmonic)
+                    k              = UpperLayer - 1
+                    LayerThickness = Me%Distances%SZZ(i, j, k) - Me%Distances%SZZ(i, j, k+1)
+                    MinThick       = Domain%LayerThickness(k) * Domain%MinInitialLayerThickness 
+                    do while (LayerThickness < MinThick .and. k >= LowerLayer)
+                        Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) + MinThick
+                        k                         = k - 1
+                        LayerThickness            = Me%Distances%SZZ(i, j, k) - Me%Distances%SZZ(i, j, k+1)
+                        MinThick                  = Domain%LayerThickness(k) * Domain%MinInitialLayerThickness
+                    enddo
+
+                    !If the thickness of the cell close to the bottom is smaller then MinThick
+                    !cells have to be redistributed. Two Options:
+                    !1. TotalMinThick <= WaterColumn => Redistribute all cells equally
+                    !2. else, put MinThick in all from bottom until every cell has thickness > MinThick
+                    !In these cases velocity is forgotten but this only occurs in extreme events with
+                    !very low water columns
+                    LayerThickness   = (Me%Distances%SZZ(i,j,LowerLayer-1) - Me%Distances%SZZ(i,j,LowerLayer)) 
+                    MinThick         = Domain%LayerThickness(LowerLayer) * Domain%MinInitialLayerThickness
+                    if (LayerThickness < MinThick) then
+                        
+                        TotalMinThick = 0.
+                        do k = LowerLayer, UpperLayer
+                            TotalMinThick = TotalMinThick                                              & 
+                                            + (Domain%LayerThickness(k) * Domain%MinInitialLayerThickness)
+                        enddo
+
+                        if (Me%Distances%SZZ(i, j, LowerLayer-1)  - Me%Distances%SZZ(i, j, UpperLayer) &
+                             <= TotalMinThick) then
+                            
+                            MeanLayerThickness = (Me%Distances%SZZ(i, j, LowerLayer-1)  -              &
+                                                  Me%Distances%SZZ(i, j, UpperLayer)      ) /          &
+                                                  float(UpperLayer - LowerLayer + 1)
+                            
+                            do k = UpperLayer - 1, LowerLayer, -1
+                                Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) + MeanLayerThickness
+                            enddo
+                        
+                        else
+                            
+                            k = LowerLayer
+                            do while (Me%Distances%SZZ(i, j, k-1) - Me%Distances%SZZ(i, j, k) <  MinThick)
+                                Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k-1) - MinThick 
+                                k = k + 1
+                                MinThick   = Domain%LayerThickness(k) * Domain%MinInitialLayerThickness
+                            enddo
+                        endif
+                    endif
+                endif            
+            endif
+        enddo
+        enddo
+
+        !UnGets WaterPoints2D
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeHarmonic - Geometry - ERR02'
+
+
+    end subroutine ComputeCartesianNew
 
     !--------------------------------------------------------------------------
     !Computes SZZ for a Sigma Domain
@@ -4271,6 +4517,232 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
 
     end subroutine ComputeLagrangian
 
+    !--------------------------------------------------------------------------
+    !Computes SZZ for a Lagrangian Domain - from up
+    subroutine ComputeLagrangianNew(SurfaceElevation, VerticalVelocity, DT_Waterlevel, Domain)
+
+        !Parameter-------------------------------------------------------------
+        real, dimension(:, :), pointer          :: SurfaceElevation
+        real, dimension(:, :, :), pointer       :: VerticalVelocity
+        real, intent(in)                        :: DT_Waterlevel
+        type (T_Domain), pointer                :: Domain
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: i, j, k, ILB, IUB, JLB, JUB
+        integer                                 :: LowerLayer, UpperLayer
+        integer, dimension(:, :), pointer       :: WaterPoints2D
+!        real   , dimension(:, :,:), pointer     :: OldSZZ
+        real                                    :: TopDepth, BottomDepth, DomainThickness
+        real                                    :: MinimalThickness
+        real                                    :: DisplacementLimit
+        real                                    :: CompressionLimitSZZ, ExpansionLimitSZZ, DisplacementLimitSZZ
+        real                                    :: MaxDisplacementSZZ
+        real                                    :: FreeSZZ, NewSZZ, FreeGridVelocity
+        integer                                 :: STAT_CALL
+        real                                    :: MinThick, TotalMinThick, MeanLayerThickness
+        real                                    :: Thickness
+
+        !Begin-----------------------------------------------------------------
+
+        !Shorten variables name 
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        !Upper Layer of the Domain
+        UpperLayer         = Domain%UpperLayer
+
+        !MinimalThickness is now defined as a percentage of the initial thickness of each layer  
+        MinimalThickness   = Domain%MinEvolveLayerThickness
+
+        !DisplacementLimit is the maximum displacement that the model allow cell 
+        !faces to move vertically in meters in one iteration
+        DisplacementLimit  = Domain%DisplacementLimit        
+        
+        !cartesian domain limits are computed once (not changing)
+        if (Domain%DomainType == Cartesian .and. .not. Me%LagrangianLimitsComputed) then
+            do k = Domain%LowerLayer, UpperLayer
+                Domain%LayerMinThickness(k) = Domain%LayerThickness(k) * (1. - Domain%MinEvolveLayerThickness)
+                Domain%LayerMaxThickness(k) = Domain%LayerThickness(k) * (1. + Domain%MinEvolveLayerThickness)
+                Me%LagrangianLimitsComputed = .true.
+            enddo
+        endif
+
+        !Gets a pointer to 2D WaterPoints
+        call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeLagrangianNew - ModuleGeometry - ERR10'
+
+doj:    do j = JLB, JUB
+doi:    do i = ILB, IUB
+
+cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
+
+                !Upper Limit (m)
+                if (Domain%ID < Me%LastDomain%ID) then
+                    TopDepth = Domain%DomainDepth
+                else
+                    TopDepth = -1.* SurfaceElevation(i, j)
+                endif
+
+                !Lower Layer
+                LowerLayer       = max(Domain%LowerLayer, Me%KFloor%Z(i, j))
+
+                !Lower Limit
+                BottomDepth      = Me%Distances%SZZ(i, j, LowerLayer-1)
+            
+                !DomainThickness 
+                DomainThickness  = BottomDepth - TopDepth
+                
+                !Actualizes SZZ at the surface if the domain exists (DomainThickness>=0) 
+                !in this I,J cell 
+                if (DomainThickness >= 0)  &
+                    Me%Distances%SZZ(i, j, UpperLayer) = TopDepth
+
+                !actualize layer limits in case of sigma domain.
+                if (Domain%DomainType == Sigma) then
+                    do k = LowerLayer, UpperLayer
+                        Domain%LayerMinThickness(k) = Domain%LayerThickness(k) * DomainThickness &
+                                                      * (1. - MinimalThickness)
+                        Domain%LayerMaxThickness(k) = Domain%LayerThickness(k) * DomainThickness &
+                                                      * (1. + MinimalThickness)
+                    enddo 
+                endif
+
+do1 :           do k = UpperLayer-1, LowerLayer, -1
+                    
+                    
+                    !For the Layer k the Vertical Velocity to consider is the velocity in 
+                    !k+1(Upper Face) once the vertical velocity has a different index than 
+                    !the SZZ
+                    FreeGridVelocity  = VerticalVelocity(i, j, k+1)
+
+                    FreeSZZ           = Me%Distances%SZZ(i, j, k) -           &
+                                        FreeGridVelocity * DT_Waterlevel
+                    
+                    NewSZZ            = FreeSZZ
+                                       
+                    !verify if the displacement was not over the limits (compressed cell min thick
+                    !and expanded cell maximum thickness
+                    if (NewSZZ > Me%Distances%SZZ(i, j, k)) then !lowered layer, compresses below layer and expands above layer
+                    
+                        CompressionLimitSZZ     = Me%Distances%SZZ(i,j,k-1) - &
+                                                  Domain%LayerMinThickness(k)
+                                              
+                        ExpansionLimitSZZ       = Me%Distances%SZZ(i,j,k+1) + &
+                                                  Domain%LayerMaxThickness(k+1)
+                        
+                        DisplacementLimitSZZ    = Me%Distances%SZZ(i, j, k) + DisplacementLimit
+                        
+                        
+                        MaxDisplacementSZZ      = min (CompressionLimitSZZ,   &
+                                                       ExpansionLimitSZZ,     &
+                                                       DisplacementLimitSZZ)
+      
+                        
+                        if (NewSZZ > MaxDisplacementSZZ) NewSZZ = MaxDisplacementSZZ
+ 
+                        
+                    elseif  (NewSZZ < Me%Distances%SZZ(i, j, k)) then !raised layer, compresses above layer and expands below layer
+                                               
+                        CompressionLimitSZZ     = Me%Distances%SZZ(i,j,k+1) + &
+                                                  Domain%LayerMinThickness(k+1)
+                                            
+                        ExpansionLimitSZZ       = Me%Distances%SZZ(i,j,k-1) - &
+                                                  Domain%LayerMaxThickness(k)
+                                             
+                        DisplacementLimitSZZ    = Me%Distances%SZZ(i, j, k) - DisplacementLimit
+
+                        
+                        MaxDisplacementSZZ      = max (CompressionLimitSZZ,   &
+                                                       ExpansionLimitSZZ,     &
+                                                       DisplacementLimitSZZ)
+                        
+                        
+                        if (NewSZZ < MaxDisplacementSZZ) NewSZZ = MaxDisplacementSZZ
+                        
+                        
+                    endif
+                    
+                    Me%Distances%SZZ(i, j, k)     = NewSZZ
+                    
+                    !Layers can not have thickness lower than minimum. push them down 
+                    !Avoid very thin or negative thickness. May happen when surface water 
+                    !is lowering but water is travelling horizontal in the cell so the
+                    !above process does not change enough layers position
+                    if (Me%Distances%SZZ(i, j, k) - Me%Distances%SZZ(i, j, k+1) <  &
+                        Domain%LayerMinThickness(k+1) ) then
+                        
+                        Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) +  &
+                                                    Domain%LayerMinThickness(k+1)
+                    endif
+                    
+                    
+                    !Nudging - layers need to have relaxation to initial layer definition
+                    if (associated(Me%ExternalVar%DecayTime)) then
+                        Me%Distances%SZZ(i, j, k) =  Me%Distances%SZZ(i, j, k) +        &
+                                                    (Me%Distances%InitialSZZ(i, j, k) - &
+                                                     Me%Distances%SZZ(i, j, k)) *       &
+                                                     DT_Waterlevel / Me%ExternalVar%DecayTime(i, j, k)
+                                                    
+                    endif
+
+                enddo do1
+
+
+                !If the thickness of the cell close to the bottom is smaller then MinThick
+                !cells have to be redistributed. Two Options:
+                !1. TotalMinThick <= WaterColumn => Redistribute all cells equally
+                !2. else, put MinThick in all from bottom until every cell has thickness > MinThick
+                !In these cases velocity is forgotten but this only occurs in extreme events with
+                !very low water columns
+                Thickness   = (Me%Distances%SZZ(i,j,LowerLayer-1) - Me%Distances%SZZ(i,j,LowerLayer)) 
+                MinThick    = Domain%LayerMinThickness(LowerLayer)
+                if (Thickness < MinThick) then
+                    
+                    TotalMinThick = 0.
+                    do k = LowerLayer, UpperLayer
+                        TotalMinThick = TotalMinThick + Domain%LayerMinThickness(k)
+                    enddo
+
+                    if (Me%Distances%SZZ(i, j, LowerLayer-1)  - Me%Distances%SZZ(i, j, UpperLayer) &
+                         <= TotalMinThick) then
+                        
+                        MeanLayerThickness = (Me%Distances%SZZ(i, j, LowerLayer-1)  -              &
+                                              Me%Distances%SZZ(i, j, UpperLayer)      ) /          &
+                                              float(UpperLayer - LowerLayer + 1)
+                        
+                        do k = UpperLayer - 1, LowerLayer, -1
+                            Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) + MeanLayerThickness
+                        enddo
+                    
+                    else
+                        
+                        k = LowerLayer
+                        do while (Me%Distances%SZZ(i, j, k-1) - Me%Distances%SZZ(i, j, k) <  MinThick)
+                            Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k-1) - MinThick 
+                            k = k + 1
+                            MinThick   = Domain%LayerMinThickness(k)
+                        enddo
+                    endif
+                endif                    
+
+            endif cd0
+
+        enddo doi
+        enddo doj
+
+        !UnGets WaterPoints2D
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ComputeLagrangianNew - ModuleGeometry - ERR200'
+        
+!        deallocate (OldSZZ)
+!        nullify (OldSZZ)
+        
+    end subroutine ComputeLagrangianNew
 
     !--------------------------------------------------------------------------
     !Reads SZZ and VolumeZOld
