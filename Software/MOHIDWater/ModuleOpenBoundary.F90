@@ -323,10 +323,14 @@ cd1:        if (Me%Compute_Tide) then
                                                 NGauges,                                &
                                                 Me%Station%MetricX,                     &
                                                 Me%Station%MetricY,                     &
+                                                WriteTriangles = ON,                    &
                                                 STAT= STAT_CALL)
                     if  (STAT_CALL /= SUCCESS_      ) then
                         stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR14'
                     endif
+                    
+                    call WriteTriangles
+                    
                 endif
 
             endif cd1
@@ -401,6 +405,60 @@ cd1:        if (Me%Compute_Tide) then
     end subroutine AllocateInstance
     
     !--------------------------------------------------------------------------
+    
+    subroutine WriteTriangles
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        integer                         :: STAT_CALL, nNodes
+        integer                         :: UnitNumber, iT, nTriangles
+        real,    dimension(:), pointer  :: XT, YT, ZT
+        integer, dimension(:), pointer  :: V1, V2, V3
+        character(len=PathLength)       :: TrianglesFileName = "TideTriangulationNetwork.xy"
+
+        !Begin-----------------------------------------------------------------
+
+        !Get the number of triangles
+        call GetNumberOfTriangles   (Me%ObjTriangulation, nTriangles)
+
+        !Allocates space for the Triangle vertices and gets them
+        allocate(V1(nTriangles))
+        allocate(V2(nTriangles))
+        allocate(V3(nTriangles))
+
+        call GetTriangleList (Me%ObjTriangulation, v1, v2, v3, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModuleOpenBoundary - ERR10'
+
+
+        !Gets nodes effictive used and the reordered nodes 
+        call GetNumberOfNodes (Me%ObjTriangulation, nNodes, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModuleOpenBoundary - ERR20'
+
+        allocate(XT(nNodes))
+        allocate(YT(nNodes))
+        allocate(ZT(nNodes))
+
+        call GetNodesList   (Me%ObjTriangulation, XT, YT, ZT, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModuleOpenBoundary - ERR30'
+
+
+        call UnitsManager (UnitNumber, OPEN_FILE, STAT = STAT_CALL)
+        open (unit=UnitNumber, status = 'unknown', file = TrianglesFileName)
+        do iT = 1, nTriangles
+            write(UnitNumber,*)'<beginpolygon>'
+            write(UnitNumber,*)XT(V1(iT)), YT(V1(iT))
+            write(UnitNumber,*)XT(V2(iT)), YT(V2(iT))
+            write(UnitNumber,*)XT(V3(iT)), YT(V3(iT))
+            write(UnitNumber,*)XT(V1(iT)), YT(V1(iT))
+            write(UnitNumber,*)'<endpolygon>'
+        enddo
+        call UnitsManager (UnitNumber, CLOSE_FILE, STAT = STAT_CALL)
+
+        deallocate(XT, YT, ZT, v1, v2, v3)
+
+
+    end subroutine WriteTriangles
 
     subroutine ComputeReferenceLevel
 
@@ -993,10 +1051,13 @@ cd5:                if (NOpen < NGauges .and. Me%TriangGaugesON) then
                         call ConstructTriangulation(Me%ObjTriangulation,                 &
                                                     NOpen,                               &
                                                     AuxMetricX, AuxMetricY,              &
+                                                    WriteTriangles = ON,                 &
                                                     STAT = STAT_CALL)
                         if  (STAT_CALL /= SUCCESS_) then
                             stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR09'
                         endif
+                        
+                        call WriteTriangles
 
                     endif cd5
                     
