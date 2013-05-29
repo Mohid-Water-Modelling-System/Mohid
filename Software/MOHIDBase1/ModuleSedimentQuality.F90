@@ -8844,7 +8844,7 @@ do1 :   do while(associated(EquaRateFluxX))
 
        !----------------------------------------------------------------------------
 
-!!! indices das propriedades
+        !!! indices das propriedades
 
 
         AnaCI = Me%PropIndex%anaerobicC
@@ -8862,7 +8862,6 @@ do1 :   do while(associated(EquaRateFluxX))
         solNI = Me%PropIndex%solN
         solPI = Me%PropIndex%solP           
 
-            
         conversion = Me%ExternalVar%DissolvedToParticulate (index) 
 
         if (Me%PropCalc%Carbon) then
@@ -8901,7 +8900,6 @@ do1 :   do while(associated(EquaRateFluxX))
                 solP = Me%ExternalVar%Mass(solPI, index)
 
             endif
-        
         endif
 
         HetCN = Me%Microorganisms%Heterotrophs%CNratio
@@ -8912,96 +8910,62 @@ do1 :   do while(associated(EquaRateFluxX))
 
         solCN = Me%Microorganisms%sols%CNRatio
         solCP = Me%Microorganisms%sols%CPRatio
+        
+        if (Me%PropCalc%Carbon) then
+            if (Me%PropCalc%Phosphorus) then            
+                if(HetC/ HetCP< HetP)then   
+                    !!! Excess organic matter in heterotrophicP
+                    excessoHP = (HetP-(HetC/ HetCP))
+                    HetP = HetP  - excessoHP
+                    P = P+(1/conversion)*excessoHP
+                    
+                    !!! excess organic matter in anaerobicP
+                    ExcessoAP  = (AnaP-(AnaC/ AnaCP))
+                    AnaP = AnaP  -  ExcessoAP
+                    P = P+(1/conversion)*ExcessoAP                    
+                end if
+            endif
 
+            if (Me%PropCalc%Nitrogen) then
+                if(HetC/ HetCN< HetN)then 
+                    !!! Excess organic matter in heterotrophicN
+                    excessoHN = (HetN-(HetC/ HetCN))
+                    HetN = HetN  - excessoHN
+                    N = N + (1/conversion)*excessoHN
+                    
+                    !!! excess organic matter in anaerobic N
+                    excessoAN = (AnaN-(AnaC/ AnaCN))
+                    AnaN = AnaN  - excessoAN
+                    N = N+(1/conversion)*excessoAN                    
+                endif
+            end if
+        endif
 
-
-!! Excess organic matter in heterotrophicP
-
-        if(HetC/ HetCP< HetP)then
-
-            excessoHP = (HetP-(HetC/ HetCP))
-            HetP = HetP  - excessoHP
-
-            P = P+(1/conversion)*excessoHP
-
-
-        end if
-
-!!! Excess organic matter in heterotrophicN
-
-
-        if(HetC/ HetCN< HetN)then 
-
-            excessoHN = (HetN-(HetC/ HetCN))
-
-            HetN = HetN  - excessoHN
-
-            N = N + (1/conversion)*excessoHN
-
-
-        end if
-
-
-!!! excess organic matter in anaerobic N
-
-
-
-        excessoAN = (AnaN-(AnaC/ AnaCN))
-
-        AnaN = AnaN  - excessoAN
-
-        N = N+(1/conversion)*excessoAN
-
-
-
-
-
-!!! excess organic matter in anaerobicP
-
-
-        ExcessoAP  = (AnaP-(AnaC/ AnaCP))
-        AnaP = AnaP  -  ExcessoAP
-
-        P = P+(1/conversion)*ExcessoAP
-
-
-
-
-!!! excess organic matter in sol N
-
-        if(solC/solCN< solN)then
-
-            excesso_solN = (solN-(solC/ solCN))
-
-            solN = solN  - excesso_solN
-
-            N = N+(1/conversion)*excesso_solN
-
-
-        end if
-
-!!! excess organic matter in solP
-
-        if(solC/solCP< solP)then
-
-            Excesso_solP  = (solP-(solC/ solCP))
-            solP = solP  -  Excesso_solP
-
-            P = P+(1/conversion)*Excesso_solP
-
-
-        end if
-
+        if (Me%PropCalc%Carbon .and. Me%PropCalc%Sol_Bacteria) then            
+            if(solC/solCN< solN)then
+                !!! excess organic matter in sol N
+                excesso_solN = (solN-(solC/ solCN))
+                solN = solN  - excesso_solN
+                N = N+(1/conversion)*excesso_solN
+            end if
+            
+            if(solC/solCP< solP)then
+                !!! excess organic matter in solP
+                Excesso_solP  = (solP-(solC/ solCP))
+                solP = solP  -  Excesso_solP
+                P = P+(1/conversion)*Excesso_solP
+            end if
+        endif
+        
+        !Actualizes arrays---------------------------------
         if (Me%PropCalc%Nitrogen) then
 
             Me%ExternalVar%Mass(AnaNI, index) = AnaN 
             Me%ExternalVar%Mass(HetNI, index) = HetN
             Me%ExternalVar%Mass(NI, index)    = N
             
-            if (Me%PropCalc%Sol_Bacteria) then
-                
-                Me%ExternalVar%Mass(solNI, index) = solN 
-            
+            if (Me%PropCalc%Sol_Bacteria) then                
+                Me%ExternalVar%Mass(solNI, index) = solN             
             endif
         endif
 
@@ -9012,13 +8976,11 @@ do1 :   do while(associated(EquaRateFluxX))
             Me%ExternalVar%Mass(PI, index)    = P 
 
             if (Me%PropCalc%Sol_Bacteria) then
-
-                Me%ExternalVar%Mass(solPI, index) = solP
-                
+                Me%ExternalVar%Mass(solPI, index) = solP                
             endif 
 
         endif
-
+        !End of 'Actualizes arrays'-------------------------
 
 
 

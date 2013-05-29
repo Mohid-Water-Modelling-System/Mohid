@@ -609,8 +609,8 @@ Module ModulePorousMediaProperties
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                                  :: TICOEF3Ptr
 #endif _USE_PAGELOCKED      
-        real(8), pointer, dimension(:)               :: VECG                     !Auxiliar thomas arrays 
-        real(8), pointer, dimension(:)               :: VECW                     !Auxiliar thomas arrays     
+!        real(8), pointer, dimension(:)               :: VECG                     !Auxiliar thomas arrays 
+!        real(8), pointer, dimension(:)               :: VECW                     !Auxiliar thomas arrays     
 
         logical                                      :: PorousMediaProperties
         real,    pointer, dimension(:,:,:)           :: Volume   
@@ -1431,15 +1431,15 @@ doi3:   do J = JLB, JUB
                 allocate(Me%COEF3%F                 (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
 #endif _USE_PAGELOCKED
 
-                allocate(Me%VECG                    (IJKLB:IJKUB))
-                allocate(Me%VECW                    (IJKLB:IJKUB))
+!                allocate(Me%VECG                    (IJKLB:IJKUB))
+!                allocate(Me%VECW                    (IJKLB:IJKUB))
 
                 Me%COEF3%D                  = 0.0
                 Me%COEF3%E                  = 1.0
                 Me%COEF3%F                  = 0.0
                 Me%TICOEF3                  = 0.0
-                Me%VECG                     = Null_real 
-                Me%VECW                     = Null_real 
+!                Me%VECG                     = Null_real 
+!                Me%VECW                     = Null_real 
            
             endif
             
@@ -1455,7 +1455,7 @@ doi3:   do J = JLB, JUB
             allocate(Me%THOMAS%VEC(1:Me%MaxThreads))
 
             do m = 1, Me%MaxThreads
-
+                
                 VECGW => Me%THOMAS%VEC(m)
 
                 allocate(VECGW%G(IJKLB:IJKUB))
@@ -1475,7 +1475,7 @@ doi3:   do J = JLB, JUB
         if (Me%CalculateECw) then
             allocate (Me%ECw(ILB:IUB,JLB:JUB,KLB:KUB))
         endif
-
+        
     end subroutine AllocateVariables
 
     !--------------------------------------------------------------------------
@@ -2830,12 +2830,13 @@ do1 :   do
             NewProperty%Evolution%MinConcentration = OFF
         endif
 
-        if(NewProperty%Evolution%MinConcentration)then
-            allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)&
-                stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR110'
-            NewProperty%Mass_Created(:,:,:) = 0.
-        endif
+!        if(NewProperty%Evolution%MinConcentration)then
+        !Mass_Created is also used for when concentration is negative
+        allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)&
+            stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR110'
+        NewProperty%Mass_Created(:,:,:) = 0.
+!        endif
         
         !if vegetation nitrogen uptake than nitrate need mass created
         if ((NewProperty%ID%IDNumber == Nitrate_) .and. (Me%ExtVar%ModelNitrogen)       &
@@ -5605,24 +5606,33 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         BottomDepth = RootDepth
                     endif
 
-                    GrazingNotCarbon  = 0.0
-                    GrazingNitrogen   = 0.0
-                    GrazingPhosphorus = 0.0
-                    DormancyNotCarbon  = 0.0
-                    DormancyNitrogen   = 0.0
-                    DormancyPhosphorus = 0.0
-                    HarvestKillNotCarbon  = 0.0
-                    HarvestKillNitrogen   = 0.0
-                    HarvestKillPhosphorus = 0.0                
-                    FertilizationAmmonia    = 0.0
-                    FertilizationNitrate    = 0.0
-                    FertilizationOrganicN   = 0.0
-                    FertilizationOrganicP   = 0.0
-                    FertilizationMineralP   = 0.0
-                    HarvestKillRootCarbon     = 0.0
-                    HarvestKillRootNotCarbon  = 0.0
-                    HarvestKillRootNitrogen   = 0.0
-                    HarvestKillRootPhosphorus = 0.0                
+                    GrazingCarbon               = 0.0
+                    GrazingBiomass              = 0.0
+                    GrazingNotCarbon            = 0.0
+                    GrazingNitrogen             = 0.0
+                    GrazingPhosphorus           = 0.0
+                    DormancyBiomass             = 0.0
+                    DormancyCarbon              = 0.0
+                    DormancyNotCarbon           = 0.0
+                    DormancyNitrogen            = 0.0
+                    DormancyPhosphorus          = 0.0
+                    HarvestKillNotCarbon        = 0.0
+                    HarvestKillNitrogen         = 0.0
+                    HarvestKillPhosphorus       = 0.0                
+                    FertilizationAmmonia        = 0.0
+                    FertilizationNitrate        = 0.0
+                    FertilizationOrganicN       = 0.0
+                    FertilizationOrganicP       = 0.0
+                    FertilizationMineralP       = 0.0
+                    HarvestKillRootCarbon       = 0.0
+                    HarvestKillRootNotCarbon    = 0.0
+                    HarvestKillRootNitrogen     = 0.0
+                    HarvestKillRootPhosphorus   = 0.0 
+                    HarvestKillAerialBiomass    = 0.0 
+                    HarvestKillCarbon           = 0.0   
+                    NitrogenUptake              = 0.0
+                    PhosphorusUptake            = 0.0
+                                  
                     
                     if (Me%ExtVar%GrowthModel) then
 
@@ -10305,13 +10315,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%COEF3%F)
 #endif _USE_PAGELOCKED
 
-                deallocate(Me%VECG)
-                deallocate(Me%VECW)
+!                deallocate(Me%VECG)
+!                deallocate(Me%VECW)
               
             endif
             
             !griflet
-            do p = 1, Me%MaxThreads
+            do p = 1, Me%MaxThreads                
                 VECGW => Me%THOMAS%VEC(p)
                 deallocate(VECGW%G)
                 deallocate(VECGW%W)

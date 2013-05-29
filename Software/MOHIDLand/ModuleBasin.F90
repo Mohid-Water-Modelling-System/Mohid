@@ -442,6 +442,8 @@ Module ModuleBasin
         real                                        :: RainAverageDuration  = 600.0
         real                                        :: WCRemovalTime        = 600.
         real                                        :: DTDuringRain
+        logical                                     :: AdjustDTForRainEvent 
+        real                                        :: AdjustDTForRainEventFactor
         logical                                     :: DiffuseWaterSource   = .false.
         real                                        :: FlowPerCapita        = 0.0
         character(PathLength)                       :: PopDensityFile
@@ -1024,6 +1026,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR090'
+
+        call GetData(Me%AdjustDTForRainEvent,                                            &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'ADJUST_DT_FOR_RAIN',                                &
+                     default      = .false.,                                             &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR091'
+
+        if (Me%AdjustDTForRainEvent) then
+            call GetData(Me%AdjustDTForRainEventFactor,                                  &
+                         Me%ObjEnterData, iflag,                                         &
+                         SearchType   = FromFile,                                        &
+                         keyword      = 'ADJUST_DT_FOR_RAIN_FACTOR',                     &
+                         default      = 2.0,                                             &
+                         ClientModule = 'ModuleBasin',                                   &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR092'
+        endif
 
         !Concentrate Rain for subhourly steps
         call GetData(Me%ConcentrateRain,                                                 &
@@ -8487,9 +8509,11 @@ cd2 :           if (BlockFound) then
                 ID_DT = 6
             endif
             
-            if (NewDT > (2 * Me%DTDuringRain)) then
-                NewDT = NewDT - Me%DTDuringRain
-                ID_DT = 7
+            if (Me%AdjustDTForRainEvent) then
+                if (NewDT > (Me%AdjustDTForRainEventFactor * Me%DTDuringRain)) then
+                    NewDT = NewDT - Me%DTDuringRain
+                    ID_DT = 7
+                endif
             endif
         endif
         

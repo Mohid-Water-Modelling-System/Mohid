@@ -3627,9 +3627,9 @@ cd5 :           if      (       FoundBegin  .AND.        FoundEnd ) then
                     if (block_found_) then
                         NumberOfBlocks = NumberOfBlocks + 1
                     else
-                        call Block_Unlock(EnterDataID, ClientNumber, stat_)
-                        if (stat_ .NE. SUCCESS_) &
-                            stop 'GetNumberOfBlocks - ModuleEnterData - ERR080.'
+!                        call Block_Unlock(EnterDataID, ClientNumber, stat_)
+!                        if (stat_ .NE. SUCCESS_) &
+!                            stop 'GetNumberOfBlocks - ModuleEnterData - ERR080.'
                         exit                        
                     end if 
                 
@@ -3644,7 +3644,7 @@ cd5 :           if      (       FoundBegin  .AND.        FoundEnd ) then
                 if (.not. (present(ClientNumber))) &
                     stop 'GetNumberOfBlocks - ModuleEnterData - ERR100.'
 
-                call RewindBlock(EnterDataID, ClientNumber, STAT = stat_)
+                call RewindBlockInBlock(EnterDataID, ClientNumber, STAT = stat_)
                 if (stat_ /= SUCCESS_) &
                     stop 'GetNumberOfBlocks - ModuleEnterData - ERR110.'
                     
@@ -3661,15 +3661,15 @@ cd5 :           if      (       FoundBegin  .AND.        FoundEnd ) then
                     if (block_found_) then
                         NumberOfBlocks = NumberOfBlocks + 1
                     else
-                        call Block_Unlock(EnterDataID, ClientNumber, stat_)
-                        if (stat_ .NE. SUCCESS_) &
-                            stop 'GetNumberOfBlocks - ModuleEnterData - ERR130.'
+!                        call Block_Unlock(EnterDataID, ClientNumber, stat_)
+!                        if (stat_ .NE. SUCCESS_) &
+!                            stop 'GetNumberOfBlocks - ModuleEnterData - ERR130.'
                         exit                        
                     end if 
                                                          
                 enddo
 
-                call RewindBlock(EnterDataID, ClientNumber, STAT = stat_)
+                call RewindBlockInBlock(EnterDataID, ClientNumber, STAT = stat_)
                 if (stat_ /= SUCCESS_) &
                     stop 'GetNumberOfBlocks - ModuleEnterData - ERR140.'
 

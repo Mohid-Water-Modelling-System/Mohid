@@ -127,7 +127,13 @@ Module ModuleFillMatrix
     integer, parameter                              :: AnalyticProfile  = 8
     integer, parameter                              :: ProfileTimeSerie = 9
     integer, parameter                              :: Sponge           = 10
-
+    integer, parameter                              :: MultiTimeserie   = 11
+    
+    !Data Processing Type (used with MultiTimeserie)    
+    integer, parameter                              :: Interpolate      = 1 !Will interpolate the value between two times
+    integer, parameter                              :: Accumulate       = 2 !Will distribute the value in time
+    integer, parameter                              :: NoProcessing     = 3 !Will use original value (exact or most right one)
+    
     !Variable from file
     integer, parameter                              :: None             = 1
 
@@ -155,6 +161,9 @@ Module ModuleFillMatrix
     character(LEN = StringLength), parameter :: EndTimes          = '<EndTime>'
     character(LEN = StringLength), parameter :: BeginProfileValues= '<BeginProfileValues>'
     character(LEN = StringLength), parameter :: EndProfileValues  = '<EndProfileValues>'
+    character(LEN = StringLength), parameter :: BeginMTSBlock     = '<BeginStation>'
+    character(LEN = StringLength), parameter :: EndMTSBlock       = '<EndStation>'
+    
 
     !Types---------------------------------------------------------------------
 
@@ -198,14 +207,31 @@ Module ModuleFillMatrix
         logical                                     :: CyclicTimeON = .false.
     end type T_ProfileTimeSerie
 
+    type T_Station   
+        character(PathLength)                       :: FileName 
+        integer                                     :: ObjTimeSerie    = 0        
+        integer                                     :: Column        
+        integer                                     :: FillID
+        logical                                     :: RemainConstant  = .false.        
+        logical                                     :: ValueIsDefined  = .false.
+        real                                        :: NewValue        = -null_real                      
+    end type T_Station
+
+    type T_MultiTimeSerie
+        integer, dimension(:,:), allocatable        :: FillGrid2D
+        integer, dimension(:,:,:), allocatable      :: FillGrid3D
+        integer                                     :: DataProcessing
+        type(T_Station), dimension(:), allocatable  :: StationsList
+        integer                                     :: NumberOfSources = 0
+    end type T_MultiTimeserie
 
     !Generic 4D
     type T_Generic4D
-        logical                            :: ON
-        logical                            :: ReadFromTimeSerie
-        integer                            :: ObjTimeSerie
-        integer                            :: TimeSerieColumn
-        real                               :: CurrentValue
+        logical                                     :: ON
+        logical                                     :: ReadFromTimeSerie
+        integer                                     :: ObjTimeSerie
+        integer                                     :: TimeSerieColumn
+        real                                        :: CurrentValue
 
     end type 
 
@@ -278,6 +304,7 @@ Module ModuleFillMatrix
         type (T_Sponge   )                          :: Sponge
         type (T_HDF      )                          :: HDF
         type (T_ProfileTimeSerie)                   :: ProfileTimeSerie
+        type (T_MultiTimeSerie)                     :: MultiTimeSerie
         integer                                     :: ObjEnterData         = 0 
         integer                                     :: ObjTime              = 0
         integer                                     :: ObjHorizontalGrid    = 0    
@@ -306,7 +333,7 @@ Module ModuleFillMatrix
     subroutine ConstructFillMatrix2D(PropertyID, EnterDataID, TimeID,                   &
                                      HorizontalGridID, ExtractType, PointsToFill2D,     &
                                      Matrix2D, TypeZUV, FileNameHDF, ObjFillMatrix,     &
-                                     OverrideValueKeyword, STAT)
+                                     OverrideValueKeyword, ClientID, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: EnterDataID
@@ -317,6 +344,7 @@ Module ModuleFillMatrix
         real, dimension(:, :), pointer                  :: Matrix2D
         integer                                         :: TypeZUV
         type (T_PropertyID)                             :: PropertyID
+        integer, optional, intent(IN)                   :: ClientID
         character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
         integer,      optional, intent(OUT)             :: STAT     
@@ -402,7 +430,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%OverrideValueKeywordON = .false.
             end if
             
-            call ReadOptions (ExtractType, PointsToFill2D = PointsToFill2D)
+            if (present(ClientID)) then
+                call ReadOptions (ExtractType, PointsToFill2D = PointsToFill2D, ClientID = ClientID)
+            else
+                call ReadOptions (ExtractType, PointsToFill2D = PointsToFill2D)
+            endif
             
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
             if (nUsers == 0) stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR20' 
@@ -445,7 +477,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                      HorizontalGridID, GeometryID, ExtractType,         &
                                      PointsToFill3D, Matrix3D, TypeZUV, FillMatrix,     &
                                      FileNameHDF, ObjFillMatrix,                        &
-                                     OverrideValueKeyword, STAT)
+                                     OverrideValueKeyword, ClientID, STAT)
 
         !Arguments---------------------------------------------------------------
         type (T_PropertyID)                             :: PropertyID
@@ -457,6 +489,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:, :, :), pointer            :: PointsToFill3D
         real, dimension(:, :, :), pointer               :: Matrix3D
         integer                                         :: TypeZUV
+        integer, optional, intent(IN)                   :: ClientID
         real        , optional, intent(IN )             :: FillMatrix
         character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
@@ -563,7 +596,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             end if
 
 
-            call ReadOptions (ExtractType, PointsToFill3D = PointsToFill3D)
+            if (present(ClientID)) then
+                call ReadOptions (ExtractType, PointsToFill3D = PointsToFill3D, ClientID = ClientID)
+            else
+                call ReadOptions (ExtractType, PointsToFill3D = PointsToFill3D)
+            endif
+
             
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
             if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01' 
@@ -635,12 +673,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ReadOptions (ExtractType, PointsToFill2D, PointsToFill3D)
+    subroutine ReadOptions (ExtractType, PointsToFill2D, PointsToFill3D, ClientID)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ExtractType
         integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
         integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+        integer, optional, intent(IN)                   :: ClientID
 
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL
@@ -669,6 +708,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%TimeEvolution    = ReadTimeSerie
             case ("Profile_Timeserie",  "PROFILE_TIMESERIE",    "profile_timeserie",    "Profile_TimeSerie")
                 Me%TimeEvolution    = ProfileTimeSerie
+            case ("Multitimeserie", "MULTITIMESERIE", "multitimeserie", "MultiTimeserie")
+                Me%TimeEvolution    = MultiTimeserie
             case default
                 write(*,*)'Invalid option for keyword FILE_IN_TIME'
                 stop 'ReadOptions - ModuleFillMatrix - ERR020'
@@ -743,11 +784,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR210' 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR070' 
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%BeginTime,                 &
                                   EndTime = Me%EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR220'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR080'        
 
         !Gets the default value
         call GetData(Me%DefaultValue, Me%ObjEnterData,  iflag,                          &
@@ -756,7 +797,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule   = 'ModuleFillMatrix',                               &
                      default        = FillValueReal,                                    &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR070'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR090'
         
         if (iflag == 0 .and. .not. Me%HDF%ArgumentFileName) then
         
@@ -768,13 +809,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              ClientModule   = 'ModuleFillMatrix',                      &
                              default        = FillValueReal,                           &
                              STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR071'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR100'
                 
                 if(iflag == 0)then
                     
                     write(*,*)'Please define override keyword '//trim(Me%OverrideValueKeyword)
                     write(*,*)'to give a default value for property '//trim(Me%PropertyID%Name)
-                    stop 'ReadOptions - ModuleFillMatrix - ERR071'
+                    stop 'ReadOptions - ModuleFillMatrix - ERR101'
                     
                 end if
                 
@@ -787,13 +828,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                    
                 write(*,*)'Initialization method for property '//trim(Me%PropertyID%Name)
                 write(*,*)'can only be CONSTANT or BOXES'
-                stop 'ReadOptions - ModuleFillMatrix - ERR072'
+                stop 'ReadOptions - ModuleFillMatrix - ERR102'
      
             
             else
 
                 write(*,*)'Please define default value for property '//trim(Me%PropertyID%Name)
-                stop 'ReadOptions - ModuleFillMatrix - ERR080'
+                stop 'ReadOptions - ModuleFillMatrix - ERR103'
 
             end if
         
@@ -809,7 +850,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default        = .false.,                                          &
                      ClientModule   = 'ModuleFillMatrix',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR090'       
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR104'       
         
         call GetData(Me%AccumulateValues,                                               &
                      Me%ObjEnterData,  iflag,                                           &
@@ -818,7 +859,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default        = .false.,                                          &
                      ClientModule   = 'ModuleFillMatrix',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR100'     
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR105'     
           
         call GetData(Me%UseOriginalValues,                                              &
                      Me%ObjEnterData,  iflag,                                           &
@@ -1091,13 +1132,307 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     call ConstructProfileTimeSerie (PointsToFill3D, ExtractType)
                 endif
                 
+            case(MultiTimeserie)
+            
+                if (.not. present(ClientID)) &
+                    stop 'ReadOptions - ModuleFillMatrix - ERR210'                            
+
+                if (Me%Dim == Dim2D) then
+                    call ConstructMultiTimeSerie (ExtractType, ClientID, PointsToFill2D = PointsToFill2D)
+                    call ModifyMultiTimeSerie    (PointsToFill2D = PointsToFill2D) 
+                else
+                    call ConstructMultiTimeSerie (ExtractType, ClientID, PointsToFill3D = PointsToFill3D)
+                    call ModifyMultiTimeSerie    (PointsToFill3D = PointsToFill3D) 
+                endif                
+                
         end select
-
-
-
 
     end subroutine ReadOptions
 
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructMultiTimeSerie (ExtractType, ClientID, PointsToFill2D, PointsToFill3D)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                        :: ExtractType
+        integer, intent(IN)                            :: ClientID   
+        integer, dimension(:, :), pointer, optional    :: PointsToFill2D
+        integer, dimension(:, :, :), pointer, optional :: PointsToFill3D     
+
+        !Local----------------------------------------------------------------
+        character(PathLength)                       :: FileName
+        integer                                     :: MaskGridDataID = 0
+        integer                                     :: TypeZUV
+        real, dimension(:, :),    pointer           :: GridData2D
+        real, dimension(:, :, :), pointer           :: GridData3D
+        integer                                     :: STAT_CALL
+        integer                                     :: iflag
+        integer                                     :: ilb, iub, jlb, jub, klb, kub
+        integer                                     :: i, j, k
+        integer                                     :: index
+        logical                                     :: found
+        type(T_Station), dimension(:), pointer      :: sl
+        integer                                     :: ClientNumber
+
+        !----------------------------------------------------------------------    
+        
+        ClientNumber = ClientID
+        
+        !Gets the number of Source blocks
+        call GetNumberOfBlocks(Me%ObjEnterData, BeginMTSBlock, EndMTSBlock,   &
+                               FromBlock_, Me%MultiTimeSerie%NumberOfSources,  &
+                               ClientNumber, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR000'        
+        
+        allocate (Me%MultiTimeSerie%StationsList(Me%MultiTimeSerie%NumberOfSources))
+        sl => Me%MultiTimeSerie%StationsList
+        
+        do index = 1, Me%MultiTimeSerie%NumberOfSources
+
+            call ExtractBlockFromBlock(Me%ObjEnterData,                      &
+                                       ClientNumber      = ClientNumber,     &
+                                       block_begin       = BeginMTSBlock,    &
+                                       block_end         = EndMTSBlock,      &
+                                       BlockInBlockFound = found,            &
+                                       STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR002'
+
+            if (found) then
+            
+                call GetData(sl(index)%FillID,                             &
+                             Me%ObjEnterData , iflag,                      &
+                             SearchType   = FromBlockInBlock,              &
+                             keyword      = 'FILL_ID',                     &
+                             ClientModule = 'ModuleFillMatrix',            &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR002.1'
+                if (iflag /= 1) &
+                    stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR002.2'
+                    
+                call GetData(sl(index)%RemainConstant,                     &
+                             Me%ObjEnterData, iflag,                       &
+                             SearchType   = FromBlockInBlock,              &
+                             keyword      = 'REMAIN_CONSTANT',             &
+                             default      = .false.,                       &
+                             ClientModule = 'ModuleFillMatrix',            &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR002.3'
+                    
+                if (sl(index)%RemainConstant) then
+                
+                    call GetData(sl(index)%NewValue,                       &
+                                 Me%ObjEnterData, iflag,                   &
+                                 SearchType   = FromBlockInBlock,          &
+                                 keyword      = 'DEFAULTVALUE',            &                                 
+                                 ClientModule = 'ModuleFillMatrix',        &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR002.4'                
+                
+                else
+
+                    call GetData(sl(index)%FileName,                           &
+                                 Me%ObjEnterData, iflag,                       &
+                                 SearchType   = FromBlockInBlock,              &
+                                 keyword      = 'FILE_NAME',                   &                             
+                                 ClientModule = 'ModuleFillMatrix',            &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR002.5'
+                        
+                    call GetData(sl(index)%Column,                             &
+                                 Me%ObjEnterData , iflag,                      &
+                                 SearchType   = FromBlockInBlock,              &
+                                 keyword      = 'DATA_COLUMN',                 &
+                                 ClientModule = 'ModuleFillMatrix',            &
+                                 STAT         = STAT_CALL)                                      
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR002.6'
+                    if (iflag /= 1) &
+                        stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR002.7'                
+
+                    !Starts Time Serie
+                    call StartTimeSerieInput(sl(index)%ObjTimeSerie,            &
+                                             sl(index)%FileName,                &
+                                             Me%ObjTime,                        &
+                                             STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR002.8'
+                endif
+                    
+            else
+
+                stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR003'
+
+            endif
+
+        enddo   
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR004'
+                 
+        !Gets the name of the mask file
+        call GetData(FileName,                                                   &
+                     Me%ObjEnterData, iflag,                                     &
+                     SearchType   = FromBlock,                                   &
+                     keyword      = 'ASCII_MASK_FILENAME',                       &
+                     ClientModule = 'ModuleFillMatrix',                          &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR010'
+        if (iflag /= 1)then
+            write(*,*)'ASCII_MASK_FILENAME is missing'
+            stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR010.1'
+        end if                
+        
+        call GetData(Me%MultiTimeSerie%DataProcessing,             &
+                     Me%ObjEnterData , iflag,                      &
+                     SearchType   = FromBlock,                     &                             
+                     keyword      = 'DATA_PROCESSING',             &
+                     Default      = Interpolate,                   & 
+                     ClientModule = 'ModuleFillMatrix',            &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR0010.2'
+        if (iflag /= 1) &
+            stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR0010.3'         
+                
+        if (Me%Dim == Dim2D) then
+
+            ilb = Me%WorkSize2D%ILB
+            iub = Me%WorkSize2D%IUB
+            jlb = Me%WorkSize2D%JLB
+            jub = Me%WorkSize2D%JUB
+
+            allocate (Me%MultiTimeSerie%FillGrid2D(ilb:iub, jlb:jub))
+
+            call ConstructGridData(MaskGridDataID, Me%ObjHorizontalGrid,         &
+                                   FileName     = FileName,                      &
+                                   DefaultValue = Me%DefaultValue,               &
+                                   STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR030'
+
+            call GetGridDataType(MaskGridDataID, TypeZUV, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR040'
+
+            if(TypeZUV .ne. Me%TypeZUV)then
+                write(*,*)'Inconsistency found in type ZUV'
+                write(*,*)'Grid data: '//trim(FileName)
+                stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR040.1'
+            end if
+
+            call GetGridData (MaskGridDataID, GridData2D, STAT = STAT_CALL)  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR050'
+            
+            do j = jlb, jub
+            do i = ilb, iub
+            
+                if (PointsToFill2D(i,j) == WaterPoint) then
+                
+                    found = .false.
+                    
+                    do index = 1, Me%MultiTimeSerie%NumberOfSources
+                        if (sl(index)%FillID == GridData2D(i,j)) then
+                            found = .true.
+                            exit
+                        endif
+                    enddo
+                    
+                    if (found) then
+                        Me%MultiTimeSerie%FillGrid2D(i,j) = index
+                    else
+                        stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR050.1'
+                    endif 
+                    
+                else
+                
+                    Me%MultiTimeSerie%FillGrid2D(i,j) = -99
+                    
+                endif
+            
+            enddo
+            enddo
+
+            call UnGetGridData    (MaskGridDataID, GridData2D, STAT = STAT_CALL)  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceASCIIFile - ModuleFillMatrix - ERR07'
+
+        else
+
+            ilb = Me%WorkSize3D%ILB
+            iub = Me%WorkSize3D%IUB
+            jlb = Me%WorkSize3D%JLB
+            jub = Me%WorkSize3D%JUB
+            klb = Me%WorkSize3D%KLB
+            kub = Me%WorkSize3D%KUB
+            
+            allocate (Me%MultiTimeSerie%FillGrid3D(ilb:iub, jlb:jub, klb:kub))
+
+            call ConstructGridData(MaskGridDataID, Me%ObjHorizontalGrid,         &
+                                   FileName     = FileName,                      &
+                                   KLB          = Me%Worksize3D%KLB,             &
+                                   KUB          = Me%Worksize3D%KUB,             &
+                                   DefaultValue = Me%DefaultValue,               &
+                                   STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR060'
+
+            call GetGridDataType(Me%ASCIIFile%GridDataID, TypeZUV, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR070'
+            
+            if(TypeZUV .ne. Me%TypeZUV)then
+                write(*,*)'Inconsistency found in type ZUV'
+                write(*,*)'Grid data: '//trim(FileName)
+                stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR070.1'
+            end if
+
+            call GetGridData (MaskGridDataID, GridData3D, STAT = STAT_CALL)  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR080'
+
+            do j = jlb, jub
+            do i = ilb, iub
+            do k = klb, kub
+            
+                if (PointsToFill3D(i,j,k) == WaterPoint) then
+                
+                    found = .false.
+                    
+                    do index = 1, Me%MultiTimeSerie%NumberOfSources
+                        if (sl(index)%FillID == GridData3D(i,j,k)) then
+                            found = .true.
+                            exit
+                        endif
+                    enddo
+                    
+                    if (found) then
+                        Me%MultiTimeSerie%FillGrid3D(i,j,k) = index
+                    else
+                        stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR050.1'
+                    endif 
+                    
+                else
+                
+                    Me%MultiTimeSerie%FillGrid3D(i,j,k) = -99
+                    
+                endif
+            
+            enddo
+            enddo
+            enddo
+
+            call UnGetGridData    (MaskGridDataID, GridData3D, STAT = STAT_CALL)  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceASCIIFile - ModuleFillMatrix - ERR12'
+
+        endif
+
+        call KillGridData (MaskGridDataID, STAT = STAT_CALL)  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR090'                
+                
+        !----------------------------------------------------------------------
+    
+    end subroutine ConstructMultiTimeSerie
+    
     !--------------------------------------------------------------------------
 
     subroutine ConstructSpaceLayers (ExtractType, PointsToFill3D)
@@ -3982,6 +4317,14 @@ i4:         if(Me%Dim == Dim2D)then
                             call ModifyProfileTimeSerie (PointsToFill3D = PointsToFill3D) 
 
                         end if
+                        
+                    case (MultiTimeSerie)
+
+                        if (Me%Dim == Dim2D) then                            
+                            call ModifyMultiTimeSerie (PointsToFill2D = PointsToFill2D) 
+                        else                            
+                            call ModifyMultiTimeSerie (PointsToFill3D = PointsToFill3D) 
+                        endif  
 
                 end select
 
@@ -4000,6 +4343,224 @@ i4:         if(Me%Dim == Dim2D)then
     end subroutine ModifyFillMatrix
 
     !--------------------------------------------------------------------------
+
+    
+    subroutine ModifyMultiTimeSerie (PointsToFill2D, PointsToFill3D)
+    
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:, :), pointer, optional    :: PointsToFill2D
+        integer, dimension(:, :, :), pointer, optional :: PointsToFill3D             
+
+        !Local-----------------------------------------------------------------
+        integer                                        :: STAT_CALL
+        integer                                        :: iflag
+        integer                                        :: ilb, iub, jlb, jub, klb, kub
+        integer                                        :: i, j, k  
+        integer, dimension(:,:), pointer               :: id2d => null()
+        integer, dimension(:,:,:), pointer             :: id3d => null()
+        type(T_Station), dimension(:), pointer         :: sl   => null()
+        type (T_Time)                                  :: Now
+        type (T_Time)                                  :: Time1, Time2
+        real                                           :: Value1, Value2
+        logical                                        :: TimeCycle
+        logical                                        :: compare_dt = .false.
+        real                                           :: PredictedDT
+        real                                           :: DTForNextEvent
+        integer                                        :: index
+        
+        !----------------------------------------------------------------------
+        
+        sl => Me%MultiTimeSerie%StationsList
+
+        !Gets Current Time
+        call GetComputeCurrentTime(Me%ObjTime, Now, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyMultiTimeSerie - ModuleFillMatrix - ERR000'
+
+        if (Me%Dim == Dim2D) then
+        
+            id2d => Me%MultiTimeSerie%FillGrid2D
+            
+            ilb = Me%WorkSize2D%ILB
+            iub = Me%WorkSize2D%IUB
+            jlb = Me%WorkSize2D%JLB
+            jub = Me%WorkSize2D%JUB        
+        
+            do j = jlb, jub
+            do i = ilb, iub
+            
+                if (PointsToFill2D(i,j) == WaterPoint) then
+                         
+                    if (sl(id2d(i,j))%ValueIsDefined .or. sl(id2d(i,j))%RemainConstant) then
+                    
+                        Me%Matrix2D(i,j) = sl(id2d(i,j))%NewValue
+                    
+                    else
+                           
+                        sl(id2d(i,j))%ValueIsDefined = .true.
+                                                        
+                        !Gets Value for current Time
+                        call GetTimeSerieValue (sl(id2d(i,j))%ObjTimeSerie, Now,                &
+                                                sl(id2d(i,j))%Column,                           &
+                                                Time1, Value1, Time2, Value2, TimeCycle,        &
+                                                STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMultiTimeSerie - ModuleFillMatrix - ERR010'
+
+                        if (TimeCycle) then
+                                                
+                            sl(id2d(i,j))%NewValue = Value1
+                    
+                        else
+                        
+                            select case (Me%MultiTimeSerie%DataProcessing)
+                            
+                                case (Interpolate)
+                                
+                                    !Interpolates Value for current instant
+                                    call InterpolateValueInTime(Now, Time1, Value1, Time2, Value2, sl(id2d(i,j))%NewValue)                                    
+                                
+                                case (Accumulate)
+                                
+                                    sl(id2d(i,j))%NewValue = Value2 / (Time2 - Time1)
+                                
+                                    call GetTimeSerieDTForNextEvent (sl(id2d(i,j))%ObjTimeSerie,                    &
+                                                                     sl(id2d(i,j))%NewValue, sl(id2d(i,j))%Column,  &
+                                                                     Now, PredictedDT, DTForNextEvent,              &
+                                                                     STAT  = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMultiTimeSerie - ModuleFillMatrix - ERR020'                        
+                                
+                                    if (compare_dt) then
+                                        if (Me%PredictedDT > PredictedDT) then
+                                            Me%PredictedDT = PredictedDT
+                                        endif
+                                        
+                                        if (Me%DTForNextEvent > DTForNextEvent) then
+                                            Me%DTForNextEvent = DTForNextEvent
+                                        endif
+                                    else
+                                        Me%PredictedDT    = PredictedDT
+                                        Me%DTForNextEvent = DTForNextEvent
+                                        compare_dt        = .true.
+                                    endif
+                                
+                                case (NoProcessing)
+                                
+                                    sl(id2d(i,j))%NewValue = Value2
+                                
+                                case default
+                                
+                                    stop 'ModifyMultiTimeSerie - ModuleFillMatrix - ERR030'
+                                    
+                            end select
+                        endif
+                        
+                        Me%Matrix2D(i,j) = sl(id2d(i,j))%NewValue
+                        
+                    endif
+                    
+                endif
+                
+            enddo
+            enddo        
+        
+        else
+        
+            id3d => Me%MultiTimeSerie%FillGrid3D
+        
+            ilb = Me%WorkSize3D%ILB
+            iub = Me%WorkSize3D%IUB
+            jlb = Me%WorkSize3D%JLB
+            jub = Me%WorkSize3D%JUB
+            klb = Me%WorkSize3D%KLB
+            kub = Me%WorkSize3D%KUB        
+        
+            do j = jlb, jub
+            do i = ilb, iub
+            do k = klb, kub
+            
+                if (PointsToFill3D(i,j,k) == WaterPoint) then
+                         
+                    if (sl(id3d(i,j,k))%ValueIsDefined) then
+                    
+                        Me%Matrix3D(i,j,k) = sl(id3d(i,j,k))%NewValue
+                    
+                    else
+                           
+                        sl(id3d(i,j,k))%ValueIsDefined = .true.
+                                                        
+                        !Gets Value for current Time
+                        call GetTimeSerieValue (sl(id3d(i,j,k))%ObjTimeSerie, Now,              &
+                                                sl(id3d(i,j,k))%Column,                         &
+                                                Time1, Value1, Time2, Value2, TimeCycle,        &
+                                                STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMultiTimeSerie - ModuleFillMatrix - ERR040'
+
+                        if (TimeCycle) then
+                                                
+                            sl(id3d(i,j,k))%NewValue = Value1
+                    
+                        else
+                        
+                            select case (Me%MultiTimeSerie%DataProcessing)
+                            
+                                case (Interpolate)
+                                
+                                    !Interpolates Value for current instant
+                                    call InterpolateValueInTime(Now, Time1, Value1, Time2, Value2, sl(id3d(i,j,k))%NewValue)                                    
+                                
+                                case (Accumulate)
+                                
+                                    sl(id3d(i,j,k))%NewValue = Value2 / (Time2 - Time1)
+                                
+                                    call GetTimeSerieDTForNextEvent (sl(id3d(i,j,k))%ObjTimeSerie,                      &
+                                                                     sl(id3d(i,j,k))%NewValue, sl(id3d(i,j,k))%Column,  &
+                                                                     Now, PredictedDT, DTForNextEvent,                  &
+                                                                     STAT  = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMultiTimeSerie - ModuleFillMatrix - ERR050'                        
+                                
+                                    if (compare_dt) then
+                                        if (Me%PredictedDT > PredictedDT) then
+                                            Me%PredictedDT = PredictedDT
+                                        endif
+                                        
+                                        if (Me%DTForNextEvent > DTForNextEvent) then
+                                            Me%DTForNextEvent = DTForNextEvent
+                                        endif
+                                    else
+                                        Me%PredictedDT    = PredictedDT
+                                        Me%DTForNextEvent = DTForNextEvent
+                                        compare_dt        = .true.
+                                    endif
+                                
+                                case (NoProcessing)
+                                
+                                    sl(id3d(i,j,k))%NewValue = Value2
+                                
+                                case default
+                                
+                                    stop 'ModifyMultiTimeSerie - ModuleFillMatrix - ERR060'
+                                    
+                            end select
+                        endif
+                        
+                        Me%Matrix3D(i,j,k) = sl(id3d(i,j,k))%NewValue
+                        
+                    endif
+                    
+                endif
+                
+            enddo
+            enddo
+            enddo
+        
+        endif
+        
+        do index = 1, Me%MultiTimeSerie%NumberOfSources
+            sl(index)%ValueIsDefined = .false.
+        enddo
+
+        !----------------------------------------------------------------------
+
+    end subroutine ModifyMultiTimeSerie
 
     !--------------------------------------------------------------------------
 

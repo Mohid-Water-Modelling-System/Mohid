@@ -509,7 +509,8 @@ if2 :           if (BlockFound) then
                         
                             call ConvertIHRadarFormat(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR270'
-#endif                        
+#endif                  
+                        
                         case default
                             
                             stop 'Option not known - ReadOptions - ConvertToHDF5 - ERR299'

@@ -1109,7 +1109,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             
         endif
 
-        !Number of iterations below which the DT is reduce (lower optimal iteration range)
+        !Number of iterations below which the DT is increased
         call GetData(Me%CV%MinIter,                                             &
                      Me%ObjEnterData, iflag,                                    &
                      SearchType     = FromFile,                                 &
@@ -1118,10 +1118,11 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR280") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR280")
+        if (Me%CV%MinIter < 1)                                                  &
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR281")             
 
-        !Number of iterations above which the DT is increased (upper optimal iteration
-        !range)
+        !Number of iterations above which the DT is decreased
         call GetData(Me%CV%MaxIter,                                             &
                      Me%ObjEnterData, iflag,                                    &
                      SearchType     = FromFile,                                 &
@@ -4343,7 +4344,7 @@ dConv:  do while (iteration <= Niteration)
 
         Me%NextDT = Me%ExtVar%DT
         
-        if (Niter < Me%CV%MinIter) then
+        if (Niter <= Me%CV%MinIter) then
             Me%NextDT = Me%NextDT * Me%CV%IncreaseDT
         else if (Niter > Me%CV%MaxIter) then
             Me%NextDT = Me%NextDT * Me%CV%DecreaseDT

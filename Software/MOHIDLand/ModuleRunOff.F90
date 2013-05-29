@@ -241,28 +241,31 @@ Module ModuleRunOff
         real                                        :: MinSlope
         logical                                     :: AdjustSlope
         logical                                     :: Stabilize
-        logical                                     :: Discharges           = .false.
-        logical                                     :: RouteDFourPoints     = .false.
-        logical                                     :: RouteDFourPointsOnDN = .false.
-        logical                                     :: StormWaterDrainage   = .false.
+        logical                                     :: Discharges            = .false.
+        logical                                     :: RouteDFourPoints      = .false.
+        logical                                     :: RouteDFourPointsOnDN  = .false.
+        logical                                     :: StormWaterDrainage    = .false.
         real                                        :: StormWaterInfiltrationVelocity  = 1.4e-5  !~50mm/h
         real                                        :: StormWaterFlowVelocity          = 0.2     !velocity in pipes
-        logical                                     :: Buildings            = .false.
+        logical                                     :: Buildings             = .false.
         real                                        :: StabilizeFactor
         integer                                     :: HydrodynamicApproximation = DiffusionWave_
-        logical                                     :: CalculateAdvection   = .true.
-        logical                                     :: CalculateCellMargins = .true.
-        logical                                     :: ImposeMaxVelocity    = .false.
-        real                                        :: ImposedMaxVelocity   = 0.1
-        integer                                     :: LastGoodNiter        = 1
-        integer                                     :: NextNiter            = 1
+        logical                                     :: CalculateAdvection    = .true.
+        logical                                     :: CalculateCellMargins  = .true.
+        logical                                     :: ImposeMaxVelocity     = .false.
+        real                                        :: ImposedMaxVelocity    = 0.1
+        integer                                     :: LastGoodNiter         = 1
+        integer                                     :: NextNiter             = 1
         real                                        :: InternalTimeStepSplit = 1.5
-        integer                                     :: MinIterations        = 1
+        integer                                     :: MinIterations         = 1
+        integer                                     :: MinCellsToRestart     = 0
         real                                        :: MinimumWaterColumn
         real                                        :: MinimumWaterColumnAdvection
         real                                        :: MinimumWaterColumnStabilize
         real                                        :: NextDT               = null_real
         real                                        :: DTFactor
+        real                                        :: DTFactorUp
+        real                                        :: DTFactorDown
         logical                                     :: LimitDTCourant       = .false.
         logical                                     :: LimitDTVariation     = .true.
         real                                        :: MaxCourant           = 1.0        
@@ -294,6 +297,7 @@ Module ModuleRunOff
         logical                                     :: StopOnWrongDate     = .true.
         
         real(8)                                     :: TotalStoredVolume  = 0.
+        integer                                     :: BasinCellsCount    = 0
 
         !Grid size
         type (T_Size2D)                             :: Size
@@ -760,8 +764,42 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%DTFactor <= 1.0) then
             write (*,*)'Invalid DT Factor [DT_FACTOR]'
             write (*,*)'Value must be greater then 1.0'
-            stop 'ReadDataFile - ModuleRunOff - ERR280'              
+            stop 'ReadDataFile - ModuleRunOff - ERR275'              
         endif
+        
+        call GetData(Me%DTFactorUp,                                         &
+                     ObjEnterData, iflag,                                   &  
+                     keyword      = 'DT_FACTOR_UP',                         &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     Default      = Me%DTFactor,                            &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR280'
+        if (iflag /= 1) then
+            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for RunOff DT_FACTOR_UP' 
+        endif
+        if (Me%DTFactorUp <= 1.0) then
+            write (*,*)'Invalid DT Factor Up [DT_FACTOR_UP]'
+            write (*,*)'Value must be greater then 1.0'
+            stop 'ReadDataFile - ModuleRunOff - ERR281'              
+        endif
+                
+        call GetData(Me%DTFactorDown,                                       &
+                     ObjEnterData, iflag,                                   &  
+                     keyword      = 'DT_FACTOR_DOWN',                       &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     Default      = Me%DTFactor,                            &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR285'
+        if (iflag /= 1) then
+            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for RunOff DT_FACTOR_DOWN'
+        endif
+        if (Me%DTFactorDown <= 1.0) then
+            write (*,*)'Invalid DT Factor Down [DT_FACTOR_DOWN]'
+            write (*,*)'Value must be greater then 1.0'
+            stop 'ReadDataFile - ModuleRunOff - ERR286'              
+        endif      
 
         !Stabilize Solution
         call GetData(Me%Stabilize,                                          &
@@ -830,6 +868,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write (*,*) 'MIN_ITERATIONS must be greater or equal to 1'
             stop 'ReadDataFile - ModuleRunOff - ERR313a'
         endif
+        
+       call GetData(dummy,                                                  &
+                     ObjEnterData, iflag,                                   &  
+                     keyword      = 'PERCENT_TO_RESTART',                   &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     Default      = 0.,                                     &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR313b'
+        if (dummy <= 0.) then
+            Me%MinCellsToRestart = 0
+        else
+            call CountBasinPoints(dummy)
+        endif          
         
         call GetData(Me%CheckDecreaseOnly,                                  &
                      ObjEnterData, iflag,                                   &  
@@ -1373,6 +1425,35 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ReadDataFile
 
     !--------------------------------------------------------------------------
+    
+    subroutine CountBasinPoints (percent)
+    
+        !Arguments-------------------------------------------------------------
+        real                                        :: percent
+        
+        !Local----------------------------------------------------------------- 
+        integer                                     :: i, j
+        integer                                     :: count
+        
+        !Begin-----------------------------------------------------------------       
+                
+        count = 0
+        
+        !Initializes Water Column
+        do j = Me%Size%JLB, Me%Size%JUB
+        do i = Me%Size%ILB, Me%Size%IUB
+
+            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                count = count + 1
+            endif
+
+        enddo
+        enddo
+        
+        Me%MinCellsToRestart = max(int(count * percent), 0)
+    
+    end subroutine CountBasinPoints
+    
 
     subroutine InitializeVariables
 
@@ -2907,8 +2988,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                                     :: STAT_, ready_
         integer                                     :: STAT_CALL
         real                                        :: LocalDT, SumDT
-        logical                                     :: Restart
+        logical                                     :: Restart, ForceRestart
         integer                                     :: Niter, iter, RIter
+        integer                                     :: n_restart
 
         !----------------------------------------------------------------------
 
@@ -2937,6 +3019,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             endif
             
             Restart = .true.
+            n_restart = 0
             do while (Restart)
 
                 Me%MaxVariation = 0.0
@@ -3013,13 +3096,18 @@ doIter:         do while (iter <= Niter)
 !                    endif
 
                     
-                    call CheckStability(Restart, Niter) 
+                    call CheckStability(Restart, Niter, ForceRestart) 
                     
                     call ReadUnLockExternalVar (StaticOnly = .false.)
                     
-                    if (Restart) then                       
-                        !Me%NextNiter = max(int(Me%NextNiter * Me%InternalTimeStepSplit), Me%NextNiter + 1)
-                        exit doIter
+                    if (ForceRestart) exit doIter
+                    
+                    if (Restart) then
+                        n_restart = n_restart + 1
+                        if (n_restart > Me%MinCellsToRestart) then
+                            exit doIter
+                        endif
+                        Restart = .false.
                     endif
 
                     call IntegrateFlow     (LocalDT, SumDT)  
@@ -3036,7 +3124,7 @@ doIter:         do while (iter <= Niter)
                 Me%NextNiter = max (min(int(Niter / Me%InternalTimeStepSplit), NIter - 1), 1)
             else
                 Me%NextNiter = Niter
-            endif                        
+            endif     
             
             !save water column before removes from next processes
             !important for property transport if river cells get out of water, conc has to be computed
@@ -6048,10 +6136,10 @@ doIter:         do while (iter <= Niter)
     
     !--------------------------------------------------------------------------
 
-    subroutine CheckStability (Restart, Niter)
+    subroutine CheckStability (Restart, Niter, ForceRestart)
 
         !Arguments-------------------------------------------------------------
-        logical                                     :: Restart
+        logical                                     :: Restart, ForceRestart
         integer                                     :: Niter
 
         !Local-----------------------------------------------------------------
@@ -6062,6 +6150,7 @@ doIter:         do while (iter <= Niter)
         !Begin-----------------------------------------------------------------
 
         Restart             = .false.
+        ForceRestart        = .false.
         negativeVolumeFound = .false.
         
         !Verifies negative volumes
@@ -6070,7 +6159,8 @@ do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
                 if (Me%myWaterVolume (i, j) < -1.0 * AllmostZero) then   
                     Restart             = .true.
-                    negativeVolumeFound = .true.                    
+                    negativeVolumeFound = .true. 
+                    ForceRestart        = .true.                   
                     exit do1
                 else if (Me%myWaterVolume (i, j) < 0.0) then  
                     Me%myWaterVolume (i, j) = 0.0                 
@@ -6487,7 +6577,8 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         real                                        :: nextDTVariation, MaxDT
         logical                                     :: VariableDT
         real                                        :: vel, dist
-        integer                                     :: lgi
+
+        !----------------------------------------------------------------------
 
         call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleRunOff -  ERR00'
@@ -6495,7 +6586,8 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleRunOff -  ERR01'
 
-        lgi = iter
+        nextDTCourant   = -null_real
+        nextDTVariation = -null_real
         
         if (VariableDT) then
 
@@ -6503,8 +6595,6 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             IUB = Me%WorkSize%IUB
             JLB = Me%WorkSize%JLB
             JUB = Me%WorkSize%JUB
-
-            nextDTCourant = -null_real
             
             if (Me%LimitDTCourant) then
                         
@@ -6518,8 +6608,7 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                         if (vel .gt. 0) then
                         
                             !spatial step, in case of dx = dy, dist = sqrt(2) * dx
-                            dist = sqrt ((Me%ExtVar%DZX(i, j)**2) + (Me%ExtVar%DZY(i, j)**2))                        
-                        
+                            dist = sqrt ((Me%ExtVar%DZX(i, j)**2) + (Me%ExtVar%DZY(i, j)**2))
                             aux = dist * Me%MaxCourant / vel 
                         
                             nextDTCourant = min(nextDTCourant, aux)
@@ -6533,29 +6622,23 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 
             endif
             
-            nextDTVariation = -null_real                        
-            
-            if (Me%LimitDTVariation) then
-
-                if (Me%NextNIter <= Me%LastGoodNiter) then  
-                    if (Me%MaxVariation < (Me%StabilizeFactor * 0.85)) then
-                        nextDTVariation = Me%ExtVar%DT * Me%DTFactor   
-                    else
-                        nextDTVariation = Me%ExtVar%DT
-                    endif                
+            if (Me%NextNiter == 1) then
+                nextDTVariation = Me%ExtVar%DT * Me%DTFactorUp
+            elseif (Me%NextNIter <= Me%MinIterations) then
+                if (Me%NextNiter <= Me%LastGoodNiter) then
+                    nextDTVariation = Me%ExtVar%DT * &
+                                      LinearInterpolation(1.0, 1.0, real(Me%MinIterations), Me%DTFactorUp, real(Me%NextNIter))
                 else
-                    if (Me%NextNIter == 2) then
-                        nextDTVariation = Me%ExtVar%DT / (Me%DTFactor * 1.1)
-                        Me%NextNIter = 1
-                        lgi = 1
-                    else                    
-                        nextDTVariation = Me%ExtVar%DT / Me%NextNIter * Me%MinIterations
-                        Me%NextNIter = Me%MinIterations
-                    endif
+                    nextDTVariation = Me%ExtVar%DT
+                endif
+            else
+                if (Me%NextNiter <= Me%LastGoodNiter) then
+                    nextDTVariation = Me%ExtVar%DT
+                else
+                    nextDTVariation = Me%ExtVar%DT / Me%DTFactorDown
                 endif                
-                
-            endif
-            
+            endif             
+                      
             Me%NextDT = min(min(nextDTVariation, nextDTCourant), MaxDT)
                        
         else
@@ -6564,7 +6647,7 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         
         endif
         
-        Me%LastGoodNiter = lgi
+        Me%LastGoodNiter = iter
     
     end subroutine ComputeNextDT
 

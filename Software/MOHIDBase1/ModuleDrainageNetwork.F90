@@ -159,7 +159,8 @@ Module ModuleDrainageNetwork
                                            ComputeT90_Canteras, LongWaveDownward, LongWaveUpward,           &
                                            LatentHeat, SensibleHeat, OxygenSaturation,                      &
                                            OxygenSaturationHenry, OxygenSaturationCeQualW2, AerationFlux,   &
-                                           TimeToString, ChangeSuffix, DistanceBetweenTwoGPSPoints
+                                           TimeToString, ChangeSuffix, DistanceBetweenTwoGPSPoints,         &
+                                           LinearInterpolation
     use ModuleTimeSerie            , only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerieLine,         &
                                            GetTimeSerieValue, KillTimeSerie, WriteTimeSerieLineNow
     use ModuleStopWatch            , only: StartWatch, StopWatch
@@ -894,10 +895,13 @@ Module ModuleDrainageNetwork
         real                                        :: StabilizeCoefficient
         integer                                     :: MaxIterations
         real                                        :: DTFactor
+        real                                        :: DTFactorUp
+        real                                        :: DTFactorDown        
         logical                                     :: LimitDTCourant               = .false.
         logical                                     :: LimitDTVariation             = .true.
         real                                        :: MaxCourant                   = 1.0
         integer                                     :: MinNodesToRestart            = 0
+        real                                        :: PercentToRestart             = 0.
         integer                                     :: MinIterations                = 1
         logical                                     :: CheckDecreaseOnly            = .false.
         
@@ -1198,6 +1202,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: flag, STAT_CALL
         integer                                     :: GeoConversationFactor
         character(len=StringLength)                 :: AuxString
+        
+        !begin------------------------------------------------------------------
 
         !Reads name of the data file from nomfich.dat
         call ReadFileName('DRAINAGE_NETWORK', Me%Files%InputData,               &
@@ -1460,14 +1466,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25'        
 
-            call GetData(Me%MinNodesToRestart,                                  &
+            call GetData(Me%PercentToRestart,                                   &
                          Me%ObjEnterData, flag,                                 &  
-                         keyword      = 'MIN_NODES_TO_RESTART',                 &
+                         keyword      = 'PERCENT_TO_RESTART',                   &
                          ClientModule = 'DrainageNetwork',                      &
                          SearchType   = FromFile,                               &
-                         Default      = 0,                                      &
+                         Default      = 0.,                                     &
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'                
+            if (Me%PercentToRestart <= 0.) then
+                Me%PercentToRestart = 0
+            endif              
             
             call GetData(Me%MinIterations,                                      &
                          Me%ObjEnterData, flag,                                 &  
@@ -1476,7 +1485,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType   = FromFile,                               &
                          Default      = 1,                                      &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR27'          
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR27'
+	        if (Me%MinIterations < 1) then
+	            write (*,*) 'MIN_ITERATIONS must be greater or equal to 1'
+	            stop 'ReadDataFile - ModuleRunOff - ERR27a'
+	        endif                      
             
             call GetData(Me%CheckDecreaseOnly,                                  &
                          Me%ObjEnterData, flag,                                 &  
@@ -1506,9 +1519,42 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%DTFactor <= 1.0) then
             write (*,*)'Invalid DT Factor [DT_FACTOR]'
             write (*,*)'Value must be greater then 1.0'
-            stop 'ModuleDrainageNetwork - ReadDataFile - ERR28a'              
+            stop 'ModuleDrainageNetwork - ReadDataFile - ERR29a'              
         endif
 
+        call GetData(Me%DTFactorUp,                                         &
+                     Me%ObjEnterData, flag,                                 &  
+                     keyword      = 'DT_FACTOR_UP',                         &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     Default      = Me%DTFactor,                            &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR29b'
+        if (flag /= 1) then
+            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for DrainageNetwork DT_FACTOR_UP' 
+        endif
+        if (Me%DTFactorUp <= 1.0) then
+            write (*,*)'Invalid DT Factor Up [DT_FACTOR_UP]'
+            write (*,*)'Value must be greater then 1.0'
+            stop 'ReadDataFile - ModuleDrainageNetwork - ERR29c'              
+        endif
+                
+        call GetData(Me%DTFactorDown,                                       &
+                     Me%ObjEnterData, flag,                                 &  
+                     keyword      = 'DT_FACTOR_DOWN',                       &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     Default      = Me%DTFactor,                            &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR29d'
+        if (flag /= 1) then
+            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for DrainageNetwork DT_FACTOR_DOWN'
+        endif
+        if (Me%DTFactorDown <= 1.0) then
+            write (*,*)'Invalid DT Factor Down [DT_FACTOR_DOWN]'
+            write (*,*)'Value must be greater then 1.0'
+            stop 'ReadDataFile - ModuleDrainageNetwork - ERR29e'              
+        endif   
         
         !Internal Time Step Split
         call GetData(Me%InternalTimeStepSplit,                              &
@@ -2054,6 +2100,8 @@ if2:        if (Me%Downstream%Evolution == ReadTimeSerie) then
  
         nullify  (Me%Nodes)
         allocate (Me%Nodes (1:Me%TotalNodes))
+        
+        Me%MinNodesToRestart = max(int(Me%PercentToRestart * Me%TotalNodes), 0)
         
         NodePos = 0
 
@@ -4842,7 +4890,9 @@ if1:    if (Me%HasGrid) then
         if (Me%PropertyContinuous) then
             Property => Me%FirstProperty
             do while (associated(Property))
-                read (InitialFile, err=10) Property%BottomConc
+                if (Property%ComputeOptions%BottomFluxes) then
+                    read (InitialFile, err=10) Property%BottomConc
+                endif
                 Property => Property%Next
             end do
         endif
@@ -5467,7 +5517,8 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         integer                                     :: STAT_CALL
 
         Size1D%ILB = 1
-        Size1D%IUB = Me%TotalReaches
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes
         call ConstructLightExtinction(LightExtinctionID = Me%ObjLightExtinction,        &
                                       TimeID            = Me%ObjTime,                   &
                                       EnterDataID       = Me%ObjEnterData,              &
@@ -5565,7 +5616,8 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
 
         !Start Interface
         Size1D%ILB = 1
-        Size1D%IUB = Me%TotalReaches
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes
         call ConstructInterface(InterfaceID         = Me%ObjInterface,               &
                                 TimeID              = Me%ObjTime,                    &
                                 SinksSourcesModel   = WaterQualityModel,             &
@@ -5623,7 +5675,8 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
 
         !Start Interface
         Size1D%ILB = 1
-        Size1D%IUB = Me%TotalReaches
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes
         call ConstructInterface(InterfaceID         = Me%ObjBenthicInterface,           &
                                 TimeID              = Me%ObjTime,                       &
                                 SinksSourcesModel   = BenthosModel,                     &
@@ -8154,8 +8207,6 @@ do2 :   do while (associated(PropertyX))
         else
             Me%NextNiter = Niter
         endif        
-        
-        Me%LastGoodNiter = Niter                      
 
         !So far, total removed volume is the flow volume
         Me%TotalOutputVolume = Me%TotalFlowVolume
@@ -8244,7 +8295,7 @@ do2 :   do while (associated(PropertyX))
         endif                
         
         !Computes next DT
-        call ComputeNextDT
+        call ComputeNextDT (NIter)
 
         Property => Me%FirstProperty
         do while (associated (Property))
@@ -8701,9 +8752,10 @@ do2 :   do while (associated(PropertyX))
 
     !--------------------------------------------------------------------------
 
-    subroutine ComputeNextDT
+    subroutine ComputeNextDT (iter)
 
         !Arguments--------------------------------------------------------------
+        integer                                     :: iter
 
         !Local------------------------------------------------------------------
         integer                                     :: NodeID
@@ -8714,12 +8766,16 @@ do2 :   do while (associated(PropertyX))
         real                                        :: nextDTCourant, aux
         real                                        :: nextDTVariation, MaxDT
 
-
+        !-----------------------------------------------------------------------
+        
         call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleDrainageNetwork -  ERR00'
         
         call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleDrainageNetwork -  ERR01'
+        
+        nextDTCourant   = -null_real
+        nextDTVariation = -null_real        
         
         if (VariableDT) then
 
@@ -8742,63 +8798,33 @@ do2 :   do while (associated(PropertyX))
                 enddo
 
             endif
-            
-            nextDTVariation = - null_real
-
-            if (Me%LimitDTVariation) then
-
-                !MaxrdVol = null_real
-                !
-                !do NodeID = 1, Me%TotalNodes
-                !
-                !    CurrNode => Me%Nodes (NodeID)
-                !
-                !    !rdVol = abs(CurrNode%InitialVolumeNew - CurrNode%VolumeNew) / CurrNode%VolumeMax
-                !    rdVol = abs(CurrNode%InitialVolumeNew - CurrNode%VolumeNew) / CurrNode%InitialVolumeNew
-                !
-                !    MaxrdVol = max(rdVol, MaxrdVol)
-                !    
-                !enddo
-                !
-                !if (MaxrdVol > 0.0) then
-                !    
-                !    !if (Me%LastGoodNiter == Me%InternalTimeStepSplit .and. MaxrdVol < Me%StabilizeFactor) then
-                !    if (Me%NextNiter <= Me%LastGoodNiter .and. MaxrdVol < Me%StabilizeFactor) then    
-                !        nextDTVariation = Me%ExtVar%DT * Me%DTFactor
-                !    !else if (Me%LastGoodNiter ==  Me%InternalTimeStepSplit) then
-                !    !    nextDTVariation = Me%ExtVar%DT
-                !    else
-                !        nextDTVariation = Me%ExtVar%DT / Me%DTFactor
-                !    endif                
-                !
-                !else
-                !    nextDTVariation = Me%ExtVar%DT * Me%DTFactor
-                !endif
-
-                if (Me%NextNIter == 1) then 
-                    nextDTVariation = Me%ExtVar%DT * Me%DTFactor                
-                else if (Me%NextNiter < Me%LastGoodNiter) then    
+                       
+            if (Me%NextNiter == 1) then
+                nextDTVariation = Me%ExtVar%DT * Me%DTFactorUp
+            elseif (Me%NextNIter <= Me%MinIterations) then
+                if (Me%NextNiter <= Me%LastGoodNiter) then
+                    nextDTVariation = Me%ExtVar%DT * &
+                                      LinearInterpolation(1.0, 1.0, real(Me%MinIterations), Me%DTFactorUp, real(Me%NextNIter))
+                else
+                    nextDTVariation = Me%ExtVar%DT
+                endif
+            else
+                if (Me%NextNiter <= Me%LastGoodNiter) then
                     nextDTVariation = Me%ExtVar%DT
                 else
-                    nextDTVariation = Me%ExtVar%DT / Me%NextNIter * Me%MinIterations
-                    Me%NextNIter = Me%MinIterations
-                endif
-                
-            endif
-
-            !if (min(nextDTVariation, nextDTCourant * Me%InternalTimeStepSplit) > MaxDT) then
-            if (min(nextDTVariation, nextDTCourant) > MaxDT) then  !DB
-                Me%NextDT = Me%ExtVar%DT * Me%DTFactor
-            else
-                Me%NextDT = min(nextDTVariation, nextDTCourant) 
+                    nextDTVariation = Me%ExtVar%DT / Me%DTFactorDown
+                endif                
             endif
             
+            Me%NextDT = min(min(nextDTVariation, nextDTCourant), MaxDT)            
 
         else
         
             Me%NextDT = Me%ExtVar%DT
         
         endif
+        
+        Me%LastGoodNiter = iter
 
     end subroutine ComputeNextDT
 
@@ -13748,7 +13774,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         Property => Me%FirstProperty
         do while (associated(Property))
-            write (FinalFile) Property%BottomConc
+            if (Property%ComputeOptions%BottomFluxes) then
+                write (FinalFile) Property%BottomConc
+            endif
             Property => Property%Next
         end do
 

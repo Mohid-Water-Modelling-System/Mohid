@@ -292,7 +292,7 @@ Module ModuleVegetation
     public  :: ConstructVegetation
     private ::      AllocateInstance
     private ::      ReadVegetationFileNames           
-    private ::      ConstructGlobalVariables
+    private ::      ReadOptions
     private ::      ConstructPropertyList             
     private ::          ConstructProperty             
 !    private ::              ConstructPropertyID       
@@ -1098,21 +1098,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetation - ModuleVegetation - ERR01' 
-                                                
-            call ConstructGlobalVariables   !Read Data file Options
-            call AllocateVariables          !Allocate global variables
-            call AllocateEvolutionVariables !Allocate evolution method dependent variables
-            
-            call ConstructPropertyList      !Constructs the list of vegetation properties            
-            call CreatePropertiesAlias      !Creates the aliases for the properties
+       
+            call ReadOptions                !Read Data file Options
 
             call ConstructVegetationList
-            call ConstructVegetationParameters             
+            call ConstructVegetationParameters 
+            call ConstructPropertyList      !Constructs the list of vegetation properties                        
             call CheckOptionsConsistence
+                        
+            call AllocateVariables          !Allocate global variables            
+            call AllocateEvolutionVariables !Allocate evolution method dependent variables
             call AllocatePropertyVariables  !Allocate property dependent variables
             
-            !Grid operations            
+            call CreatePropertiesAlias      !Creates the aliases for the properties
+            call CreateVariablesAlias       !Creates some aliases for variables
             
+            !Grid operations                        
             call ConstructVegetationGrids
 
             !call CheckRootDepth
@@ -1133,14 +1134,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     .and. Me%ComputeOptions%Evolution%ModelSWAT) then
                     call ReadInitialHDF
                 else
-                    Me%Growth%TreeCurrentYear (:,:) = 0
-                    Me%Growth%TreeComingFromContinuous (:,:) = .false.                
+                    if (Me%ComputeOptions%Evolution%ModelSWAT) then                        
+                        Me%Growth%TreeCurrentYear (:,:) = 0
+                        Me%Growth%TreeComingFromContinuous (:,:) = .false.                
+                    endif
                 endif
             else if (Me%ComputeOptions%Continuous .and. Me%ComputeOptions%Evolution%ModelSWAT) then
                 call ReadInitialHDF
             else
-                Me%Growth%TreeCurrentYear (:,:) = 0
-                Me%Growth%TreeComingFromContinuous (:,:) = .false.
+                if (Me%ComputeOptions%Evolution%ModelSWAT) then                        
+                    Me%Growth%TreeCurrentYear (:,:) = 0
+                    Me%Growth%TreeComingFromContinuous (:,:) = .false.
+                endif
             endif
 
             !Output
@@ -1243,44 +1248,50 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ReadVegetationFileNames
 
     !--------------------------------------------------------------------------
+    
+    subroutine ReadOptions
 
-    subroutine ConstructGlobalVariables
-
-        !External--------------------------------------------------------------
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
         integer                                 :: STAT_CALL, iflag
         real                                    :: auxFactor, Erroraux, DTaux, ModelDT
         real                                    :: PotentialHUTotal
         logical                                 :: Aux
-        !Begin------------------------------------------------------------------
-
-        call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%BeginTime,                 &
+            
+        !----------------------------------------------------------------------        
+        call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%BeginTime, &
                                   EndTime = Me%EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR010'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR010'
         
         !Actualize the time
         Me%ActualTime  = Me%BeginTime
-        Me%NextCompute = Me%ActualTime
-
-        call GetHorizontalGridSize(Me%ObjHorizontalGrid,                                &
-                                   Size     = Me%Size2D,                                &
-                                   WorkSize = Me%WorkSize2D,                            &
+        Me%NextCompute = Me%ActualTime        
+        
+        call GetHorizontalGridSize(Me%ObjHorizontalGrid,     &
+                                   Size     = Me%Size2D,     &
+                                   WorkSize = Me%WorkSize2D, &
                                    STAT     = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'ConstructGlobalVariables - ModuleVegetation  - ERR020'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation  - ERR020'
 
-        call GetGeometrySize    (Me%ObjGeometry,                                        &    
-                                 Size     = Me%Size,                                    &
-                                 WorkSize = Me%WorkSize,                                &
+        call GetGeometrySize    (Me%ObjGeometry,         &
+                                 Size     = Me%Size,     &
+                                 WorkSize = Me%WorkSize, &
                                  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation  - ERR030'
-
-        call GetData(Me%ComputeOptions%GlobalEvolution,                                 &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'MODEL_EVOLUTION',                                      &                     
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation  - ERR030'
+            
+        call GetData(Me%ComputeOptions%GlobalEvolution,   &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'MODEL_EVOLUTION',  &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR040'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR040'
+            
         if (iflag /= 1) then
             write (*,*) ''
             write (*,*) 'ATTENTION'
@@ -1288,15 +1299,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write (*,*) 'The possible values are:'
             write (*,*) '  1 - Vegetation growth will NOT be modeled.'
             write (*,*) '  2 - SWAT method will be used to model vegetation growth.'
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR041'
-        endif
+            stop 'ReadOptions - ModuleVegetation - ERR041'
+        endif       
+         
         select case (Me%ComputeOptions%GlobalEvolution)
-        case (1)
+        case (1) !Vegetation Growth NOT modeled
             Me%ComputeOptions%Evolution%ReadNeeded        = .true.
             Me%ComputeOptions%Evolution%GrowthModelNeeded = .false.
             Me%ComputeOptions%Evolution%ModelSWAT         = .false.
             Me%ComputeOptions%Evolution%ModelDEB          = .false.        
-        case (2)
+        case (2) !SWAT Growth model
             Me%ComputeOptions%Evolution%ReadNeeded        = .false.
             Me%ComputeOptions%Evolution%GrowthModelNeeded = .true.
             Me%ComputeOptions%Evolution%ModelSWAT         = .true.
@@ -1308,411 +1320,449 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write (*,*) 'The possible values are:'
             write (*,*) '  1 - Vegetation growth will NOT be modeled.'
             write (*,*) '  2 - SWAT method will be used to model vegetation growth.'
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR042'        
+            stop 'ReadOptions - ModuleVegetation - ERR042'        
         end select
-
-        call GetData(Me%ComputeOptions%ModelTemperatureStress,                          &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'TEMPERATURE_STRESS',                             &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR050'
-
-        call GetData(Me%ComputeOptions%ModelNitrogen,                                   &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'NITROGEN_STRESS',                                &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR060'
-
-        call GetData(Me%ComputeOptions%ModelPhosphorus,                                 &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'PHOSPHORUS_STRESS',                              &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR070'
         
-        call GetData(Me%ComputeOptions%ModelWater,                                      &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'WATER_UPTAKE',                                   &
-                     Default        = .true.,                                           &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%ModelTemperatureStress, &
+                     Me%ObjEnterData, iflag,                   &
+                     Keyword        = 'TEMPERATURE_STRESS',    &
+                     Default        = .false.,                 &
+                     SearchType     = FromFile,                &
+                     ClientModule   = 'ModuleVegetation',      &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR080'        
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR050'
+
+        call GetData(Me%ComputeOptions%ModelNitrogen,     &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'NITROGEN_STRESS',  &
+                     Default        = .false.,            &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR060'
+
+        call GetData(Me%ComputeOptions%ModelPhosphorus,    &
+                     Me%ObjEnterData, iflag,               &
+                     Keyword        = 'PHOSPHORUS_STRESS', &
+                     Default        = .false.,             &
+                     SearchType     = FromFile,            &
+                     ClientModule   = 'ModuleVegetation',  &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR070'
+
+        call GetData(Me%ComputeOptions%ModelWater,        &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'WATER_UPTAKE',     &
+                     Default        = .true.,             &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR080'
         
         if (Me%ComputeOptions%ModelWater) then
-            call GetData(Me%ComputeOptions%TranspirationMethod,                             &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword        = 'WATER_UPTAKE_METHOD',                            &
-                         Default        = TranspirationMOHID,                               &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleVegetation',                               &
+            call GetData(Me%ComputeOptions%TranspirationMethod,  &
+                         Me%ObjEnterData, iflag,                 &
+                         Keyword        = 'WATER_UPTAKE_METHOD', &
+                         Default        = TranspirationMOHID,    &
+                         SearchType     = FromFile,              &
+                         ClientModule   = 'ModuleVegetation',    &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR081'
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR081'
             
-            call GetData(Me%ComputeOptions%WaterStress,                                     &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword        = 'WATER_STRESS',                                   &
-                         Default        = .true.,                                           &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleVegetation',                               &
+            call GetData(Me%ComputeOptions%WaterStress,       &
+                         Me%ObjEnterData, iflag,              &
+                         Keyword        = 'WATER_STRESS',     &
+                         Default        = .true.,             &
+                         SearchType     = FromFile,           &
+                         ClientModule   = 'ModuleVegetation', &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR082'            
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR082'
         
             if (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) then        
-
-                call GetData(Me%ComputeOptions%LimitTPVel,                                  &
-                             Me%ObjEnterData, iflag,                                        &
-                             Keyword        = 'LIMIT_TRANSP_WATER_VEL',                     &
-                             Default        = .false.,                                      &
-                             SearchType     = FromFile,                                     &
-                             ClientModule   = 'ModuleVegetation',                           &
+                call GetData(Me%ComputeOptions%LimitTPVel,              &
+                             Me%ObjEnterData, iflag,                    &
+                             Keyword        = 'LIMIT_TRANSP_WATER_VEL', &
+                             Default        = .false.,                  &
+                             SearchType     = FromFile,                 &
+                             ClientModule   = 'ModuleVegetation',       &
                              STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR100'
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ReadOptions - ModuleVegetation - ERR100'
             
-            
-                call GetData(Me%ComputeOptions%RootProfile,                                 &
-                             Me%ObjEnterData, iflag,                                        &
-                             Keyword        = 'ROOT_PROFILE',                               &
-                             Default        = RootTriangular,                               &
-                             SearchType     = FromFile,                                     &
-                             ClientModule   = 'ModuleVegetation',                           &
+                call GetData(Me%ComputeOptions%RootProfile,       &
+                             Me%ObjEnterData, iflag,              &
+                             Keyword        = 'ROOT_PROFILE',     &
+                             Default        = RootTriangular,     &
+                             SearchType     = FromFile,           &
+                             ClientModule   = 'ModuleVegetation', &
                              STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR110'
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ReadOptions - ModuleVegetation - ERR110'
 
-                call GetData(Me%ComputeOptions%WaterUptakeOld,                              &
-                             Me%ObjEnterData, iflag,                                        &
-                             Keyword        = 'WATER_UPTAKE_OLD',                           &
-                             Default        = .false.,                                      &
-                             SearchType     = FromFile,                                     &
-                             ClientModule   = 'ModuleVegetation',                           &
+                call GetData(Me%ComputeOptions%WaterUptakeOld,    &
+                             Me%ObjEnterData, iflag,              &
+                             Keyword        = 'WATER_UPTAKE_OLD', &
+                             Default        = .false.,            &
+                             SearchType     = FromFile,           &
+                             ClientModule   = 'ModuleVegetation', &
                              STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR120'        
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ReadOptions - ModuleVegetation - ERR120'
 
-                call GetData(Me%ComputeOptions%WaterUptakeStressMethod,                     &
-                             Me%ObjEnterData, iflag,                                        &
-                             Keyword        = 'WATER_UPTAKE_STRESS_METHOD',                 &
-                             Default        = Feddes,                                       &
-                             SearchType     = FromFile,                                     &
-                             ClientModule   = 'ModuleVegetation',                           &
+                call GetData(Me%ComputeOptions%WaterUptakeStressMethod,     &
+                             Me%ObjEnterData, iflag,                        &
+                             Keyword        = 'WATER_UPTAKE_STRESS_METHOD', &
+                             Default        = Feddes,                       &
+                             SearchType     = FromFile,                     &
+                             ClientModule   = 'ModuleVegetation',           &
                              STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR130'
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ReadOptions - ModuleVegetation - ERR130'
                 
-                call GetData(Me%ComputeOptions%SalinityStressMethod,                        &
-                             Me%ObjEnterData, iflag,                                        &
-                             Keyword        = 'SALINITY_STRESS_METHOD',                     &
-                             Default        = 1,                                            & !Threshold/Slope
-                             SearchType     = FromFile,                                     &
-                             ClientModule   = 'ModuleVegetation',                           &
+                call GetData(Me%ComputeOptions%SalinityStressMethod,    &
+                             Me%ObjEnterData, iflag,                    &
+                             Keyword        = 'SALINITY_STRESS_METHOD', &
+                             Default        = 1,                        & !Threshold/Slope
+                             SearchType     = FromFile,                 &
+                             ClientModule   = 'ModuleVegetation',       &
                              STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR140'    
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ReadOptions - ModuleVegetation - ERR140'
                                 
             endif
             
-            call GetData(Me%ComputeOptions%WaterUptakeCompensationFactor,                   &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword        = 'WATER_UPTAKE_COMPENSATION_FACTOR',               &
-                         Default        = 0.,                                               &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleVegetation',                               &
+            call GetData(Me%ComputeOptions%WaterUptakeCompensationFactor,     &
+                         Me%ObjEnterData, iflag,                              &
+                         Keyword        = 'WATER_UPTAKE_COMPENSATION_FACTOR', &
+                         Default        = 0.,                                 &
+                         SearchType     = FromFile,                           &
+                         ClientModule   = 'ModuleVegetation',                 &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR150'
-       
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR150'
         endif
-        
-        call GetData(Me%ComputeOptions%NutrientUptakeMethod,                            &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'NUTRIENT_UPTAKE_METHOD',                         &
-                     Default        = NutrientUptake_TranspConc,                        &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+
+        call GetData(Me%ComputeOptions%NutrientUptakeMethod,     &
+                     Me%ObjEnterData, iflag,                     &
+                     Keyword        = 'NUTRIENT_UPTAKE_METHOD',  &
+                     Default        = NutrientUptake_TranspConc, &
+                     SearchType     = FromFile,                  &
+                     ClientModule   = 'ModuleVegetation',        &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR160'  
-        
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR160'
+
         if (Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
-            call GetData(Me%ComputeOptions%NutrientStressMethod,                            &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword        = 'NUTRIENT_STRESS_METHOD',                         &
-                         Default        = NutrientStressUptake,                             &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleVegetation',                               &
+            call GetData(Me%ComputeOptions%NutrientStressMethod,    &
+                         Me%ObjEnterData, iflag,                    &
+                         Keyword        = 'NUTRIENT_STRESS_METHOD', &
+                         Default        = NutrientStressUptake,     &
+                         SearchType     = FromFile,                 &
+                         ClientModule   = 'ModuleVegetation',       &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR170'
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR170'
 
-            call GetData(Me%ComputeOptions%NitrogenDistributionParameter,                   &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword        = 'NITROGEN_DISTRIBUTION_PARAMETER',                &
-                         Default        = 20.,                                              &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleVegetation',                               &
+            call GetData(Me%ComputeOptions%NitrogenDistributionParameter,    &
+                         Me%ObjEnterData, iflag,                             &
+                         Keyword        = 'NITROGEN_DISTRIBUTION_PARAMETER', &
+                         Default        = 20.,                               &
+                         SearchType     = FromFile,                          &
+                         ClientModule   = 'ModuleVegetation',                &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR180'
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR180'
 
-            call GetData(Me%ComputeOptions%PhosphorusDistributionParameter,                 &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword        = 'PHOSPHORUS_DISTRIBUTION_PARAMETER',              &
-                         Default        = 20.,                                              &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleVegetation',                               &
+            call GetData(Me%ComputeOptions%PhosphorusDistributionParameter,    &
+                         Me%ObjEnterData, iflag,                               &
+                         Keyword        = 'PHOSPHORUS_DISTRIBUTION_PARAMETER', &
+                         Default        = 20.,                                 &
+                         SearchType     = FromFile,                            &
+                         ClientModule   = 'ModuleVegetation',                  &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR190'
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR190'
             
-            call GetData(Me%ComputeOptions%NutrientReduceUptake,                 &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword        = 'NUTRIENT_REDUCE_UPTAKE',                         &
-                         Default        = .true.,                                           &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleVegetation',                               &
+            call GetData(Me%ComputeOptions%NutrientReduceUptake,    &
+                         Me%ObjEnterData, iflag,                    &
+                         Keyword        = 'NUTRIENT_REDUCE_UPTAKE', &
+                         Default        = .true.,                   &
+                         SearchType     = FromFile,                 &
+                         ClientModule   = 'ModuleVegetation',       &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR195'
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR195'
 
-            call GetData(Me%ComputeOptions%NutrientReduceUptakeFactor,                      &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword        = 'NUTRIENT_REDUCE_UPTAKE_FACTOR',                  &
-                         Default        = 0.5,                                              &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleVegetation',                               &
+            call GetData(Me%ComputeOptions%NutrientReduceUptakeFactor,     &
+                         Me%ObjEnterData, iflag,                           &
+                         Keyword        = 'NUTRIENT_REDUCE_UPTAKE_FACTOR', &
+                         Default        = 0.5,                             &
+                         SearchType     = FromFile,                        &
+                         ClientModule   = 'ModuleVegetation',              &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR196'
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR196'
 
-            call GetData(Me%ComputeOptions%NutrientReduceDemand,                            &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword        = 'DEMAND_REDUCE_UPTAKE',                           &
-                         Default        = .false.,                                          &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleVegetation',                               &
+            call GetData(Me%ComputeOptions%NutrientReduceDemand,  &
+                         Me%ObjEnterData, iflag,                  &
+                         Keyword        = 'DEMAND_REDUCE_UPTAKE', &
+                         Default        = .false.,                &
+                         SearchType     = FromFile,               &
+                         ClientModule   = 'ModuleVegetation',     &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR197'
-            
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR197'            
         endif
 
-        call GetData(Me%ComputeOptions%AtmosphereCO2,                                   &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'ATMOSPHERE_CO2',                                 &
-                     Default        = 330.,                                             &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%AtmosphereCO2,     &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'ATMOSPHERE_CO2',   &
+                     Default        = 330.,               &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR200'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR200'
 
-        call GetData(PotentialHUTotal,                                                  &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'POTENTIALHUTOTAL',                               &
-                     Default        = 0.,                                               &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(PotentialHUTotal,                    &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'POTENTIALHUTOTAL', &
+                     Default        = 0.,                 &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
                      STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR210'
+                                 
         if (iflag /= 0) then
             write(*,*) 
             write(*,*) 'Potential Annual HU  for the simulation is now defined in'
             write(*,*) ' <begin_TotalPotentialHU>/<end_TotalPotentialHU> block'
             write(*,*) 'and not with POTENTIALHUTOTAL keyword'    
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR210'
+            stop 'ReadOptions - ModuleVegetation - ERR211'
         endif
 
-        call GetData(Me%ComputeOptions%CheckSpinUp,                                     &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'CHECK_SPINUP',                                   &
-                     Default        = .true.,                                           &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%CheckSpinUp,       &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'CHECK_SPINUP',     &
+                     Default        = .true.,             &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR211'    
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR211'    
 
-        call GetData(Me%ComputeOptions%Grazing,                                         &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'GRAZING',                                        &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%Grazing,           &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'GRAZING',          &
+                     Default        = .false.,            &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR220'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR220'
 
-        call GetData(Aux,                                                               &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'MANAGEMENT',                                     &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Aux,                                 &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'MANAGEMENT',       &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0170'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR0230'
+            
         if (iflag /= 0) then
             write(*,*)'Found MANAGEMENT keyword in Vegetation data file'
             write(*,*)'This keyword is obsolete and is now HARVEST_KILL'
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR0175'
+            stop 'ReadOptions - ModuleVegetation - ERR0231'
         endif
         
-        call GetData(Me%ComputeOptions%HarvestKill,                                     &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'HARVEST_KILL',                                   &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%HarvestKill,       &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'HARVEST_KILL',     &
+                     Default        = .false.,            &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR230'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR232'
   
-        call GetData(Me%ComputeOptions%Dormancy,                                        &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'DORMANCY',                                       &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%Dormancy,          &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'DORMANCY',         &
+                     Default        = .false.,            &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR240'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR240'
 
-        call GetData(Me%ComputeOptions%Fertilization,                                   &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'FERTILIZATION',                                  &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%Fertilization,     &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'FERTILIZATION',    &
+                     Default        = .false.,            &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR250'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR250'
 
-        call GetData(Me%ComputeOptions%Pesticide,                                       &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'PESTICIDE',                                      &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%Pesticide,         &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'PESTICIDE',        &
+                     Default        = .false.,            &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR260'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR260'
         
         if (Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
-            call GetData(Me%ComputeOptions%NutrientFluxesWithSoil,                          &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword        = 'NUTRIENT_FLUXES_WITH_SOIL',                      &
-                         Default        = .true.,                                           &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleVegetation',                               &
+            call GetData(Me%ComputeOptions%NutrientFluxesWithSoil,     &
+                         Me%ObjEnterData, iflag,                       &
+                         Keyword        = 'NUTRIENT_FLUXES_WITH_SOIL', &
+                         Default        = .true.,                      &
+                         SearchType     = FromFile,                    &
+                         ClientModule   = 'ModuleVegetation',          &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR270'
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR270'
         else
             !PorousMedia properties does not need to compute nutrient fluxes from vegetation
             Me%ComputeOptions%NutrientFluxesWithSoil = .false.
         endif
         
-        call GetData(Me%ComputeOptions%ChangeLAISenescence,                             &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'CHANGE_LAI_SENESCENCE',                          &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%ChangeLAISenescence,    &
+                     Me%ObjEnterData, iflag,                   &
+                     Keyword        = 'CHANGE_LAI_SENESCENCE', &
+                     Default        = .false.,                 &
+                     SearchType     = FromFile,                &
+                     ClientModule   = 'ModuleVegetation',      &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR280'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR280'
 
-        call GetData(Me%ComputeOptions%ChangeCanopyHeight,                              &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'CHANGE_CANOPY_HEIGHT',                           &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%ChangeCanopyHeight,    &
+                     Me%ObjEnterData, iflag,                  &
+                     Keyword        = 'CHANGE_CANOPY_HEIGHT', &
+                     Default        = .false.,                &
+                     SearchType     = FromFile,               &
+                     ClientModule   = 'ModuleVegetation',     &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR290'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR290'
 
-        call GetData(Me%ComputeOptions%AdjustRUEForCO2,                                 &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'ADJUST_RUE_FOR_CO2',                             &
-                     Default        = .true.,                                           &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%AdjustRUEForCO2,     &
+                     Me%ObjEnterData, iflag,                &
+                     Keyword        = 'ADJUST_RUE_FOR_CO2', &
+                     Default        = .true.,               &
+                     SearchType     = FromFile,             &
+                     ClientModule   = 'ModuleVegetation',   &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR300'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR300'
 
-        call GetData(Me%ComputeOptions%AdjustRUEForVPD,                                 &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'ADJUST_RUE_FOR_VPD',                             &
-                     Default        = .true.,                                           &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%AdjustRUEForVPD,     &
+                     Me%ObjEnterData, iflag,                &
+                     Keyword        = 'ADJUST_RUE_FOR_VPD', &
+                     Default        = .true.,               &
+                     SearchType     = FromFile,             &
+                     ClientModule   = 'ModuleVegetation',   &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0310'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR0310'
         
-        call GetData(Me%ComputeOptions%UseLAIDecRate,                                   &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'USE_LAI_DEC_RATE',                               &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
+        call GetData(Me%ComputeOptions%UseLAIDecRate,     &
+                     Me%ObjEnterData, iflag,              &
+                     Keyword        = 'USE_LAI_DEC_RATE', &
+                     Default        = .false.,            &
+                     SearchType     = FromFile,           &
+                     ClientModule   = 'ModuleVegetation', &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0311'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR0311'
                 
-        call GetData(Me%ComputeOptions%Continuous,                                      &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType = FromFile,                                             &
-                     keyword    = 'CONTINUOUS',                                         &
-                     Default    = .false.,                                              &                                           
-                     ClientModule ='ModulePorousMedia',                                 &
+        call GetData(Me%ComputeOptions%Continuous,      &
+                     Me%ObjEnterData, iflag,            &
+                     SearchType = FromFile,             &
+                     keyword    = 'CONTINUOUS',         &
+                     Default    = .false.,              &                                           
+                     ClientModule ='ModulePorousMedia', &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR320'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR320'
         
         if (Me%ComputeOptions%Continuous) then
             !Reads the name of the file where to read initial data
-            call ReadFileName ('VEGETATION_INI', Me%Files%InitialFile, "Vegetation Initial File", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR330'
+            call ReadFileName ('VEGETATION_INI', Me%Files%InitialFile, &
+                               'Vegetation Initial File', STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR330'
 
-            call GetData(Me%ComputeOptions%StopOnWrongDate,                             &
-                         Me%ObjEnterData, iflag,                                        &
-                         SearchType = FromFile,                                         &
-                         keyword    = 'STOP_ON_WRONG_DATE',                             &
-                         Default    = .true.,                                           &                                           
-                         ClientModule ='ModulePorousMedia',                             &
+            call GetData(Me%ComputeOptions%StopOnWrongDate, &
+                         Me%ObjEnterData, iflag,            &
+                         SearchType = FromFile,             &
+                         keyword    = 'STOP_ON_WRONG_DATE', &
+                         Default    = .true.,               &                                           
+                         ClientModule ='ModulePorousMedia', &
                          STAT       = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR340'
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadDataFile - ModulePorousMedia - ERR340'
 
         endif
 
         call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR350'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR350'
 
         Me%ExternalVar%DT = ModelDT
 
         call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR360'
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR360'
 
-        call GetData(Me%ComputeOptions%VegetationDT,                                     &
-                     Me%ObjEnterData, iflag,                                             &
-                     keyword      = 'VEGETATION_DT',                                     &
-                     Default      = ModelDT,                                             &
-                     SearchType   = FromFile,                                            &
-                     ClientModule = 'ModuleVegetation',                                  &
+        call GetData(Me%ComputeOptions%VegetationDT,    &
+                     Me%ObjEnterData, iflag,            &
+                     keyword      = 'VEGETATION_DT',    &
+                     Default      = ModelDT,            &
+                     SearchType   = FromFile,           &
+                     ClientModule = 'ModuleVegetation', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR370'
+        if (STAT_CALL .NE. SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR370'
                                    
-        call GetData(Me%ComputeOptions%IntegrationDT,                                    &
-                     Me%ObjEnterData, iflag,                                             &
-                     keyword      = 'INTEGRATION_DT',                                    &
-                     Default      = ModelDT,                                             &
-                     SearchType   = FromFile,                                            &
-                     ClientModule = 'ModuleVegetation',                                  &
+        call GetData(Me%ComputeOptions%IntegrationDT,   &
+                     Me%ObjEnterData, iflag,            &
+                     keyword      = 'INTEGRATION_DT',   &
+                     Default      = ModelDT,            &
+                     SearchType   = FromFile,           &
+                     ClientModule = 'ModuleVegetation', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR380'
+        if (STAT_CALL .NE. SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR380'
 
         if (Me%ComputeOptions%VegetationDT .lt. Me%ComputeOptions%IntegrationDT) then
             write(*,*) 
-            write(*,*) 'Vegetation DT time step is smaller then the external variables integration time step'
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR390'
+            write(*,*) 'Vegetation DT time step is smaller then the integration DT'
+            stop 'ReadOptions - ModuleVegetation - ERR390'
         endif
         
         if (Me%ComputeOptions%IntegrationDT .lt. Me%ExternalVar%DT) then
             write(*,*) 
-            write(*,*) 'Integration DT time step is smaller then the model time step'
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR400'  
+            write(*,*) 'Integration DT time step is smaller then the model DT'
+            stop 'ReadOptions - ModuleVegetation - ERR400'  
         endif      
         
         if (Me%ComputeOptions%VegetationDT .lt. ModelDT) then
             write(*,*) 
             write(*,*) 'Vegetation DT time step is smaller then model time step'
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR410'
+            stop 'ReadOptions - ModuleVegetation - ERR410'
 
         else
 
@@ -1724,7 +1774,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write(*,*) 
                 write(*,*) 'Vegetation time step must be a multiple of model time step.'
                 write(*,*) 'Please review your input data.'
-                stop 'ConstructGlobalVariables - ModuleVegetation - ERR420'
+                stop 'ReadOptions - ModuleVegetation - ERR420'
             endif
 
             !Run period in seconds
@@ -1739,56 +1789,50 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write(*,*) 
                 write(*,*) 'Model run time is not a multiple of vegetation time step.'
                 write(*,*) 'Please review your input data.'
-                stop 'ConstructGlobalVariables - ModuleVegetation - ERR430'
+                stop 'ReadOptions - ModuleVegetation - ERR430'
             end if
         endif
 
-        Me%NextCompute = Me%ExternalVar%Now !+ Me%ComputeOptions%VegetationDT
+        Me%NextCompute     = Me%ExternalVar%Now !+ Me%ComputeOptions%VegetationDT
 
         Me%NextIntegration = Me%ExternalVar%Now !+ Me%ComputeOptions%IntegrationDT
         
-        call GetData(Me%AllowNegativeLAI,                                                &
-                     Me%ObjEnterData, iflag,                                             &
-                     keyword      = 'ALLOW_NEGATIVE_LAI',                                &
-                     Default      = .false.,                                             &
-                     SearchType   = FromFile,                                            &
-                     ClientModule = 'ModuleVegetation',                                  &
+        call GetData(Me%AllowNegativeLAI,                 &
+                     Me%ObjEnterData, iflag,              &
+                     keyword      = 'ALLOW_NEGATIVE_LAI', &
+                     Default      = .false.,              &
+                     SearchType   = FromFile,             &
+                     ClientModule = 'ModuleVegetation',   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR440'        
+        if (STAT_CALL .NE. SUCCESS_) &
+            stop 'ReadOptions - ModuleVegetation - ERR440'        
         if (.not. Me%AllowNegativeLAI) then 
         
             !This is experimental...      
-            call GetData(Me%CorrectNegativeLAI,                                          &
-                         Me%ObjEnterData, iflag,                                         &
-                         keyword      = 'CORRECT_NEGATIVE_LAI',                          &
-                         Default      = .false.,                                         &
-                         SearchType   = FromFile,                                        &
-                         ClientModule = 'ModuleVegetation',                              &
+            call GetData(Me%CorrectNegativeLAI,                 &
+                         Me%ObjEnterData, iflag,                &
+                         keyword      = 'CORRECT_NEGATIVE_LAI', &
+                         Default      = .false.,                &
+                         SearchType   = FromFile,               &
+                         ClientModule = 'ModuleVegetation',     &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                 &
-                stop 'ConstructGlobalVariables - ModuleVegetation - ERR450'        
-!            if (iflag /= 1) then
-!                write (*,*) "ATTENTION"
-!                write (*,*) "ALLOW_NEGATIVE_LAI is set to FALSE and"
-!                write (*,*) "CORRECT_NEGATIVE_LAI is missing. Check your"
-!                write (*,*) "vegetation input file"
-!                stop 'ConstructGlobalVariables - ModuleVegetation - ERR460'        
-!            endif
+            if (STAT_CALL .NE. SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR450'        
+
             if (Me%CorrectNegativeLAI) then
-                call GetData(Me%ValueInsteadNegativeLAI,                                     &
-                             Me%ObjEnterData, iflag,                                         &
-                             keyword      = 'VALUE_INSTEAD_NEGATIVE_LAI',                    &
-                             SearchType   = FromFile,                                        &
-                             default      = 0.0,                                             &
-                             ClientModule = 'ModuleVegetation',                              &
+                call GetData(Me%ValueInsteadNegativeLAI,                  &
+                             Me%ObjEnterData, iflag,                      &
+                             keyword      = 'VALUE_INSTEAD_NEGATIVE_LAI', &
+                             SearchType   = FromFile,                     &
+                             default      = 0.0,                          &
+                             ClientModule = 'ModuleVegetation',           &
                              STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                                 &
-                    stop 'ConstructGlobalVariables - ModuleVegetation - ERR470'  
+                if (STAT_CALL .NE. SUCCESS_) &
+                    stop 'ReadOptions - ModuleVegetation - ERR470'  
             endif
         endif
 
-    end subroutine ConstructGlobalVariables
+    end subroutine ReadOptions
 
     !--------------------------------------------------------------------------
 
@@ -3350,6 +3394,31 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
     
     !--------------------------------------------------------------------------
     
+    subroutine CreateVariablesAlias
+    
+        !Duplication to compute interfaces with soil
+        if (Me%ComputeOptions%ModelNitrogen) then
+            Me%Fluxes%ToSoil%FertilNitrateToSoilSurface      => Me%Fluxes%FertilNitrateInSurface
+            Me%Fluxes%ToSoil%FertilNitrateToSoilSubSurface   => Me%Fluxes%FertilNitrateInSubSurface
+            Me%Fluxes%ToSoil%FertilAmmoniaToSoilSurface      => Me%Fluxes%FertilAmmoniaInSurface
+            Me%Fluxes%ToSoil%FertilAmmoniaToSoilSubSurface   => Me%Fluxes%FertilAmmoniaInSubSurface
+            Me%Fluxes%ToSoil%FertilOrganicNToSoilSurface     => Me%Fluxes%FertilOrganicNInSurface
+            Me%Fluxes%ToSoil%FertilOrganicNParticToFluff     => Me%Fluxes%FertilOrganicNParticInFluff
+            Me%Fluxes%ToSoil%FertilOrganicNToSoilSubSurface  => Me%Fluxes%FertilOrganicNInSubSurface
+        endif
+
+        if (Me%ComputeOptions%ModelPhosphorus) then
+            Me%Fluxes%ToSoil%FertilOrganicPToSoilSurface     => Me%Fluxes%FertilOrganicPInSurface
+            Me%Fluxes%ToSoil%FertilOrganicPToSoilSubSurface  => Me%Fluxes%FertilOrganicPInSubSurface
+            Me%Fluxes%ToSoil%FertilMineralPToSoilSurface     => Me%Fluxes%FertilMineralPInSurface
+            Me%Fluxes%ToSoil%FertilMineralPToSoilSubSurface  => Me%Fluxes%FertilMineralPInSubSurface   
+            Me%Fluxes%ToSoil%FertilOrganicPParticToFluff     => Me%Fluxes%FertilOrganicPParticInFluff   
+        endif
+        
+    end subroutine CreateVariablesAlias
+    
+    !--------------------------------------------------------------------------    
+    
     subroutine AllocateVariables
     
         !Arguments-------------------------------------------------------------
@@ -3810,12 +3879,6 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         endif
     
     end subroutine AllocatePropertyVariables
-
-    !--------------------------------------------------------------------------
-
-    subroutine ConstructInitialConditions
-
-    end subroutine ConstructInitialConditions
 
     !--------------------------------------------------------------------------
 
@@ -5255,7 +5318,7 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
 
         !Begin-----------------------------------------------------------------
 
-
+        FailRead = 0
 
         call ExtractBlockFromBlock(ParameterObjEnterData,                                     &
                                     ClientNumber      = ClientNumber,                         &
@@ -5286,8 +5349,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                          ClientModule   = 'ModuleVegetation',                                                             &
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadTimingDatabase - ModuleVegetation - ERR20'       
-            if (iflag /= 1) then
-                FailRead = 0
+            if (iflag /= 1) then                
                 FailRead = FailRead +1
             endif
                         
@@ -6828,25 +6890,6 @@ cd0:    if (Exist) then
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadInitialHDF - ModuleVegetation - ERR02'
 
-
-
-            allocate (PlantGrowingInteger(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))
-            
-            PlantGrowingInteger (:,:) = 0
-            
-            call HDF5ReadData   (ObjHDF5, "/Results/"//"IsPlantGrowing",                 &
-                                 "IsPlantGrowing",                                       &
-                                 Array2D = PlantGrowingInteger,                          &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialHDF - ModuleVegetation - ERR03'
-
-
-            ConvertType = "IntegerToLogical"
-            call ConvertLogicalInteger (Me%IsPlantGrowing, PlantGrowingInteger, ConvertType)
-            
-            deallocate (PlantGrowingInteger)
-            
             if (Me%ComputeOptions%Dormancy) then
 
                 allocate (PlantDormantInteger(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))
@@ -6868,49 +6911,66 @@ cd0:    if (Exist) then
             
             endif
 
-            call HDF5ReadData   (ObjHDF5, "/Results/"//"HUAccumulated",                  &
-                                 "HUAccumulated",                                        &
-                                 Array2D = Me%HeatUnits%PlantHUAccumulated,              &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialHDF - ModuleVegetation - ERR03'
+            if (Me%ComputeOptions%Evolution%ModelSWAT) then 
+                allocate (PlantGrowingInteger(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))                
+                PlantGrowingInteger (:,:) = 0
+                
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"IsPlantGrowing",                 &
+                                     "IsPlantGrowing",                                       &
+                                     Array2D = PlantGrowingInteger,                          &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR03'
 
-            !old value = read value
-            call SetMatrixValue (Me%HeatUnits%PlantHUAccumulated_Old,                    &
-                                 Me%Size2D,                                              &
-                                 Me%HeatUnits%PlantHUAccumulated,                        &
-                                 Me%ExternalVar%MappingPoints)
 
-            call HDF5ReadData   (ObjHDF5, "/Results/"//"PotentialHUBase",                &
-                                 "PotentialHUBase",                                      &
-                                 Array2D = Me%HeatUnits%PotentialHUBase,                 &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialHDF - ModuleVegetation - ERR04'
+                ConvertType = "IntegerToLogical"
+                call ConvertLogicalInteger (Me%IsPlantGrowing, PlantGrowingInteger, ConvertType)
+                
+                deallocate (PlantGrowingInteger)            
             
-            !old value = read value
-            call SetMatrixValue (Me%HeatUnits%PotentialHUBase_Old,                       &
-                                 Me%Size2D,                                              &
-                                 Me%HeatUnits%PotentialHUBase,                           &
-                                 Me%ExternalVar%MappingPoints)
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"HUAccumulated",                  &
+                                     "HUAccumulated",                                        &
+                                     Array2D = Me%HeatUnits%PlantHUAccumulated,              &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR03'
 
+                !old value = read value
+                call SetMatrixValue (Me%HeatUnits%PlantHUAccumulated_Old,                    &
+                                     Me%Size2D,                                              &
+                                     Me%HeatUnits%PlantHUAccumulated,                        &
+                                     Me%ExternalVar%MappingPoints)
 
-            call HDF5ReadData   (ObjHDF5, "/Results/"//"TreeCurrentYear",                &
-                                 "TreeCurrentYear",                                      &
-                                 Array2D = Me%Growth%TreeCurrentYear,                    &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialHDF - ModuleVegetation - ERR05'
-                            
-            Me%Growth%TreeComingFromContinuous (:,:) = .true.                               
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"PotentialHUBase",                &
+                                     "PotentialHUBase",                                      &
+                                     Array2D = Me%HeatUnits%PotentialHUBase,                 &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR04'
+                
+                !old value = read value
+                call SetMatrixValue (Me%HeatUnits%PotentialHUBase_Old,                       &
+                                     Me%Size2D,                                              &
+                                     Me%HeatUnits%PotentialHUBase,                           &
+                                     Me%ExternalVar%MappingPoints) 
+                                                
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"TreeCurrentYear",                &
+                                     "TreeCurrentYear",                                      &
+                                     Array2D = Me%Growth%TreeCurrentYear,                    &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR05'
+                                
+                Me%Growth%TreeComingFromContinuous (:,:) = .true.                               
 
-            call HDF5ReadData   (ObjHDF5, "/Results/"//"PlantLAIMaxFraction",            &
-                                 "PlantLAIMaxFraction",                                  &
-                                 Array2D = Me%PlantLAIMaxFraction,                       &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialHDF - ModuleVegetation - ERR05.1'
-
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"PlantLAIMaxFraction",            &
+                                     "PlantLAIMaxFraction",                                  &
+                                     Array2D = Me%PlantLAIMaxFraction,                       &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR05.1'
+            endif
+            
             if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
 
                 if (Me%ComputeOptions%Dormancy .or. Me%ComputeOptions%Grazing) then
@@ -8525,13 +8585,13 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 Me%Fluxes%FertilOrganicNInSurface                (:,:) = 0.0
                 Me%Fluxes%FertilOrganicNInSubSurface             (:,:) = 0.0
                 Me%Fluxes%FertilOrganicNParticInFluff            (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilNitrateToSoilSurface      (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilNitrateToSoilSubSurface   (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilAmmoniaToSoilSurface      (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilAmmoniaToSoilSubSurface   (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilOrganicNToSoilSurface     (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilOrganicNToSoilSubSurface  (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilOrganicNParticToFluff     (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilNitrateToSoilSurface      (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilNitrateToSoilSubSurface   (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilAmmoniaToSoilSurface      (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilAmmoniaToSoilSubSurface   (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilOrganicNToSoilSurface     (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilOrganicNToSoilSubSurface  (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilOrganicNParticToFluff     (:,:) = 0.0
 
             endif
             if (Me%ComputeOptions%ModelPhosphorus) then
@@ -8540,11 +8600,11 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 Me%Fluxes%FertilMineralPInSurface                (:,:) = 0.0
                 Me%Fluxes%FertilMineralPInSubSurface             (:,:) = 0.0
                 Me%Fluxes%FertilOrganicPParticInFluff            (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilOrganicPToSoilSurface     (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilOrganicPToSoilSubSurface  (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilMineralPToSoilSurface     (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilMineralPToSoilSubSurface  (:,:) = 0.0
-                Me%Fluxes%ToSoil%FertilOrganicPParticToFluff     (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilOrganicPToSoilSurface     (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilOrganicPToSoilSubSurface  (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilMineralPToSoilSurface     (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilMineralPToSoilSubSurface  (:,:) = 0.0
+                !Me%Fluxes%ToSoil%FertilOrganicPParticToFluff     (:,:) = 0.0
 
             endif
 
@@ -11234,7 +11294,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                 !If plant already reached maturity, go to next cell
                 LAIIsGrowing = .false.
-                HUAcc = Me%HeatUnits%PlantHUAccumulated(i,j)                
+                
+                HUAcc = Me%HeatUnits%PlantHUAccumulated(i,j)   
+                HUAcc_Old = Me%HeatUnits%PlantHUAccumulated_Old(i,j)
+                             
                 if (HUAcc <= 1.0) then
                     LAIIsGrowing = .true.
                 else if (HUAcc_Old < 1.0) then
@@ -11246,9 +11309,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                     cycle
                 endif
-                !==================================================                                                                        
-                
-                HUAcc_Old = Me%HeatUnits%PlantHUAccumulated_Old(i,j)
+                !==================================================                                                                                                        
 
                 !Save old value. It will be used in next step                
                 if (Me%PlantingOccurred(i,j)) then
@@ -12685,86 +12746,118 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
                      
                 !Grazing fluxes
-                BiomassGrazed     = 0.0
-                NitrogenGrazed    = 0.0
-                PhosphorusGrazed  = 0.0   
                 if (Me%ComputeOptions%Grazing) then
-                    if (Me%IsPlantBeingGrazed(i,j)) then
-                    
-                        BiomassGrazed     = Me%Fluxes%BiomassGrazed(i,j)
-                
+                    if (Me%IsPlantBeingGrazed(i,j)) then                    
+                        BiomassGrazed = Me%Fluxes%BiomassGrazed(i,j)                
                         if (Me%ComputeOptions%ModelNitrogen) then
-                            NitrogenGrazed    = Me%Fluxes%NitrogenGrazed(i,j)
+                            NitrogenGrazed = Me%Fluxes%NitrogenGrazed(i,j)
+                        else
+                            NitrogenGrazed = 0.0
                         endif
                         if (Me%ComputeOptions%ModelPhosphorus) then
-                            PhosphorusGrazed  = Me%Fluxes%PhosphorusGrazed(i,j)
+                            PhosphorusGrazed = Me%Fluxes%PhosphorusGrazed(i,j)
+                        else
+                            PhosphorusGrazed = 0.0
                         endif
+                    else
+                        BiomassGrazed    = 0.0
+                        NitrogenGrazed   = 0.0
+                        PhosphorusGrazed = 0.0   
                     endif
+                else
+                    BiomassGrazed    = 0.0
+                    NitrogenGrazed   = 0.0
+                    PhosphorusGrazed = 0.0   
                 endif
 
                 !Harvesting only fluxes
-                BiomassRemovedInHarvest     = 0.0
-                NitrogenRemovedInHarvest    = 0.0
-                PhosphorusRemovedInHarvest  = 0.0
                 if (Me%ComputeOptions%HarvestKill) then
-                    if (Me%HarvestOnlyOccurred(i,j)) then
-                    
-                        BiomassRemovedInHarvest     = Me%Fluxes%BiomassRemovedInHarvest(i,j)
-                
+                    if (Me%HarvestOnlyOccurred(i,j)) then                    
+                        BiomassRemovedInHarvest = Me%Fluxes%BiomassRemovedInHarvest(i,j)                
                         if (Me%ComputeOptions%ModelNitrogen) then
-                            NitrogenRemovedInHarvest    = Me%Fluxes%NitrogenRemovedInHarvest(i,j)
+                            NitrogenRemovedInHarvest = Me%Fluxes%NitrogenRemovedInHarvest(i,j)
+                        else
+                            NitrogenRemovedInHarvest = 0.0
                         endif
                         if (Me%ComputeOptions%ModelPhosphorus) then
-                            PhosphorusRemovedInHarvest  = Me%Fluxes%PhosphorusRemovedInHarvest(i,j)
+                            PhosphorusRemovedInHarvest = Me%Fluxes%PhosphorusRemovedInHarvest(i,j)
+                        else
+                            PhosphorusRemovedInHarvest = 0.0
                         endif
+                    else
+                        BiomassRemovedInHarvest    = 0.0                        
+                        NitrogenRemovedInHarvest   = 0.0
+                        PhosphorusRemovedInHarvest = 0.0
                     endif
+                else
+                    BiomassRemovedInHarvest    = 0.0
+                    NitrogenRemovedInHarvest   = 0.0
+                    PhosphorusRemovedInHarvest = 0.0
                 endif
 
                 !Dormancy fluxes
-                BiomassRemovedInDormancy     = 0.0
-                NitrogenRemovedInDormancy    = 0.0
-                PhosphorusRemovedInDormancy  = 0.0
-                if (Me%ComputeOptions%Dormancy) then
+                                                
+                if (Me%ComputeOptions%Dormancy) then                
                     if (Me%PlantGoingDormant(i,j)) then
-
-                        BiomassRemovedInDormancy     = Me%Fluxes%BiomassRemovedInDormancy(i,j)
+                        BiomassRemovedInDormancy = Me%Fluxes%BiomassRemovedInDormancy(i,j)
 
                         if (Me%ComputeOptions%ModelNitrogen) then
-                            NitrogenRemovedInDormancy    = Me%Fluxes%NitrogenRemovedInDormancy(i,j)
-                        endif
+                            NitrogenRemovedInDormancy = Me%Fluxes%NitrogenRemovedInDormancy(i,j)
+                        else
+                            NitrogenRemovedInDormancy = 0.0
+                        endif                        
                         if (Me%ComputeOptions%ModelPhosphorus) then
-                            PhosphorusRemovedInDormancy  = Me%Fluxes%PhosphorusRemovedInDormancy(i,j)
-                        endif
-                    endif
+                            PhosphorusRemovedInDormancy = Me%Fluxes%PhosphorusRemovedInDormancy(i,j)
+                        else
+                            PhosphorusRemovedInDormancy = 0.0                            
+                        endif                        
+                    else                        
+                        BiomassRemovedInDormancy    = 0.0
+                        NitrogenRemovedInDormancy   = 0.0
+                        PhosphorusRemovedInDormancy = 0.0
+                    endif                    
+                else                
+                    BiomassRemovedInDormancy    = 0.0
+                    NitrogenRemovedInDormancy   = 0.0
+                    PhosphorusRemovedInDormancy = 0.0                    
                 endif
-
+                
 
                 if (Me%ComputeOptions%ModelPlantBiomass) then
                     PlantBiomass      = Me%StateVariables%TotalPlantBiomass(i,j)
                     BiomassGrowth     = Me%Fluxes%BiomassGrowth(i,j)
+                else
+                    PlantBiomass      = 0.0
+                    BiomassGrowth     = 0.0                
                 endif
-
+                
                 if (Me%ComputeOptions%ModelNitrogen) then
                     PlantNitrogen     = Me%StateVariables%TotalPlantNitrogen(i,j)
                     NitrogenUptake    = Me%Fluxes%NitrogenUptake(i,j)
+                else
+                    PlantNitrogen     = 0.0
+                    NitrogenUptake    = 0.0                
                 endif
                 
-!                write(*,*), Me%ComputeOptions%ModelPhosphorus
                 if (Me%ComputeOptions%ModelPhosphorus) then
                     PlantPhosphorus   = Me%StateVariables%TotalPlantPhosphorus(i,j)
                     PhosphorusUptake  = Me%Fluxes%PhosphorusUptake(i,j)
+                else
+                    PlantPhosphorus   = 0.0
+                    PhosphorusUptake  = 0.0                    
                 endif
-            
-                PlantKilled = .false.
+                            
                 if (Me%ComputeOptions%HarvestKill) then
                     if (Me%KillOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
                         PlantKilled = .true.
+                    else
+                        PlantKilled = .false.
                     endif
+                else
+                    PlantKilled = .false.
                 endif
-                
-                
-                if (PlantKilled .or. Me%PlantingOccurred(i,j)) then
-        
+                                
+                if (PlantKilled .or. Me%PlantingOccurred(i,j)) then        
                     PlantBiomass    = 0.0
                     PlantNitrogen   = 0.0
                     PlantPhosphorus = 0.0
@@ -12772,23 +12865,19 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 else
 
                     PlantBiomass    = PlantBiomass + BiomassGrowth - BiomassGrazed - BiomassRemovedInHarvest             &
-                                      - BiomassRemovedInDormancy
-                
+                                      - BiomassRemovedInDormancy                
                     PlantNitrogen   = PlantNitrogen + NitrogenUptake - NitrogenGrazed - NitrogenRemovedInHarvest         &
                                       - NitrogenRemovedInDormancy
 
                     PlantPhosphorus = PlantPhosphorus + PhosphorusUptake - PhosphorusGrazed - PhosphorusRemovedInHarvest &
-                                      - PhosphorusRemovedInDormancy
-                
-  
+                                      - PhosphorusRemovedInDormancy                  
                 endif
 
                 PlantType            = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType
                 TreeYearsToMaturity  = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%TreeYearsToMaturity
 
                 !For trees, growth is slower, getting maximum biomass not in a single year. As so growth may be limited.
-                if (PlantType == Trees .and. TreeYearsToMaturity .gt. 0 ) then
-                
+                if (PlantType == Trees .and. TreeYearsToMaturity .gt. 0 ) then                
                     PlantBiomass = min (PlantBiomass, Me%Growth%TreeMaximumAnnualBiomass(i,j))
 
                 end if
@@ -13352,25 +13441,6 @@ do4:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             enddo do4
             enddo do3
         
-        endif
-        
-        !Duplication to compute interfaces with soil
-        if (Me%ComputeOptions%ModelNitrogen) then
-            Me%Fluxes%ToSoil%FertilNitrateToSoilSurface      => Me%Fluxes%FertilNitrateInSurface
-            Me%Fluxes%ToSoil%FertilNitrateToSoilSubSurface   => Me%Fluxes%FertilNitrateInSubSurface
-            Me%Fluxes%ToSoil%FertilAmmoniaToSoilSurface      => Me%Fluxes%FertilAmmoniaInSurface
-            Me%Fluxes%ToSoil%FertilAmmoniaToSoilSubSurface   => Me%Fluxes%FertilAmmoniaInSubSurface
-            Me%Fluxes%ToSoil%FertilOrganicNToSoilSurface     => Me%Fluxes%FertilOrganicNInSurface
-            Me%Fluxes%ToSoil%FertilOrganicNParticToFluff     => Me%Fluxes%FertilOrganicNParticInFluff
-            Me%Fluxes%ToSoil%FertilOrganicNToSoilSubSurface  => Me%Fluxes%FertilOrganicNInSubSurface
-        endif
-
-        if (Me%ComputeOptions%ModelPhosphorus) then
-            Me%Fluxes%ToSoil%FertilOrganicPToSoilSurface     => Me%Fluxes%FertilOrganicPInSurface
-            Me%Fluxes%ToSoil%FertilOrganicPToSoilSubSurface  => Me%Fluxes%FertilOrganicPInSubSurface
-            Me%Fluxes%ToSoil%FertilMineralPToSoilSurface     => Me%Fluxes%FertilMineralPInSurface
-            Me%Fluxes%ToSoil%FertilMineralPToSoilSubSurface  => Me%Fluxes%FertilMineralPInSubSurface   
-            Me%Fluxes%ToSoil%FertilOrganicPParticToFluff     => Me%Fluxes%FertilOrganicPParticInFluff   
         endif
 
     end subroutine FertilizationFluxes

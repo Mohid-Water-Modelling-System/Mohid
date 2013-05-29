@@ -726,7 +726,7 @@ do1 :   do
 cd1 :       if      (STAT_CALL .EQ. SUCCESS_      ) then    
 cd2 :           if (BlockFound) then                                                  
                     ! Construct a New Property 
-                    Call ConstructProperty(NewProperty)
+                    Call ConstructProperty(NewProperty, ClientNumber)
 
                     ! Add new Property to the Atmosphere List 
                     Call Add_Property(NewProperty)
@@ -960,10 +960,11 @@ cd2 :           if (BlockFound) then
     
     !--------------------------------------------------------------------------
     !This subroutine reads all the information needed to construct a new property.           
-    subroutine ConstructProperty(NewProperty)
+    subroutine ConstructProperty(NewProperty, ClientID)
 
         !Arguments-------------------------------------------------------------
         type(T_property), pointer       :: NewProperty
+        integer                         :: ClientID
 
         !External--------------------------------------------------------------
         integer                         :: STAT_CALL
@@ -984,7 +985,7 @@ cd2 :           if (BlockFound) then
         call ConstructPropertyID        (NewProperty%ID, Me%ObjEnterData, FromBlock)
 
         !Construct property values
-        call Construct_PropertyValues   (NewProperty)
+        call Construct_PropertyValues   (NewProperty, ClientID)
 
         !Defines the property output
         call Construct_PropertyOutPut   (NewProperty)
@@ -1008,10 +1009,11 @@ cd2 :           if (BlockFound) then
     
     !This subroutine reads all the information needed to construct the property values       
     ! in the domain and in the boundaries            
-    subroutine Construct_PropertyValues (NewProperty)
+    subroutine Construct_PropertyValues (NewProperty, ClientID)
 
         !Arguments-------------------------------------------------------------
         type(T_property),   pointer                 :: NewProperty
+        integer                                     :: ClientID
 
         !External--------------------------------------------------------------
         integer                                     :: STAT_CALL
@@ -1085,6 +1087,7 @@ cd2 :           if (BlockFound) then
                                  PointsToFill2D     = Me%ExternalVar%MappingPoints2D,   &
                                  Matrix2D           = NewProperty%Field,                &
                                  TypeZUV            = TypeZ_,                           &
+                                 ClientID           = ClientID,                         &
                                  STAT               = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR02'
 

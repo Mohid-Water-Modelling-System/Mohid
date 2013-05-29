@@ -1792,7 +1792,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         else
             !Opens file
             open (Unit, file = FileName, status = 'replace', IOSTAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_v1 - ModuleGridData - ERR120'
+            if (STAT_CALL /= SUCCESS_) then 
+                write(*,*) 'Was not possible to write to file ', FileName
+                write(*,*) 'OPEN returned IOSTAT = ', STAT_CALL
+                stop 'WriteGridData_v1 - ModuleGridData - ERR120'
+            endif
         end if
 
         call WriteDataLine(unit, 'COMENT1', COMENT1)
