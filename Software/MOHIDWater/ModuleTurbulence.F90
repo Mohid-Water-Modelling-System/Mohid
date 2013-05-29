@@ -3973,7 +3973,7 @@ do1 :       do k = kbottom, KUB-1
                       VelocityY(i,  j,  k+1) * ComputeFacesV3D(i,  j,  k+1)) / 2.0
 
                  !griflet: bypass the sigma density calculation
-                 if (Me%ExternalVar%CorrecPress) then
+                 if (Me%ExternalVar%CorrecPress .and. associated(Temperature) .and. associated(Salinity)) then
                      Depth   = -1.0 * ZCellCenter(i,j,k+1)                 
                      
                      RO      = Sigma(Me%ExternalVar%DensMethod, Me%ExternalVar%CorrecPress, &
