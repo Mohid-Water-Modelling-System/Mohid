@@ -406,6 +406,7 @@ Module ModulePorousMediaProperties
     type T_Evolution
         logical                                 :: Variable = .false.
         real                                    :: DTInterval
+        logical                                 :: DTIntervalAssociated = .false.        
         type(T_Time)                            :: LastCompute
         type(T_Time)                            :: NextCompute
         logical                                 :: SoilQuality
@@ -417,6 +418,7 @@ Module ModulePorousMediaProperties
         logical                                 :: SoilWaterFluxes
         logical                                 :: Macropores
         logical                                 :: MinConcentration
+        logical                                 :: WarnOnNegativeValues  = .false.                
         logical                                 :: UseMaxForUptakeConc = .false.      
         real                                    :: MaxForUptakeConc    = 0.0   
         logical                                 :: Decay
@@ -509,6 +511,7 @@ Module ModulePorousMediaProperties
         logical                                 :: AdvectionDiffusion   = .false.
         logical                                 :: Partition            = .false.
         logical                                 :: MinConcentration     = .false.
+        logical                                 :: WarnOnNegativeValues = .false.
         logical                                 :: Decay                = .false.
         logical                                 :: SedQualityOxygenForcing = .false.
     end type T_Coupled
@@ -657,8 +660,10 @@ Module ModulePorousMediaProperties
         logical                                      :: CheckGlobalMass       
         
         real(8), pointer, dimension(:,:,:)           :: WaterVolume
-        real(8), pointer, dimension(:,:,:)           :: FluxWCorr       
-
+        real(8), pointer, dimension(:,:,:)           :: FluxWCorr 
+        
+        logical                                      :: DTIntervalAssociated     = .false.
+              
         !griflet, openmp
         type(T_THOMAS), pointer                      :: THOMAS
         integer                                      :: MaxThreads
@@ -1138,6 +1143,16 @@ doi3:   do J = JLB, JUB
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)  &
                 stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR080'
+            
+            !verify why using horizontal implicit, concentrations are not maintained
+            !when it should for instance with rain concentrations equal to amount 
+            !existing at the beggining in soil    
+            if (.not. Me%AdvDiff_AdvectionH_ImpExp) then
+                write(*,*)
+                write(*,*)'For now ADVDIFF_ADVECTION_H_IMP_EXP in PMP'
+                write(*,*)'can only have value 1 (explicit in horizontal)'
+                stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR085'
+            endif
         endif 
                 
         ! 1 - MINIMUN of the Theta in the cells
@@ -1811,12 +1826,23 @@ cd2 :           if (BlockFound) then
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_)                                                      &
             stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR020'
-
-        if (NewProperty%Evolution%AdvectionDiffusion .and. NewProperty%Particulate) then
-            write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is Particulate'
-            write(*,*) 'and can not have ADVECTION_DIFFUSION on'
-            stop 'Construct_PropertyEvolution - ModulePorousMediaProeprties - ERR030'      
+        
+        !particulate properties (defined by user or by MOHID) can not have movement in soil 
+        !(particulates do not enter or leave soil) ModuleBasin will not give the concentration 
+        !of this species (it will remain FillValueReal) and advection in soil has problems
+        if (NewProperty%Evolution%AdvectionDiffusion) then 
+            if (NewProperty%Particulate) then
+                write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has PARTICULATE option ON'
+                write(*,*) 'and can not have ADVECTION_DIFFUSION ON in Porus Media Properties'
+                stop 'Construct_PropertyEvolution - ModulePorousMediaProeprties - ERR030'      
+            elseif (Check_Particulate_Property(NewProperty%ID%IDNumber)) then
+                write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has not PARTICULATE option ON'
+                write(*,*) 'but is recognized by the model as being particulate tupe'
+                write(*,*) 'and can not have ADVECTION_DIFFUSION ON in Porus Media Properties'
+                stop 'Construct_PropertyEvolution - ModulePorousMediaProeprties - ERR035' 
+            endif     
         endif  
+
 
         if (NewProperty%Evolution%AdvectionDiffusion) then
             Me%Coupled%AdvectionDiffusion  = .true.
@@ -1979,42 +2005,48 @@ cd2 :           if (BlockFound) then
             if (STAT_CALL .NE. SUCCESS_)                                                 &
                 stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR090'
                                        
-            
-            if (NewProperty%Evolution%DTInterval < ModelDT) then
-                write(*,*) 
-                write(*,*) 'Property time step is smaller then model time step'
-                stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR100'
 
-            elseif (NewProperty%Evolution%DTInterval > ModelDT) then 
+            if (iflag == 1) then
+                NewProperty%Evolution%DTIntervalAssociated = .true.
+                Me%DTIntervalAssociated                    = .true.                           
 
-                !Property time step must be a multiple of the model time step
-                auxFactor = NewProperty%Evolution%DTInterval  / ModelDT
-
-                Erroraux = auxFactor - int(auxFactor)
-                if (Erroraux /= 0) then
+                if (NewProperty%Evolution%DTInterval < ModelDT) then
                     write(*,*) 
-                    write(*,*) 'Property time step must be a multiple of model time step.'
-                    write(*,*) 'Please review your input data.'
-                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR110'
+                    write(*,*) 'Property time step is smaller then model time step'
+                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR100'
+
+                elseif (NewProperty%Evolution%DTInterval > ModelDT) then 
+
+                    !Property time step must be a multiple of the model time step
+                    auxFactor = NewProperty%Evolution%DTInterval  / ModelDT
+
+                    Erroraux = auxFactor - int(auxFactor)
+                    if (Erroraux /= 0) then
+                        write(*,*) 
+                        write(*,*) 'Property time step must be a multiple of model time step.'
+                        write(*,*) 'Please review your input data.'
+                        stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR110'
+                    endif
+
+                    !Run period in seconds
+                    DTaux = Me%ExtVar%EndTime - Me%ExtVar%Now
+
+                    !The run period   must be a multiple of the Property DT
+                    auxFactor = DTaux / NewProperty%Evolution%DTInterval
+
+                    ErrorAux = auxFactor - int(auxFactor)
+                    if (ErrorAux /= 0) then
+
+                        write(*,*) 
+                        write(*,*) 'Property time step is not a multiple of model time step.'
+                        stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR120'
+                    end if
                 endif
 
-                !Run period in seconds
-                DTaux = Me%ExtVar%EndTime - Me%ExtVar%Now
-
-                !The run period   must be a multiple of the Property DT
-                auxFactor = DTaux / NewProperty%Evolution%DTInterval
-
-                ErrorAux = auxFactor - int(auxFactor)
-                if (ErrorAux /= 0) then
-
-                    write(*,*) 
-                    write(*,*) 'Property time step is not a multiple of model time step.'
-                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR120'
-                end if
+                NewProperty%Evolution%NextCompute = Me%ExtVar%Now + NewProperty%Evolution%DTInterval
+            
             endif
-
-            NewProperty%Evolution%NextCompute = Me%ExtVar%Now + NewProperty%Evolution%DTInterval
-
+            
         else
 
             call null_time(NewProperty%Evolution%NextCompute)
@@ -2829,6 +2861,18 @@ do1 :   do
         else
             NewProperty%Evolution%MinConcentration = OFF
         endif
+
+        call GetData(NewProperty%Evolution%WarnOnNegativeValues,                         &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType     = FromBlock,                                         &
+                     keyword        = 'WARN_ON_NEGATIVE_VALUES',                         &
+                     Default        = .false.,                                           &                     
+                     ClientModule   = 'ModulePorousMediaProperties',                     &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'ModulePorousMediaProperties - ConstructPropertyValues - ERR105' 
+        
+        if (NewProperty%Evolution%WarnOnNegativeValues) Me%Coupled%WarnOnNegativeValues = .true.
 
 !        if(NewProperty%Evolution%MinConcentration)then
         !Mass_Created is also used for when concentration is negative
@@ -4648,7 +4692,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Local------------------------------------------------------------------
         integer                                         :: STAT_, ready_, i, j
         type(T_Property), pointer                       :: PropertyX
-
+   
         !-----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -5131,11 +5175,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             if (Me%Coupled%ChainReactions) then
                 call ChainReactionsProcesses
             endif
-            
+
             if (Me%Coupled%SoilQuality) then
                 call SoilQualityProcesses
             endif
-
+            
 #ifdef _PHREEQC_
             if (Me%Coupled%SoilChemistry) then
                 call SoilChemistryProcesses
@@ -5150,10 +5194,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 call Partition_Processes 
             endif           
 
-            if (Me%Coupled%MinConcentration) then
-                call SetLimitsConcentration 
-            endif
-            
             if (Me%CalculateECw) then
                 call ComputeECw
             endif
@@ -5179,9 +5219,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
             endif
-
-            call Actualize_Time_Evolution
-
+            
+            if (Me%DTIntervalAssociated) then
+                call Actualize_Time_Evolution
+            endif
+            
             if (Me%CheckGlobalMass) then
                 call CalculateTotalStoredMass
             endif
@@ -6256,6 +6298,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         enddo
 
+        if (Me%Coupled%MinConcentration)     call SetLimitsConcentration  
+        if (Me%Coupled%WarnOnNegativeValues) call WarnOnNegativeValues    ('After Advection Diffusion')
+        
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "AdvectionDiffusionProcesses")
 
 
@@ -7771,6 +7816,10 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                     :: i, j, k, STAT_CALL, CHUNK
         real(8)                                     :: aux 
         integer                                     :: GWFlowLink
+        character (Len = 5)                         :: str_i, str_j, str_k
+        character (Len = 15)                        :: str_conc
+        character (len = StringLength)              :: string_to_be_written
+        
         !Begin-----------------------------------------------------------------
   
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "ModifyDrainageNetworkCoefs")
@@ -7787,14 +7836,14 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,aux)
+            !$OMP PARALLEL PRIVATE(i,j,k,str_i,str_j,str_k,str_conc,string_to_be_written,aux)
             
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-                if ((Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) .and. (Me%ExtVar%RiverPoints(I,J) == BasinPoint)) then   
+                if ((Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) .and. (Me%ExtVar%RiverPoints(I,J) == WaterPoint)) then   
                            
                     if((K .ge. Me%ExtVar%GWFlowBottomLayer(i,j)) .and. (K .le. Me%ExtVar%GWFlowTopLayer(i,j))) then
                         
@@ -7809,13 +7858,35 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         ! mass going to channel -> conc from soil
                         if (Me%ExtVar%FlowToChannelsLayer(i,j,k) .gt. 0.0) then
                             
-                            CurrProperty%ConcInInterfaceDN(i,j,k) =  CurrProperty%ConcentrationOld(i,j,k)
+                            CurrProperty%ConcInInterfaceDN(i,j,k) =  CurrProperty%ConcentrationOld(i,j,k)                         
                             
-                       
+                            if (CurrProperty%ConcentrationOld(i,j,k) < 0.0) then
+                                write(str_i, '(i3)') i 
+                                write(str_j, '(i3)') j
+                                write(str_k, '(i3)') k
+                                write(str_conc, '(ES10.3)') CurrProperty%ConcentrationOld(i,j,k)                               
+                                string_to_be_written = trim(CurrProperty%ID%Name) //' in PMP is < 0 going from soil to river' &
+                                                       //' in cell (i,j,k) with conc: '   &
+                                                      //str_i//','//str_j//','//str_k//' '//str_conc
+                                call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+                            endif   
+                                                  
                         !mass coming from channel -> conc from DN
                         elseif (Me%ExtVar%FlowToChannelsLayer(i,j,k) .lt. 0.0) then
                             
                             CurrProperty%ConcInInterfaceDN(i,j,k) = CurrProperty%ConcentrationDN(i,j)
+
+                            if (CurrProperty%ConcentrationDN(i,j) < 0.0) then
+                                write(str_i, '(i3)') i 
+                                write(str_j, '(i3)') j
+                                write(str_k, '(i3)') k
+                                write(str_conc, '(ES10.3)') CurrProperty%ConcentrationDN(i,j)                               
+                                string_to_be_written = trim(CurrProperty%ID%Name)// ' in PMP is < 0 going from river to soil' &
+                                                        //' in cell (i,j,k) with conc: '   &
+                                                      //str_i//','//str_j//','//str_k//' '//str_conc
+                                call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+
+                            endif
                             
                         endif
                     
@@ -7833,20 +7904,25 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
             !Flux between river and runoff one value for each soil column
             !water removed or added in top cell of saturated zone
+
+            call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyDrainageNetworkCoefs - ModulePorousMediaProperties - ERR010'
             
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,aux)
+            !$OMP PARALLEL PRIVATE(i,j,k,str_i,str_j,str_k,str_conc,string_to_be_written,aux)
             
-            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+            !do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-                
-                if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint .and. Me%ExtVar%RiverPoints(I,J) == BasinPoint) then   
 
-                    if (K == Me%ExtVar%GWlayerOld(i,j)) then
+                if (Me%ExtVar%BasinPoints(I,J) == WaterPoint .and. Me%ExtVar%RiverPoints(I,J) == WaterPoint) then   
 
+                    K = Me%ExtVar%GWlayerOld(i,j)                
+                    
+                    if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+                    
                         !Auxuliar value for transport - units of flow^-1
                         !s/m3
                         aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
@@ -7860,10 +7936,33 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             
                             CurrProperty%ConcInInterfaceDN(i,j,k) =  CurrProperty%ConcentrationOld(i,j,k)
 
+                            if (CurrProperty%ConcentrationOld(i,j,k) < 0.0) then
+                                write(str_i, '(i3)') i 
+                                write(str_j, '(i3)') j
+                                write(str_k, '(i3)') k
+                                write(str_conc, '(ES10.3)') CurrProperty%ConcentrationOld(i,j,k)                               
+                                string_to_be_written = trim(CurrProperty%ID%Name) //' in PMP is < 0 going from soil to river' &
+                                                       //' in cell (i,j,k) with conc: '   &
+                                                      //str_i//','//str_j//','//str_k//' '//str_conc
+                                call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+                            endif  
+
                         !mass coming from channel -> conc from DN
                         elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
                             
                             CurrProperty%ConcInInterfaceDN(i,j,k) = CurrProperty%ConcentrationDN(i,j)
+
+                            if (CurrProperty%ConcentrationDN(i,j) < 0.0) then
+                                write(str_i, '(i3)') i 
+                                write(str_j, '(i3)') j
+                                write(str_k, '(i3)') k
+                                write(str_conc, '(ES10.3)') CurrProperty%ConcentrationDN(i,j)                               
+                                string_to_be_written = trim(CurrProperty%ID%Name)// ' in PMP is < 0 going from river to soil' &
+                                                        //' in cell (i,j,k) with conc: '   &
+                                                      //str_i//','//str_j//','//str_k//' '//str_conc
+                                call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+
+                            endif
 
                         endif
                     endif
@@ -7871,8 +7970,12 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             enddo
             enddo
             !$OMP END DO
-            enddo  
+            !enddo  
             !$OMP END PARALLEL
+       
+            call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyDrainageNetworkCoefs - ModulePorousMediaProperties - ERR020'  
+       
        
         endif
    
@@ -8245,24 +8348,29 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                 !Flux between river and runoff one value for each soil column
                 !water removed or added in top cell of saturated zone
-                
+
+                call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyInterfaceMassFluxes - ModulePorousMediaProperties - ERR010'
+
                 !!! $OMP PARALLEL PRIVATE(I,J,K)
                 !!! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                !do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    
-                    if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint .and. Me%ExtVar%RiverPoints(I,J) == BasinPoint) then   
 
-                        if (K == Me%ExtVar%GWlayerOld(i,j)) then
-                           
+                    if (Me%ExtVar%BasinPoints(I,J) == WaterPoint .and. Me%ExtVar%RiverPoints(I,J) == WaterPoint) then   
+                    
+                        K = Me%ExtVar%GWlayerOld(i,j)                    
+                        
+                        if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+                            
                             ! mass going to channel -> conc from soil
                             if (Me%ExtVar%FlowToChannels(i,j) .gt. 0.0) then
                                 
                                 !Global Mass Exchange
                                 ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
                                 CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
-!                                  + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationOld(i,j,k)          &
+    !                                  + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationOld(i,j,k)          &
                                   + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%Concentration(i,j,k)             &
                                      * 1e-3 * Me%ExtVar%DT)
                             
@@ -8280,8 +8388,11 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     endif
                 enddo
                 enddo
-                enddo  
-           
+                !enddo  
+
+                call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyInterfaceMassFluxes - ModulePorousMediaProperties - ERR020' 
+
             endif
         endif
         
@@ -8469,6 +8580,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         type (T_Property),          pointer     :: Oxygen
         character (Len = StringLength)          :: WarningString
         type(T_SedimentRate),       pointer     :: SedimentRateX
+        real                                    :: DT
 !        type (T_SoilRate),      pointer     :: SoilRateX
 !        integer                                 :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB 
 !        integer                                 :: i, j, k
@@ -8534,7 +8646,6 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             do while(associated(PropertyX))
                 
-
                 !Change property units for Module Sediment Quality
                 !Gases O2, CO2, CH4
                 if ((PropertyX%ID%IDNumber == Oxygen_)        .OR.   &
@@ -8586,6 +8697,16 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                 endif
 
+                !Change property units from Module Sediment Quality
+                !Gases O2, CO2, CH4
+                if ((PropertyX%ID%IDNumber == Oxygen_)        .OR.   &
+                    (PropertyX%ID%IDNumber == CarbonDioxide_) .OR.   &
+                    (PropertyX%ID%IDNumber == Methane_)            ) then
+                    
+                    WarningString = "Exiting"
+                    call ChangePropertyUnits (PropertyX, WarningString)
+                endif
+
                 PropertyX => PropertyX%Next
                 
 
@@ -8600,16 +8721,33 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         do while(associated(PropertyX))
 
-
             if (PropertyX%Evolution%SoilQuality) then
 
+                !if DTInterval, only update at given time
+                if (PropertyX%Evolution%DTIntervalAssociated) then
+                    DT = PropertyX%Evolution%DTInterval
+                else !update every time
+                    PropertyX%Evolution%NextCompute = Me%ExtVar%Now
+                    DT = Me%ExtVar%DT
+                endif
+
                 if (Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
+
+                    !Change property units for Module Sediment Quality
+                    !Gases O2, CO2, CH4
+                    if ((PropertyX%ID%IDNumber == Oxygen_)        .OR.   &
+                        (PropertyX%ID%IDNumber == CarbonDioxide_) .OR.   &
+                        (PropertyX%ID%IDNumber == Methane_)            ) then
+                        
+                        WarningString = "Entering"
+                        call ChangePropertyUnits (PropertyX, WarningString)
+                    endif
 
                     call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
                                           PropertyID    = PropertyX%ID%IDNumber,            &
                                           Concentration = PropertyX%Concentration,          &
                                           WaterPoints3D = Me%ExtVar%WaterPoints3D,          &
-                                          DTProp        = PropertyX%Evolution%DTInterval,   &
+                                          DTProp        = DT,                               &
                                           STAT          = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         stop 'SoilQuality_Processes - ModulePorousMediaProperties - ERR060'
@@ -8661,6 +8799,9 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             SedimentRateX => SedimentRateX%Next
         enddo
+
+        if (Me%Coupled%MinConcentration)     call SetLimitsConcentration 
+        if (Me%Coupled%WarnOnNegativeValues) call WarnOnNegativeValues   ('After Soil Quality')
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "SoilQualityProcesses")
 
@@ -8861,6 +9002,15 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 do0:    do while(associated(PropertyX))
 cd0:        if(.not. PropertyX%Particulate .and. PropertyX%Evolution%Partitioning) then
 
+                !days
+                !if DTInterval, only update at given time
+                if (PropertyX%Evolution%DTIntervalAssociated) then
+                    DT = PropertyX%Evolution%DTInterval / 86400.
+                else !update every time
+                    PropertyX%Evolution%NextCompute = Me%ExtVar%Now
+                    DT = Me%ExtVar%DT /86400.
+                endif
+
 cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
 
                     Couple_ID = PropertyX%Evolution%Partition%Couple_ID
@@ -8884,9 +9034,6 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
     !                        stop 'Partition_Processes - ModuleRunoffProperties - ERR03'
     !                endif
                     
-                    !dt has to be Dtinterval so that is consistent with property actualization
-                    !DT = Me%ExtVar%DT
-                    DT = PropertyX%Evolution%DTInterval
                     
     do3:            do k = KLB, KUB
     do1:            do j = JLB, JUB
@@ -8988,16 +9135,19 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
     end subroutine Partition_Processes
 
     !--------------------------------------------------------------------------    
-    
-    subroutine SetLimitsConcentration
+
+    subroutine SetLimitsConcentration    
+!    subroutine SetLimitsConcentration (Message)
 
         !Arguments-------------------------------------------------------------
-
+!        character(len=*)                            :: Message
         !External--------------------------------------------------------------
         type (T_Property), pointer                  :: Property
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: i, j, k!, CHUNK
-        
+!        character(len=5)                            :: char_i, char_j, char_k
+!        character(len=15)                           :: char_conc        
+!        character (len = StringLength)              :: StrWarning        
         !Begin----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "SetLimitsConcentration")
@@ -9035,6 +9185,16 @@ cd1 :       if (Property%Evolution%MinConcentration) then
                                                     Me%ExtVar%CellVolume (i, j, k))
 
                             Property%Concentration(i, j, k) = Property%MinValue
+
+!                            write(char_i, '(i4)')i
+!                            write(char_j, '(i4)')j
+!                            write(char_k, '(i4)')k
+!                            write(char_conc, '(ES10.3)') Property%Concentration(i,j,k) 
+!
+!                            StrWarning = trim(Property%ID%Name)//' was modified to its MinValue in cell(i,j,k)'// &
+!                                                               char_i//','//char_j//','//char_k//' '//char_conc//' '//Message
+!
+!                            call SetError(WARNING_, INTERNAL_, StrWarning, OFF)
                             
                         endif
 
@@ -9060,6 +9220,83 @@ cd1 :       if (Property%Evolution%MinConcentration) then
     end subroutine SetLimitsConcentration
 
     !--------------------------------------------------------------------------
+    
+    subroutine WarnOnNegativeValues (Message)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: Message
+        !External--------------------------------------------------------------
+        type (T_Property), pointer                  :: Property
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: i, j, k!, CHUNK
+        character(len=5)                            :: char_i, char_j, char_k
+        character(len=15)                           :: char_conc        
+        character (len = StringLength)              :: StrWarning
+        !Begin----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "WarnOnNegativeValues")
+
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB 
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        KLB = Me%WorkSize%KLB 
+        KUB = Me%WorkSize%KUB 
+
+
+        Property => Me%FirstProperty  
+
+do1 :   do while (associated(Property))
+
+cd1 :       if (Property%Evolution%WarnOnNegativeValues) then
+                
+!                CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
+                
+!                !$OMP PARALLEL SHARED(CHUNK, Property) PRIVATE(I,J,K,char_i,char_j,char_k,char_conc)
+!                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+
+                do k=Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                    if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+    
+                        if (Property%Concentration(i, j, k) < 0.0) then
+                            
+                            write(char_i, '(i4)')i
+                            write(char_j, '(i4)')j
+                            write(char_k, '(i4)')k
+                            write(char_conc, '(ES10.3)') Property%Concentration(i,j,k) 
+
+                            StrWarning = trim(Property%ID%Name)//' has a negative concentration in cell(i,j,k)'// &
+                                                               char_i//','//char_j//','//char_k//' '//char_conc//' '//Message
+
+                            call SetError(WARNING_, INTERNAL_, StrWarning, OFF)
+                            
+                        endif
+
+                    endif
+
+                enddo
+                enddo
+                enddo
+                
+!                !$OMP END DO NOWAIT
+!                !$OMP END PARALLEL
+                
+            endif cd1
+                
+        Property => Property%Next
+        end do do1
+
+        nullify(Property)
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "WarnOnNegativeValues")
+
+
+    end subroutine WarnOnNegativeValues
+
+    !--------------------------------------------------------------------------    
     
 
     subroutine ComputeDissolvedToParticulate3D
@@ -9134,6 +9371,7 @@ cd1 :       if (Property%Evolution%MinConcentration) then
         real             , pointer, dimension(:,:,:) :: CellThetaS
         real(8)          , pointer, dimension(:,:,:) :: CellVolume   
         integer                                      :: index     
+        real                                         :: DT
         
         !Begin-----------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "SoilChemistryProcesses")
@@ -9239,6 +9477,14 @@ cd1 :       if (Property%Evolution%MinConcentration) then
 
             if (PropertyX%Evolution%SoilChemistry) then
 
+                !if DTInterval, only update at given time
+                if (PropertyX%Evolution%DTIntervalAssociated) then
+                    DT = PropertyX%Evolution%DTInterval
+                else !update every time
+                    PropertyX%Evolution%NextCompute = Me%ExtVar%Now
+                    DT = Me%ExtVar%DT
+                endif
+
                 if (Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
                 
                     select case (PropertyX%ID%IDNumber)
@@ -9250,7 +9496,7 @@ cd1 :       if (Property%Evolution%MinConcentration) then
                                                   PropertyID    = PropertyX%ID%IDNumber,                 &
                                                   Concentration = PropertyX%Concentration,               &
                                                   WaterPoints3D = Me%ExtVar%WaterPoints3D,               &
-                                                  DTProp        = PropertyX%Evolution%DTInterval,        &
+                                                  DTProp        = DT,                                    &
                                                   STAT          = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_) &
                                 stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR020'
@@ -9266,6 +9512,9 @@ cd1 :       if (Property%Evolution%MinConcentration) then
             
         end do
 
+        if (Me%Coupled%MinConcentration)     call SetLimitsConcentration ('After Soil Chemistry')
+        if (Me%Coupled%WarnOnNegativeValues) call WarnOnNegativeValues   ('After Soil Chemistry')
+        
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "SoilChemistryProcesses")
         
         !End-------------------------------------------------------------------
@@ -9378,9 +9627,13 @@ do1 :   do while (associated(Property))
             if (Property%Evolution%Decay) then
                 
                 !days
-                !dt has to be Dtinterval so that is consistent with property actualization
-                !DT = Me%ExtVar%DT /86400.
-                DT = Property%Evolution%DTInterval / 86400.
+                !if DTInterval, only update at given time
+                if (Property%Evolution%DTIntervalAssociated) then
+                    DT = Property%Evolution%DTInterval / 86400.
+                else !update every time
+                    Property%Evolution%NextCompute = Me%ExtVar%Now
+                    DT = Me%ExtVar%DT /86400.
+                endif
                           
                 if(Me%ExtVar%Now .GE. Property%Evolution%NextCompute) then            
             
@@ -9441,7 +9694,7 @@ do1 :   do while (associated(Property))
 
 do1 :   do while (associated(Property))
 
-cd1:        if (Property%Evolution%Variable) then
+cd1:        if (Property%Evolution%Variable .and. Property%Evolution%DTIntervalAssociated) then
 cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
                     Property%Evolution%LastCompute = Property%Evolution%NextCompute
                     Property%Evolution%NextCompute = Property%Evolution%NextCompute &
@@ -9790,7 +10043,9 @@ First:          if (LastTime.LT.Actual) then
         integer                                     :: ObjHDF5
         real, dimension(6), target                  :: AuxTime
         real, dimension(:), pointer                 :: TimePtr
-        type (T_Time)                               :: Actual             
+        type (T_Time)                               :: Actual            
+        real                                        :: Total_Mass_Created
+        character (Len = StringLength)              :: str_mass_created, string_to_be_written          
         !Begin----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "WriteFinalFile")
@@ -9917,6 +10172,30 @@ First:          if (LastTime.LT.Actual) then
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaproperties - ERR070'
 
+
+            if (PropertyX%Evolution%MinConcentration .and. Me%ExtVar%Now == Me%ExtVar%EndTime) then
+
+                call HDF5WriteData   (ObjHDF5,                                        &
+                                      "/Results/"//trim(PropertyX%ID%Name)//" Mass Created",& 
+                                      "Property Mass Created",                        &
+                                      "g",                                            &
+                                      Array3D = PropertyX%Mass_Created,               &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleRunoffproperties - ERR10.5'
+
+                !g/1000 = kg, to avoid big numbers
+                Total_Mass_Created = SUM(PropertyX%Mass_Created)/1000
+
+                write(str_mass_created, '(f20.8)') Total_Mass_Created
+      
+                string_to_be_written = 'Total mass created on property '                //&
+                                        trim(adjustl(adjustr(PropertyX%ID%Name)))//' = ' //&
+                                        trim(adjustl(adjustr(str_mass_created))) 
+            
+                !Writes total mass created to "Error_and_Messages.log" file
+                call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+
+            endif
 
             PropertyX => PropertyX%Next
 

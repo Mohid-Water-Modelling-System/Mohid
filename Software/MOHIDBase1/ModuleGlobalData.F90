@@ -2911,7 +2911,7 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == SeagrassesN_           ) .OR.  (Property == SeagrassesP_           ) .OR.          &
             (Property == SeagrassesLeaves_      ) .OR.  (Property == SeagrassesRoots_       ) .OR.          &
             (Property == DepositFeedersN_       ) .OR.  (Property == DepositFeedersP_       ) .OR.          &
-            (Property == DepositFeedersC_       ) ) then
+            (Property == DepositFeedersC_       ) .OR.  (Property == Zooplankton_           )) then
 
             Check_Particulate_Property = .TRUE.    
         

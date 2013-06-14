@@ -408,12 +408,13 @@ Module ModuleBasin
         real(8)  :: BoundaryFromSurface     = 0.0 !m3
         real(8)  :: Input                   = 0.0 !m3 rain and irrigation
         real(8)  :: Stored                  = 0.0 !m3 on soil, on leaves, on channels, on surface
-        real(8)  :: Output                  = 0.0 !m3 evap from soil, from leaves, from surface, from channels and transpiration + outlet flow
+        real(8)  :: Output                  = 0.0 !m3 evap from (soil + leaves + surface + channels) + transpiration + outlet flow
         real(8)  :: Discharges              = 0.0 !m3 on Soil, on surface, on channels (can be positive or negative)
         real(8)  :: Boundary                = 0.0 !m3 on Soil and Surface
         real(8)  :: ErrorInVolume           = 0.0 !m3  
         real(8)  :: AccErrorInVolume        = 0.0 !m3
-        real(8)  :: ErrorInPercentage       = 0.0 !% of error from the actual stored (variation from initial to final) water content to the expected due the inputs/outputs/discharges
+        real(8)  :: ErrorInPercentage       = 0.0 !% of error from the actual stored (variation from initial to final) water content 
+                                                  !to the expected due the inputs/outputs/discharges
         logical  :: StoreInitial            = .true.
         !real(8)  :: BasinArea               = 0.0 !m2 -> this should be a line in the TS header. 
         !integer  :: NumberOfCells           = 0
@@ -595,7 +596,6 @@ Module ModuleBasin
 
         !Local-------------------------------------------------------------------
         integer                                         :: ready_      
-        integer                                         :: i, j
         integer                                         :: STAT_, STAT_CALL
         logical                                         :: VariableDT
         character (Len = StringLength)                  :: WarningString
@@ -701,7 +701,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !enddo                        
             
             call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR09c'			            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR09c'
             
             !Ungets BasinPoints
             call UngetBasin             (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
@@ -1436,7 +1436,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                          :: nProperties, STAT_CALL
         integer                                          :: iProp, PropID
-        logical                                          :: PropAdvDiff, PropParticulate
+        logical                                          :: PropAdvDiff !, PropParticulate
         !Begin-----------------------------------------------------------------
         
         if (WarningString == "GlobalOptions") then
@@ -1529,13 +1529,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                  Idx                     = iProp,                       &
                                                  ID                      = PropID,                      &
                                                  PropAdvDiff             = PropAdvDiff,                 &
-                                                 Particulate             = PropParticulate,             &
+!                                                 Particulate             = PropParticulate,             &
                                                  STAT                    = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleBasin - ERR20' 
                     
                     !Check in PMP if the same dissolved properties also have advection diffusion connected
                     !Only dissolved properties can communicate with PMP
-                    if (PropAdvDiff .and. (.not. PropParticulate)) then
+                    if (PropAdvDiff .and. (.not. Check_Particulate_Property(PropID))) then
                         if (Me%Coupled%PorousMediaProperties) then
                             call CheckPMPProperty (Me%ObjPorousMediaProperties, PropID, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleBasin - ERR30' 
@@ -1596,7 +1596,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                  Idx                     = iProp,                       &
                                                  ID                      = PropID,                      &
                                                  PropAdvDiff             = PropAdvDiff,                 &
-                                                 Particulate             = PropParticulate,             &
+!                                                 Particulate             = PropParticulate,             &
                                                  STAT                    = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleBasin - ERR100' 
                     
@@ -1610,7 +1610,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     endif
                     !Check in PMP if the same properties have advection diffusion connected
                     !Only dissolved properties can communicate with PMP
-                    if (PropAdvDiff .and. (.not. PropParticulate)) then
+                    !if (PropAdvDiff .and. (.not. PropParticulate)) then
+                    if (PropAdvDiff .and. (.not. Check_Particulate_Property(PropID))) then
                         if (Me%Coupled%PorousMediaProperties) then
                             call CheckPMPProperty (Me%ObjPorousMediaProperties, PropID, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleBasin - ERR120' 
@@ -3937,7 +3938,9 @@ cd2 :           if (BlockFound) then
         Me%MB%EvapFromGround     = 0.0
                 
         !CalcET0             = .NOT. (RefEvapotrans%ID%SolutionFromFile .OR. RefEvapotrans%Constant)
-        CalcET0             = (.not. RefEvapotrans%ID%SolutionFromFile) .and. (.not. RefEvapotrans%Constant) .and. (.not. RefEvapotrans%ConstantInSpace)
+        CalcET0             = (.not. RefEvapotrans%ID%SolutionFromFile)       &
+                               .and. (.not. RefEvapotrans%Constant)           &
+                               .and. (.not. RefEvapotrans%ConstantInSpace)
         
         if (Me%UseRefEVTPIfNeeded) then
             CalcET0 = .true.
@@ -4024,12 +4027,12 @@ cd2 :           if (BlockFound) then
                     
                 if (Me%EVTPOutput%yes) then
                     !mm                           = mm                         +  m/s                       * mm/m * s
-                    Me%PartialAccEVTPRef   (i, j) = Me%PartialAccEVTPRef (i,j) + (RefEvapotrans%Field(i, j) * DTFactor)                 
+                    Me%PartialAccEVTPRef   (i, j) = Me%PartialAccEVTPRef (i,j) + (RefEvapotrans%Field(i, j) * DTFactor) 
                 endif
                 
                 if (Me%EVTPOutput2%yes) then
                     !mm                           = mm                         +  m/s                       * mm/m * s
-                    Me%PartialAccEVTPRef2   (i, j) = Me%PartialAccEVTPRef2 (i,j) + (RefEvapotrans%Field(i, j) * DTFactor)                 
+                    Me%PartialAccEVTPRef2   (i, j) = Me%PartialAccEVTPRef2 (i,j) + (RefEvapotrans%Field(i, j) * DTFactor) 
                 endif                
                 
 !                call ExtractDate(Me%CurrentTime, Year, Month, Day, hour, minute, second) 
@@ -4063,12 +4066,12 @@ cd2 :           if (BlockFound) then
 
                     if (Me%EVTPOutput%yes) then
                         !mm                           = mm                         +  m/s                       * mm/m * s
-                        Me%PartialAccEVTPCrop   (i, j) = Me%PartialAccEVTPCrop (i,j) + (Me%CropEvapotrans(i, j) * DTFactor)                 
+                        Me%PartialAccEVTPCrop   (i, j) = Me%PartialAccEVTPCrop (i,j) + (Me%CropEvapotrans(i, j) * DTFactor) 
                     endif
                 
                     if (Me%EVTPOutput2%yes) then
                         !mm                           = mm                         +  m/s                       * mm/m * s
-                        Me%PartialAccEVTPCrop2   (i, j) = Me%PartialAccEVTPCrop2 (i,j) + (Me%CropEvapotrans(i, j) * DTFactor)                 
+                        Me%PartialAccEVTPCrop2   (i, j) = Me%PartialAccEVTPCrop2 (i,j) + (Me%CropEvapotrans(i, j) * DTFactor) 
                     endif  
 
                     if (Me%EvapoTranspirationMethod .EQ. SeparateEvapoTranspiration) then
@@ -4085,24 +4088,24 @@ cd2 :           if (BlockFound) then
                                                           (1.0 - exp(-0.463 * Me%ExtVar%LeafAreaIndex(i, j)))
                         if (Me%EVTPOutput%yes) then
                             !mm                           = mm                         +  m/s                       * mm/m * s
-                            Me%PartialAccETPot   (i, j) = Me%PartialAccETPot (i,j) + (Me%PotentialTranspiration(i, j) * DTFactor)                 
+                            Me%PartialAccETPot   (i, j) = Me%PartialAccETPot (i,j) + (Me%PotentialTranspiration(i, j) * DTFactor) 
                         endif
                 
                         if (Me%EVTPOutput2%yes) then
                             !mm                           = mm                         +  m/s                       * mm/m * s
-                            Me%PartialAccETPot2   (i, j) = Me%PartialAccETPot2 (i,j) + (Me%PotentialTranspiration(i, j) * DTFactor)                 
+                            Me%PartialAccETPot2   (i, j) = Me%PartialAccETPot2 (i,j) + (Me%PotentialTranspiration(i, j) * DTFactor) 
                         endif                          
                         
                         !m/s
                         Me%PotentialEvaporation  (i, j) = Me%CropEvapotrans(i, j) - Me%PotentialTranspiration(i, j)
                         if (Me%EVTPOutput%yes) then
                             !mm                           = mm                         +  m/s                       * mm/m * s
-                            Me%PartialAccEVPot   (i, j) = Me%PartialAccEVPot (i,j) + (Me%PotentialEvaporation(i, j) * DTFactor)                 
+                            Me%PartialAccEVPot   (i, j) = Me%PartialAccEVPot (i,j) + (Me%PotentialEvaporation(i, j) * DTFactor)
                         endif
                 
                         if (Me%EVTPOutput2%yes) then
                             !mm                           = mm                         +  m/s                       * mm/m * s
-                            Me%PartialAccEVPot2   (i, j) = Me%PartialAccEVPot2 (i,j) + (Me%PotentialEvaporation(i, j) * DTFactor)                 
+                            Me%PartialAccEVPot2   (i, j) = Me%PartialAccEVPot2 (i,j) + (Me%PotentialEvaporation(i, j) * DTFactor) 
                         endif  
                     endif
                 
@@ -4152,7 +4155,8 @@ cd2 :           if (BlockFound) then
                         
                         if (Me%ComputeBasinWaterBalance) then
                             ! m3 = m3 + m * m2 * [%]
-                            Me%BWB%EvapFromLeaves = Me%BWB%EvapFromLeaves + dH * Me%ExtVar%GridCellArea(i, j) * Me%CoveredFraction(i, j)
+                            Me%BWB%EvapFromLeaves = Me%BWB%EvapFromLeaves + dH * Me%ExtVar%GridCellArea(i, j)      &
+                                                    * Me%CoveredFraction(i, j)
                             
                             !Actualization of the water stored on leaves
                             ! m3 = m3 - m3
@@ -4187,7 +4191,8 @@ cd2 :           if (BlockFound) then
                     
                     if (Me%ComputeBasinWaterBalance) then
                         ! m3 = m3 + m * m2
-                        Me%BWB%EvapFromSurface = Me%BWB%EvapFromSurface + Me%WaterColumnEvaporated(i, j) * Me%ExtVar%GridCellArea(i, j)
+                        Me%BWB%EvapFromSurface = Me%BWB%EvapFromSurface + Me%WaterColumnEvaporated(i, j)     &
+                                                 * Me%ExtVar%GridCellArea(i, j)
                     endif                    
                         
                 endif
@@ -4240,7 +4245,8 @@ cd2 :           if (BlockFound) then
                         
                         if (Me%ComputeBasinWaterBalance) then
                             ! m3 = m3 + m * m2 * [%]
-                            Me%BWB%EvapFromLeaves = Me%BWB%EvapFromLeaves + dH * Me%ExtVar%GridCellArea(i, j) * Me%CoveredFraction(i, j)
+                            Me%BWB%EvapFromLeaves = Me%BWB%EvapFromLeaves + dH * Me%ExtVar%GridCellArea(i, j)     &
+                                                    * Me%CoveredFraction(i, j)
                             
                             !Actualization of the water stored on leaves
                             ! m3 = m3 - m3
@@ -4276,7 +4282,8 @@ cd2 :           if (BlockFound) then
 
                     if (Me%ComputeBasinWaterBalance) then
                         ! m3 = m3 + m * m2
-                        Me%BWB%EvapFromSurface = Me%BWB%EvapFromSurface + Me%WaterColumnEvaporated(i, j) * Me%ExtVar%GridCellArea(i, j)
+                        Me%BWB%EvapFromSurface = Me%BWB%EvapFromSurface + Me%WaterColumnEvaporated(i, j)       &
+                                                 * Me%ExtVar%GridCellArea(i, j)
                     endif
                     
                     !m/s              
@@ -5649,7 +5656,7 @@ cd2 :           if (BlockFound) then
         integer, dimension(:, :), pointer           :: ChannelsID, TranspirationBottomLayer
         integer                                     :: nProperties, iProp, PropID
         integer                                     :: NutrientUptakeMethod
-        logical                                     :: PropAdvDiff, PropParticulate !, PropRain, PropIrri
+        logical                                     :: PropAdvDiff !, PropParticulate !, PropRain, PropIrri
         integer                                     :: NumberOfPesticides
         integer                                     :: PesticideIDNumber, Pest
         real, dimension (:,:), pointer              :: PesticideSoil
@@ -5669,11 +5676,12 @@ cd2 :           if (BlockFound) then
                                              Idx                     = iProp,                       &
                                              ID                      = PropID,                      &
                                              PropAdvDiff             = PropAdvDiff,                 &
-                                             Particulate             = PropParticulate,             &
+!                                             Particulate             = PropParticulate,             &
                                              STAT                    = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.3' 
                 
-                if (PropAdvDiff .and. (.not. PropParticulate)) then
+                if (PropAdvDiff .and. (.not. Check_Particulate_Property(PropID))) then
+                !if (PropAdvDiff .and. (.not. PropParticulate)) then
                     
                     !Get the new RP concentration (after surface fluxes) because is the same used in PMP for infil flux
                     !and in MassInFlow (the routine that computes the actualization of Runoff Properties
@@ -6479,7 +6487,7 @@ cd2 :           if (BlockFound) then
                                          Idx                     = iProp,                       &
                                          ID                      = PropID,                      &
                                          PropAdvDiff             = PropAdvDiff,                 &
-                                         Particulate             = PropParticulate,             &
+!                                         Particulate             = PropParticulate,             &
                                          STAT                    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR10' 
             
@@ -6499,7 +6507,10 @@ cd2 :           if (BlockFound) then
                 
                 allocate(NewRPConcentration(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
                 call SetMatrixValue (NewRPConcentration, Me%WorkSize, RPConcentration)
-
+                
+                !the particulate properties cant enter in soil
+                PropParticulate = Check_Particulate_Property(PropID)
+                
                 !Compute mass flow matrix to update concentrations
                 call ComputeMassInFlow (WarningString, RPConcentration, PropID, PropParticulate, MassInFlow)
 
@@ -6520,11 +6531,13 @@ cd2 :           if (BlockFound) then
                             NewRPConcentration(i,j) = PropertyMassNew / (Me%ExtUpdate%Watercolumn(i,j)        &
                                                                          * Me%ExtVar%GridCellArea(i,j))
                         else
-                            !Do not zero, leave unchanged (RP Conc)
+                            !Do not zero, leave unchanged (RP Conc) because this will be the concentration used to infiltrate
                             !NewRPConcentration(i,j) = 0.0
                             
                             !deposition driven by complete infiltration of water column (WC totally infiltrated in time step) 
-                            if ((PropParticulate) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
+                            !if ((PropParticulate) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
+                            !Now all recognized properties have bottom mass available
+                            if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
                                 MassToBottom(i,j) = PropertyMassOld
                             endif  
                             
@@ -7107,12 +7120,14 @@ cd2 :           if (BlockFound) then
                         !mm/h           =           m3/s           /              m2             * mm/m  * s/h
                         ActualTP(i,j)   = ActualTranspiration(i,j) / Me%ExtVar%GridCellArea(i,j) * 1000. * 3600.
                         if (Me%EVTPOutput%Yes) then
-                            !mm                         =          mm              + (           m3/s          /            m2               * mm/m *     s       ) 
-                            Me%PartialAccETAct   (i, j) = Me%PartialAccETAct (i,j) + (ActualTranspiration(i,j) / Me%ExtVar%GridCellArea(i,j) * 1000 * Me%CurrentDT) 
+                            !mm                         =    mm  + (m3/s /m2 * mm/m * s) 
+                            Me%PartialAccETAct   (i, j) = Me%PartialAccETAct (i,j) + (ActualTranspiration(i,j)    &
+                                                          / Me%ExtVar%GridCellArea(i,j) * 1000 * Me%CurrentDT) 
                         endif    
                         if (Me%EVTPOutput2%Yes) then
-                            !mm                         =          mm                + (           m3/s           /         m2                  * mm/m *     s       )         
-                            Me%PartialAccETAct2   (i, j) = Me%PartialAccETAct2 (i,j) + (ActualTranspiration (i,j) / Me%ExtVar%GridCellArea(i,j) * 1000 * Me%CurrentDT) 
+                            !mm                         =   mm + (m3/s / m2 * mm/m * s)         
+                            Me%PartialAccETAct2   (i, j) = Me%PartialAccETAct2 (i,j) + (ActualTranspiration (i,j)  &
+                                                           / Me%ExtVar%GridCellArea(i,j) * 1000 * Me%CurrentDT) 
                         endif                         
                     endif
                 enddo
@@ -8197,7 +8212,7 @@ cd2 :           if (BlockFound) then
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-        integer :: stat, i, j
+        integer :: stat
         real(8) :: Volume, OldValue
         !real(8) :: sum
         real(8) :: InitialVol, FinalVol

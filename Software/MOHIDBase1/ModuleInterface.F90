@@ -147,10 +147,12 @@ Module ModuleInterface
         module procedure InputData2D
         module procedure InputData3D
     end interface  InputData
-
+    
+    private :: GetRateFlux1D
     private :: GetRateFlux2D
     private :: GetRateFlux3D
     interface  GetRateFlux
+        module procedure GetRateFlux1D
         module procedure GetRateFlux2D
         module procedure GetRateFlux3D
     end interface  GetRateFlux
@@ -1749,7 +1751,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         !Local-----------------------------------------------------------------
 !        real                                                 :: ErrorAux, auxFactor 
 !        real                                                 :: RunPeriod, Dtlag
-        type(T_Size1D)                                       :: Size 
+!        type(T_Size1D)                                       :: Size 
         integer, dimension(:), pointer                       :: CEQUALW2List
         integer, dimension(:), pointer                       :: MacroAlgaeList
         integer                                              :: i,PropLB, PropUB
@@ -3092,6 +3094,133 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
     !--------------------------------------------------------------------------
 
+    subroutine GetRateFlux1D(InterfaceID,                            & 
+                             FirstProp,                              &
+                             SecondProp,                             &
+                             RateFlux1D,                             &
+                             RiverPoints1D,                          &
+                             RateIndex,                              &
+                             STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: InterfaceID
+        real,               dimension(:),   pointer     :: RateFlux1D
+        integer,            dimension(:),   pointer     :: RiverPoints1D
+        integer, optional,  intent(IN)                  :: FirstProp
+        integer, optional,  intent(IN)                  :: SecondProp
+        integer, optional,  intent(IN)                  :: RateIndex        
+        integer, optional,  intent(OUT)                 :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                         :: ready_         
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_
+        integer                                         :: nFirstProp, nSecondProp          
+        integer                                         :: NLB, NUB
+        integer                                         :: Index
+        integer                                         :: i, STAT_CALL
+        real,    dimension(:), pointer                  :: RateFlux
+        !$ integer                                      :: CHUNK
+        real,    dimension(:), pointer                  :: LocalRateFlux
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(InterfaceID, ready_)   
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            nullify (RateFlux  )
+            RateFlux1D=0.
+            
+            if (present(FirstProp)) then
+                
+                !Number indexed to each property 
+                nFirstProp  = PropertyIndexNumber(FirstProp )
+                nSecondProp = PropertyIndexNumber(SecondProp)
+
+                !WaterPoints2D
+                Me%ExternalVar%RiverPoints1D => RiverPoints1D
+
+                select case (Me%SinksSourcesModel)
+
+                    case (WaterQualityModel)
+
+                        call GetWQPropRateFlux( Me%ObjWaterQuality,                     &
+                                                nFirstProp, nSecondProp,                &
+                                                RateFlux, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux1D - ModuleInterface - ERR01'
+
+                    case (BenthosModel)
+
+                        call GetBenthosRateFlux(Me%ObjBenthos,                              &
+                                                nFirstProp, nSecondProp,                    &
+                                                RateFlux, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux1D - ModuleInterface - ERR01'
+
+                    case(LifeModel)
+
+                end select
+
+            elseif (present(RateIndex)) then
+
+
+                call GetCEQUALW2RateFlux( Me%ObjCeQualW2,                               &
+                                          RateIndex, RateFlux,                          &
+                                          STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux1D - ModuleInterface - ERR09'
+
+
+            endif
+
+            NLB = Me%Array%ILB
+            NUB = Me%Array%IUB
+            !$ CHUNK = CHUNK_I(NLB, NUB)
+            !$OMP PARALLEL PRIVATE(Index,i,LocalRateFlux)
+            LocalRateFlux => RateFlux
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do Index = NLB, NUB
+                i = Me%Index2I(Index)
+                RateFlux1D(i) = LocalRateFlux (Index)
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+
+            select case (Me%SinksSourcesModel)
+
+                case (WaterQualityModel)
+
+                    call UnGetWQPropRateFlux(Me%ObjWaterQuality, RateFlux, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux1D - ModuleInterface - ERR06' 
+                
+                case(CEQUALW2Model)
+               
+                    call UnGetCEQUALW2RateFlux(Me%ObjCeQualW2, RateFlux, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux1D - ModuleInterface - ERR08' 
+                
+                case (BenthosModel)
+
+                    call UnGetBenthosRateFlux(Me%ObjBenthos, RateFlux, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux1D - ModuleInterface - ERR02'
+                    
+                
+            end select
+
+            STAT_ = SUCCESS_
+        else
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetRateFlux1D
+
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -3859,7 +3988,7 @@ cd5 :       if (.not. Increment) then
                 
                 if(present(MassInKgFromWater) )then
                 
-                call FillMassFromWater2D(PropertyID, MassInKgFromWater, ReadyToCompute)
+                call FillMassFromWater2D(PropertyID, MassInKgFromWater)
                 
                 endif
 
@@ -5783,12 +5912,11 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     
     !----------------------------------------------------------------------
     
-    subroutine FillMassFromWater2D(PropertyID, MassFromWater, Ready) 
+    subroutine FillMassFromWater2D(PropertyID, MassFromWater) 
 
         !Arguments-------------------------------------------------------------
         integer,                intent(IN )     :: PropertyID
         real, dimension(:,:),   pointer         :: MassFromWater
-        logical,                intent(OUT)     :: Ready
 
         !External--------------------------------------------------------------
 

@@ -877,6 +877,12 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%GrossProduction%Field)
                 allocate(Me%GrossProduction%Field   (WQArrayLB:WQArrayUB))
+                !This "rates" need to be initialized or in no openpoints they will be filled with
+                !negative values. For ModuleWaterProperties this is not important since is evaluated
+                !only in openpoints.
+                !This is important for ModuleDrainageNetwork because usually the model starts with no water
+                !(no open points) but time series may be obtained at those points (avoid negative values at start)
+                Me%GrossProduction%Field = 0.0
                 
                 !TempLimitation
                 allocate (Me%TempLimitation, STAT = STAT_CALL)            
@@ -887,6 +893,10 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%TempLimitation%Field)
                 allocate(Me%TempLimitation%Field   (WQArrayLB:WQArrayUB))
+                !Limiting factors initialized as zero are consistent with zero gross production and avoid
+                !filling with other values (e.g. 1 * DT) that in no water points will not be transformed back to
+                ![0-1] in recieving modules (water properties, drianage network)
+                Me%TempLimitation%Field = 0.0
                 
                 !NutLimitation
                 allocate (Me%NutLimitation, STAT = STAT_CALL)            
@@ -897,7 +907,8 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%NutLimitation%field)
                 allocate(Me%NutLimitation%field   (WQArrayLB:WQArrayUB))
-
+                Me%NutLimitation%field = 0.0
+                
                 !NLimitation
                 allocate (Me%NLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
@@ -907,7 +918,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%NLimitation%field)
                 allocate(Me%NLimitation%field   (WQArrayLB:WQArrayUB))
-
+                Me%NLimitation%field = 0.0
 
                 !PLimitation
                 allocate (Me%PLimitation, STAT = STAT_CALL)            
@@ -918,7 +929,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%PLimitation%field)
                 allocate(Me%PLimitation%field   (WQArrayLB:WQArrayUB))
-
+                Me%PLimitation%field = 0.0
 
                 !LightLimitation
                 allocate (Me%LightLimitation, STAT = STAT_CALL)            
@@ -929,7 +940,8 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%LightLimitation%field)
                 allocate(Me%LightLimitation%field   (WQArrayLB:WQArrayUB))            
-
+                Me%LightLimitation%field = 0.0
+                
             endif
        
            !aqui_1
@@ -947,6 +959,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%Diatoms%DiaGrossProduction%Field)
                 allocate(Me%Diatoms%DiaGrossProduction%Field   (WQArrayLB:WQArrayUB))
+                Me%Diatoms%DiaGrossProduction%Field = 0.0
                 
             !TempLimitation
                 allocate (Me%Diatoms%DiaTempLimitation, STAT = STAT_CALL)            
@@ -957,6 +970,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%Diatoms%DiaTempLimitation%Field)
                 allocate(Me%Diatoms%DiaTempLimitation%Field   (WQArrayLB:WQArrayUB))
+                Me%Diatoms%DiaTempLimitation%Field = 0.0
                 
             !NutLimitation
                 allocate (Me%Diatoms%DiaNutLimitation, STAT = STAT_CALL)            
@@ -967,7 +981,8 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%Diatoms%DiaNutLimitation%field)
                 allocate(Me%Diatoms%DiaNutLimitation%field   (WQArrayLB:WQArrayUB))
-
+                Me%Diatoms%DiaNutLimitation%field = 0.0
+                
             !DiaNLimitation
                 allocate (Me%Diatoms%DiaNLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
@@ -977,7 +992,8 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%Diatoms%DiaNLimitation%field)
                 allocate(Me%Diatoms%DiaNLimitation%field   (WQArrayLB:WQArrayUB))
-
+                Me%Diatoms%DiaNLimitation%field = 0.0
+                
             !DiaSiLimitation
                 allocate (Me%Diatoms%DiaSiLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
@@ -987,7 +1003,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%Diatoms%DiaSiLimitation%field)
                 allocate(Me%Diatoms%DiaSiLimitation%field   (WQArrayLB:WQArrayUB))
-
+                Me%Diatoms%DiaSiLimitation%field = 0.0
 
             !DiaPLimitation
                 allocate (Me%Diatoms%DiaPLimitation, STAT = STAT_CALL)            
@@ -998,7 +1014,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%Diatoms%DiaPLimitation%field)
                 allocate(Me%Diatoms%DiaPLimitation%field   (WQArrayLB:WQArrayUB))
-
+                Me%Diatoms%DiaPLimitation%field = 0.0
 
             !LightLimitation
                 allocate (Me%Diatoms%DiaLightLimitation, STAT = STAT_CALL)            
@@ -1009,7 +1025,8 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%Diatoms%DiaLightLimitation%field)
                 allocate(Me%Diatoms%DiaLightLimitation%field   (WQArrayLB:WQArrayUB))            
-
+                Me%Diatoms%DiaLightLimitation%field = 0.0
+                
             endif
 
             if (countequa.ne.PropUB)                                                                & 
@@ -5216,9 +5233,12 @@ do1:    do while(associated(EquaRateFluxX))
                      PropRateFluxX%Field(index)=  -Me%Matrix(equa, prop)                     & 
                                                   * Me%ExternalVar%Mass(prop,index)
                 else
-    
-                     PropRateFluxX%Field(index)=  -(1-Me%Matrix(equa, prop))                 & 
+                      !the rates were inconsistent with system resolution and results
+!                     PropRateFluxX%Field(index)=  -(1-Me%Matrix(equa, prop))                 & 
+!                                                  * Me%ExternalVar%Mass(prop,index)
+                     PropRateFluxX%Field(index)=  -(Me%Matrix(equa, prop) - 1.)              & 
                                                   * Me%ExternalVar%Mass(prop,index)
+
                 endif
 
                 PropRateFluxX => PropRateFluxX%Next
@@ -5553,8 +5573,9 @@ subroutine WQCiliate(index)
                          
                 if (CiliateGrossGrowRate .LT. 0.0) then                                                     
                     stop 'Subroutine WQCiliate-Module ModuleWaterQuality. ERR10.'
-                elseif (CiliateGrossGrowRate .EQ. 0.0) then
-                    CiliateGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+                !No sense on this. David
+!                elseif (CiliateGrossGrowRate .EQ. 0.0) then
+!                    CiliateGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
                 end if 
 
             !CiliateGrazPrey for NaturalMortality Calculation--------------------------------------
@@ -5633,8 +5654,9 @@ subroutine WQCiliate(index)
                          
                 if (CiliateGrossGrowRate .LT. 0.0) then                                                     
                     stop 'Subroutine WQCiliate-Module ModuleWaterQuality. ERR60.'
-                elseif (CiliateGrossGrowRate .EQ. 0.0) then
-                    CiliateGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+                !No sense on this. David
+!                elseif (CiliateGrossGrowRate .EQ. 0.0) then
+!                    CiliateGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
                 end if 
 
             !CiliateGrazPrey for NaturalMortality Calculation--------------------------------------
@@ -5709,8 +5731,9 @@ subroutine WQCiliate(index)
                          
                 if (CiliateGrossGrowRate .LT. 0.0) then                                                     
                     stop 'Subroutine WQCiliate-Module ModuleWaterQuality. ERR110.'
-                elseif (CiliateGrossGrowRate .EQ. 0.0) then
-                    CiliateGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+                !No sense on this. David
+!                elseif (CiliateGrossGrowRate .EQ. 0.0) then
+!                    CiliateGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
                 end if 
 
             !CiliateGrazPrey for NaturalMortality Calculation--------------------------------------
@@ -6208,8 +6231,9 @@ cd7 :   if (Me%PropCalc%Oxygen) then
                          
                 if (ZooGrossGrowRate .LT. 0.0) then                                                     
                     stop 'Subroutine WQZooplankton-Module ModuleWaterQuality. ERR01.'
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+                !No sense on this. David
+!                elseif (ZooGrossGrowRate .EQ. 0.0) then
+!                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
                 end if 
             
             !ZooGrazPrey for NaturalMortality Calculation--------------------------------------
@@ -6323,8 +6347,9 @@ cd7 :   if (Me%PropCalc%Oxygen) then
                          
                 if (ZooGrossGrowRate .LT. 0.0) then                                                     
                         stop 'Subroutine WQZooplankton-Module ModuleWaterQuality. ERR04.'
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+                !No sense on this. David
+!                elseif (ZooGrossGrowRate .EQ. 0.0) then
+!                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
                 end if 
             
             !ZooGrazPrey for NaturalMortality Calculation--------------------------------------
@@ -6428,8 +6453,9 @@ cd7 :   if (Me%PropCalc%Oxygen) then
                          
                 if (ZooGrossGrowRate .LT. 0.0) then                                                     
                         stop 'Subroutine WQZooplankton-Module ModuleWaterQuality. ERR07.'
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+                 !No sense on this. David
+!                elseif (ZooGrossGrowRate .EQ. 0.0) then
+!                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
                 end if 
             
             !ZooGrazPrey for NaturalMortality Calculation--------------------------------------
@@ -6533,8 +6559,9 @@ cd7 :   if (Me%PropCalc%Oxygen) then
                          
                 if (ZooGrossGrowRate .LT. 0.0) then 
                     stop 'Subroutine WQZooplankton-Module ModuleWaterQuality. ERR10.'
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+                !No sense on this. David
+!                elseif (ZooGrossGrowRate .EQ. 0.0) then
+!                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
                 end if 
             
             
@@ -6621,13 +6648,16 @@ cd7 :   if (Me%PropCalc%Oxygen) then
                     write(*,*)'Me%ExternalVar%Mass(Phyto, index):', Me%ExternalVar%Mass(Phyto, index)
                     write(*,*)'exponent                         :', exponent
                     write(*,*)'index                            :', index
-               
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+                    
+                    ZooGrossGrowRate = 0.0 
+                    
+!                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
                                                                      
                     !stop 'Subroutine WQZooplankton-Module ModuleWaterQuality. ERR13.'
                 
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+                !No sense on this. David
+!                elseif (ZooGrossGrowRate .EQ. 0.0) then
+!                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
                 end if 
             
            
@@ -6696,8 +6726,10 @@ cd7 :   if (Me%PropCalc%Oxygen) then
                          
                 if (ZooGrossGrowRate .LT. 0.0) then                                                     
                         stop 'Subroutine WQZooplankton-Module ModuleWaterQuality. ERR16.'
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+                    
+                 !No sense on this. David
+!                elseif (ZooGrossGrowRate .EQ. 0.0) then
+!                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
                 end if 
             
            
@@ -7240,12 +7272,17 @@ cd21 :  if     (Me%PhytoGrossGrowRate .LT. 0.0) then
             write(*,*)'Me%ExternalVar%Mass(AM, index)   :', Me%ExternalVar%Mass(AM, index)
             write(*,*)'Me%ExternalVar%Mass(NA, index)   :', Me%ExternalVar%Mass(NA, index)
             write(*,*)'Me%ExternalVar%Mass(IP, index)   :', Me%ExternalVar%Mass(IP, index)
-
-            Me%PhytoGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-            !stop 'Subroutine WQPhytoplankton; module ModuleWaterQuality. ERR01.'
-
-        else if (Me%PhytoGrossGrowRate .EQ. 0.0) then cd21
-            Me%PhytoGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+            
+            !this does not makes sense, crashing the rates. David
+!            Me%PhytoGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
+!            !stop 'Subroutine WQPhytoplankton; module ModuleWaterQuality. ERR01.'
+            Me%PhytoGrossGrowRate = 0.0
+            
+        !this does not makes sense, crashing the rates if one limiting factor is zero
+        !(e.g. at night where light limiting factor is zero)
+        !Division by zero is avoided by putting the death rate in maximum. David
+!        else if (Me%PhytoGrossGrowRate .EQ. 0.0) then cd21
+!            Me%PhytoGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
         end if cd21
 
         if (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen).eq.Me%MinOxygen) then
@@ -7293,15 +7330,24 @@ cd45 :      if ((x1 .EQ. 0.0) .AND. (x3 .EQ. 0.0)) then
 
 
     !DeadPhyto, phyto mortality from non grazing
+        !previous version with absurd values if gross rate was zero (if one limiting factor zero)
+        !makes no sense, crashing rates. 
+        !The below equation, as gross rate decreases, tends to max mortality. Only at very 
+        !low phyto conc (<1E-10) and very low gross rates, the below equation would generate mortality 
+        !rates lower than max mortality so it makes sense to define max mortality at zero growth rate
+        !avoiding division by zero in a more elegant way and not crashing rates. David
+        if (Me%PhytoGrossGrowRate .EQ. 0.0) then
+            PhytoNonGrazingMortalityRate = Me%PhytoMortMaxRate
         
-        PhytoNonGrazingMortalityRate = Me%PhytoMortMaxRate *                                       &
-                                      ((Me%ExternalVar%Mass(Phyto, index)                          &
-                                        / Me%PhytoGrossGrowRate)                                   &
-                                       / (Me%FMortSatConst                                         &
-                                          + (Me%ExternalVar%Mass(Phyto, index)                     &  
-                                          / Me%PhytoGrossGrowRate)))
+        else
+            PhytoNonGrazingMortalityRate = Me%PhytoMortMaxRate *                                       &
+                                          ((Me%ExternalVar%Mass(Phyto, index)                          &
+                                            / Me%PhytoGrossGrowRate)                                   &
+                                           / (Me%FMortSatConst                                         &
+                                              + (Me%ExternalVar%Mass(Phyto, index)                     &  
+                                              / Me%PhytoGrossGrowRate)))
 
-
+        endif
 
     !Excretion and Dead losses----------------------------------------
 
@@ -7599,10 +7645,11 @@ cd3 :   if (Me%PropCalc%Silica) then
 
 cd4 :   if( Me%Diatoms%DiaGrossGrowRate .LT. 0.0) then
             stop 'Subroutine WQDiatoms - Module ModuleWaterQuality - ERR01.'
-
-        else if (Me%Diatoms%DiaGrossGrowRate .EQ. 0.0) then cd4
-
-            Me%Diatoms%DiaGrossGrowRate = -1.0 / null_real   !Avoid division by zero below
+         
+         !No sense on this. David
+!        else if (Me%Diatoms%DiaGrossGrowRate .EQ. 0.0) then cd4
+!
+!            Me%Diatoms%DiaGrossGrowRate = -1.0 / null_real   !Avoid division by zero below
        
         end if cd4
 
@@ -7653,12 +7700,18 @@ cd61 :      if ((x1 .EQ. 0.0) .AND. (x3 .EQ. 0.0)) then
 
     !Dead losses----------------------------------------
         !DiaNonGrazingMortalityRate, Dia mortality from non grazing------------
-        DiaNonGrazingMortalityRate =  Me%Diatoms%DiaMortMaxRate *                                   &
-                                    (( Me%ExternalVar%Mass(Diatoms, index)                          &
-                                     /  Me%Diatoms%DiaGrossGrowRate)                                &
-                                     / (Me%Diatoms%DiaMortSatConst                                  &
-                                     + (Me%ExternalVar%Mass(Diatoms, index)                         &  
-                                     /  Me%Diatoms%DiaGrossGrowRate)))
+        if (Me%Diatoms%DiaGrossGrowRate .EQ. 0.0) then
+            DiaNonGrazingMortalityRate =  Me%Diatoms%DiaMortMaxRate
+        
+        else
+            DiaNonGrazingMortalityRate =  Me%Diatoms%DiaMortMaxRate *                                   &
+                                        (( Me%ExternalVar%Mass(Diatoms, index)                          &
+                                         /  Me%Diatoms%DiaGrossGrowRate)                                &
+                                         / (Me%Diatoms%DiaMortSatConst                                  &
+                                         + (Me%ExternalVar%Mass(Diatoms, index)                         &  
+                                         /  Me%Diatoms%DiaGrossGrowRate)))
+        endif
+        
     !Excretion and Dead losses----------------------------------------
         
         !Dias Excretions
@@ -8557,8 +8610,9 @@ end subroutine WQPhosphorus
         DOPr      = Me%PropIndex%DissOrganicPhosphorusRefractory
 
         DTDay     = Me%DTDay
-
-  
+        
+        !this relation was lacking and unabling implicit LUD computation (division by zero on this diagonal)
+        Me%Matrix(IP, IP) = 1.0
 
     !PhosphorusMineralizationRate, rate of Phosphorus mineralizationRate
   

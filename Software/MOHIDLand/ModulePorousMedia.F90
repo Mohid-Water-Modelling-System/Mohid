@@ -315,6 +315,7 @@ Module ModulePorousMedia
         logical :: DryChannelsCompletely = .false.
         logical :: ImposeBoundaryValue
         real    :: BoundaryValue
+        logical :: WriteLog
     end type T_SoilOptions
 
     type T_SoilType
@@ -642,7 +643,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ConstructProfileOutput
             
-            call ConstructASCIIOutput
+            if (Me%SoilOpt%WriteLog)  call ConstructASCIIOutput
 
             call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructPorousMedia - ModulePorousMedia - ERR02'
@@ -681,6 +682,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         real,   dimension(:, :), pointer            :: ChannelsBottomLevel
         integer                                     :: STAT_CALL, i, j
+        character (Len = 5)                         :: str_i, str_j
+        character (len = StringLength)              :: StrWarning
         !Begin-----------------------------------------------------------------
 
         call GetChannelsBottomLevel (Me%ObjDrainageNetwork, ChannelsBottomLevel, STAT = STAT_CALL)
@@ -693,8 +696,13 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%RiverPoints(i, j) == OpenPoint) then
                 
                 if (ChannelsBottomLevel(i,j) < Me%ExtVar%BottomTopoG(i, j)) then
-                    write (*,*) 
-                    write (*,*) 'Bottom River section is lower than soil profile in cell', i,j
+                    !write (*,*) 
+                    !write (*,*) 'Bottom River section is lower than soil profile in cell', i,j
+                    write(str_i, '(i4)') i 
+                    write(str_j, '(i4)') j 
+                    StrWarning =  'Bottom River section is lower than soil profile in cell (i, j): '// &
+                                    str_i//','//str_j
+                    call SetError(WARNING_, INTERNAL_, StrWarning, OFF) 
                 endif
                 
             endif
@@ -766,16 +774,26 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Reads the name of the file where to store final data
         call ReadFileName ('POROUS_FIN', Me%Files%FinalFile, "PorousMedia Final File", STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR030'
-        
-        !Reads the name of the file where to store ASCII data
-        call ReadFileName ('POROUS_ASC', Me%Files%ASCFile, "PorousMedia ITER SOL File", Me%EndTime,  &
-                           Extension = 'hyt', STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR040'
-       
 
         !Constructs the DataFile
         call ConstructEnterData (Me%ObjEnterData, Me%Files%DataFile, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR050'
+
+        call GetData(Me%SoilOpt%WriteLog,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'WRITE_LOG',                                          &
+                     Default    = .false.,                                              &                                           
+                     ClientModule ='ModulePorousMedia',                                 &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR035'        
+        
+        if (Me%SoilOpt%WriteLog) then
+            !Reads the name of the file where to store ASCII data
+            call ReadFileName ('POROUS_ASC', Me%Files%ASCFile, "PorousMedia ITER SOL File", Me%EndTime,  &
+                               Extension = 'hyt', STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR040'
+        endif
 
         !Botom file
         call GetData(Me%Files%BottomFile,                                               &
@@ -2097,8 +2115,7 @@ doSP:           do
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                    :: i,j,k, STAT_CALL
-        integer, dimension (:,:,:), pointer        :: Mapping
+        integer                                    :: i,j,k
         !Begin-----------------------------------------------------------------
         
 !        allocate (Mapping (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
@@ -4199,7 +4216,7 @@ dConv:  do while (iteration <= Niteration)
         call CalculateMeanFlows (Niteration)
         call InsertInfiltrationOnFluxMatrix
         
-        call LogDT (Niteration)
+        if (Me%SoilOpt%WriteLog) call LogDT (Niteration)
         
         call PredictDT(Niteration)
 
@@ -5901,7 +5918,9 @@ do1:                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                             Me%Theta(i,j,k) = Me%RC%ThetaR(i,j,k)
                         endif
                         
-                        Me%AccBoundaryFlowVolume = Me%AccBoundaryFlowVolume + (OldVolume - Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k))
+                        Me%AccBoundaryFlowVolume = Me%AccBoundaryFlowVolume           &
+                                                   + (OldVolume - Me%Theta(i,j,k)     & 
+                                                   * Me%ExtVar%CellVolume(i,j,k))
                         
                     enddo do1
 
@@ -6246,7 +6265,8 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                     ![m3/s]                   = [m/m] * [m2] * [m/s] * [] 
                     !Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%UnSatK(i, j, Me%UGCell(i,j)) * Me%SoilOpt%HCondFactor
-                    Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%SatK(i, j, Me%UGCell(i,j)) * Me%SoilOpt%FCHCondFactor !Me%SoilOpt%HCondFactor
+                    Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%SatK(i, j, Me%UGCell(i,j))             &
+                                                 * Me%SoilOpt%FCHCondFactor !Me%SoilOpt%HCondFactor
                 
                     !If the channel looses water (infiltration), then set max flux so that volume in channel does not get 
                     !negative                
@@ -6491,7 +6511,8 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                 dX = max(ChannelsBottomWidth(i, j) / 2.0, 1.0)
                 
                 ![m3/s]                   = [m/m] * [m2] * [m/s] * [] 
-                Me%lFlowToChannels(i, j) = (dH / dX ) * Area * Me%UnSatK(i, j, Me%UGCell(i,j)) * Me%SoilOpt%FCHCondFactor !Me%SoilOpt%HCondFactor
+                Me%lFlowToChannels(i, j) = (dH / dX ) * Area * Me%UnSatK(i, j, Me%UGCell(i,j))            &
+                                            * Me%SoilOpt%FCHCondFactor !Me%SoilOpt%HCondFactor
 
                 !If the channel looses water (infiltration), then set max flux so that volume in channel does not get 
                 !negative                

@@ -336,6 +336,7 @@ Module ModuleSedimentQuality
         logical                                             :: ComputeImobilization
         logical                                             :: NewRates
         logical                                             :: OxygenForcing
+        logical                                             :: WriteLog
         real                                                :: ADJ
         !Instance of Module_EnterData
         integer                                             :: ObjEnterData = 0
@@ -411,7 +412,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL .NE. SUCCESS_)                                            &
                 stop 'Subroutine StartSedimentQuality; module ModuleSedimentQuality. ERR02.'
             
-            call ConstructAsciiOutPut
+            if (Me%WriteLog) call ConstructAsciiOutPut
 
             call SQReadData
             call AllocateVariables
@@ -956,6 +957,17 @@ do1:         do while (associated(EquaRateFluxX))
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
             stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR07.'
+
+        call GetData(Me%WriteLog                            ,           &    
+                     Me%ObjEnterData, flag                  ,           &    
+                     SearchType   = FromFile                ,           &    
+                     keyword      = 'WRITE_LOG'             ,           &    
+                     default      = .false.                 ,           &    
+                     ClientModule = 'ModuleSedimentQuality' ,           &    
+                     STAT         = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                    &
+            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR07.5'
 
         call GetData(Me%ComputeImobilization                ,           &    
                      Me%ObjEnterData, flag                  ,           &    
@@ -2474,8 +2486,7 @@ do1 :       do index = ArrayLB, ArrayUB
                 
                     call CorrectOM                      (index           )
 
-                   
-                    call LogSituation
+                    if (Me%WriteLog)  call LogSituation
                     
 
                 endif  

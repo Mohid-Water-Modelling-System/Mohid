@@ -2989,7 +2989,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                                     :: STAT_CALL
         real                                        :: LocalDT, SumDT
         logical                                     :: Restart, ForceRestart
-        integer                                     :: Niter, iter, RIter
+        integer                                     :: Niter, iter
         integer                                     :: n_restart
 
         !----------------------------------------------------------------------
@@ -5495,17 +5495,14 @@ doIter:         do while (iter <= Niter)
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB, STAT_CALL
-        real                                        :: dVol, Flow, MaxFlow
-        real                                        :: TotalVolume, VolExcess, NewLevel
+        real                                        :: dVol
+        real                                        :: TotalVolume, VolExcess
         real                                        :: NewH
         real   , dimension(:, :), pointer           :: ChannelsVolume
         real   , dimension(:, :), pointer           :: ChannelsMaxVolume
         real   , dimension(:, :), pointer           :: ChannelsWaterLevel 
         real   , dimension(:, :), pointer           :: ChannelsNodeLength
         real   , dimension(:, :), pointer           :: ChannelsSurfaceWidth
-        real   , dimension(:, :), pointer           :: ChannelsBankSlope
-        real                                        :: a0, a1, a2
-        real                                        :: x1, x2, dh
         integer, dimension(:, :), pointer           :: ChannelsActiveState
         
 
@@ -5566,7 +5563,8 @@ doIter:         do while (iter <= Niter)
                     !Flow to or from river is calculated based on the level difference (new to old)
                     !If the new level is higher than the old one, the flow will be positive (flow to channel) 
                     !m3   = (m + m - m) * (m * m)
-                    dVol = (NewH + Me%ExtVar%Topography(i, j) - ChannelsWaterLevel(i, j)) * (ChannelsNodeLength(i, j) * ChannelsSurfaceWidth(i, j))
+                    dVol = (NewH + Me%ExtVar%Topography(i, j)    &
+                           - ChannelsWaterLevel(i, j)) * (ChannelsNodeLength(i, j) * ChannelsSurfaceWidth(i, j))
                     Me%iFlowToChannels(i, j) = Me%iFlowToChannels(i, j) + dVol / Me%ExtVar%DT
                                         
                     !Updates Volumes            
@@ -5746,7 +5744,7 @@ doIter:         do while (iter <= Niter)
         real  , dimension(:, :), pointer            :: ChannelsSurfaceWidth
         real                                        :: CellLevel, TotalVolume, VolExcess, NewH
         real                                        :: NewHOnCell, NewHOnRiver
-        real                                        :: AreaChannel, NewLevel
+        real                                        :: NewLevel
         
 
         call GetChannelsVolume      (Me%ObjDrainageNetwork, ChannelsVolume, STAT = STAT_CALL)
@@ -5823,7 +5821,8 @@ doIter:         do while (iter <= Niter)
                     else
                         !Water level on cell is defined by the volume of water on cell divided by the area of cell minus the area of the 
                         !channel plus the topography
-                        CellLevel = (Me%myWaterVolume (i, j) / (Me%ExtVar%GridCellArea(i, j) - ChannelsTopArea(i, j))) + Me%ExtVar%Topography(i, j)
+                        CellLevel = (Me%myWaterVolume (i, j) / (Me%ExtVar%GridCellArea(i, j) &
+                                     - ChannelsTopArea(i, j))) + Me%ExtVar%Topography(i, j)
                 
                         !dh > 0, flow to channels, dh < 0, flow from channels
                         dh         =  CellLevel - ChannelsWaterLevel(i, j)
@@ -5843,8 +5842,10 @@ doIter:         do while (iter <= Niter)
                             Flow = MaxFlow 
                         endif 
                                                 
-                        NewHOnRiver = (ChannelsVolume(i,j) - ChannelsMaxVolume(i,j) + (Flow * Me%ExtVar%DT)) / ChannelsTopArea(i,j)                                                
-                        NewHOnCell  = (Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)) / (Me%ExtVar%GridCellArea(i, j) - ChannelsTopArea(i,j))
+                        NewHOnRiver = (ChannelsVolume(i,j) - ChannelsMaxVolume(i,j)      &
+                                       + (Flow * Me%ExtVar%DT)) / ChannelsTopArea(i,j)    
+                        NewHOnCell  = (Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT))  &
+                                       / (Me%ExtVar%GridCellArea(i, j) - ChannelsTopArea(i,j))
                         
                         if (NewHOnRiver < NewHOnCell) then
                             !If this is true, this means that the celerity will (maybe) make the river and runoff unstable.
@@ -5865,12 +5866,12 @@ doIter:         do while (iter <= Niter)
                             !Updates Volumes            
                             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - dVol                
                             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
-                            Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)                             
+                            Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j) 
                         else
                             !Updates Volumes                            
                             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)                
                             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
-                            Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)                         
+                            Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j) 
                         endif                                               
                     endif                
                 endif        
@@ -5922,10 +5923,7 @@ doIter:         do while (iter <= Niter)
         real                                        :: dh, dh_new, WaveHeight, Celerity, dVol
         integer, dimension(:, :), pointer           :: ChannelsActiveState
         real  , dimension(:, :), pointer            :: ChannelsSurfaceWidth
-        real                                        :: CellLevel, TotalVolume, VolExcess, NewH
-        real                                        :: NewHOnCell, NewHOnRiver
-        real                                        :: AreaChannel, NewLevel
-        real                                        :: ChannelNewVolume
+        real                                        :: TotalVolume, VolExcess, NewH
         
 
         call GetChannelsVolume      (Me%ObjDrainageNetwork, ChannelsVolume, STAT = STAT_CALL)
@@ -6427,7 +6425,7 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: i, j, di, dj
         integer                                     :: ILB, IUB, JLB, JUB
         logical                                     :: NearBoundary
-        real                                        :: OldVolume, NewVolume
+        real                                        :: OldVolume
 
         !Routes water outside the watershed if water is higher then a given treshold values
         ILB = Me%WorkSize%ILB
@@ -6460,7 +6458,7 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     Me%myWaterLevel (i, j) = max(Me%BoundaryValue, Me%ExtVar%Topography (i, j))
 
                     !Updates Water Column
-                    Me%myWaterColumn(i, j) = Me%myWaterLevel (i, j) - Me%ExtVar%Topography (i, j)                                        
+                    Me%myWaterColumn(i, j) = Me%myWaterLevel (i, j) - Me%ExtVar%Topography (i, j) 
                     
                     !Updates Volume and BoundaryFlowVolume
                     OldVolume              = Me%myWaterVolume(i, j)

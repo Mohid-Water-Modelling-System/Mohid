@@ -974,12 +974,12 @@ Module ModuleVegetation
         character(len = StringLength)                           :: FeddesDatabase
 
         !global counter
-        real, dimension(:,:), pointer                           :: DaysOfGrazing                    !counter to days of grazing
+        real, dimension(:,:), pointer                           :: DaysOfGrazing              !counter to days of grazing
         real, dimension(:,:), pointer                           :: AnnualNitrogenFertilized
         real, dimension(:,:), pointer                           :: AnnualPhosphorusFertilized
         real, dimension(:,:), pointer                           :: OptimalTotalPlantNitrogen
         real, dimension(:,:), pointer                           :: OptimalTotalPlantPhosphorus
-        integer                                                 :: nIterations                      !counter to atmosphere integration
+        integer                                                 :: nIterations             !counter to atmosphere integration
         
         integer, dimension(:), pointer                          :: PesticideListID
         character(len = StringLength), dimension(:), pointer    :: PesticideListName
@@ -1255,7 +1255,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_CALL, iflag
-        real                                    :: auxFactor, Erroraux, DTaux, ModelDT
+        real                                    :: auxFactor, Erroraux, DTaux
         real                                    :: PotentialHUTotal
         logical                                 :: Aux
             
@@ -1717,82 +1717,87 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         endif
 
-        call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
+        call GetComputeTimeStep(Me%ObjTime, Me%ExternalVar%DT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadOptions - ModuleVegetation - ERR350'
-
-        Me%ExternalVar%DT = ModelDT
 
         call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadOptions - ModuleVegetation - ERR360'
 
-        call GetData(Me%ComputeOptions%VegetationDT,    &
-                     Me%ObjEnterData, iflag,            &
-                     keyword      = 'VEGETATION_DT',    &
-                     Default      = ModelDT,            &
-                     SearchType   = FromFile,           &
-                     ClientModule = 'ModuleVegetation', &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) &
-            stop 'ReadOptions - ModuleVegetation - ERR370'
-                                   
-        call GetData(Me%ComputeOptions%IntegrationDT,   &
-                     Me%ObjEnterData, iflag,            &
-                     keyword      = 'INTEGRATION_DT',   &
-                     Default      = ModelDT,            &
-                     SearchType   = FromFile,           &
-                     ClientModule = 'ModuleVegetation', &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) &
-            stop 'ReadOptions - ModuleVegetation - ERR380'
+        if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
 
-        if (Me%ComputeOptions%VegetationDT .lt. Me%ComputeOptions%IntegrationDT) then
-            write(*,*) 
-            write(*,*) 'Vegetation DT time step is smaller then the integration DT'
-            stop 'ReadOptions - ModuleVegetation - ERR390'
-        endif
-        
-        if (Me%ComputeOptions%IntegrationDT .lt. Me%ExternalVar%DT) then
-            write(*,*) 
-            write(*,*) 'Integration DT time step is smaller then the model DT'
-            stop 'ReadOptions - ModuleVegetation - ERR400'  
-        endif      
-        
-        if (Me%ComputeOptions%VegetationDT .lt. ModelDT) then
-            write(*,*) 
-            write(*,*) 'Vegetation DT time step is smaller then model time step'
-            stop 'ReadOptions - ModuleVegetation - ERR410'
+            call GetData(Me%ComputeOptions%VegetationDT,    &
+                         Me%ObjEnterData, iflag,            &
+                         keyword      = 'VEGETATION_DT',    &
+                         Default      = Me%ExternalVar%DT,  &
+                         SearchType   = FromFile,           &
+                         ClientModule = 'ModuleVegetation', &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR370'
+                                       
+            call GetData(Me%ComputeOptions%IntegrationDT,   &
+                         Me%ObjEnterData, iflag,            &
+                         keyword      = 'INTEGRATION_DT',   &
+                         Default      = Me%ExternalVar%DT,  &
+                         SearchType   = FromFile,           &
+                         ClientModule = 'ModuleVegetation', &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR380'
 
-        else
-
-            !Vegetation time step must be a multiple of the model time step
-            auxFactor = Me%ComputeOptions%VegetationDT  / ModelDT
-
-            Erroraux = auxFactor - int(auxFactor)
-            if (Erroraux /= 0) then
+            if (Me%ComputeOptions%VegetationDT .lt. Me%ComputeOptions%IntegrationDT) then
                 write(*,*) 
-                write(*,*) 'Vegetation time step must be a multiple of model time step.'
-                write(*,*) 'Please review your input data.'
-                stop 'ReadOptions - ModuleVegetation - ERR420'
+                write(*,*) 'Vegetation DT time step is smaller then the integration DT'
+                stop 'ReadOptions - ModuleVegetation - ERR390'
             endif
-
-            !Run period in seconds
-            DTaux = Me%EndTime - Me%ExternalVar%Now
-
-            !The run period   must be a multiple of the Vegetation DT
-            auxFactor = DTaux / Me%ComputeOptions%VegetationDT
-
-            ErrorAux = auxFactor - int(auxFactor)
-            if (ErrorAux /= 0) then
-
+            
+            if (Me%ComputeOptions%IntegrationDT .lt. Me%ExternalVar%DT) then
                 write(*,*) 
-                write(*,*) 'Model run time is not a multiple of vegetation time step.'
-                write(*,*) 'Please review your input data.'
-                stop 'ReadOptions - ModuleVegetation - ERR430'
-            end if
-        endif
+                write(*,*) 'Integration DT time step is smaller then the model DT'
+                stop 'ReadOptions - ModuleVegetation - ERR400'  
+            endif      
+            
+            if (Me%ComputeOptions%VegetationDT .lt. Me%ExternalVar%DT) then
+                write(*,*) 
+                write(*,*) 'Vegetation DT time step is smaller then model time step'
+                stop 'ReadOptions - ModuleVegetation - ERR410'
 
+            else
+
+                !Vegetation time step must be a multiple of the model time step
+                auxFactor = Me%ComputeOptions%VegetationDT  / Me%ExternalVar%DT
+
+                Erroraux = auxFactor - int(auxFactor)
+                if (Erroraux /= 0) then
+                    write(*,*) 
+                    write(*,*) 'Vegetation time step must be a multiple of model time step.'
+                    write(*,*) 'Please review your input data.'
+                    stop 'ReadOptions - ModuleVegetation - ERR420'
+                endif
+
+                !Run period in seconds
+                DTaux = Me%EndTime - Me%ExternalVar%Now
+
+                !The run period   must be a multiple of the Vegetation DT
+                auxFactor = DTaux / Me%ComputeOptions%VegetationDT
+
+                ErrorAux = auxFactor - int(auxFactor)
+                if (ErrorAux /= 0) then
+
+                    write(*,*) 
+                    write(*,*) 'Model run time is not a multiple of vegetation time step.'
+                    write(*,*) 'Please review your input data.'
+                    stop 'ReadOptions - ModuleVegetation - ERR430'
+                end if
+            endif
+        
+        else !user can not control dt's and vegetation runs at every dt
+            Me%ComputeOptions%VegetationDT = Me%ExternalVar%DT
+            Me%ComputeOptions%IntegrationDT = Me%ExternalVar%DT
+        endif
+        
         Me%NextCompute     = Me%ExternalVar%Now !+ Me%ComputeOptions%VegetationDT
 
         Me%NextIntegration = Me%ExternalVar%Now !+ Me%ComputeOptions%IntegrationDT
@@ -3564,7 +3569,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             allocate(Me%ExternalVar%Integration%AverageAirHumidityDuringDT(ILB:IUB,JLB:JUB)) 
             Me%ExternalVar%Integration%AverageAirHumidityDuringDT (:,:) = 0.0
             
-            allocate(Me%ExternalVar%Integration%AverageRadiationDuringDT (ILB:IUB,JLB:JUB))                                                
+            allocate(Me%ExternalVar%Integration%AverageRadiationDuringDT (ILB:IUB,JLB:JUB)) 
             Me%ExternalVar%Integration%AverageRadiationDuringDT (:,:) = 0.0
             
             !Construct fraction of HU at the beggining of simulation
@@ -3924,10 +3929,16 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             !Always water uptake and water stress
             AddProperties = AddProperties + 2
             if (Me%ComputeOptions%ModelNitrogen) then
-                AddProperties = AddProperties + 3
+                AddProperties = AddProperties + 1
+                if (Me%ComputeOptions%Evolution%ModelSWAT) then
+                    AddProperties = AddProperties + 2
+                endif
             endif  
             if (Me%ComputeOptions%ModelPhosphorus) then
-                AddProperties = AddProperties + 3
+                AddProperties = AddProperties + 1
+                if (Me%ComputeOptions%Evolution%ModelSWAT) then
+                    AddProperties = AddProperties + 2
+                endif
             endif 
             if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
                 AddProperties = AddProperties + 3
@@ -3957,19 +3968,23 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
             if (Me%ComputeOptions%ModelNitrogen) then
                 nProperties = nProperties + 1
-                PropertyList(nProperties) = "Nitrogen Uptake kg/ha"            
-                nProperties = nProperties + 1
-                PropertyList(nProperties) = "OptimalPlantNitrogen_kg/ha"  
-                nProperties = nProperties + 1
-                PropertyList(nProperties) = "NitrogenStressFactor"  
+                PropertyList(nProperties) = "Nitrogen Uptake kg/ha"  
+                if (Me%ComputeOptions%Evolution%ModelSWAT) then          
+                    nProperties = nProperties + 1
+                    PropertyList(nProperties) = "OptimalPlantNitrogen_kg/ha"  
+                    nProperties = nProperties + 1
+                    PropertyList(nProperties) = "NitrogenStressFactor"  
+                endif
             endif
             if (Me%ComputeOptions%ModelPhosphorus) then
                 nProperties = nProperties + 1
                 PropertyList(nProperties) = "Phosphorus Uptake kg/ha"
-                nProperties = nProperties + 1
-                PropertyList(nProperties) = "OptimalPlantPhosphorus_kg/ha"  
-                nProperties = nProperties + 1
-                PropertyList(nProperties) = "PhosphorusStressFactor"               
+                if (Me%ComputeOptions%Evolution%ModelSWAT) then
+                    nProperties = nProperties + 1
+                    PropertyList(nProperties) = "OptimalPlantPhosphorus_kg/ha"  
+                    nProperties = nProperties + 1
+                    PropertyList(nProperties) = "PhosphorusStressFactor"      
+                endif         
             endif
 
             if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
@@ -4801,11 +4816,14 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then 
                 veg_id = Me%VegetationID(i,j)
-                veg_type = Me%VegetationTypes(veg_id)%GrowthDatabase%PlantType
+                
+                if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
+                    veg_type = Me%VegetationTypes(veg_id)%GrowthDatabase%PlantType
                                       
-                !Plant type 0 is NO PLANT, so no operations should happen
-                if (veg_type == NotAPlant) cycle
-            
+                    !Plant type 0 is NO PLANT, so no operations should happen
+                    if (veg_type == NotAPlant) cycle
+                endif
+                
                 Me%ComputeOptions%TranspirationMOHID%FeddesType(i,j) = &
                     Me%VegetationTypes(veg_id)%FeddesType 
 
@@ -5643,7 +5661,9 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                 
                     !Computes LAIShape1 and LAIShape2
                     gdb => Me%VegetationTypes(ivt)%GrowthDatabase
-                    call ComputeShapeCoefficients (gdb%FrLAIMax1, gdb%FrLAIMax2, gdb%FrGrow1, gdb%FrGrow2, gdb%LAIShape1, gdb%LAIShape2)
+                    call ComputeShapeCoefficients (gdb%FrLAIMax1, gdb%FrLAIMax2,   &
+                                                   gdb%FrGrow1  , gdb%FrGrow2,     &
+                                                   gdb%LAIShape1, gdb%LAIShape2)
 
                     !LAI decline will not happen to EVERGREEN plants.
                     call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%Evergreen, GrowthObjEnterData,  iflag,               &
@@ -8315,7 +8335,19 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             !Sets External Variable
             Me%ExternalVar%MappingPoints => MappingPoints                        
             Me%Externalvar%PotentialTranspiration => PotentialTranspiration
-        
+            
+            !if no growth model, vegetation runs every model timestep and time to run is now
+            if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
+                
+                call GetComputeTimeStep(Me%ObjTime, Me%ExternalVar%DT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyVegetation - ModuleVegetation - ERR10'            
+                
+                Me%NextIntegration              = Me%ExternalVar%Now
+                Me%NextCompute                  = Me%ExternalVar%Now
+                Me%ComputeOptions%VegetationDT  = Me%ExternalVar%DT
+                Me%ComputeOptions%IntegrationDT = Me%ExternalVar%DT
+            endif
+            
             ! Transpiration is averaged during Integration DT until vegetation processes are called
             ! If vegetation growth model is used also atmosphere properties are averaged
             if (Me%ExternalVar%Now >= Me%NextIntegration) then     
@@ -8324,7 +8356,6 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 Me%NextIntegration =  Me%NextIntegration + Me%ComputeOptions%IntegrationDT
 
             endif
-
 
             !Time when vegetation processes are called
             if (Me%ExternalVar%Now >= Me%NextCompute) then     
@@ -8693,8 +8724,10 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 
                 if (Me%ComputeOptions%Fertilization) then
                     do FertApp = 1, Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%NumberFertilizerApps
-                        if (Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
-                            Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred = .false.
+                        if (Me%VegetationTypes(Me%VegetationID(i,j))&
+                            &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
+                            Me%VegetationTypes(Me%VegetationID(i,j))&
+                            &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred = .false.
                         endif
                     enddo
                 endif
@@ -8711,8 +8744,10 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 
                 if (Me%ComputeOptions%Pesticide) then
                     do Pest = 1, Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%NumberPesticideApps
-                        if (Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred) then
-                            Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred = .false.
+                        if (Me%VegetationTypes(Me%VegetationID(i,j))&
+                            &%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred) then
+                            Me%VegetationTypes(Me%VegetationID(i,j))&
+                            &%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred = .false.
                         endif
                     enddo                
 !                    do Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
@@ -8769,7 +8804,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                     else
                         if (Me%ComputeOptions%Fertilization) then
                             do FertApp = 1, Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%NumberFertilizerApps
-                                if (Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
+                                if (Me%VegetationTypes(Me%VegetationID(i,j))&
+                                    &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
                                     Me%SoilFluxesActive(i,j) = .true.
                                 endif
                             enddo
@@ -9223,7 +9259,7 @@ do4:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            ::    PlantHUatMaturity
         real                                            ::  AverageTempDuringDT
         real                                            :: PlantBaseTemperature
-        real                                            :: HUAcc, AccumulatedTemperature
+        real                                            :: AccumulatedTemperature
         !Begin-----------------------------------------------------------------
 
         VegetationID         = Me%VegetationID(i,j)
@@ -9243,8 +9279,6 @@ do4:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         Me%HeatUnits%PlantHUAccumulated_Old(i,j) = Me%HeatUnits%PlantHUAccumulated (i,j)
         Me%HeatUnits%PlantHUAccumulated    (i,j) = Me%HeatUnits%PlantHUAccumulated (i,j) + PlantHUVariation
         
-        !Debug
-        !HUAcc = Me%HeatUnits%PlantHUAccumulated (i,j)
 
     end subroutine ComputePlantGrowingStage
 
@@ -9614,7 +9648,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
             
                 !Plant type 0 is NO PLANT, so no operations should happen
-                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
+                    if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                endif
                         
                 UptakeAllowed = .true.    
                 if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
@@ -9723,10 +9759,11 @@ do3 :               do k = KUB, KLB, -1
                             WFactor= 1/(1+(Head/h50)**p1)
 
                         endif
-
+                            
                         call GetVegetationSalinityParameters (I, J, UseSalinityStress, StressParams, StressInteraction)
                 
                         if (UseSalinityStress) then
+                            
                             select case (Me%ComputeOptions%SalinityStressMethod)
                             case (1) !Threshold/slope                        
                                 !call ComputeECw (I, J, K, ECw)                               
@@ -10218,8 +10255,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
 
                 !Plant type 0 is NO PLANT, so no operations should happen
-                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
-
+                if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
+                    if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                endif
+                
                 ComputeCell = .false.
                 if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
                     ComputeCell = .true.
@@ -10713,7 +10752,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExternalVar%MappingPoints (i,j) == VegetationPoint) then
             
                 !Plant type 0 is NO PLANT, so no operations should happen
-                if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
+                    if (Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType == NotAPlant) cycle
+                endif
                         
                 ComputeCell = .false.
                 if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
@@ -11344,7 +11385,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
                         DeltaFractionLAIMax = Me%PlantLAIMaxFraction(i,j) - FractionLAIMax_Old                                
                         LAI = Me%StateVariables%LeafAreaIndex(i,j)
-                        Me%Fluxes%LAIChange(i,j) = (DeltaFractionLAIMax * LAIMax * (1.0 - exp(5.0 * (LAI - LAIMax)))) * sqrt(GlobalStress)
+                        Me%Fluxes%LAIChange(i,j) = (DeltaFractionLAIMax * LAIMax * (1.0 - exp(5.0 * (LAI - LAIMax))))   &
+                                                    * sqrt(GlobalStress)
 
                         !When coming from dormancy or grazing or harvest LAI growth turns negative because of HU decline
                         !However, LAI decline due to HUAccumulated decline is already computed explicitly 
@@ -13146,11 +13188,11 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                
                             Me%StateVariables%LeafAreaIndex(i,j) = (Me%StateVariables%LeafAreaIndex(i,j) - LAIChange) - &
                                                                    (LAI * BiomassGrazedFraction) -                      &
-                                                                   (LAI * BiomassHarvestedFraction)                                                                      
+                                                                   (LAI * BiomassHarvestedFraction)  
                             
                         else if (UseBoundaryLAI) then
                         
-                                Me%StateVariables%LeafAreaIndex(i,j) = Me%StateVariables%LeafAreaIndex(i,j) + LAIChange                              
+                                Me%StateVariables%LeafAreaIndex(i,j) = Me%StateVariables%LeafAreaIndex(i,j) + LAIChange   
                             
                         endif
         
@@ -13954,24 +13996,26 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
             call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%Fluxes%NitrogenUptake, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR04'
             
-            call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%OptimalTotalPlantNitrogen, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR05'
-            
-            call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%Growth%NitrogenStress, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR06'
-            
+            if (Me%ComputeOptions%Evolution%ModelSWAT) then
+                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%OptimalTotalPlantNitrogen, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR05'
+                
+                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%Growth%NitrogenStress, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR06'
+            endif
         endif
         if (Me%ComputeOptions%ModelPhosphorus) then
 
             call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%Fluxes%PhosphorusUptake, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR07'
             
-            call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%OptimalTotalPlantPhosphorus, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR08'
-           
-            call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%Growth%PhosphorusStress, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR09'
-
+            if (Me%ComputeOptions%Evolution%ModelSWAT) then
+                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%OptimalTotalPlantPhosphorus, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR08'
+               
+                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%Growth%PhosphorusStress, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR09'
+            endif
         endif
 
 
