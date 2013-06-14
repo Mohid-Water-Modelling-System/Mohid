@@ -877,11 +877,9 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 nullify(Me%GrossProduction%Field)
                 allocate(Me%GrossProduction%Field   (WQArrayLB:WQArrayUB))
-                !This "rates" need to be initialized or in no openpoints they will be filled with
-                !negative values. For ModuleWaterProperties this is not important since is evaluated
-                !only in openpoints.
-                !This is important for ModuleDrainageNetwork because usually the model starts with no water
-                !(no open points) but time series may be obtained at those points (avoid negative values at start)
+                !These "rates" need to be initialized or in no openpoints they will be filled with
+                !negative values. This may cause errors if in between WaterQuality computations a closed
+                !cell turns into open point and uses the negative "rate" values. David
                 Me%GrossProduction%Field = 0.0
                 
                 !TempLimitation
@@ -895,7 +893,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                 allocate(Me%TempLimitation%Field   (WQArrayLB:WQArrayUB))
                 !Limiting factors initialized as zero are consistent with zero gross production and avoid
                 !filling with other values (e.g. 1 * DT) that in no water points will not be transformed back to
-                ![0-1] in recieving modules (water properties, drianage network)
+                ![0-1] in recieving modules (water properties, drainage network). David
                 Me%TempLimitation%Field = 0.0
                 
                 !NutLimitation
