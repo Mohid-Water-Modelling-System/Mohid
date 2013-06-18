@@ -2275,6 +2275,13 @@ cd11:   if (Me%ComputeOptions%Recording) then
                 if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR50'
                 
             end if
+            
+            !UnGets WaterPoints2D
+            call UnGetHorizontalMap(Me%ObjHorizontalMap,                                &                      
+                                    Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR61'
+
 
         else 
             if (Me%ComputeOptions%Evolution == ImposedSolution_) then
@@ -2286,11 +2293,6 @@ cd11:   if (Me%ComputeOptions%Recording) then
 
         endif
         
-        !UnGets WaterPoints2D
-        call UnGetHorizontalMap(Me%ObjHorizontalMap,                                &                      
-                                Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                  &
-            stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR61'
 
 
         call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
