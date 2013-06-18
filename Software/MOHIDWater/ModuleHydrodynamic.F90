@@ -2204,7 +2204,9 @@ cd11:   if (Me%ComputeOptions%Recording) then
         character(len = StringLength)      :: BeginBlock, EndBlock, Char_TypeZUV
         integer                            :: STAT_CALL, ClientNumber, i, j, k, iflag 
         logical                            :: BlockFound
-
+        real                               :: MinWaterColumn
+        real,    dimension(:,:),   pointer :: Bathymetry
+        
         !----------------------------------------------------------------------
 
 
@@ -2242,16 +2244,36 @@ cd11:   if (Me%ComputeOptions%Recording) then
             
             Me%WaterLevel%New (:,:) = Me%WaterLevel%New (:,:) / Me%OutPut%WaterLevelUnits            
 
-            !UnGets WaterPoints2D
-            call UnGetHorizontalMap(Me%ObjHorizontalMap,                                &                      
-                                  Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR40'
-
-
             if(.not. Me%WaterLevel%ID%SolutionFromFile)then
+            
+                call GetGeometryMinWaterColumn(Me%ObjGeometry, MinWaterColumn, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR40'
+                
+                call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR41'
+
+                do  j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                do  i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                        
+                    if (Me%External_Var%WaterPoints2D(i, j) == WaterPoint) then
+                    
+                        if (Me%WaterLevel%New(i,j) < (- Bathymetry(i, j) + 0.999 * MinWaterColumn)) then
+                            Me%WaterLevel%New(i,j) =  - Bathymetry(i, j) + 0.999 * MinWaterColumn
+                        endif 
+
+                        Me%WaterLevel%Old(i, j) = Me%WaterLevel%New(i, j)
+
+                    endif
+
+                enddo
+                enddo
+                
+                call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR41'
+
                 call KillFillMatrix(Me%WaterLevel%ID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR50'
+                
             end if
 
         else 
@@ -2263,6 +2285,13 @@ cd11:   if (Me%ComputeOptions%Recording) then
             endif
 
         endif
+        
+        !UnGets WaterPoints2D
+        call UnGetHorizontalMap(Me%ObjHorizontalMap,                                &                      
+                                Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR61'
+
 
         call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR70'
@@ -37090,7 +37119,7 @@ dok:            do k = kbottom + 1, KUB
         integer                            :: I, J, K, kbottom, di, dj, iSouth, jWest
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
-        real                               :: TimeCoef, F_UV, DT_RunPeriod
+        real                               :: TimeCoef, DT_RunPeriod
         real                               :: TimeCoef2
         real,    dimension(:,:  ), pointer :: Coriolis_Freq
 
@@ -37177,7 +37206,7 @@ dok:            do k = kbottom + 1, KUB
         !griflet: removed critical. Added TimeCoef to private variables.        
         !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,kbottom,FaceDensity, &
         !$OMP                   WaterPressure_Aceleration,TidePotentialAceleration, &
-        !$OMP                   AtmosphericPressure_Aceleration,F_UV,Barotropic_Aceleration, &
+        !$OMP                   AtmosphericPressure_Aceleration,Barotropic_Aceleration, &
         !$OMP                   Baroclinic_Aceleration,Transport_Aceleration,TimeCoef2)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:     do j = JLB, JUB
