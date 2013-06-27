@@ -13460,18 +13460,35 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         Courant = CourantDT / dble(DT_Model)
 
-        !If variation is over 60.0% shut down DT quickly
-        if     (Courant > 0.6) then
-            NewDT%DT = 0.5  * CourantDT
-        !If variation is over  40% shut down DT slowly
-        elseif (Courant > 0.4 .and. Courant <= .6) then
-            NewDT%DT = 0.8  * CourantDT
-        elseif (Courant > 0.2 .and. Courant <= .4) then
+!        !If variation is over 60.0% shut down DT quickly
+!        if     (Courant > 0.6) then
+!            NewDT%DT = 0.5  * CourantDT
+!        !If variation is over  40% shut down DT slowly
+!        elseif (Courant > 0.4 .and. Courant <= .6) then
+!            NewDT%DT = 0.8  * CourantDT
+!        elseif (Courant > 0.2 .and. Courant <= .4) then
+!            NewDT%DT = CourantDT
+!        elseif (Courant <= 0.20) then
+!            NewDT%DT = 1.2 * CourantDT
+!        !Increase DT
+!        endif
+        
+        !Previous formulation was decreasing dt if CourantDT was
+        !higher than dt and let dt higher than CourantDT when it should
+        !be cutted down.
+        !If Courant is over 1 DTCourant is higher than ModelDT
+        !use DTCourant because it is not expected problems
+        if     (Courant > 1) then
             NewDT%DT = CourantDT
-        elseif (Courant <= 0.20) then
-            NewDT%DT = 1.2 * CourantDT
-        !Increase DT
+        !If Courant is over  50% shut down DT slowly
+        elseif (Courant > 0.5 .and. Courant <= 1) then
+            NewDT%DT = 0.75  * CourantDT
+        !If Courant below 50%, CourantDT is lower than half ModelDT
+        !shut down DT quickly
+        elseif (Courant <= 0.50) then
+            NewDT%DT = 0.5 * CourantDT
         endif
+
 
     end subroutine CalcNewDT
 
@@ -40622,11 +40639,13 @@ cd2:    if (Me%ComputeOptions%SurfaceWaterFlux .and. .not. Me%State%Initial) the
 do2:            do j = JLB, JUB
 do3:            do i = ILB, IUB
 
-                    !Precipitation Condition : AddSurfaceWater(i, j) > 0
-                    !Evaporation   Condition : AddSurfaceWater(i, j) < 0
-                    if ((OpenPoints3D (i, j, KUB) == OpenPoint .and. AddSurfaceWater(i, j) < 0) .or. &
-                        (WaterPoints3D(i, j, KUB) == WaterPoint.and. AddSurfaceWater(i, j) > 0)) then
-                
+!                    !Precipitation Condition : AddSurfaceWater(i, j) > 0
+!                    !Evaporation   Condition : AddSurfaceWater(i, j) < 0
+!                    if ((OpenPoints3D (i, j, KUB) == OpenPoint .and. AddSurfaceWater(i, j) < 0) .or. &
+!                        (WaterPoints3D(i, j, KUB) == WaterPoint.and. AddSurfaceWater(i, j) > 0)) then
+
+                    if (OpenPoints3D (i, j, KUB) == OpenPoint) then
+                                        
                         Me%WaterFluxes%Discharges(i, j, KUB)     =                      &
                             Me%WaterFluxes%Discharges(i, j, KUB) +                      &
                             AddSurfaceWater(i, j)

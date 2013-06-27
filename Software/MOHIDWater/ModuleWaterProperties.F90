@@ -1128,6 +1128,8 @@ Module ModuleWaterProperties
                 
         integer                                 :: MaxThreads
         
+        logical                                 :: TempFirstTimeWarning  = .false.
+        
 #ifdef _USE_SEQASSIMILATION
         integer, pointer, dimension(:)          :: PropertiesID
         logical                                 :: RunSeqAssimilation       = .false.
@@ -17207,6 +17209,15 @@ dn:         do n=1, nCells
                                             !When a property is not found associated to a discharge
                                             !by default is consider that the concentration is zero
                                             DischargeConc = 0.
+                                            
+                                            !if property is temperature, warn user
+                                            if  ((PropertyX%ID%IDNumber == Temperature_) .and. (.not. Me%TempFirstTimeWarning)) then
+                                                
+                                                call SetError(WARNING_, INTERNAL_, &
+                                                "Positive discharge without user defined concentration - discharge temperature = 0ºC", ON)
+                                                Me%TempFirstTimeWarning = .true.              
+                                                         
+                                            endif
                                         else
                                             stop 'WaterPropDischarges - ModuleWaterProperties - ERR90'
                                         endif
