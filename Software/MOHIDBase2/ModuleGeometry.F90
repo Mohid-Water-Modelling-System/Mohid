@@ -22,7 +22,7 @@
 !   ID                          : int               -           !Domain ID
 !   TYPE                        : char              -           !Type of vertical coordinate of the domain
 !                                                               !Multiple options: FIXSPACING, SIGMA,
-!                                                               !CARTESIAN, HARMONIC, FIXSEDIMENT
+!                                                               !CARTESIAN, FIXSEDIMENT
 !   LAYERS                      : int               -           !Number of layers
 !   EQUIDISTANT                 : real             [0]          !Equidistant layers spacing in meters
 !   LAYERTHICKNESS              : real vector       -           !If not equidistant specifies layers thickness
@@ -106,7 +106,7 @@ Module ModuleGeometry
 !    private ::          ComputeFixSediment
     private ::          ComputeInitSediment
     private ::          ComputeCartesian
-    private ::          ComputeHarmonic
+!    private ::          ComputeHarmonic
     private ::          ComputeSigma
     private ::          ComputeLagrangianNew
     private ::      ComputeZCellCenter
@@ -212,7 +212,7 @@ Module ModuleGeometry
     integer, parameter :: Isopycnic             = 3
     !integer, parameter :: Lagrangian            = 4
     integer, parameter :: Cartesian             = 5
-    integer, parameter :: Harmonic              = 6
+    !integer, parameter :: Harmonic              = 6
     integer, parameter :: FixSediment           = 7
     integer, parameter :: SigmaTop              = 8
     integer, parameter :: CartesianTop          = 9
@@ -1029,8 +1029,8 @@ CorretID:       if (ID == ActualID) then
                            
                     case ("CARTESIAN", "Cartesian", "cartesian")
                         NewDomain%DomainType = Cartesian
-                    case ("HARMONIC", "Harmonic", "harmonic")
-                        NewDomain%DomainType = Harmonic
+                    !case ("HARMONIC", "Harmonic", "harmonic")
+                    !    NewDomain%DomainType = Harmonic
                     case ("FIXSEDIMENT", "Fixsediment", "fixsediment")
                         NewDomain%DomainType = FixSediment
                     case ("SIGMATOP", "Sigmatop", "sigmatop")
@@ -1305,8 +1305,9 @@ cd2 :                       if (BlockLayersFound) then
                    !if < 1 - cartesian with shave cells
                    !In cartesian coordinates the reference layer thickness is compute for the 
                    !maximum depth
-                    if (NewDomain%DomainType == Cartesian     .or.                      &
-                        NewDomain%DomainType == Harmonic) then
+!                    if (NewDomain%DomainType == Cartesian     .or.                      &
+!                        NewDomain%DomainType == Harmonic) then
+                    if (NewDomain%DomainType == Cartesian) then
 
                         call GetData(NewDomain%MinInitialLayerThickness,                &
                                      ObjEnterData, iflag,                               &
@@ -1337,18 +1338,18 @@ cd2 :                       if (BlockLayersFound) then
 
 
                     !Seraches for the minimum thickness of colapsing cells of the Harmonic domain
-                    if (NewDomain%DomainType == Harmonic) then
-
-                        call GetData(NewDomain%MinEsp,                                  &
-                                     ObjEnterData, iflag,                               &
-                                     SearchType     = FromBlock,                        &
-                                     keyword        = 'MIN_TOP_THICKNESS',              &
-                                     ClientModule   = 'ModuleGeometry',                 &
-                                     Default        = Me%WaterColumn%ZMin,              &
-                                     STAT           = STATUS)
-                        if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR280"
-
-                    endif
+!                    if (NewDomain%DomainType == Harmonic) then
+!
+!                        call GetData(NewDomain%MinEsp,                                  &
+!                                     ObjEnterData, iflag,                               &
+!                                     SearchType     = FromBlock,                        &
+!                                     keyword        = 'MIN_TOP_THICKNESS',              &
+!                                     ClientModule   = 'ModuleGeometry',                 &
+!                                     Default        = Me%WaterColumn%ZMin,              &
+!                                     STAT           = STATUS)
+!                        if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR280"
+!
+!                    endif
 
                     
                     !Seraches for the minimum thickness of bottom layer
@@ -1561,14 +1562,14 @@ cd2 :                       if (BlockLayersFound) then
                 stop 'ComputeLayers - Geometry - ERR50.'
             endif
 
-            !Verifies if a harmonic domain is above a fixspacing domain
-            if (CurrentDomain%ID > 1 .and. CurrentDomain%DomainType == Harmonic .and.    &
-                                 (Me%FirstDomain%DomainType == FixSpacing .or.           &
-                                  Me%FirstDomain%DomainType == FixSediment)) then
-                write(*,*)'A Harmonic domain type cant overlay a Fixspacing or FixSediment domain'
-                write(*,*)'Verify domain number :',CurrentDomain%ID
-                stop 'ComputeLayers - Geometry - ERR60.'
-            endif
+!            !Verifies if a harmonic domain is above a fixspacing domain
+!            if (CurrentDomain%ID > 1 .and. CurrentDomain%DomainType == Harmonic .and.    &
+!                                 (Me%FirstDomain%DomainType == FixSpacing .or.           &
+!                                  Me%FirstDomain%DomainType == FixSediment)) then
+!                write(*,*)'A Harmonic domain type cant overlay a Fixspacing or FixSediment domain'
+!                write(*,*)'Verify domain number :',CurrentDomain%ID
+!                stop 'ComputeLayers - Geometry - ERR60.'
+!            endif
 
             !Verifies if a Lagrangian domain is above a fixspacing domain
             if (CurrentDomain%ID > 1 .and. CurrentDomain%IsLagrangian .and.  &
@@ -1645,8 +1646,9 @@ cd2 :                       if (BlockLayersFound) then
 
             !Verifies if the inital Layer thickness of the cartesian coordinates is not small then 
             !then 1% 
-            if  (CurrentDomain%DomainType           == Cartesian .or.                 &
-                 CurrentDomain%DomainType           == Harmonic ) then
+!            if  (CurrentDomain%DomainType           == Cartesian .or.                 &
+!                 CurrentDomain%DomainType           == Harmonic ) then
+            if  (CurrentDomain%DomainType           == Cartesian) then
 
                     if (CurrentDomain%MinInitialLayerThickness < 0.01) then
                         write(*,*)'The MinimalThickness of the layers should not be smaller then 1% of'
@@ -1739,8 +1741,9 @@ cd1:        if ((CurrentDomain%DomainType == Sigma)      .or.                   
                 enddo
 
             !Correction in the case of cartesian domain
-            else if (CurrentDomain%DomainType           == Cartesian .or.                &
-                     CurrentDomain%DomainType           == Harmonic) then
+!            else if (CurrentDomain%DomainType           == Cartesian .or.                &
+!                     CurrentDomain%DomainType           == Harmonic) then
+            else if (CurrentDomain%DomainType           == Cartesian) then
 
                 !Gets the upper and the lower depth of the domain and calculates its
                 !thickness
@@ -2209,7 +2212,7 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                 !In the case of a sigma or fixspacing domain
                 !KFloorZ is always equal to LayersBelow + 1
                 if ((CurrentDomain%DomainType /= Cartesian   )     .and.                 &
-                    (CurrentDomain%DomainType /= Harmonic    )     .and.                 &
+!                    (CurrentDomain%DomainType /= Harmonic    )     .and.                 &
                     (CurrentDomain%DomainType /= CartesianTop)) then
                     Me%KFloor%Z(i, j) = 1 + LayersBelow
                 else
@@ -2263,7 +2266,7 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                         !In the case of Cartesian, Harmonic domain
                         !the layer thickness is given in meters
                         if (CurrentDomain%DomainType            == Cartesian    .or.     &
-                            CurrentDomain%DomainType            == Harmonic     .or.     &
+!                            CurrentDomain%DomainType            == Harmonic     .or.     &
                             CurrentDomain%DomainType            == CartesianTop) then
 
                             LayerThicknessMax   = dble(CurrentDomain%LayerThickness(iLayer))
@@ -3641,10 +3644,10 @@ cd1:    if (FacesOption == MinTickness) then
                         endif
                     endif
                     
-                !This geometry will be discontinued
-                case (Harmonic)
-
-                    call ComputeHarmonic(SurfaceElevation, CurrentDomain)
+!                !This geometry will be discontinued
+!                case (Harmonic)
+!
+!                    call ComputeHarmonic(SurfaceElevation, CurrentDomain)
 
                 case (CartesianTop)
                     if (ComputionType == INITIALGEOMETRY) then
@@ -4064,7 +4067,7 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
 
         !Gets a pointer to 2D WaterPoints
         call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeHarmonic - Geometry - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeCartesianNew - Geometry - ERR01'
 
         !Cycle
         do j = JLB, JUB
@@ -4153,7 +4156,7 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
 
         !UnGets WaterPoints2D
         call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeHarmonic - Geometry - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeCartesianNew - Geometry - ERR02'
 
 
     end subroutine ComputeCartesianNew
@@ -4578,7 +4581,8 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
 doj:    do j = JLB, JUB
 doi:    do i = ILB, IUB
 
-cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
+cd0 :       if (WaterPoints2D(i, j) == WaterPoint .and.                              &
+                    Domain%UpperLayer >= Me%KFloor%Z(i, j)) then
 
                 !Upper Limit (m)
                 if (Domain%ID < Me%LastDomain%ID) then
