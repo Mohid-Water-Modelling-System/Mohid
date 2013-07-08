@@ -1051,9 +1051,12 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                                       STAT     = STAT_CALL)
             if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR60'
+                if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                    stop 'ConstructTimeSerie - ModuleSand - ERR60'
+                endif                            
 
-                if (Id < 0 .or. Jd < 0) then
+                if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
+
                 
                     call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR70'
