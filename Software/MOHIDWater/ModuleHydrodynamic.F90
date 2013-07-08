@@ -799,7 +799,7 @@ Module ModuleHydrodynamic
         real,    dimension (:, :), pointer    :: U_barotropic, V_barotropic
         real,    dimension (:, :), pointer    :: Reference_U_barotropic, Reference_V_barotropic
         real,    dimension (:, :), pointer    :: Coef_U_barotropic, Coef_V_barotropic
-        logical                               :: ON
+        logical                               :: ON 
     end type T_Geostroph
 
     private :: T_Forces
@@ -1216,10 +1216,10 @@ Module ModuleHydrodynamic
 
     type      T_OutW
         type(T_OutPutTime), dimension(:), pointer :: OutPutWindows
-        logical                                   :: OutPutWindowsON            
-        integer                                   :: WindowsNumber        
+        logical                                   :: OutPutWindowsON = .false.
+        integer                                   :: WindowsNumber   = 0      
         integer,            dimension(:), pointer :: ObjHDF5
-        logical                                   :: Simple = .false.
+        logical                                   :: Simple          = .false.
     end type  T_OutW
     
     type T_Energy
@@ -7676,9 +7676,12 @@ d1:             do dn = 1, DischargesNumber
 
                     if (CoordinatesON) then
                         call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, Id, Jd, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR50'
+                        
+                        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                            stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR50'
+                        endif                            
 
-                        if (Id < 0 .or. Jd < 0) then
+                        if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
                 
                             call TryIgnoreDischarge(Me%ObjDischarges, dn, IgnoreOK, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR60'
@@ -9966,9 +9969,12 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
             
 i1:         if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR90'
+                       
+                if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                    stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR90'
+                endif                            
 
-                if (Id < 0 .or. Jd < 0) then
+                if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
                 
                     call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR100'
