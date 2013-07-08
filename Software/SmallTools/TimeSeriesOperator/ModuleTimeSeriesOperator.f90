@@ -35,7 +35,7 @@ Module ModuleTimeSeriesOperator
     use ModuleEnterData
     use ModuleTime
     use ModuleTimeSerie
-    !use nr; use nrtype; use nrutil
+    use nr; use nrtype; use nrutil
 
     implicit none
 
@@ -86,6 +86,7 @@ Module ModuleTimeSeriesOperator
         integer                                                 :: InstanceID
     
         type(T_Time)                                            :: BeginTime, EndTime
+        real                                                    :: StartNightHour, EndNightHour
         
         real                                                    :: DT
         logical                                                 :: VariableDT
@@ -97,11 +98,17 @@ Module ModuleTimeSeriesOperator
 	    integer, dimension(:), pointer                          :: ObjTimeSerieOutFlux   
 	    integer, dimension(:), pointer                          :: ObjTimeSerieMass      
 	    integer                                                 :: ObjTimeSerieOut       = 0	    
+	    integer                                                 :: ObjTimeSerieOutNight  = 0      	    
 	    
 	    integer                                                 :: TimeSerieColumn       = 2
 	    
 	    integer                                                 :: NFluxIn, NFluxOut, NMass
 	    logical                                                 :: FluxInON, FluxOutON, MassON
+	    real                                                    :: GapLimit
+	    logical                                                 :: FoundOneGap
+	    real                                                    :: NotValidMask
+	    real                                                    :: MinNightValuesRacio
+	    
 	    character(len=PathLength)                               :: OptionsFile = "TimeSeriesOperator.dat", OutPutFile
 	    
         type(T_TimeSeriesOperator), pointer                     :: Next
@@ -168,10 +175,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - ConstructTimeSeriesOperator - ERR10'   
             
-            allocate(PropertyList(2)) 
+            allocate(PropertyList(3)) 
             
             PropertyList(1) = "Flux"
-            PropertyList(2) = "Flux_percentage"        
+            PropertyList(2) = "Flux_percentage"
+            PropertyList(3) = "Flux_Filter_P50_Window"
             
             Extension       = " "
 
@@ -184,6 +192,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                 HavePath                = .true.,                       &
                                 STAT                    = STAT_CALL)       
             if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - ConstructTimeSeriesOperator - ERR20'
+            
+            deallocate(PropertyList) 
+            
+            allocate(PropertyList(2)) 
+            
+            PropertyList(1) = "Night_Average_Flux"
+            
+            PropertyList(2) = "Night_P50_Flux"            
+            
+            Extension       = " "
+
+            call StartTimeSerie(TimeSerieID             = Me%ObjTimeSerieOutNight,      &
+                                ObjTime                 = Me%ObjTime,                   &
+                                TimeSerieDataFile       = Me%OptionsFile,               &
+                                PropertyList            = PropertyList,                 &
+                                Extension               = Extension,                    &
+                                ResultFileName          = "Night_"//trim(Me%OutPutFile),&
+                                HavePath                = .true.,                       &
+                                STAT                    = STAT_CALL)       
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - ConstructTimeSeriesOperator - ERR30'
 
             deallocate(PropertyList) 
                      
@@ -247,7 +275,67 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write(*,*) 'Needs the output file'
             stop 'ModuleTimeSeriesOperator - ReadKeywords - ERR40'
         endif
+
+        call GetData(Me%GapLimit,                                                       &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='GAP_LIMIT',                                         &
+                     ClientModule ='ModuleTimeSeriesOperator',                          &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - ReadKeywords - ERR50'
+        if (flag == 0) then
+            write(*,*) 'Needs the time gap limit'
+            stop 'ModuleTimeSeriesOperator - ReadKeywords - ERR60'
+        endif
+
+        call GetData(Me%NotValidMask,                                                   &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='NOT_VALID_MASK',                                    &
+                     ClientModule ='ModuleTimeSeriesOperator',                          &
+                     default      = FillValueReal,                                      &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - ReadKeywords - ERR70'
+
+
+        call GetData(Me%StartNightHour,                                                 &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='START_NIGHT_HOUR',                                  &
+                     ClientModule ='ModuleTimeSeriesOperator',                          &
+                     default      = 0.,                                                 &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - ReadKeywords - ERR80'
+
+        call GetData(Me%EndNightHour,                                                   &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='END_NIGHT_HOUR',                                    &
+                     ClientModule ='ModuleTimeSeriesOperator',                          &
+                     default      = 4.,                                                 &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - ReadKeywords - ERR90'
+
         
+        if (Me%StartNightHour >= Me%EndNightHour) then
+            Me%EndNightHour = Me%EndNightHour + 24.
+        endif
+        
+        call GetData(Me%MinNightValuesRacio,                                            &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='MIN_NIGHT_VAlUES_RACIO',                            &
+                     ClientModule ='ModuleTimeSeriesOperator',                          &
+                     default      = 0.75,                                               &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - ReadKeywords - ERR110'
+        
+
     end subroutine ReadKeywords
     
     !-------------------------------------------------------------------------
@@ -334,7 +422,7 @@ BF:         if (BlockFound) then
                     call StartTimeSerieInput(TimeSerieID       = Me%ObjTimeSerieInFlux(i), &
                                              TimeSerieDataFile = InputFile,                &
                                              ObjTime           = Me%ObjTime,               &
-                                             CheckDates        = .true.,                   &
+                                             CheckDates        = .false.,                  &
                                              STAT              = STAT_CALL)
                 enddo
             
@@ -389,7 +477,7 @@ BF:         if (BlockFound) then
                 Me%NFluxOut = LastLine - FirstLine - 1
                 
                 allocate(Me%ObjTimeSerieOutFlux(Me%NFluxOut))
-                Me%ObjTimeSerieOutFlux(1:Me%NFluxOut) = 0
+                Me%ObjTimeSerieOutFlux       (1:Me%NFluxOut) = 0
                 
                 i=0
                 do line=FirstLine +1, LastLine-1
@@ -404,7 +492,7 @@ BF:         if (BlockFound) then
                     call StartTimeSerieInput(TimeSerieID       = Me%ObjTimeSerieOutFlux(i),&
                                              TimeSerieDataFile = InputFile,                &
                                              ObjTime           = Me%ObjTime,               &
-                                             CheckDates        = .true.,                   &
+                                             CheckDates        = .false.,                  &
                                              STAT              = STAT_CALL)
                 enddo
             
@@ -475,7 +563,7 @@ BF:         if (BlockFound) then
                     call StartTimeSerieInput(TimeSerieID       = Me%ObjTimeSerieMass(i),   &
                                              TimeSerieDataFile = InputFile,                &
                                              ObjTime           = Me%ObjTime,               &
-                                             CheckDates        = .true.,                   &
+                                             CheckDates        = .false.,                  &
                                              STAT              = STAT_CALL)
                 enddo
             
@@ -650,15 +738,19 @@ BF:         if (BlockFound) then
 
         
         !Local-----------------------------------------------------------------
-        type (T_Time)                  :: FluxTime, MassTime, CurrentTime
-        real                           :: OutPutFlux, RelativeOutFlux, NewMass, OldMass, InFlux
-        real, dimension(:), pointer    :: WriteAux
-        integer                        :: STAT_CALL
+        type (T_Time)                  :: FluxTime, MassTime, CurrentTime, StartNightTime, EndNightTime, OutNightTime
+        real                           :: OutPutFlux, RelativeOutFlux, NewMass, OldMass, InFlux, Year, Month, Day, NightPeriod, NightPeriodValid
+        real                           :: NightAvFlux, NightP50Flux
+        real, dimension(:,:), pointer  :: TotalArray
+        real, dimension(:  ), pointer  :: WriteAux, WriteAuxNight, SortArray, AuxSort
+        integer                        :: STAT_CALL, iSort, iN, i50, iP50, jmin, jmax, j, k, iTotal, i, imax
+        logical                        :: NightPeriodON, NightPeriodOut
         
         
         !Begin-----------------------------------------------------------------
         
-        allocate(WriteAux(2))
+        allocate(WriteAux     (3))
+        allocate(WriteAuxNight(2))
         
         if (Me%MassON) then
             OldMass = MassValue(Me%BeginTime)
@@ -666,10 +758,38 @@ BF:         if (BlockFound) then
 
         FluxTime        = Me%BeginTime + Me%DT/2.
         MassTime        = Me%BeginTime + Me%DT
+        
+        NightPeriod      = (Me%EndNightHour - Me%StartNightHour) * 3600.
+        NightPeriodON    = .false.
+       
+        NightPeriodOut   = .false.
+        NightAvFlux      = 0.
+        NightPeriodValid = 0.    
+        
+        iN               = int(NightPeriod / Me%DT) + 1
+        iSort            = 0
+        
+        iTotal           = int((Me%EndTime - Me%BeginTime)/Me%DT) + 1
+        iP50             = int(3600. /Me%DT / 2.) + 1
+        
+        allocate(TotalArray(iTotal,3))
+        allocate(SortArray (iN      ))
+
+        i = 0
+        
+        call ExtractDate(FluxTime, Year, Month, Day)           
 
         do while(MassTime <= Me%EndTime)
         
+            i = i + 1
+        
+            call SetDate(StartNightTime, Year, Month, Day, Me%StartNightHour, 0., 0.)
+            call SetDate(EndNightTime  , Year, Month, Day, Me%EndNightHour  , 0., 0.)
+            call SetDate(OutNightTime  , Year, Month, Day, (Me%StartNightHour + Me%EndNightHour) / 2. , 0., 0.)            
+        
             OutPutFlux      = 0.
+            
+            Me%FoundOneGap     = .false.
             
             if (Me%FluxInON) then
                 InFlux          = FluxInValue(FluxTime)
@@ -685,21 +805,70 @@ BF:         if (BlockFound) then
                 NewMass         = MassValue(MassTime)
                 !Center in time
                 OutPutFlux      = OutPutFlux + (NewMass - OldMass) / Me%DT
+                OldMass         = NewMass
             endif
             
-            WriteAux(1) = OutPutFlux
+            if (Me%FoundOneGap) then
             
-            if (Me%FluxInON .and. abs(InFlux)>0.) then
-                WriteAux(2)      = OutPutFlux / InFlux * 100.
-            endif
+                TotalArray(i,1) = Me%NotValidMask
+                TotalArray(i,2) = Me%NotValidMask
+                TotalArray(i,3) = Me%NotValidMask
             
+            else
 
-            call WriteTimeSerieLine(TimeSerieID         = Me%ObjTimeSerieOut,           &
-                                    DataLine            = WriteAux,                     &
-                                    ExternalCurrentTime = FluxTime,                     &
-                                    STAT                = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeTimeSeriesOperator - ModuleHydrodynamic - ERR10'
+                TotalArray(i,1) = OutPutFlux
+                
+                if (Me%FluxInON .and. abs(InFlux)>0.) then
+                    TotalArray(i,2)      = OutPutFlux / InFlux * 100.
+                endif
             
+            endif
+            
+            if (FluxTime > StartNightTime .and. FluxTime < EndNightTime) Then
+                if (.not. Me%FoundOneGap) then
+                    NightPeriodValid = NightPeriodValid + Me%DT
+                    NightAvFlux      = NightAvFlux + OutPutFlux * Me%DT
+                    NightPeriodON    = .true.
+                    iSort            = iSort + 1
+                    SortArray(iSort) = OutPutFlux
+                    
+                endif
+            else
+                if (NightPeriodON) then
+                    if (NightPeriodValid/NightPeriod > Me%MinNightValuesRacio) then
+                        NightPeriodOut = .true.
+                        if (NightPeriodValid > 0.) then
+                            NightAvFlux  = NightAvFlux / NightPeriodValid
+                        endif
+                        WriteAuxNight(1) = NightAvFlux
+                        allocate(AuxSort(1:iSort))
+                        AuxSort(1:iSort) = SortArray(1:iSort)
+                        call sort(AuxSort)
+                        i50              = int(iSort/2) + 1 
+                        NightP50Flux     = AuxSort(i50)            
+                        WriteAuxNight(2) = NightP50Flux
+                        deallocate(AuxSort)
+                    endif
+                NightPeriodON    = .false.                                            
+                endif
+                iSort            = 0       
+                call ExtractDate(FluxTime, Year, Month, Day)                   
+                               
+            endif
+            
+            if (NightPeriodOut) then
+
+                call WriteTimeSerieLine(TimeSerieID         = Me%ObjTimeSerieOutNight,  &
+                                        DataLine            = WriteAuxNight,            &
+                                        ExternalCurrentTime = OutNightTime,             &
+                                        STAT                = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeTimeSeriesOperator - ModuleHydrodynamic - ERR10'
+            
+                NightPeriodOut   = .false.
+                NightAvFlux      = 0.
+                NightPeriodValid = 0.   
+
+            endif
             
             !Center in time
             FluxTime = FluxTime + Me%DT
@@ -708,7 +877,64 @@ BF:         if (BlockFound) then
         
         enddo
         
-        deallocate(WriteAux)
+        imax          = i
+        MassTime      = Me%BeginTime + Me%DT
+        FluxTime      = Me%BeginTime + Me%DT/2.        
+        i             = 0
+
+        allocate(AuxSort(iP50*2+2))
+
+        do while(MassTime <= Me%EndTime)
+
+            i = i + 1
+
+            WriteAux(1:2) = TotalArray(i,1:2)
+            
+            jmin = max(1,   i-iP50)
+            jmax = min(imax,i+iP50)
+            k    = 0
+            do j = jmin, jmax
+            
+                if (TotalArray(j,1) /= Me%NotValidMask) then
+                
+                    k          = k + 1
+                    AuxSort(k) = TotalArray(j,1)
+                
+                endif
+            
+            enddo
+            
+            if (k > iP50 .and. jmax-jmin == iP50*2) then
+
+                call sort(AuxSort(1:k))
+                i50         = int(k/2) + 1 
+                WriteAux(3) = AuxSort(i50)
+            else
+                
+                WriteAux(3) = Me%NotValidMask
+                
+            endif
+                            
+            
+            call WriteTimeSerieLine(TimeSerieID         = Me%ObjTimeSerieOut,           &
+                                    DataLine            = WriteAux,                     &
+                                    ExternalCurrentTime = FluxTime,                     &
+                                    STAT                = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeTimeSeriesOperator - ModuleHydrodynamic - ERR10'
+            
+
+            !Forward in time
+            MassTime = MassTime + Me%DT
+            FluxTime = FluxTime + Me%DT
+
+        enddo        
+        
+        deallocate(AuxSort      )
+        
+        deallocate(WriteAux     )
+        deallocate(WriteAuxNight)       
+        deallocate(SortArray    ) 
+        deallocate(TotalArray   )
                 
     end subroutine ComputeTimeSeriesOperator
     
@@ -734,7 +960,7 @@ BF:         if (BlockFound) then
         do i=1, Me%NFluxIn
             FluxAux = FluxAux + TimeSerieValue(Me%ObjTimeSerieInFlux(i), Now) 
         enddo
-        
+
         FluxInValue = FluxAux
         
 
@@ -790,7 +1016,7 @@ BF:         if (BlockFound) then
     !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
-    real function TimeSerieValue(ObjTimeSerie, Now)    
+    real function TimeSerieValue(ObjTimeSerie, Now)
         !Arguments--------------------------------------------------------------
         integer                                         :: ObjTimeSerie
         type (T_Time)                                   :: Now
@@ -798,25 +1024,54 @@ BF:         if (BlockFound) then
         integer                                         :: STAT_CALL
         type (T_Time)                                   :: Time1, Time2
         real                                            :: Value1, Value2
-        logical                                         :: TimeCycle
+        logical                                         :: TimeCycle, ValidInstant
 
         !Begin------------------------------------------------------------------
 
-
-
-        !Gets Value for current Time
-        call GetTimeSerieValue (ObjTimeSerie, Now, Me%TimeSerieColumn,                     &
-                                Time1, Value1, Time2, Value2, TimeCycle,                &
-                                STAT = STAT_CALL)
+        call GetTimeSerieCycle(ObjTimeSerie, TimeCycle, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR10'
      
         if (TimeCycle) then
+
+            !Gets Value for current Time
+            call GetTimeSerieValue (ObjTimeSerie, Now, Me%TimeSerieColumn,              &
+                                    Time1, Value1, Time2, Value2, TimeCycle,            &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR20'
+
             TimeSerieValue = Value1
 
         else
 
-            !Interpolates Value for current instant
-            call InterpolateValueInTime(Now, Time1, Value1, Time2, Value2, TimeSerieValue)
+            ValidInstant = GetTimeSerieCheckDate (ObjTimeSerie, Now, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR30'
+            
+            if (ValidInstant) then
+
+                !Gets Value for current Time
+                call GetTimeSerieValue (ObjTimeSerie, Now, Me%TimeSerieColumn,          &
+                                        Time1, Value1, Time2, Value2, TimeCycle,        &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR40'
+
+
+                !Interpolates Value for current instant
+                call InterpolateValueInTime(Now, Time1, Value1, Time2, Value2, TimeSerieValue)
+                
+                if ((Time2-Time1) > Me%GapLimit) then
+                    Me%FoundOneGap = .true.
+                endif
+                
+                if (Value1 == Me%NotValidMask .or. Value2 == Me%NotValidMask) then
+                    Me%FoundOneGap = .true.
+                    TimeSerieValue = Me%NotValidMask
+                endif
+                
+            else
+                Me%FoundOneGap = .true.
+                TimeSerieValue = Me%NotValidMask
+                
+            endif                
 
         endif
 
@@ -987,6 +1242,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Kill Time Serie File Out
         call KillTimeSerie(Me%ObjTimeSerieOut, STAT = STAT_CALL)       
         if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - KillVariablesAndFiles - ERR10'
+        
+        !Kill Time Serie File Out Night
+        call KillTimeSerie(Me%ObjTimeSerieOutNight, STAT = STAT_CALL)       
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - KillVariablesAndFiles - ERR15'        
         
         if (Me%FluxInON) then        
             do i=1, Me%NFluxIn
