@@ -779,7 +779,8 @@ Module ModuleWaterProperties
         logical                                 :: O2_Sat_Output        = .false. 
         logical                                 :: CHLA_WQ_Output       = .false.   
         real                                    :: C_CHLA_Output
-              
+        
+        logical                                 :: ImposeDryCells       = .false.        
         
         type (T_Filtration                   )  :: Filtration           
         type (T_Reinitialize                 )  :: Reinitialize
@@ -823,10 +824,10 @@ Module ModuleWaterProperties
     
     type      T_OutW
         type(T_OutPutTime),dimension(:),pointer :: OutPutWindows
-        logical                                 :: OutPutWindowsON            
-        integer                                 :: WindowsNumber        
+        logical                                 :: OutPutWindowsON = .false.           
+        integer                                 :: WindowsNumber   = 0     
         integer,           dimension(:),pointer :: ObjHDF5
-        logical                                 :: Simple
+        logical                                 :: Simple          = .false. 
     end type  T_OutW
 
     type       T_SubModel
@@ -887,6 +888,8 @@ Module ModuleWaterProperties
 #ifdef _USE_SEQASSIMILATION
         real, pointer, dimension(:,:,:)         :: AuxPointerConc
 #endif _USE_SEQASSIMILATION
+
+        real                                    :: DryCellConcentration
 
     end type T_Property
 
@@ -958,6 +961,7 @@ Module ModuleWaterProperties
          type(T_Coupling)                       :: SeagrassesLeaves
          type(T_Coupling)                       :: LagSinksSources
          type(T_Coupling)                       :: Reinitialize
+         type(T_Coupling)                       :: ImposeDryCells
          logical                                :: AllSolutionFromFile
          logical                                :: HybridReferenceField
     end type T_Coupled
@@ -3318,10 +3322,13 @@ cd2 :           if (BlockFound) then
                                           STAT     = STAT_CALL)
                 if (CoordON) then
                     call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR60'
 
-                    if (Id < 0 .or. Jd < 0) then
-                
+                    if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                        stop 'Construct_Time_Serie - ModuleWaterProperties - ERR60'
+                    endif                            
+
+                    if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
+            
                         call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR70'
 
@@ -3648,6 +3655,12 @@ do1 :   do while (associated(PropertyX))
                 Me%Coupled%Reinitialize%NumberOfProperties              = &
                 Me%Coupled%Reinitialize%NumberOfProperties              + 1
                 Me%Coupled%Reinitialize%Yes                             = ON
+            endif
+
+            if (PropertyX%Evolution%ImposeDryCells) then
+                Me%Coupled%ImposeDryCells%NumberOfProperties            = &
+                Me%Coupled%ImposeDryCells%NumberOfProperties            + 1
+                Me%Coupled%ImposeDryCells%Yes                           = ON
             endif
 
             PropertyX=>PropertyX%Next
@@ -6162,6 +6175,37 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             stop 'Construct_PropertyValues - ModuleWaterProperties - ERR100' 
         if (iflag==0)                                                                   &
             NewProperty%Assimilation%scalar = DefaultValueProp(NewProperty%ID%IDNumber)
+
+
+        !<BeginKeyword>
+            !Keyword          : DRY_CELL_CONCENTRATION
+            !<BeginDescription>      
+                ! The concentration of uncovered cells is assumed equal to this value
+            !<EndDescription>
+            !Type             : Real   
+            !Default          : DEFAULT value of the property 
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : From Block 
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+
+        call GetData(NewProperty%DryCellConcentration,                                  &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType = FromBlock,                                            &
+                     keyword    = 'DRY_CELL_CONCENTRATION',                             &
+                     default    = NewProperty%Scalar,                                   &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR105' 
+        if (iflag==0) then
+            NewProperty%Evolution%ImposeDryCells = .false.
+        else
+            NewProperty%Evolution%ImposeDryCells = .true.
+        endif
+            
 
 
         ! if the property is not 'OLD' the property values in the domain and 
@@ -10657,6 +10701,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%SpecificHeat%Variable)                     &
                 call ModifySpecificHeat(Me%ExternalVar%Now)
+                
+            if (Me%Coupled%ImposeDryCells%Yes)                &
+                call ModifyImposeDryCells
 
 #ifdef _USE_SEQASSIMILATION
             if (.not. Me%VirtualRun) then
@@ -16362,6 +16409,75 @@ do1 :   do while (associated(PropertyX))
         nullify(PropertyX)
 
     end subroutine FirstOrderDecayProcesses
+
+   
+    !--------------------------------------------------------------------------
+
+    !-------------------------------------------------------------------------- 
+       
+    subroutine ModifyImposeDryCells
+
+        !External--------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        integer                                     :: ILB, IUB, JLB, JUB, KUB
+        integer                                     :: i, j, k, Kbottom       
+        integer                                     :: CHUNK
+        !Begin----------------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB 
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        KUB = Me%WorkSize%KUB 
+
+        CHUNK = CHUNK_J(JLB, JUB)
+
+        PropertyX => Me%FirstProperty  
+
+do1 :   do while (associated(PropertyX))
+            if (PropertyX%Evolution%ImposeDryCells) then
+                if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
+
+                    if (MonitorPerformance) then
+                        call StartWatch ("ModuleWaterProperties", "ModifyImposeDryCells")
+                    endif
+                       
+                    !$OMP PARALLEL PRIVATE(I,J,K,kbottom)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do j=JLB, JUB
+                    do i=ILB, IUB
+
+                        !If Dry Cell 
+                        if (Me%ExternalVar%OpenPoints3D (i, j, KUB) /= OpenPoint .and.  &
+                            Me%ExternalVar%WaterPoints3D(i, j, KUB) == WaterPoint) then
+
+                            kbottom = Me%ExternalVar%KFloor_Z(i,j)
+
+                            do k = kbottom, KUB
+                                PropertyX%Concentration(i, j, k) =  PropertyX%DryCellConcentration
+                            enddo
+                            
+                        endif
+
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+
+                    if (MonitorPerformance) then
+                        call StopWatch ("ModuleWaterProperties", "ModifyImposeDryCells")
+                    endif
+
+                
+                end if
+            end if
+
+            PropertyX => PropertyX%Next
+        end do do1
+
+        nullify(PropertyX)
+
+    end subroutine ModifyImposeDryCells
 
    
     !--------------------------------------------------------------------------
