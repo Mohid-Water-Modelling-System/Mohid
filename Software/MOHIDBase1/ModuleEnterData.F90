@@ -3977,6 +3977,10 @@ if1:        if (FoundBlock) then
                 if (WindowsNumber > 0)    OutPutWindowsON = .true.
                 
                 call ReadOutPutWindows   (CurrentTime, EndTime, ClientNumber, OutPutWindows)
+            
+            else  if1
+                
+                OutPutWindowsON = .false.
                 
             endif if1
             
