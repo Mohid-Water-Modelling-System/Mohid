@@ -4864,9 +4864,12 @@ CurrOr: do while (associated(CurrentOrigin))
                                       STAT     = STAT_CALL)
             if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleLagrangian - ERR08'
+                
+                if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                    stop 'Construct_Time_Serie - ModuleLagrangian - ERR08'
+                endif                            
 
-                if (Id < 0 .or. Jd < 0) then
+                if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
             
                     call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleLagrangian - ERR09'
