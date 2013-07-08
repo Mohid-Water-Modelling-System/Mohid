@@ -79,6 +79,8 @@ Module ModuleTimeSerie
     public  :: GetTimeSerieDataColumns
     public  :: GetTimeSerieDataValues
     public  :: GetTimeSerieTimeFrameIndexes
+    public  :: GetTimeSerieCycle
+    public  :: GetTimeSerieCheckDate
 
 
     !Destructor
@@ -3083,6 +3085,43 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
     !--------------------------------------------------------------------------
 
+    subroutine GetTimeSerieCycle(TimeSerieID, TimeCycle, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TimeSerieID
+        logical                                     :: TimeCycle
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: STAT_ 
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeSerieID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            TimeCycle = Me%TimeCycle
+
+            STAT_ = SUCCESS_
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+        
+    end subroutine GetTimeSerieCycle
+
+    !--------------------------------------------------------------------------
+
     subroutine GetTimeSerieValue(TimeSerieID, CurrentTime, DataColumn, Time1, Value1,   &
                                  Time2, Value2, TimeCycle, STAT) 
 
@@ -3384,6 +3423,51 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             STAT = STAT_
 
     end subroutine GetTimeSerieTimeUnits
+
+    !--------------------------------------------------------------------------
+
+    logical function GetTimeSerieCheckDate (TimeSerieID, CurrentTime, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TimeSerieID
+        type(T_Time)                                :: CurrentTime
+        integer, optional                           :: STAT
+
+        !Local-----------------------------------------------------------------
+        type(T_Time)                                :: StartTime, EndTime
+        integer                                     :: ready_         
+        integer                                     :: STAT_ 
+
+        STAT_ = UNKNOWN_
+        
+        call Ready(TimeSerieID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            StartTime  = Me%InitialData + Me%DataMatrix(1            , 1)
+            EndTime    = Me%InitialData + Me%DataMatrix(Me%DataValues, 1)
+            
+            if (CurrentTime >= StartTime .and. CurrentTime <= EndTime) then
+                GetTimeSerieCheckDate = .true.
+            else
+                GetTimeSerieCheckDate = .false.
+            endif
+
+            STAT_ = SUCCESS_
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                               &
+            STAT = STAT_
+
+    end function GetTimeSerieCheckDate
+
+    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
