@@ -105,6 +105,11 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "NetworkStatistics", "Networ
 		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
 	EndProjectSection
 EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "TimeSeriesOperator", "TimeSeriesOperator\TimeSeriesOperator.vfproj", "{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug Developper Single|Win32 = Debug Developper Single|Win32
@@ -882,6 +887,42 @@ Global
 		{E726656D-EAC7-4838-8A2E-95671ECC501A}.Release|Win32.ActiveCfg = Release|Win32
 		{E726656D-EAC7-4838-8A2E-95671ECC501A}.Release|Win32.Build.0 = Release|Win32
 		{E726656D-EAC7-4838-8A2E-95671ECC501A}.Release|x64.ActiveCfg = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Developper Single|Win32.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Developper Single|Win32.Build.0 = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Developper Single|x64.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Double Openmp|Win32.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Double Openmp|Win32.Build.0 = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Double Openmp|x64.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Double PhreeqC|Win32.Build.0 = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Double PhreeqC|x64.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Double|Win32.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Double|Win32.Build.0 = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug Double|x64.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug OpenMI|Win32.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug OpenMI|Win32.Build.0 = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug OpenMI|x64.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug OpenMP|Win32.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug OpenMP|Win32.Build.0 = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug OpenMP|x64.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug|Win32.Build.0 = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Debug|x64.ActiveCfg = Debug|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release Double OpenMP|Win32.Build.0 = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release Double|Win32.ActiveCfg = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release Double|Win32.Build.0 = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release Double|x64.ActiveCfg = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release OpenMP|Win32.ActiveCfg = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release OpenMP|Win32.Build.0 = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release OpenMP|x64.ActiveCfg = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release|Win32.ActiveCfg = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release|Win32.Build.0 = Release|Win32
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -908,5 +949,6 @@ Global
 		{BF15440C-4965-4BF2-AB2C-1C3A54A92F34} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{F7F18E20-F2C7-4B03-8433-8B9D277EF125} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{E726656D-EAC7-4838-8A2E-95671ECC501A} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
+		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 	EndGlobalSection
 EndGlobal
