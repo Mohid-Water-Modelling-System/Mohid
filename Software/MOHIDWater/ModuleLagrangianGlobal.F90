@@ -1037,7 +1037,8 @@ Module ModuleLagrangianGlobal
         real                                    :: Risk                     = null_real  
         logical                                 :: MeteoOceanFiles          = OFF      
         logical                                 :: HasOdour                 = OFF
-        real                                    :: OdourConcThreshold       = null_real        
+        real                                    :: OdourConcThreshold       = null_real      
+        logical                                 :: Interpolate  
     end type T_Property
 
 
@@ -1047,6 +1048,7 @@ Module ModuleLagrangianGlobal
         type (T_Position)                       :: Position
         type (T_ParticleGeometry)               :: Geometry
         real, dimension(:), pointer             :: Concentration
+        real, dimension(:), pointer             :: ConcentrationInterpol
         real, dimension(:), pointer             :: AmbientConc
         real, dimension(:), pointer             :: Mass
         real                                    :: TpercursoH               = -null_real
@@ -3827,30 +3829,30 @@ i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
         
         !Split particle
         call GetData(NewOrigin%Movement%SPLIT_PART,                              &
-                     Me%ObjEnterData,                                 &
+                     Me%ObjEnterData,                                            &
                      flag,                                                       &
                      SearchType   = FromBlock,                                   &
                      keyword      = 'SPLIT_PART',                                &
                      Default      = OFF,                                         &
-                     ClientModule ='ModuleLagrangianGlobal',                           &
+                     ClientModule ='ModuleLagrangianGlobal',                     &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR480'
 
 
         !Volume Factor when Particle dies
         call GetData(NewOrigin%Movement%VOLFAC,                                  &
-                     Me%ObjEnterData,                                 &
+                     Me%ObjEnterData,                                            &
                      flag,                                                       &
                      SearchType   = FromBlock,                                   &
                      keyword      = 'VOLFAC',                                    &
                      Default      = 10.,                                         &
-                     ClientModule ='ModuleLagrangianGlobal',                           &
+                     ClientModule ='ModuleLagrangianGlobal',                     &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR490'
 
         !How to calculate volume increase
         call GetData(String2,                                                    &
-                     Me%ObjEnterData,                                 &
+                     Me%ObjEnterData,                                            &
                      flag,                                                       &
                      SearchType   = FromBlock,                                   &
                      keyword      = 'VOLUME_INCREASE',                           &
@@ -7137,9 +7139,12 @@ d1:     do em = 1, Me%EulerModelNumber
 
                 if (CoordON) then
                     call GetXYCellZ(Me%EulerModel(em)%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleLagrangianGlobal - ERR80'
 
-                    if (Id < 0 .or. Jd < 0) then
+                    if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                        stop 'ConstructTimeSerie - ModuleLagrangianGlobal - ERR80'
+                    endif                            
+
+                    if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
                 
                         call TryIgnoreTimeSerie(Me%EulerModel(em)%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleLagrangianGlobal - ERR90'
@@ -18583,10 +18588,9 @@ i1:             if (nP>0) then
 
 
                     !Writes 1D data for every group
-AllAtOnes:          if (Me%nOrigins > 1) then
 
 dig:                do ig = 1, Me%nGroups
-iTP:                if (TotParticle(ig) > 1) then
+iTP:                if (TotParticle(ig) > 0) then
                         allocate    (Matrix1DX(TotParticle(ig)))
                         allocate    (Matrix1DY(TotParticle(ig)))
                                                                         
@@ -19324,7 +19328,6 @@ thick:                      do while (associated(CurrentOrigin))
 
                     endif iTP
                     enddo dig
-                    endif AllAtOnes
 
                 
                     if (Me%State%Monitor) then
