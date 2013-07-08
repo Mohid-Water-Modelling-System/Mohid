@@ -84,10 +84,15 @@ Module ModuleTimeSeriesAnalyser
     
     
     integer, parameter  :: WeekEnd_ = 1, WeekWay_ = 2
-
-
+    
+    integer, parameter  :: stdv4_   = 1, Average_ = 2
     
     !Types---------------------------------------------------------------------
+    type T_MovAveBack
+        logical     :: ON
+        real        :: P50_Weekly, Raw_Weekly, P50_Daily, Raw_Daily 
+    end type T_MovAveBack
+    
     type T_TimeSeriesAnalyser
     
         integer                                                 :: InstanceID
@@ -123,6 +128,7 @@ Module ModuleTimeSeriesAnalyser
         integer                                                 :: ObjTimeSerieFilterIn  = 0
 	    integer                                                 :: ObjTimeSerieInterpol  = 0
 	    integer                                                 :: ObjTimeSerieFilterOut = 0	    
+	    integer                                                 :: ObjTimeSerieOutNight  = 0
 
 	    integer                                                 :: ObjTimeSerieCompare   = 0
     	
@@ -140,16 +146,26 @@ Module ModuleTimeSeriesAnalyser
         integer                                                 :: CompareColumn
         logical                                                 :: CompareObservations
         !Files Units
-        integer                                                 :: iS, iP, iPE, iFilter, iGap, iInterpol, iCompare, iPWeekEnd, iPWeekWay
+        integer                                                 :: iS, iP, iPE, iFilter, iGap, iInterpol, iCompare, iPWeekEnd, iPWeekWay, iMovAveBackWeek, iMovAveBackDay
         
 	    logical                                                 :: TimeCycle, OutWindow, SpectralAnalysis, PercentileAnalysis, PercentileEvolution
 	    logical                                                 :: FilterTimeSerie
 	    logical                                                 :: TimeSerieFilterInON, WeekEndOut
-	    real                                                    :: FilterMinValue, FilterMaxValue, FilterMaxRateValue
-        
+	    real                                                    :: FilterMinValue, FilterMaxValue, FilterMaxRateValue, FilterValue, FilterMinRateValue
+
+        logical                                                 :: RemoveNoisyPeriods, NoValidPoints = .false. 
+        real                                                    :: NoisyPeriodAnalysis, NoisyRacioStdevAverage
+        integer                                                 :: NoisyPeriodMinSample
+                
         integer                                                 :: InterpolInTime = FillValueInt
         
+        integer                                                 :: ErrorNormalization 
+        
         real                                                    :: GapLimit
+        
+        real                                                    :: StartNightHour, EndNightHour, MinNightValuesRacio
+        
+        type (T_MovAveBack)                                     :: MovAverageBackward
 
         type(T_TimeSeriesAnalyser), pointer                     :: Next
 
@@ -214,6 +230,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             call ConstructCompareTS
             
+            !call ConstructMovingAverageTS
+            
 
             !Returns ID
             ObjTimeSeriesAnalyserID          = Me%InstanceID
@@ -238,7 +256,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine ReadKeywords
 
         !Local--------------------------------------------------------------
-        integer                 :: status, flag, STAT_CALL
+        integer                 :: status, flag, STAT_CALL, flag_min, flag_max
         
         !Begin--------------------------------------------------------------
 
@@ -396,7 +414,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
             call GetData(Me%FilterMinValue,                                             &
                          Me%ObjEnterData,                                               &
-                         flag,                                                          &
+                         flag_min,                                                      &
                          SearchType   = FromFile,                                       &
                          keyword      ='MIN_VALUE',                                     &
                          Default      = FillValueReal,                                  &
@@ -406,7 +424,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call GetData(Me%FilterMaxValue,                                             &
                          Me%ObjEnterData,                                               &
-                         flag,                                                          &
+                         flag_max,                                                      &
                          SearchType   = FromFile,                                       &
                          keyword      ='MAX_VALUE',                                     &
                          Default      = - FillValueReal,                                &
@@ -424,6 +442,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
             if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR230'
+            
+            if (flag == 1) then
+                if (flag_min == 1 .and. flag_max == 1) then
+                    Me%FilterMaxRateValue = min (Me%FilterMaxRateValue, (Me%FilterMaxValue - Me%FilterMinValue) / 3600.) 
+                endif
+            endif
+            
+            call GetData(Me%FilterMinRateValue,                                         &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='MIN_RATE',                                      &
+                         Default      = FillValueReal,                                  &
+                         ClientModule ='ModuleTimeSeriesAnalyser',                      &
+                         STAT         = STAT_CALL)        
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR235'
+
+            if (flag == 1) then
+                if (flag_min == 1 .and. flag_max == 1) then
+                    Me%FilterMinRateValue = max (Me%FilterMinRateValue, (Me%FilterMaxValue - Me%FilterMinValue) / 3600. * 1e-4) 
+                endif
+            endif
             
             Me%TimeSerieFilterInON = .true.
 
@@ -470,10 +510,67 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              STAT         = STAT_CALL)        
                 if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR270'
 
-            endif                                
-                    
-        endif
+            endif         
+            
+            call GetData(Me%RemoveNoisyPeriods,                                         &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='REMOVE_NOISY_PERIODS',                          &
+                         Default      = .false.,                                        &
+                         ClientModule ='ModuleTimeSeriesAnalyser',                      &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+            
+            if (Me%RemoveNoisyPeriods) then
 
+                call GetData(Me%NoisyPeriodAnalysis,                                    &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromFile,                                   &
+                             keyword      ='NOISY_PERIOD_ANALYSYS',                     &
+                             Default      = 86400.,                                     &
+                             ClientModule ='ModuleTimeSeriesAnalyser',                  &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+            
+                call GetData(Me%NoisyPeriodMinSample,                                   &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromFile,                                   &
+                             keyword      ='NOISY_PERIOD_MIN_SAMPLE',                   &
+                             Default      = 10,                                         &
+                             ClientModule ='ModuleTimeSeriesAnalyser',                  &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+                
+                call GetData(Me%NoisyRacioStdevAverage,                                 &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromFile,                                   &
+                             keyword      ='NOISY_RACIO_STDEV_AVERAGE',                 &
+                             Default      = 0.5,                                        &
+                             ClientModule ='ModuleTimeSeriesAnalyser',                  &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+                
+            
+            endif
+
+
+        endif
+        
+        call GetData(Me%FilterValue,                                                    &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='FILTER_VALUE',                                      &
+                     Default      = FillValueReal,                                      &
+                     ClientModule ='ModuleTimeSeriesAnalyser',                          &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+        
+        
         call GetData(Me%CompareTimeSerieOn,                                             &
                      Me%ObjEnterData,                                                   &
                      flag,                                                              &
@@ -482,7 +579,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                            &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR290'
         
         if (Me%CompareTimeSerieOn) then
         
@@ -493,8 +590,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          keyword      ='COMPARE_FILE',                                  &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR290'
-            if (flag == 0)             stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR300'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR300'
+            if (flag == 0)             stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR310'
 
             call GetData(Me%CompareColumn,                                              &
                          Me%ObjEnterData,                                               &
@@ -520,8 +617,70 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
            
         endif
         
-        call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
+        !options for the error normalization : average value (Average_), 4*standard deviation = 95.4% of the sample in a normal distribution (stdv4_)
+        call GetData(Me%ErrorNormalization,                                             &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='ERROR_NORMALIZATION',                               &
+                     Default      = stdv4_,                                             &
+                     ClientModule ='ModuleTimeSeriesAnalyser',                          &
+                     STAT         = STAT_CALL)        
         if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR330'
+
+        if (Me%ErrorNormalization /= stdv4_ .and. Me%ErrorNormalization /= Average_) then
+            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR340'
+        endif
+
+        call GetData(Me%MovAverageBackward%ON,                                          &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='MOVING_AVERAGE_BACKWARD',                           &
+                     Default      = .false.,                                            &
+                     ClientModule ='ModuleTimeSeriesAnalyser',                          &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR350'
+        
+
+        call GetData(Me%StartNightHour,                                                 &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='START_NIGHT_HOUR',                                  &
+                     ClientModule ='ModuleTimeSeriesAnalyser',                          &
+                     default      = 0.,                                                 &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR360'
+
+        call GetData(Me%EndNightHour,                                                   &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='END_NIGHT_HOUR',                                    &
+                     ClientModule ='ModuleTimeSeriesAnalyser',                          &
+                     default      = 4.,                                                 &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR370'
+
+        
+        if (Me%StartNightHour >= Me%EndNightHour) then
+            Me%EndNightHour = Me%EndNightHour + 24.
+        endif
+
+        call GetData(Me%MinNightValuesRacio,                                            &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='MIN_NIGHT_VAlUES_RACIO',                            &
+                     ClientModule ='ModuleTimeSeriesAnalyser',                          &
+                     default      = 0.75,                                               &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR380'
+        
+        
+        call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR390'
 
     
     end subroutine ReadKeywords
@@ -760,6 +919,40 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ConstructCompareTS        
     
     !-------------------------------------------------------------------------    
+
+    !-------------------------------------------------------------------------
+ 
+    subroutine ConstructMovAverageBackwardTS
+    
+        !Local----------------------------------------------------------------
+        character (len = PathLength)    :: MovAveBackOutFile
+        integer                         :: STAT_CALL
+
+        !Begin----------------------------------------------------------------
+    
+        if (Me%MovAverageBackward%ON) then
+            
+            MovAveBackOutFile = "MovAveBackDay_"//Me%TimeSerieDataFile 
+            !Open Output files
+            call UnitsManager(Me%iMovAveBackDay, FileOpen, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructMovAverageBackwardTS - ERR10'
+            
+            open(unit = Me%iMovAveBackDay, file =trim(MovAveBackOutFile), form = 'FORMATTED', status = 'UNKNOWN')
+            
+            MovAveBackOutFile = "MovAveBackWeek_"//Me%TimeSerieDataFile 
+            !Open Output files
+            call UnitsManager(Me%iMovAveBackWeek, FileOpen, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructMovAverageBackwardTS - ERR20'
+            
+            open(unit = Me%iMovAveBackWeek, file =trim(MovAveBackOutFile), form = 'FORMATTED', status = 'UNKNOWN')
+                
+        endif
+
+        
+    end subroutine ConstructMovAverageBackwardTS        
+    
+    !-------------------------------------------------------------------------    
+
     
     subroutine AllocateInstance
 
@@ -974,10 +1167,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             call ModifyTimeSeriesPatterns
             
-            if (Me%CompareTimeSerieOn) then
-                call ModifyTimeSeriesCompare          
-            endif
+            call ModifyTimeSeriesCompare          
             
+            call ModifyTimeSeriesMovAveBack
+            
+            call ModifyTimeSeriesNightMedian
+            
+            call ModifyTimeSeriesFillAll
 
             STAT_ = SUCCESS_
         else               
@@ -991,6 +1187,276 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !--------------------------------------------------------------------------
     
 
+    !--------------------------------------------------------------------------
+    
+    subroutine ModifyTimeSeriesNightMedian
+
+
+        !Arguments-------------------------------------------------------------
+
+        
+        !Local-----------------------------------------------------------------
+        type (T_Time)                  :: CurrentTime, StartNightTime, EndNightTime, OutNightTime
+        real                           :: TS_Value, RelativeOutFlux, NewMass, OldMass, InFlux, Year, Month, Day, NightPeriod, NightPeriodValid
+        real                           :: NightAvFlux, NightP50Flux, hour, minute, second
+        real, dimension(:  ), pointer  :: WriteAuxNight, SortArray, AuxSort
+        integer                        :: STAT_CALL, iN, i50, iP50, jmin, jmax, j, k, iTotal, i, iNight, FilterValues, iSort
+        logical                        :: NightPeriodON, NightPeriodOut, TS_Gap
+        
+        
+        !Begin-----------------------------------------------------------------
+
+        call UnitsManager(iNight, FileOpen, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructFilterTS - ERR10'
+        
+        open(unit   = iNight, file ="Night_"//trim(Me%TimeSerieDataFile), form = 'FORMATTED', status = 'UNKNOWN')
+        
+        
+        write(iNight,*) "NAME                    : ", trim(Me%TimeSerieName)
+        write(iNight,*) "LOCALIZATION_I          : -999999"
+        write(iNight,*) "LOCALIZATION_J          : -999999"
+        write(iNight,*) "LOCALIZATION_K          : -999999"
+        call ExtractDate(Me%BeginTime, Year, Month, Day, hour, minute, second)
+        write(iNight,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+        write(iNight,*) "TIME_UNITS              : SECONDS"
+        write(iNight,*) "COORD_X    : ", Me%CoordX
+        write(iNight,*) "COORD_Y    : ", Me%CoordY
+        
+        FilterValues = Me%DataValues - sum(Me%FlagFilter(1:Me%DataValues))
+        
+        write(iNight,*) "TOTAL_VALUES  : ", Me%DataValues 
+        write(iNight,*) "FILTER_VALUES : ", FilterValues
+        write(iNight,'(A25,f6.1)') "GOOD_VALUES_PERCENTAGE : ", real(Me%DataValues - FilterValues) / real(Me%DataValues) * 100.
+        
+        write(iNight,'(A82)') "Time Night_Average Night_P50"
+        
+        write(iNight,*) "<BeginTimeSerie>" 
+           
+        allocate(WriteAuxNight(2))
+        
+        NightPeriod      = (Me%EndNightHour - Me%StartNightHour) * 3600.
+        NightPeriodON    = .false.
+       
+        NightPeriodOut   = .false.
+        NightAvFlux      = 0.
+        NightPeriodValid = 0.    
+        
+        iN               = int(NightPeriod / Me%DT_Analysis) + 1
+        iSort            = 0
+        
+        allocate(SortArray (iN      ))
+        
+        call ExtractDate(CurrentTime, Year, Month, Day)     
+        
+        CurrentTime = Me%TimeTSOutPut(1)
+
+        do i=1, Me%nValues 
+        
+            CurrentTime = Me%TimeTSOutPut(i)
+        
+            call SetDate(StartNightTime, Year, Month, Day, Me%StartNightHour, 0., 0.)
+            call SetDate(EndNightTime  , Year, Month, Day, Me%EndNightHour  , 0., 0.)
+            call SetDate(OutNightTime  , Year, Month, Day, (Me%StartNightHour + Me%EndNightHour) / 2. , 0., 0.)            
+        
+            TS_Value    = Me%TimeSerie(i)
+            
+            if      (Me%FlagTimeSerie(i) == 0) then
+                TS_Gap     = .true.
+            else if (Me%FlagTimeSerie(i) == 1) then
+                TS_Gap     = .false.
+            endif
+
+            if (CurrentTime > StartNightTime .and. CurrentTime < EndNightTime) Then
+                if (.not. TS_Gap) then
+                    NightPeriodValid = NightPeriodValid + Me%DT_Analysis
+                    NightAvFlux      = NightAvFlux + TS_Value * Me%DT_Analysis
+                    NightPeriodON    = .true.
+                    iSort            = iSort + 1
+                    SortArray(iSort) = TS_Value
+                endif
+            else
+                if (NightPeriodON) then
+                    if (NightPeriodValid/NightPeriod > Me%MinNightValuesRacio) then
+                        NightPeriodOut = .true.
+                        if (NightPeriodValid > 0.) then
+                            NightAvFlux  = NightAvFlux / NightPeriodValid
+                        endif
+                        WriteAuxNight(1) = NightAvFlux
+                        allocate(AuxSort(1:iSort))
+                        AuxSort(1:iSort) = SortArray(1:iSort)
+                        call sort(AuxSort)
+                        i50              = int(iSort/2) + 1 
+                        NightP50Flux     = AuxSort(i50)            
+                        WriteAuxNight(2) = NightP50Flux
+                        deallocate(AuxSort)
+                    endif
+                NightPeriodON    = .false.                                            
+                endif
+                iSort            = 0       
+                call ExtractDate(CurrentTime, Year, Month, Day)                   
+                               
+            endif
+            
+            if (NightPeriodOut) then
+                
+                write(iNight,*) CurrentTime-Me%BeginTime, WriteAuxNight(1:2)
+
+                NightPeriodOut   = .false.
+                NightAvFlux      = 0.
+                NightPeriodValid = 0.   
+
+            endif
+ 
+        enddo
+        
+    
+        write(iNight,*) "<EndTimeSerie>"        
+        
+        !closes Output files
+        call UnitsManager(Me%iFilter, FileClose, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ModifyTimeSeriesNightMedian - ERR20'
+        
+        deallocate(WriteAuxNight)       
+        deallocate(SortArray    ) 
+                
+    end subroutine ModifyTimeSeriesNightMedian
+    
+    
+   
+    !--------------------------------------------------------------------------
+        
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ModifyTimeSeriesFillAll
+
+
+        !Arguments-------------------------------------------------------------
+
+        
+        !Local-----------------------------------------------------------------
+        type (T_Time)                  :: CurrentTime, StartNightTime, EndNightTime, OutNightTime
+        real                           :: TS_Value, RelativeOutFlux, NewMass, OldMass, InFlux, Year, Month, Day, NightPeriod, NightPeriodValid
+        real                           :: NightAvFlux, NightP50Flux, hour, minute, second
+        real, dimension(:  ), pointer  :: WriteAux, SortArray, AuxSort
+        integer                        :: STAT_CALL, iSort, iN, i50, iP50, jmin, jmax, j, k, iTotal, i, imax, iAll, FilterValues
+        logical                        :: NightPeriodON, NightPeriodOut, TS_Gap
+        
+        
+        !Begin-----------------------------------------------------------------
+
+        call UnitsManager(iAll, FileOpen, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructFilterTS - ERR10'
+        
+        open(unit   = iAll, file ="FillAll_"//trim(Me%TimeSerieDataFile), form = 'FORMATTED', status = 'UNKNOWN')
+        
+        
+        write(iAll,*) "NAME                    : ", trim(Me%TimeSerieName)
+        write(iAll,*) "LOCALIZATION_I          : -999999"
+        write(iAll,*) "LOCALIZATION_J          : -999999"
+        write(iAll,*) "LOCALIZATION_K          : -999999"
+        call ExtractDate(Me%BeginTime, Year, Month, Day, hour, minute, second)
+        write(iAll,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+        write(iAll,*) "TIME_UNITS              : SECONDS"
+        write(iAll,*) "COORD_X    : ", Me%CoordX
+        write(iAll,*) "COORD_Y    : ", Me%CoordY
+        
+        FilterValues = Me%DataValues - sum(Me%FlagFilter(1:Me%DataValues))
+        
+        write(iAll,*) "TOTAL_VALUES  : ", Me%DataValues 
+        write(iAll,*) "FILTER_VALUES : ", FilterValues
+        write(iAll,'(A25,f6.1)') "GOOD_VALUES_PERCENTAGE : ", real(Me%DataValues - FilterValues) / real(Me%DataValues) * 100.
+        
+        write(iAll,'(A82)') "Time FillAll FillAll_P50"
+        
+        write(iAll,*) "<BeginTimeSerie>" 
+           
+        allocate(WriteAux(2))
+        
+        NightPeriod      = (Me%EndNightHour - Me%StartNightHour) * 3600.
+        NightPeriodON    = .false.
+       
+        NightPeriodOut   = .false.
+        NightAvFlux      = 0.
+        NightPeriodValid = 0.    
+        
+        iN               = int(NightPeriod / Me%DT_Analysis) + 1
+        iSort            = 0
+        
+        iP50             = int(3600. /Me%DT_Analysis / 2.) + 1
+        
+        allocate(SortArray (iN      ))
+        
+        call ExtractDate(CurrentTime, Year, Month, Day)     
+        
+        CurrentTime = Me%TimeTSOutPut(1)
+
+        allocate(AuxSort(iP50*2+2))
+
+        do i=1, Me%nValues 
+        
+            CurrentTime = Me%TimeTSOutPut(i)
+            TS_Value    = Me%TimeSerie(i)
+            
+            if      (Me%FlagTimeSerie(i) == 0) then
+                TS_Gap     = .true.
+            else if (Me%FlagTimeSerie(i) == 1) then
+                TS_Gap     = .false.
+            endif
+
+            if (TS_Gap) then
+                WriteAux(1) = Me%FilterValue
+            else
+                WriteAux(1) = TS_Value
+            endif                
+            
+            jmin = max(1         ,i-iP50)
+            jmax = min(Me%nValues,i+iP50)
+            k    = 0
+            do j = jmin, jmax
+            
+                if (Me%FlagTimeSerie(j) == 1) then
+                
+                    k          = k + 1
+                    AuxSort(k) = Me%TimeSerie(j)
+                
+                endif
+            
+            enddo
+            
+            if (k > iP50 .and. jmax-jmin == iP50*2) then
+
+                call sort(AuxSort(1:k))
+                i50         = int(k/2) + 1 
+                WriteAux(2) = AuxSort(i50)
+                
+            else
+                
+                WriteAux(2) = Me%FilterValue
+                
+            endif
+                            
+            write(iAll,*) CurrentTime-Me%BeginTime, WriteAux(1:2)
+
+ 
+        enddo
+        
+    
+        write(iAll,*) "<EndTimeSerie>"        
+        
+        !closes Output files
+        call UnitsManager(Me%iFilter, FileClose, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ModifyTimeSeriesNightMedian - ERR20'
+        
+        deallocate(WriteAux )       
+        deallocate(SortArray) 
+        deallocate(AuxSort  ) 
+                
+    end subroutine ModifyTimeSeriesFillAll
+    
+    
+   
+    !--------------------------------------------------------------------------
     
     !--------------------------------------------------------------------------
     
@@ -1000,17 +1466,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Local-----------------------------------------------------------------
         real,         pointer, dimension(:,:)       :: FilterDataMatrix
-        type (T_Time)                               :: FilterInitialData, Time1, Time2
+        real,         pointer, dimension(:)         :: AuxValues
+        integer,      pointer, dimension(:)         :: AuxI       
+        type (T_Time)                               :: FilterInitialData, Time1, Time2, TFinal
         integer                                     :: FilterDataValues, FilterDataColumns
-        integer                                     :: i, j, STAT_CALL
-        real                                        :: Rate, Value1, Value2
-        logical                                     :: search
+        integer                                     :: i, j, STAT_CALL, k
+        real                                        :: Rate, Value1, Value2, Ave, Stv, DT
+        logical                                     :: search, StartPeriod, FilterPeriod                
         
         !----------------------------------------------------------------------
-    
-        !Sample the input time serie with a regular time step DT_Analysis
-d1:     do i=1, Me%DataValues 
-            ! Initial value equal to the flag quality of the raw data (if exist)
+
+        ! Initial value equal to the flag quality of the raw data (if exist)
+d21:    do i=1, Me%DataValues 
             if (Me%FlagColumn < 0) then
         
                 Me%FlagFilter(i) = 1            
@@ -1018,7 +1485,99 @@ d1:     do i=1, Me%DataValues
             else                
                 Me%FlagFilter(i) = Me%DataMatrix(i,Me%FlagColumn)
             endif
+        
+        enddo d21            
+        
+        !Filter by value 
+d0:     do i=1, Me%DataValues 
+            if (Me%FlagFilter(i) == 1) then
+                if (Me%DataMatrix(i,Me%DataColumn) == Me%FilterValue) then
+                    Me%FlagFilter(i) = 0
+                endif
+            endif                                
+        enddo d0
+        
+
+        !Filter by Extreme Values 
+d100:   do i=1, Me%DataValues 
+            if (Me%FlagFilter(i) == 1) then
+                if (abs(Me%DataMatrix(i,Me%DataColumn)) > abs(Me%FilterValue)) then
+                    Me%DataMatrix(i,Me%DataColumn) = Me%FilterValue
+                    Me%FlagFilter(i) = 0
+                endif
+            endif                                
+        enddo d100
+
+        
+i23:    if (Me%RemoveNoisyPeriods) then
+        
+            StartPeriod = .true.
             
+            allocate(AuxValues(1:Me%DataValues), AuxI(1:Me%DataValues))
+
+            !Filter noisy periods
+d1:         do i=1, Me%DataValues 
+
+                if (Me%FlagFilter(i) == 1) then
+
+                    if (StartPeriod) then
+                        TFinal = Me%TimeTS(i) + Me%NoisyPeriodAnalysis
+                        j = 0
+                    endif
+                    
+                    StartPeriod = .false.
+                    
+                    j = j + 1
+                    AuxValues(j) = Me%DataMatrix(i,Me%DataColumn)
+                    AuxI     (j) = i
+
+                    if (i < Me%DataValues) then
+                        if (Me%TimeTS(i+1) >= TFinal) then                
+                            StartPeriod = .true.
+                        endif
+                    else
+                        StartPeriod = .true.                                        
+                    endif
+                    
+                    if (StartPeriod) then
+                    
+                        FilterPeriod = .false.                
+                        
+                        if (j < Me%NoisyPeriodMinSample) then
+                            FilterPeriod = .true.
+                        else
+                            Ave = sum(AuxValues(1:j)) / real(j)
+                            stv = 0
+                            do k=1,j
+                                stv = stv + (AuxValues(k) - Ave)**2
+                            enddo
+                            stv = sqrt(stv / real(j))
+                            if (Ave > 0) then
+                                if (stv/Ave > Me%NoisyRacioStdevAverage) then
+                                    FilterPeriod = .true.
+                                endif
+                            endif
+                        endif
+                        
+                        if (FilterPeriod) then
+                            do k=1,j
+                                Me%FlagFilter(AuxI(k)) = 0
+                            enddo
+                        endif
+                                                
+                    endif
+                                                                            
+                endif
+                
+            enddo d1
+            
+            deallocate(AuxValues, AuxI)
+        
+        endif i23        
+    
+        !Filter points min., máx., spicks, filter period where the sensor sticks to a value (3 consecutive values exactly equal) 
+d2:     do i=1, Me%DataValues 
+           
             !Filter minimum values
             if (Me%DataMatrix(i,Me%DataColumn) < Me%FilterMinValue) then
                 Me%FlagFilter(i) = 0
@@ -1031,14 +1590,34 @@ d1:     do i=1, Me%DataValues
 
             !Filter maximum rate changes
             if (i < Me%DataValues) then
-                Rate = abs(Me%DataMatrix(i+1,Me%DataColumn)-Me%DataMatrix(i,Me%DataColumn))/(Me%TimeTS(i+1)-Me%TimeTS(i))
-                if (Rate > Me%FilterMaxRateValue) then
+                DT = Me%TimeTS(i+1)-Me%TimeTS(i)
+                if (DT>0.) then
+                    Rate = abs(Me%DataMatrix(i+1,Me%DataColumn)-Me%DataMatrix(i,Me%DataColumn))/DT
+                    if (Rate > Me%FilterMaxRateValue) then
+                        Me%FlagFilter(i  ) = 0
+                        Me%FlagFilter(i+1) = 0
+                    endif
+                    if (Rate < Me%FilterMinRateValue) then
+                        Me%FlagFilter(i  ) = 0
+                        Me%FlagFilter(i+1) = 0
+                    endif
+                else
                     Me%FlagFilter(i  ) = 0
                     Me%FlagFilter(i+1) = 0
                 endif
             endif
 
-        enddo d1
+            !Filter persistent constant values
+            if (i < Me%DataValues-3) then
+                if (Me%DataMatrix(i,Me%DataColumn) == Me%DataMatrix(i+1,Me%DataColumn) .and. &
+                    Me%DataMatrix(i,Me%DataColumn) == Me%DataMatrix(i+2,Me%DataColumn)) then 
+                    Me%FlagFilter(i  ) = 0
+                    Me%FlagFilter(i+1) = 0
+                    Me%FlagFilter(i+2) = 0
+                endif
+            endif
+
+        enddo d2
         
 i1:     if (Me%TimeSerieFilterInON) then
         
@@ -1064,7 +1643,7 @@ i1:     if (Me%TimeSerieFilterInON) then
             
             j = 1
 
-d2:         do i=1, Me%DataValues             
+d3:         do i=1, Me%DataValues             
 
                 search = .true.
                 do while (search)
@@ -1099,7 +1678,7 @@ d2:         do i=1, Me%DataValues
                 
                 endif            
                 
-            enddo d2
+            enddo d3
             
         endif i1
 
@@ -1118,6 +1697,7 @@ d2:         do i=1, Me%DataValues
         real                                        :: Year, Month, Day, hour, minute, second
         logical                                     :: search
         real     (SP),  dimension(:),   allocatable :: TimeSerieFilter
+        integer                                     :: FilterValues
         
         !----------------------------------------------------------------------
     
@@ -1198,7 +1778,7 @@ d2:         do i=1, Me%DataValues
                 Me%TimeSerie(i) =  NewValue
                 Me%TSGap    (i) =  Time2 - Time1
             else
-                Me%TimeSerie(i) =  FillValueReal
+                Me%TimeSerie(i) =  Me%FilterValue
             endif
             
         enddo            
@@ -1210,7 +1790,7 @@ d2:         do i=1, Me%DataValues
                 !lower limit
                 j = i-1
                 Time1  =  Me%TimeTSOutPut(1)
-                Value1 =  FillValueReal
+                Value1 =  Me%FilterValue
                 
                 do while (j>=1) 
                     if (Me%FlagTimeSerie(j) == 1) then
@@ -1226,7 +1806,7 @@ d2:         do i=1, Me%DataValues
                 !upper limit
                 j = i+1
                 Time2  =  Me%TimeTSOutPut(Me%nValues)
-                Value2 =  FillValueReal
+                Value2 =  Me%FilterValue
                 
                 do while (j<=Me%nValues) 
                     if (Me%FlagTimeSerie(j) == 1) then
@@ -1239,7 +1819,7 @@ d2:         do i=1, Me%DataValues
                     endif
                 enddo
                 
-                if (Value1 > FillValueReal .and. Value2 > FillValueReal) then
+                if (Value1 > Me%FilterValue .and. Value2 > Me%FilterValue) then
                 
                     !Interpolates Value for current instant
                     if      (Me%InterpolInTime == LinearTS_) then
@@ -1251,14 +1831,19 @@ d2:         do i=1, Me%DataValues
 
                     Me%TSGap    (i) =  Time2 - Time1                                                
                                                            
-                else if (Value1 > FillValueReal) then
+                else if (Value1 > Me%FilterValue) then
                     NewValue = Value1
                     Me%TSGap(i) = Me%TimeTSOutPut(i) - Time1
-                else if (Value2 > FillValueReal) then
-                    NewValue = Value2
+                else if (Value2 > Me%FilterValue) then
+                    NewValue    = Value2
                     Me%TSGap(i) = Time2 - Me%TimeTSOutPut(i)
                 else
-                    stop "TimeSeriesAnalyser - ConstructTimeSeriesAnalyser - ERR30"
+                    NewValue    = Value2
+                    Me%TimeSerie(i) = 0
+                    Me%TSGap(i) = Time2 - Time1
+                    Me%nValues  = 0
+                    Me%NoValidPoints = .true.
+                    exit
                 endif                                      
                 
                 Me%TimeSerie(i) =  NewValue          
@@ -1267,8 +1852,13 @@ d2:         do i=1, Me%DataValues
 
         enddo
         
-        !compute the global statiscal paramters of the time serie
-        call moment(Me%TimeSerie,Me%ave,Me%adev,Me%sdev,Me%var,Me%skew,Me%curt)            
+        if (.not. Me%NoValidPoints) then
+        
+            !compute the global statiscal paramters of the time serie
+            call moment(Me%TimeSerie,Me%ave,Me%adev,Me%sdev,Me%var,Me%skew,Me%curt)            
+        
+        
+        endif
         
         write(Me%iInterpol,*) "NAME                    : ", trim(Me%TimeSerieName)
         write(Me%iInterpol,*) "LOCALIZATION_I          : -999999"
@@ -1304,9 +1894,9 @@ d2:         do i=1, Me%DataValues
         call UnitsManager(Me%iInterpol, FileClose, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - ConstructTimeSeriesAnalyser - ERR40"
 
-        call StartTimeSerieInput(Me%ObjTimeSerieInterpol,                       &
-                                 TimeSerieDataFile = Me%InterpolFile, STAT = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - ConstructTimeSeriesAnalyser - ERR50"        
+!        call StartTimeSerieInput(Me%ObjTimeSerieInterpol,                       &
+!                                 TimeSerieDataFile = Me%InterpolFile, STAT = STAT_CALL)        
+!        if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - ConstructTimeSeriesAnalyser - ERR50"        
                     
 
         do i=1, Me%nValues        
@@ -1314,7 +1904,6 @@ d2:         do i=1, Me%DataValues
                 Me%FlagTimeSerie(i) = 0
             endif
         enddo
-        
         
         if (Me%FilterTimeSerie) then
         
@@ -1327,6 +1916,12 @@ d2:         do i=1, Me%DataValues
             write(Me%iFilter,*) "TIME_UNITS              : SECONDS"
             write(Me%iFilter,*) "COORD_X    : ", Me%CoordX
             write(Me%iFilter,*) "COORD_Y    : ", Me%CoordY
+            
+            FilterValues = Me%DataValues - sum(Me%FlagFilter(1:Me%DataValues))
+            
+            write(Me%iFilter,*) "TOTAL_VALUES  : ", Me%DataValues 
+            write(Me%iFilter,*) "FILTER_VALUES : ", FilterValues
+            write(Me%iFilter,'(A25,f6.1)') "GOOD_VALUES_PERCENTAGE : ", real(Me%DataValues - FilterValues) / real(Me%DataValues) * 100.
             
             write(Me%iFilter,'(A82)') "Time FilterData"
             
@@ -1344,9 +1939,9 @@ d2:         do i=1, Me%DataValues
             call UnitsManager(Me%iFilter, FileClose, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - ConstructTimeSeriesAnalyser - ERR60"
         
-            call StartTimeSerieInput(Me%ObjTimeSerieFilterOut,                          &
-                                     TimeSerieDataFile = Me%FilterFile, STAT = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - ConstructTimeSeriesAnalyser - ERR70"     
+            !call StartTimeSerieInput(Me%ObjTimeSerieFilterOut,                          &
+            !                         TimeSerieDataFile = Me%FilterFile, STAT = STAT_CALL)        
+            !if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - ConstructTimeSeriesAnalyser - ERR70"     
             
 
         endif
@@ -1368,125 +1963,129 @@ d2:         do i=1, Me%DataValues
         integer                                 :: i, c, STAT_CALL, Ncompare
         
         !Begin-------------------------------------------------------------------------        
-    
-        allocate(TimeCompareTS(1: Me%nValues), TS(1:Me%nValues),CompareTS (1:Me%nValues), DifTS(1:Me%nValues))   
+             
+i1:     if (Me%CompareTimeSerieOn) then
 
-        c = 0
-        AverageCompare = 0.
+            allocate(TimeCompareTS(1: Me%nValues), TS(1:Me%nValues),CompareTS (1:Me%nValues), DifTS(1:Me%nValues))   
 
-        do i=1, Me%nValues        
+            c = 0
+            AverageCompare = 0.
 
-            if (Me%FilterTimeSerie) then
-                if (Me%FlagTimeSerie(i) == 0) cycle
-            endif
-            
-            c = c + 1
+            do i=1, Me%nValues        
 
-            call GetTimeSerieValue(Me%ObjTimeSerieCompare, Me%TimeTSOutPut(i), Me%CompareColumn, Time1, Value1,   &
-                                   Time2, Value2, TimeCycle, STAT= STAT_CALL) 
-            
-            !Interpolates Value for current instant
-            if      (Me%InterpolInTime == LinearTS_) then
-                call InterpolateValueInTime(Me%TimeTSOutPut(i), Time1, Value1, Time2,  &
-                                            Value2, NewValue)
-            else if (Me%InterpolInTime == BackwardTS_) then
-                NewValue = Value1
-            endif   
-            
-            TimeCompareTS(c) =  Me%TimeTSOutPut(i) -Me%BeginTime
-            CompareTS    (c) =  NewValue
-            AverageCompare   =  AverageCompare + CompareTS    (c)
-            TS           (c) =  Me%TimeSerie(i)
-            DifTS        (c) =  TS(c) - CompareTS(c)
-            
-        enddo                        
+                if (Me%FilterTimeSerie) then
+                    if (Me%FlagTimeSerie(i) == 0) cycle
+                endif
+                
+                c = c + 1
 
-        Ncompare = c        
-        
-        if (Ncompare > 0)AverageCompare = AverageCompare / real(Ncompare)
+                call GetTimeSerieValue(Me%ObjTimeSerieCompare, Me%TimeTSOutPut(i), Me%CompareColumn, Time1, Value1,   &
+                                       Time2, Value2, TimeCycle, STAT= STAT_CALL) 
+                
+                !Interpolates Value for current instant
+                if      (Me%InterpolInTime == LinearTS_) then
+                    call InterpolateValueInTime(Me%TimeTSOutPut(i), Time1, Value1, Time2,  &
+                                                Value2, NewValue)
+                else if (Me%InterpolInTime == BackwardTS_) then
+                    NewValue = Value1
+                endif   
+                
+                TimeCompareTS(c) =  Me%TimeTSOutPut(i) -Me%BeginTime
+                CompareTS    (c) =  NewValue
+                AverageCompare   =  AverageCompare + CompareTS    (c)
+                TS           (c) =  Me%TimeSerie(i)
+                DifTS        (c) =  TS(c) - CompareTS(c)
+                
+            enddo                        
+
+            Ncompare = c        
             
-        call moment (DifTS(1:Ncompare),ave,adev,sdev,var,skew,curt)
-        
-        RMSE = 0.
-        a    = 0
-        b    = 0
-        d    = 0
-        if (Me%CompareObservations) then
-            AverageObs = AverageCompare
-        else
-            AverageObs = Me%ave
-        endif
-        
-        do c=1,Ncompare
-        
-            a = a + DifTS(c)**2
+            if (Ncompare > 0)AverageCompare = AverageCompare / real(Ncompare)
+                
+            call moment (DifTS(1:Ncompare),ave,adev,sdev,var,skew,curt)
             
-            t1= CompareTS(c)-AverageObs
-            t2= TS(c)       -AverageObs
-            
+            RMSE = 0.
+            a    = 0
+            b    = 0
+            d    = 0
             if (Me%CompareObservations) then
-                b = b + t1**2
+                AverageObs = AverageCompare
             else
-                b = b + t2**2
+                AverageObs = Me%ave
             endif
             
-            d = d + (abs(t1)+abs(t2))**2
+            do c=1,Ncompare
             
-        enddo
-        
-        RMSE = sqrt(a/NCompare)
-        
-        if (b>0.) then
-            NashS  = 1 - a/b
-        else
-            NashS  = 0.
-        endif            
-        
-        
-        if (d>0.) then
-            Skill = 1 - a/d
-        else
-            Skill = 0.
-        endif
+                a = a + DifTS(c)**2
+                
+                t1= CompareTS(c)-AverageObs
+                t2= TS(c)       -AverageObs
+                
+                if (Me%CompareObservations) then
+                    b = b + t1**2
+                else
+                    b = b + t2**2
+                endif
+                
+                d = d + (abs(t1)+abs(t2))**2
+                
+            enddo
+            
+            RMSE = sqrt(a/NCompare)
+            
+            if (b>0.) then
+                NashS  = 1 - a/b
+            else
+                NashS  = 0.
+            endif            
+            
+            
+            if (d>0.) then
+                Skill = 1 - a/d
+            else
+                Skill = 0.
+            endif
 
-        write(Me%iCompare,*) "NAME                    : ", trim(Me%TimeSerieName)
-        write(Me%iCompare,*) "LOCALIZATION_I          : -999999"
-        write(Me%iCompare,*) "LOCALIZATION_J          : -999999"
-        write(Me%iCompare,*) "LOCALIZATION_K          : -999999"
-        
-        call ExtractDate(Me%BeginTime, Year, Month, Day, hour, minute, second)
-        
-        write(Me%iCompare,'(A26,5F6.0,1f8.2)')                                          &
-                             "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
-        write(Me%iCompare,*) "TIME_UNITS              : SECONDS"
-        write(Me%iCompare,*) "COORD_X                 : ", Me%CoordX
-        write(Me%iCompare,*) "COORD_Y                 : ", Me%CoordY
-        
-        write(Me%iCompare,*) "BIAS                    : ",ave
-        write(Me%iCompare,*) "RMSE                    : ",RMSE
-        write(Me%iCompare,*) "AVERAGE_DEVIATION       : ",adev
-        write(Me%iCompare,*) "STANDARD_DEVIATION      : ",sdev
-        write(Me%iCompare,*) "VARIANCE                : ",var
-        write(Me%iCompare,*) "SKEWNESS                : ",skew
-        write(Me%iCompare,*) "KURTOSIS                : ",curt   
-        write(Me%iCompare,*) "NASH–SUTCLIFFE          : ",NashS
-        write(Me%iCompare,*) "SKILL                   : ",Skill         
-        
-        write(Me%iCompare,'(A35)') "Time TimeSerie CompareTimeSerie Dif"
-        
-        write(Me%iCompare,*) "<BeginTimeSerie>"         
-        
-        do c=1, NCompare        
-            write(Me%iCompare,*) TimeCompareTS(c), TS(c), CompareTS(c), DifTS(c)
-        enddo
-        
-        write(Me%iCompare,*) "<EndTimeSerie>"      
-        
-        deallocate(TimeCompareTS, CompareTS, DifTS, TS)   
-        
-        !Close Output files
-        call UnitsManager(Me%iCompare, FileClose, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - ModifyTimeSeriesCompare - ERR10"        
+            write(Me%iCompare,*) "NAME                    : ", trim(Me%TimeSerieName)
+            write(Me%iCompare,*) "LOCALIZATION_I          : -999999"
+            write(Me%iCompare,*) "LOCALIZATION_J          : -999999"
+            write(Me%iCompare,*) "LOCALIZATION_K          : -999999"
+            
+            call ExtractDate(Me%BeginTime, Year, Month, Day, hour, minute, second)
+            
+            write(Me%iCompare,'(A26,5F6.0,1f8.2)')                                          &
+                                 "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+            write(Me%iCompare,*) "TIME_UNITS              : SECONDS"
+            write(Me%iCompare,*) "COORD_X                 : ", Me%CoordX
+            write(Me%iCompare,*) "COORD_Y                 : ", Me%CoordY
+            
+            write(Me%iCompare,*) "BIAS                    : ",ave
+            write(Me%iCompare,*) "RMSE                    : ",RMSE
+            write(Me%iCompare,*) "AVERAGE_DEVIATION       : ",adev
+            write(Me%iCompare,*) "STANDARD_DEVIATION      : ",sdev
+            write(Me%iCompare,*) "VARIANCE                : ",var
+            write(Me%iCompare,*) "SKEWNESS                : ",skew
+            write(Me%iCompare,*) "KURTOSIS                : ",curt   
+            write(Me%iCompare,*) "NASH–SUTCLIFFE          : ",NashS
+            write(Me%iCompare,*) "SKILL                   : ",Skill         
+            
+            write(Me%iCompare,'(A35)') "Time TimeSerie CompareTimeSerie Dif"
+            
+            write(Me%iCompare,*) "<BeginTimeSerie>"         
+            
+            do c=1, NCompare        
+                write(Me%iCompare,*) TimeCompareTS(c), TS(c), CompareTS(c), DifTS(c)
+            enddo
+            
+            write(Me%iCompare,*) "<EndTimeSerie>"      
+            
+            deallocate(TimeCompareTS, CompareTS, DifTS, TS)   
+            
+            !Close Output files
+            call UnitsManager(Me%iCompare, FileClose, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - ModifyTimeSeriesCompare - ERR10"        
+
+        endif i1
     
     end subroutine ModifyTimeSeriesCompare
     
@@ -1580,6 +2179,7 @@ d2:         do i=1, Me%DataValues
         write(Me%iP,*) "TIME_UNITS              : HOURS"
         write(Me%iP,*) "COORD_X    : ", Me%CoordX
         write(Me%iP,*) "COORD_Y    : ", Me%CoordY
+        write(Me%iP,*) "TIME_CYCLE : 1"
         
         write(Me%iP,'(A82)') "Time Per_0 Per_10 Per_20 Per_30 Per_40 Per_50 Per_60 Per_70 Per_80 Per_90  Per_100"
         
@@ -1733,7 +2333,7 @@ d2:         do i=1, Me%DataValues
 
         !Local--------------------------------------------------------------
         real                    :: Year, Month, Day, hour, minute, second, aux, dti
-        integer                 :: i, j, NPerHour, k, istart, ifinal, j1, j2
+        integer                 :: i, j, NPerHour, k, istart, ifinal, j1, j2, iValues
         !Begin--------------------------------------------------------------
 
         
@@ -1810,36 +2410,50 @@ d2:         do i=1, Me%DataValues
         write(Me%iPE,'(A256)') "Time Per_0 Per_10 Per_20 Per_30 Per_40 Per_50 Per_60 Per_70 Per_80 Per_90  Per_100 Raw_Data stdv RMS Error[%]"
         
         write(Me%iPE,*) "<BeginTimeSerie>" 
-        
 
+        iValues = 0
+        
         do j=istart,ifinal
         
-            if (Me%FlagFilter(j) == 0) cycle
+            if (Me%FlagFilter(j) == 0) then
+                cycle
+            else
+                iValues = iValues + 1
+            endif
+            
             !Compute Per_50 error
             Me%RMS  = 0
-            Me%Average=sum(Me%OutData(1:j,13))/real(j)
-            Me%stdv = -Me%Average**2        
-            do k=1, j
-                if (j==1) then
-                    Me%stdv = (Me%OutData(1,13))**2
-                else
-                    Me%stdv = Me%stdv + Me%OutData(k,13)**2/real(j)
-                endif
-            enddo    
-            do k=istart, j                
-                Me%RMS = Me%RMS + (Me%OutData(k,13)-Me%OutData(k,7))**2.
-            enddo
+            Me%stdv = 0
             
-            Me%RMS  = sqrt(Me%RMS / real(j-istart+1))
-            Me%stdv = sqrt(Me%stdv)
+            Me%Average=sum(Me%OutData(1:j,13)*Me%FlagFilter(1:j))/real(iValues)
+            
+            do k=1, j
+                if (Me%FlagFilter(k) == 0) cycle
+
+                Me%stdv = Me%stdv + (Me%OutData(k,13)-Me%Average     )**2
+                Me%RMS  = Me%RMS  + (Me%OutData(k,13)-Me%OutData(k,7))**2
+                
+            enddo    
+            
+            Me%RMS  = sqrt(Me%RMS / real(iValues))
+            Me%stdv = sqrt(Me%stdv/ real(iValues))
             !Error in percentage normalized using the standard deviation multiply by 4. In a normal distribution 
             !corresponds to ~95% of the sample 
-            if (Me%stdv >0) then
-                Me%Error = Me%RMS / (4*Me%stdv) * 100.
-            else
-                !standard deviation equal zero. Error is assume equal to 100%
-                Me%Error = 100
-            endif
+            if (Me%ErrorNormalization == stdv4_) then
+                if (Me%stdv >0) then
+                    Me%Error = Me%RMS / (4*Me%stdv) * 100.
+                else
+                    !standard deviation equal zero. Error is assume equal to 100%
+                    Me%Error = 100
+                endif
+            elseif (Me%ErrorNormalization == Average_) then
+                if (abs(Me%Average) >0) then
+                    Me%Error = Me%RMS / abs(Me%Average)* 100. 
+                else
+                    Me%Error = 100
+                endif            
+            endif    
+                
             write(Me%iPE,'(f12.2,16(e14.6," "))') Me%OutData(j,1:13), Me%stdv, Me%RMS, Me%Error
         enddo
         
@@ -1853,6 +2467,16 @@ d2:         do i=1, Me%DataValues
     
 
     !------------------------------------------------------------------
+    
+
+    !--------------------------------------------------------------------------    
+    
+    subroutine ModifyTimeSeriesMovAveBack               
+
+    end subroutine ModifyTimeSeriesMovAveBack
+    
+    !-----------------------------------------------------------------------  
+        
 
     subroutine ComputePercentile(NowTime, ReferenceTime, Hourly_Per_Aux)               
 
@@ -1932,7 +2556,7 @@ d2:         do i=1, Me%DataValues
         
         !Compute percentile matrix
         
-        Hourly_Per_Aux(:,:) = FillValueReal
+        Hourly_Per_Aux(:,:) = Me%FilterValue
         
         do i=0, Me%FrequencyWindow-1
         
@@ -2125,13 +2749,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         
         deallocate(Me%TimeTSOutPut       )
         
-        call KillTimeSerie(Me%ObjTimeSerieInterpol, STAT = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - KillVariablesAndFiles - ERR10"          
+!        call KillTimeSerie(Me%ObjTimeSerieInterpol, STAT = STAT_CALL)        
+!        if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - KillVariablesAndFiles - ERR10"          
         
         if (Me%FilterTimeSerie) then
 
-            call KillTimeSerie(Me%ObjTimeSerieFilterOut, STAT = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - KillVariablesAndFiles - ERR20"
+            !call KillTimeSerie(Me%ObjTimeSerieFilterOut, STAT = STAT_CALL)        
+            !if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - KillVariablesAndFiles - ERR20"
         
             if (Me%TimeSerieFilterInON) then
 
