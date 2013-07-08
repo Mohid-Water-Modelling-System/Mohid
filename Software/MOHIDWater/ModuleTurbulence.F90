@@ -703,10 +703,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                       STAT     = STAT_CALL)
             if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop "Construct_Time_Serie - Turbulence - ERR40" 
 
-                if (Id < 0 .or. Jd < 0) then
-                
+                if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                    stop "Construct_Time_Serie - Turbulence - ERR40" 
+                endif                            
+
+                if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
+
                     call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop "Construct_Time_Serie - Turbulence - ERR50" 
 
