@@ -104,6 +104,7 @@ Module ModuleField4D
     private ::      ModifyInput3D
     public  :: GetBathymXY
     private ::      InterpolateBathym
+    public  ::      Interpolater3D
 
  
     !Destructor
@@ -235,8 +236,6 @@ Module ModuleField4D
         
         real,    dimension(:, :   ), pointer        :: Matrix2D
         real,    dimension(:, :, :), pointer        :: Matrix3D, Depth3D
-        !Auxiliar matrixes in the interpolation process
-        real(8), dimension(:      ), pointer        :: Matrix1D, Depth1D        
         
         type (T_Time)                               :: StartTime, EndTime
         type (T_Time)                               :: CurrentTimeExt, CurrentTimeInt        
@@ -1803,17 +1802,6 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                 Me%Depth3D(:,:,:) = FillValueReal
             endif
 
-            if (.not.Associated(Me%Matrix1D)) then
-                allocate(Me%Matrix1D(KLB:KUB))
-                Me%Matrix1D(:) = FillValueReal
-            endif
-
-            if (.not.Associated(Me%Depth1D)) then
-                allocate(Me%Depth1D(KLB:KUB))
-                Me%Depth1D(:) = FillValueReal
-            endif
-
-
         endif i0
         
 it:     if (NewPropField%ChangeInTime) then
@@ -2382,7 +2370,7 @@ it:     if (NewPropField%ChangeInTime) then
         !Local-----------------------------------------------------------------
         integer                                 :: Instant
         real, dimension(:,:,:), pointer         :: Field, Aux3D, FieldAux
-        integer                                 :: Imax, Jmax, Kmax, NDim
+        integer                                 :: Imax, Jmax, Kmax
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
 
         !Begin-----------------------------------------------------------------
@@ -3319,16 +3307,11 @@ dnP:    do nP = 1,nPoints
         logical,    dimension(:),   pointer, intent(INOUT)  :: NoData
         !Local----------------------------------------------------------------
         real,   dimension(:,:,:),   pointer                 :: SZZ
-        real                                                :: ValueSW, ValueNW, ValueSE, ValueNE, ValueN, ValueS
-        integer                                             :: MaskSW, MaskNW, MaskSE, MaskNE, MaskN, MaskS
-        real                                                :: X_W, X_E, Xv, Y_S, Y_N, Yv, PercI, PercJ  
-        integer                                             :: STAT_CALL, nPoints, nP, k
-        integer                                             :: jW, jE, iS, iN, i, j
-        logical                                             :: InsideDomain
+        integer                                             :: STAT_CALL
+        integer                                             :: i, j, k
+
 
         !Begin----------------------------------------------------------------
-
-        nPoints = size(X)
         
         call ModifyInput3D(PropField)
         
@@ -3379,18 +3362,70 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
                                          Me%ExternalVar%Waterpoints3D,                  &
                                          Me%Depth3D)                    
         endif
-               
+        
+        call Interpolater3D(Matrix3D            =  Me%Matrix3D,                         &
+                            Depth3D             =  Me%Depth3D,                          &
+                            Mask3D              =  Me%ExternalVar%WaterPoints3D,        &
+                            HorizontalGrid      =  Me%ObjHorizontalGrid,                &
+                            KLB                 =  Me%WorkSize3D%KLB,                   &
+                            KUB                 =  Me%WorkSize3D%KUB,                   &
+                            X                   =  X,                                   &
+                            Y                   =  Y,                                   &
+                            Z                   =  Z,                                   &
+                            Field               =  Field,                               &
+                            NoData              =  NoData,                              &
+                            Extrapolate         =  Me%Extrapolate)
+        
+        call UnGetMap(Map_ID          = Me%ObjMap,                                      &
+                      Array           = Me%ExternalVar%WaterPoints3D,                   &
+                      STAT            = STAT_CALL) 
+        if (STAT_CALL/=SUCCESS_) stop 'Interpolate3DCloud - ModuleField4D - ERR60' 
+
+     end subroutine Interpolate3DCloud     
+     
+    !----------------------------------------------------------------------
+    
+    subroutine Interpolater3D(Matrix3D, Depth3D, Mask3D, HorizontalGrid, &
+                              KLB, KUB, Extrapolate, X, Y, Z, Field, NoData)
+
+        !Arguments------------------------------------------------------------
+        real,   dimension(:,:,:),   pointer, intent(IN)     :: Matrix3D        
+        real,   dimension(:,:,:),   pointer, intent(IN)     :: Depth3D 
+        integer,dimension(:,:,:),   pointer, intent(IN)     :: Mask3D
+        integer                            , intent(IN)     :: HorizontalGrid
+        integer                            , intent(IN)     :: KLB, KUB
+        logical                            , intent(IN)     :: Extrapolate
+        real,       dimension(:),   pointer, intent(IN)     :: X, Y, Z
+        real,       dimension(:),   pointer, intent(OUT)    :: Field
+        logical,    dimension(:),   pointer, intent(INOUT)  :: NoData
+        !Local----------------------------------------------------------------
+        real(8),    dimension(:),   pointer                 :: Depth1D, Matrix1D
+        real                                                :: ValueSW, ValueNW, ValueSE, ValueNE, ValueN, ValueS
+        integer                                             :: MaskSW, MaskNW, MaskSE, MaskNE, MaskN, MaskS
+        real                                                :: X_W, X_E, Xv, Y_S, Y_N, Yv, PercI, PercJ  
+        integer                                             :: STAT_CALL, nPoints, nP, k
+        integer                                             :: jW, jE, iS, iN, i, j
+        logical                                             :: InsideDomain
+
+        !Begin----------------------------------------------------------------
+
+
+        nPoints = size(X)  
+        
+        allocate(Depth1D (KLB:KUB))  
+        allocate(Matrix1D(KLB:KUB))
+
 dnP:    do nP = 1,nPoints      
 
             if (NoData(nP)) then
-                InsideDomain = GetXYInsideDomain(Me%ObjHorizontalGrid, X(nP), Y(nP), STAT = STAT_CALL)
+                InsideDomain = GetXYInsideDomain(HorizontalGrid, X(nP), Y(nP), STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR40'
             
                 if (.not. InsideDomain) then
                     cycle
                 endif
                 
-                call GetXYCellZ(Me%ObjHorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
+                call GetXYCellZ(HorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR50'
                 
                 if (PercJ > 0.5) then
@@ -3418,29 +3453,53 @@ dnP:    do nP = 1,nPoints
                 Y_S = 0.                
                 Y_N = 1.
                 
-                k = Me%WorkSize3D%KUB
+                k = KUB
                 
                 if (k>1) then
-                    ValueSW     = ValueAtDepthZ(iS, jW, Z(nP))
-                    ValueSE     = ValueAtDepthZ(iS, jE, Z(nP))
-                    ValueNW     = ValueAtDepthZ(iN, jW, Z(nP))
-                    ValueNE     = ValueAtDepthZ(iN, jE, Z(nP))
+
+                    Depth1D (:) = Depth3D   (iS, jW, :) 
+                    Matrix1D(:) = Matrix3D  (iS, jW, :)
+                    ValueSW     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
                     
-                    MaskSW      = MaskAtDepthZ(iS, jW, Z(nP))        
-                    MaskSE      = MaskAtDepthZ(iS, jE, Z(nP))
-                    MaskNW      = MaskAtDepthZ(iN, jW, Z(nP))
-                    MaskNE      = MaskAtDepthZ(iN, jE, Z(nP))
+                    Depth1D (:) = Depth3D   (iS, jE, :) 
+                    Matrix1D(:) = Matrix3D  (iS, jE, :)
+                    ValueSE     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
+
+                    Depth1D (:) = Depth3D   (iN, jW, :) 
+                    Matrix1D(:) = Matrix3D  (iN, jW, :)
+                    ValueNW     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
+
+                    Depth1D (:) = Depth3D   (iN, jE, :) 
+                    Matrix1D(:) = Matrix3D  (iN, jE, :)
+                    ValueNE     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
+                    
+                    
+                    Depth1D (:) = Depth3D   (iS, jW, :) 
+                    Matrix1D(:) = Mask3D    (iS, jW, :)
+                    MaskSW      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
+
+                    Depth1D (:) = Depth3D   (iS, jE, :) 
+                    Matrix1D(:) = Mask3D    (iS, jE, :)
+                    MaskSE      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
+
+                    Depth1D (:) = Depth3D   (iN, jW, :) 
+                    Matrix1D(:) = Mask3D    (iN, jW, :)
+                    MaskNW      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
+                    
+                    Depth1D (:) = Depth3D   (iN, jE, :) 
+                    Matrix1D(:) = Mask3D    (iN, jE, :)
+                    MaskNE      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
                                             
                 else
-                    ValueSW     = Me%Matrix3D(iS, jW, k)
-                    ValueSE     = Me%Matrix3D(iS, jE, k)
-                    ValueNW     = Me%Matrix3D(iN, jW, k)
-                    ValueNE     = Me%Matrix3D(iN, jE, k)
+                    ValueSW     = Matrix3D(iS, jW, k)
+                    ValueSE     = Matrix3D(iS, jE, k)
+                    ValueNW     = Matrix3D(iN, jW, k)
+                    ValueNE     = Matrix3D(iN, jE, k)
                     
-                    MaskSW      = Me%ExternalVar%Waterpoints3D(iS, jW, k)
-                    MaskSE      = Me%ExternalVar%Waterpoints3D(iS, jE, k)
-                    MaskNW      = Me%ExternalVar%Waterpoints3D(iN, jW, k)
-                    MaskNE      = Me%ExternalVar%Waterpoints3D(iN, jE, k)
+                    MaskSW      = Mask3D(iS, jW, k)
+                    MaskSE      = Mask3D(iS, jE, k)
+                    MaskNW      = Mask3D(iN, jW, k)
+                    MaskNE      = Mask3D(iN, jE, k)
                     
                 endif
 
@@ -3449,7 +3508,7 @@ dnP:    do nP = 1,nPoints
                 if (ValueNW < FillValueReal/1e4) ValueNW = 0.                
                 if (ValueNE < FillValueReal/1e4) ValueNE = 0.    
                 
-                if (Me%Extrapolate) then
+                if (Extrapolate) then
                 
                     ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
                     ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
@@ -3506,75 +3565,65 @@ dnP:    do nP = 1,nPoints
 
             endif
                             
-        enddo dnP            
+        enddo dnP   
+        
+        deallocate(Depth1D )
+        deallocate(Matrix1D)
 
-        call UnGetMap(Map_ID          = Me%ObjMap,                                      &
-                      Array           = Me%ExternalVar%WaterPoints3D,                   &
-                      STAT            = STAT_CALL) 
-        if (STAT_CALL/=SUCCESS_) stop 'Interpolate3DCloud - ModuleField4D - ERR60' 
-
-     end subroutine Interpolate3DCloud     
-     
+    end subroutine Interpolater3D
+    
     !----------------------------------------------------------------------
 
-    real(8) function ValueAtDepthZ(i, j, Z)
+    
+
+    real(8) function ValueAtDepthZ(Z, KLB, KUB, Depth1D, Matrix1D)
     
         !Arguments-------------------------------------------------------------
-        real        :: Z
-        integer     :: i, j
+        real(8), dimension(:), pointer :: Depth1D, Matrix1D
+        real                           :: Z
+        integer                        :: KLB, KUB
 
         !Local-----------------------------------------------------------------        
-        integer     :: KLB, KUB, kb, Ndepths, k
+        integer     ::kb, Ndepths, k
 
         !Begin-----------------------------------------------------------------            
 
-        KLB = Me%WorkSize3D%KLB
-        KUB = Me%WorkSize3D%KUB
-        
         do k = KUB,KLB+1,-1
-            if (Me%Depth3D (i, j, k-1)<Me%Depth3D (i, j, k)) exit
+            if (Depth1D (k-1)<Depth1D (k)) exit
         enddo
         
         kb = k
         
         Ndepths       = KUB - kb + 1
-        
-        Me%Depth1D (kb:KUB)  =   Me%Depth3D (i, j, kb:KUB) 
-        Me%Matrix1D(kb:KUB)  =   Me%Matrix3D(i, j, kb:KUB)         
 
-        ValueAtDepthZ = InterpolateProfileR8(dble(Z), Ndepths, Me%Depth1D (kb:KUB), Me%Matrix1D(kb:KUB))
+        ValueAtDepthZ = InterpolateProfileR8(dble(Z), Ndepths, Depth1D (kb:KUB), Matrix1D(kb:KUB))
         
     end function ValueAtDepthZ
 
 
     !----------------------------------------------------------------------
 
-    integer function MaskAtDepthZ(i, j, Z)
+    integer function MaskAtDepthZ(Z, KLB, KUB, Depth1D, Matrix1D)
     
         !Arguments-------------------------------------------------------------
-        real        :: Z
-        integer     :: i, j
+        real(8), dimension(:), pointer :: Depth1D, Matrix1D
+        real                           :: Z
+        integer                        :: KLB, KUB
 
         !Local-----------------------------------------------------------------        
-        integer     :: KLB, KUB, kb, Ndepths, k
+        integer                        :: kb, Ndepths, k
 
         !Begin-----------------------------------------------------------------            
 
-        KLB = Me%WorkSize3D%KLB
-        KUB = Me%WorkSize3D%KUB
-        
         do k = KUB,KLB+1,-1
-            if (Me%Depth3D (i, j, k-1)<Me%Depth3D (i, j, k)) exit
+            if (Depth1D (k-1)<Depth1D (k)) exit
         enddo
         
         kb = k
         
         Ndepths       = KUB - kb + 1
-        
-        Me%Depth1D (kb:KUB)  =   Me%Depth3D                  (i, j, kb:KUB) 
-        Me%Matrix1D(kb:KUB)  =   Me%ExternalVar%WaterPoints3D(i, j, kb:KUB)         
 
-        MaskAtDepthZ = int(InterpolateProfileR8(dble(Z), Ndepths, Me%Depth1D (kb:KUB), Me%Matrix1D(kb:KUB)))
+        MaskAtDepthZ = int(InterpolateProfileR8(dble(Z), Ndepths, Depth1D (kb:KUB), Matrix1D(kb:KUB)))
         
     end function MaskAtDepthZ
 
@@ -3912,17 +3961,6 @@ wwd:            if (Me%WindowWithData) then
                             deallocate(Me%Depth3D)
                             nullify   (Me%Depth3D)
                         endif                                        
-
-                        if (associated(Me%Matrix1D)) then
-                            deallocate(Me%Matrix1D)
-                            nullify   (Me%Matrix1D)
-                        endif                                        
-
-                        if (associated(Me%Depth1D)) then
-                            deallocate(Me%Depth1D)
-                            nullify   (Me%Depth1D)
-                        endif                                        
-                        
                         
                         if (Me%File%Form == HDF5_) then
                             call KillHDF5(Me%File%Obj, STAT = STAT_CALL)
