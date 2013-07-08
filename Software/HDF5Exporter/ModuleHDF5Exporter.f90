@@ -54,7 +54,7 @@
 !   WATERPOINTS_NAME        : char                  [-]         !Name of HDF5 item containing water points
 !
 !   GRID_FILENAME           : char                  [-]         !Name of the grid file name 
-!   
+
 
 Module ModuleExportHDF5ToTimeSerie
 
@@ -1073,7 +1073,6 @@ Module ModuleExportHDF5ToTimeSerie
         if (STAT_CALL /= SUCCESS_)                                          &
             stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR220'
             
-
     end subroutine ReadGlobalData
 
     !--------------------------------------------------------------------------
