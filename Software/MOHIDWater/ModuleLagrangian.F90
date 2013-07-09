@@ -3460,8 +3460,8 @@ DOPROP:         do
                                                       STAT         = STAT_CALL)
                                              if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR2060'  
                                         endif
-                                endif                        
-					
+                                endif
+                                
                         !T90
                         case (Fecal_Coliforms_)
 

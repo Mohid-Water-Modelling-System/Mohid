@@ -241,41 +241,74 @@ Module ModuleHorizontalGrid
 
     !Type----------------------------------------------------------------------
     type T_Compute
-        real,    dimension(:),   pointer :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V
-        real,    dimension(:),   pointer :: XX_Cross, YY_Cross
-        real,    dimension(:,:), pointer :: XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V
+        real,    dimension(:),   pointer :: XX_Z => null()
+        real,    dimension(:),   pointer :: YY_Z => null()
+        real,    dimension(:),   pointer :: XX_U => null()
+        real,    dimension(:),   pointer :: YY_U => null()
+        real,    dimension(:),   pointer :: XX_V => null()
+        real,    dimension(:),   pointer :: YY_V => null()
+        real,    dimension(:),   pointer :: XX_Cross => null()
+        real,    dimension(:),   pointer :: YY_Cross => null()
+        real,    dimension(:,:), pointer :: XX2D_Z => null()
+        real,    dimension(:,:), pointer :: YY2D_Z => null()
+        real,    dimension(:,:), pointer :: XX2D_U => null()
+        real,    dimension(:,:), pointer :: YY2D_U => null()
+        real,    dimension(:,:), pointer :: XX2D_V => null()
+        real,    dimension(:,:), pointer :: YY2D_V => null()
     end type T_Compute
 
     type T_Window
-        logical                          :: ON
-        integer                          :: ILB, IUB, JLB, JUB
+        logical                          :: ON  = .false. !initialization: jauch
+        integer                          :: ILB = null_int !initialization: jauch
+        integer                          :: IUB = null_int !initialization: jauch
+        integer                          :: JLB = null_int !initialization: jauch
+        integer                          :: JUB = null_int !initialization: jauch
     end type T_Window
 
     type T_FatherGrid
-        integer                          :: GridID
-        real,    dimension(:,:), pointer :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
-        logical                          :: OkZ, OkU, OkV, OkCross
+        integer                          :: GridID = null_int !initialization: jauch - or should be set to 0 (zero)?
+        real,    dimension(:,:), pointer :: XX_Z     => null()
+        real,    dimension(:,:), pointer :: YY_Z     => null()
+        real,    dimension(:,:), pointer :: XX_U     => null()
+        real,    dimension(:,:), pointer :: YY_U     => null()
+        real,    dimension(:,:), pointer :: XX_V     => null()
+        real,    dimension(:,:), pointer :: YY_V     => null()
+        real,    dimension(:,:), pointer :: XX_Cross => null()
+        real,    dimension(:,:), pointer :: YY_Cross => null()
+        logical                          :: OkZ            = .false. !initialization: jauch
+        logical                          :: OkU            = .false. !initialization: jauch
+        logical                          :: OkV            = .false. !initialization: jauch
+        logical                          :: OkCross        = .false. !initialization: jauch
         logical                          :: CornersXYInput = .false.
         type (T_Window)                  :: Window
-        real                             :: Fhc 
-        integer                          :: JX, IY
-        integer, dimension(:,:), pointer :: IZ, JZ, IU, JU, IV, JV, ICross, JCross
+        real                             :: Fhc = null_real !initialization: jauch
+        integer                          :: JX  = null_int !initialization: jauch
+        integer                          :: IY  = null_int !initialization: jauch
+        integer, dimension(:,:), pointer :: IZ     => null()
+        integer, dimension(:,:), pointer :: JZ     => null()
+        integer, dimension(:,:), pointer :: IU     => null()
+        integer, dimension(:,:), pointer :: JU     => null()
+        integer, dimension(:,:), pointer :: IV     => null()
+        integer, dimension(:,:), pointer :: JV     => null()
+        integer, dimension(:,:), pointer :: ICross => null()
+        integer, dimension(:,:), pointer :: JCross => null()
         type (T_Size2D)                  :: MPI_Window
-        type (T_FatherGrid),     pointer :: Next
-        type (T_FatherGrid),     pointer :: Prev
+        type (T_FatherGrid),     pointer :: Next => null()
+        type (T_FatherGrid),     pointer :: Prev => null()
     end type T_FatherGrid
 
     type T_Border
         !Grid boundary
-        type(T_Polygon),          pointer       :: Polygon_
-        integer                                 :: Type_
+        type(T_Polygon),          pointer       :: Polygon_ => null()
+        integer                                 :: Type_    = null_int !initialization: jauch - or should be set to 0 (zero)?
     end type T_Border
 
     type T_HorizontalGrid
-        integer                                 :: InstanceID
+        integer                                 :: InstanceID = null_int !initialization: jauch - or should be set to 0 (zero)?
 
         !Former Bathymetry    
-        real, pointer, dimension(:  )           :: XX, YY
+        real, pointer, dimension(:  )           :: XX         => null()
+        real, pointer, dimension(:  )           :: YY         => null()
         real                                    :: Xorig      = null_real
         real                                    :: Yorig      = null_real
         real                                    :: Latitude   = null_real
@@ -285,8 +318,9 @@ Module ModuleHorizontalGrid
         integer                                 :: ProjType   = null_int
         real                                    :: SP1        = null_real
         real                                    :: SP2        = null_real 
-        real                                    :: Easting, Northing
-        integer                                 :: Datum      = null_int   !ellipsoid
+        real                                    :: Easting    = null_real !initialization: jauch
+        real                                    :: Northing   = null_real !initialization: jauch
+        integer                                 :: Datum      = null_int  !ellipsoid
         logical                                 :: UseLambert = .FALSE.
         integer                                 :: CoordType  = null_int
         integer                                 :: ZoneLong   = null_int
@@ -295,59 +329,78 @@ Module ModuleHorizontalGrid
 
         type(T_Compute)                         :: Compute
 
-        type (T_FatherGrid),     pointer        :: FirstFatherGrid
-        type (T_FatherGrid),     pointer        :: LastFatherGrid
+        type (T_FatherGrid),     pointer        :: FirstFatherGrid => null()
+        type (T_FatherGrid),     pointer        :: LastFatherGrid  => null()
 
         !Grid boundary
-        type(T_Border),          pointer        :: GridBorderCart
-        type(T_Border),          pointer        :: GridBorderCoord
-        type(T_Border),          pointer        :: GridBorderAlongGrid
+        type(T_Border),          pointer        :: GridBorderCart      => null()
+        type(T_Border),          pointer        :: GridBorderCoord     => null()
+        type(T_Border),          pointer        :: GridBorderAlongGrid => null()
 
 
         !Distances (DXX... DVY)
-        real, dimension(:, :), pointer          :: DXX, DYY, DZX, DZY
-        real, dimension(:, :), pointer          :: DUX, DUY, DVX, DVY
-        real, dimension(:, :), pointer          :: XX_IE, YY_IE
-        real, dimension(:, :), pointer          :: XX_AlongGrid, YY_AlongGrid
-        real, dimension(:, :), pointer          :: LatitudeConn, LongitudeConn
+        real, dimension(:, :), pointer          :: DXX           => null()
+        real, dimension(:, :), pointer          :: DYY           => null()
+        real, dimension(:, :), pointer          :: DZX           => null()
+        real, dimension(:, :), pointer          :: DZY           => null()
+        real, dimension(:, :), pointer          :: DUX           => null()
+        real, dimension(:, :), pointer          :: DUY           => null()
+        real, dimension(:, :), pointer          :: DVX           => null()
+        real, dimension(:, :), pointer          :: DVY           => null()
+        real, dimension(:, :), pointer          :: XX_IE         => null()
+        real, dimension(:, :), pointer          :: YY_IE         => null()
+        real, dimension(:, :), pointer          :: XX_AlongGrid  => null()
+        real, dimension(:, :), pointer          :: YY_AlongGrid  => null()
+        real, dimension(:, :), pointer          :: LatitudeConn  => null()
+        real, dimension(:, :), pointer          :: LongitudeConn => null()
 
         logical                                 :: ReadCartCorners = .false. 
 
-        real, dimension(:, :), pointer          :: RotationX, RotationY
-        logical                                 :: CornersXYInput = .false., Distortion, RegularRotation
+        real, dimension(:, :), pointer          :: RotationX => null()
+        real, dimension(:, :), pointer          :: RotationY => null()
 
-        integer, dimension(:,:), pointer        :: DefineCellsMap, DefineFacesUMap, &
-                                                   DefineFacesVMap, DefineCrossMap
+        logical                                 :: CornersXYInput  = .false.
+        logical                                 :: Distortion      = .false.
+        logical                                 :: RegularRotation = .false.
+
+        integer, dimension(:,:), pointer        :: DefineCellsMap  => null()
+        integer, dimension(:,:), pointer        :: DefineFacesUMap => null()
+        integer, dimension(:,:), pointer        :: DefineFacesVMap => null()
+        integer, dimension(:,:), pointer        :: DefineCrossMap  => null()
 
         logical                                 :: NotDefinedCells = .false.
 
         !Latitude, Longitude
-        real, dimension(:, :), pointer          :: LatitudeZ, LongitudeZ
+        real, dimension(:, :), pointer          :: LatitudeZ  => null()
+        real, dimension(:, :), pointer          :: LongitudeZ => null()
         
         !Coriolis Factor
-        real, dimension(:, :), pointer          :: F
+        real, dimension(:, :), pointer          :: F => null()
 
         !Area           
-        real, dimension(:, :), pointer          :: GridCellArea
+        real, dimension(:, :), pointer          :: GridCellArea => null()
 
         !1D aux 
-        real, dimension(:   ), pointer          :: XX1D_Aux, YY1D_Aux
+        real, dimension(:   ), pointer          :: XX1D_Aux => null()
+        real, dimension(:   ), pointer          :: YY1D_Aux => null()
 
         !Other
-        type (T_Size2D)                         :: Size, WorkSize
-        character(PathLength)                   :: FileName
+        type (T_Size2D)                         :: Size
+        type (T_Size2D)                         :: WorkSize
+
+        character(PathLength)                   :: FileName = null_str !initialization: jauch
         
         !Instances
         integer                                 :: ObjHDF5 = 0
 
-        type (T_HorizontalGrid), pointer        :: Next
+        type (T_HorizontalGrid), pointer        :: Next => null()
 
         
     end type T_HorizontalGrid
 
     !Global Module Variables
-    type (T_HorizontalGrid), pointer            :: FirstHorizontalGrid
-    type (T_HorizontalGrid), pointer            :: Me
+    type (T_HorizontalGrid), pointer            :: FirstHorizontalGrid  => null()
+    type (T_HorizontalGrid), pointer            :: Me                   => null()
 
 
     contains

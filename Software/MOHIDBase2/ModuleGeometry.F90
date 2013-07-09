@@ -239,9 +239,9 @@ Module ModuleGeometry
         integer                                 :: ActiveUpperLayer          = FillValueInt
         real                                    :: DomainDepth               = FillValueReal
         real                                    :: TotalThickness            = FillValueReal 
-        real, dimension(:), pointer             :: LayerThickness
-        real, dimension(:), pointer             :: LayerMinThickness
-        real, dimension(:), pointer             :: LayerMaxThickness
+        real, dimension(:), pointer             :: LayerThickness            => null()
+        real, dimension(:), pointer             :: LayerMinThickness         => null()
+        real, dimension(:), pointer             :: LayerMaxThickness         => null()
         real                                    :: ToleranceDepth            = FillValueReal 
         real                                    :: MinInitialLayerThickness  = FillValueReal
         real                                    :: MaxThicknessGrad          = FillValueReal 
@@ -253,8 +253,11 @@ Module ModuleGeometry
         integer                                 :: InitializationMethod      = FillValueInt
         real                                    :: Equidistant               = FillValueReal        
         logical                                 :: RomsDistortion            = .false.
-        real                                    :: theta_s, theta_b, Hc
-        type (T_Domain), pointer                :: Next, Prev
+        real                                    :: theta_s                   = null_real, & !initialization: Jauch
+                                                   theta_b                   = null_real, & !initialization: Jauch
+                                                   Hc                        = null_real    !initialization: Jauch
+        type (T_Domain), pointer                :: Next                      => null(), &
+                                                   Prev                      => null()
     end type T_Domain
 
     type T_Distances
@@ -287,22 +290,29 @@ Module ModuleGeometry
 
 
     type T_WaterColumn
-        real, dimension(:, :), pointer          :: U, V
-        real, dimension(:, :), pointer          :: Z                    !Former HT
+        real, dimension(:, :), pointer          :: U    => null(), &
+                                                   V    => null(), &
+                                                   Z    => null()                    !Former HT
         real                                    :: Zmin = FillValueReal !Former Hmin
     end type T_WaterColumn
 
 #ifdef _USE_SEQASSIMILATION
     type T_StatePointer
-        real,    dimension(:, :, :), pointer    :: SZZ
-        real,    dimension(:, :, :), pointer    :: DWZ, DUZ, DVZ
-        real,    dimension(:, :, :), pointer    :: DZZ
-        real,    dimension(:, :, :), pointer    :: ZCellCenter
-        real,    dimension(:, :, :), pointer    :: AreaU, AreaV
-        real,    dimension(:, :),    pointer    :: WaterColumnU, WaterColumnV
-        real,    dimension(:, :),    pointer    :: WaterColumnZ
-        real(8), dimension(:, :, :), pointer    :: VolumeZ, VolumeU
-        real(8), dimension(:, :, :), pointer    :: VolumeV, VolumeZOld
+        real,    dimension(:, :, :), pointer    :: SZZ          => null(), &   
+                                                   DWZ          => null(), &
+                                                   DUZ          => null(), &
+                                                   DVZ          => null(), &
+                                                   DZZ          => null(), &
+                                                   ZCellCenter  => null(), &
+                                                   AreaU        => null(), &
+                                                   AreaV        => null()
+        real,    dimension(:, :),    pointer    :: WaterColumnU => null(), &        
+                                                   WaterColumnV => null(), &
+                                                   WaterColumnZ => null()
+        real(8), dimension(:, :, :), pointer    :: VolumeZ      => null(), &
+                                                   VolumeU      => null(), &
+                                                   VolumeV      => null(), &
+                                                   VolumeZOld   => null()
     end type T_StatePointer
 #endif _USE_SEQASSIMILATION
 
@@ -310,12 +320,12 @@ Module ModuleGeometry
         logical                                 :: ContinuesCompute = .false.
         logical                                 :: NonHydrostatic   = .false.
         real                                    :: BathymTopoFactor = 1.0
-        real, dimension(:,:,:), pointer         :: DecayTime
+        real, dimension(:,:,:), pointer         :: DecayTime        => null()
     end type T_External
 
     type T_Geometry
-        integer                                 :: InstanceID
-        integer                                 :: FacesOption
+        integer                                 :: InstanceID   = null_int !initialization: Jauch
+        integer                                 :: FacesOption  = null_int !initialization: Jauch
         type (T_External)                       :: ExternalVar
         type (T_Distances)                      :: Distances
         type (T_Areas)                          :: Areas
@@ -330,13 +340,13 @@ Module ModuleGeometry
         type (T_Size3D)                         :: Size
         type (T_Size3D)                         :: WorkSize
         
-        logical                                 :: IsWindow
+        logical                                 :: IsWindow                 = .false. !initialization: Jauch
         
         logical                                 :: LagrangianLimitsComputed = .false.
         
-        logical                                 :: BathymNotCorrect = .false. 
+        logical                                 :: BathymNotCorrect         = .false. 
        
-        character(len=Pathlength)               :: InputFile
+        character(len=Pathlength)               :: InputFile                = null_str !initialization: Jauch
 
 #ifdef _USE_SEQASSIMILATION
         !This variable is used to retain location of original memory space for variables
@@ -349,13 +359,13 @@ Module ModuleGeometry
         integer                                 :: ObjHorizontalGrid    = 0
         integer                                 :: ObjHorizontalMap     = 0
 
-        type (T_Geometry), pointer              :: Next
+        type (T_Geometry), pointer              :: Next                 => null()
 
     end type T_Geometry
 
     !Global Module Variables
-    type (T_Geometry), pointer                  :: FirstGeometry
-    type (T_Geometry), pointer                  :: Me
+    type (T_Geometry), pointer                  :: FirstGeometry    => null()
+    type (T_Geometry), pointer                  :: Me               => null()
    
 
     contains

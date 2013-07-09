@@ -346,85 +346,93 @@ Module ModuleInterfaceSedimentWater
     !Types---------------------------------------------------------------------
 
     type     T_ID
-        integer                                     :: IDNumber
-        character(LEN = StringLength)               :: Name
-        character(LEN = StringLength)               :: Description
-        character(LEN = StringLength)               :: Units
+        integer                                     :: IDNumber     = null_int !initialization: Jauch
+        character(LEN = StringLength)               :: Name         = null_str !initialization: Jauch
+        character(LEN = StringLength)               :: Description  = null_str !initialization: Jauch
+        character(LEN = StringLength)               :: Units        = null_str !initialization: Jauch
     end type T_ID
 
     type       T_Files 
-         character(len=PathLength)                  :: InputData
-         character(len=PathLength)                  :: Final
-         character(len=PathLength)                  :: Initial
-         character(len=PathLength)                  :: Results
-         character(len=PathLength)                  :: BoxesFile
+         character(len=PathLength)                  :: InputData    = null_str !initialization: Jauch
+         character(len=PathLength)                  :: Final        = null_str !initialization: Jauch
+         character(len=PathLength)                  :: Initial      = null_str !initialization: Jauch
+         character(len=PathLength)                  :: Results      = null_str !initialization: Jauch
+         character(len=PathLength)                  :: BoxesFile    = null_str !initialization: Jauch
     end type T_Files
 
     type       T_OutPut
-         type (T_Time), pointer, dimension(:)       :: OutTime, RestartOutTime
-         integer                                    :: NextOutPut, NextRestartOutPut
+         type (T_Time), pointer, dimension(:)       :: OutTime          => null(), &
+                                                       RestartOutTime   => null()
+                                                       
+         integer                                    :: NextOutPut           = null_int, & !initialization: Jauch
+                                                       NextRestartOutPut    = null_int    !initialization: Jauch
          logical                                    :: WriteRestartFile     = .false. 
-         logical                                    :: Yes
+         logical                                    :: Yes                  = .false. !initialization: Jauch
          logical                                    :: WriteFinalFile       = .false.
-         logical                                    :: RestartOverwrite
+         logical                                    :: RestartOverwrite     = .false. !initialization: Jauch
     end type T_OutPut
     
     type       T_Ext_Global
         type(T_Time)                                :: Now
-        real,    pointer, dimension(:,:  )          :: XX_IE, YY_IE
-        real,    pointer, dimension(:,:  )          :: GridCellArea
+        real,    pointer, dimension(:,:  )          :: XX_IE        => null(), &
+                                                       YY_IE        => null(), &
+                                                       GridCellArea => null()
     end type T_Ext_Global
     
     type       T_Ext_Water
-        real,    pointer, dimension(:,:  )          :: Chezy
-        real,    pointer, dimension(:,:,:)          :: DWZ
-        real,    pointer, dimension(:,:,:)          :: SZZ
-        real,    pointer, dimension(:,:,:)          :: Velocity_U
-        real,    pointer, dimension(:,:,:)          :: Velocity_V
-        real(8), pointer, dimension(:,:,:)          :: VolumeZ
-        real(8), pointer, dimension(:,:,:)          :: VolumeZOld
-        integer, pointer, dimension(:,:  )          :: WaterPoints2D
-        integer, pointer, dimension(:,:  )          :: OpenPoints2D
-        integer, pointer, dimension(:,:  )          :: BoundaryPoints2D
-        integer, pointer, dimension(:,:,:)          :: WaterPoints3D
-        integer, pointer, dimension(:,:,:)          :: OpenPoints3D
-        integer, pointer, dimension(:,:,:)          :: LandPoints3D
-        real,    pointer, dimension(:,:  )          :: Bathymetry
-        real,    pointer, dimension(:,:  )          :: WaterColumn
-        real(8), pointer, dimension(:,:)            :: WaterVolume
-        real,    pointer, dimension(:,:)            :: Sediment
-        real                                        :: MinWaterColumn        
-        integer, pointer, dimension(:,:  )          :: KFloor_Z
-        real,    pointer, dimension(:,:  )          :: WavePeriod, WaveHeight
-        real,    pointer, dimension(:,:  )          :: Ubw, Abw
+        real,    pointer, dimension(:,:  )          :: Chezy            => null()
+        real,    pointer, dimension(:,:,:)          :: DWZ              => null()
+        real,    pointer, dimension(:,:,:)          :: SZZ              => null()
+        real,    pointer, dimension(:,:,:)          :: Velocity_U       => null()
+        real,    pointer, dimension(:,:,:)          :: Velocity_V       => null()
+        real(8), pointer, dimension(:,:,:)          :: VolumeZ          => null()
+        real(8), pointer, dimension(:,:,:)          :: VolumeZOld       => null()
+        integer, pointer, dimension(:,:  )          :: WaterPoints2D    => null()
+        integer, pointer, dimension(:,:  )          :: OpenPoints2D     => null()
+        integer, pointer, dimension(:,:  )          :: BoundaryPoints2D => null()
+        integer, pointer, dimension(:,:,:)          :: WaterPoints3D    => null()
+        integer, pointer, dimension(:,:,:)          :: OpenPoints3D     => null()
+        integer, pointer, dimension(:,:,:)          :: LandPoints3D     => null()
+        real,    pointer, dimension(:,:  )          :: Bathymetry       => null()
+        real,    pointer, dimension(:,:  )          :: WaterColumn      => null()
+        real(8), pointer, dimension(:,:)            :: WaterVolume      => null()
+        real,    pointer, dimension(:,:)            :: Sediment         => null()
+        real                                        :: MinWaterColumn   = null_real !initialization: Jauch  
+        integer, pointer, dimension(:,:  )          :: KFloor_Z         => null()
+        real,    pointer, dimension(:,:  )          :: WavePeriod       => null(), &
+                                                       WaveHeight       => null()
+        real,    pointer, dimension(:,:  )          :: Ubw              => null(), &
+                                                       Abw              => null()
         type(T_Time)                                :: LastComputeWave
     end type T_Ext_Water
 
     type       T_Ext_Sed
-        real                                        :: MinLayerThickness
-        real,    pointer, dimension(:,:,:)          :: DWZ
-        real,    pointer, dimension(:,:,:)          :: SZZ
-        real(8), pointer, dimension(:,:,:)          :: VolumeZ
-        real(8), pointer, dimension(:,:,:)          :: VolumeZOld
-        integer, pointer, dimension(:,:  )          :: WaterPoints2D, KTop
-        integer, pointer, dimension(:,:  )          :: OpenPoints2D
-        integer, pointer, dimension(:,:  )          :: BoundaryPoints2D
-        integer, pointer, dimension(:,:,:)          :: WaterPoints3D
-        integer, pointer, dimension(:,:,:)          :: OpenPoints3D
-        integer, pointer, dimension(:,:,:)          :: LandPoints3D
-        real,    pointer, dimension(:,:,:)          :: Porosity
-        real(8), pointer, dimension(:,:,:)          :: WaterFluxZ, DrySedVolume
-        real   , pointer, dimension(:,:  )          :: TopCriticalShear
-        real   , pointer, dimension(:,:,:)          :: SedimentDryDensity
-        integer, pointer, dimension(:,:  )          :: SedimentColumnFull
+        real                                        :: MinLayerThickness    = null_real !initialization: Jauch
+        real,    pointer, dimension(:,:,:)          :: DWZ                  => null()
+        real,    pointer, dimension(:,:,:)          :: SZZ                  => null()
+        real(8), pointer, dimension(:,:,:)          :: VolumeZ              => null()
+        real(8), pointer, dimension(:,:,:)          :: VolumeZOld           => null()
+        integer, pointer, dimension(:,:  )          :: WaterPoints2D        => null(), &
+                                                       KTop                 => null()
+        integer, pointer, dimension(:,:  )          :: OpenPoints2D         => null()
+        integer, pointer, dimension(:,:  )          :: BoundaryPoints2D     => null()
+        integer, pointer, dimension(:,:,:)          :: WaterPoints3D        => null()
+        integer, pointer, dimension(:,:,:)          :: OpenPoints3D         => null()
+        integer, pointer, dimension(:,:,:)          :: LandPoints3D         => null()
+        real,    pointer, dimension(:,:,:)          :: Porosity             => null()
+        real(8), pointer, dimension(:,:,:)          :: WaterFluxZ           => null(), &
+                                                       DrySedVolume         => null()
+        real   , pointer, dimension(:,:  )          :: TopCriticalShear     => null()
+        real   , pointer, dimension(:,:,:)          :: SedimentDryDensity   => null()
+        integer, pointer, dimension(:,:  )          :: SedimentColumnFull   => null()
         logical                                     :: ComputeConsolidation = .false.
     end type T_Ext_Sed
 
     type       T_Property_2D
         type(T_PropertyID)                          :: ID
-        real, pointer, dimension (:,:)              :: Field 
-        real                                        :: Scalar
-        logical                                     :: Constant
+        real, pointer, dimension (:,:)              :: Field    => null()
+        real                                        :: Scalar   = null_real !initialization: Jauch
+        logical                                     :: Constant = .false.   !initialization: Jauch
     end type T_Property_2D
 
     type       T_Evolution
@@ -447,16 +455,16 @@ Module ModuleInterfaceSedimentWater
     type       T_Property
          type(T_PropertyID)                         :: ID
          logical                                    :: Particulate          = .false.
-         real, dimension(:,:), pointer              :: Mass_Available
-         real, dimension(:,:), pointer              :: WaterConcentration
-         real, dimension(:,:), pointer              :: MassInKg
-         real, dimension(:,:), pointer              :: Mass_FromWater
-         real, dimension(:,:), pointer              :: SedimentConcentration
-         real, dimension(:,:), pointer              :: FluxToWater
-         real, dimension(:,:), pointer              :: FluxToSediment
-         real, dimension(:,:), pointer              :: ErosionFlux
-         real, dimension(:,:), pointer              :: DepositionFlux
-         real, dimension(:,:), pointer              :: ErosionCoefficient
+         real, dimension(:,:), pointer              :: Mass_Available           => null()
+         real, dimension(:,:), pointer              :: WaterConcentration       => null()
+         real, dimension(:,:), pointer              :: MassInKg                 => null()
+         real, dimension(:,:), pointer              :: Mass_FromWater           => null() 
+         real, dimension(:,:), pointer              :: SedimentConcentration    => null()
+         real, dimension(:,:), pointer              :: FluxToWater              => null()
+         real, dimension(:,:), pointer              :: FluxToSediment           => null()
+         real, dimension(:,:), pointer              :: ErosionFlux              => null()
+         real, dimension(:,:), pointer              :: DepositionFlux           => null()
+         real, dimension(:,:), pointer              :: ErosionCoefficient       => null()
          real                                       :: Mass_Min             = FillValueReal
          logical                                    :: Old                  = .false.
          logical                                    :: Mass_Limitation      = .false.
@@ -466,17 +474,18 @@ Module ModuleInterfaceSedimentWater
          logical                                    :: OutHDFOrigin         = .false.
          type(T_Property_2D)                        :: MolecularDifCoef
          type(T_Evolution)                          :: Evolution
-         type(T_Property), pointer                  :: Next
-         type(T_Property), pointer                  :: Prev
+         type(T_Property), pointer                  :: Next => null()
+         type(T_Property), pointer                  :: Prev => null()
     end type  T_Property 
 
     type       T_BenthicRate
         type (T_ID)                                 :: ID
         type (T_ID)                                 :: FirstProp
         type (T_ID)                                 :: SecondProp
-        real, pointer, dimension(:,:)               :: Field 
-        real, pointer, dimension(:,:)               :: Field2
-        type(T_BenthicRate), pointer                :: Next, Prev
+        real, pointer, dimension(:,:)               :: Field    => null()
+        real, pointer, dimension(:,:)               :: Field2   => null()
+        type(T_BenthicRate), pointer                :: Next => null(), &
+                                                       Prev => null()
     end type   T_BenthicRate
 
 
@@ -504,9 +513,9 @@ Module ModuleInterfaceSedimentWater
     end type T_Coupled
 
     type       T_Statistics
-         integer                                    :: ID
-         character(LEN = StringLength)              :: File
-         logical                                    :: ON
+         integer                                    :: ID   = null_int !initialization: Jauch
+         character(LEN = StringLength)              :: File = null_str !initialization: Jauch
+         logical                                    :: ON   = .false.  !initialization: Jauch
     end type   T_Statistics
     
     type       T_Consolidation
@@ -518,22 +527,24 @@ Module ModuleInterfaceSedimentWater
 
    Type T_Seagrasses     ! Isabella
    type(T_PropertyID)                               :: ID
-        real,    pointer, dimension(:,:  )          :: UptakeNH4NO3w2D
-        real,    pointer, dimension(:,:  )          :: UptakeNH4s2D
-        real,    pointer, dimension(:,:  )          :: UptakePO4w2D
-        real,    pointer, dimension(:,:  )          :: UptakePO4s2D
-        real,    pointer, dimension(:,:  )          :: LightFactor2D
-        real, pointer, dimension(:,:  )             :: Array2D
+        real,    pointer, dimension(:,:  )          :: UptakeNH4NO3w2D  => null()
+        real,    pointer, dimension(:,:  )          :: UptakeNH4s2D     => null()
+        real,    pointer, dimension(:,:  )          :: UptakePO4w2D     => null()
+        real,    pointer, dimension(:,:  )          :: UptakePO4s2D     => null()
+        real,    pointer, dimension(:,:  )          :: LightFactor2D    => null()
+        real, pointer, dimension(:,:  )             :: Array2D          => null()
    end type T_Seagrasses
   
 
     type       T_Shear
-         real, pointer, dimension (:,:)             :: CurrentVel, CurrentU, CurrentV
-         real, pointer, dimension (:,:)             :: Velocity
-         real, pointer, dimension (:,:)             :: Tension
+         real, pointer, dimension (:,:)             :: CurrentVel   => null(), &
+                                                       CurrentU     => null(), &
+                                                       CurrentV     => null()
+         real, pointer, dimension (:,:)             :: Velocity     => null()
+         real, pointer, dimension (:,:)             :: Tension      => null()
          logical                                    :: Limitation           = .false.      
-         real                                       :: ReferenceDepth
-         real                                       :: ReferenceShearStress
+         real                                       :: ReferenceDepth       = null_real !initialization: Jauch
+         real                                       :: ReferenceShearStress = null_real !initialization: Jauch
          type (T_Time)                              :: LastCompute
          type (T_Statistics)                        :: Statistics
          logical                                    :: IntertidalRunOff     = .false.
@@ -542,11 +553,11 @@ Module ModuleInterfaceSedimentWater
     type       T_WaveShear
          logical                                    :: Yes                  = .false.
          logical                                    :: NonLinear            = .false.         
-         real, pointer, dimension (:,:)             :: Tension
-         real, pointer, dimension (:,:)             :: TensionCurrents
-         real, pointer, dimension (:,:)             :: ChezyVel
+         real, pointer, dimension (:,:)             :: Tension          => null()
+         real, pointer, dimension (:,:)             :: TensionCurrents  => null()
+         real, pointer, dimension (:,:)             :: ChezyVel         => null()
          type(T_Property_2D)                        :: Rugosity
-         logical                                    :: RugosityRead
+         logical                                    :: RugosityRead = .false. !initialization: Jauch
          type(T_Time)                               :: LastCompute
     end type   T_WaveShear
 
@@ -574,12 +585,12 @@ Module ModuleInterfaceSedimentWater
         type(T_Ext_Global )                         :: ExternalVar
         type(T_Ext_Water  )                         :: ExtWater
         type(T_Ext_Sed    )                         :: ExtSed
-        type(T_Property   ), pointer                :: FirstProperty
-        type(T_Property   ), pointer                :: LastProperty
-        type(T_BenthicRate), pointer                :: FirstBenthicRate
-        type(T_BenthicRate), pointer                :: LastBenthicRate
-        real,dimension(:,:), pointer                :: DepositionProbability
-        real,dimension(:,:), pointer                :: BottomSWRadiationAverage
+        type(T_Property   ), pointer                :: FirstProperty            => null()
+        type(T_Property   ), pointer                :: LastProperty             => null()
+        type(T_BenthicRate), pointer                :: FirstBenthicRate         => null()
+        type(T_BenthicRate), pointer                :: LastBenthicRate          => null()
+        real,dimension(:,:), pointer                :: DepositionProbability    => null()
+        real,dimension(:,:), pointer                :: BottomSWRadiationAverage => null()
         logical                                     :: RunsSediments            = .false.
         logical                                     :: RunsSandTransport        = .false.
         logical                                     :: Manning                  = .false.
@@ -588,10 +599,10 @@ Module ModuleInterfaceSedimentWater
         type(T_Property_2D)                         :: SOD
         type(T_Property_2D)                         :: Rugosity
         type(T_Property_2D)                         :: ManningCoef
-        logical                                     :: Chezy
-        real                                        :: ChezyCoef
-        real(8), pointer, dimension(:,:)            :: Scalar2D
-        real(8), pointer, dimension(:,:)            :: WaterFlux
+        logical                                     :: Chezy    = .false. !initialization: Jauch  
+        real                                        :: ChezyCoef    = null_real !initialization: Jauch
+        real(8), pointer, dimension(:,:)            :: Scalar2D     => null()
+        real(8), pointer, dimension(:,:)            :: WaterFlux    => null()
         integer                                     :: PropertiesNumber         = 0
         integer                                     :: BenthicRatesNumber       = 0
         type(T_Consolidation)                       :: Consolidation
@@ -675,12 +686,12 @@ Module ModuleInterfaceSedimentWater
         !Instance of ModuleLagrangian
         integer                                     :: ObjLagrangian            = 0
 
-        type(T_InterfaceSedimentWater), pointer     :: Next
+        type(T_InterfaceSedimentWater), pointer     :: Next => null()
     end type  T_InterfaceSedimentWater
 
     !Global Module Variables
-    type (T_InterfaceSedimentWater), pointer        :: FirstObjInterfaceSedimentWater
-    type (T_InterfaceSedimentWater), pointer        :: Me
+    type (T_InterfaceSedimentWater), pointer        :: FirstObjInterfaceSedimentWater   => null()
+    type (T_InterfaceSedimentWater), pointer        :: Me                               => null()
 
     !--------------------------------------------------------------------------
     
@@ -788,7 +799,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjWaterProperties      = AssociateInstance(mWATERPROPERTIES_,   WaterPropertiesID       )
             Me%ObjTurbulence           = AssociateInstance(mTURBULENCE_,        TurbulenceID            )
             
-
             if(LagrangianID /= 0)then
                 Me%ObjLagrangian       = AssociateInstance(mLAGRANGIAN_,        LagrangianID            )
             end if
@@ -829,7 +839,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL .NE. SUCCESS_)                                 &
                 stop 'StartInterfaceSedimentWater - InterfaceSedimentWater - ERR02'
             
-
             call ConstructShearStress
 
             call ConstructRugosity
@@ -857,7 +866,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ReadUnlockExternalWater
 
             call ReadUnlockExternalGlobal
-
+            
             call SetSubModulesConstructor
 
             !Returns ID
@@ -2609,7 +2618,7 @@ do1 :   do
         !Local-----------------------------------------------------------------
         integer                             :: iflag, PropNumber
         logical                             :: CheckName
-        type (T_Property), pointer          :: PropertyX
+        !type (T_Property), pointer          :: PropertyX
       
         !----------------------------------------------------------------------
 
@@ -3859,7 +3868,6 @@ do1 :   do while (associated(PropertyX))
 
 
         if(Me%Manning)then
-            
             call SetHydrodynamicRugosityMatrix(HydrodynamicID = Me%ObjHydrodynamic,     &
                                                RugosityMatrix = Me%ManningCoef%Field,   &
                                                STAT           = STAT_CALL)
@@ -3868,7 +3876,6 @@ do1 :   do while (associated(PropertyX))
 
 
         else
-
             call SetHydrodynamicRugosityMatrix(HydrodynamicID = Me%ObjHydrodynamic,     &
                                                RugosityMatrix = Me%Rugosity%Field,      &
                                                STAT           = STAT_CALL)
@@ -6848,7 +6855,7 @@ subroutine BenthicEcology_Processes
         real, dimension(:,:,:),     pointer     :: ConcentrationOld
         character(len=StringLength)             :: WaterPropertyUnits
         real                                    :: WaterPropertyISCoef
-        real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
+        !real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
         real, dimension(:,:,:),     pointer     :: ShortWaveRadiationAverage
         real, dimension(:,:,:),     pointer     :: UptakeNH4NO3w3D
         real, dimension(:,:,:),     pointer     :: UptakePO4w3D

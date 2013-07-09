@@ -180,23 +180,25 @@ Module ModuleInterface
     !Type----------------------------------------------------------------------
     type       T_External
         type(T_Time)                            :: Now
-        integer, dimension(:      ), pointer    :: RiverPoints1D
-        integer, dimension(:, :   ), pointer    :: WaterPoints2D
-        integer, dimension(:, :, :), pointer    :: WaterPoints3D
-        integer, dimension(:      ), pointer    :: OpenPoints1D
-        integer, dimension(:, :   ), pointer    :: OpenPoints2D
-        integer, dimension(:, :, :), pointer    :: OpenPoints3D
-        real,    dimension(:      ), pointer    :: DWZ1D
-        real,    dimension(:, :, :), pointer    :: DWZ, ShearStress, SPMFlux
-        real(8), dimension(:, :, :), pointer    :: SedimCellVol
+        integer, dimension(:      ), pointer    :: RiverPoints1D    => null()
+        integer, dimension(:, :   ), pointer    :: WaterPoints2D    => null()
+        integer, dimension(:, :, :), pointer    :: WaterPoints3D    => null()
+        integer, dimension(:      ), pointer    :: OpenPoints1D     => null()
+        integer, dimension(:, :   ), pointer    :: OpenPoints2D     => null()
+        integer, dimension(:, :, :), pointer    :: OpenPoints3D     => null()
+        real,    dimension(:      ), pointer    :: DWZ1D            => null()
+        real,    dimension(:, :, :), pointer    :: DWZ              => null(), &
+                                                   ShearStress      => null(), &
+                                                   SPMFlux          => null()
+        real(8), dimension(:, :, :), pointer    :: SedimCellVol     => null()
         logical                                 :: Vertical1D = .false.
     end type T_External
 
     type      T_Interface
         private
-        integer                                 :: InstanceID
-        character(PathLength)                   :: FileName
-        character(StringLength)                 :: SinksSourcesModel
+        integer                                 :: InstanceID           = null_int !initialization: Jauch
+        character(PathLength)                   :: FileName             = null_str !initialization: Jauch        
+        character(StringLength)                 :: SinksSourcesModel    = null_str !initialization: Jauch        
         type(T_Size3D)                          :: Size3D
         type(T_Size2D)                          :: Size2D
         type(T_Size1D)                          :: Size1D
@@ -206,67 +208,67 @@ Module ModuleInterface
         
         !griflet: Optimizing interface
         !griflet: start
-        integer, pointer, dimension(:,:,:)      :: IJK2Index
-        integer, pointer, dimension(:,:  )      :: IJ2Index      
-        integer, pointer, dimension(:    )      :: I2Index
+        integer, pointer, dimension(:,:,:)      :: IJK2Index                => null()
+        integer, pointer, dimension(:,:  )      :: IJ2Index                 => null()
+        integer, pointer, dimension(:    )      :: I2Index                  => null()
         
-        integer, pointer, dimension(:    )      :: Index2I
-        integer, pointer, dimension(:    )      :: Index2J
-        integer, pointer, dimension(:    )      :: Index2K
+        integer, pointer, dimension(:    )      :: Index2I                  => null()
+        integer, pointer, dimension(:    )      :: Index2J                  => null()
+        integer, pointer, dimension(:    )      :: Index2K                  => null()
         !griflet: end
         
-        real,    pointer, dimension(:,:  )      :: Mass
-        real,    pointer, dimension(:,:  )      :: ConcentrationIncrement
-        real,    pointer, dimension(:    )      :: Salinity
-        real,    pointer, dimension(:    )      :: Alkalinity
-        real,    pointer, dimension(:    )      :: Temperature
-        real,    pointer, dimension(:    )      :: Oxygen
-        real,    pointer, dimension(:    )      :: SOD
-        logical                                 :: UseSOD = .false.
-        real,    pointer, dimension(:    )      :: ShortWaveTop
-        real,    pointer, dimension(:    )      :: ShortWaveAverage
-        real,    pointer, dimension(:    )      :: LightExtCoefField
-        real,    pointer, dimension(:    )      :: Thickness
-        real,    pointer, dimension(:    )      :: SPMFlux
-        real,    pointer, dimension(:    )      :: ShearStress
-        real,    pointer, dimension(:    )      :: FishFood
-        real,    pointer, dimension(:    )      :: WaterPercentage
-        real,    pointer, dimension(:    )      :: DissolvedToParticulate
-        real,    pointer, dimension(:    )      :: SoilDryDensity
-        real,    pointer, dimension(:    )      :: pH
-        real(8), pointer, dimension(:    )      :: WaterVolume1D !Array with volumes from unfold matrix 
-        real,    pointer, dimension(:    )      :: CellArea1D    !Array with volumes from unfold matrix
+        real,    pointer, dimension(:,:  )      :: Mass                     => null()
+        real,    pointer, dimension(:,:  )      :: ConcentrationIncrement   => null()
+        real,    pointer, dimension(:    )      :: Salinity                 => null()
+        real,    pointer, dimension(:    )      :: Alkalinity               => null()
+        real,    pointer, dimension(:    )      :: Temperature              => null()
+        real,    pointer, dimension(:    )      :: Oxygen                   => null()
+        real,    pointer, dimension(:    )      :: SOD                      => null()
+        logical                                 :: UseSOD = .false.         
+        real,    pointer, dimension(:    )      :: ShortWaveTop             => null()
+        real,    pointer, dimension(:    )      :: ShortWaveAverage         => null()
+        real,    pointer, dimension(:    )      :: LightExtCoefField        => null()
+        real,    pointer, dimension(:    )      :: Thickness                => null()
+        real,    pointer, dimension(:    )      :: SPMFlux                  => null()
+        real,    pointer, dimension(:    )      :: ShearStress              => null()
+        real,    pointer, dimension(:    )      :: FishFood                 => null()
+        real,    pointer, dimension(:    )      :: WaterPercentage          => null()
+        real,    pointer, dimension(:    )      :: DissolvedToParticulate   => null()
+        real,    pointer, dimension(:    )      :: SoilDryDensity           => null()
+        real,    pointer, dimension(:    )      :: pH                       => null()
+        real(8), pointer, dimension(:    )      :: WaterVolume1D            => null() !Array with volumes from unfold matrix 
+        real,    pointer, dimension(:    )      :: CellArea1D               => null()!Array with volumes from unfold matrix
 
 #ifdef _PHREEQC_        
-        real,    pointer, dimension(:    )      :: pE
-        real,    pointer, dimension(:    )      :: WaterMass  
-        real,    pointer, dimension(:    )      :: SolidMass   
-        integer, pointer, dimension(:    )      :: PhreeqCID
+        real,    pointer, dimension(:    )      :: pE                       => null()
+        real,    pointer, dimension(:    )      :: WaterMass                => null()
+        real,    pointer, dimension(:    )      :: SolidMass                => null()
+        integer, pointer, dimension(:    )      :: PhreeqCID                => null()
 #endif        
-        real,    pointer, dimension(:    )      :: IonicStrength
-        real,    pointer, dimension(:    )      :: PhosphorusAdsortionIndex
-        real,    pointer, dimension(:    )      :: WindVelocity
-        integer, pointer, dimension(:    )      :: OpenPoints
-        logical, pointer, dimension(:    )      :: AddedProperties
+        real,    pointer, dimension(:    )      :: IonicStrength            => null()
+        real,    pointer, dimension(:    )      :: PhosphorusAdsortionIndex => null()
+        real,    pointer, dimension(:    )      :: WindVelocity             => null()
+        integer, pointer, dimension(:    )      :: OpenPoints               => null()
+        logical, pointer, dimension(:    )      :: AddedProperties          => null()
         !real,    pointer, dimension(:    )      :: WaterVol
-        real,    pointer, dimension(:,:  )      :: MassInKgFromWater
-        real,    pointer, dimension(:,:  )      :: WaterMassInKgIncrement
-        real,    pointer, dimension(:    )      :: Sediment    
-        real,    pointer, dimension(:    )      :: BottomSWRadiationAverage !Isabella
-        real,    pointer, dimension(:    )      :: ShearStress2D
-        real,    pointer, dimension(:    )      :: UptakeNH4NO3w   
-        real,    pointer, dimension(:    )      :: UptakePO4w   
-        real,    pointer, dimension(:    )      :: UptakeNH4s   
-        real,    pointer, dimension(:    )      :: UptakePO4s 
-        real,    pointer, dimension(:    )      :: LightFactor  
-        real,    pointer, dimension(:    )      :: NintFactor   !Isabella
-        real,    pointer, dimension(:    )      :: NintFactorR   !Isabella
-        real,    pointer, dimension(:    )      :: PintFactorR   !Isabella
-        real,    pointer, dimension(:    )      :: PintFactor   !Isabella 
-        real,    pointer, dimension(:    )      :: RootsMort   !Isabella
-        real,    pointer, dimension(:    )      :: SeagOccupation
-        real(8), pointer, dimension(:    )      :: SedimCellVol  ! 3d   !Isabella
-        real,    pointer, dimension(:    )      :: MacrOccupation
+        real,    pointer, dimension(:,:  )      :: MassInKgFromWater        => null()
+        real,    pointer, dimension(:,:  )      :: WaterMassInKgIncrement   => null()
+        real,    pointer, dimension(:    )      :: Sediment                 => null()
+        real,    pointer, dimension(:    )      :: BottomSWRadiationAverage => null() !Isabella
+        real,    pointer, dimension(:    )      :: ShearStress2D            => null()
+        real,    pointer, dimension(:    )      :: UptakeNH4NO3w            => null()
+        real,    pointer, dimension(:    )      :: UptakePO4w               => null()
+        real,    pointer, dimension(:    )      :: UptakeNH4s               => null()
+        real,    pointer, dimension(:    )      :: UptakePO4s               => null()
+        real,    pointer, dimension(:    )      :: LightFactor              => null()
+        real,    pointer, dimension(:    )      :: NintFactor               => null() !Isabella
+        real,    pointer, dimension(:    )      :: NintFactorR              => null() !Isabella
+        real,    pointer, dimension(:    )      :: PintFactorR              => null() !Isabella
+        real,    pointer, dimension(:    )      :: PintFactor               => null() !Isabella 
+        real,    pointer, dimension(:    )      :: RootsMort                => null() !Isabella
+        real,    pointer, dimension(:    )      :: SeagOccupation           => null()
+        real(8), pointer, dimension(:    )      :: SedimCellVol             => null() ! 3d   !Isabella
+        real,    pointer, dimension(:    )      :: MacrOccupation           => null()
       
         !Instance of ModuleTime
         integer                                 :: ObjTime              = 0
@@ -314,14 +316,14 @@ Module ModuleInterface
         integer                                 :: ObjBivalve           = 0
 
         !Collection of instances                
-        type(T_Interface),          pointer     :: Next        
+        type(T_Interface),          pointer     :: Next => null()
 
     end type T_Interface
 
         
     !Global Module Variables
-    type (T_Interface), pointer                 :: FirstObjInterface
-    type (T_Interface), pointer                 :: Me
+    type (T_Interface), pointer                 :: FirstObjInterface    => null()
+    type (T_Interface), pointer                 :: Me                   => null()
 
     !--------------------------------------------------------------------------
 

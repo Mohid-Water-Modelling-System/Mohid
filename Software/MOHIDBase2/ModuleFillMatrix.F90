@@ -30,7 +30,10 @@
 
 Module ModuleFillMatrix
     
+#ifndef _NOT_IEEE_ARITHMETIC
     use ieee_arithmetic
+#endif
+  
     use ModuleGlobalData
     use ModuleTime
     use ModuleEnterData
@@ -168,92 +171,104 @@ Module ModuleFillMatrix
     !Types---------------------------------------------------------------------
 
     type T_Layers
-        real, dimension(:), pointer                 :: Values
+        real, dimension(:), pointer                 :: Values   => null()
     end type T_Layers
 
     type T_Boxes
-        character(PathLength)                       :: FileName
-        integer                                     :: ObjBoxDif
-        real, dimension(:), pointer                 :: Values
+        character(PathLength)                       :: FileName     = null_str !initialization: Jauch
+        integer                                     :: ObjBoxDif    = null_int !initialization: Jauch
+        real, dimension(:), pointer                 :: Values       => null()
     end type T_Boxes
 
     type T_ASCIIFile
-        character(PathLength)                       :: FileName
-        integer                                     :: GridDataID
+        character(PathLength)                       :: FileName     = null_str !initialization: Jauch
+        integer                                     :: GridDataID   = null_int !initialization: Jauch
     end type T_ASCIIFile
 
     type T_Sponge
-        real                                        :: OutValue
-        integer                                     :: Cells
-        logical                                     :: Growing
-        integer                                     :: Evolution
+        real                                        :: OutValue     = null_real !initialization: Jauch
+        integer                                     :: Cells        = null_int  !initialization: Jauch
+        logical                                     :: Growing      = .false.   !initialization: Jauch
+        integer                                     :: Evolution    = null_int  !initialization: Jauch
     end type T_Sponge
 
     type T_TimeSerie
-        character(PathLength)                       :: FileName
+        character(PathLength)                       :: FileName     = null_str !initialization: Jauch
         integer                                     :: ObjTimeSerie = 0
-        integer                                     :: Column
+        integer                                     :: Column       = null_int !initialization: Jauch
     end type T_TimeSerie
 
     type T_ProfileTimeSerie
-        character(PathLength)                       :: FileName
-        type (T_Time)                               :: NextTime,  PreviousTime
-        integer                                     :: NextInstant, PreviousInstant 
-        real,           dimension(:,:,:), pointer   :: PreviousField3D, NextField3D
-        real,           dimension(:,:  ), pointer   :: Values, Depths
-        type(T_Time),   dimension(:    ), pointer   :: TimeInstants
-        integer                                     :: NumberOfInstants, nValues, nDepths
-        integer                                     :: FirstInstant, LastInstant        
+        character(PathLength)                       :: FileName = null_str !initialization: Jauch
+        type (T_Time)                               :: NextTime, PreviousTime
+        integer                                     :: NextInstant      = null_int, & !initialization: Jauch
+                                                       PreviousInstant  = null_int    !initialization: Jauch
+        real,           dimension(:,:,:), pointer   :: PreviousField3D  => null(), &
+                                                       NextField3D      => null()
+        real,           dimension(:,:  ), pointer   :: Values           => null(), &
+                                                       Depths           => null()
+        type(T_Time),   dimension(:    ), pointer   :: TimeInstants     => null()
+        integer                                     :: NumberOfInstants = null_int, & !initialization: Jauch
+                                                       nValues          = null_int, & !initialization: Jauch
+                                                       nDepths          = null_int, & !initialization: Jauch     
+                                                       FirstInstant     = null_int, & !initialization: Jauch
+                                                       LastInstant      = null_int    !initialization: Jauch
         logical                                     :: CyclicTimeON = .false.
     end type T_ProfileTimeSerie
 
     type T_Station   
-        character(PathLength)                       :: FileName 
-        integer                                     :: ObjTimeSerie    = 0        
-        integer                                     :: Column        
-        integer                                     :: FillID
-        logical                                     :: RemainConstant  = .false.        
-        logical                                     :: ValueIsDefined  = .false.
-        real                                        :: NewValue        = -null_real                      
+        character(PathLength)                       :: FileName         = null_str !initialization: Jauch
+        integer                                     :: ObjTimeSerie     = 0        
+        integer                                     :: Column           = null_int !initialization: Jauch
+        integer                                     :: FillID           = null_int !initialization: Jauch
+        logical                                     :: RemainConstant   = .false.        
+        logical                                     :: ValueIsDefined   = .false.
+        real                                        :: NewValue         = -null_real                      
     end type T_Station
 
     type T_MultiTimeSerie
         integer, dimension(:,:), allocatable        :: FillGrid2D
         integer, dimension(:,:,:), allocatable      :: FillGrid3D
-        integer                                     :: DataProcessing
+        integer                                     :: DataProcessing   = null_int !initialization: Jauch
         type(T_Station), dimension(:), allocatable  :: StationsList
-        integer                                     :: NumberOfSources = 0
+        integer                                     :: NumberOfSources  = 0
     end type T_MultiTimeserie
 
     !Generic 4D
     type T_Generic4D
-        logical                                     :: ON
-        logical                                     :: ReadFromTimeSerie
-        integer                                     :: ObjTimeSerie
-        integer                                     :: TimeSerieColumn
-        real                                        :: CurrentValue
+        logical                                     :: ON                   = .false.   !initialization: Jauch
+        logical                                     :: ReadFromTimeSerie    = .false.   !initialization: Jauch
+        integer                                     :: ObjTimeSerie         = null_int  !initialization: Jauch
+        integer                                     :: TimeSerieColumn      = null_int  !initialization: Jauch
+        real                                        :: CurrentValue         = null_real !initialization: Jauch
 
     end type 
 
     type T_HDF
-        character(PathLength)                       :: FileName, VGroupPath, FieldName
-        real                                        :: MultiplyingFactor
+        character(PathLength)                       :: FileName     = null_str, & !initialization: Jauch
+                                                       VGroupPath   = null_str, & !initialization: Jauch
+                                                       FieldName    = null_str !initialization: Jauch
+        real                                        :: MultiplyingFactor    = null_real !initialization: Jauch
         logical                                     :: HasMultiplyingFactor = .false.
-        real                                        :: AddingFactor
-        logical                                     :: HasAddingFactor = .false.
+        real                                        :: AddingFactor         = null_real !initialization: Jauch
+        logical                                     :: HasAddingFactor      = .false.
         type (T_Time)                               :: NextTime,  PreviousTime
         type (T_Time)                               :: StartTime,  EndTime        
-        real                                        :: Next4DValue     = FillValueReal
-        real                                        :: Previous4DValue = FillValueReal
-        integer                                     :: NextInstant, PreviousInstant 
-        real, dimension(:,:  ), pointer             :: PreviousField2D, NextField2D
-        real, dimension(:,:,:), pointer             :: PreviousField3D, NextField3D, ReadField3D
-        integer                                     :: ObjHDF5 = 0
-        integer                                     :: NumberOfInstants
+        real                                        :: Next4DValue      = FillValueReal
+        real                                        :: Previous4DValue  = FillValueReal
+        integer                                     :: NextInstant      = null_int, & !initialization: Jauch
+                                                       PreviousInstant  = null_int    !initialization: Jauch
+        real, dimension(:,:  ), pointer             :: PreviousField2D  => null(), &
+                                                       NextField2D      => null()
+        real, dimension(:,:,:), pointer             :: PreviousField3D  => null(), &
+                                                       NextField3D      => null(), &
+                                                       ReadField3D      => null()
+        integer                                     :: ObjHDF5  = 0
+        integer                                     :: NumberOfInstants = null_int !initialization: Jauch
         logical                                     :: CyclicTimeON = .false.
         logical                                     :: From2Dto3D   = .false.
         type(T_Generic4D)                           :: Generic4D
-        logical                                     :: ArgumentFileName
+        logical                                     :: ArgumentFileName = .false. !initialization: Jauch
     end type T_HDF
 
 
@@ -263,24 +278,24 @@ Module ModuleFillMatrix
         type (T_Size2D)                             :: Size2D, WorkSize2D
         type (T_Size3D)                             :: Size3D, WorkSize3D
         type (T_PropertyID)                         :: PropertyID
-        integer                                     :: Dim                  !2D/3D
-        integer                                     :: TypeZUV              !Z/U/V
-        integer                                     :: TimeEvolution
-        integer                                     :: SpaceEvolution
-        integer                                     :: InitializationMethod
-        integer                                     :: InitializationDefault
-        logical                                     :: RemainsConstant      = .false.
+        integer                                     :: Dim                      = null_int !initialization: Jauch                 !2D/3D
+        integer                                     :: TypeZUV                  = null_int !initialization: Jauch        !Z/U/V
+        integer                                     :: TimeEvolution            = null_int !initialization: Jauch
+        integer                                     :: SpaceEvolution           = null_int !initialization: Jauch
+        integer                                     :: InitializationMethod     = null_int !initialization: Jauch
+        integer                                     :: InitializationDefault    = null_int !initialization: Jauch
+        logical                                     :: RemainsConstant          = .false.
 
 !        logical                                     :: AccumulatedValue     = .false.
 !        logical                                     :: NoInterpol           = .false.
                 
 !        integer                                     :: ValuesType           
-        logical                                     :: InterpolateValues
-        logical                                     :: AccumulateValues
-        logical                                     :: UseOriginalValues
-        logical                                     :: PreviousInstantValues
-        logical                                     :: IgnoreNoDataPoint
-        real                                        :: NoDataValue
+        logical                                     :: InterpolateValues        = .false. !initialization: Jauch
+        logical                                     :: AccumulateValues         = .false. !initialization: Jauch
+        logical                                     :: UseOriginalValues        = .false. !initialization: Jauch
+        logical                                     :: PreviousInstantValues    = .false. !initialization: Jauch
+        logical                                     :: IgnoreNoDataPoint        = .false. !initialization: Jauch
+        real                                        :: NoDataValue              = null_real !initialization: Jauch
         
         logical                                     :: Backtracking         = .false.
         
@@ -288,11 +303,11 @@ Module ModuleFillMatrix
         logical                                     :: OverrideValueKeywordON = .false.
          
         real                                        :: MinForDTDecrease     = AllmostZero
-        real                                        :: DefaultValue
+        real                                        :: DefaultValue         = null_real !initialization: Jauch
         real                                        :: PredictedDT          = -null_real
         real                                        :: DTForNextEvent       = -null_real
-        real, dimension(:, :   ), pointer           :: Matrix2D
-        real, dimension(:, :, :), pointer           :: Matrix3D
+        real, dimension(:, :   ), pointer           :: Matrix2D => null()
+        real, dimension(:, :, :), pointer           :: Matrix3D => null()
         
         type(T_Time)                                :: BeginTime, EndTime
 
@@ -310,12 +325,12 @@ Module ModuleFillMatrix
         integer                                     :: ObjHorizontalGrid    = 0    
         integer                                     :: ObjGeometry          = 0    
 
-        type(T_FillMatrix), pointer                 :: Next
+        type(T_FillMatrix), pointer                 :: Next => null()
     end type  T_FillMatrix
 
     !Global Module Variables
-    type (T_FillMatrix), pointer                    :: FirstObjFillMatrix
-    type (T_FillMatrix), pointer                    :: Me
+    type (T_FillMatrix), pointer                    :: FirstObjFillMatrix   => null()
+    type (T_FillMatrix), pointer                    :: Me                   => null()
 
     !--------------------------------------------------------------------------
     
@@ -3480,14 +3495,18 @@ i4:         if(Me%Dim == Dim2D)then
                 do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                 do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
                 
+#ifndef _NOT_IEEE_ARITHMETIC
                     if (ieee_is_nan (Me%HDF%PreviousField2D(i,j)))                      &
                         Me%HDF%PreviousField2D(i,j) = FillValueReal                
+#endif
                 
                     if (abs(Me%HDF%PreviousField2D   (i,j)) > abs(FillValueReal))       &
                         Me%HDF%PreviousField2D(i,j) = FillValueReal
 
+#ifndef _NOT_IEEE_ARITHMETIC
                     if (ieee_is_nan (Me%HDF%NextField2D    (i,j)))                      &
                         Me%HDF%NextField2D(i,j)     = FillValueReal                
+#endif
                     
                     if (abs(Me%HDF%NextField2D       (i,j)) > abs(FillValueReal))       &
                         Me%HDF%NextField2D(i,j)     = FillValueReal
@@ -3535,14 +3554,18 @@ i4:         if(Me%Dim == Dim2D)then
                 do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
+#ifndef _NOT_IEEE_ARITHMETIC
                     if (ieee_is_nan (Me%HDF%PreviousField3D(i,j,k)))                    &
                         Me%HDF%PreviousField3D(i,j,k) = FillValueReal 
+#endif
                 
                     if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))        &
                         Me%HDF%PreviousField3D(i,j,k) = FillValueReal
 
+#ifndef _NOT_IEEE_ARITHMETIC
                     if (ieee_is_nan (Me%HDF%NextField3D    (i,j,k)))                    &
                         Me%HDF%NextField3D(i,j,k) = FillValueReal 
+#endif
                     
                     if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))        &
                         Me%HDF%NextField3D        (i,j,k) = FillValueReal
@@ -4645,8 +4668,10 @@ i4:         if(Me%Dim == Dim2D)then
                 do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
+#ifndef _NOT_IEEE_ARITHMETIC
                     if (ieee_is_nan (Me%HDF%PreviousField3D(i,j,k)))                    &
                         Me%HDF%PreviousField3D       (i,j,k) = FillValueReal 
+#endif
                 
                     if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))        &
                             Me%HDF%PreviousField3D(i,j,k) = FillValueReal
@@ -4664,10 +4689,11 @@ i4:         if(Me%Dim == Dim2D)then
             do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
             do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
             
-
+#ifndef _NOT_IEEE_ARITHMETIC
                 if (ieee_is_nan (Me%HDF%NextField3D (i,j,k)))                           &
                     Me%HDF%NextField3D        (i,j,k) = FillValueReal 
-            
+#endif
+
                 if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))            &
                         Me%HDF%NextField3D    (i,j,k) = FillValueReal
 
@@ -4763,16 +4789,18 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
             do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
             do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
+#ifndef _NOT_IEEE_ARITHMETIC
                 if (ieee_is_nan (Me%HDF%PreviousField3D(i,j,k)))                        &
                     Me%HDF%PreviousField3D       (i,j,k) = FillValueReal 
-
+#endif
             
                 if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))            &
                         Me%HDF%PreviousField3D(i,j,k) = FillValueReal
-                        
+      
+#ifndef _NOT_IEEE_ARITHMETIC                  
                 if (ieee_is_nan (Me%HDF%NextField3D    (i,j,k)))                        &
                     Me%HDF%NextField3D           (i,j,k) = FillValueReal 
-                        
+#endif                        
                 
                 if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))            &
                         Me%HDF%NextField3D    (i,j,k) = FillValueReal
@@ -4856,9 +4884,11 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
                 do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                 do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
                 
+#ifndef _NOT_IEEE_ARITHMETIC
                     if (ieee_is_nan (Me%HDF%PreviousField2D(i,j)))                      &
                         Me%HDF%PreviousField2D(i,j) = FillValueReal                
-                
+#endif
+
                     if (abs(Me%HDF%PreviousField2D(i,j)) > abs(FillValueReal))          &
                         Me%HDF%PreviousField2D(i,j) = FillValueReal
                     
@@ -4873,8 +4903,10 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
             do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
             
+#ifndef _NOT_IEEE_ARITHMETIC
                 if (ieee_is_nan (Me%HDF%NextField2D(i,j)))                              &
                     Me%HDF%NextField2D    (i,j) = FillValueReal              
+#endif
         
                 if (abs(Me%HDF%NextField2D(i,j)) > abs(FillValueReal))                  &
                     Me%HDF%NextField2D    (i,j) = FillValueReal
@@ -5134,14 +5166,18 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
             do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
 
+#ifndef _NOT_IEEE_ARITHMETIC
                 if (ieee_is_nan (Me%HDF%PreviousField2D(i,j)))                          &
                     Me%HDF%PreviousField2D(i,j) = FillValueReal                    
+#endif
             
                 if (abs(Me%HDF%PreviousField2D(i,j)) > abs(FillValueReal))              &
                     Me%HDF%PreviousField2D(i,j) = FillValueReal
 
+#ifndef _NOT_IEEE_ARITHMETIC
                 if (ieee_is_nan (Me%HDF%NextField2D(i,j)))                              &
                     Me%HDF%NextField2D    (i,j) = FillValueReal                    
+#endif
                 
                 if (abs(Me%HDF%NextField2D    (i,j)) > abs(FillValueReal))              &
                     Me%HDF%NextField2D    (i,j) = FillValueReal

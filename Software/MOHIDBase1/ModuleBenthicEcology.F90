@@ -4421,7 +4421,7 @@ d1:     do while(associated(Consumer))
         integer                                    :: BivalveDEB_ER
         integer                                    :: BivalveDEB_IDW
         integer                                    :: BivalveDEB_TDW
-        integer                                    :: NInd
+        !integer                                    :: NInd
         
         real                                       :: ConcPhy
         real                                       :: ConcChla                       ! Available food in in mg (chl-a) m -3
@@ -4680,7 +4680,8 @@ d2:  do seq = 1, BivalveDEB%spawnD
                                                                 Me%ExternalVar%Mass(BivalveDEB_ER, Index) * &
                                                                 BivalveDEB%spawn_eff) !LLP add max(0.0,...) to avoid negative values
                     
-                    tot_DW = (Me%ExternalVar%Mass(BivalveDEB_V, Index) / Me%ExternalVar%CellArea(Index))* BivalveDEB%St_DW_perc * 1.0e6 + &
+                    tot_DW = (Me%ExternalVar%Mass(BivalveDEB_V, Index) / Me%ExternalVar%CellArea(Index)) * &
+                             BivalveDEB%St_DW_perc * 1.0e6 + &
                              (Me%ExternalVar%Mass(BivalveDEB_E, Index)/ Me%ExternalVar%CellArea(Index) + &
                               Me%ExternalVar%Mass(BivalveDEB_ER, Index)/ Me%ExternalVar%CellArea(Index)) / BivalveDEB%Conv_fac!LLP
                               

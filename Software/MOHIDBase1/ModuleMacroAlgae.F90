@@ -1569,7 +1569,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 ! the height of canopy reaches the top of the cell, so the radiation at top of cell is used
                     radiation_at_top_canopy = Me%ExternalVar%SWRadiation(index)  
                 else
-                    radiation_at_top_canopy = Me%ExternalVar%SWRadiation(index)*exp(-DZ1*Me%ExternalVar%SWLightExctintionCoef(index))
+                    radiation_at_top_canopy = Me%ExternalVar%SWRadiation(index) * &
+                                              exp(-DZ1*Me%ExternalVar%SWLightExctintionCoef(index))
                  end if
          
                !It is assumed that the light extinction coefficient is uniform in the cell (it is rough approximation)

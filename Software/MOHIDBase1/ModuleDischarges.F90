@@ -150,45 +150,46 @@ Module ModuleDischarges
     type       T_Property
         type (T_PropertyID)                     :: ID
         logical                                 :: Variable       = .false.
-        integer                                 :: ConcColumn
+        integer                                 :: ConcColumn     = null_int !initialization: Jauch
         real                                    :: scalar         = FillValueReal
-        logical                                 :: TimeSerieON
+        logical                                 :: TimeSerieON    = .false. !initialization: Jauch
         integer                                 :: TimeSerie      = 0
         logical                                 :: PropTimeSerie  = .false.
         logical                                 :: FromIntake     = .false.
         real                                    :: IncreaseValue  = FillValueReal 
-        type (T_Property), pointer              :: Next,Prev
+        type (T_Property), pointer              :: Next => null(), &
+                                                   Prev => null()
     end type T_Property
 
     type       T_WaterFlow
         logical                                 :: Variable      = .false.
-        integer                                 :: FlowColumn
+        integer                                 :: FlowColumn    = null_int !initialization: Jauch
         real                                    :: scalar        = FillValueReal
     end type T_WaterFlow
 
 
     type       T_WaterVelocity
-        logical                                 :: UVariable
-        logical                                 :: VVariable
-        logical                                 :: WVariable        
-        integer                                 :: UColumn               
-        integer                                 :: VColumn
-        integer                                 :: WColumn        
+        logical                                 :: UVariable    = .false.  !initialization: Jauch
+        logical                                 :: VVariable    = .false.  !initialization: Jauch
+        logical                                 :: WVariable    = .false.  !initialization: Jauch
+        integer                                 :: UColumn      = null_int !initialization: Jauch
+        integer                                 :: VColumn      = null_int !initialization: Jauch
+        integer                                 :: WColumn      = null_int !initialization: Jauch
         real                                    :: Uscalar = FillValueReal
         real                                    :: Vscalar = FillValueReal
         real                                    :: Wscalar = FillValueReal        
     end type T_WaterVelocity
 
     type       T_FlowOver
-        real                                    :: WeirLength
-        real                                    :: DischargeCoeficient
-        real                                    :: CrestHeigth
+        real                                    :: WeirLength           = null_real !initialization: Jauch
+        real                                    :: DischargeCoeficient  = null_real !initialization: Jauch
+        real                                    :: CrestHeigth          = null_real !initialization: Jauch
     end  type T_FlowOver
 
     type       T_Valve
-        real                                    :: Diameter
-        real                                    :: DischargeCoeficient
-        real                                    :: AxisHeigth
+        real                                    :: Diameter             = null_real !initialization: Jauch
+        real                                    :: DischargeCoeficient  = null_real !initialization: Jauch
+        real                                    :: AxisHeigth           = null_real !initialization: Jauch
     end  type T_Valve
 
     type T_GridCoordinates
@@ -202,29 +203,34 @@ Module ModuleDischarges
     type       T_Localization 
          type (T_GridCoordinates)               :: GridCoordinates
          logical                                :: AlternativeLocations             = .false.
-         real                                   :: MinimumDischargeDepth
+         real                                   :: MinimumDischargeDepth            = null_real !initialization: Jauch
          logical                                :: StartFromLastDischargeLocation   = .false.
-         logical                                :: Location2D
+         logical                                :: Location2D                       = .false. !initialization: Jauch
          integer                                :: DischVertical                    = FillValueInt
          real                                   :: Kdepth                           = FillValueReal
-         integer                                :: NodeID = FillValueInt
-         logical                                :: TrackLocation
-         character(len=StringLength)            :: TrackLocationFile
-         integer                                :: TrackLocationFileUnitNumber       
+         integer                                :: NodeID                           = FillValueInt
+         logical                                :: TrackLocation                    = .false. !initialization: Jauch
+         character(len=StringLength)            :: TrackLocationFile                = null_str !initialization: Jauch
+         integer                                :: TrackLocationFileUnitNumber      = null_int !initialization: Jauch
          logical                                :: UseDischargePathFile             = .false.
-         character(len=StringLength)            :: DischargePathFile
-         real                                   :: CoordinateX, CoordinateY
-         integer                                :: XColumn, YColumn
-         logical                                :: VariableX, VariableY
+         character(len=StringLength)            :: DischargePathFile                = null_str !initialization: Jauch
+         real                                   :: CoordinateX                      = null_real, & !initialization: Jauch
+                                                   CoordinateY                      = null_real    !initialization: Jauch
+         integer                                :: XColumn                          = null_int, & !initialization: Jauch
+                                                   YColumn                          = null_int    !initialization: Jauch
+         logical                                :: VariableX                        = .false., & !initialization: Jauch
+                                                   VariableY                        = .false.    !initialization: Jauch
          logical                                :: CoordinatesON                    = .false.
          integer                                :: HorizontalType                   = FillValueInt
          logical                                :: CellCorrect                      = .false.
-         integer                                :: SpatialEmission
-         character(len=StringLength)            :: SpatialFile
-         type (T_Polygon), pointer              :: Polygon
-         type (T_Lines),   pointer              :: Line
+         integer                                :: SpatialEmission                  = null_int    !initialization: Jauch
+         character(len=StringLength)            :: SpatialFile                      = null_str !initialization: Jauch
+         type (T_Polygon), pointer              :: Polygon                          => null()
+         type (T_Lines),   pointer              :: Line                             => null()
          integer                                :: nCells                           = 1
-         integer, dimension(:), pointer         :: VectorI, VectorJ, VectorK
+         integer, dimension(:), pointer         :: VectorI                          => null(), &
+                                                   VectorJ                          => null(), &
+                                                   VectorK                          => null()
          integer                                :: FlowDistribution                 = DischByCell_
          integer                                :: kmin                             = FillValueInt
          integer                                :: kmax                             = FillValueInt
@@ -240,9 +246,11 @@ Module ModuleDischarges
     end type  T_FromIntake
 
     type      T_ByPass 
-         integer                                :: i, j
-         logical                                :: ON, OneWay
-         integer                                :: Side
+         integer                                :: i = null_int, & !initialization: Jauch
+                                                   j = null_int    !initialization: Jauch
+         logical                                :: ON     = .false., & !initialization: Jauch 
+                                                   OneWay = .false.    !initialization: Jauch 
+         integer                                :: Side = null_int !initialization: Jauch 
     end  type T_ByPass
 
 
@@ -250,14 +258,14 @@ Module ModuleDischarges
          type(T_ID                 )            :: ID
          type(T_Localization       )            :: Localization
          integer                                :: PropertiesNumber = FillValueInt
-         character(len=PathLength)              :: DataBaseFile
-         character(len=PathLength)              :: OutPutFile         
-         logical                                :: TimeSerieON
+         character(len=PathLength)              :: DataBaseFile     = null_str !initialization: Jauch 
+         character(len=PathLength)              :: OutPutFile       = null_str !initialization: Jauch   
+         logical                                :: TimeSerieON      = .false. !initialization: Jauch 
          integer                                :: TimeSerie        = 0
-         logical                                :: UseOriginalValues
+         logical                                :: UseOriginalValues    = .false. !initialization: Jauch 
          type(T_WaterFlow          )            :: WaterFlow   
          type(T_WaterVelocity      )            :: VelocityFlow
-         integer                                :: DischargeType
+         integer                                :: DischargeType    = null_int !initialization: Jauch 
          type(T_Valve   )                       :: Valve
          type(T_FlowOver)                       :: FlowOver
          type(T_Property           ), pointer   :: FirstProperty    => null()
@@ -267,25 +275,25 @@ Module ModuleDischarges
          type(T_IndividualDischarge), pointer   :: Prev             => null()
          type(T_ByPass             )            :: ByPass
          type(T_FromIntake         )            :: FromIntake       
-         logical                                :: IgnoreON
+         logical                                :: IgnoreON         = .false. !initialization: Jauch 
     end type T_IndividualDischarge    
 
     type      T_Discharges
-         integer                                :: InstanceID            
+         integer                                :: InstanceID       = null_int !initialization: Jauch            
          integer                                :: ObjEnterData     = 0
          integer                                :: ObjTime          = 0
-         character(len=Pathlength)              :: DataFile
-         integer                                :: DischargesNumber= FillValueInt
+         character(len=Pathlength)              :: DataFile         = null_str !initialization: Jauch
+         integer                                :: DischargesNumber = FillValueInt
          type (T_IndividualDischarge), pointer  :: FirstDischarge   => null()
          type (T_IndividualDischarge), pointer  :: LastDischarge    => null()
          type (T_IndividualDischarge), pointer  :: CurrentDischarge => null()
-         type (T_Discharges), pointer           :: Next
-         logical                                :: IgnoreON
+         type (T_Discharges), pointer           :: Next             => null()
+         logical                                :: IgnoreON         = .false. !initialization: Jauch
     end type T_Discharges
 
     !Global Variables
-    type (T_Discharges), pointer                :: FirstDischarges
-    type (T_Discharges), pointer                :: Me
+    type (T_Discharges), pointer                :: FirstDischarges  => null()
+    type (T_Discharges), pointer                :: Me               => null()
     
     !--------------------------------------------------------------------------
 

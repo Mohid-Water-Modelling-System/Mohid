@@ -667,55 +667,67 @@ Module ModuleHydrodynamic
 
     private :: T_Direction
     type       T_Direction
-        integer  :: XY, YX
-        integer  :: di   
-        integer  :: dj
+        integer  :: XY = null_int !initialization: jauch
+        integer  :: YX = null_int !initialization: jauch
+        integer  :: di = null_int !initialization: jauch
+        integer  :: dj = null_int !initialization: jauch
     end type       T_Direction
 
     private :: T_Files
     type       T_Files
-         character(len=PathLength) :: InitialHydrodynamic
-         character(len=PathLength) :: FinalHydrodynamic
-         character(len=PathLength) :: OutPutFields
-         character(len=PathLength) :: ConstructData
-         character(len=PathLength) :: BoxFluxesFileName
-         character(len=PathLength) :: Energy
+         character(len=PathLength) :: InitialHydrodynamic = null_str !initialization: jauch
+         character(len=PathLength) :: FinalHydrodynamic   = null_str !initialization: jauch
+         character(len=PathLength) :: OutPutFields        = null_str !initialization: jauch
+         character(len=PathLength) :: ConstructData       = null_str !initialization: jauch
+         character(len=PathLength) :: BoxFluxesFileName   = null_str !initialization: jauch
+         character(len=PathLength) :: Energy              = null_str !initialization: jauch
     end type T_Files
     
     private :: T_DomainDecomposition
     type       T_DomainDecomposition        
-        logical                             :: ON = .false. 
-        logical                             :: Master
-        integer                             :: Master_MPI_ID
-        integer                             :: Nslaves
-        integer, dimension(:), pointer      :: Slaves_MPI_ID
-        type (T_Size2D), dimension(:), pointer  :: Slaves_Size, Slaves_Inner, Slaves_Mapping, Slaves_HaloMap
-        integer                             :: MPI_ID
-        type (T_Size2D)                     :: Global, Mapping, Inner, HaloMap
-        real(8), pointer, dimension(:)      :: VECG  
-        real(8), pointer, dimension(:)      :: VECW
-        real,    pointer, dimension(:,:)    :: WaterLevel_New
-        type(T_Coef_2D ), pointer           :: Coef
-        integer                             :: NeighbourSouth, NeighbourWest, NeighbourEast, NeighbourNorth    
-        integer                             :: Halo_Points
+        logical                                 :: ON       = .false. 
+        logical                                 :: Master   = .false. !initialization: jauch
+        integer                                 :: Master_MPI_ID    = null_int !initialization: jauch
+        integer                                 :: Nslaves          = 0 !initialization: jauch
+        integer, dimension(:), pointer          :: Slaves_MPI_ID    => null()
+        type (T_Size2D), dimension(:), pointer  :: Slaves_Size      => null()
+        type (T_Size2D), dimension(:), pointer  :: Slaves_Inner     => null()
+        type (T_Size2D), dimension(:), pointer  :: Slaves_Mapping   => null()
+        type (T_Size2D), dimension(:), pointer  :: Slaves_HaloMap   => null()
+        integer                                 :: MPI_ID = null_int !initialization: jauch
+        type (T_Size2D)                         :: Global
+        type (T_Size2D)                         :: Mapping
+        type (T_Size2D)                         :: Inner
+        type (T_Size2D)                         :: HaloMap
+        real(8), pointer, dimension(:)          :: VECG           => null() 
+        real(8), pointer, dimension(:)          :: VECW           => null()
+        real,    pointer, dimension(:,:)        :: WaterLevel_New => null()
+        type(T_Coef_2D ), pointer               :: Coef           => null()
+        integer                                 :: NeighbourSouth = null_int !initialization: jauch
+        integer                                 :: NeighbourWest  = null_int !initialization: jauch
+        integer                                 :: NeighbourEast  = null_int !initialization: jauch
+        integer                                 :: NeighbourNorth = null_int !initialization: jauch
+        integer                                 :: Halo_Points    = null_int !initialization: jauch
     end type T_DomainDecomposition
 
     !Generic 4D
     private :: T_Generic4D
     type T_Generic4D
-        logical                            :: ON
-        integer                            :: ObjTimeSerie
-        integer                            :: TimeSerieColumn
-        real                               :: CurrentValue
+        logical                            :: ON              = .false.   !initialization: jauch
+        integer                            :: ObjTimeSerie    = null_int  !initialization: jauch
+        integer                            :: TimeSerieColumn = null_int  !initialization: jauch
+        real                               :: CurrentValue    = null_real !initialization: jauch
     end type T_Generic4D
 
     !NonHydrostatic
     private :: T_NonHydrostatic
     type T_NonHydrostatic
-        real, dimension (:, :, :), pointer :: PressureCorrect, PrevisionalQ
-        real, dimension (:, :, :), pointer :: CCoef, GCoef
-        logical                            :: ON
-        real                               :: ThetaUV
+        real, dimension (:, :, :), pointer :: PressureCorrect => null()
+        real, dimension (:, :, :), pointer :: PrevisionalQ    => null()
+        real, dimension (:, :, :), pointer :: CCoef           => null()
+        real, dimension (:, :, :), pointer :: GCoef           => null()
+        logical                            :: ON = .false.
+        real                               :: ThetaUV  = null_real !initialization: jauch
         real                               :: Residual = 1.e-6
         logical                            :: NormalizedResidual = .false.
         real                               :: alphaLU = 0.5
@@ -725,27 +737,27 @@ Module ModuleHydrodynamic
     private :: T_WaterLevel
     type T_WaterLevel
         type(T_PropertyID)              :: ID
-        real, dimension (:, :), pointer :: New
-        real, dimension (:, :), pointer :: Old
-        real, dimension (:, :), pointer :: VolumeCreated
-        real, dimension (:, :), pointer :: Maxi
-        real, dimension (:, :), pointer :: Mini
-        real                            :: DT
-        real                            :: Default
+        real, dimension (:, :), pointer :: New           => null()
+        real, dimension (:, :), pointer :: Old           => null()
+        real, dimension (:, :), pointer :: VolumeCreated => null()
+        real, dimension (:, :), pointer :: Maxi          => null()
+        real, dimension (:, :), pointer :: Mini          => null()
+        real                            :: DT      = null_real !initialization: jauch
+        real                            :: Default = null_real !initialization: jauch
         logical                         :: InitalizedByFile = .false.
     end type T_WaterLevel
 
     private :: T_Vel_UV
     type T_Vel_UV    
         type(T_PropertyID)                 :: ID
-        real, dimension (:, :, :), pointer :: New
-        real, dimension (:, :, :), pointer :: Old
+        real, dimension (:, :, :), pointer :: New => null()
+        real, dimension (:, :, :), pointer :: Old => null()
 #ifdef _USE_PAGELOCKED
-        type(C_PTR)                         :: OldPtr
-        type(C_PTR)                         :: NewPtr
+        type(C_PTR)                        :: OldPtr
+        type(C_PTR)                        :: NewPtr
 #endif _USE_PAGELOCKED
-        real                               :: Default
-        integer                            :: InTypeZUV
+        real                               :: Default   = null_real !initialization: jauch
+        integer                            :: InTypeZUV = null_int  !initialization: jauch
     end type T_Vel_UV 
 
     private :: T_Horizontal
@@ -758,9 +770,9 @@ Module ModuleHydrodynamic
 
     private :: T_Vertical
     type T_Vertical
-        real, dimension (:, :, :), pointer :: Cartesian
-        real, dimension (:, :, :), pointer :: CartesianOld
-        real, dimension (:, :, :), pointer :: Across
+        real, dimension (:, :, :), pointer :: Cartesian    => null()
+        real, dimension (:, :, :), pointer :: CartesianOld => null()
+        real, dimension (:, :, :), pointer :: Across       => null()
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                        :: CartesianPtr
 #endif
@@ -770,103 +782,147 @@ Module ModuleHydrodynamic
     type T_Velocity
         type (T_Horizontal)  :: Horizontal
         type (T_Vertical)    :: Vertical
-        real                 :: DT
+        real                 :: DT = null_real !initialization: jauch
     end type T_Velocity
 
     private :: T_WaterFluxes
     type T_WaterFluxes
-        real(8), dimension(:,:,:), pointer     :: X, Y, Z
-        real(8), dimension(:,:,:), pointer     :: XY, YX
-        real(8), dimension(:,:,:), pointer     :: Discharges
-        real(8), dimension(:,:,:), pointer     :: DischargesVelU, DischargesVelV, DischargesVelUV
-        real                                   :: New_Old
+        real(8), dimension(:,:,:), pointer     :: X               => null()
+        real(8), dimension(:,:,:), pointer     :: Y               => null()
+        real(8), dimension(:,:,:), pointer     :: Z               => null()
+        real(8), dimension(:,:,:), pointer     :: XY              => null()
+        real(8), dimension(:,:,:), pointer     :: YX              => null()
+        real(8), dimension(:,:,:), pointer     :: Discharges      => null()
+        real(8), dimension(:,:,:), pointer     :: DischargesVelU  => null()
+        real(8), dimension(:,:,:), pointer     :: DischargesVelV  => null()
+        real(8), dimension(:,:,:), pointer     :: DischargesVelUV => null()
+        real                                   :: New_Old = null_real !initialization: jauch
     end type T_WaterFluxes
 
     private :: T_Residual
     type T_Residual
-        real                                :: ResidualTime
-        real, dimension(:,:),   pointer     :: WaterLevel
-        real, dimension(:,:,:), pointer     :: Velocity_U, Velocity_V, Vertical_Velocity
-        real, dimension(:,:,:), pointer     :: DWZ
-        real(8), dimension(:,:,:), pointer  :: WaterFlux_X, WaterFlux_Y
+        real                                :: ResidualTime      = null_real !initialization: jauch
+        real, dimension(:,:),   pointer     :: WaterLevel        => null()
+        real, dimension(:,:,:), pointer     :: Velocity_U        => null()
+        real, dimension(:,:,:), pointer     :: Velocity_V        => null()
+        real, dimension(:,:,:), pointer     :: Vertical_Velocity => null()
+        real, dimension(:,:,:), pointer     :: DWZ               => null()
+        real(8), dimension(:,:,:), pointer  :: WaterFlux_X       => null()
+        real(8), dimension(:,:,:), pointer  :: WaterFlux_Y       => null()
     end type T_Residual
 
     private :: T_Geostroph
     type T_Geostroph
-        real,    dimension (:, :, :), pointer :: PressGrad
-        real,    dimension (:, :, :), pointer :: U, V, UV, VU
-        real,    dimension (:, :, :), pointer :: AuxDesCentre
-        real,    dimension (:, :), pointer    :: U_barotropic, V_barotropic
-        real,    dimension (:, :), pointer    :: Reference_U_barotropic, Reference_V_barotropic
-        real,    dimension (:, :), pointer    :: Coef_U_barotropic, Coef_V_barotropic
-        logical                               :: ON 
+        real,    dimension (:, :, :), pointer :: PressGrad    => null()
+        real,    dimension (:, :, :), pointer :: U            => null()
+        real,    dimension (:, :, :), pointer :: V            => null()
+        real,    dimension (:, :, :), pointer :: UV           => null()
+        real,    dimension (:, :, :), pointer :: VU           => null()
+        real,    dimension (:, :, :), pointer :: AuxDesCentre => null()
+        real,    dimension (:, :), pointer    :: U_barotropic => null()
+        real,    dimension (:, :), pointer    :: V_barotropic => null()
+        real,    dimension (:, :), pointer    :: Reference_U_barotropic => null()
+        real,    dimension (:, :), pointer    :: Reference_V_barotropic => null()
+        real,    dimension (:, :), pointer    :: Coef_U_barotropic => null()
+        real,    dimension (:, :), pointer    :: Coef_V_barotropic => null()
+        logical                               :: ON = .false. !initialization: jauch
     end type T_Geostroph
 
     private :: T_Forces
     type T_Forces
-        real,    dimension (:, :, :), pointer :: Rox3XY, Rox3X, Rox3Y ! Baroclinic
-        real(8), dimension (:, :, :), pointer :: Horizontal_Transport
-        real,    dimension (:, :, :), pointer :: Inertial_Aceleration
-        real,    dimension (:, :, :), pointer :: Relax_Aceleration
-        real,    dimension (:, :, :), pointer :: ObstacleDrag_Aceleration
-        real,    dimension (:, :, :), pointer :: Altim_Relax_Aceleration
-        real,    dimension (:,:),     pointer :: TidePotentialLevel
-        real,    dimension (:, :, :), pointer :: Scraper_Aceleration
-        real,    dimension (:, :, :), pointer :: ThinWalls_Dissipation
+        real,    dimension (:, :, :), pointer :: Rox3XY => null() ! Baroclinic
+        real,    dimension (:, :, :), pointer :: Rox3X  => null() ! Baroclinic
+        real,    dimension (:, :, :), pointer :: Rox3Y  => null() ! Baroclinic
+        real(8), dimension (:, :, :), pointer :: Horizontal_Transport => null()
+        real,    dimension (:, :, :), pointer :: Inertial_Aceleration => null()
+        real,    dimension (:, :, :), pointer :: Relax_Aceleration => null()
+        real,    dimension (:, :, :), pointer :: ObstacleDrag_Aceleration => null()
+        real,    dimension (:, :, :), pointer :: Altim_Relax_Aceleration => null()
+        real,    dimension (:,:),     pointer :: TidePotentialLevel => null()
+        real,    dimension (:, :, :), pointer :: Scraper_Aceleration => null()
+        real,    dimension (:, :, :), pointer :: ThinWalls_Dissipation => null()
     end type T_Forces
 
     private :: T_HorAdvection
     type T_HorAdvection
 
-        real :: Coef1_Up
-        real :: Coef2_Up
-        real :: Coef3_Up
+        real :: Coef1_Up = null_real !initialization: jauch
+        real :: Coef2_Up = null_real !initialization: jauch
+        real :: Coef3_Up = null_real !initialization: jauch
 
     end type T_HorAdvection
 
     private :: T_Coef_1D
     type T_Coef_1D
-        real,    dimension (:), pointer :: a, c, r, x, u, z
-        real(8), dimension (:), pointer :: b, bb, gam
+        real,    dimension (:), pointer :: a   => null(), &
+                                           c   => null(), &
+                                           r   => null(), &
+                                           x   => null(), &
+                                           u   => null(), &
+                                           z   => null()
+        real(8), dimension (:), pointer :: b   => null(), &
+                                           bb  => null(), &
+                                           gam => null()
     end type T_Coef_1D
 
 
     private :: T_Coef_2D
     type T_Coef_2D
-        real,    dimension (:, :), pointer :: D, F, Ti, Tiaux, Rad, TiRad
-        real(8), dimension (:, :), pointer :: E,Eaux
+        real,    dimension (:, :), pointer :: D     => null(), & 
+                                              F     => null(), &
+                                              Ti    => null(), &
+                                              Tiaux => null(), &
+                                              Rad   => null(), &
+                                              TiRad => null()
+        real(8), dimension (:, :), pointer :: E     => null(), &
+                                              Eaux  => null()
     end type T_Coef_2D
 
 
     private :: T_Coef_3D
     type T_Coef_3D
 #ifdef _ENABLE_CUDA
-        real(C_DOUBLE), dimension (:, :, :), pointer    :: D, F, Ti
-        real(C_DOUBLE), dimension (:, :, :), pointer    :: E
+        real(C_DOUBLE), dimension (:, :, :), pointer    :: D  => null(), &
+                                                           F  => null(), &
+                                                           Ti => null(), &
+                                                           E   => null()    !initialization: jauch - was real... Mabe should be real(8)? 
 #else
-        real,    dimension (:, :, :), pointer :: D, F, Ti
-        real(8), dimension (:, :, :), pointer :: E
+        real,    dimension (:, :, :), pointer :: D  => null(), &
+                                                 F  => null(), & 
+                                                 Ti => null()
+        real(8), dimension (:, :, :), pointer :: E  => null()
 #endif _ENABLE_CUDA
 #ifdef _USE_PAGELOCKED
-        type(C_PTR)                                     :: DPtr, EPtr, FPtr, TiPtr
+        type(C_PTR)                                     :: DPtr, &
+                                                           EPtr, &
+                                                           FPtr, &
+                                                           TiPtr
 #endif _USE_PAGELOCKED
     end type T_Coef_3D
 
     private :: T_Coef_Baroc
     type T_Coef_Baroc
 
-        Integer, dimension( : ), pointer   :: Kleft,Kright
+        Integer, dimension( : ), pointer   :: Kleft  => null(), &
+                                              Kright => null()
 
-        Real(8), dimension( : ), pointer   :: Depth_integ, Hcenter, Hleft,&
-                                              Hright, HroLeft, HroRight, DensRight, DensLeft
+        Real(8), dimension( : ), pointer   :: Depth_integ => null(), & 
+                                              Hcenter     => null(), &
+                                              Hleft       => null(), &
+                                              Hright      => null(), &
+                                              HroLeft     => null(), &
+                                              HroRight    => null(), &
+                                              DensRight   => null(), &
+                                              DensLeft    => null()
     end type T_Coef_Baroc
 
     private :: T_InstantBound
     type T_InstantBound
 
         type (T_Time)                  :: TimeB  
-        real                           :: BaroclVel
-        type (T_InstantBound), pointer :: Next, Prev
+        real                           :: BaroclVel = null_real !initialization: jauch
+        type (T_InstantBound), pointer :: Next => null(), &
+                                          Prev => null()
 
     end type T_InstantBound
 
@@ -874,9 +930,10 @@ Module ModuleHydrodynamic
     private :: T_Imposed
     type T_Imposed
 
-        integer                        :: Number
-        real                           :: DTInterval
-        type (T_InstantBound), pointer :: FirstInstant, LastInstant
+        integer                        :: Number     = null_int  !initialization: jauch
+        real                           :: DTInterval = null_real !initialization: jauch
+        type (T_InstantBound), pointer :: FirstInstant => null(), &
+                                          LastInstant  => null()
 
     end type T_Imposed
 
@@ -888,40 +945,49 @@ Module ModuleHydrodynamic
         type(T_Vel_UV)   ::   UV
         type(T_Vel_UV)   ::   VU
         !This velocity is compute for the cartesian referential
-        real, dimension (:, :, :), pointer :: W_New, W_Old
+        real, dimension (:, :, :), pointer :: W_New => null(), &
+                                              W_Old => null()
 
-        real, dimension (:, :   ), pointer :: U2D, V2D, UV2D
+        real, dimension (:, :   ), pointer :: U2D  => null(), &
+                                              V2D  => null(), & 
+                                              UV2D => null()
 
-        type (T_Imposed), dimension(:), pointer :: ImposedNormX, ImposedNormY, ImposedNormXY
-        type (T_Imposed), dimension(:), pointer :: ImposedTangX, ImposedTangY, ImposedTangXY
+        type (T_Imposed), dimension(:), pointer :: ImposedNormX  => null(), &
+                                                   ImposedNormY  => null(), & 
+                                                   ImposedNormXY => null(), &
+                                                   ImposedTangX  => null(), &
+                                                   ImposedTangY  => null(), & 
+                                                   ImposedTangXY => null()
 
+        integer :: CelerityType              = null_int     !initialization: jauch
+        real    :: InternalCelerity          = null_real    !initialization: jauch
+        real    :: TRelaxOut                 = null_real, & !initialization: jauch
+                   TRelaxIn                  = null_real    !initialization: jauch
+        real    :: MinLeavingBaroclincVel    = null_real    !initialization: jauch
+        logical :: BaroclinicNormalRadiation = .false.      !initialization: jauch
+        integer :: BaroclinicOBCDiscret      = null_int     !initialization: jauch
+        logical :: StoreBaroclinicWave       = .false.      !initialization: jauch
 
-        integer :: CelerityType
-        real    :: InternalCelerity
-        real    :: TRelaxOut, TRelaxIn
-        real    :: MinLeavingBaroclincVel
-        logical :: BaroclinicNormalRadiation
-        integer :: BaroclinicOBCDiscret
-        logical :: StoreBaroclinicWave
-
-        real    :: DTWave
-
+        real    :: DTWave = null_real
 
     end type T_VelBaroclinic
 
 #ifdef _USE_SEQASSIMILATION
     private :: T_StatePointer
     type T_StatePointer
-        real, dimension (:, :),    pointer :: WaterLevelNew
-        real, dimension (:, :, :), pointer :: VelocityUNew
-        real, dimension (:, :, :), pointer :: VelocityVNew
-        real, dimension (:, :, :), pointer :: VelocityUOld
-        real, dimension (:, :, :), pointer :: VelocityVOld
-        real, dimension (:, :, :), pointer :: VelVerticalCartesian
-        real, dimension (:, :, :), pointer :: VelVerticalAcross
-        real(8), dimension(:,:,:), pointer :: WaterFluxX, WaterFluxY, WaterFluxZ
-        real(8), dimension(:,:,:), pointer :: SubModelqX, SubModelqY
-        real, dimension(:,:),      pointer :: ChezyVelUV
+        real, dimension (:, :),    pointer :: WaterLevelNew        => null()
+        real, dimension (:, :, :), pointer :: VelocityUNew         => null(), &
+                                              VelocityVNew         => null(), &
+                                              VelocityUOld         => null(), &
+                                              VelocityVOld         => null(), &
+                                              VelVerticalCartesian => null(), &
+                                              VelVerticalAcross    => null()
+        real(8), dimension(:,:,:), pointer :: WaterFluxX           => null(), &
+                                              WaterFluxY           => null(), &
+                                              WaterFluxZ           => null(), &
+                                              SubModelqX           => null(), &
+                                              SubModelqY           => null()
+        real, dimension(:,:),      pointer :: ChezyVelUV           => null()
     end type T_StatePointer
 #endif _USE_SEQASSIMILATION
 
@@ -931,7 +997,7 @@ Module ModuleHydrodynamic
         type(T_Coef_2D)                    :: D2
         type(T_Coef_3D)                    :: D3
         !griflet
-        type(T_Coef_Baroc), dimension(:), pointer   :: Baroc
+        type(T_Coef_Baroc), dimension(:), pointer   :: Baroc => null()
     end type T_Coefficients
 
 
@@ -940,27 +1006,41 @@ Module ModuleHydrodynamic
         !Horizontal Mapping
 
         !Boundary faces : boundary point in one side and a interior point in another
-        integer, dimension(:,:),   pointer :: BoundaryFacesUV, BoundaryFacesVU, BoundaryFacesU, &
-                                              BoundaryFacesV, BoundaryPoints, WaterPoints2D
+        integer, dimension(:,:),   pointer :: BoundaryFacesUV => null(), &
+                                              BoundaryFacesVU => null(), & 
+                                              BoundaryFacesU  => null(), &
+                                              BoundaryFacesV  => null(), & 
+                                              BoundaryPoints  => null(), &
+                                              WaterPoints2D   => null()
 
         !3D Mapping
 
         !Compute faces. Faces where is possible to compute a velocity
-        integer, dimension(:,:,:), pointer :: ComputeFaces3D_U, ComputeFaces3D_V, ComputeFaces3D_UV, ComputeFaces3D_VU,   &
-!                                              WaterPoints3D, UnCoveredFaces3D_U, UnCoveredFaces3D_V, UnCoveredFaces3D_UV, &
-                                              WaterPoints3D, ComputeFaces3D_W, OpenPoints3D !Flavio
-
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_U  => null(), & 
+                                              ComputeFaces3D_V  => null(), &
+                                              ComputeFaces3D_UV => null(), &
+                                              ComputeFaces3D_VU => null(), &
+                                              WaterPoints3D     => null(), &
+                                              ComputeFaces3D_W  => null(), &
+                                              OpenPoints3D      => null()
 
         !Land Water faces. Faces that have a land point in one side and a interior point in another
-        integer, dimension(:,:,:), pointer :: LandBoundaryFacesUV, LandBoundaryFacesVU, LandBoundaryFacesU, LandBoundaryFacesV
+        integer, dimension(:,:,:), pointer :: LandBoundaryFacesUV => null(), &
+                                              LandBoundaryFacesVU => null(), & 
+                                              LandBoundaryFacesU  => null(), &
+                                              LandBoundaryFacesV  => null()
 
 
         !Imposed faces  : faces where the model do not compute velocites 
         !                 but need to imposed values to define the 
         !                 the velocities boundary condition
-        integer, dimension(:,:,:),   pointer :: ImposedNormalFacesUV    , ImposedNormalFacesU    , ImposedNormalFacesV
-        integer, dimension(:,:,:),   pointer :: ImposedTangentialFacesU , ImposedTangentialFacesV, &
-                                                ImposedTangentialFacesUV, ImposedTangentialFacesVU         
+        integer, dimension(:,:,:),   pointer :: ImposedNormalFacesUV     => null(), &
+                                                ImposedNormalFacesU      => null(), &
+                                                ImposedNormalFacesV      => null(), &
+                                                ImposedTangentialFacesU  => null(), &
+                                                ImposedTangentialFacesV  => null(), &
+                                                ImposedTangentialFacesUV => null(), &
+                                                ImposedTangentialFacesVU => null()
 
 
 
@@ -971,13 +1051,26 @@ Module ModuleHydrodynamic
         !DZY - distance between the cell center and the center of the South cell (Y direction)
         !DYY - width of the West face of a cell 
         !DXX - width of the South face of a cell 
-        real,    dimension(:,:  ), pointer :: DUX, DVY, DZX, DZY, DYY, DXX
+        real,    dimension(:,:  ), pointer :: DUX => null(), &
+                                              DVY => null(), &
+                                              DZX => null(), &
+                                              DZY => null(), &
+                                              DYY => null(), &
+                                              DXX => null()
         !Auxiliar pointers
-        real,    dimension(:,:  ), pointer :: DUX_VY, DZX_ZY, DZY_ZX, DYY_XX, DXX_YY, DVY_UX
+        real,    dimension(:,:  ), pointer :: DUX_VY => null(), &
+                                              DZX_ZY => null(), &
+                                              DZY_ZX => null(), &
+                                              DYY_XX => null(), &
+                                              DXX_YY => null(), &
+                                              DVY_UX => null()
 
-        real,    dimension(:, :),  pointer :: Coriolis_Freq, RotationX, RotationY
-        logical                            :: Distortion
-        real                               :: GridRotation
+        real,    dimension(:, :),  pointer :: Coriolis_Freq => null(), &
+                                              RotationX     => null(), &
+                                              RotationY     => null()
+                                              
+        logical                            :: Distortion   = .false.     !initialization: jauch
+        real                               :: GridRotation = null_real   !initialization: jauch
 
         !3D Geometry 
 
@@ -990,281 +1083,395 @@ Module ModuleHydrodynamic
         !Area_U       - Area of the grid cell West face
         !Area_V       - Area of the grid cell South face
         !DWZ          - Thickness of the cell grid
-        real(8), dimension(:,:,:), pointer :: Volume_Z_Old, Volume_Z_New, Volume_U, Volume_V, Volume_W
-        real,    dimension(:,:,:), pointer :: Area_U, Area_V, DWZ, SZZ, DUZ, DVZ, DUZ_VZ, DZZ
-        real,    dimension(:,:),   pointer :: WaterColumn, WaterColumnU, WaterColumnV, WaterColumnUV, WaterColumnVU
+        real(8), dimension(:,:,:), pointer :: Volume_Z_Old => null(), &
+                                              Volume_Z_New => null(), &
+                                              Volume_U     => null(), &
+                                              Volume_V     => null(), &
+                                              Volume_W     => null()
+                                              
+        real,    dimension(:,:,:), pointer :: Area_U        => null(), &
+                                              Area_V        => null(), &
+                                              DWZ           => null(), &
+                                              SZZ           => null(), &
+                                              DUZ           => null(), &
+                                              DVZ           => null(), &
+                                              DUZ_VZ        => null(), &
+                                              DZZ           => null()
+                                              
+        real,    dimension(:,:  ), pointer :: WaterColumn   => null(), &
+                                              WaterColumnU  => null(), &
+                                              WaterColumnV  => null(), &
+                                              WaterColumnUV => null(), &
+                                              WaterColumnVU => null()
 
         !Auxiliar
-        real(8), dimension(:,:,:), pointer :: Volume_UV
-        real,    dimension(:,:,:), pointer :: Area_UV, Area_VU
+        real(8), dimension(:,:,:), pointer :: Volume_UV => null()
+        
+        real,    dimension(:,:,:), pointer :: Area_UV   => null(), &
+                                              Area_VU   => null()
 
         !KFloor variables (matrix that stores the first layer of the water column)
-        integer, dimension(:,:),   pointer :: KFloor_Z, KFloor_U, KFloor_V
+        integer, dimension(:,:),   pointer :: KFloor_Z => null(), &
+                                              KFloor_U => null(), & 
+                                              KFloor_V => null()
 
         !Auxiliar
-        integer, dimension(:,:),   pointer :: KFloor_UV, KFloor_VU
+        integer, dimension(:,:),   pointer :: KFloor_UV => null(), &
+                                              KFloor_VU => null()
 
         !Turbulence
         !Visc_H_Corner - Turbulent horizontal viscosity in the cell SW corner
         !Visc_H_Corner - Turbulent horizontal viscosity in the cell center
         !Visc_H_Corner - Turbulent vertical   viscosity 
-        real,    dimension(:,:,:), pointer :: Visc_H_Corner, Visc_H_Center, Vertical_Viscosity
-
+        real,    dimension(:,:,:), pointer :: Visc_H_Corner         => null(), &
+                                              Visc_H_Center         => null(), &
+                                              Vertical_Viscosity    => null()
 
         !Water Properties
-        real,    dimension(:,:,:), pointer :: Density, SigmaDens
+        real,    dimension(:,:,:), pointer :: Density   => null(), &
+                                              SigmaDens => null()
 
         !Bottom
-        real,    dimension(:,:),   pointer :: ChezyZ, ChezyVelUV, WaveChezyVel, RugosityMatrix
-        real                               :: Hmin_Chezy, Vmin_Chezy, ChezyCoef
-        logical                            :: Manning, Chezy
+        real,    dimension(:,:),   pointer :: ChezyZ            => null(), &
+                                              ChezyVelUV        => null(), &
+                                              WaveChezyVel      => null(), &
+                                              RugosityMatrix    => null()
+        
+        real                               :: Hmin_Chezy    = null_real, &
+                                              Vmin_Chezy    = null_real, &
+                                              ChezyCoef     = null_real
+                                              
+        logical                            :: Manning = .false., &
+                                              Chezy   = .false.
 
 
         !Surface
-        real,    dimension(:,:),   pointer :: TauWindU, TauWindV, TauWind_UV
-        real,    dimension(:,:  ), pointer :: SurfaceWaterFlux
-        real(8), dimension(:,:  ), pointer :: BottomWaterFlux
-        real,    dimension(:,:  ), pointer :: WindStress_X
-        real,    dimension(:,:  ), pointer :: WindStress_Y
-        real,    dimension(:,:  ), pointer :: AtmosphericPressure
+        real,    dimension(:,:),   pointer :: TauWindU      => null(), &
+                                              TauWindV      => null(), &
+                                              TauWind_UV    => null()
+        
+        real(8), dimension(:,:  ), pointer :: BottomWaterFlux   => null()
+        
+        real,    dimension(:,:  ), pointer :: SurfaceWaterFlux      => null(), &
+                                              WindStress_X          => null(), &
+                                              WindStress_Y          => null(), &
+                                              AtmosphericPressure   => null()
 
         !Waves 
-        real,    dimension(:,:),   pointer :: TauWavesU, TauWavesV, TauWaves_UV
+        real,    dimension(:,:),   pointer :: TauWavesU     => null(), & 
+                                              TauWavesV     => null(), &
+                                              TauWaves_UV   => null()
 
         !Altimetry Assimilation
-        real,    dimension(:,:  ), pointer :: AltimWaterLevelAnalyzed
-        real                               :: AltimDecayTime
-        real                               :: AltimAssimDT
-        real,    dimension(:,:,:), pointer :: AltimSigmaDensAnalyzed
+        real,    dimension(:,:  ), pointer :: AltimWaterLevelAnalyzed   => null()
         
-        logical                            :: Backtracking         = .false.                
+        real                               :: AltimDecayTime    = null_real, & !initialization: Jauch
+                                              AltimAssimDT      = null_real    !initialization: Jauch
+        
+        real,    dimension(:,:,:), pointer :: AltimSigmaDensAnalyzed    => null()
+        
+        logical                            :: Backtracking  = .false.                
 
     end type T_External
 
     type T_Drag
         type(T_PropertyID)              :: ID
-        real, dimension(:,:,:), pointer :: Coef
+        real, dimension(:,:,:), pointer :: Coef => null()
     end type T_Drag
 
     type T_Scraper
-        type(T_PropertyID)                  :: ID_U, ID_V, ID_W 
-        real,    dimension(:,:,:), pointer  :: VelU, VelV, VelW
-        integer, dimension(:,:,:), pointer  :: Position
-        logical                             :: UOn,  VOn,  WOn
-        real                                :: VelLimit = -1e8
-        real                                :: TimeScale
+        type(T_PropertyID)                  :: ID_U, ID_V, ID_W
+         
+        real,    dimension(:,:,:), pointer  :: VelU => null(), &
+                                               VelV => null(), &
+                                               VelW => null()
+                                               
+        integer, dimension(:,:,:), pointer  :: Position => null()
+        
+        logical                             :: UOn  = .false., & !initialization: Jauch  
+                                               VOn  = .false., & !initialization: Jauch  
+                                               WOn  = .false.    !initialization: Jauch
+        
+        real                                :: VelLimit     = -1e8
+        real                                :: TimeScale    = null_real !initialization: Jauch
     end type T_Scraper
 
     type T_ThinWalls
-        integer, dimension(:),     pointer  :: FaceU_I, FaceU_J, FaceU_K
-        integer, dimension(:),     pointer  :: FaceV_I, FaceV_J, FaceV_K
-        integer, dimension(:),     pointer  :: FaceW_I, FaceW_J, FaceW_K
-        logical                             :: UOn,  VOn,  WOn, ON
-        integer                             :: Nu, Nv, Nw
-        integer                             :: ObjTimeSerie, CloseFlagColumn
-        logical                             :: VariableInTime
-        real                                :: GradWL_Limit
+        integer, dimension(:),     pointer  :: FaceU_I  => null(), &
+                                               FaceU_J  => null(), &
+                                               FaceU_K  => null(), &
+                                               FaceV_I  => null(), &
+                                               FaceV_J  => null(), &
+                                               FaceV_K  => null(), &
+                                               FaceW_I  => null(), &
+                                               FaceW_J  => null(), &
+                                               FaceW_K  => null()
+                                               
+        logical                             :: UOn  = .false., & !initialization: Jauch
+                                               VOn  = .false., & !initialization: Jauch
+                                               WOn  = .false., & !initialization: Jauch
+                                               ON   = .false.    !initialization: Jauch
+                                               
+        integer                             :: Nu   = null_int, & !initialization: Jauch
+                                               Nv   = null_int, & !initialization: Jauch
+                                               Nw   = null_int    !initialization: Jauch
+                                               
+        integer                             :: ObjTimeSerie     = null_int, & !initialization: Jauch
+                                               CloseFlagColumn  = null_int    !initialization: Jauch
+                                               
+        logical                             :: VariableInTime   = .false. !initialization: Jauch
+        
+        real                                :: GradWL_Limit = null_real !initialization: Jauch
+        
                                                !CloseFlag = 1 close, CloseFlag = 0 open
-        integer                             :: CloseFlag
+        integer                             :: CloseFlag    = null_int !initialization: Jauch
     end type T_ThinWalls
 
     type       T_HydroCoupling                  
          type(T_Time)                           :: NextCompute
-         real                                   :: DT_Compute = FillValueReal
-         logical                                :: Yes                  = .false.
-         logical                                :: flag                 = .false.
+         real                                   :: DT_Compute   = FillValueReal
+         logical                                :: Yes          = .false.
+         logical                                :: flag         = .false.
     end type T_HydroCoupling  
 
     private :: T_HydroOptions
     type       T_HydroOptions
-        real(8) :: EnteringWaveDirection
-        real, dimension(:,:,:), pointer :: BiHarmonicUX_VY, BiHarmonicUY_VX
-        real, dimension(:,:),   pointer :: Tlag        
+        real(8)                         :: EnteringWaveDirection    = null_real !initialization: Jauch
+        
+        real, dimension(:,:,:), pointer :: BiHarmonicUX_VY  => null(), &
+                                           BiHarmonicUY_VX  => null()
+                                           
+        real, dimension(:,:),   pointer :: Tlag => null()
 
-        real                            :: BiHarmonicCoef   
-        real                            :: BottomViscCoef     
+        real                            :: BiHarmonicCoef           = null_real, & !initialization: Jauch
+                                           BottomViscCoef           = null_real, & !initialization: Jauch
+                                           UpStream_CenterDif       = null_real, & !initialization: Jauch
+                                           ImplicitVertAdvection    = null_real, & !initialization: Jauch
+                                           ImplicitVertDiffusion    = null_real, & !initialization: Jauch
+                                           Num_Discretization       = null_real, & !initialization: Jauch
+                                           MinLeavingVelocity       = null_real, & !initialization: Jauch
+                                           MinLeavingComponent      = null_real, & !initialization: Jauch
+                                           InertialPeriods          = null_real, & !initialization: Jauch
+                                           RampPeriod               = null_real, & !initialization: Jauch
+                                           TideSlowStartCoef        = null_real, & !initialization: Jauch
+                                           Hmin_Advection           = null_real, & !initialization: Jauch
+                                           !AtmosphereCoef: This is the coefficient bounded by [0 1] to multiply the atmospheric forces with.
+                                           AtmosphereCoef           = null_real, & !initialization: Jauch
+                                           !AtmospherePeriod: This period will substitute the SmoothInitial period                                                    
+                                           AtmospherePeriod         = null_real    !initialization: Jauch                                           
 
-        real    :: UpStream_CenterDif
-        real    :: ImplicitVertAdvection
-        real    :: ImplicitVertDiffusion
-        real    :: Num_Discretization
-        real    :: MinLeavingVelocity
-        real    :: MinLeavingComponent
-        real    :: InertialPeriods
-        real    :: RampPeriod
-        real    :: TideSlowStartCoef
-        real    :: Hmin_Advection
+        integer                         :: UpStream                 = null_int, & !initialization: Jauch
+                                           Evolution                = null_int, & !initialization: Jauch
+                                           VelTangentialBoundary    = null_int, & !initialization: Jauch
+                                           VelNormalBoundary        = null_int, & !initialization: Jauch
+                                           BaroclinicMethod         = null_int    !initialization: Jauch
 
-        integer :: UpStream
-        integer :: Evolution 
-        integer :: VelTangentialBoundary
-        integer :: VelNormalBoundary
-
-        logical :: Baroclinic
-        logical :: BoundaryBaroclinic
-        integer :: BaroclinicMethod
-        logical :: Coriolis
-        logical :: Continuous
-        logical :: Compute_Tide
-        logical :: Imposed_BoundaryWave
-        logical :: WaterDischarges
-        logical :: Residual
-        logical :: ComputeEnteringWave
-        logical :: Energy
-        logical :: VolumeVariation
-        logical :: HorizontalDiffusion
-        logical :: HorizontalAdvection
-        logical :: VerticalDiffusion
-        logical :: VerticalAdvection
-        logical :: BaroclinicRAMP
-        logical :: NullBoundaryHorAdv
-        logical :: AtmosphereRAMP       !  This logical value makes obsolete the wind
-        real    :: AtmospherePeriod     ! This period will substitute the SmoothInitial period
-        real    :: AtmosphereCoef       ! This is the coefficient bounded by [0 1] to multiply
-                                        ! the atmospheric forces with.
-        logical :: InvertBarometer     
-        logical :: InvertBaromSomeBound
-        real, pointer, dimension(:,:)    :: InvertBarometerCells          
+        logical                         :: Baroclinic           = .false., & !initialization: Jauch
+                                           BoundaryBaroclinic   = .false., & !initialization: Jauch                                           
+                                           Coriolis             = .false., & !initialization: Jauch
+                                           Continuous           = .false., & !initialization: Jauch
+                                           Compute_Tide         = .false., & !initialization: Jauch
+                                           Imposed_BoundaryWave = .false., & !initialization: Jauch
+                                           WaterDischarges      = .false., & !initialization: Jauch
+                                           Residual             = .false., & !initialization: Jauch
+                                           ComputeEnteringWave  = .false., & !initialization: Jauch
+                                           Energy               = .false., & !initialization: Jauch
+                                           VolumeVariation      = .false., & !initialization: Jauch
+                                           HorizontalDiffusion  = .false., & !initialization: Jauch
+                                           HorizontalAdvection  = .false., & !initialization: Jauch
+                                           VerticalDiffusion    = .false., & !initialization: Jauch
+                                           VerticalAdvection    = .false., & !initialization: Jauch
+                                           BaroclinicRAMP       = .false., & !initialization: Jauch
+                                           NullBoundaryHorAdv   = .false., & !initialization: Jauch
+                                           !AtmosphereRAMP: This logical value makes obsolete the wind
+                                           AtmosphereRAMP       = .false., & !initialization: Jauch
+                                           InvertBarometer      = .false., & !initialization: Jauch
+                                           InvertBaromSomeBound = .false.    !initialization: Jauch
+                                           
+        real, pointer, dimension(:,:)   :: InvertBarometerCells => null()
                                                       
-        integer :: Wind
-        real    :: SmoothInitialPeriod
-        logical :: AtmPressure
-        integer :: AtmPressureType      ! 0 - don't use atmospheric pressure
-                                        ! 1 - Use atmospheric pressure
-                                        ! 2 - Use Mean Sea Level Pressure (MSLP)
-        logical :: SurfaceWaterFlux
-        logical :: BottomWaterFlux
-        logical :: Relaxation
-        logical :: Geost_Initialization
-        logical :: Level_Bottom_Anomaly
-        type(T_HydroCoupling) :: AltimetryAssimilation
-        logical :: CoriolisBoundary
-        logical :: Recording
-        logical :: MomentumDischarge
-        logical :: LocalDensity
-        logical :: BlumbergKantha
-        logical :: InitialElevation
-        logical :: ConservativeHorDif
-        logical :: BiHarmonic
-        logical :: BottomVisc_LIM         !MRV
-        logical :: WaterLevelMaxMin
+        integer                         :: Wind                 = null_int  !initialization: Jauch
+        real                            :: SmoothInitialPeriod  = null_real !initialization: Jauch
+        
+        logical                         :: AtmPressure      = .false.  !initialization: Jauch
+        integer                         :: AtmPressureType  = null_int !initialization: JAuch
+                                            ! 0 - don't use atmospheric pressure
+                                            ! 1 - Use atmospheric pressure
+                                            ! 2 - Use Mean Sea Level Pressure (MSLP)
+                                        
+        logical                         :: SurfaceWaterFlux     = .false., & !initialization: Jauch
+                                           BottomWaterFlux      = .false., & !initialization: Jauch
+                                           Relaxation           = .false., & !initialization: Jauch
+                                           Geost_Initialization = .false., & !initialization: Jauch
+                                           Level_Bottom_Anomaly = .false.    !initialization: Jauch
+        
+        type(T_HydroCoupling)           :: AltimetryAssimilation
+        
+        logical                         :: CoriolisBoundary     = .false., & !initialization: Jauch
+                                           Recording            = .false., & !initialization: Jauch
+                                           MomentumDischarge    = .false., & !initialization: Jauch
+                                           LocalDensity         = .false., & !initialization: Jauch
+                                           BlumbergKantha       = .false., & !initialization: Jauch
+                                           InitialElevation     = .false., & !initialization: Jauch
+                                           ConservativeHorDif   = .false., & !initialization: Jauch
+                                           BiHarmonic           = .false., & !initialization: Jauch
+                                           BottomVisc_LIM       = .false., & !initialization: Jauch  !MRV
+                                           WaterLevelMaxMin     = .false.    !initialization: Jauch
 
 #ifdef OVERLAP
-        logical :: Overlap
+        logical                         :: Overlap  = .false. !initialization: Jauch
 #endif OVERLAP
 
-        integer :: BarotropicRadia
-        integer :: BaroclinicRadia
+        integer                         :: BarotropicRadia  = null_int, &  !initialization: Jauch
+                                           BaroclinicRadia  = null_int, &  !initialization: Jauch
+                                           LocalSolution    = null_int     !initialization: Jauch
 
-        integer :: LocalSolution
+        logical                         :: CorrectWaterLevel    = .false.       !initialization: Jauch
+        real                            :: WaterLevelMin        = null_real, &  !initialization: Jauch
+                                           WaterColumn2D        = null_real     !initialization: Jauch
 
-        logical :: CorrectWaterLevel
-        real    :: WaterLevelMin
-        real    :: WaterColumn2D
+        logical                         :: SlippingCondition    = .false., &  !initialization: Jauch
+                                           WaveStress           = .false., &  !initialization: Jauch
+                                           Obstacle             = .false., &  !initialization: Jauch
+                                           Scraper              = .false. 
 
-        logical :: SlippingCondition
-     
-        logical :: WaveStress 
+        type (T_Time)                   :: RAMP_BeginTime
 
-        logical :: Obstacle
+        logical                         :: CentrifugalForce = .false., &  !initialization: Jauch
+                                           InertiaForces    = .false.     !initialization: Jauch
+
+        integer                         :: AdvectionMethodH = null_int, &  !initialization: Jauch
+                                           TVD_LimH         = null_int, &  !initialization: Jauch
+                                           AdvectionMethodV = null_int, &  !initialization: Jauch
+                                           TVD_LimV         = null_int     !initialization: Jauch
+                   
+        logical                         :: Upwind2H = .false., &  !initialization: Jauch
+                                           Upwind2V = .false.     !initialization: Jauch
+                   
+        real                            :: VolumeRelMax = null_real !initialization: Jauch
+
+        integer                         :: BaroclinicPoliDegree         = null_int, &  !initialization: Jauch
+                                           Vertical_AxiSymmetric_Model  = null_int     !initialization: Jauch
+
+        real                            :: FlatherColdPeriod    = null_real, & !initialization: Jauch
+                                           FlatherColdSeaLevel  = null_real    !initialization: Jauch
         
-        logical :: Scraper = .false. 
-
-        type (T_Time) :: RAMP_BeginTime
-
-        logical :: CentrifugalForce
-        logical :: InertiaForces
-
-        integer :: AdvectionMethodH, TVD_LimH
-        integer :: AdvectionMethodV, TVD_LimV
-        logical :: Upwind2H, Upwind2V
-        real    :: VolumeRelMax
-
-        integer :: BaroclinicPoliDegree
-
-        integer :: Vertical_AxiSymmetric_Model
-
-        real    :: FlatherColdPeriod, FlatherColdSeaLevel
         !PCL
-        logical :: XZFlow = .false.
+        logical                         :: XZFlow   = .false.
         
-        logical :: ExternalBarotropicVel2D = .true. 
+        logical                         :: ExternalBarotropicVel2D  = .true. 
 
     end type T_HydroOptions
 
     type       T_OutPut
-         type (T_Time), dimension(:), pointer     :: OutTime, RestartOutTime, SurfaceOutTime 
-         integer                                  :: NextOutPut, Number, NextRestartOutput
-         integer                                  :: NextSurfaceOutput, NumberSurfaceOutputs
-         logical                                  :: HDF5ON, HDF5_Surface_ON, Run_End
-         logical                                  :: WriteRestartFile = OFF
-         logical                                  :: TimeSerieON
-         logical                                  :: ProfileON
-         real,          dimension(:,:,:), pointer :: ModulusH, CenterU, CenterV, CenterW, DirectionH, Vorticity3D
-         real,          dimension(:,:,:), pointer :: CenterUaux, CenterVaux, ModulusUVaux, CenterWaux
-         real,          dimension(:,:),   pointer :: Aux2D 
-         real,          dimension(:,:),   pointer :: WaterLevelMax 
-         real,          dimension(:,:),   pointer :: WaterLevelMin 
-         logical                                  :: RestartOverwrite
-         logical                                  :: Faces
-         real                                     :: WaterLevelUnits
-         logical                                  :: TimeSerieDischON = .false. 
-         integer                                  :: DischargesNumber
-         integer, dimension(:),   pointer         :: TimeSerieDischID
-         real,    dimension(:,:), pointer         :: TimeSerieDischProp
+         type (T_Time), dimension(:), pointer     :: OutTime, &
+                                                     RestartOutTime, &
+                                                     SurfaceOutTime
+                                                     
+         integer                                  :: NextOutPut             = null_int, & !initialization: Jauch
+                                                     Number                 = null_int, & !initialization: Jauch
+                                                     NextRestartOutput      = null_int, & !initialization: Jauch
+                                                     NextSurfaceOutput      = null_int, & !initialization: Jauch
+                                                     NumberSurfaceOutputs   = null_int    !initialization: Jauch
+                                                     
+         logical                                  :: HDF5ON             = .false., & !initialization: Jauch
+                                                     HDF5_Surface_ON    = .false., & !initialization: Jauch
+                                                     Run_End            = .false., & !initialization: Jauch
+                                                     WriteRestartFile   = .false., & !initialization: Jauch
+                                                     TimeSerieON        = .false., & !initialization: Jauch
+                                                     ProfileON          = .false.    !initialization: Jauch
+                                                     
+         real,          dimension(:,:,:), pointer :: ModulusH       => null(), &
+                                                     CenterU        => null(), &
+                                                     CenterV        => null(), &
+                                                     CenterW        => null(), &
+                                                     DirectionH     => null(), &
+                                                     Vorticity3D    => null(), &
+                                                     CenterUaux     => null(), &
+                                                     CenterVaux     => null(), &
+                                                     ModulusUVaux   => null(), &
+                                                     CenterWaux     => null()
+                                                     
+         real,          dimension(:,:),   pointer :: Aux2D          => null(), &
+                                                     WaterLevelMax  => null(), &
+                                                     WaterLevelMin  => null()
+                                                     
+         logical                                  :: RestartOverwrite   = .false., & !initialization: Jauch
+                                                     Faces              = .false.    !initialization: Jauch
+                                                     
+         real                                     :: WaterLevelUnits    = null_real !initialization: Jauch
+         logical                                  :: TimeSerieDischON   = .false. 
+         
+         integer                                  :: DischargesNumber   = null_int !initialization: Jauch
+         
+         integer, dimension(:),   pointer         :: TimeSerieDischID   => null()     
+         real,    dimension(:,:), pointer         :: TimeSerieDischProp => null()
     end type T_OutPut
 
     type      T_OutW
-        type(T_OutPutTime), dimension(:), pointer :: OutPutWindows
-        logical                                   :: OutPutWindowsON = .false.
-        integer                                   :: WindowsNumber   = 0      
-        integer,            dimension(:), pointer :: ObjHDF5
-        logical                                   :: Simple          = .false.
+        type(T_OutPutTime), dimension(:), pointer :: OutPutWindows      => null()
+        logical                                   :: OutPutWindowsON    = .false. !initialization: Jauch        
+        integer                                   :: WindowsNumber      = 0       !initialization: Jauch
+        integer,            dimension(:), pointer :: ObjHDF5            => null()
+        logical                                   :: Simple             = .false. !initialization: Jauch
     end type  T_OutW
     
     type T_Energy
-        integer                         :: FileID
-        integer                         :: BufferCount
-        real(8)                         :: PotentialEnergyReference
-        logical                         :: FirstTime = .true.
-        real, dimension(:), pointer     :: YearBuffer
-        real, dimension(:), pointer     :: MonthBuffer
-        real, dimension(:), pointer     :: DayBuffer
-        real, dimension(:), pointer     :: HourBuffer
-        real, dimension(:), pointer     :: MinuteBuffer
-        real, dimension(:), pointer     :: SecondBuffer
-        real, dimension(:), pointer     :: RelativeKEBuffer
-        real, dimension(:), pointer     :: RelativePEBuffer
-        real, dimension(:), pointer     :: KineticBuffer
-        real, dimension(:), pointer     :: PotentialBuffer
-        real, dimension(:), pointer     :: VorticityBuffer
-        real, dimension(:), pointer     :: MassBuffer
-        real, dimension(:), pointer     :: VolumeBuffer
-        real, dimension(:), pointer     :: OpenVolumeBuffer
-        real, dimension(:), pointer     :: WaterLevelBuffer
-        real, dimension(:), pointer     :: BarotropicKEBuffer
-        real, dimension(:), pointer     :: BaroclinicKEBuffer
-        real, dimension(:), pointer     :: VelMaxBaroclinicBuffer
-        real, dimension(:), pointer     :: VelMaxBuffer
+        integer                         :: FileID       = null_int !initialization: Jauch
+        integer                         :: BufferCount  = null_int !initialization: Jauch
+        real(8)                         :: PotentialEnergyReference = null_real !initialization: Jauch
+        logical                         :: FirstTime                = .true.
+        real, dimension(:), pointer     :: YearBuffer               => null(), &
+                                           MonthBuffer              => null(), &
+                                           DayBuffer                => null(), &
+                                           HourBuffer               => null(), &
+                                           MinuteBuffer             => null(), &
+                                           SecondBuffer             => null(), &
+                                           RelativeKEBuffer         => null(), &
+                                           RelativePEBuffer         => null(), &
+                                           KineticBuffer            => null(), &
+                                           PotentialBuffer          => null(), &
+                                           VorticityBuffer          => null(), &
+                                           MassBuffer               => null(), &
+                                           VolumeBuffer             => null(), &
+                                           OpenVolumeBuffer         => null(), &
+                                           WaterLevelBuffer         => null(), &
+                                           BarotropicKEBuffer       => null(), &
+                                           BaroclinicKEBuffer       => null(), &
+                                           VelMaxBaroclinicBuffer   => null(), & 
+                                           VelMaxBuffer             => null()
 
-        real, dimension(:,:,:), pointer :: CenterU, CenterV, CenterW
-        real, dimension(:,:  ), pointer :: BarotropicU, BarotropicV
+        real, dimension(:,:,:), pointer :: CenterU  => null(), &
+                                           CenterV  => null(), &
+                                           CenterW  => null()
+                                           
+        real, dimension(:,:  ), pointer :: BarotropicU  => null(), &
+                                           BarotropicV  => null()
 
         type (T_Size3D)                 :: Window
         type (T_Time)                   :: NextOutPut
-        real                            :: DtOut
+        
+        real                            :: DtOut = null_real !initialization: Jauch
     end type T_Energy
 
     
     private :: T_Astro
     type       T_Astro
-        logical                           :: Compute
+        logical                           :: Compute    = .false. !initialization: Jauch
+        
         integer                           :: ComponentsNumber = 11
-        real,    pointer, dimension (:  ) :: Beta, Amplitude, Frequency, Arguments, L
-        integer, pointer, dimension (:  ) :: m
-        type (T_Time)                     :: TimeRef
-        real                              :: Alpha
-        integer                           :: Algorithm 
+        
+        real,    pointer, dimension (:  ) :: Beta       => null(), &
+                                             Amplitude  => null(), &
+                                             Frequency  => null(), &
+                                             Arguments  => null(), &
+                                             L          => null()
+                                             
+        integer, pointer, dimension (:  ) :: m  => null()
+        
+        type (T_Time)                     :: TimeRef        
+        real                              :: Alpha      = null_real !initialization: Jauch
+        integer                           :: Algorithm  = null_int  !initialization: Jauch
     end type T_Astro
      
     private :: T_Relaxation
@@ -1278,39 +1485,76 @@ Module ModuleHydrodynamic
         logical                             :: Force                = .false.
         logical                             :: Geometry             = .false.
         integer                             :: ReferenceVelocity    = TotalVel_
-        real,   dimension(:,:,:), pointer   :: DecayTimeGeo         
+        real,   dimension(:,:,:), pointer   :: DecayTimeGeo => null()       
     endtype      
 
     private :: T_SubModel
     type       T_SubModel
-        logical                              :: ON, Set, InterPolTime, DeadZone, MissingNull, FatherHotStart
-        character (Len = PathLength)         :: DeadZoneFile
-        integer                              :: VertComunic
+        logical                              :: ON              = .false., & !initialization: Jauch
+                                                Set             = .false., & !initialization: Jauch
+                                                InterPolTime    = .false., & !initialization: Jauch
+                                                DeadZone        = .false., & !initialization: Jauch
+                                                MissingNull     = .false., & !initialization: Jauch
+                                                FatherHotStart  = .false.    !initialization: Jauch
+                                                
+        character (Len = PathLength)         :: DeadZoneFile    = null_str !initialization: Jauch
+        integer                              :: VertComunic     = null_int !initialization: Jauch
 
-        logical                              :: Extrapolate, HotStartData = .false.
+        logical                              :: Extrapolate     = .false., & !initialization: Jauch
+                                                HotStartData    = .false.
 
-        logical, dimension(:,:,:), pointer   :: DeadZonePoint
+        logical, dimension(:,:,:), pointer   :: DeadZonePoint   => null()
 
-        real,    dimension(:,:  ), pointer   :: Z
-        real,    dimension(:,:,:), pointer   :: U_New, V_New, UV_New, VU_New
-        real,    dimension(:,:,:), pointer   :: U_Old, V_Old, UV_Old
-        real,    dimension(:,:,:), pointer   :: DUZ_Old, DVZ_Old, DUVZ_Old
-        real,    dimension(:,:,:), pointer   :: DUZ_New, DVZ_New
-        real(8), dimension(:,:,:), pointer   :: qX, qY, qXY, qYX
+        real,    dimension(:,:  ), pointer   :: Z   => null()
+        
+        real,    dimension(:,:,:), pointer   :: U_New       => null(), &
+                                                V_New       => null(), &
+                                                UV_New      => null(), &
+                                                VU_New      => null(), &
+                                                U_Old       => null(), &
+                                                V_Old       => null(), &
+                                                UV_Old      => null(), &
+                                                DUZ_Old     => null(), &
+                                                DVZ_Old     => null(), &
+                                                DUVZ_Old    => null(), &
+                                                DUZ_New     => null(), &
+                                                DVZ_New     => null()
+                                                
+        real(8), dimension(:,:,:), pointer   :: qX  => null(), &
+                                                qY  => null(), &
+                                                qXY => null(), &
+                                                qYX => null()
 
         !Time Interpolation
         type(T_Time)                         :: NextTime, PreviousTime
-        real,    dimension(:,:  ), pointer   :: Z_Previous, Z_Next
-        real,    dimension(:,:,:), pointer   :: U_Previous, V_Previous, U_Next, V_Next
-        real,    dimension(:,:,:), pointer   :: DUZ_Previous, DUZ_Next, DVZ_Previous, DVZ_Next
+        
+        real,    dimension(:,:  ), pointer   :: Z_Previous  => null(), &
+                                                Z_Next      => null()
+                                                
+        real,    dimension(:,:,:), pointer   :: U_Previous      => null(), & 
+                                                V_Previous      => null(), &
+                                                U_Next          => null(), &
+                                                V_Next          => null(), &
+                                                DUZ_Previous    => null(), &
+                                                DUZ_Next        => null(), &
+                                                DVZ_Previous    => null(), &
+                                                DVZ_Next        => null()
 
         ! Ang: new implementation father-son 3D
         !Father3D-Son3D connection auxiliary
-        real(8), dimension(:,:,:), pointer   :: Aux_qX, Aux_qY
-        real,    dimension(:,:,:), pointer   :: Aux_DUZ, Aux_DVZ
-        real,    dimension(:,:,:), pointer   :: Aux_U, Aux_V
-        logical                              :: MomentConserv = .false.
-        integer                              :: FatherKLB, FatherKUB
+        real(8), dimension(:,:,:), pointer   :: Aux_qX  => null(), &
+                                                Aux_qY  => null()
+                                                
+        real,    dimension(:,:,:), pointer   :: Aux_DUZ => null(), &
+                                                Aux_DVZ => null(), &
+                                                Aux_U   => null(), &
+                                                Aux_V   => null()
+                                                
+        logical                              :: MomentConserv   = .false.
+        
+        integer                              :: FatherKLB   = null_int, & !initialization: Jauch
+                                                FatherKUB   = null_int    !initialization: Jauch
+                                                
         type(T_Time)                         :: GetFatherTime 
 
         integer                              :: ObjBoxDif = 0
@@ -1318,15 +1562,17 @@ Module ModuleHydrodynamic
     endtype   
 
     type T_HydroStatistic           
-        logical                              :: ON
-        character(len=StringLength)          :: File
-        integer                              :: NProp = 4
-        integer, dimension(:), allocatable   :: PropList, ID
+        logical                              :: ON      = .false. !initialization: Jauch
+        character(len=StringLength)          :: File    = null_str !initialization: Jauch
+        integer                              :: NProp   = 4
+        
+        integer, dimension(:), allocatable   :: PropList, &
+                                                ID 
     end type T_HydroStatistic
 
     type T_CyclicBoundary
-        logical                              :: ON
-        integer                              :: Direction
+        logical                              :: ON          = .false.  !initialization: Jauch
+        integer                              :: Direction   = null_int !initialization: Jauch
     end type T_CyclicBoundary
        
     private :: T_Hydrodynamic
@@ -1334,8 +1580,8 @@ Module ModuleHydrodynamic
         private
         type(T_Direction     ) :: Direction 
         type(T_State         ) :: State
-        integer                :: InstanceID
-        character(PathLength)  :: ModelName
+        integer                :: InstanceID    = null_int !initialization: Jauch
+        character(PathLength)  :: ModelName     = null_str !initialization: Jauch
         type(T_Size2D        ) :: Size2D
         type(T_Size2D        ) :: WorkSize2D
         type(T_Size3D        ) :: Size
@@ -1383,13 +1629,13 @@ Module ModuleHydrodynamic
 #endif _USE_SEQASSIMILATION         
 
         !Auxiliar thomas arrays
-        real(8), pointer, dimension(:) :: VECG_3D  
-        real(8), pointer, dimension(:) :: VECW_3D
-        real(8), pointer, dimension(:) :: VECG_2D  
-        real(8), pointer, dimension(:) :: VECW_2D
+        real(8), pointer, dimension(:) :: VECG_3D   => null(), &
+                                          VECW_3D   => null(), &
+                                          VECG_2D   => null(), &
+                                          VECW_2D   => null()
         
         !Auxiliar flux properties
-        real(8), pointer, dimension(:,:,:) :: Aux3DFlux         
+        real(8), pointer, dimension(:,:,:) :: Aux3DFlux => null()    
 
         !Instance of ModuleGridData
         integer :: ObjGridData              = 0
@@ -1459,17 +1705,17 @@ Module ModuleHydrodynamic
 #endif _ENABLE_CUDA
 
         !griflet
-        integer :: MaxThreads
-        type(T_THOMAS), pointer         :: THOMAS
-        type(T_THOMAS2D), pointer       :: THOMAS2D
+        integer                         :: MaxThreads   = null_int !initialization: Jauch
+        type(T_THOMAS), pointer         :: THOMAS   => null()
+        type(T_THOMAS2D), pointer       :: THOMAS2D => null()
 
         type (T_Hydrodynamic), pointer :: Next
 
     end type T_Hydrodynamic
 
     !Global Module Variables
-    type (T_Hydrodynamic), pointer                  :: FirstHydrodynamic
-    type (T_Hydrodynamic), pointer                  :: Me
+    type (T_Hydrodynamic), pointer                  :: FirstHydrodynamic    => null()
+    type (T_Hydrodynamic), pointer                  :: Me                   => null()
 
     contains
 

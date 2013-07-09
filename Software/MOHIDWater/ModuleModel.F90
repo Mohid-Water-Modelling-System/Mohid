@@ -190,8 +190,8 @@ Module ModuleModel
         real, dimension(:,:,:), pointer         :: VelocityY                => null()
         real, dimension(:,:,:), pointer         :: VelocityZ                => null()
         real, dimension(:,:  ), pointer         :: Chezy, WaterLevel        => null()
-        integer                                 :: DensMethod
-        logical                                 :: CorrecPress
+        integer                                 :: DensMethod   = null_int !initialization: Jauch
+        logical                                 :: CorrecPress  = .false.  !initialization: Jauch
     end type T_ExternalVar
 
     !Groups modules of the WaterColumn
@@ -206,7 +206,7 @@ Module ModuleModel
     type     T_Overlap
         logical                                 :: Yes                      = .false.
         integer                                 :: OverlapModelID           = 0
-        character(len=PathLength)               :: FileName
+        character(len=PathLength)               :: FileName                 = null_str !initialization: Jauch
         integer, dimension(:,:), pointer        :: Cells                    => null()
     end type T_Overlap
 #endif OVERLAP
@@ -214,19 +214,19 @@ Module ModuleModel
     !public :: T_Model
     type T_Model 
 
-        integer                                 :: InstanceID
+        integer                                 :: InstanceID   = null_int !initialization: Jauch
 
         !integer, dimension(:,:), pointer        :: LagInstance
 
         !character(StringLength), dimension(:), pointer :: ModelNames
 
-        character(StringLength)                   :: ModelName
+        character(StringLength)                 :: ModelName    = null_str !initialization: Jauch
 
-        integer                                 :: NumberOfModels
-        integer                                 :: MPI_ID = FillValueInt
-        integer                                 :: ObjLagrangian
-!        integer                                 :: ObjLagrangianX
-        integer                                 :: ObjLagrangianGlobal
+        integer                                 :: NumberOfModels       = 0 !initialization: Jauch
+        integer                                 :: MPI_ID               = FillValueInt
+        integer                                 :: ObjLagrangian        = 0 !initialization: Jauch
+!        integer                                 :: ObjLagrangianX       = 0 !initialization: Jauch
+        integer                                 :: ObjLagrangianGlobal  = 0 !initialization: Jauch
 
         type (T_ExternalVar)                    :: ExternalVar
 
@@ -234,73 +234,78 @@ Module ModuleModel
         type (T_Time)                           :: CurrentTime
         type (T_Time)                           :: BeginTime
         type (T_Time)                           :: EndTime
-        integer                                 :: Iteration
-        real                                    :: DT, MaxDT
-        logical                                 :: VariableDT
-        real                                    :: InitialDT
-        real                                    :: GmtReference
-        real                                    :: DTPredictionInterval
+        
+        integer                                 :: Iteration    = null_int !initialization: Jauch
+        
+        real                                    :: DT       = null_real, & !initialization: Jauch 
+                                                   MaxDT    = null_real    !initialization: Jauch
+        
+        logical                                 :: VariableDT   = .false. !initialization: Jauch
+        
+        real                                    :: InitialDT    = null_real !initialization: Jauch
+        real                                    :: GmtReference = null_real !initialization: Jauch
+        real                                    :: DTPredictionInterval = null_real !initialization: Jauch
 
-        logical                                 :: RunSediments
-        logical                                 :: RunLagrangian
-        logical                                 :: RunWaves
-        logical                                 :: NoIsolatedCells
-        integer                                 :: OnLineType
+        logical                                 :: RunSediments     = .false. !initialization: Jauch
+        logical                                 :: RunLagrangian    = .false. !initialization: Jauch
+        logical                                 :: RunWaves         = .false. !initialization: Jauch
+        logical                                 :: NoIsolatedCells  = .false. !initialization: Jauch
+        integer                                 :: OnLineType       = null_int !initialization: Jauch
 
         type (T_Size2D)                         :: SubModelWindow
-        logical                                 :: SubModelWindowON
+        logical                                 :: SubModelWindowON = .false. !initialization: Jauch
         
-        logical                                 :: BackTracking
+        logical                                 :: BackTracking = .false. !initialization: Jauch
 
 #ifdef OVERLAP
-        type (T_Overlap)                        :: Overlap
+        type (T_Overlap)                        :: Overlap  = .false. !initialization: Jauch
 #endif OVERLAP
         
 #ifdef _USE_SEQASSIMILATION
         !Sequential data assimilation variables:
-        logical                                 :: RunSeqAssimilation
-        logical                                 :: StateCovEvolution
-        integer                                 :: StateCovRank
-        type (T_Time)                           :: SeqAssimilationTime
+        logical                                 :: RunSeqAssimilation   = .false. !initialization: Jauch
+        logical                                 :: StateCovEvolution    = .false. !initialization: Jauch
+        integer                                 :: StateCovRank         = null_int !initialization: Jauch
+        type (T_Time)                           :: SeqAssimilationTime  
 #endif _USE_SEQASSIMILATION
 
         !$ logical                              :: FatherModelFlag = .false.
 
         !Instance of other Modules
-        integer                                 :: ObjTime                  = 0
-        integer                                 :: ObjHorizontalGrid        = 0
+        integer                                 :: ObjTime                      = 0
+        integer                                 :: ObjHorizontalGrid            = 0
         type (T_Column)                         :: Water
         type (T_Column)                         :: Sediment
-        integer                                 :: ObjAssimilation          = 0
-        integer                                 :: ObjDischarges            = 0
-        integer                                 :: ObjTurbGOTM              = 0
-        integer                                 :: ObjTurbulence            = 0
-        integer                                 :: ObjHydrodynamic          = 0
-        integer                                 :: ObjWaterProperties       = 0
-        integer                                 :: ObjAtmosphere            = 0
-        integer                                 :: ObjWaves                 = 0
-        integer                                 :: ObjInterfaceWaterAir     = 0
-        integer                                 :: ObjInterfaceSedimentWater= 0
-!        integer                                 :: ObjInterfaceSedAir      = 0
-        integer                                 :: ObjSedimentProperties    = 0
-        integer                                 :: ObjConsolidation         = 0
+        integer                                 :: ObjAssimilation              = 0
+        integer                                 :: ObjDischarges                = 0
+        integer                                 :: ObjTurbGOTM                  = 0
+        integer                                 :: ObjTurbulence                = 0
+        integer                                 :: ObjHydrodynamic              = 0
+        integer                                 :: ObjWaterProperties           = 0
+        integer                                 :: ObjAtmosphere                = 0
+        integer                                 :: ObjWaves                     = 0
+        integer                                 :: ObjInterfaceWaterAir         = 0
+        integer                                 :: ObjInterfaceSedimentWater    = 0
+!        integer                                 :: ObjInterfaceSedAir           = 0
+        integer                                 :: ObjSedimentProperties        = 0
+        integer                                 :: ObjConsolidation             = 0
 #ifdef _USE_SEQASSIMILATION
-        integer                                 :: ObjSeqAssimilation       = 0
+        integer                                 :: ObjSeqAssimilation           = 0
 #endif _USE_SEQASSIMILATION
 
 #ifdef _ENABLE_CUDA
         ! JPW: CUDA support
-        integer                                 :: ObjCuda                  = 0
+        integer                                 :: ObjCuda                      = 0
 #endif _ENABLE_CUDA
 
         !Linked list of Instances
-        type(T_Model), pointer                  :: Next
+        type(T_Model), pointer                  :: Next => null()
 
     End Type T_Model
 
     !Global Module Variables
-    type (T_Model), pointer                     :: FirstModel
-    type (T_Model), pointer                     :: Me
+    type (T_Model), pointer                     :: FirstModel   => null()
+    type (T_Model), pointer                     :: Me           => null()
 
     Contains
 
@@ -797,7 +802,6 @@ il:         if (Me%RunLagrangian) then
                                          Me%ObjWaterProperties,                         &
                                          STAT )
                 if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR320"
-
                 !Removed warning for unused variable
                 ObjLagrangianGlobal =  null_int
                 LagNomfich          =  null_str

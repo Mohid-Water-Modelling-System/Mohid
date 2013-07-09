@@ -136,74 +136,75 @@ Module ModuleFreeVerticalMovement
         logical                                 :: WithCompression  = .true.
         real                                    :: SVI              = FillValueReal
         real                                    :: Clarification    = FillValueReal
-        real, pointer, dimension(:,:,:)         :: FreeConvFlux
-        real, pointer, dimension(:,:,:)         :: Velocity
-        type(T_Property), pointer               :: Next, Prev
+        real, pointer, dimension(:,:,:)         :: FreeConvFlux     => null()
+        real, pointer, dimension(:,:,:)         :: Velocity         => null()
+        type(T_Property), pointer               :: Next             => null(), &
+                                                   Prev             => null()
     end type T_Property
 
     type       T_DEF
-        real,    pointer, dimension(: , : , :)  :: D 
-        real(8), pointer, dimension(: , : , :)  :: E
-        real,    pointer, dimension(: , : , :)  :: F
+        real,    pointer, dimension(: , : , :)  :: D    => null()
+        real(8), pointer, dimension(: , : , :)  :: E    => null()
+        real,    pointer, dimension(: , : , :)  :: F    => null()
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                             :: DPtr
         type(C_PTR)                             :: EPtr
         type(C_PTR)                             :: FPtr
 #endif _USE_PAGELOCKED
-        real,    pointer, dimension(: , : , :)  :: D_flux    !Coeficient to calculate ConvFlux and DifFlux
-        real,    pointer, dimension(: , : , :)  :: E_flux    !Coeficient to calculate ConvFlux and DifFlux
+        real,    pointer, dimension(: , : , :)  :: D_flux   => null()    !Coeficient to calculate ConvFlux and DifFlux
+        real,    pointer, dimension(: , : , :)  :: E_flux   => null()    !Coeficient to calculate ConvFlux and DifFlux
     end type T_DEF
 
     type       T_External
-        integer, pointer, dimension(: , : , :)  :: LandPoints
-        integer, pointer, dimension(: , : , :)  :: OpenPoints3D
-        real, pointer, dimension   (: , : , :)  :: Concentration
+        integer, pointer, dimension(: , : , :)  :: LandPoints       => null()
+        integer, pointer, dimension(: , : , :)  :: OpenPoints3D     => null()
+        real, pointer, dimension   (: , : , :)  :: Concentration    => null()
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                             :: ConcentrationPtr
 #endif
-        real, pointer, dimension   (: , : , :)  :: SPM
-        real, pointer, dimension   (: , : , :)  :: SalinityField
-        real,    pointer, dimension(: , :    )  :: DepositionProbability
-        integer, pointer, dimension(: , :    )  :: KFloor_Z
+        real, pointer, dimension   (: , : , :)  :: SPM                      => null()
+        real, pointer, dimension   (: , : , :)  :: SalinityField            => null()
+        real,    pointer, dimension(: , :    )  :: DepositionProbability    => null()
+        integer, pointer, dimension(: , :    )  :: KFloor_Z                 => null()
         type(T_Time)                            :: Now
-        real                                    :: DTProp         = FillValueReal
-        real                                    :: IS_Coef        = FillValueReal
-        real                                    :: SPMISCoef      = FillValueReal
-        logical                                 :: NoFlux
-        integer, pointer, dimension(: , : , :)  :: NoFluxW
+        real                                    :: DTProp           = FillValueReal
+        real                                    :: IS_Coef          = FillValueReal
+        real                                    :: SPMISCoef        = FillValueReal
+        logical                                 :: NoFlux           = .false. !initialization: Jauch
+        integer, pointer, dimension(: , : , :)  :: NoFluxW          => null()
     end type T_External
 
     type       T_Options
-        logical                                 :: Salinity
-        logical                                 :: SPM
+        logical                                 :: Salinity = .false. !initialization: Jauch 
+        logical                                 :: SPM      = .false. !initialization: Jauch
     end type   T_Options
 
     type      T_FreeVerticalMovement
         private
-        integer                                 :: InstanceID
+        integer                                 :: InstanceID   = null_int !initialization: Jauch
         type(T_Size3D  )                        :: Size
         type(T_Size3D  )                        :: WorkSize
         type(T_External)                        :: ExternalVar
         type(T_DEF   )                          :: COEF3
         type(T_Options )                        :: Needs
-        real, pointer, dimension(:,:,:)         :: TICOEF3
+        real, pointer, dimension(:,:,:)         :: TICOEF3  => null()
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                             :: TICOEF3Ptr
 #endif _USE_PAGELOCKED
                                                 
         !Auxiliar thomas arrays                 
-        real(8), pointer, dimension(:)          :: VECG
-        real(8), pointer, dimension(:)          :: VECW
+        real(8), pointer, dimension(:)          :: VECG => null()
+        real(8), pointer, dimension(:)          :: VECW => null()
         
         !griflet, openmp
-        type(T_THOMAS), pointer                 :: THOMAS
-        integer                                 :: MaxThreads
+        type(T_THOMAS), pointer                 :: THOMAS       => null()
+        integer                                 :: MaxThreads   = null_int !initialization: Jauch
 
-        type(T_Property), pointer               :: FirstProperty
-        type(T_Property), pointer               :: LastProperty
-        integer                                 :: PropertiesNumber
+        type(T_Property), pointer               :: FirstProperty    => null()
+        type(T_Property), pointer               :: LastProperty     => null()
+        integer                                 :: PropertiesNumber = null_int !initialization: Jauch
 
-        character(LEN = PathLength)             :: FileName
+        character(LEN = PathLength)             :: FileName         = null_str !initialization: Jauch
         
         !Instance of ModuleTime
         integer                                 :: ObjEnterData         = 0
@@ -226,13 +227,13 @@ Module ModuleFreeVerticalMovement
 #endif _ENABLE_CUDA
 
         !Collection of instances
-        type(T_FreeVerticalMovement), pointer   :: Next
+        type(T_FreeVerticalMovement), pointer   :: Next => null()
 
     end type T_FreeVerticalMovement
 
     !Global Module Variables
-    type (T_FreeVerticalMovement), pointer      :: FirstObjFreeVerticalMovement
-    type (T_FreeVerticalMovement), pointer      :: Me
+    type (T_FreeVerticalMovement), pointer      :: FirstObjFreeVerticalMovement => null()
+    type (T_FreeVerticalMovement), pointer      :: Me                           => null()
 
 
     !--------------------------------------------------------------------------
@@ -2015,6 +2016,8 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                 nullify(Me%TICOEF3     )
 #endif _USE_PAGELOCKED
 
+                !Jauch: Missing initialization of PropertyX
+                PropertyX => Me%FirstProperty
                 do while(associated(PropertyX))
 
                     deallocate(PropertyX%Velocity,     STAT = STAT_CALL)

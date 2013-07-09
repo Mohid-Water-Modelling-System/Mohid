@@ -40,6 +40,9 @@ FILES = \
         ModuleTime.$(S) \
         ModuleEnterData.$(S) \
         ModuleFunctions.$(S) \
+	ModuleBivalve.$(S) \
+	ModuleSeagrassSedimInteraction.$(S) \
+	ModuleSeagrassWaterInteraction.$(S) \
         ModuleBenthos.$(S) \
         ModuleBenthicEcology.$(S) \
         ModuleCEQUALW2.$(S) \
@@ -61,6 +64,7 @@ FILES = \
         ModuleProfile.$(S) \
         ModuleTask2000.F \
         ModuleWWTPQ.$(S)
+#	ModuleCuda.$(S) 
 
 ifeq ($(IS_PROJ4F),true)
     FILES := proj4.${S} ${FILES} 
@@ -76,42 +80,53 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
-ModuleTime.${O} : ModuleGlobalData.${O}
-ModuleStopWatch.${O} : ModuleTime.${O}
-ModuleEnterData.${O} : ModuleStopWatch.${O}
-
-ModuleFunctions.${O} : ModuleEnterData.${O}
-
-ModuleBenthos.${O} : ModuleEnterData.${O}
-ModuleCEQUALW2.${O} : ModuleFunctions.${O}
-ModuleMacroAlgae.${O} : ModuleFunctions.${O}
-ModuleTimeSerie.${O} : ModuleEnterData.${O}
-ModuleDischarges.${O} : ModuleFunctions.${O} \
-                     ModuleTimeSerie.${O} \
-                     ModuleDrawing.${O}
-ModuleDrawing.${O} : ModuleFunctions.${O}
-ModuleLUD.${O} : ModuleGlobalData.${O}
-ModuleWaterQuality.${O} : ModuleFunctions.${O} \
-                       ModuleLUD.${O}
-ModuleSedimentQuality.${O} : ModuleFunctions.${O} \
-                          ModuleLUD.${O}
-ModuleBenthicEcology.${O} : ModuleFunctions.${O}
-ModuleWWTPQ.${O} : ModuleFunctions.${O} \
-		ModuleLUD.${O}	
-ModuleLife.${O} : ModuleFunctions.${O}
-ModuleInterface.${O} : ModuleWaterQuality.${O} ModuleSedimentQuality.${O} ModuleCEQUALW2.${O} ModuleMacroAlgae.${O} ModuleLife.${O} ModuleBenthos.${O} ModuleBenthicEcology.${O} ModuleWWTPQ.${O}
-ModuleHydroIntegration.${O} : ModuleTime.${O}
-ModuleLightExtinction.${O} : ModuleFunctions.${O} \
-                          ModuleTimeSerie.${O}
-ModuleTriangulation.${O} : ModuleGlobalData.${O}
-ModuleHDF5.${O} : ModuleGlobalData.${O}
-ModuleDrainageNetwork.${O} : ModuleDischarges.${O} \
-                          ModuleLightExtinction.${O} \
-                          ModuleStopWatch.${O} \
-                          ModuleInterface.${O}
-
-ModuleProfile.${O} : ModuleEnterData.${O} \
-                  ModuleHDF5.${O}
+ModuleTime.${O} 			: ModuleGlobalData.${O}
+ModuleStopWatch.${O} 			: ModuleTime.${O}
+ModuleEnterData.${O} 			: ModuleStopWatch.${O}
+ModuleFunctions.${O} 			: ModuleEnterData.${O}
+ModuleSeagrassSedimInteraction.${O} 	: ModuleFunctions.${O} 
+ModuleSeagrassWaterInteraction.${O} 	: ModuleFunctions.${O} 
+ModuleBivalve.${O} 			: ModuleEnterData.${O}
+ModuleBenthos.${O} 			: ModuleEnterData.${O}
+ModuleCEQUALW2.${O} 			: ModuleFunctions.${O}
+ModuleMacroAlgae.${O} 			: ModuleFunctions.${O}
+ModuleTimeSerie.${O} 			: ModuleEnterData.${O}
+ModuleDischarges.${O} 			: ModuleFunctions.${O} \
+                    			  ModuleTimeSerie.${O} \
+                    			  ModuleDrawing.${O}
+ModuleDrawing.${O} 			: ModuleFunctions.${O}
+ModuleLUD.${O} 				: ModuleGlobalData.${O}
+ModuleWaterQuality.${O} 		: ModuleFunctions.${O} \
+                      			  ModuleLUD.${O}
+ModuleSedimentQuality.${O} 		: ModuleFunctions.${O} \
+                        		  ModuleLUD.${O}
+ModuleBenthicEcology.${O} 		: ModuleFunctions.${O}
+ModuleWWTPQ.${O} 			: ModuleFunctions.${O} \
+					  ModuleLUD.${O}	
+ModuleLife.${O} 			: ModuleFunctions.${O}
+ModuleInterface.${O} 			: ModuleWaterQuality.${O} \
+					  ModuleSedimentQuality.${O} \
+					  ModuleCEQUALW2.${O} \
+					  ModuleMacroAlgae.${O} \
+					  ModuleLife.${O} \
+					  ModuleBenthos.${O} \
+					  ModuleBenthicEcology.${O} \
+					  ModuleWWTPQ.${O} \
+					  ModuleSeagrassSedimInteraction.${O} \
+					  ModuleSeagrassWaterInteraction.${O} \
+					  ModuleBivalve.${O}
+ModuleHydroIntegration.${O} 		: ModuleTime.${O}
+ModuleLightExtinction.${O}		: ModuleFunctions.${O} \
+                          		  ModuleTimeSerie.${O}
+ModuleTriangulation.${O} 		: ModuleGlobalData.${O}
+ModuleHDF5.${O} 			: ModuleGlobalData.${O}
+ModuleDrainageNetwork.${O}	 	: ModuleDischarges.${O} \
+                          		  ModuleLightExtinction.${O} \
+                          		  ModuleStopWatch.${O} \
+                          		  ModuleInterface.${O}
+#ModuleCuda.${O} 			: ModuleGlobalData.${O}
+ModuleProfile.${O} 			: ModuleEnterData.${O} \
+                  			  ModuleHDF5.${O}
 
 ModuleTask2000.${O} :
 	@$(CC) $(CCFLAGS) $(INCS) $(SRCDIR)/ModuleTask2000.F

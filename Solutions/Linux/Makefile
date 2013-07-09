@@ -8,7 +8,7 @@ default:
 	@echo Type "make (Win Nix).(' '  clean install)".
 
 #make all (add other platforms "Nix Nix Nix_double Win" ...)
-PLAT := Nix Nix-debug Nix-gfortran  Nix-open64
+PLAT := Nix Nix-debug Nix-gfortran  Nix-open64 Nix-gfortran-mpi Nix-gfortran-debug
 .PHONY : $(PLAT)
 $(PLAT):
 	@$(MAKE) -f $@.mk all

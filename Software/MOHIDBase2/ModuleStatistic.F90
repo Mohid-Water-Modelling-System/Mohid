@@ -202,8 +202,8 @@ Module ModuleStatistic
     end type T_Statistic
 
 
-    type (T_Statistic), pointer                     :: FirstStatistic
-    type (T_Statistic), pointer                     :: Me
+    type (T_Statistic), pointer                     :: FirstStatistic   => null()
+    type (T_Statistic), pointer                     :: Me               => null()
 
     contains
 
@@ -247,9 +247,9 @@ Module ModuleStatistic
             call RegisterModule (mStatistic_) 
         endif
 
-
+        write(*,*) 'constructing...'
         call Ready (StatisticID, ready_)
-
+        write(*,*) 'constructed...'
         if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance

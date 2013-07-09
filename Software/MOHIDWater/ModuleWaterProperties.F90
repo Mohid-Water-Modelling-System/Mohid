@@ -17330,7 +17330,7 @@ dn:         do n=1, nCells
                                             if  ((PropertyX%ID%IDNumber == Temperature_) .and. (.not. Me%TempFirstTimeWarning)) then
                                                 
                                                 call SetError(WARNING_, INTERNAL_, &
-                                                "Positive discharge without user defined concentration - discharge temperature = 0ºC", ON)
+                                       "Positive discharge without user defined concentration - discharge temperature = 0ºC", ON)
                                                 Me%TempFirstTimeWarning = .true.              
                                                          
                                             endif

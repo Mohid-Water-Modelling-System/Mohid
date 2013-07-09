@@ -127,7 +127,7 @@ Module ModuleWaterQuality
 
     !Types---------------------------------------------------------------------
 
-    type    T_PropIndex
+    type     T_PropIndex
         integer :: Zoo                              = null_int
         integer :: Larvae                           = null_int  
         integer :: Age                              = null_int  
@@ -161,31 +161,33 @@ Module ModuleWaterQuality
         integer :: PartOrganicPhosphorus            = null_int
         integer :: InorganicPhosphorus              = null_int
         
-    end type    T_PropIndex
+    end type T_PropIndex
    
-    type    T_PropRateFlux
-        integer                              :: ID
-        real, pointer, dimension(:)          :: Field
-        type(T_PropRateFlux), pointer        :: Next,Prev
+    type     T_PropRateFlux
+        integer                              :: ID    = null_int !initialization: jauch - or should be set to 0 (zero)?
+        real, pointer, dimension(:)          :: Field => null()
+        type(T_PropRateFlux), pointer        :: Next  => null()
+        type(T_PropRateFlux), pointer        :: Prev  => null()
     end type T_PropRateFlux
 
-    type    T_EquaRateFlux
-        integer                              :: ID
-        real                                 :: scalar = null_real
-        logical                              :: TimeSerie
-        type(T_EquaRateFlux), pointer        :: next,prev
-        type(T_PropRateFlux), pointer        :: FirstPropRateFlux
-        type(T_PropRateFlux), pointer        :: LastPropRateFlux
+    type     T_EquaRateFlux
+        integer                              :: ID        = null_int !initialization: jauch - or should be set to 0 (zero)?
+        real                                 :: scalar    = null_real
+        logical                              :: TimeSerie = .false. !initialization: jauch
+        type(T_EquaRateFlux), pointer        :: next              => null()
+        type(T_EquaRateFlux), pointer        :: prev              => null()
+        type(T_PropRateFlux), pointer        :: FirstPropRateFlux => null()
+        type(T_PropRateFlux), pointer        :: LastPropRateFlux  => null()
 
     end type T_EquaRateFlux
 
-    type           T_ExtraRate
-        integer                              :: ID
-        real, pointer, dimension(:)          :: Field
+    type     T_ExtraRate
+        integer                              :: ID    = null_int !initialization: jauch - or should be set to 0 (zero)?
+        real, pointer, dimension(:)          :: Field => null()
     end type T_ExtraRate
   
 
-    type       T_PropCalc
+    type     T_PropCalc
         logical :: Zoo        = OFF
         logical :: Larvae     = OFF  
         logical :: Age        = OFF  
@@ -210,18 +212,18 @@ Module ModuleWaterQuality
     end type T_CalcMethod
 
     type       T_External
-        real, pointer, dimension(:  ) :: Salinity
-        real, pointer, dimension(:  ) :: Temperature
-        real, pointer, dimension(:  ) :: ShortWaveRadiation
-        real, pointer, dimension(:  ) :: LightExtCoefField
-        real, pointer, dimension(:  ) :: Thickness
-        real, pointer, dimension(:,:) :: Mass      
-        real, pointer, dimension(:  ) :: FishFood
+        real, pointer, dimension(:  ) :: Salinity           => null()
+        real, pointer, dimension(:  ) :: Temperature        => null()
+        real, pointer, dimension(:  ) :: ShortWaveRadiation => null()
+        real, pointer, dimension(:  ) :: LightExtCoefField  => null()
+        real, pointer, dimension(:  ) :: Thickness          => null()
+        real, pointer, dimension(:,:) :: Mass               => null()
+        real, pointer, dimension(:  ) :: FishFood           => null()
     end type T_External
 
     type      T_SilicaCycle       !aqui
-        real :: KSiBiogenicDissRate                          = null_real
-        real :: BiogenicDissTCoef                          = null_real
+        real :: KSiBiogenicDissRate                         = null_real
+        real :: BiogenicDissTCoef                           = null_real
     end type T_SilicaCycle        !aqui
     
     type      T_Diatoms   !aqui 
@@ -261,14 +263,13 @@ Module ModuleWaterQuality
         real :: DiaSiLimitationFactor                       = null_real        
         real :: DiaTempLimitationFactor                     = null_real
         
-        type(T_ExtraRate   ), pointer       :: DiaGrossProduction
-        type(T_ExtraRate   ), pointer       :: DiaTempLimitation
-        type(T_ExtraRate   ), pointer       :: DiaNutLimitation
-        type(T_ExtraRate   ), pointer       :: DiaNLimitation
-        type(T_ExtraRate   ), pointer       :: DiaSiLimitation
-
-        type(T_ExtraRate   ), pointer       :: DiaPLimitation
-        type(T_ExtraRate   ), pointer       :: DiaLightLimitation
+        type(T_ExtraRate   ), pointer       :: DiaGrossProduction => null()
+        type(T_ExtraRate   ), pointer       :: DiaTempLimitation  => null()
+        type(T_ExtraRate   ), pointer       :: DiaNutLimitation   => null()
+        type(T_ExtraRate   ), pointer       :: DiaNLimitation     => null()
+        type(T_ExtraRate   ), pointer       :: DiaSiLimitation    => null()
+        type(T_ExtraRate   ), pointer       :: DiaPLimitation     => null()
+        type(T_ExtraRate   ), pointer       :: DiaLightLimitation => null()
 
     end type T_Diatoms   !aqui 
 
@@ -282,15 +283,15 @@ Module ModuleWaterQuality
 
         type(T_External    )                :: ExternalVar
 
-        type(T_EquaRateFlux), pointer       :: FirstEquaRateFlux
-        type(T_EquaRateFlux), pointer       :: LastEquaRateFlux
+        type(T_EquaRateFlux), pointer       :: FirstEquaRateFlux => null()
+        type(T_EquaRateFlux), pointer       :: LastEquaRateFlux  => null()
 
-        type(T_ExtraRate   ), pointer       :: GrossProduction
-        type(T_ExtraRate   ), pointer       :: TempLimitation
-        type(T_ExtraRate   ), pointer       :: NutLimitation
-        type(T_ExtraRate   ), pointer       :: NLimitation
-        type(T_ExtraRate   ), pointer       :: PLimitation
-        type(T_ExtraRate   ), pointer       :: LightLimitation
+        type(T_ExtraRate   ), pointer       :: GrossProduction   => null()
+        type(T_ExtraRate   ), pointer       :: TempLimitation    => null()
+        type(T_ExtraRate   ), pointer       :: NutLimitation     => null()
+        type(T_ExtraRate   ), pointer       :: NLimitation       => null()
+        type(T_ExtraRate   ), pointer       :: PLimitation       => null()
+        type(T_ExtraRate   ), pointer       :: LightLimitation   => null()
 
         !aqui
         type(T_SilicaCycle )                :: SilicaCycle
@@ -298,8 +299,10 @@ Module ModuleWaterQuality
         !aqui
         type(T_Diatoms     )                :: Diatoms  
         
-        real, pointer, dimension(:)         :: NewProd,       RegeneratedProd
-        real, pointer, dimension(:)         :: NitrateUptake, AmmoniaUptake
+        real, pointer, dimension(:)         :: NewProd         => null()
+        real, pointer, dimension(:)         :: RegeneratedProd => null()
+        real, pointer, dimension(:)         :: NitrateUptake   => null()
+        real, pointer, dimension(:)         :: AmmoniaUptake   => null()
 
         real :: DTDay                                       = null_real
         real :: DTSecond                                    = null_real
@@ -447,7 +450,7 @@ Module ModuleWaterQuality
         real :: CiliateAssimilationPhytoRate                = null_real 
         real :: CiliateGrazBactMin                          = null_real
         real :: CiliateGrazPhytoMin                         = null_real
-        real :: CiliateGrazPreyMin                         = null_real
+        real :: CiliateGrazPreyMin                          = null_real
 
         real :: CiliateReferenceRespirationRate             = null_real
 
@@ -505,9 +508,9 @@ Module ModuleWaterQuality
         !aqui_10
         integer                                     :: WQConfiguration =0
 
-        double precision, pointer, dimension(:,:)   :: Matrix
-        real,             pointer, dimension(:  )   :: IndTerm
-        real, pointer, dimension(:  )               :: NewMass   !Used with Explicit method
+        double precision, pointer, dimension(:,:)   :: Matrix  => null()
+        real,             pointer, dimension(:  )   :: IndTerm => null()
+        real, pointer, dimension(:  )               :: NewMass => null()  !Used with Explicit method
 
         !Instance of Module_EnterData
         integer                                     :: ObjEnterData = 0
@@ -515,13 +518,13 @@ Module ModuleWaterQuality
         !Instance of ModuleLUD
         integer                                     :: ObjLUD = 0
 
-        type(T_WaterQuality ), pointer              :: Next
+        type(T_WaterQuality ), pointer              :: Next => null()
 
     end type T_WaterQuality
 
     !Global Module Variables
-    type (T_WaterQuality), pointer                  :: FirstObjWaterQuality
-    type (T_WaterQuality), pointer                  :: Me
+    type (T_WaterQuality), pointer                  :: FirstObjWaterQuality => null()
+    type (T_WaterQuality), pointer                  :: Me                   => null()
 
     !--------------------------------------------------------------------------
     

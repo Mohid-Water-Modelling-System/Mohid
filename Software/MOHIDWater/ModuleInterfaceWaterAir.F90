@@ -180,23 +180,23 @@ Module ModuleInterfaceWaterAir
     !Types---------------------------------------------------------------------
     private :: T_Files
     type       T_Files 
-         character(len=PathLength)                  :: InputData
-         character(len=PathLength)                  :: Results
-         character(len=PathLength)                  :: BoxesFile
+         character(len=PathLength)                  :: InputData    = null_str !initialization: Jauch
+         character(len=PathLength)                  :: Results      = null_str !initialization: Jauch
+         character(len=PathLength)                  :: BoxesFile    = null_str !initialization: Jauch
     end type T_Files
 
     private :: T_OutPut
     type       T_OutPut
-         type (T_Time), pointer, dimension(:)       :: OutTime
-         integer                                    :: NextOutPut
-         logical                                    :: Yes                  =.false.
-         integer                                    :: Number
+         type (T_Time), pointer, dimension(:)       :: OutTime      => null()
+         integer                                    :: NextOutPut   = null_int !initialization: Jauch
+         logical                                    :: Yes          =.false.
+         integer                                    :: Number       = null_int !initialization: Jauch
     end type T_OutPut
     
     private :: T_Ext_Global
     type       T_Ext_Global
         type(T_Time)                                :: Now
-        real,    pointer, dimension(:,:)            :: GridCellArea
+        real,    pointer, dimension(:,:)            :: GridCellArea => null()
         logical                                     :: Backtracking         = .false.                        
     end type T_Ext_Global
 
@@ -246,20 +246,20 @@ Module ModuleInterfaceWaterAir
     
     private :: T_Ext_Water
     type       T_Ext_Water
-        real,    pointer, dimension(:,:,:)          :: WaterTemperature
-        real,    pointer, dimension(:,:,:)          :: WaterSalinity        
-        real,    pointer, dimension(:,:,:)          :: WaterVelocity
-        real,    pointer, dimension(:,:,:)          :: WaterDepth
-        real,    pointer, dimension(:,:,:)          :: Density
-        integer, pointer, dimension(:,:  )          :: WaterPoints2D
-        integer, pointer, dimension(:,:,:)          :: WaterPoints3D
-        real,    pointer, dimension(:,:  )          :: Bathymetry
+        real,    pointer, dimension(:,:,:)          :: WaterTemperature => null()
+        real,    pointer, dimension(:,:,:)          :: WaterSalinity    => null()    
+        real,    pointer, dimension(:,:,:)          :: WaterVelocity    => null()
+        real,    pointer, dimension(:,:,:)          :: WaterDepth       => null()
+        real,    pointer, dimension(:,:,:)          :: Density          => null()
+        integer, pointer, dimension(:,:  )          :: WaterPoints2D    => null()
+        integer, pointer, dimension(:,:,:)          :: WaterPoints3D    => null()
+        real,    pointer, dimension(:,:  )          :: Bathymetry       => null()
     end type T_Ext_Water
 
     private :: T_ExtField
     type       T_ExtField
-        real,    pointer, dimension(:,:  )          :: Field
-        logical                                     :: Yes                  = .false.      
+        real,    pointer, dimension(:,:  )          :: Field    => null()
+        logical                                     :: Yes      = .false.      
     end type  T_ExtField
 
 
@@ -289,7 +289,7 @@ Module ModuleInterfaceWaterAir
     private :: T_Evolution
         type   T_Evolution
         logical                                     :: Variable             = .false.
-        real                                        :: DTInterval
+        real                                        :: DTInterval           = null_Real !initialization: Jauch
         type(T_Time)                                :: LastCompute
         type(T_Time)                                :: NextCompute
     end type T_Evolution
@@ -297,15 +297,15 @@ Module ModuleInterfaceWaterAir
     private :: T_Property
     type       T_Property
          type(T_PropertyID)                         :: ID
-         real, dimension(:,:), pointer              :: Field, FieldGrid
+         real, dimension(:,:), pointer              :: Field, FieldGrid     => null()
          type(T_Evolution)                          :: Evolution
          logical                                    :: TimeSerie            = .false.
          logical                                    :: BoxTimeSerie         = .false.
          logical                                    :: CEQUALW2             = .false.
          logical                                    :: OutputHDF            = .false.
          logical                                    :: Constant             = .false.
-         type(T_Property), pointer                  :: Next
-         type(T_Property), pointer                  :: Prev
+         type(T_Property), pointer                  :: Next                 => null()
+         type(T_Property), pointer                  :: Prev                 => null()
     end type T_Property
 
     private :: T_Coupling
@@ -325,15 +325,18 @@ Module ModuleInterfaceWaterAir
 
     type       T_Rugosity
         type(T_PropertyID)                          :: ID
-        real, pointer, dimension (:,:)              :: Field 
-        real                                        :: Scalar, WavesRelation
-        logical                                     :: Constant, ON, WavesFunction
+        real, pointer, dimension (:,:)              :: Field            => null()
+        real                                        :: Scalar           = null_real, & !initialization: Jauch
+                                                       WavesRelation    = null_real    !initialization: Jauch
+        logical                                     :: Constant         = .false., & !initialization: Jauch
+                                                       ON               = .false., & !initialization: Jauch
+                                                       WavesFunction    = .false.    !initialization: Jauch
     end type T_Rugosity
     
     private :: T_InterfaceWaterAir
     type       T_InterfaceWaterAir
-        integer                                     :: InstanceID
-        character(PathLength)                       :: ModelName
+        integer                                     :: InstanceID   = null_int !initialization: Jauch
+        character(PathLength)                       :: ModelName    = null_str !initialization: Jauch
         type(T_Time       )                         :: BeginTime
         type(T_Time       )                         :: EndTime
         type(T_Time       )                         :: ActualTime
@@ -356,8 +359,8 @@ Module ModuleInterfaceWaterAir
         real                                        :: CDWIND                   = FillValueReal
         logical                                     :: DefineCDWIND             = .false.
         integer                                     :: CDWINDMethod             = FillValueInt
-        real(8), pointer, dimension(:,:)            :: Scalar2D
-        real   , pointer, dimension(:,:)            :: WindShearVelocity
+        real(8), pointer, dimension(:,:)            :: Scalar2D                 => null()
+        real   , pointer, dimension(:,:)            :: WindShearVelocity        => null()
         integer                                     :: AerationEquation         = FillValueInt
         integer                                     :: CO2AerationEquation      = FillValueInt
         real                                        :: Altitude                 = FillValueReal
@@ -414,12 +417,12 @@ Module ModuleInterfaceWaterAir
         integer                                     :: ObjLagrangian            = 0
         
         
-        type(T_InterfaceWaterAir), pointer          :: Next
+        type(T_InterfaceWaterAir), pointer          :: Next => null()
     end type  T_InterfaceWaterAir
 
     !Global Module Variables
-    type (T_InterfaceWaterAir), pointer             :: FirstObjInterfaceWaterAir
-    type (T_InterfaceWaterAir), pointer             :: Me
+    type (T_InterfaceWaterAir), pointer             :: FirstObjInterfaceWaterAir    => null()
+    type (T_InterfaceWaterAir), pointer             :: Me                           => null()
 
     !--------------------------------------------------------------------------
     

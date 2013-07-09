@@ -1723,8 +1723,8 @@ Module ModuleGlobalData
     end type T_Instance
 
     type T_Module
-        integer                 :: ID
-        character(StringLength) :: Name
+        integer                 :: ID   = null_int !initialization: jauch - or should be set to 0 (zero)? 
+        character(StringLength) :: Name = null_str !initialization: jauch
     end type T_Module
 
     type (T_Module), dimension(MaxModules), parameter  :: MohidModules =  (/             &
@@ -1768,25 +1768,29 @@ Module ModuleGlobalData
         T_Module(mCUDA_                  , "Cuda"),                                                                                &
         T_Module(mRUNOFFPROPERTIES_      , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions"),        &
         T_Module(mField4D_               , "Field4D"),               T_Module(mBENTHICECOLOGY_         , "BenthicEcology"),        &! isab
-        T_Module(mWWTPQ_                 , "WWTPQ") ,                T_Module(mSEAGRASSWATERINTERAC_   , "SeagrassWaterInteraction"),&
+        T_Module(mWWTPQ_                 , "WWTPQ") ,                                                                              &
+        T_Module(mSEAGRASSWATERINTERAC_  , "SeagrassWaterInteraction"),                                                            &
         T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
         T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics"),     &
         T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     /)
         
 
     !Variables
-    logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
-    character(LEN=PathLength)                                       :: FilesName = 'nomfich.dat'
-    logical                                                         :: MonitorPerformance
-    logical                                                         :: MonitorDT
-    integer                                                         :: UnitDT
-    character(LEN=StringLength), dimension(:), pointer              :: PropNameList,     DynamicPropNameList
-    integer,                     dimension(:), pointer              :: PropNumberList,   DynamicPropNumberList
-    integer                                                         :: PropertiesNumber, DynamicPropertiesNumber
+    logical, dimension(MaxModules)                                  :: RegisteredModules  = .false.
+    character(LEN=PathLength)                                       :: FilesName          = 'nomfich.dat'
+    logical                                                         :: MonitorPerformance = .false.  !initialization: jauch
+    logical                                                         :: MonitorDT          = .false.  !initialization: jauch
+    integer                                                         :: UnitDT             = null_int !initialization: jauch - or should be set to 0 (zero)?
+    character(LEN=StringLength), dimension(:), pointer              :: PropNameList          => null()
+    character(LEN=StringLength), dimension(:), pointer              :: DynamicPropNameList   => null()
+    integer,                     dimension(:), pointer              :: PropNumberList        => null()
+    integer,                     dimension(:), pointer              :: DynamicPropNumberList => null()
+    integer                                                         :: PropertiesNumber        = 0 !initialization: jauch
+    integer                                                         :: DynamicPropertiesNumber = 0 !initialization: jauch
     integer, private                                                :: ErrorFileID     = 0
     integer, private                                                :: UsedKeyFileID   = 0
     integer, private                                                :: LogFileID       = 0
-    character(LEN=1024)                                             :: OnLineString
+    character(LEN=1024)                                             :: OnLineString    = null_str !initialization: jauch
     character(StringLength),     dimension(MaxErrorMessages)        :: ErrorMessagesStack
       
     type (T_Instance), dimension (MaxModules, MaxInstances), save   :: ObjCollector
@@ -1902,10 +1906,8 @@ Module ModuleGlobalData
         if (iInstance == 0) then
             write(*,*)'iInstance cannot be zero'
             stop 'AssociateInstance - ModuleGlobalData - ERR01'
-        endif
-        
-
-    
+        endif                    
+       
         !Increase number by one
         ObjCollector(iModule, iInstance)%Users = ObjCollector(iModule, iInstance)%Users + 1
 

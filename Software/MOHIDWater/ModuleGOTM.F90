@@ -733,7 +733,7 @@
    integer      :: i 
    double precision     :: LLk
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -780,7 +780,7 @@
    cmue2(0)=cmue2(1)
    cmue2(nlev)=cmue2(nlev-1)
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
  
    end subroutine stabilityfunctions 
 !EOC
@@ -820,7 +820,7 @@
    integer      :: i
    double precision     :: numtke(0:nlev)
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -841,7 +841,7 @@
       case default
    end select
    
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
       
    end subroutine do_tke 
 !EOC
@@ -883,7 +883,7 @@
    integer      :: i
    double precision     :: numtke(0:nlev)
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -902,7 +902,7 @@
          call algebraiclength(ObjGOTM,len_scale_method,nlev,z0b,z0s,depth,h,NN)
    end select
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
  
    end subroutine lengthscale
 !EOC
@@ -1026,7 +1026,7 @@
    double precision         :: kk
    integer      :: i
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 
 ! 
 !EOP
@@ -1131,7 +1131,7 @@
       if (L(i).lt.L_min) L(i)=L_min
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine dissipationeq
 !EOC
@@ -1208,7 +1208,7 @@
    integer, parameter   :: Blackadar=5
    integer, parameter   :: ispra_length=7
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1295,7 +1295,7 @@
       if (eps(i).lt.eps_min) eps(i)=eps_min
    end do  
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine algebraiclength 
 !EOC
@@ -1363,7 +1363,7 @@
   double precision      :: hms,hmb,db,ds
   double precision      :: kml,c2_i,c3_i
 
-  include 'GOTMVariables_in.f90'
+  include 'GOTMVariables_in.F90'
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1456,7 +1456,7 @@
       L(i)=L_min
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine Ispralength
 !EOC
@@ -1518,7 +1518,7 @@
    double precision         :: rich2,pot,x      
    integer      :: i
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 
 !
 !EOP
@@ -1551,7 +1551,7 @@
       case default
    end select
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine internal_wave 
 !EOC
@@ -1591,7 +1591,7 @@
    double precision     :: x
    integer      :: i
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -1607,7 +1607,7 @@
    nuh(0)=kappa*u_taub*z0b
    nuh(nlev)=kappa*u_taus*z0s 
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
  
    end subroutine kolpran 
 !EOC
@@ -1665,7 +1665,7 @@
    double precision             :: ds,db,prod,buoyan,diss,Lcrit 
    integer      :: i 
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 
 ! 
 !EOP
@@ -1734,7 +1734,7 @@
      if (eps(i).lt.eps_min) eps(i)=eps_min
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine lengthscaleeq
 !EOC
@@ -1799,7 +1799,7 @@
    double precision     :: Lcrit,buoydiff,integral,ceps
    integer      :: i,j
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 !EOP
 !-------------------------------------------------------------------------
 !BOC
@@ -1900,7 +1900,7 @@
       if(eps(i).lt.eps_min) eps(i)=eps_min
    end do  
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine potentialml
 !EOC
@@ -1942,7 +1942,7 @@
 ! !LOCAL VARIABLES:
    integer      :: i
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 ! 
 !EOP
 !-----------------------------------------------------------------------
@@ -1957,7 +1957,7 @@
       if (tke(i).lt.k_min) tke(i)=k_min 
    end do 
  
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
   
    end subroutine tkealgebraic
 !EOC
@@ -2045,7 +2045,7 @@
    logical, save    :: warning=.true. 
    integer      :: i
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 
 !EOP
 !-----------------------------------------------------------------------
@@ -2141,7 +2141,7 @@
 
    where (tke .lt. k_min) tke = k_min
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
    
    end subroutine tkeeq
 !EOC
@@ -2196,7 +2196,7 @@
    double precision     :: tsmax
    double precision     :: tn,ts,sm,sh
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 ! 
 !EOP
 !-----------------------------------------------------------------------
@@ -2232,7 +2232,7 @@
       cmue2(i) = a2_cm03 * sh
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine cmue_ca
 !EOC
@@ -2285,7 +2285,7 @@
    double precision     :: tn,ts,sm,sh
    double precision     :: PP,QQ
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 ! 
 !EOP
 !-----------------------------------------------------------------------
@@ -2324,7 +2324,7 @@
       cmue2(i) = a2_cm03 * sh
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine cmue_caqe
 !EOC
@@ -2376,7 +2376,7 @@
    double precision     :: tsmax
    double precision     :: tn,ts,sm,sh
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 ! 
 !EOP
 !-----------------------------------------------------------------------
@@ -2412,7 +2412,7 @@
       cmue2(i) = a2_cm03 * sh
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine cmue_cb
 !EOC
@@ -2465,7 +2465,7 @@
    double precision     :: tn,ts,sm,sh
    double precision     :: PP,QQ
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 
 !EOP
 !-----------------------------------------------------------------------
@@ -2504,7 +2504,7 @@
       cmue2(i) = a2_cm03 * sh
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine cmue_cbqe
 !EOC
@@ -2542,7 +2542,7 @@
    double precision     :: gm,gh,sm,sh
    double precision     :: c11,c12,c13,c21,c22,c23
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 ! 
 !EOP
 !-----------------------------------------------------------------------
@@ -2566,7 +2566,7 @@
       cmue2(i)=sqrt(2.)*sh     !Retransformation to GOTM notation
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine cmue_kc
 !EOC
@@ -2605,7 +2605,7 @@
    integer      :: i
    double precision         :: gh,sm,sh
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -2625,7 +2625,7 @@
       cmue2(i)=sqrt(2.)*sh    ! Retransformation to GOTM notation
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine cmue_kcqe
 !EOC
@@ -2673,7 +2673,7 @@
    integer      :: i
    double precision     :: Ri,Prandtl
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 ! 
 !EOP
 !-----------------------------------------------------------------------
@@ -2689,7 +2689,7 @@
       cmue2(i)=cm0/Prandtl
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine
 !EOC
@@ -2743,7 +2743,7 @@
    integer      :: i
    double precision     :: Ri,Prandtl_inv
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 ! 
 !EOP
 !-----------------------------------------------------------------------
@@ -2763,7 +2763,7 @@
 
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine cmue_rf
 !EOC
@@ -2815,7 +2815,7 @@
    integer      :: i
    double precision     :: Ri,Prandtl
 
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -2832,7 +2832,7 @@
 
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine cmue_sg
 !EOC
@@ -2871,7 +2871,7 @@
 ! !LOCAL VARIABLES:
    integer      :: i
    
-   include 'GOTMVariables_in.f90'
+   include 'GOTMVariables_in.F90'
 
 !
 !EOP
@@ -2892,7 +2892,7 @@
       value(i)=qu(i)-ru(i)*value(i-1)
    end do
 
-   !include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.F90'
 
    end subroutine tridiagonal
 

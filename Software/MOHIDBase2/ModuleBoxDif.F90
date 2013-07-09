@@ -165,96 +165,99 @@ Module ModuleBoxDif
     
     private :: T_ID
     type       T_ID
-        integer                                             :: Number               = 0
-        character(LEN = StringLength)                       :: Name
+        integer                                             :: Number = 0
+        character(LEN = StringLength)                       :: Name   = null_str !initialization: jauch
     end type   T_ID                                                 
     
 
     private :: T_Box
     type       T_Box
-        integer                                             :: MainID
-        type(T_ID),      dimension(:  ), pointer            :: ID
-        integer                                             :: NumberOfLayers
-        integer,         dimension(:,:), pointer            :: Layers
-        type(T_Polygon),                 pointer            :: Polygon
-        type(T_Box),                     pointer            :: Next
-        logical                                             :: InsideDomain
+        integer                                             :: MainID = null_int !initialization: jauch - or should be 0 (zero)?
+        type(T_ID),      dimension(:  ), pointer            :: ID     => null() 
+        integer                                             :: NumberOfLayers = 0 !initialization: jauch
+        integer,         dimension(:,:), pointer            :: Layers  => null()
+        type(T_Polygon),                 pointer            :: Polygon => null()
+        type(T_Box),                     pointer            :: Next    => null()
+        logical                                             :: InsideDomain = .false. !initialization: jauch
     end type   T_Box                                        
                                                             
                                                             
     private :: T_External                                   
     type       T_External                                   
         type(T_Time)                                        :: Now
-        real,    dimension(:,:  ), pointer                  :: ZCoordX, ZCoordY
-        real,    dimension(:,:  ), pointer                  :: CornersX, CornersY
-        real(8), dimension(:,:  ), pointer                  :: FluxX2D
-        real(8), dimension(:,:  ), pointer                  :: FluxY2D
-        real(8), dimension(:,:,:), pointer                  :: FluxX3D
-        real(8), dimension(:,:,:), pointer                  :: FluxY3D
-        real(8), dimension(:,:,:), pointer                  :: FluxZ3D
-        real(8), dimension(:,:  ), pointer                  :: Scalar2D_R8
-        real(4), dimension(:,:  ), pointer                  :: Scalar2D_R4
-        real(8), dimension(:,:,:), pointer                  :: Scalar3D_R8
-        real(4), dimension(:,:,:), pointer                  :: Scalar3D_R4
-        integer, dimension(:,:  ), pointer                  :: WaterPoints2D
-        integer, dimension(:,:,:), pointer                  :: WaterPoints3D
-        character(LEN = StringLength)                       :: CurrentTimeSerieName
+        real,    dimension(:,:  ), pointer                  :: ZCoordX              => null()
+        real,    dimension(:,:  ), pointer                  :: ZCoordY              => null()
+        real,    dimension(:,:  ), pointer                  :: CornersX             => null()
+        real,    dimension(:,:  ), pointer                  :: CornersY             => null()
+        real(8), dimension(:,:  ), pointer                  :: FluxX2D              => null()
+        real(8), dimension(:,:  ), pointer                  :: FluxY2D              => null()
+        real(8), dimension(:,:,:), pointer                  :: FluxX3D              => null()
+        real(8), dimension(:,:,:), pointer                  :: FluxY3D              => null()
+        real(8), dimension(:,:,:), pointer                  :: FluxZ3D              => null()
+        real(8), dimension(:,:  ), pointer                  :: Scalar2D_R8          => null()
+        real(4), dimension(:,:  ), pointer                  :: Scalar2D_R4          => null()
+        real(8), dimension(:,:,:), pointer                  :: Scalar3D_R8          => null()
+        real(4), dimension(:,:,:), pointer                  :: Scalar3D_R4          => null()
+        integer, dimension(:,:  ), pointer                  :: WaterPoints2D        => null()
+        integer, dimension(:,:,:), pointer                  :: WaterPoints3D        => null()
+        character(LEN = StringLength)                       :: CurrentTimeSerieName = null_str !initialization: jauch
     end type T_External
 
 
     private :: T_BoxTimeSerie
     type       T_BoxTimeSerie
         type(T_ID)                                          :: ID
-        integer                                             :: ObjTimeSerie         = 0
-        type(T_BoxTimeSerie), pointer                       :: Next
+        integer                                             :: ObjTimeSerie = 0
+        type(T_BoxTimeSerie), pointer                       :: Next         => null()
     end type   T_BoxTimeSerie
 
     private :: T_BoxDif
     type       T_BoxDif
-        integer                                             :: InstanceID
-        character(LEN = PathLength)                         :: BoxesFilePath
-        type(T_Box),                  pointer               :: FirstBox
+        integer                                             :: InstanceID = null_int !initialization: jauch - or should be 0 (zero)?
+        character(LEN = PathLength)                         :: BoxesFilePath = null_str !initialization: jauch
+        type(T_Box),                  pointer               :: FirstBox => null()
         integer                                             :: NumberOfBoxes2D      = 0
         integer                                             :: NumberOfBoxes3D      = 0
-        real                                                :: DT
-        integer, dimension(:, :   ),  pointer               :: Boxes2D
-        integer, dimension(:, :, :),  pointer               :: Boxes3D
-        real,    dimension(:, :   ),  pointer               :: Fluxes2D
-        real,    dimension(:, :   ),  pointer               :: Fluxes3D
-        real,    dimension(:      ),  pointer               :: FluxesTimeSerieLine
-        real,    dimension(:      ),  pointer               :: ScalarTimeSerieLine
-        integer, dimension(:,:    ),  pointer               :: AdjacentBoxesBoundaries2D
-        integer, dimension(:,:    ),  pointer               :: AdjacentBoxesBoundaries3D
+        real                                                :: DT = null_real !initialization: jauch
+        integer, dimension(:, :   ),  pointer               :: Boxes2D => null()
+        integer, dimension(:, :, :),  pointer               :: Boxes3D => null()
+        real,    dimension(:, :   ),  pointer               :: Fluxes2D => null()
+        real,    dimension(:, :   ),  pointer               :: Fluxes3D => null()
+        real,    dimension(:      ),  pointer               :: FluxesTimeSerieLine => null()
+        real,    dimension(:      ),  pointer               :: ScalarTimeSerieLine => null()
+        integer, dimension(:,:    ),  pointer               :: AdjacentBoxesBoundaries2D => null()
+        integer, dimension(:,:    ),  pointer               :: AdjacentBoxesBoundaries3D => null()
         integer                                             :: nAdjacentBoxesBoundaries2D = 0
         integer                                             :: nAdjacentBoxesBoundaries3D = 0
-        logical, dimension(:, :, :),  pointer               :: BoundaryFace3DX
-        logical, dimension(:, :, :),  pointer               :: BoundaryFace3DY
-        logical, dimension(:, :, :),  pointer               :: BoundaryFace3DZ
-        logical, dimension(:, :   ),  pointer               :: BoundaryFace2DX
-        logical, dimension(:, :   ),  pointer               :: BoundaryFace2DY
+        logical, dimension(:, :, :),  pointer               :: BoundaryFace3DX => null()
+        logical, dimension(:, :, :),  pointer               :: BoundaryFace3DY => null()
+        logical, dimension(:, :, :),  pointer               :: BoundaryFace3DZ => null()
+        logical, dimension(:, :   ),  pointer               :: BoundaryFace2DX => null()
+        logical, dimension(:, :   ),  pointer               :: BoundaryFace2DY => null()
         type(T_External)                                    :: ExternalVar
         type(T_Size2D)                                      :: Size2D
         type(T_Size2D)                                      :: WorkSize2D
         type(T_Size3D)                                      :: Size3D
         type(T_Size3D)                                      :: WorkSize3D
-        character(len=StringLength), dimension(:), pointer  :: FluxesTimeSerieHeader
-        character(len=StringLength), dimension(:), pointer  :: ScalarTimeSerieHeader
-        type(T_BoxTimeSerie), pointer                       :: FirstFluxesTimeSerie
-        type(T_BoxTimeSerie), pointer                       :: FirstScalarTimeSerie
-        integer                                             :: CoordinateType, GridType
-        logical                                             :: WriteBoxes
-        character(LEN = PathLength)                         :: BoxesOutputFile
+        character(len=StringLength), dimension(:), pointer  :: FluxesTimeSerieHeader => null()
+        character(len=StringLength), dimension(:), pointer  :: ScalarTimeSerieHeader => null()
+        type(T_BoxTimeSerie), pointer                       :: FirstFluxesTimeSerie => null()
+        type(T_BoxTimeSerie), pointer                       :: FirstScalarTimeSerie => null()
+        integer                                             :: CoordinateType = null_int !initialization: jauch - or should be other value?
+        integer                                             :: GridType       = null_int !initialization: jauch - or should be other value?
+        logical                                             :: WriteBoxes = .false. !initialization: jauch
+        character(LEN = PathLength)                         :: BoxesOutputFile = null_str !initialization: jauch
         integer                                             :: NextBoxMainID        = 1
         integer                                             :: NextBoxID            = 1
         integer                                             :: ObjTime              = 0
         integer                                             :: ObjHorizontalGrid    = 0
         integer                                             :: ObjEnterData         = 0
-        type(T_BoxDif), pointer                             :: Next
+        type(T_BoxDif), pointer                             :: Next => null()
     end type  T_BoxDif
 
     !Global Module Variables
-    type (T_BoxDif), pointer                                :: FirstObjBoxDif
-    type (T_BoxDif), pointer                                :: Me
+    type (T_BoxDif), pointer                                :: FirstObjBoxDif => null()
+    type (T_BoxDif), pointer                                :: Me             => null()
 
     !--------------------------------------------------------------------------
     

@@ -162,16 +162,18 @@ Module ModuleAtmosphere
 
     type       T_OutPut
          type (T_Time), pointer, dimension(:)       :: OutTime              => null()
-         logical                                    :: True
-         integer                                    :: NextHDF5
-         integer                                    :: Number
+         logical                                    :: True     = .false.  !initialization: Jauch
+         integer                                    :: NextHDF5 = null_int !initialization: Jauch
+         integer                                    :: Number   = null_int !initialization: Jauch
     end type T_OutPut
 
 
     type       T_Statistics
-         integer                                    :: ID, IDx, IDy
-         character(LEN = Pathlength)                :: File
-         logical                                    :: ON
+         integer                                    :: ID   = null_int, & !initialization: Jauch
+                                                       IDx  = null_int, & !initialization: Jauch
+                                                       IDy  = null_int !initialization: Jauch
+         character(LEN = Pathlength)                :: File = null_str !initialization: Jauch
+         logical                                    :: ON   = .false.  !initialization: Jauch
     end type T_Statistics
 
 
@@ -179,7 +181,7 @@ Module ModuleAtmosphere
         type (T_PropertyID)                         :: ID
         real, dimension(:,:), pointer               :: Field                => null()
         real, dimension(:,:), pointer               :: FieldGrid            => null()
-        real                                        :: RandomValue
+        real                                        :: RandomValue          = null_real !initialization: Jauch
         logical                                     :: HasRandomComponent   = .false.
         logical                                     :: PropAddedByIrri      = .false.
         logical                                     :: PropAddedByRain      = .false.
@@ -197,13 +199,13 @@ Module ModuleAtmosphere
     end type T_Property
 
     type       T_Files
-         character(len=Pathlength)                  :: ConstructData
-         character(len=Pathlength)                  :: Results
+         character(len=Pathlength)                  :: ConstructData    = null_str !initialization: Jauch
+         character(len=Pathlength)                  :: Results          = null_str !initialization: Jauch
     end type T_Files
 
     type      T_Atmosphere
-        integer                                     :: InstanceID
-        character(PathLength)                       :: ModelName
+        integer                                     :: InstanceID   = null_int !initialization: Jauch
+        character(PathLength)                       :: ModelName    = null_str !initialization: Jauch
         type(T_Size2D)                              :: Size
         type(T_Size2D)                              :: WorkSize
         type(T_External)                            :: ExternalVar
@@ -229,7 +231,7 @@ Module ModuleAtmosphere
 
         
         integer                                     :: RadiationMethod          = 1
-        integer                                     :: CloudCoverMethod
+        integer                                     :: CloudCoverMethod         = null_int !initialization: Jauch
         real,    pointer, dimension(:,:  )          :: LastRadiation             => null()
         integer                                     :: LastCalculateRandomCloud = null_int
         integer                                     :: PropertiesNumber         = FillValueInt
@@ -238,7 +240,7 @@ Module ModuleAtmosphere
         logical                                     :: PropsAddedByRain         = .false.
         logical                                     :: PropsAddedByIrri         = .false.
         
-        logical                                     :: CheckPropertyValues
+        logical                                     :: CheckPropertyValues      = .false. !initialization: Jauch
         
         !Instance of Module HDF5
         integer                                     :: ObjHDF5 = 0

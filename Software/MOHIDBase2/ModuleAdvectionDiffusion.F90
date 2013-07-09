@@ -35,7 +35,7 @@ Module ModuleAdvectionDiffusion
                                      SetMatrixValue, Chunk_J, Chunk_K, Chunk_I, T_THOMAS, T_VECGW, T_D_E_F, Pad
     use ModuleTime          , only : GetComputeCurrentTime, T_Time, KillComputeTime, &
                                      null_time, operator(+), operator(-),            &
-                                     operator (==), operator (/=)
+                                     operator (.eq.), operator (.ne.)
     use ModuleStopWatch     , only : StartWatch, StopWatch     
     use ModuleHorizontalGrid, only : KillHorizontalGrid, GetHorizontalGrid, UnGetHorizontalGrid
     use ModuleHorizontalMap , only : KillHorizontalMap, GetBoundaries, UnGetHorizontalMap
