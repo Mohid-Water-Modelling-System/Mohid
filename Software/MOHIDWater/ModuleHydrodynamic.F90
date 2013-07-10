@@ -33123,20 +33123,25 @@ do6:            do k = kbottom, KUB
         logical                             :: TimeCycle
 
         !Begin---------------------------------------------------------------------
+        
+        if (Me%ThinWalls%VariableInTime) then
 
-        !Gets Value for current Time
-        call GetTimeSerieValue (Me%ThinWalls%ObjTimeSerie, Me%CurrentTime,          &
-                                Me%ThinWalls%CloseFlagColumn,                       &
-                                Time1, Value1, Time2, Value2, TimeCycle,            &
-                                STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR110'       
+            !Gets Value for current Time
+            call GetTimeSerieValue (Me%ThinWalls%ObjTimeSerie, Me%CurrentTime,          &
+                                    Me%ThinWalls%CloseFlagColumn,                       &
+                                    Time1, Value1, Time2, Value2, TimeCycle,            &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructThinWalls - ModuleHydrodynamic - ERR110'       
 
-        if (Value1 == 1. .and. Value2 == 1) then                
-            Me%ThinWalls%CloseFlag = 1
+            if (Value1 == 1. .and. Value2 == 1) then                
+                Me%ThinWalls%CloseFlag = 1
+            else
+                Me%ThinWalls%CloseFlag = 0
+            endif
+
         else
-            Me%ThinWalls%CloseFlag = 0
+            Me%ThinWalls%CloseFlag = 1
         endif
-
         
         ! If the thinwalls are in close Mode
         if (Me%ThinWalls%CloseFlag == 1) then
