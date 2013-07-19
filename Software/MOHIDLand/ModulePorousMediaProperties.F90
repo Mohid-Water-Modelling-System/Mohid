@@ -3691,7 +3691,7 @@ i1:         if (CoordON) then
         endif
 
 
-        inquire (FILE=trim(Me%Files%InitialFile)//"5", EXIST = Exist)
+        inquire (FILE=trim(Me%Files%InitialFile), EXIST = Exist)
 
 cd0:    if (Exist) then
 
@@ -3703,7 +3703,7 @@ cd0:    if (Exist) then
 
             !Opens HDF5 File
             call ConstructHDF5 (ObjHDF5,                                                 &
-                                trim(Me%Files%InitialFile)//"5",&
+                                trim(Me%Files%InitialFile),                              &
                                 HDF5_READ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadOldConcBoundariesHDF - ModulePorousMediaProperties - ERR01'
@@ -10083,7 +10083,7 @@ First:          if (LastTime.LT.Actual) then
         ObjHDF5 = 0
         !Opens HDF5 File
         call ConstructHDF5 (ObjHDF5,                                                     &
-                            trim(filename)//"5",    &
+                            trim(filename),                                              &
                             HDF5_CREATE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'WriteFinalFile - ModulePorousMediaProperties - ERR10'
