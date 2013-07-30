@@ -2963,6 +2963,7 @@ BF:         if (BlockFound) then
         integer                                         :: iFinal, i, j, k, l, iT, STAT_CALL, kin
         integer                                         :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         logical                                         :: SigmaIn
+        real                                            :: SumDepth
         !Begin-----------------------------------------------------------------
 
         allocate(Me%Depth%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
@@ -3037,18 +3038,27 @@ d3:                 do k= Me%WorkSize%KUB, Me%WorkSize%KLB,-1
             
             if (Me%Depth%Interpolate) allocate(DepthAux(1:Me%Depth%kmax+1))                                          
             
-            do k= Me%WorkSize%KUB, Me%WorkSize%KLB, -1
             do j= Me%WorkSize%JLB, Me%WorkSize%JUB
             do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+            do k= Me%WorkSize%KUB, Me%WorkSize%KLB, -1
             
                 if (Me%Mapping%Value3DOut(i,j,k) == 1) then
                 
-                    if (k==Me%WorkSize%KUB) Me%Depth%Value3DOut(i, j, k) = 0.
+                    if (k==Me%WorkSize%KUB) then
+                        Me%Depth%Value3DOut(i, j, k) = 0.
+                        SumDepth                     = 0.
+                    endif                        
 
                     if (.not. Me%Depth%Interpolate) then
                                             
                         DepthC = GetCellInDepth(i, j, k,Me%WorkSize%KUB,iT)
-                        Aux    = 2*DepthC - Me%Depth%Value3DOut(i, j, k)
+                        
+                        if (DepthC <0 .and. k==Me%WorkSize%KUB) then
+                            SumDepth = - DepthC + 1
+                        endif 
+                        DepthC = DepthC + SumDepth
+                        
+                        Aux    = 2. * DepthC - Me%Depth%Value3DOut(i, j, k)
                         if (Aux >= DepthC) then
                             Me%Depth%Value3DOut(i, j, k-1) = Aux 
                         else
