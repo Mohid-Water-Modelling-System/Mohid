@@ -110,6 +110,7 @@ Module ModuleTimeSeriesOperator
 	    real                                                    :: MinNightValuesRacio
 	    
 	    character(len=PathLength)                               :: OptionsFile = "TimeSeriesOperator.dat", OutPutFile
+	    character(len=PathLength)                               :: EmptyFile
 	    
         type(T_TimeSeriesOperator), pointer                     :: Next
 
@@ -335,7 +336,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)        
         if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - ReadKeywords - ERR110'
         
-
+        call GetData(Me%EmptyFile,                                                      &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='EMPTY_FILE',                                        &
+                     default      = 'EmptyFile.dat',                                    &
+                     ClientModule ='ModuleTimeSeriesOperator',                          &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - ReadKeywords - ERR120'
+        
     end subroutine ReadKeywords
     
     !-------------------------------------------------------------------------
@@ -384,7 +394,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         logical                                     :: GroupExist 
         integer                                     :: i, ClientNumber, line, iflag
         integer                                     :: FirstLine, LastLine, STAT_CALL
-        logical                                     :: BlockFound
+        logical                                     :: BlockFound, exist, exist1
         character(len=PathLength)                   :: InputFile
       
         !Begin-----------------------------------------------------------------
@@ -417,13 +427,14 @@ BF:         if (BlockFound) then
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructInputInFlux - ModuleTimeSeriesOperator - ERR10'
                     if (iflag == 0) stop 'ConstructInputInFlux - ModuleTimeSeriesOperator - ERR20'
                     
-                    
-                    
-                    call StartTimeSerieInput(TimeSerieID       = Me%ObjTimeSerieInFlux(i), &
-                                             TimeSerieDataFile = InputFile,                &
-                                             ObjTime           = Me%ObjTime,               &
-                                             CheckDates        = .false.,                  &
-                                             STAT              = STAT_CALL)
+                    inquire(file = InputFile,    exist = exist )
+                    if (exist) then
+                        call StartTimeSerieInput(TimeSerieID       = Me%ObjTimeSerieInFlux(i), &
+                                                 TimeSerieDataFile = InputFile,                &
+                                                 ObjTime           = Me%ObjTime,               &
+                                                 CheckDates        = .false.,                  &
+                                                 STAT              = STAT_CALL)
+                    endif                                                 
                 enddo
             
             else BF
@@ -454,7 +465,7 @@ BF:         if (BlockFound) then
         logical                                     :: GroupExist 
         integer                                     :: i, ClientNumber, line, iflag
         integer                                     :: FirstLine, LastLine, STAT_CALL
-        logical                                     :: BlockFound
+        logical                                     :: BlockFound, exist, exist1
         character(len=PathLength)                   :: InputFile
       
         !Begin-----------------------------------------------------------------
@@ -486,14 +497,15 @@ BF:         if (BlockFound) then
                                  Buffer_Line = line, STAT = STAT_CALL) 
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructInputOutFlux - ModuleTimeSeriesOperator - ERR10'
                     if (iflag == 0) stop 'ConstructInputOutFlux - ModuleTimeSeriesOperator - ERR20'
-                    
-                    
-                    
-                    call StartTimeSerieInput(TimeSerieID       = Me%ObjTimeSerieOutFlux(i),&
-                                             TimeSerieDataFile = InputFile,                &
-                                             ObjTime           = Me%ObjTime,               &
-                                             CheckDates        = .false.,                  &
-                                             STAT              = STAT_CALL)
+
+                    inquire(file = InputFile,    exist = exist )
+                    if (exist) then
+                        call StartTimeSerieInput(TimeSerieID       = Me%ObjTimeSerieOutFlux(i),&
+                                                 TimeSerieDataFile = InputFile,                &
+                                                 ObjTime           = Me%ObjTime,               &
+                                                 CheckDates        = .false.,                  &
+                                                 STAT              = STAT_CALL)
+                    endif                                                 
                 enddo
             
             else BF
@@ -525,7 +537,7 @@ BF:         if (BlockFound) then
         logical                                     :: GroupExist 
         integer                                     :: i, ClientNumber, line, iflag
         integer                                     :: FirstLine, LastLine, STAT_CALL
-        logical                                     :: BlockFound
+        logical                                     :: BlockFound, exist, exist1
         character(len=PathLength)                   :: InputFile
       
         !Begin-----------------------------------------------------------------
@@ -558,13 +570,14 @@ BF:         if (BlockFound) then
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructInputMass - ModuleTimeSeriesOperator - ERR10'
                     if (iflag == 0) stop 'ConstructInputMass - ModuleTimeSeriesOperator - ERR20'
                     
-                    
-                    
-                    call StartTimeSerieInput(TimeSerieID       = Me%ObjTimeSerieMass(i),   &
-                                             TimeSerieDataFile = InputFile,                &
-                                             ObjTime           = Me%ObjTime,               &
-                                             CheckDates        = .false.,                  &
-                                             STAT              = STAT_CALL)
+                    inquire(file = InputFile,    exist = exist )
+                    if (exist) then
+                        call StartTimeSerieInput(TimeSerieID       = Me%ObjTimeSerieMass(i),   &
+                                                 TimeSerieDataFile = InputFile,                &
+                                                 ObjTime           = Me%ObjTime,               &
+                                                 CheckDates        = .false.,                  &
+                                                 STAT              = STAT_CALL)
+                    endif
                 enddo
             
             else BF
@@ -1027,54 +1040,62 @@ BF:         if (BlockFound) then
         logical                                         :: TimeCycle, ValidInstant
 
         !Begin------------------------------------------------------------------
+        
+        if (ObjTimeSerie /=0) then
 
-        call GetTimeSerieCycle(ObjTimeSerie, TimeCycle, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR10'
-     
-        if (TimeCycle) then
-
-            !Gets Value for current Time
-            call GetTimeSerieValue (ObjTimeSerie, Now, Me%TimeSerieColumn,              &
-                                    Time1, Value1, Time2, Value2, TimeCycle,            &
-                                    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR20'
-
-            TimeSerieValue = Value1
-
-        else
-
-            ValidInstant = GetTimeSerieCheckDate (ObjTimeSerie, Now, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR30'
-            
-            if (ValidInstant) then
+            call GetTimeSerieCycle(ObjTimeSerie, TimeCycle, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR10'
+         
+            if (TimeCycle) then
 
                 !Gets Value for current Time
-                call GetTimeSerieValue (ObjTimeSerie, Now, Me%TimeSerieColumn,          &
-                                        Time1, Value1, Time2, Value2, TimeCycle,        &
+                call GetTimeSerieValue (ObjTimeSerie, Now, Me%TimeSerieColumn,              &
+                                        Time1, Value1, Time2, Value2, TimeCycle,            &
                                         STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR40'
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR20'
+
+                TimeSerieValue = Value1
+
+            else
+
+                ValidInstant = GetTimeSerieCheckDate (ObjTimeSerie, Now, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR30'
+                
+                if (ValidInstant) then
+
+                    !Gets Value for current Time
+                    call GetTimeSerieValue (ObjTimeSerie, Now, Me%TimeSerieColumn,          &
+                                            Time1, Value1, Time2, Value2, TimeCycle,        &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleTimeSeriesOperator - ERR40'
 
 
-                !Interpolates Value for current instant
-                call InterpolateValueInTime(Now, Time1, Value1, Time2, Value2, TimeSerieValue)
-                
-                if ((Time2-Time1) > Me%GapLimit) then
-                    Me%FoundOneGap = .true.
-                endif
-                
-                if (Value1 == Me%NotValidMask .or. Value2 == Me%NotValidMask) then
+                    !Interpolates Value for current instant
+                    call InterpolateValueInTime(Now, Time1, Value1, Time2, Value2, TimeSerieValue)
+                    
+                    if ((Time2-Time1) > Me%GapLimit) then
+                        Me%FoundOneGap = .true.
+                    endif
+                    
+                    if (Value1 == Me%NotValidMask .or. Value2 == Me%NotValidMask) then
+                        Me%FoundOneGap = .true.
+                        TimeSerieValue = Me%NotValidMask
+                    endif
+                    
+                else
                     Me%FoundOneGap = .true.
                     TimeSerieValue = Me%NotValidMask
-                endif
-                
-            else
-                Me%FoundOneGap = .true.
-                TimeSerieValue = Me%NotValidMask
-                
-            endif                
+                    
+                endif                
+
+            endif
+        else
+            
+            Me%FoundOneGap = .true.
+            TimeSerieValue = Me%NotValidMask
 
         endif
-
+        
     end function TimeSerieValue
 
     !--------------------------------------------------------------------------
@@ -1249,27 +1270,33 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         
         if (Me%FluxInON) then        
             do i=1, Me%NFluxIn
-                !Kill Time Serie File In flux
-                call KillTimeSerie(Me%ObjTimeSerieInFlux(i), STAT = STAT_CALL)       
-                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - KillVariablesAndFiles - ERR20'
+                if (Me%ObjTimeSerieInFlux(i) /= 0) then
+                    !Kill Time Serie File In flux
+                    call KillTimeSerie(Me%ObjTimeSerieInFlux(i), STAT = STAT_CALL)       
+                    if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - KillVariablesAndFiles - ERR20'
+                endif                    
             enddo
             deallocate(Me%ObjTimeSerieInFlux)
         endif
 
         if (Me%FluxOutON) then        
             do i=1, Me%NFluxOut
-                !Kill Time Serie File Out Flux
-                call KillTimeSerie(Me%ObjTimeSerieOutFlux(i), STAT = STAT_CALL)       
-                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - KillVariablesAndFiles - ERR30'
+                if (Me%ObjTimeSerieOutFlux(i) /= 0) then
+                    !Kill Time Serie File Out Flux
+                    call KillTimeSerie(Me%ObjTimeSerieOutFlux(i), STAT = STAT_CALL)       
+                    if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - KillVariablesAndFiles - ERR30'
+                endif                                       
             enddo
             deallocate(Me%ObjTimeSerieOutFlux)
         endif
         
         if (Me%MassON) then
             do i=1, Me%NMass
-                !Kill Time Serie File Mass
-                call KillTimeSerie(Me%ObjTimeSerieMass   (i), STAT = STAT_CALL)       
-                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - KillVariablesAndFiles - ERR40'
+                if (Me%ObjTimeSerieMass(i) /= 0) then
+                    !Kill Time Serie File Mass
+                    call KillTimeSerie(Me%ObjTimeSerieMass   (i), STAT = STAT_CALL)       
+                    if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesOperator - KillVariablesAndFiles - ERR40'
+                endif                    
             enddo
             deallocate(Me%ObjTimeSerieMass)
         endif
