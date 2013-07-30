@@ -443,11 +443,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)        
             if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR230'
             
-            if (flag == 1) then
-                if (flag_min == 1 .and. flag_max == 1) then
-                    Me%FilterMaxRateValue = min (Me%FilterMaxRateValue, (Me%FilterMaxValue - Me%FilterMinValue) / 3600.) 
-                endif
-            endif
+!            if (flag == 1) then
+!                if (flag_min == 1 .and. flag_max == 1) then
+!                    Me%FilterMaxRateValue = min (Me%FilterMaxRateValue, (Me%FilterMaxValue - Me%FilterMinValue) / 3600.) 
+!                endif
+!            endif
             
             call GetData(Me%FilterMinRateValue,                                         &
                          Me%ObjEnterData,                                               &
@@ -459,11 +459,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)        
             if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR235'
 
-            if (flag == 1) then
-                if (flag_min == 1 .and. flag_max == 1) then
-                    Me%FilterMinRateValue = max (Me%FilterMinRateValue, (Me%FilterMaxValue - Me%FilterMinValue) / 3600. * 1e-4) 
-                endif
-            endif
+!            if (flag == 1) then
+!                if (flag_min == 1 .and. flag_max == 1) then
+!                    Me%FilterMinRateValue = max (Me%FilterMinRateValue, (Me%FilterMaxValue - Me%FilterMinValue) / 3600. * 1e-4) 
+!                endif
+!            endif
             
             Me%TimeSerieFilterInON = .true.
 
