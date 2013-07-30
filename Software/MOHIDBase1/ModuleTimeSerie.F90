@@ -62,6 +62,7 @@ Module ModuleTimeSerie
     public  :: WriteSpecificTimeSerieLine
     public  :: CorrectsCellsTimeSerie
     public  :: TryIgnoreTimeSerie
+    public  :: ReseatCurrentIndex
 
     !Selector
     public  :: GetNumberOfTimeSeries
@@ -2761,6 +2762,43 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
     !--------------------------------------------------------------------------
 
+   !---------------------------------------------------------------------------
+
+    subroutine ReseatCurrentIndex(TimeSerieID, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: TimeSerieID
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_, STAT_
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeSerieID, ready_)
+
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            Me%CurrentIndex = 2
+  
+            STAT_ = SUCCESS_
+
+        else              
+         
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                               &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine ReseatCurrentIndex
+
+    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
