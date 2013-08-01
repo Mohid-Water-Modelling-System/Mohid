@@ -215,10 +215,10 @@ Module ModuleBasin
 
     !Types---------------------------------------------------------------------
     type T_OutPut
-        type (T_Time), dimension(:), pointer        :: OutTime
-        type (T_Time), dimension(:), pointer        :: RestartOutTime
+        type (T_Time), dimension(:), pointer        :: OutTime              => null()
+        type (T_Time), dimension(:), pointer        :: RestartOutTime       => null()
         integer                                     :: NextOutPut           = 1
-        real   , dimension(:,:), pointer            :: OutputChannels
+        real   , dimension(:,:), pointer            :: OutputChannels       => null()
         logical                                     :: Yes                  = .false.
         logical                                     :: WriteRestartFile     = .false.
         logical                                     :: RestartOverwrite     = .false.
@@ -226,31 +226,31 @@ Module ModuleBasin
     end type T_OutPut
 
     type T_Coupling
-        logical                                     :: Atmosphere
-        logical                                     :: Evapotranspiration
-        logical                                     :: RunOff
-        logical                                     :: RunOffProperties
-        logical                                     :: DrainageNetwork
-        logical                                     :: PorousMedia
-        logical                                     :: PorousMediaProperties
-        logical                                     :: Vegetation
-        logical                                     :: SimpleInfiltration
-        logical                                     :: Snow
+        logical                                     :: Atmosphere           = .false.
+        logical                                     :: Evapotranspiration   = .false.
+        logical                                     :: RunOff               = .false.
+        logical                                     :: RunOffProperties     = .false.
+        logical                                     :: DrainageNetwork      = .false.
+        logical                                     :: PorousMedia          = .false.
+        logical                                     :: PorousMediaProperties = .false.
+        logical                                     :: Vegetation           = .false.
+        logical                                     :: SimpleInfiltration   = .false.
+        logical                                     :: Snow                 = .false.
     end type T_Coupling
 
     type T_ExtVar
-        integer, dimension(:,:), pointer            :: BasinPoints
-        integer, dimension(:,:), pointer            :: RiverPoints
-        integer, dimension(:,:), pointer            :: OpenPoints2D
-        integer, dimension(:,:), pointer            :: BoundaryPoints2D
-        real   , dimension(:,:), pointer            :: GridCellArea
-        real   , dimension(:,:), pointer            :: Topography
-        real   , dimension(:,:), pointer            :: LeafAreaIndex 
-        real   , dimension(:,:), pointer            :: PotLeafAreaIndex 
-        real   , dimension(:,:), pointer            :: SpecificLeafStorage
-        real   , dimension(:,:), pointer            :: CropCoefficient
-        real   , dimension(:,:,:), pointer          :: ActualTranspiration
-        real   , dimension(:,:), pointer            :: MassError
+        integer, dimension(:,:), pointer            :: BasinPoints          => null()
+        integer, dimension(:,:), pointer            :: RiverPoints          => null()
+        integer, dimension(:,:), pointer            :: OpenPoints2D         => null()
+        integer, dimension(:,:), pointer            :: BoundaryPoints2D     => null()
+        real   , dimension(:,:), pointer            :: GridCellArea         => null()
+        real   , dimension(:,:), pointer            :: Topography           => null()
+        real   , dimension(:,:), pointer            :: LeafAreaIndex        => null()
+        real   , dimension(:,:), pointer            :: PotLeafAreaIndex     => null()
+        real   , dimension(:,:), pointer            :: SpecificLeafStorage  => null()
+        real   , dimension(:,:), pointer            :: CropCoefficient      => null()
+        real   , dimension(:,:,:), pointer          :: ActualTranspiration  => null()
+        real   , dimension(:,:), pointer            :: MassError            => null()
     end type T_ExtVar
     
     !External variables from Runoff but that will be updated and sent to Runoff
@@ -261,22 +261,22 @@ Module ModuleBasin
     end type T_ExtUpdate
 
     type T_Files
-        character(len=PathLength)                   :: ConstructData
-        character(len=PathLength)                   :: TopographicFile
-        character(len=PathLength)                   :: HDFFile
-        character(len=PathLength)                   :: EVTPHDFFile
-        character(len=PathLength)                   :: EVTPHDFFile2
-        character(len=PathLength)                   :: EVTPInstHDFFile
-        character(len=PathLength)                   :: InitialFile
-        character(len=PathLength)                   :: FinalFile
-        character(len=PathLength)                   :: TimeSerieLocation
-        character(len=PathLength)                   :: BWBTimeSeriesLocation
+        character(len=PathLength)                   :: ConstructData          = null_str
+        character(len=PathLength)                   :: TopographicFile        = null_str
+        character(len=PathLength)                   :: HDFFile                = null_str
+        character(len=PathLength)                   :: EVTPHDFFile            = null_str
+        character(len=PathLength)                   :: EVTPHDFFile2           = null_str
+        character(len=PathLength)                   :: EVTPInstHDFFile        = null_str
+        character(len=PathLength)                   :: InitialFile            = null_str
+        character(len=PathLength)                   :: FinalFile              = null_str
+        character(len=PathLength)                   :: TimeSerieLocation      = null_str
+        character(len=PathLength)                   :: BWBTimeSeriesLocation  = null_str
     end type T_Files
 
     type T_IntegratedFlow
-        logical                                     :: On
-        real                                        :: Flow
-        integer                                     :: CurrentIndex
+        logical                                     :: On                   = .false.
+        real                                        :: Flow                 = null_real
+        integer                                     :: CurrentIndex         = null_int
         integer                                     :: ObjTimeSerie         = 0
     end type T_IntegratedFlow
 
@@ -319,10 +319,10 @@ Module ModuleBasin
         logical                                     :: Constant             = .false. !in time
         logical                                     :: ConstantInSpace      = .false. !in space
         type (T_BasinProperty), pointer             :: Next                 => null()
-        logical                                     :: AdvectionDiffusion
-        logical                                     :: Particulate
-        logical                                     :: Decay
-        logical                                     :: DecayRate
+        logical                                     :: AdvectionDiffusion   = .false.
+        logical                                     :: Particulate          = .false.
+        logical                                     :: Decay                = .false.
+        logical                                     :: DecayRate            = .false.
         type (T_PropMassBalance)                    :: MB
         real(8), dimension(:,:), pointer            :: VegetationConc       => null()
         real(8), dimension(:,:), pointer            :: VegetationDrainage   => null()
@@ -367,14 +367,14 @@ Module ModuleBasin
         real(8)                                     :: OutVolumeChannel     = 0.
         real(8)                                     :: OutVolumeOverLand    = 0.
         !Final Mass
-        real(8)                                     :: FinalVolumeRunoff
-        real(8)                                     :: FinalVolumeVegetation
-        real(8)                                     :: FinalVolumePorousMedia
-        real(8)                                     :: FinalVolumeChannels
+        real(8)                                     :: FinalVolumeRunoff    = 0.
+        real(8)                                     :: FinalVolumeVegetation = 0.
+        real(8)                                     :: FinalVolumePorousMedia = 0.
+        real(8)                                     :: FinalVolumeChannels  = 0.
         !Flow exchange between modules
-        real(8)                                     :: OLFlowToRiver
-        real(8)                                     :: GWFlowToRiver
-        real(8)                                     :: Infiltration
+        real(8)                                     :: OLFlowToRiver        = 0.
+        real(8)                                     :: GWFlowToRiver        = 0.
+        real(8)                                     :: Infiltration         = 0.
     end type T_WaterMassBalance
     
     type T_BasinWaterBalance
@@ -422,7 +422,7 @@ Module ModuleBasin
 
     type       T_Basin
         integer                                     :: InstanceID           = 0
-        character(len=StringLength)                 :: ModelName
+        character(len=StringLength)                 :: ModelName            = null_str
         type (T_Size2D)                             :: Size, WorkSize
         type (T_Coupling)                           :: Coupled
         type (T_Files)                              :: Files
@@ -436,23 +436,23 @@ Module ModuleBasin
         logical                                     :: VerifyAtmosphereValues = .true.
         logical                                     :: Calibrating1D        = .false.
         logical                                     :: ConcentrateRain      = .false.
-        logical                                     :: EvapFromWaterColumn
-        logical                                     :: EvapFromCanopy
-        integer                                     :: EvapMethod
-        real                                        :: RefEvapotranspirationConstant
+        logical                                     :: EvapFromWaterColumn  = .false.
+        logical                                     :: EvapFromCanopy       = .false.
+        integer                                     :: EvapMethod           = null_int
+        real                                        :: RefEvapotranspirationConstant = null_real
         real                                        :: RainAverageDuration  = 600.0
         real                                        :: WCRemovalTime        = 600.
-        real                                        :: DTDuringRain
-        logical                                     :: AdjustDTForRainEvent 
-        real                                        :: AdjustDTForRainEventFactor
+        real                                        :: DTDuringRain         = null_real
+        logical                                     :: AdjustDTForRainEvent = .false.
+        real                                        :: AdjustDTForRainEventFactor = null_real
         logical                                     :: DiffuseWaterSource   = .false.
         real                                        :: FlowPerCapita        = 0.0
-        character(PathLength)                       :: PopDensityFile
+        character(PathLength)                       :: PopDensityFile       = null_str
         real                                        :: ExtinctionCoef       = 0.6
-        real                                        :: CurrentDT
-        integer                                     :: EvapoTranspirationMethod
-        logical                                     :: ConstructEvaporation
-        logical                                     :: ConstructTranspiration
+        real                                        :: CurrentDT            = null_real
+        integer                                     :: EvapoTranspirationMethod = null_int
+        logical                                     :: ConstructEvaporation = .false.
+        logical                                     :: ConstructTranspiration = .false.
         real(8), dimension(:,:), pointer            :: WaterColumnRemoved     => null()
         real(8), dimension(:,:), pointer            :: CanopyStorageCapacity  => null()
         real(8), dimension(:,:), pointer            :: CanopyStorage          => null() !mH20 in m2 cov
@@ -504,19 +504,19 @@ Module ModuleBasin
         type (T_WaterMassBalance)                   :: MB
         type (T_IntegratedFlow)                     :: DailyFlow            
         type (T_IntegratedFlow)                     :: MonthlyFlow            
-        real, dimension(:), pointer                 :: TimeSeriesBuffer  !Water Balance
-        real, dimension(:), pointer                 :: TimeSeriesBuffer2
-        real, dimension(:), pointer                 :: TimeSeriesBuffer3 !Properties Balance
-        real, dimension(:), pointer                 :: TimeSeriesBuffer4 !Water Fluxes
-        real, dimension(:), pointer                 :: TimeSeriesBuffer5 !Properties Fluxes
-        real, dimension(:), pointer                 :: BWBBuffer !buffer to be used for Basin Water Balance
+        real, dimension(:), pointer                 :: TimeSeriesBuffer  => null() !Water Balance
+        real, dimension(:), pointer                 :: TimeSeriesBuffer2 => null()
+        real, dimension(:), pointer                 :: TimeSeriesBuffer3 => null() !Properties Balance
+        real, dimension(:), pointer                 :: TimeSeriesBuffer4 => null() !Water Fluxes
+        real, dimension(:), pointer                 :: TimeSeriesBuffer5 => null() !Properties Fluxes
+        real, dimension(:), pointer                 :: BWBBuffer         => null() !buffer to be used for Basin Water Balance
         
         !Basin Water Balance
         type (T_BasinWaterBalance)                  :: BWB
         logical                                     :: ComputeBasinWaterBalance = .false.
                
         !Basin is responsable by Total vegetation volume
-        real(8)                                     :: VolumeVegetation
+        real(8)                                     :: VolumeVegetation         = null_real
         
         type (T_Time)                               :: CurrentTime
         type (T_Time)                               :: BeginTime

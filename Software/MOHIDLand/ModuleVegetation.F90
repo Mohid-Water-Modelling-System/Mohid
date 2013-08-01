@@ -440,86 +440,87 @@ Module ModuleVegetation
 
     !Types---------------------------------------------------------------------
     type       T_ID
-        logical                                         :: SolutionFromFile
-        integer                                         :: IDNumber
-        character(LEN = StringLength)                   :: Name
-        character(LEN = StringLength)                   :: Description
-        character(LEN = StringLength)                   :: Units
+        logical                                         :: SolutionFromFile      = .false.
+        integer                                         :: IDNumber              = null_int
+        character(LEN = StringLength)                   :: Name                  = null_str
+        character(LEN = StringLength)                   :: Description           = null_str
+        character(LEN = StringLength)                   :: Units                 = null_str
     end type T_ID
     
     type       T_Integration
-        real,    dimension(:,:  ), pointer              :: AveragePotTPDuringDT
-        real,    dimension(:,:  ), pointer              :: AverageAirTempDuringDT
-        real,    dimension(:,:  ), pointer              :: AverageAirHumidityDuringDT
-        real,    dimension(:,:  ), pointer              :: AverageRadiationDuringDT
-        real,    dimension(:,:  ), pointer              :: SumPotTP
-        real,    dimension(:,:  ), pointer              :: SumTemperature
-        real,    dimension(:,:  ), pointer              :: SumHumidity
-        real,    dimension(:,:  ), pointer              :: SumRadiation
+        real,    dimension(:,:  ), pointer              :: AveragePotTPDuringDT       => null()
+        real,    dimension(:,:  ), pointer              :: AverageAirTempDuringDT     => null()
+        real,    dimension(:,:  ), pointer              :: AverageAirHumidityDuringDT => null()
+        real,    dimension(:,:  ), pointer              :: AverageRadiationDuringDT   => null()
+        real,    dimension(:,:  ), pointer              :: SumPotTP                   => null()
+        real,    dimension(:,:  ), pointer              :: SumTemperature             => null()
+        real,    dimension(:,:  ), pointer              :: SumHumidity                => null()
+        real,    dimension(:,:  ), pointer              :: SumRadiation               => null()
     end type   T_Integration
     
     type       T_External
-        real                                            :: DT
+        real                                            :: DT                   = null_real
         type(T_Time)                                    :: Now
-        integer                                         :: JulianDay_Old
-        logical                                         :: ComputeSoilField
-        logical                                         :: CoupledAtmosphere
-        real, dimension(:,:,:), pointer                 :: DWZ
-        real, dimension(:,:,:), pointer                 :: SZZ
-        integer, dimension(:,:), pointer                :: KFloor
-        integer, dimension(:,:), pointer                :: MappingPoints
-        integer, dimension(:,:), pointer                :: BasinPoints       
-        real, dimension(:,:), pointer                   :: Topography           
-        real, dimension(:,:), pointer                   :: AirTemperature                 !ºC
-        real, dimension(:,:), pointer                   :: SolarRadiation                 !W/m2
-        real, dimension(:,:), pointer                   :: RelativeHumidity               !0-1
-        real, dimension(:,:), pointer                   :: PotentialTranspiration         !m/s     
-        real, dimension(:,:), pointer                   :: Latitude                       !deg
-        real, dimension(:,:,:), pointer                 :: SoilWaterContent               !m3H2O/m3soil
-        real, dimension(:,:,:), pointer                 :: Head                           !m
-        real, dimension(:,:,:), pointer                 :: ResidualWaterContent           !m3H2O/m3soil                    
-        real, dimension(:,:,:), pointer                 :: SoilNitrate                    !ug/m3H2O    
-        real, dimension(:,:,:), pointer                 :: SoilPhosphorus                 !ug/m3H2O   
-        real, dimension(:,:,:), pointer                 :: FieldCapacity                  !m3H2O/m3soil  
-        real, dimension(:,:), pointer                   :: GridCellArea
-        real(8), dimension(:,:,:), pointer              :: CellVolume
+        integer                                         :: JulianDay_Old        = null_int
+        logical                                         :: ComputeSoilField     = .false.
+        logical                                         :: CoupledAtmosphere    = .false.
+        real, dimension(:,:,:), pointer                 :: DWZ                  => null()
+        real, dimension(:,:,:), pointer                 :: SZZ                  => null()
+        integer, dimension(:,:), pointer                :: KFloor               => null()
+        integer, dimension(:,:), pointer                :: MappingPoints        => null()
+        integer, dimension(:,:), pointer                :: BasinPoints          => null()
+        real, dimension(:,:), pointer                   :: Topography           => null()
+        real, dimension(:,:), pointer                   :: AirTemperature       => null()          !ºC
+        real, dimension(:,:), pointer                   :: SolarRadiation       => null()          !W/m2
+        real, dimension(:,:), pointer                   :: RelativeHumidity     => null()          !0-1
+        real, dimension(:,:), pointer                   :: PotentialTranspiration => null()        !m/s     
+        real, dimension(:,:), pointer                   :: Latitude             => null()          !deg
+        real, dimension(:,:,:), pointer                 :: SoilWaterContent     => null()          !m3H2O/m3soil
+        real, dimension(:,:,:), pointer                 :: Head                 => null()           !m
+        real, dimension(:,:,:), pointer                 :: ResidualWaterContent => null()          !m3H2O/m3soil                    
+        real, dimension(:,:,:), pointer                 :: SoilNitrate          => null()          !ug/m3H2O    
+        real, dimension(:,:,:), pointer                 :: SoilPhosphorus       => null()          !ug/m3H2O   
+        real, dimension(:,:,:), pointer                 :: FieldCapacity        => null()          !m3H2O/m3soil  
+        real, dimension(:,:), pointer                   :: GridCellArea         => null()
+        real(8), dimension(:,:,:), pointer              :: CellVolume           => null()
         type(T_Integration)                             :: Integration
-        real, dimension(:,:,:), pointer                 :: ECw        
+        real, dimension(:,:,:), pointer                 :: ECw                  => null()
     end type   T_External
 
 
     type       T_Files
-        character(len=Pathlength)                       :: ConstructData
-        character(len=Pathlength)                       :: Results
-        character(len=Pathlength)                       :: InitialFile
-        character(len=Pathlength)                       :: FinalFile
+        character(len=Pathlength)                       :: ConstructData        = null_str
+        character(len=Pathlength)                       :: Results              = null_str
+        character(len=Pathlength)                       :: InitialFile          = null_str
+        character(len=Pathlength)                       :: FinalFile            = null_str
 !        character(PathLength)                           :: VegetationIDFile
 
     end type T_Files
 
     type       T_OutPut
-        type (T_Time), pointer, dimension(:)            :: OutTime
-        logical                                         :: HDF_ON
-        integer                                         :: NextHDF5
-        integer                                         :: NextOutput
-        integer                                         :: Number
-        logical                                         :: TimeSerie_ON
+        type (T_Time), pointer, dimension(:)            :: OutTime              => null()
+        logical                                         :: HDF_ON               = .false.
+        integer                                         :: NextHDF5             = null_int
+        integer                                         :: NextOutput           = null_int
+        integer                                         :: Number               = null_int
+        logical                                         :: TimeSerie_ON         = .false.
     end type T_OutPut
     
     type T_Property
         type(T_PropertyID)                              :: ID
         real, dimension(:,:), pointer                   :: Field                => null()
-        logical                                         :: Old
-        logical                                         :: OutputHDF
-        logical                                         :: TimeSerie
-        logical                                         :: BoxTimeSerie
+        logical                                         :: Old                  = .false.
+        logical                                         :: OutputHDF            = .false.
+        logical                                         :: TimeSerie            = .false.
+        logical                                         :: BoxTimeSerie         = .false.
         integer                                         :: Evolution            = ReadValue
-        logical                                         :: IsConstant
+        logical                                         :: IsConstant           = .false.
         real                                            :: ConstantValue        = null_real
         integer                                         :: TimeSeriesID         = 0
-        integer                                         :: TimeSeriesColumn
-        character(PathLength)                           :: TimeSeriesName
-        type(T_Property), pointer                       :: Next, Prev
+        integer                                         :: TimeSeriesColumn     = null_int
+        character(PathLength)                           :: TimeSeriesName       = null_str
+        type(T_Property), pointer                       :: Next                 => null()
+        type(T_Property), pointer                       :: Prev                 => null()
     end type T_Property
 
 !    type T_SoilConc
@@ -532,148 +533,148 @@ Module ModuleVegetation
 !    end type T_SoilConc
 
     type T_TimingDatabase
-        real                                            :: PlantHUatMaturity
-        real                                            :: PlantingJulianDay
-        real                                            :: PlantingHUBase
+        real                                            :: PlantHUatMaturity    = null_real
+        real                                            :: PlantingJulianDay    = null_real
+        real                                            :: PlantingHUBase       = null_real
     end type T_TimingDatabase
 
     type T_GrowthDatabase
-        real                                            :: PlantType
+        integer                                         :: PlantType            = 0
 
-        real                                            :: PlantFractionN1
-        real                                            :: PlantFractionN2
-        real                                            :: PlantFractionN3            
-        real                                            :: PlantFractionP1
-        real                                            :: PlantFractionP2
-        real                                            :: PlantFractionP3  
-        real                                            :: PlantBaseTemperature
-        real                                            :: PlantOptimalTemperature
-        real                                            :: ExtinctCoef
-        real                                            :: BiomassEnergyRatio
-        real                                            :: CO2ConcHigh
-        real                                            :: BiomassEnergyRatioHigh
-        real                                            :: RUEDeclineRate
-        real                                            :: MaximumRootDepth
-        real                                            :: FrLAIMax1
-        real                                            :: FrLAIMax2
-        real                                            :: FrGrow1
-        real                                            :: FrGrow2
-        real                                            :: LAIShape1
-        real                                            :: LAIShape2
-        logical                                         :: Evergreen
-        real                                            :: FrGrowLAIDecline
-        real                                            :: LAIMax
-        real                                            :: LAIDecRate
-        real                                            :: MaxCanopyHeight
-        real                                            :: OptimalHarvestIndex
-        real                                            :: MinimumHarvestIndex
-        real                                            :: NitrogenFractionInYeld
-        real                                            :: PhosphorusFractionInYeld
-        real                                            :: TreeYearsToMaturity
-        real                                            :: TreeMaximumBiomass
-        real                                            :: BiomassFracRemovedInDormancy
-        real                                            :: LAIMinDormant
+        real                                            :: PlantFractionN1      = null_real
+        real                                            :: PlantFractionN2      = null_real
+        real                                            :: PlantFractionN3      = null_real      
+        real                                            :: PlantFractionP1      = null_real
+        real                                            :: PlantFractionP2      = null_real
+        real                                            :: PlantFractionP3      = null_real
+        real                                            :: PlantBaseTemperature = null_real
+        real                                            :: PlantOptimalTemperature = null_real
+        real                                            :: ExtinctCoef          = null_real
+        real                                            :: BiomassEnergyRatio   = null_real
+        real                                            :: CO2ConcHigh          = null_real
+        real                                            :: BiomassEnergyRatioHigh = null_real
+        real                                            :: RUEDeclineRate       = null_real
+        real                                            :: MaximumRootDepth     = null_real
+        real                                            :: FrLAIMax1            = null_real
+        real                                            :: FrLAIMax2            = null_real
+        real                                            :: FrGrow1              = null_real
+        real                                            :: FrGrow2              = null_real
+        real                                            :: LAIShape1            = null_real
+        real                                            :: LAIShape2            = null_real
+        logical                                         :: Evergreen            = .false.
+        real                                            :: FrGrowLAIDecline     = null_real
+        real                                            :: LAIMax               = null_real
+        real                                            :: LAIDecRate           = null_real
+        real                                            :: MaxCanopyHeight      = null_real
+        real                                            :: OptimalHarvestIndex  = null_real
+        real                                            :: MinimumHarvestIndex  = null_real
+        real                                            :: NitrogenFractionInYeld = null_real
+        real                                            :: PhosphorusFractionInYeld = null_real
+        real                                            :: TreeYearsToMaturity  = null_real
+        real                                            :: TreeMaximumBiomass   = null_real
+        real                                            :: BiomassFracRemovedInDormancy = null_real
+        real                                            :: LAIMinDormant        = null_real
     end type T_GrowthDatabase
 
     type T_GrazingDatabase
-        real                                            :: GrazingStartJulianDay
-        real                                            :: GrazingStartPlantHU
-        integer                                         :: GrazingDays
-        real                                            :: GrazingMinimumBiomass
-        real                                            :: GrazingBiomass
-        real                                            :: TramplingBiomass
+        real                                            :: GrazingStartJulianDay = null_real
+        real                                            :: GrazingStartPlantHU  = null_real
+        integer                                         :: GrazingDays          = null_int
+        real                                            :: GrazingMinimumBiomass = null_real
+        real                                            :: GrazingBiomass       = null_real
+        real                                            :: TramplingBiomass     = null_real
     end type T_GrazingDatabase
 
     type T_HarvestKillDatabase
-        real                                            :: TramplingBiomass
-        real                                            :: HarvestKillJulianDay
-        real                                            :: HarvestKillPlantHU
-        real                                            :: HarvestJulianDay
-        real                                            :: HarvestPlantHU
-        real                                            :: KillJulianDay
-        real                                            :: KillPlantHU
-        real                                            :: HarvestEfficiency
+        real                                            :: TramplingBiomass    = null_real
+        real                                            :: HarvestKillJulianDay = null_real
+        real                                            :: HarvestKillPlantHU  = null_real
+        real                                            :: HarvestJulianDay    = null_real
+        real                                            :: HarvestPlantHU      = null_real
+        real                                            :: KillJulianDay       = null_real
+        real                                            :: KillPlantHU         = null_real
+        real                                            :: HarvestEfficiency   = null_real
     end type T_HarvestKillDatabase
     
     type T_Fertilizer
-        integer                                         :: FertilizerID
-        real                                            :: FertilizerFracApplyedInSurface
-        real                                            :: OrganicFracParticulate
-        real                                            :: AmmoniaFracInMineralN
-        real                                            :: MineralNFracInFertilizer
-        real                                            :: OrganicNFracInFertilizer
-        real                                            :: MineralPFracInFertilizer
-        real                                            :: OrganicPFracInFertilizer    
+        integer                                         :: FertilizerID        = null_int
+        real                                            :: FertilizerFracApplyedInSurface = null_real
+        real                                            :: OrganicFracParticulate = null_real
+        real                                            :: AmmoniaFracInMineralN  = null_real
+        real                                            :: MineralNFracInFertilizer = null_real
+        real                                            :: OrganicNFracInFertilizer = null_real
+        real                                            :: MineralPFracInFertilizer = null_real
+        real                                            :: OrganicPFracInFertilizer = null_real
     end type T_Fertilizer
 
     type T_AutoFertilization
-        integer                                         :: FertilizerID
-        real                                            :: NTreshold
-        real                                            :: PTreshold
-        logical                                         :: ExplicitPhosphorus
-        real                                            :: NitrogenApplicationMax
-        real                                            :: NitrogenAnnualMax
-        real                                            :: PhosphorusApplicationMax
-        real                                            :: PhosphorusAnnualMax
-        integer                                         :: NStress
+        integer                                         :: FertilizerID        = null_int
+        real                                            :: NTreshold           = null_real
+        real                                            :: PTreshold           = null_real
+        logical                                         :: ExplicitPhosphorus  = .false.
+        real                                            :: NitrogenApplicationMax = null_real
+        real                                            :: NitrogenAnnualMax   = null_real
+        real                                            :: PhosphorusApplicationMax = null_real
+        real                                            :: PhosphorusAnnualMax = null_real
+        integer                                         :: NStress             = null_int
     end type T_AutoFertilization
     
     type T_FertilizerApps
         type(T_Fertilizer)                              :: Fertilizer       
-        integer                                         :: FertilizerID
-        real                                            :: FertilizerAppJDay
-        real                                            :: FertilizerAppHU
-        real                                            :: FertilizerAppAmount !kg/ha.day
-        character(StringLength)                         :: FertilizerName
+        integer                                         :: FertilizerID        = null_int
+        real                                            :: FertilizerAppJDay   = null_real
+        real                                            :: FertilizerAppHU     = null_real
+        real                                            :: FertilizerAppAmount = null_real !kg/ha.day
+        character(StringLength)                         :: FertilizerName      = null_str
         !Continuous application
-        logical                                         :: ContFertilizationON
-        integer                                         :: ContFertilizationDays !number of days that amount will be repeated
+        logical                                         :: ContFertilizationON = .false.
+        integer                                         :: ContFertilizationDays = null_int !number of days with repetition
         logical                                         :: ContFertilizationActive  = .false.
         integer                                         :: ContFertilizationAccDays = 0
         !auto fertilization - as one application method
         type(T_AutoFertilization)                       :: Auto       
         
-        logical                                         :: FertilizerAppOccurred
+        logical                                         :: FertilizerAppOccurred = .false.
         
     end type T_FertilizerApps
 
     type T_FertilizerDatabase
         integer                                         :: NumberFertilizerApps = 0
-        type(T_FertilizerApps), dimension(:), pointer   :: FertilizerApps
+        type(T_FertilizerApps), dimension(:), pointer   :: FertilizerApps        => null()
     end type T_FertilizerDatabase
 
     type T_PesticideApps
-        integer                                         :: PesticideID
-        real                                            :: PesticideAppJDay
-        real                                            :: PesticideAppHU
-        real                                            :: PesticideAppAmount
-        character(StringLength)                         :: PesticideName
+        integer                                         :: PesticideID          = null_int
+        real                                            :: PesticideAppJDay     = null_real
+        real                                            :: PesticideAppHU       = null_real
+        real                                            :: PesticideAppAmount   = null_real
+        character(StringLength)                         :: PesticideName        = null_str
 
         !Continuous application
-        logical                                         :: ContPesticideON
-        integer                                         :: ContPesticideDays !number of days that amount will be repeated
+        logical                                         :: ContPesticideON      = .false.
+        integer                                         :: ContPesticideDays    = null_int !number of days repetition
         logical                                         :: ContPesticideActive  = .false.
         integer                                         :: ContPesticideAccDays = 0
         
-        logical                                         :: PesticideAppOccurred
+        logical                                         :: PesticideAppOccurred = .false.
         
     end type T_PesticideApps
 
     type T_PesticideDatabase
         integer                                         :: NumberPesticideApps = 0
-        type(T_PesticideApps), dimension(:), pointer    :: PesticideApps
+        type(T_PesticideApps), dimension(:), pointer    :: PesticideApps       => null()
     end type T_PesticideDatabase
 
     type       T_TranspirationMOHID
-        integer, dimension(:,:), pointer                :: FeddesType
-        real, dimension(:,:), pointer                   :: RootFeddesH1
-        real, dimension(:,:), pointer                   :: RootFeddesH2
-        real, dimension(:,:), pointer                   :: RootFeddesH3
-        real, dimension(:,:), pointer                   :: RootFeddesH4
-        real, dimension(:,:), pointer                   :: RootFeddesH3L
-        real, dimension(:,:), pointer                   :: RootFeddesH3H
-        real, dimension(:,:), pointer                   :: RootFeddesR2L
-        real, dimension(:,:), pointer                   :: RootFeddesR2H
+        integer, dimension(:,:), pointer                :: FeddesType          => null()
+        real, dimension(:,:), pointer                   :: RootFeddesH1        => null()
+        real, dimension(:,:), pointer                   :: RootFeddesH2        => null()
+        real, dimension(:,:), pointer                   :: RootFeddesH3        => null()
+        real, dimension(:,:), pointer                   :: RootFeddesH4        => null()
+        real, dimension(:,:), pointer                   :: RootFeddesH3L       => null()
+        real, dimension(:,:), pointer                   :: RootFeddesH3H       => null()
+        real, dimension(:,:), pointer                   :: RootFeddesR2L       => null()
+        real, dimension(:,:), pointer                   :: RootFeddesR2H       => null()
     end type   T_TranspirationMOHID
 
     type T_Evolution
@@ -691,101 +692,106 @@ Module ModuleVegetation
         logical                                         :: Pesticide            = .false.
         logical                                         :: AutoFertilization    = .false. !fertilization when plant needs
         logical                                         :: FertilizationApp     = .false. !scheduled fertilization  
-        logical                                         :: CheckSpinUp    
-        integer                                         :: RootProfile          
-        integer                                         :: TranspirationMethod
-        integer                                         :: NutrientUptakeMethod
-        integer                                         :: NutrientStressMethod
-        logical                                         :: LimitTPVel
-        logical                                         :: WaterUptakeOld  
-        real                                            :: VegetationDT
-        real                                            :: IntegrationDT 
+        logical                                         :: CheckSpinUp          = .false.
+        integer                                         :: RootProfile          = null_int
+        integer                                         :: TranspirationMethod  = null_int
+        integer                                         :: NutrientUptakeMethod = null_int
+        integer                                         :: NutrientStressMethod = null_int
+        logical                                         :: LimitTPVel           = .false.
+        logical                                         :: WaterUptakeOld       = .false.
+        real                                            :: VegetationDT         = null_real
+        real                                            :: IntegrationDT        = null_real
  !       logical                                         :: IsPlantGrowing
-        logical                                         :: ChangeLAISenescence
-        logical                                         :: ChangeCanopyHeight
-        real                                            :: PlantingHUBase, PlantHUatMaturity
+        logical                                         :: ChangeLAISenescence  = .false.
+        logical                                         :: ChangeCanopyHeight   = .false.
+        real                                            :: PlantingHUBase       = null_real
+        real                                            :: PlantHUatMaturity    = null_real
  !       real                                            :: PotentialHUBase
-        real                                            :: WaterUptakeCompensationFactor
-        logical                                         :: NutrientReduceUptake
-        real                                            :: NutrientReduceUptakeFactor
-        logical                                         :: NutrientReduceDemand
-        real                                            :: NitrogenDistributionParameter
-        real                                            :: PhosphorusDistributionParameter
-        real                                            :: AtmosphereCO2
-        integer                                         :: WaterUptakeStressMethod
-        integer                                         :: SalinityStressMethod
-        logical                                         :: ModelNitrogen, ModelPhosphorus
-        logical                                         :: ModelRootBiomass, ModelPlantBiomass
-        logical                                         :: ModelCanopyHeight, ModelTemperatureStress
-        logical                                         :: ModelWater
-        logical                                         :: WaterStress
-        logical                                         :: AtmospherePropertiesOutput
-        logical                                         :: FluxesToSoilOutput
-        logical                                         :: NutrientFluxesWithSoil
+        real                                            :: WaterUptakeCompensationFactor = null_real
+        logical                                         :: NutrientReduceUptake = .false.
+        real                                            :: NutrientReduceUptakeFactor = null_real
+        logical                                         :: NutrientReduceDemand = .false.
+        real                                            :: NitrogenDistributionParameter = null_real
+        real                                            :: PhosphorusDistributionParameter = null_real
+        real                                            :: AtmosphereCO2        = null_real
+        integer                                         :: WaterUptakeStressMethod = null_int
+        integer                                         :: SalinityStressMethod = null_int
+        logical                                         :: ModelNitrogen        = .false.
+        logical                                         :: ModelPhosphorus      = .false.
+        logical                                         :: ModelRootBiomass     = .false.
+        logical                                         :: ModelPlantBiomass    = .false.
+        logical                                         :: ModelCanopyHeight    = .false.
+        logical                                         :: ModelTemperatureStress = .false.
+        logical                                         :: ModelWater           = .false.
+        logical                                         :: WaterStress          = .false.
+        logical                                         :: AtmospherePropertiesOutput = .false.
+        logical                                         :: FluxesToSoilOutput   = .false.
+        logical                                         :: NutrientFluxesWithSoil = .false.
 
-        logical                                         :: AdjustRUEForCO2
-        logical                                         :: AdjustRUEForVPD
+        logical                                         :: AdjustRUEForCO2      = .false.
+        logical                                         :: AdjustRUEForVPD      = .false.
         
-        logical                                         :: UseLAIDecRate
+        logical                                         :: UseLAIDecRate        = .false.
 
-        logical                                         :: Continuous
-        logical                                         :: StopOnWrongDate
+        logical                                         :: Continuous           = .false.
+        logical                                         :: StopOnWrongDate      = .false.
         
         logical                                         :: VegParticFertilization = .false.
 
         type(T_TranspirationMOHID)                      :: TranspirationMOHID
         type(T_Evolution)                               :: Evolution
-        integer                                         :: GlobalEvolution
+        integer                                         :: GlobalEvolution      = null_int
     end type   T_ComputeOptions
 
     type       T_HeatUnits
-        real, dimension(:,:), pointer                   :: PotentialHUTotal
-        real, dimension(:,:), pointer                   :: PotentialHUBase
-        real, dimension(:,:), pointer                   :: PotentialHUBase_Old
-        real, dimension(:,:), pointer                   :: PlantHUAccumulated
-        real, dimension(:,:), pointer                   :: PlantHUAccumulated_Old
+        real, dimension(:,:), pointer                   :: PotentialHUTotal     => null()
+        real, dimension(:,:), pointer                   :: PotentialHUBase      => null()
+        real, dimension(:,:), pointer                   :: PotentialHUBase_Old  => null()
+        real, dimension(:,:), pointer                   :: PlantHUAccumulated   => null()
+        real, dimension(:,:), pointer                   :: PlantHUAccumulated_Old => null()
     end type   T_HeatUnits
 
     type       T_Growth
-        real, dimension(:,:), pointer                   :: WaterStress
-        real, dimension(:,:), pointer                   :: NitrogenStress
-        real, dimension(:,:), pointer                   :: PhosphorusStress
-        real, dimension(:,:), pointer                   :: TemperatureStress
-        real, dimension(:,:), pointer                   :: GlobalStress
-        real, dimension(:,:), pointer                   :: PAR
-        real, dimension(:,:), pointer                   :: RUE
-        real, dimension(:,:), pointer                   :: PotentialGrowth
-        real, dimension(:,:), pointer                   :: PotentialBiomass
-        real, dimension(:,:), pointer                   :: BiomassGrowthOld
-        integer, dimension(:,:), pointer                :: TreeCurrentYear
-        real, dimension(:,:), pointer                   :: TreeFractionToMaturity
-        real, dimension(:,:), pointer                   :: TreeMaximumAnnualBiomass
-        logical, dimension(:,:), pointer                :: TreeComingFromContinuous
+        real, dimension(:,:), pointer                   :: WaterStress          => null()
+        real, dimension(:,:), pointer                   :: NitrogenStress       => null()
+        real, dimension(:,:), pointer                   :: PhosphorusStress     => null()
+        real, dimension(:,:), pointer                   :: TemperatureStress    => null()
+        real, dimension(:,:), pointer                   :: GlobalStress         => null()
+        real, dimension(:,:), pointer                   :: PAR                  => null()
+        real, dimension(:,:), pointer                   :: RUE                  => null()
+        real, dimension(:,:), pointer                   :: PotentialGrowth      => null()
+        real, dimension(:,:), pointer                   :: PotentialBiomass     => null()
+        real, dimension(:,:), pointer                   :: BiomassGrowthOld     => null()
+        integer, dimension(:,:), pointer                :: TreeCurrentYear      => null()
+        real, dimension(:,:), pointer                   :: TreeFractionToMaturity => null()
+        real, dimension(:,:), pointer                   :: TreeMaximumAnnualBiomass => null()
+        logical, dimension(:,:), pointer                :: TreeComingFromContinuous => null()
     end type   T_Growth
 
     type T_SalinityStressParams
-        real :: ECt
-        real :: EC0
-        real :: Slope        
+        real :: ECt                                     = null_real
+        real :: EC0                                     = null_real
+        real :: Slope                                   = null_real
     end type T_SalinityStressParams
 
     type T_VegetationType
-        integer                                         :: ID
-        character(StringLength)                         :: Name
-        type(T_VegetationType), pointer                 :: Next, Prev
+        integer                                         :: ID                    = null_int
+        character(StringLength)                         :: Name                  = null_str
+        type(T_VegetationType), pointer                 :: Next                  => null()
+        type(T_VegetationType), pointer                 :: Prev                  => null()
 !        type(T_VegetationType), pointer                 :: FirstVegetation
 !        type(T_VegetationType), pointer                 :: LastVegetation
         integer                                         :: VegetationsNumber     = 0
-        integer                                         :: FeddesType
-        real                                            :: RootFeddesH1
-        real                                            :: RootFeddesH2
-        real                                            :: RootFeddesH3
-        real                                            :: RootFeddesH4
-        real                                            :: RootFeddesH3L
-        real                                            :: RootFeddesH3H
-        real                                            :: RootFeddesR2L
-        real                                            :: RootFeddesR2H
-        integer                                         :: VegetationID
+        integer                                         :: FeddesType            = null_int
+        real                                            :: RootFeddesH1          = null_real
+        real                                            :: RootFeddesH2          = null_real
+        real                                            :: RootFeddesH3          = null_real
+        real                                            :: RootFeddesH4          = null_real
+        real                                            :: RootFeddesH3L         = null_real
+        real                                            :: RootFeddesH3H         = null_real
+        real                                            :: RootFeddesR2L         = null_real
+        real                                            :: RootFeddesR2H         = null_real
+        integer                                         :: VegetationID          = null_int
         type (T_TimingDatabase)                         :: TimingDatabase
         type (T_GrowthDatabase)                         :: GrowthDatabase
         type (T_HarvestKillDatabase)                    :: HarvestKillDatabase
@@ -793,91 +799,91 @@ Module ModuleVegetation
         type (T_FertilizerDatabase)                     :: FertilizerDatabase
         type (T_SalinityStressParams)                   :: SalinityStressParams
         type (T_PesticideDatabase)                      :: PesticideDatabase
-        logical                                         :: ComputeRoot
-        logical                                         :: ComputeStem
-        logical                                         :: HasLeaves
-        logical                                         :: UseSalinityStress
-        integer                                         :: StressInteraction        
+        logical                                         :: ComputeRoot           = .false.
+        logical                                         :: ComputeStem           = .false.
+        logical                                         :: HasLeaves             = .false.
+        logical                                         :: UseSalinityStress     = .false.
+        integer                                         :: StressInteraction     = null_int   
     end type T_VegetationType
 
     type T_FluxesToSoil
-        real, dimension(:,:), pointer                   :: GrazingBiomassToSoil
-        real, dimension(:,:), pointer                   :: GrazingNitrogenToSoil
-        real, dimension(:,:), pointer                   :: GrazingPhosphorusToSoil
-        real, dimension(:,:), pointer                   :: HarvestKillBiomassToSoil
-        real, dimension(:,:), pointer                   :: HarvestKillNitrogenToSoil
-        real, dimension(:,:), pointer                   :: HarvestKillPhosphorusToSoil
-        real, dimension(:,:), pointer                   :: KillRootBiomassLeftInSoil  !In Kill operation.
-        real, dimension(:,:), pointer                   :: DormancyBiomassToSoil
-        real, dimension(:,:), pointer                   :: DormancyNitrogenToSoil
-        real, dimension(:,:), pointer                   :: DormancyPhosphorusToSoil
-        real, dimension(:,:), pointer                   :: FertilNitrateToSoilSurface
-        real, dimension(:,:), pointer                   :: FertilNitrateToSoilSubSurface
-        real, dimension(:,:), pointer                   :: FertilAmmoniaToSoilSurface
-        real, dimension(:,:), pointer                   :: FertilAmmoniaToSoilSubSurface
-        real, dimension(:,:), pointer                   :: FertilOrganicNToSoilSurface
-        real, dimension(:,:), pointer                   :: FertilOrganicNParticToFluff
-        real, dimension(:,:), pointer                   :: FertilOrganicNToSoilSubSurface
-        real, dimension(:,:), pointer                   :: FertilOrganicPToSoilSurface
-        real, dimension(:,:), pointer                   :: FertilOrganicPParticToFluff
-        real, dimension(:,:), pointer                   :: FertilOrganicPToSoilSubSurface
-        real, dimension(:,:), pointer                   :: FertilMineralPToSoilSurface
-        real, dimension(:,:), pointer                   :: FertilMineralPToSoilSubSurface
+        real, dimension(:,:), pointer                   :: GrazingBiomassToSoil       => null()
+        real, dimension(:,:), pointer                   :: GrazingNitrogenToSoil      => null()
+        real, dimension(:,:), pointer                   :: GrazingPhosphorusToSoil    => null()
+        real, dimension(:,:), pointer                   :: HarvestKillBiomassToSoil   => null()
+        real, dimension(:,:), pointer                   :: HarvestKillNitrogenToSoil  => null()
+        real, dimension(:,:), pointer                   :: HarvestKillPhosphorusToSoil => null()
+        real, dimension(:,:), pointer                   :: KillRootBiomassLeftInSoil => null() !In Kill operation.
+        real, dimension(:,:), pointer                   :: DormancyBiomassToSoil      => null()
+        real, dimension(:,:), pointer                   :: DormancyNitrogenToSoil     => null()
+        real, dimension(:,:), pointer                   :: DormancyPhosphorusToSoil   => null()
+        real, dimension(:,:), pointer                   :: FertilNitrateToSoilSurface => null()
+        real, dimension(:,:), pointer                   :: FertilNitrateToSoilSubSurface => null()
+        real, dimension(:,:), pointer                   :: FertilAmmoniaToSoilSurface => null()
+        real, dimension(:,:), pointer                   :: FertilAmmoniaToSoilSubSurface => null()
+        real, dimension(:,:), pointer                   :: FertilOrganicNToSoilSurface => null()
+        real, dimension(:,:), pointer                   :: FertilOrganicNParticToFluff => null()
+        real, dimension(:,:), pointer                   :: FertilOrganicNToSoilSubSurface => null()
+        real, dimension(:,:), pointer                   :: FertilOrganicPToSoilSurface => null()
+        real, dimension(:,:), pointer                   :: FertilOrganicPParticToFluff => null()
+        real, dimension(:,:), pointer                   :: FertilOrganicPToSoilSubSurface => null()
+        real, dimension(:,:), pointer                   :: FertilMineralPToSoilSurface => null()
+        real, dimension(:,:), pointer                   :: FertilMineralPToSoilSubSurface => null()
     end type T_FluxesToSoil
     
     type T_FluxesFromSoil
-        real, dimension(:,:,:), pointer                 :: WaterUptakeFromSoil
-        real, dimension(:,:,:), pointer                 :: NitrogenUptakeFromSoil
-        real, dimension(:,:,:), pointer                 :: PhosphorusUptakeFromSoil
+        real, dimension(:,:,:), pointer                 :: WaterUptakeFromSoil          => null()
+        real, dimension(:,:,:), pointer                 :: NitrogenUptakeFromSoil       => null()
+        real, dimension(:,:,:), pointer                 :: PhosphorusUptakeFromSoil     => null()
     end type T_FluxesFromSoil
     
     !Block needed to indidualize fluxes by pesticide (e.g. all fertilizer put in N and P but each pesticide is a diff molecule).
     type T_PesticideApp
-        integer                                        :: PesticideID
-        type (T_ID)                                    :: ID
-        real, dimension(:,:), pointer                  :: Soil                   !pesticide flux to soil
-        real, dimension(:,:), pointer                  :: Vegetation             !pesticide flux to vegetation
+        integer                                        :: PesticideID            = null_int
+        type (T_ID)                                    :: ID                     
+        real, dimension(:,:), pointer                  :: Soil                   => null() !pesticide flux to soil
+        real, dimension(:,:), pointer                  :: Vegetation             => null() !pesticide flux to vegetation
 !        logical, dimension(:,:), pointer               :: PesticideAppOccurred 
     end type T_PesticideApp    
     
     type T_PesticideFlux
-        integer                                        :: UniquePesticides
-        type (T_PesticideApp), dimension(:), pointer   :: Application  !for every unique pesticide
+        integer                                        :: UniquePesticides       = null_int
+        type (T_PesticideApp), dimension(:), pointer   :: Application            => null() !for every unique pesticide
     end type T_PesticideFlux
 
     type T_Fluxes
-        real, dimension(:,:  ), pointer                 :: BiomassGrazed
-        real, dimension(:,:  ), pointer                 :: NitrogenGrazed
-        real, dimension(:,:  ), pointer                 :: PhosphorusGrazed
-        real, dimension(:,:  ), pointer                 :: BiomassGrazedFraction
-        real, dimension(:,:,:), pointer                 :: WaterUptakeLayer     !m3/s
-        real, dimension(:,:  ), pointer                 :: WaterUptake          !m3/s
-        real, dimension(:,:,:), pointer                 :: NitrogenUptakeLayer
-        real, dimension(:,:  ), pointer                 :: NitrogenUptake
-        real, dimension(:,:,:), pointer                 :: PhosphorusUptakeLayer
-        real, dimension(:,:  ), pointer                 :: PhosphorusUptake
-        real, dimension(:,:  ), pointer                 :: BiomassGrowth
-        real, dimension(:,:  ), pointer                 :: LAIChange
-        real, dimension(:,:  ), pointer                 :: BiomassRemovedInHarvest
-        real, dimension(:,:  ), pointer                 :: NitrogenRemovedInHarvest
-        real, dimension(:,:  ), pointer                 :: PhosphorusRemovedInHarvest
-        real, dimension(:,:  ), pointer                 :: BiomassHarvestedFraction
-        real, dimension(:,:  ), pointer                 :: BiomassRemovedInDormancy
-        real, dimension(:,:  ), pointer                 :: NitrogenRemovedInDormancy
-        real, dimension(:,:  ), pointer                 :: PhosphorusRemovedInDormancy
-        real, dimension(:,:  ), pointer                 :: FertilNitrateInSurface
-        real, dimension(:,:  ), pointer                 :: FertilNitrateInSubSurface
-        real, dimension(:,:  ), pointer                 :: FertilAmmoniaInSurface
-        real, dimension(:,:  ), pointer                 :: FertilAmmoniaInSubSurface
-        real, dimension(:,:  ), pointer                 :: FertilOrganicNInSurface
-        real, dimension(:,:  ), pointer                 :: FertilOrganicNInSubSurface
-        real, dimension(:,:  ), pointer                 :: FertilOrganicNParticInFluff
-        real, dimension(:,:  ), pointer                 :: FertilOrganicPInSurface
-        real, dimension(:,:  ), pointer                 :: FertilOrganicPInSubSurface
-        real, dimension(:,:  ), pointer                 :: FertilOrganicPParticInFluff
-        real, dimension(:,:  ), pointer                 :: FertilMineralPInSurface
-        real, dimension(:,:  ), pointer                 :: FertilMineralPInSubSurface
-        type (T_PesticideFlux)                          :: Pesticides                    
+        real, dimension(:,:  ), pointer                 :: BiomassGrazed         => null()
+        real, dimension(:,:  ), pointer                 :: NitrogenGrazed        => null()
+        real, dimension(:,:  ), pointer                 :: PhosphorusGrazed      => null()
+        real, dimension(:,:  ), pointer                 :: BiomassGrazedFraction => null()
+        real, dimension(:,:,:), pointer                 :: WaterUptakeLayer      => null()!m3/s
+        real, dimension(:,:  ), pointer                 :: WaterUptake           => null()!m3/s
+        real, dimension(:,:,:), pointer                 :: NitrogenUptakeLayer   => null()
+        real, dimension(:,:  ), pointer                 :: NitrogenUptake        => null()
+        real, dimension(:,:,:), pointer                 :: PhosphorusUptakeLayer => null()
+        real, dimension(:,:  ), pointer                 :: PhosphorusUptake      => null()
+        real, dimension(:,:  ), pointer                 :: BiomassGrowth         => null()
+        real, dimension(:,:  ), pointer                 :: LAIChange             => null()
+        real, dimension(:,:  ), pointer                 :: BiomassRemovedInHarvest => null()
+        real, dimension(:,:  ), pointer                 :: NitrogenRemovedInHarvest => null()
+        real, dimension(:,:  ), pointer                 :: PhosphorusRemovedInHarvest => null()
+        real, dimension(:,:  ), pointer                 :: BiomassHarvestedFraction => null()
+        real, dimension(:,:  ), pointer                 :: BiomassRemovedInDormancy => null()
+        real, dimension(:,:  ), pointer                 :: NitrogenRemovedInDormancy => null()
+        real, dimension(:,:  ), pointer                 :: PhosphorusRemovedInDormancy => null()
+        real, dimension(:,:  ), pointer                 :: FertilNitrateInSurface => null()
+        real, dimension(:,:  ), pointer                 :: FertilNitrateInSubSurface => null()
+        real, dimension(:,:  ), pointer                 :: FertilAmmoniaInSurface => null()
+        real, dimension(:,:  ), pointer                 :: FertilAmmoniaInSubSurface => null()
+        real, dimension(:,:  ), pointer                 :: FertilOrganicNInSurface => null()
+        real, dimension(:,:  ), pointer                 :: FertilOrganicNInSubSurface => null()
+        real, dimension(:,:  ), pointer                 :: FertilOrganicNParticInFluff => null()
+        real, dimension(:,:  ), pointer                 :: FertilOrganicPInSurface => null()
+        real, dimension(:,:  ), pointer                 :: FertilOrganicPInSubSurface => null()
+        real, dimension(:,:  ), pointer                 :: FertilOrganicPParticInFluff => null()
+        real, dimension(:,:  ), pointer                 :: FertilMineralPInSurface => null()
+        real, dimension(:,:  ), pointer                 :: FertilMineralPInSubSurface => null()
+        type (T_PesticideFlux)                          :: Pesticides                     
 
 !        real, dimension(:,:  ), pointer                 :: BiomassDormancyFraction
         type(T_FluxesToSoil)                            :: ToSoil
@@ -885,17 +891,17 @@ Module ModuleVegetation
     end type T_Fluxes
 
     type T_StateVariables
-        real, dimension(:,:  ), pointer                       :: TotalPlantNitrogen
-        real, dimension(:,:  ), pointer                       :: TotalPlantPhosphorus
-        real, dimension(:,:  ), pointer                       :: TotalPlantBiomass
-        real, dimension(:,:  ), pointer                       :: RootBiomass
-        real, dimension(:,:  ), pointer                       :: RootDepth
-        real, dimension(:,:  ), pointer                       :: LeafAreaIndex
-        real, dimension(:,:  ), pointer                       :: PotLeafAreaIndex
-        real, dimension(:,:  ), pointer                       :: SpecificLeafStorage
-        real, dimension(:,:  ), pointer                       :: EVTPCropCoefficient
+        real, dimension(:,:  ), pointer                       :: TotalPlantNitrogen   => null()
+        real, dimension(:,:  ), pointer                       :: TotalPlantPhosphorus => null()
+        real, dimension(:,:  ), pointer                       :: TotalPlantBiomass    => null()
+        real, dimension(:,:  ), pointer                       :: RootBiomass          => null()
+        real, dimension(:,:  ), pointer                       :: RootDepth            => null()
+        real, dimension(:,:  ), pointer                       :: LeafAreaIndex        => null()
+        real, dimension(:,:  ), pointer                       :: PotLeafAreaIndex     => null()
+        real, dimension(:,:  ), pointer                       :: SpecificLeafStorage  => null()
+        real, dimension(:,:  ), pointer                       :: EVTPCropCoefficient  => null()
         
-        real, dimension(:,:  ), pointer                       :: CanopyHeight
+        real, dimension(:,:  ), pointer                       :: CanopyHeight         => null()
     end type T_StateVariables
 
     private :: T_Vegetation
@@ -912,20 +918,20 @@ Module ModuleVegetation
         type(T_Time     )                                       :: NextCompute
         type(T_Time     )                                       :: NextIntegration
         type(T_Time     )                                       :: LastOutPutHDF5
-        type(T_Property    ), pointer                           :: FirstProperty
-        type(T_Property    ), pointer                           :: LastProperty
+        type(T_Property    ), pointer                           :: FirstProperty        => null()
+        type(T_Property    ), pointer                           :: LastProperty         => null()
         integer                                                 :: PropertiesNumber     = 0
 
-        type(T_VegetationType    ), pointer                     :: FirstVegetation
-        type(T_VegetationType    ), pointer                     :: LastVegetation
-        integer                                                 :: VegetationsNumber     = 0
+        type(T_VegetationType    ), pointer                     :: FirstVegetation      => null()
+        type(T_VegetationType    ), pointer                     :: LastVegetation       => null()
+        integer                                                 :: VegetationsNumber    = 0
 
         !DataMatrixes
-        integer, dimension(:,:), pointer                        :: AgricPractID !ID's from user - SWAT ID'S
+        integer, dimension(:,:), pointer                        :: AgricPractID         => null()!ID's from user - SWAT ID'S
         type (T_PropertyID)                                     :: AgricPract
         
         !ordered ID's to save space (max value = number of different ID's)
-        integer, dimension(:,:), pointer                        :: VegetationID    
+        integer, dimension(:,:), pointer                        :: VegetationID         => null()
                                                                                    
         integer                                                 :: ObjEnterData         = 0
         integer                                                 :: ObjTime              = 0
@@ -946,63 +952,63 @@ Module ModuleVegetation
         logical                                                 :: UsePotLAI      = .false.
         logical                                                 :: UseBoundaryLAI = .false.
         
-        logical, dimension(:,:), pointer                        :: IsPlantGrowing       
-        logical, dimension(:,:), pointer                        :: PlantingOccurred      
-        logical, dimension(:,:), pointer                        :: KillOccurred        
-        logical, dimension(:,:), pointer                        :: HarvestOnlyOccurred   
-        logical, dimension(:,:), pointer                        :: HarvestKillOccurred
-        logical, dimension(:,:), pointer                        :: IsPlantDormant       
-        logical, dimension(:,:), pointer                        :: PlantGoingDormant    
-        logical, dimension(:,:), pointer                        :: IsPlantBeingGrazed
-        logical, dimension(:,:), pointer                        :: LAISenescence        
-        logical, dimension(:,:), pointer                        :: ChangeCanopyEnabled      
-        logical, dimension(:,:), pointer                        :: SoilFluxesActive
+        logical, dimension(:,:), pointer                        :: IsPlantGrowing       => null() 
+        logical, dimension(:,:), pointer                        :: PlantingOccurred     => null()  
+        logical, dimension(:,:), pointer                        :: KillOccurred         => null()
+        logical, dimension(:,:), pointer                        :: HarvestOnlyOccurred  => null() 
+        logical, dimension(:,:), pointer                        :: HarvestKillOccurred  => null()
+        logical, dimension(:,:), pointer                        :: IsPlantDormant       => null()
+        logical, dimension(:,:), pointer                        :: PlantGoingDormant    => null()
+        logical, dimension(:,:), pointer                        :: IsPlantBeingGrazed   => null()
+        logical, dimension(:,:), pointer                        :: LAISenescence        => null()
+        logical, dimension(:,:), pointer                        :: ChangeCanopyEnabled  => null()    
+        logical, dimension(:,:), pointer                        :: SoilFluxesActive     => null()
 
         !global variables to be used in several routines
-        real, dimension(:,:), pointer                           :: PlantNitrogenFraction
-        real, dimension(:,:), pointer                           :: PlantPhosphorusFraction
-        real, dimension(:,:), pointer                           :: PlantLAIMaxFraction
-        real, dimension(:,:), pointer                           :: LAIBeforeSenescence
-        real, dimension(:,:  ), pointer                         :: LAIDeclineFraction
-        real, dimension(:,:), pointer                           :: DayLength
-        real, dimension(:,:), pointer                           :: MinimumDayLength
-        integer, dimension(:,:), pointer                        :: TranspirationBottomLayer
+        real, dimension(:,:), pointer                           :: PlantNitrogenFraction => null()
+        real, dimension(:,:), pointer                           :: PlantPhosphorusFraction => null()
+        real, dimension(:,:), pointer                           :: PlantLAIMaxFraction  => null()
+        real, dimension(:,:), pointer                           :: LAIBeforeSenescence  => null()
+        real, dimension(:,:  ), pointer                         :: LAIDeclineFraction   => null()
+        real, dimension(:,:), pointer                           :: DayLength            => null()
+        real, dimension(:,:), pointer                           :: MinimumDayLength     => null()
+        integer, dimension(:,:), pointer                        :: TranspirationBottomLayer => null()
         
-        character(len = StringLength)                           :: GrowthDatabase
-        character(len = StringLength)                           :: FertilizerDatabase
-        character(len = StringLength)                           :: PesticideDatabase
-        character(len = StringLength)                           :: FeddesDatabase
+        character(len = StringLength)                           :: GrowthDatabase       = null_str
+        character(len = StringLength)                           :: FertilizerDatabase   = null_str
+        character(len = StringLength)                           :: PesticideDatabase    = null_str
+        character(len = StringLength)                           :: FeddesDatabase       = null_str
 
         !global counter
-        real, dimension(:,:), pointer                           :: DaysOfGrazing              !counter to days of grazing
-        real, dimension(:,:), pointer                           :: AnnualNitrogenFertilized
-        real, dimension(:,:), pointer                           :: AnnualPhosphorusFertilized
-        real, dimension(:,:), pointer                           :: OptimalTotalPlantNitrogen
-        real, dimension(:,:), pointer                           :: OptimalTotalPlantPhosphorus
-        integer                                                 :: nIterations             !counter to atmosphere integration
+        real, dimension(:,:), pointer                           :: DaysOfGrazing        => null()  !counter to days of grazing
+        real, dimension(:,:), pointer                           :: AnnualNitrogenFertilized => null()
+        real, dimension(:,:), pointer                           :: AnnualPhosphorusFertilized => null()
+        real, dimension(:,:), pointer                           :: OptimalTotalPlantNitrogen => null()
+        real, dimension(:,:), pointer                           :: OptimalTotalPlantPhosphorus => null()
+        integer                                                 :: nIterations          = 0  !counter to atmosphere integration
         
-        integer, dimension(:), pointer                          :: PesticideListID
-        character(len = StringLength), dimension(:), pointer    :: PesticideListName
+        integer, dimension(:), pointer                          :: PesticideListID      => null()
+        character(len = StringLength), dimension(:), pointer    :: PesticideListName    => null()
        
-        type(T_VegetationType), dimension(:), pointer           :: VegetationTypes  => null()
+        type(T_VegetationType), dimension(:), pointer           :: VegetationTypes      => null()
         type(T_ComputeOptions)                                  :: ComputeOptions
         type(T_HeatUnits)                                       :: HeatUnits
         type(T_Growth)                                          :: Growth
         type(T_Fluxes)                                          :: Fluxes
         type(T_StateVariables)                                  :: StateVariables
         
-        real, dimension(:,:), pointer                           :: RootDepthOld
+        real, dimension(:,:), pointer                           :: RootDepthOld         => null()
         
         !Auto fertilization target
-        integer                                                 :: SimulationYear = 1
-        real, dimension(:,:), pointer                           :: NitrogenYeldEstimate
-        real, dimension(:,:), pointer                           :: NitrogenYeldTarget
+        integer                                                 :: SimulationYear       = 1
+        real, dimension(:,:), pointer                           :: NitrogenYeldEstimate => null()
+        real, dimension(:,:), pointer                           :: NitrogenYeldTarget   => null()
         
-        real, dimension(:,:,:), pointer                         :: ECw => null()      
+        real, dimension(:,:,:), pointer                         :: ECw                  => null()      
         
         logical                                                 :: AllowNegativeLAI   = .false.
         logical                                                 :: CorrectNegativeLAI = .false.
-        real                                                    :: ValueInsteadNegativeLAI
+        real                                                    :: ValueInsteadNegativeLAI = null_real
 
     end type  T_Vegetation
 
@@ -11255,7 +11261,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     !--------------------------------------------------------------------------
 
-    subroutine LAIGrowthSWAT
+    subroutine LAIGrowthSWAT_old
 
         !Arguments-------------------------------------------------------------
         
@@ -11273,6 +11279,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                         :: STAT_CALL
         logical                                         :: UseBoundaryLAI
         logical                                         :: LAIIsGrowing
+        real                                            :: FrGrowLAIDecline
                 
         !Begin----------------------------------------------------------        
 
@@ -11333,34 +11340,36 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     cycle
                 endif
                 
-                !If plant already reached maturity, go to next cell
+                !If plant already reached maturity and boundary LAI, go to next cell
                 LAIIsGrowing = .false.
                 
                 HUAcc = Me%HeatUnits%PlantHUAccumulated(i,j)   
                 HUAcc_Old = Me%HeatUnits%PlantHUAccumulated_Old(i,j)
+                FrGrowLAIDecline = gdb%FrGrowLAIDecline
                              
-                if (HUAcc <= 1.0) then
+                !if (HUAcc <= 1.0) then
+                if (HUAcc <= FrGrowLAIDecline) then
                     LAIIsGrowing = .true.
-                else if (HUAcc_Old < 1.0) then
+                !else if (HUAcc_Old < 1.0) then
+                else if (HUAcc_Old < FrGrowLAIDecline) then
                     LAIIsGrowing = .true.
                 else 
                     if (UseBoundaryLAI) then
-                        Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j)    
+                        Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j)
+                        cycle    
                     endif                
-                
-                    cycle
                 endif
                 !==================================================                                                                                                        
 
-                !Save old value. It will be used in next step                
+                !Save old value. It will be used in next step      
+                FractionLAIMax_Old = Me%PlantLAIMaxFraction(i,j)          
                 if (Me%PlantingOccurred(i,j)) then
-                    FractionLAIMax_Old = 0.0
+                    Me%PlantLAIMaxFraction(i,j) = 0.0
                 else
-                    FractionLAIMax_Old = Me%PlantLAIMaxFraction(i,j)
+                    !Update PlantLAIMaxFraction
+                    Me%PlantLAIMaxFraction(i,j) = HUAcc / (HUAcc + exp(gdb%LAIShape1 - gdb%LAIShape2 * HUAcc))                
                 endif                  
                 
-                !Update PlantLAIMaxFraction
-                Me%PlantLAIMaxFraction(i,j) = HUAcc / (HUAcc + exp(gdb%LAIShape1 - gdb%LAIShape2 * HUAcc))                
                                                 
                 !Compute new Leaf Area Index                     
                 if (LAIIsGrowing) then
@@ -11408,7 +11417,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ComputeOptions%UseLAIDecRate) then                    
                         LAIDeclineFraction = 1.0 - gdb%LAIDecRate                        
                     elseif(.not. Me%ComputeOptions%ChangeLAISenescence) then                    
-                        LAIDeclineFraction = (1.0 - HUAcc) / (1.0 - gdb%FrGrowLAIDecline)                        
+                        LAIDeclineFraction = (1.0 - HUAcc) / (1.0 - gdb%FrGrowLAIDecline)
                     else
                         if (HUAcc .gt. HUAcc_Old) then                        
                             LAIDeclineFraction = (1.0 - HUAcc) / (1.0 - HUAcc_Old)                            
@@ -11429,6 +11438,158 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                     Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j)    
                                         
+                endif
+
+            endif
+
+        enddo do2
+        enddo do1
+
+
+    end subroutine LAIGrowthSWAT_old
+
+    !--------------------------------------------------------------------------
+
+    subroutine LAIGrowthSWAT
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------        
+        integer                                         :: i, j
+        integer                                         :: veg_id
+        type(T_GrowthDatabase), pointer                 :: gdb !gdb is a pointer to the GrowthDataBase structure        
+        real                                            :: HUAcc, HUAcc_Old        
+        real                                            :: FractionLAIMax_Old                        
+        real                                            :: LAIMax, LAI
+        real                                            :: DeltaFractionLAIMax
+        real                                            :: LAIDeclineFraction
+        real                                            :: GlobalStress
+        type (T_Property), pointer                      :: BoundaryLAI
+        integer                                         :: STAT_CALL
+        logical                                         :: UseBoundaryLAI
+!        logical                                         :: LAIIsGrowing
+        real                                            :: FrGrowLAIDecline
+                
+        !Begin----------------------------------------------------------        
+
+        UseBoundaryLAI = .false.
+
+        if (Me%UseBoundaryLAI) then
+            call SearchProperty(BoundaryLAI, BoundaryLeafAreaIndex_, .false., STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'LAIGrowthSWAT - ModuleVegetation - ERR001'
+            endif
+        else
+            BoundaryLAI => null()
+        endif
+
+do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then                                         
+                
+                !if BoundaryLAI exists than use it and go to next cell
+                if (Me%UseBoundaryLAI .and. BoundaryLAI%Field(i,j) >= 0) then
+                    !If boundary LAI is negative than it does not exist for this DT.
+                    !In this case, the LAI must be computed and methos continues.
+                    !otherwise the change is the difference between LAI's so that 
+                    !the update routine gives the boundary value. And goes directly to next cell
+                    Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j) 
+                    cycle
+                endif
+            
+                veg_id = Me%VegetationID(i,j)
+                
+                gdb => Me%VegetationTypes(veg_id)%GrowthDatabase
+
+                !if Plant type 0 is NO PLANT or is plant but has no leaves or not growing or reached maturity, go to next cell
+                if ((gdb%PlantType == NotAPlant)                        &
+                    .or. (.not. Me%VegetationTypes(veg_id)%HasLeaves)   &
+                    .or. (.not. Me%IsPlantGrowing(i,j))                 &
+                    .or. (Me%HeatUnits%PlantHUAccumulated (i,j) .gt. 1.0)) cycle                                            
+
+                !If plant is dormant, go to next cell
+                if (Me%ComputeOptions%Dormancy) then
+                    if (Me%IsPlantDormant(i,j)) then                    
+                        Me%LAISenescence(i,j) = .false.
+                        cycle
+                    endif
+                endif                
+                
+                HUAcc = Me%HeatUnits%PlantHUAccumulated(i,j)   
+                HUAcc_Old = Me%HeatUnits%PlantHUAccumulated_Old(i,j)
+                FrGrowLAIDecline = gdb%FrGrowLAIDecline
+                LAI = Me%StateVariables%LeafAreaIndex(i,j)
+
+                !Save old value. It will be used in next step      
+                FractionLAIMax_Old = Me%PlantLAIMaxFraction(i,j)          
+                if (Me%PlantingOccurred(i,j)) then
+                    Me%PlantLAIMaxFraction(i,j) = 0.0
+                else
+                    !Update PlantLAIMaxFraction
+                    Me%PlantLAIMaxFraction(i,j) = HUAcc / (HUAcc + exp(gdb%LAIShape1 - gdb%LAIShape2 * HUAcc))                
+                endif                  
+                                                
+                !Update LAI change                
+                if (HUAcc < FrGrowLAIDecline) then
+                !if in LAI rising limb 
+                
+                    Me%LAISenescence(i,j) = .false.
+                
+                    !Gets the stress calculated before. Only temperature stress is computed at this routine.
+                    call ComputeGlobalStress(i,j)
+                    GlobalStress = Me%Growth%GlobalStress(i,j)
+                    
+                    if (gdb%PlantType .eq. 7) then
+                        LAIMax = gdb%LAIMax * Me%Growth%TreeFractionToMaturity(i,j)
+                    else
+                        LAIMax = gdb%LAIMax
+                    endif
+        
+                    DeltaFractionLAIMax = Me%PlantLAIMaxFraction(i,j) - FractionLAIMax_Old                                
+                    Me%Fluxes%LAIChange(i,j) = (DeltaFractionLAIMax * LAIMax * (1.0 - exp(5.0 * (LAI - LAIMax))))   &
+                                                * sqrt(GlobalStress)
+
+                    !When coming from dormancy or grazing or harvest LAI changr turns negative because of HU decline
+                    !However, LAI decline due to HUAccumulated decline is already computed explicitly 
+                    !for grazing and harvesting in leaf area index state variable. In order to avoid double account here
+                    !flux can only be positive.
+                    if (Me%Fluxes%LAIChange(i,j) .lt. 0.0) then
+                        Me%Fluxes%LAIChange(i,j) = 0.00
+                    elseif ((LAI + Me%Fluxes%LAIChange(i,j)) > LAIMax) then
+                        Me%Fluxes%LAIChange(i,j) = LAIMax - LAI
+                    endif
+
+                else if (.not. gdb%Evergreen) then 
+                !if in LAI decaying limb (senescence) and is not a "evergreen" plant
+        
+                    Me%LAISenescence(i,j) = .true.
+                    
+                    !LAI change (<0) is LAInew - LAIold where LAInew due to senescense is LAI * LAIDeclineFraction       
+                    if (Me%ComputeOptions%UseLAIDecRate) then                    
+                        
+                        !decline is a constant fraction applied to previous LAI value
+                        LAIDeclineFraction       = 1.0 - gdb%LAIDecRate     
+                        Me%Fluxes%LAIChange(i,j) = LAI * LAIDeclineFraction - LAI                
+                    
+                    elseif(.not. Me%ComputeOptions%ChangeLAISenescence) then                    
+                        
+                        !SWAT decline formulation - a fraction of the LAI before senescense (saved)
+                        !If grazing or harvesting occurr during senescence, LAI is increased (inconsistent).                        
+                        LAIDeclineFraction       = (1.0 - HUAcc) / (1.0 - gdb%FrGrowLAIDecline)
+                        Me%Fluxes%LAIChange(i,j) = Me%LAIBeforeSenescence(i,j) * LAIDeclineFraction - LAI 
+                        
+                    else
+                        !LAI computed from its ptrvious value. It avoids erorrs when grazing or harvesting occurrs 
+                        !during senescence.            
+                        if (HUAcc .gt. HUAcc_Old) then                        
+                            LAIDeclineFraction = (1.0 - HUAcc) / (1.0 - HUAcc_Old)                            
+                        else                        
+                            LAIDeclineFraction = 1.0                            
+                        endif
+                        Me%Fluxes%LAIChange(i,j) = LAI * LAIDeclineFraction - LAI 
+                    endif
+                                                              
                 endif
 
             endif
@@ -12916,14 +13077,15 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 endif
 
                 PlantType            = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType
-                TreeYearsToMaturity  = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%TreeYearsToMaturity
 
                 !For trees, growth is slower, getting maximum biomass not in a single year. As so growth may be limited.
-                if (PlantType == Trees .and. TreeYearsToMaturity .gt. 0 ) then                
-                    PlantBiomass = min (PlantBiomass, Me%Growth%TreeMaximumAnnualBiomass(i,j))
-
-                end if
-
+                if (PlantType == Trees) then 
+                    TreeYearsToMaturity  = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%TreeYearsToMaturity
+                    if (TreeYearsToMaturity .gt. 0 ) then                
+                        PlantBiomass = min (PlantBiomass, Me%Growth%TreeMaximumAnnualBiomass(i,j))
+                    end if
+                endif
+                
                 if (Me%ComputeOptions%ModelPlantBiomass) then
                     Me%StateVariables%TotalPlantBiomass(i,j)    = PlantBiomass
                 endif
@@ -13055,7 +13217,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     !--------------------------------------------------------------------------
 
-    subroutine UpdateLeafProperties
+    subroutine UpdateLeafProperties_old
 
         !Arguments-------------------------------------------------------------
         
@@ -13110,7 +13272,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 PlantType = veg%GrowthDatabase%PlantType
 
                 if (veg%HasLeaves) then
-
+                    
+                    LAIChange = Me%Fluxes%LAIChange(i,j)
+                    
                     PlantKilled = .false.
                     if (Me%ComputeOptions%HarvestKill) then
                         if (Me%KillOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
@@ -13162,11 +13326,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                 BiomassHarvestedFraction = Me%Fluxes%BiomassHarvestedFraction(i,j)
                             endif
                         endif
-
-
+                        
                         if (.not. Me%LAISenescence(i,j)) then
             
-                            Me%StateVariables%LeafAreaIndex(i,j) = (LAI + Me%Fluxes%LAIChange(i,j)) - &
+                            Me%StateVariables%LeafAreaIndex(i,j) = (LAI + LAIChange            ) -    &
                                                                    (LAI * BiomassGrazedFraction) -    &
                                                                    (LAI * BiomassHarvestedFraction)
                 
@@ -13188,11 +13351,11 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                
                             Me%StateVariables%LeafAreaIndex(i,j) = (Me%StateVariables%LeafAreaIndex(i,j) - LAIChange) - &
                                                                    (LAI * BiomassGrazedFraction) -                      &
-                                                                   (LAI * BiomassHarvestedFraction)  
+                                                                   (LAI * BiomassHarvestedFraction) 
                             
                         else if (UseBoundaryLAI) then
                         
-                                Me%StateVariables%LeafAreaIndex(i,j) = Me%StateVariables%LeafAreaIndex(i,j) + LAIChange   
+                            Me%StateVariables%LeafAreaIndex(i,j) = Me%StateVariables%LeafAreaIndex(i,j) + LAIChange   
                             
                         endif
         
@@ -13224,6 +13387,141 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     Me%StateVariables%LeafAreaIndex(i,j) = 0.0
                 endif                
 
+            endif
+            
+        enddo do2
+        enddo do1
+
+    end subroutine UpdateLeafProperties_old
+
+    !--------------------------------------------------------------------------
+
+    subroutine UpdateLeafProperties
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local----------------------------------------------------------        
+        integer                                         :: i, j, STAT_CALL
+        logical                                         :: PlantKilled, PlantGoingDormant
+        real                                            :: LAI, BiomassGrazedFraction, BiomassHarvestedFraction
+        real                                            :: LAIChange
+        real                                            :: LAIMax, LAIMinDormant
+        integer                                         :: PlantType  
+        logical                                         :: UseBoundaryLAI      
+        type(T_Property), pointer                       :: BoundaryLAI
+        integer                                         :: vegID
+        type(T_VegetationType)                          :: veg
+        !Begin----------------------------------------------------------
+                
+        UseBoundaryLAI = .false.
+                
+        if (Me%UseBoundaryLAI) then
+            call SearchProperty(BoundaryLAI, BoundaryLeafAreaIndex_, .false., STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'UpdateLeafProperties - ModuleVegetation - ERR001'
+            endif
+        else
+            BoundaryLAI => null()
+        endif
+        
+do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
+                
+                !if boundaryvalue active there is no need to check growth processes
+                if (Me%UseBoundaryLAI .and. BoundaryLAI%Field(i,j) >= 0) then
+                    Me%StateVariables%LeafAreaIndex(i,j) = LAI + LAIChange 
+                    cycle 
+                endif
+                
+                vegID = Me%VegetationID(i,j)
+                veg   = Me%VegetationTypes(vegID)
+                
+                !if Plant type 0 is NO PLANT or is plant but not growing or reached maturity, go to next cell
+                if ((veg%GrowthDatabase%PlantType == NotAPlant)    &
+                    .or. (.not. Me%IsPlantGrowing(i,j))            &
+                    .or. (Me%HeatUnits%PlantHUAccumulated (i,j) .gt. 1.0)) cycle
+                
+                PlantType = veg%GrowthDatabase%PlantType
+                LAI       = Me%StateVariables%LeafAreaIndex(i,j)
+                LAIMax    = veg%GrowthDatabase%LAIMax 
+                LAIChange = Me%Fluxes%LAIChange(i,j)
+
+                if (veg%HasLeaves) then
+                    
+                    PlantKilled = .false.
+                    if (Me%ComputeOptions%HarvestKill) then
+                        if (Me%KillOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
+                            PlantKilled = .true.
+                        endif
+                    endif
+                    
+                    PlantGoingDormant = .false.
+                    if (Me%ComputeOptions%Dormancy) then
+                        if (Me%PlantGoingDormant(i,j)) then
+                            PlantGoingDormant = .true.
+                        endif 
+                    endif                   
+                
+                    if (PlantKilled .or. Me%PlantingOccurred(i,j)) then
+                        
+                        Me%StateVariables%LeafAreaIndex(i,j) = 0.0
+                    
+                    elseif (PlantGoingDormant) then
+                    
+                        LAIMinDormant = veg%GrowthDatabase%LAIMinDormant
+                                              
+                        if (Me%StateVariables%LeafAreaIndex(i,j) .gt. LAIMinDormant) then
+                            Me%StateVariables%LeafAreaIndex(i,j) = LAIMinDormant
+                        endif
+
+                    else
+                        
+                        BiomassGrazedFraction = 0.0
+                        if (Me%ComputeOptions%Grazing) then
+                            if (Me%IsPlantBeingGrazed(i,j)) then
+                                BiomassGrazedFraction = Me%Fluxes%BiomassGrazedFraction(i,j)
+                            endif
+                        endif
+
+                        BiomassHarvestedFraction = 0.0
+                        if (Me%ComputeOptions%HarvestKill) then
+                            if (Me%HarvestOnlyOccurred(i,j)) then
+                                BiomassHarvestedFraction = Me%Fluxes%BiomassHarvestedFraction(i,j)
+                            endif
+                        endif
+                        
+
+                       !LAI change is positive in rise limb and negative in senescence
+                        Me%StateVariables%LeafAreaIndex(i,j) = (LAI + LAIChange            ) -    &
+                                                               (LAI * BiomassGrazedFraction) -    &
+                                                               (LAI * BiomassHarvestedFraction)
+
+                        if ((PlantType .eq. Trees)) then
+                            LAIMax = Me%Growth%TreeFractionToMaturity(i,j) * LAIMax
+                        endif
+
+                        if (Me%StateVariables%LeafAreaIndex(i,j) .gt. LAIMax) then
+                            Me%StateVariables%LeafAreaIndex(i,j) = LAIMax
+                        endif
+                    
+                        !If in the future a leaf flux is computed explicitly than LAI can not be
+                        !taken to zero here. If mass flux .gt. LAI then flux is LAI
+                        if (Me%StateVariables%LeafAreaIndex(i,j) .lt. 0.0) then   
+                            Me%StateVariables%LeafAreaIndex(i,j) = 0.0
+                        endif  
+                        
+                        !if not in senescence keep saving LAI values. it will keep the last LAI before senescense
+                        if((.not. Me%LAISenescence(i,j)) .and. (.not. Me%ComputeOptions%ChangeLAISenescence)) then
+                            Me%LAIBeforeSenescence(i,j) = Me%StateVariables%LeafAreaIndex(i,j)
+                        endif                                               
+                    endif
+                else
+        
+                    Me%StateVariables%LeafAreaIndex(i,j) = 0.0
+                    
+                endif
             endif
             
         enddo do2

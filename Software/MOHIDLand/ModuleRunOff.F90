@@ -134,10 +134,10 @@ Module ModuleRunOff
     
     !Types---------------------------------------------------------------------
     type T_OutPut
-         type (T_Time), pointer, dimension(:)       :: OutTime                  => null()
-         integer                                    :: NextOutPut
-         logical                                    :: Yes = .false.
-         type (T_Time), dimension(:), pointer       :: RestartOutTime
+         type (T_Time), pointer, dimension(:)       :: OutTime              => null()
+         integer                                    :: NextOutPut           = 1
+         logical                                    :: Yes                  = .false.
+         type (T_Time), dimension(:), pointer       :: RestartOutTime       => null()
         logical                                     :: WriteRestartFile     = .false.
         logical                                     :: RestartOverwrite     = .false.
         integer                                     :: NextRestartOutput    = 1         
@@ -145,10 +145,10 @@ Module ModuleRunOff
 
 
     type T_Files
-        character(PathLength)                       :: DataFile
-        character(PathLength)                       :: InitialFile
-        character(PathLength)                       :: FinalFile
-        character(PathLength)                       :: TransientHDF
+        character(PathLength)                       :: DataFile             = null_str
+        character(PathLength)                       :: InitialFile          = null_str
+        character(PathLength)                       :: FinalFile            = null_str
+        character(PathLength)                       :: TransientHDF         = null_str
     end type T_Files    
 
     type T_ExtVar
@@ -164,14 +164,14 @@ Module ModuleRunOff
         integer, dimension(:,:), pointer            :: RiverPoints              => null()
         real   , dimension(:,:), pointer            :: CellSlope                => null()
         type (T_Time)                               :: Now
-        real                                        :: DT
+        real                                        :: DT                       = null_real
     end type T_ExtVar
 
 
   
     type  T_RunOff
-        integer                                     :: InstanceID
-        character(len=StringLength)                 :: ModelName
+        integer                                     :: InstanceID               = 0
+        character(len=StringLength)                 :: ModelName                = null_str
         integer                                     :: ObjBasinGeometry         = 0
         integer                                     :: ObjTime                  = 0
         integer                                     :: ObjHorizontalGrid        = 0
@@ -221,15 +221,18 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: StormWaterInteraction    => null() !Points where interaction with SWMM occurs
         real,    dimension(:,:), pointer            :: StreetGutterLength       => null() !Length of Stret Gutter in a given cell
         real,    dimension(:,:), pointer            :: MassError                => null() !Contains mass error
-        real, dimension(:,:), pointer               :: CenterFlowX, CenterFlowY
-        real, dimension(:,:), pointer               :: CenterVelocityX, CenterVelocityY
-        real, dimension(:,:), pointer               :: FlowModulus, VelocityModulus
+        real,    dimension(:,:), pointer            :: CenterFlowX              => null()
+        real,    dimension(:,:), pointer            :: CenterFlowY              => null()
+        real,    dimension(:,:), pointer            :: CenterVelocityX          => null()
+        real,    dimension(:,:), pointer            :: CenterVelocityY          => null()
+        real,    dimension(:,:), pointer            :: FlowModulus              => null()
+        real,    dimension(:,:), pointer            :: VelocityModulus          => null()
         integer, dimension(:,:), pointer            :: LowestNeighborI          => null() !Lowest Neighbor in the surroundings
         integer, dimension(:,:), pointer            :: LowestNeighborJ          => null() !Lowest Neighbor in the surroundings       
         integer, dimension(:,:), pointer            :: DFourSinkPoint           => null() !Point which can't drain with in X/Y only
         integer, dimension(:,:), pointer            :: StabilityPoints          => null() !Points where models check stability
         type(T_PropertyID)                          :: OverLandCoefficientID
-        logical                                     :: StormWaterModel = .false.          !If connected to SWMM
+        logical                                     :: StormWaterModel          = .false.          !If connected to SWMM
         real,    dimension(:,:), pointer            :: StormWaterModelFlow      => null() !Flow from SWMM
         real,    dimension(:,:), pointer            :: StreetGutterFlow         => null() !Flow through "street gutters"
         real,    dimension(:,:), pointer            :: SewerInflow              => null() !Integrated inflow at sewer points 
@@ -238,9 +241,9 @@ Module ModuleRunOff
                                                                                           !(at gutters + sewer points) (real)
         integer, dimension(:,:), pointer            :: StreetGutterTargetI      => null() !Sewer interaction point...
         integer, dimension(:,:), pointer            :: StreetGutterTargetJ      => null() !...where street gutter drains to
-        real                                        :: MinSlope
-        logical                                     :: AdjustSlope
-        logical                                     :: Stabilize
+        real                                        :: MinSlope              = null_real
+        logical                                     :: AdjustSlope           = .false.
+        logical                                     :: Stabilize             = .false.
         logical                                     :: Discharges            = .false.
         logical                                     :: RouteDFourPoints      = .false.
         logical                                     :: RouteDFourPointsOnDN  = .false.
@@ -248,7 +251,7 @@ Module ModuleRunOff
         real                                        :: StormWaterInfiltrationVelocity  = 1.4e-5  !~50mm/h
         real                                        :: StormWaterFlowVelocity          = 0.2     !velocity in pipes
         logical                                     :: Buildings             = .false.
-        real                                        :: StabilizeFactor
+        real                                        :: StabilizeFactor       = null_real
         integer                                     :: HydrodynamicApproximation = DiffusionWave_
         logical                                     :: CalculateAdvection    = .true.
         logical                                     :: CalculateCellMargins  = .true.
@@ -259,39 +262,39 @@ Module ModuleRunOff
         real                                        :: InternalTimeStepSplit = 1.5
         integer                                     :: MinIterations         = 1
         integer                                     :: MinCellsToRestart     = 0
-        real                                        :: MinimumWaterColumn
-        real                                        :: MinimumWaterColumnAdvection
-        real                                        :: MinimumWaterColumnStabilize
+        real                                        :: MinimumWaterColumn    = null_real
+        real                                        :: MinimumWaterColumnAdvection = null_real
+        real                                        :: MinimumWaterColumnStabilize = null_real
         real                                        :: NextDT               = null_real
-        real                                        :: DTFactor
-        real                                        :: DTFactorUp
-        real                                        :: DTFactorDown
+        real                                        :: DTFactor             = null_real
+        real                                        :: DTFactorUp           = null_real
+        real                                        :: DTFactorDown         = null_real
         logical                                     :: LimitDTCourant       = .false.
         logical                                     :: LimitDTVariation     = .true.
         real                                        :: MaxCourant           = 1.0        
         logical                                     :: ImposeBoundaryValue  = .false.
-        real                                        :: BoundaryValue
-        real                                        :: MaxDtmForBoundary
+        real                                        :: BoundaryValue        = null_real
+        real                                        :: MaxDtmForBoundary    = null_real
         real(8)                                     :: FlowAtBoundary       = 0.0
         integer                                     :: MaxIterations        = 5
         logical                                     :: SimpleChannelInteraction = .false.
         logical                                     :: LimitToCriticalFlow  = .true.
         integer                                     :: FaceWaterColumn      = WCMaxBottom_
-        real                                        :: MaxVariation
-        integer                                     :: OverlandChannelInteractionMethod
-        logical                                     :: CheckDecreaseOnly
+        real                                        :: MaxVariation         = null_real
+        integer                                     :: OverlandChannelInteractionMethod = null_int
+        logical                                     :: CheckDecreaseOnly    = .false.
         
         real(8)                                     :: BoundaryFlowVolume        = 0.0 !m3 => positive if flow is towards boundary.          
         real(8)                                     :: VolumeStoredInSurface     = 0.0
         real(8)                                     :: VolumeStoredInStormSystem = 0.0
 
         logical                                     :: WriteMaxFlowModulus  = .false.
-        character(Pathlength)                       :: MaxFlowModulusFile
-        real, dimension(:,:), pointer               :: MaxFlowModulus
+        character(Pathlength)                       :: MaxFlowModulusFile   = null_str
+        real, dimension(:,:), pointer               :: MaxFlowModulus       => null()
 
         logical                                     :: WriteMaxWaterColumn  = .false.        
-        character(Pathlength)                       :: MaxWaterColumnFile
-        real, dimension(:,:), pointer               :: MaxWaterColumn
+        character(Pathlength)                       :: MaxWaterColumnFile   = null_str
+        real, dimension(:,:), pointer               :: MaxWaterColumn       => null()
         
         logical                                     :: Continuous          = .false.
         logical                                     :: StopOnWrongDate     = .true.

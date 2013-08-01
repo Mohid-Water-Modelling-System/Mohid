@@ -52,24 +52,25 @@ program MohidLand
 
     !Time Variables
     type (T_Time)                       :: BeginTime, EndTime, CurrentTime
-    real                                :: DT, MaxDT
-    logical                             :: VariableDT
-    real                                :: GmtReference
-    real                                :: DTPredictionInterval
+    real                                :: DT                   = null_real
+    real                                :: MaxDT                = null_real
+    logical                             :: VariableDT           = .false.
+    real                                :: GmtReference         = null_real
+    real                                :: DTPredictionInterval = null_real
 
     !Model Name
-    character(len=StringLength)         :: ModelName
-    character(PathLength)               :: OutputFile
-    logical                             :: SaveOutput = .false.
-    character(PathLength)               :: DataFile  = 'nomfich.dat'
-    logical                             :: ConfigByArgument = .false.    
+    character(len=StringLength)         :: ModelName            = null_str
+    character(PathLength)               :: OutputFile           = null_str
+    logical                             :: SaveOutput           = .false.
+    character(PathLength)               :: DataFile             = 'nomfich.dat'
+    logical                             :: ConfigByArgument     = .false.    
 
     !Other Stuff
     type (T_Time)                       :: InitialSystemTime, FinalSystemTime
-    integer, dimension(8)               :: F95Time
+    integer, dimension(8)               :: F95Time              = null_int
     
     !OpenMI flag
-    logical                             :: ModelConstructed = .false.
+    logical                             :: ModelConstructed     = .false.
 
 #ifndef _OPENMI_
 

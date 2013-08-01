@@ -237,126 +237,126 @@ Module ModulePorousMediaProperties
     end type T_RelatedID
 
     type T_ID
-        integer                       :: IDNumber
-        character(LEN = StringLength) :: name
-        character(LEN = StringLength) :: description
-        character(LEN = StringLength) :: units
+        integer                       :: IDNumber    = null_int
+        character(LEN = StringLength) :: name        = null_str
+        character(LEN = StringLength) :: description = null_str
+        character(LEN = StringLength) :: units       = null_str
     end type T_ID
 
     type T_Property_3D
         type(T_PropertyID)               :: ID
-        real, pointer, dimension (:,:,:) :: Field
-        real                             :: Scalar
+        real, pointer, dimension (:,:,:) :: Field    => null()
+        real                             :: Scalar   = null_real
     end type T_Property_3D
 
 
     type T_ExtVar
         !Map
-        integer, pointer, dimension(:,:,:)          :: WaterPoints3D
-        integer, pointer, dimension(:,:,:)          :: OpenPoints3D
-        integer, pointer, dimension(:,:,:)          :: LandPoints3D
-        integer, dimension(:,:), pointer            :: BasinPoints
-        integer, dimension(:,:), pointer            :: RiverPoints
-        integer, pointer, dimension(:,:,:)          :: ComputeFacesU3D
-        integer, pointer, dimension(:,:,:)          :: ComputeFacesV3D
-        integer, pointer, dimension(:,:,:)          :: ComputeFacesW3D         !from basin
-        integer, pointer, dimension(:,:)            :: KFloor
-        real                                        :: PorousMediapropDT
-        type(T_Time)                                :: Now
+        integer, pointer, dimension(:,:,:)          :: WaterPoints3D   => null()
+        integer, pointer, dimension(:,:,:)          :: OpenPoints3D    => null()
+        integer, pointer, dimension(:,:,:)          :: LandPoints3D    => null()
+        integer, dimension(:,:), pointer            :: BasinPoints     => null()
+        integer, dimension(:,:), pointer            :: RiverPoints     => null()
+        integer, pointer, dimension(:,:,:)          :: ComputeFacesU3D => null()
+        integer, pointer, dimension(:,:,:)          :: ComputeFacesV3D => null()
+        integer, pointer, dimension(:,:,:)          :: ComputeFacesW3D => null() !from basin
+        integer, pointer, dimension(:,:)            :: KFloor          => null()
+        real                                        :: PorousMediapropDT = null_real
+        type(T_Time)                                :: Now              
         type(T_Time)                                :: BeginTime
         type(T_Time)                                :: EndTime
    
         ! from porousMedia
-        real,    dimension(:,:,:), pointer          :: UnSatW
-        real,    dimension(:,:,:), pointer          :: UnSatV
-        real,    dimension(:,:,:), pointer          :: UnSatU
-        real,    pointer, dimension(:,:,:)          :: WaterContent
-        real,    pointer, dimension(:,:,:)          :: WaterContentOld
-        real(8), pointer, dimension(:,:)            :: WaterColumn
-        real(8), pointer, dimension(:,:)            :: WaterColumnOld
-        real(8), pointer, dimension(:,:)            :: InfiltrationColumn
-        real(8), pointer, dimension(:,:,:)          :: CellVolume        
-        real(8), dimension(:,:,:), pointer          :: FluxU
-        real(8), dimension(:,:,:), pointer          :: FluxV
-        real(8), dimension(:,:,:), pointer          :: FluxW
-        real,    pointer, dimension(:,:,:)          :: ThetaS
-        real,    pointer, dimension(:,:,:)          :: ThetaF        
-        real   , pointer, dimension(:,:  )          :: Area
-        real   , pointer, dimension(:,:,:)          :: AreaU
-        real   , pointer, dimension(:,:,:)          :: AreaV
-        real                                        :: DT
-        real   , pointer, dimension(:,:,:)          :: DWZ
-        real   , pointer, dimension(:,:,:)          :: DZZ
-        real   , pointer, dimension(:,:  )          :: DVY
-        real   , pointer, dimension(:,:  )          :: DZX
-        real   , pointer, dimension(:,:  )          :: DUX
-        real   , pointer, dimension(:,:  )          :: DZY
-        real   , pointer, dimension(:,:  )          :: Topography  
-        real ,   pointer, dimension(:,:,:)          :: SZZ
-        real,    pointer, dimension(:,:)            :: FlowToChannels
-        real,    pointer, dimension(:,:,:)          :: FlowToChannelsLayer
-        integer, pointer, dimension(:,:)            :: GWFlowBottomLayer
-        integer, pointer, dimension(:,:)            :: GWFlowTopLayer
-        integer, pointer, dimension(:,:)            :: GWLayerOld
+        real,    dimension(:,:,:), pointer          :: UnSatW              => null()
+        real,    dimension(:,:,:), pointer          :: UnSatV              => null()
+        real,    dimension(:,:,:), pointer          :: UnSatU              => null()
+        real,    pointer, dimension(:,:,:)          :: WaterContent        => null() 
+        real,    pointer, dimension(:,:,:)          :: WaterContentOld     => null()
+        real(8), pointer, dimension(:,:)            :: WaterColumn         => null()
+        real(8), pointer, dimension(:,:)            :: WaterColumnOld      => null()
+        real(8), pointer, dimension(:,:)            :: InfiltrationColumn  => null()
+        real(8), pointer, dimension(:,:,:)          :: CellVolume          => null()
+        real(8), dimension(:,:,:), pointer          :: FluxU               => null()
+        real(8), dimension(:,:,:), pointer          :: FluxV               => null()
+        real(8), dimension(:,:,:), pointer          :: FluxW               => null()
+        real,    pointer, dimension(:,:,:)          :: ThetaS              => null()
+        real,    pointer, dimension(:,:,:)          :: ThetaF              => null()
+        real   , pointer, dimension(:,:  )          :: Area                => null()
+        real   , pointer, dimension(:,:,:)          :: AreaU               => null()
+        real   , pointer, dimension(:,:,:)          :: AreaV               => null()
+        real                                        :: DT                  = null_real
+        real   , pointer, dimension(:,:,:)          :: DWZ                 => null()
+        real   , pointer, dimension(:,:,:)          :: DZZ                 => null()
+        real   , pointer, dimension(:,:  )          :: DVY                 => null()
+        real   , pointer, dimension(:,:  )          :: DZX                 => null()
+        real   , pointer, dimension(:,:  )          :: DUX                 => null()
+        real   , pointer, dimension(:,:  )          :: DZY                 => null()
+        real   , pointer, dimension(:,:  )          :: Topography          => null()
+        real ,   pointer, dimension(:,:,:)          :: SZZ                 => null()
+        real,    pointer, dimension(:,:)            :: FlowToChannels      => null()
+        real,    pointer, dimension(:,:,:)          :: FlowToChannelsLayer => null()
+        integer, pointer, dimension(:,:)            :: GWFlowBottomLayer   => null()
+        integer, pointer, dimension(:,:)            :: GWFlowTopLayer      => null()
+        integer, pointer, dimension(:,:)            :: GWLayerOld          => null()
         
         !from vegetation
-        logical                                     :: ComputeVegInterfaceFluxes 
-        logical, dimension(:,:  ), pointer          :: SoilFluxesActive
-        real,    dimension(:,:  ), pointer          :: GrazingBiomass
-        real,    dimension(:,:  ), pointer          :: GrazingNitrogen
-        real,    dimension(:,:  ), pointer          :: GrazingPhosphorus
-        real,    dimension(:,:  ), pointer          :: HarvestKillAerialBiomass
-        real,    dimension(:,:  ), pointer          :: HarvestKillNitrogen
-        real,    dimension(:,:  ), pointer          :: HarvestKillPhosphorus
-        real,    dimension(:,:  ), pointer          :: HarvestKillRootBiomass
-        real,    dimension(:,:  ), pointer          :: DormancyBiomass
-        real,    dimension(:,:  ), pointer          :: DormancyNitrogen
-        real,    dimension(:,:  ), pointer          :: DormancyPhosphorus
-        real,    dimension(:,:  ), pointer          :: FertilNitrateSurface
-        real,    dimension(:,:  ), pointer          :: FertilNitrateSubSurface
-        real,    dimension(:,:  ), pointer          :: FertilAmmoniaSurface
-        real,    dimension(:,:  ), pointer          :: FertilAmmoniaSubSurface
-        real,    dimension(:,:  ), pointer          :: FertilOrganicNSurface
-        real,    dimension(:,:  ), pointer          :: FertilOrganicNSubSurface
-        real,    dimension(:,:  ), pointer          :: FertilOrganicPSurface
-        real,    dimension(:,:  ), pointer          :: FertilOrganicPSubSurface
-        real,    dimension(:,:  ), pointer          :: FertilMineralPSurface
-        real,    dimension(:,:  ), pointer          :: FertilMineralPSubSurface
-        real,    dimension(:,:  ), pointer          :: NitrogenFraction
-        real,    dimension(:,:  ), pointer          :: PhosphorusFraction
-        real,    dimension(:,:,:), pointer          :: NitrogenUptake
-        real,    dimension(:,:,:), pointer          :: PhosphorusUptake
-        real,    dimension(:,:  ), pointer          :: RootDepth
-        integer, dimension(:,:  ), pointer          :: TranspirationBottomLayer
-        logical                                     :: Grazing
-        logical                                     :: HarvestKill
-        logical                                     :: Dormancy
-        logical                                     :: Fertilization
-        logical                                     :: ModelWater
-        logical                                     :: ModelNitrogen
-        logical                                     :: ModelPhosphorus
-        logical                                     :: GrowthModel
-        logical                                     :: CoupledVegetation
-        real                                        :: VegetationDT
-        integer                                     :: NutrientUptakeMethod
+        logical                                     :: ComputeVegInterfaceFluxes = .false.
+        logical, dimension(:,:  ), pointer          :: SoilFluxesActive          => null()
+        real,    dimension(:,:  ), pointer          :: GrazingBiomass            => null()
+        real,    dimension(:,:  ), pointer          :: GrazingNitrogen           => null()
+        real,    dimension(:,:  ), pointer          :: GrazingPhosphorus         => null()
+        real,    dimension(:,:  ), pointer          :: HarvestKillAerialBiomass  => null()
+        real,    dimension(:,:  ), pointer          :: HarvestKillNitrogen       => null()
+        real,    dimension(:,:  ), pointer          :: HarvestKillPhosphorus     => null()
+        real,    dimension(:,:  ), pointer          :: HarvestKillRootBiomass    => null()
+        real,    dimension(:,:  ), pointer          :: DormancyBiomass           => null()
+        real,    dimension(:,:  ), pointer          :: DormancyNitrogen          => null()
+        real,    dimension(:,:  ), pointer          :: DormancyPhosphorus        => null()
+        real,    dimension(:,:  ), pointer          :: FertilNitrateSurface      => null()
+        real,    dimension(:,:  ), pointer          :: FertilNitrateSubSurface   => null()
+        real,    dimension(:,:  ), pointer          :: FertilAmmoniaSurface      => null()
+        real,    dimension(:,:  ), pointer          :: FertilAmmoniaSubSurface   => null()
+        real,    dimension(:,:  ), pointer          :: FertilOrganicNSurface     => null()
+        real,    dimension(:,:  ), pointer          :: FertilOrganicNSubSurface  => null()
+        real,    dimension(:,:  ), pointer          :: FertilOrganicPSurface     => null()
+        real,    dimension(:,:  ), pointer          :: FertilOrganicPSubSurface  => null()
+        real,    dimension(:,:  ), pointer          :: FertilMineralPSurface     => null()
+        real,    dimension(:,:  ), pointer          :: FertilMineralPSubSurface  => null()
+        real,    dimension(:,:  ), pointer          :: NitrogenFraction          => null()
+        real,    dimension(:,:  ), pointer          :: PhosphorusFraction        => null()
+        real,    dimension(:,:,:), pointer          :: NitrogenUptake            => null()
+        real,    dimension(:,:,:), pointer          :: PhosphorusUptake          => null()
+        real,    dimension(:,:  ), pointer          :: RootDepth                 => null()
+        integer, dimension(:,:  ), pointer          :: TranspirationBottomLayer  => null()
+        logical                                     :: Grazing                   = .false.
+        logical                                     :: HarvestKill               = .false.
+        logical                                     :: Dormancy                  = .false.
+        logical                                     :: Fertilization             = .false.
+        logical                                     :: ModelWater                = .false.
+        logical                                     :: ModelNitrogen             = .false.
+        logical                                     :: ModelPhosphorus           = .false.
+        logical                                     :: GrowthModel               = .false.
+        logical                                     :: CoupledVegetation         = .false.
+        real                                        :: VegetationDT              = null_real 
+        integer                                     :: NutrientUptakeMethod      = null_int
         
-        logical                                     :: CoupledDN  = .false.
+        logical                                     :: CoupledDN                 = .false.
         !from basin
-        real,    dimension(:,:  ), pointer          :: WindVelocity2D  !m/s
-        real,    dimension(:,:,:), pointer          :: WindVelocity3D  !km/day
+        real,    dimension(:,:  ), pointer          :: WindVelocity2D            => null()!m/s
+        real,    dimension(:,:,:), pointer          :: WindVelocity3D            => null()!km/day
      end type T_ExtVar
 
     type T_OutPut
-        type (T_Time), pointer, dimension(:)    :: OutTime
-        type (T_Time), dimension(:), pointer    :: RestartOutTime       
-        integer                                 :: NextOutPut
-        integer                                 :: Number
-        logical                                 :: Yes = .false.
-        logical                                 :: TimeSerie_ON
-        logical                                 :: HDF_ON
+        type (T_Time), pointer, dimension(:)    :: OutTime              => null()
+        type (T_Time), dimension(:), pointer    :: RestartOutTime       => null()
+        integer                                 :: NextOutPut           = null_int
+        integer                                 :: Number               = null_int
+        logical                                 :: Yes                  = .false.
+        logical                                 :: TimeSerie_ON         = .false.
+        logical                                 :: HDF_ON               = .false.
         logical                                 :: Boxes_ON             = .false.
         logical                                 :: RateFluxes           = .false.
-        logical                                 :: Profile_ON
+        logical                                 :: Profile_ON           = .false.
         logical                                 :: WriteRestartFile     = .false.       
         logical                                 :: RestartOverwrite     = .false.
         integer                                 :: NextRestartOutput    = 1        
@@ -364,26 +364,29 @@ Module ModulePorousMediaProperties
 
     type T_AdvectionDiffusion   
         !--For AdvectionDiffusion module use
-        integer                                :: BoundaryCondition
-        real                                   :: SchmidtNumberH
-        real                                   :: SchmidtCoefV
-        real                                   :: SchmidtBackgroundV
-        real                                   :: DiffusionH_imp_exp
-        real                                   :: ImplicitH_direction
-        logical                                :: Nulldif          = .false.
-        logical                                :: NumericStability = .false.
-        real                                   :: VolumeRelMax
-        integer                                :: AdvMethodH, TVDLimitationH
-        integer                                :: AdvMethodV, TVDLimitationV
-        logical                                :: Upwind2H, Upwind2V  
-        logical                                :: Adv_Dif_Explicit                      
+        integer                                :: BoundaryCondition     = null_int
+        real                                   :: SchmidtNumberH        = null_real
+        real                                   :: SchmidtCoefV          = null_real
+        real                                   :: SchmidtBackgroundV    = null_real
+        real                                   :: DiffusionH_imp_exp    = null_real
+        real                                   :: ImplicitH_direction   = null_real
+        logical                                :: Nulldif               = .false.
+        logical                                :: NumericStability      = .false.
+        real                                   :: VolumeRelMax          = null_real
+        integer                                :: AdvMethodH            = null_int
+        integer                                :: TVDLimitationH        = null_int
+        integer                                :: AdvMethodV            = null_int
+        integer                                :: TVDLimitationV        = null_int
+        logical                                :: Upwind2H              = .false.
+        logical                                :: Upwind2V              = .false.
+        logical                                :: Adv_Dif_Explicit      = .false.                
         !--For both models use
-        real                                   :: Molecular_Diff_Coef 
+        real                                   :: Molecular_Diff_Coef   = null_real
                            
     end type T_AdvectionDiffusion
 
     type       T_Partition
-        character (LEN = StringLength)          :: Couple
+        character (LEN = StringLength)          :: Couple               = null_str
         integer                                 :: Couple_ID            = FillValueInt
         real                                    :: Fraction             = FillValueReal
         real                                    :: Rate                 = FillValueReal
@@ -404,58 +407,58 @@ Module ModulePorousMediaProperties
     end type T_Partition
 
     type T_Evolution
-        logical                                 :: Variable = .false.
-        real                                    :: DTInterval
+        logical                                 :: Variable             = .false.
+        real                                    :: DTInterval           = null_real
         logical                                 :: DTIntervalAssociated = .false.        
         type(T_Time)                            :: LastCompute
         type(T_Time)                            :: NextCompute
-        logical                                 :: SoilQuality
-        logical                                 :: SoilChemistry
-        logical                                 :: Partitioning
-        logical                                 :: CationExchangeProcess
-        logical                                 :: ChemEquilibriumProcess
-        logical                                 :: AdvectionDiffusion
-        logical                                 :: SoilWaterFluxes
-        logical                                 :: Macropores
-        logical                                 :: MinConcentration
-        logical                                 :: WarnOnNegativeValues  = .false.                
-        logical                                 :: UseMaxForUptakeConc = .false.      
-        real                                    :: MaxForUptakeConc    = 0.0   
-        logical                                 :: Decay
-        real                                    :: DecayRate   !day-1
+        logical                                 :: SoilQuality          = .false.
+        logical                                 :: SoilChemistry        = .false.
+        logical                                 :: Partitioning         = .false.
+        logical                                 :: CationExchangeProcess = .false.
+        logical                                 :: ChemEquilibriumProcess = .false.
+        logical                                 :: AdvectionDiffusion   = .false.
+        logical                                 :: SoilWaterFluxes      = .false.
+        logical                                 :: Macropores           = .false.
+        logical                                 :: MinConcentration     = .false.
+        logical                                 :: WarnOnNegativeValues = .false.                
+        logical                                 :: UseMaxForUptakeConc  = .false.      
+        real                                    :: MaxForUptakeConc     = 0.0   
+        logical                                 :: Decay                = .false.
+        real                                    :: DecayRate            = null_real !day-1
         type (T_AdvectionDiffusion)             :: AdvDiff
         type (T_Partition)                      :: Partition
     end type T_Evolution
     
     type T_ThetaAtFaces
-        real, dimension(:,:,:), pointer         :: ThetaW
-        real, dimension(:,:,:), pointer         :: ThetaV
-        real, dimension(:,:,:), pointer         :: ThetaU    
+        real, dimension(:,:,:), pointer         :: ThetaW              => null()
+        real, dimension(:,:,:), pointer         :: ThetaV              => null()
+        real, dimension(:,:,:), pointer         :: ThetaU              => null()
     end type T_ThetaAtFaces
     
     type T_MassBalance
-        real(8)                                 :: TotalStoredMass
-        real(8)                                 :: TranspiredMass
-        real(8)                                 :: DNExchangeMass
-        real(8)                                 :: RPExchangeMass
+        real(8)                                 :: TotalStoredMass     = null_real
+        real(8)                                 :: TranspiredMass      = null_real
+        real(8)                                 :: DNExchangeMass      = null_real
+        real(8)                                 :: RPExchangeMass      = null_real
     end type T_MassBalance
     
     type T_Files
-        character(PathLength)                   :: InitialFile
-        character(PathLength)                   :: DataFile
-        character(PathLength)                   :: FinalFile
-        character(PathLength)                   :: TransientHDF
-        character(PathLength)                   :: DataSedimentQualityFile
-        character(PathLength)                   :: ChainReactionsDataFile
-        character(len=StringLength)             :: BoxesFile    
-        integer                                 :: AsciiUnit    
+        character(PathLength)                   :: InitialFile         = null_str
+        character(PathLength)                   :: DataFile            = null_str
+        character(PathLength)                   :: FinalFile           = null_str
+        character(PathLength)                   :: TransientHDF        = null_str
+        character(PathLength)                   :: DataSedimentQualityFile = null_str
+        character(PathLength)                   :: ChainReactionsDataFile = null_str
+        character(len=StringLength)             :: BoxesFile           = null_str
+        integer                                 :: AsciiUnit           = null_int
     end type T_Files    
 
     type T_Property
         type (T_PropertyID)                     :: ID
         real, dimension(:,:,:), pointer         :: Concentration            => null()
 #ifdef _USE_PAGELOCKED
-        type(C_PTR)                             :: ConcentrationPtr
+        type(C_PTR)                             :: ConcentrationPtr         => null()
 #endif _USE_PAGELOCKED
         real, dimension(:,:,:), pointer         :: ConcentrationOld         => null()
         real, dimension(:,:), pointer           :: ConcentrationOnInfColumn => null()
@@ -464,15 +467,15 @@ Module ModulePorousMediaProperties
         real, dimension(:,:),   pointer         :: PesticideFlux            => null()
         logical, pointer, dimension(:,:,:)      :: UptakeActive             => null()
         real, pointer, dimension(:,:,:)         :: Mass_Created             => null()
-        real(8)                                 :: TotalStoredMass
+        real(8)                                 :: TotalStoredMass          = null_real
         real, pointer, dimension(:,:,:)         :: ViscosityU               => null()
         real, pointer, dimension(:,:,:)         :: ViscosityV               => null()
         type (T_Property), pointer              :: Next, Prev               => null()
-        logical                                 :: Particulate
-        logical                                 :: Pesticide
-        type (T_Evolution)                      :: Evolution
+        logical                                 :: Particulate              = .false.
+        logical                                 :: Pesticide                = .false.
+        type (T_Evolution)                      :: Evolution       
         type (T_MassBalance)                    :: MB
-        real, pointer, dimension(:,:,:)         :: Diffusivity
+        real, pointer, dimension(:,:,:)         :: Diffusivity              => null()
         real, pointer, dimension(:,:,:)         :: Diff_Turbulence_H        => null()
         real, pointer, dimension(:,:,:)         :: Diff_Turbulence_V        => null()
         real, pointer, dimension(:,:,:)         :: Viscosity                => null()
@@ -490,19 +493,20 @@ Module ModulePorousMediaProperties
         type (T_ID)                             :: ID
         type (T_ID)                             :: FirstProp
         type (T_ID)                             :: SecondProp
-        real, pointer, dimension(:,:,:)         :: Field 
-        type(T_SedimentRate), pointer           :: Next, Prev
+        real, pointer, dimension(:,:,:)         :: Field                    => null()
+        type(T_SedimentRate), pointer           :: Next                     => null()
+        type(T_SedimentRate), pointer           :: Prev                     => null()
     end type T_SedimentRate
 
 
     type T_Coupled
         logical                                 :: SoilQuality          = .false. !Sediment source/sink model (Sediment Quality)
-        real                                    :: SoilQuality_DT
+        real                                    :: SoilQuality_DT       = null_real
         type (T_Time)                           :: SoilQuality_NextCompute
 
 #ifdef _PHREEQC_        
         logical                                 :: SoilChemistry        = .false.  !Chemical reactions model (PhreeqC)
-        real                                    :: SoilChemistry_DT
+        real                                    :: SoilChemistry_DT     = null_real
         type (T_Time)                           :: SoilChemistry_NextCompute
 #endif        
 
@@ -518,9 +522,9 @@ Module ModulePorousMediaProperties
     
     !Implicit coef for thomas matrix
     type       T_DEF
-        real   , pointer, dimension(: , : , :)  :: D
-        real(8), pointer, dimension(: , : , :)  :: E
-        real   , pointer, dimension(: , : , :)  :: F
+        real   , pointer, dimension(: , : , :)  :: D   => null()
+        real(8), pointer, dimension(: , : , :)  :: E   => null()
+        real   , pointer, dimension(: , : , :)  :: F   => null()
     end type T_DEF
     
     !Explicit coefs
@@ -534,23 +538,23 @@ Module ModulePorousMediaProperties
 !        real(8), pointer, dimension(: , : , :)  :: CoefA_V
 !        real(8), pointer, dimension(: , : , :)  :: CoefB_V
 !        real(8), pointer, dimension(: , : , :)  :: CoefC_V
-        real, pointer, dimension(: , : , :)  :: CoefInterfRunoff
-        real, pointer, dimension(: , : , :)  :: CoefInterfDN
-        real, pointer, dimension(: , : , :)  :: CoefInterfVeg
+        real, pointer, dimension(: , : , :)  :: CoefInterfRunoff  => null()
+        real, pointer, dimension(: , : , :)  :: CoefInterfDN      => null()
+        real, pointer, dimension(: , : , :)  :: CoefInterfVeg     => null()
     end type T_A_B_C_Explicit
 
     type       T_FluxCoef
-        real   , pointer, dimension(: , : , :)  :: C_flux    !Coeficient to calculate AdvFlux and DifFlux
-        real   , pointer, dimension(: , : , :)  :: D_flux    !Coeficient to calculate AdvFlux and DifFlux
-        real   , pointer, dimension(: , : , :)  :: E_flux    !Coeficient to calculate AdvFlux and DifFlux
-        real   , pointer, dimension(: , : , :)  :: F_flux    !Coeficient to calculate AdvFlux and DifFlux
+        real   , pointer, dimension(: , : , :)  :: C_flux   => null()  !Coeficient to calculate AdvFlux and DifFlux
+        real   , pointer, dimension(: , : , :)  :: D_flux   => null() !Coeficient to calculate AdvFlux and DifFlux
+        real   , pointer, dimension(: , : , :)  :: E_flux   => null() !Coeficient to calculate AdvFlux and DifFlux
+        real   , pointer, dimension(: , : , :)  :: F_flux   => null() !Coeficient to calculate AdvFlux and DifFlux
     end type T_FluxCoef
 
 #ifdef _PHREEQC_  
     type T_PhreeqCModel
-        integer               :: ID
-        integer               :: KUB
-        integer               :: KLB
+        integer               :: ID           = null_int
+        integer               :: KUB          = null_int
+        integer               :: KLB          = null_int
         character(PathLength) :: Database     = ''
         character(PathLength) :: DatabaseAux  = ''
         integer               :: ObjID        =  0
@@ -590,16 +594,16 @@ Module ModulePorousMediaProperties
         integer                                      :: ObjCuda               = 0
 #endif _ENABLE_CUDA        
 
-        real,    pointer, dimension(:,:,:)           :: CellWaterVolume            !Used by SoilChemistry & ChainReactions modules        
-        integer, pointer, dimension(:)               :: PropertiesList             !List with ID of all properties used 
+        real,    pointer, dimension(:,:,:)           :: CellWaterVolume       => null() !Used SoilChemistry & ChainReactions        
+        integer, pointer, dimension(:)               :: PropertiesList        => null() !List with ID of all properties used 
  
         type (T_ExtVar)                              :: ExtVar
         type (T_Files)                               :: Files
         type (T_OutPut)                              :: OutPut
         type (T_Property), pointer                   :: FirstProperty    => null() 
         type (T_Property), pointer                   :: LastProperty     => null()   
-        type(T_SedimentRate), pointer                :: FirstSedimentRate
-        type(T_SedimentRate), pointer                :: LastSedimentRate
+        type(T_SedimentRate), pointer                :: FirstSedimentRate => null()
+        type(T_SedimentRate), pointer                :: LastSedimentRate  => null()
         type (T_PorousMediaProperties), pointer      :: Next             => null()
         type (T_Coupled)                             :: Coupled
         type (T_Time)                                :: LastOutputHDF5
@@ -608,41 +612,41 @@ Module ModulePorousMediaProperties
         type(T_FluxCoef)                             :: COEF3_VertAdv            !Vertical advection coeficients
         type(T_FluxCoef)                             :: COEF3_HorAdvXX           !Horizont advection coeficients
         type(T_FluxCoef)                             :: COEF3_HorAdvYY           !Horizont advection coeficients
-        real, pointer, dimension(: , : , :)          :: TICOEF3               
+        real, pointer, dimension(: , : , :)          :: TICOEF3          => null()      
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                                  :: TICOEF3Ptr
 #endif _USE_PAGELOCKED      
 !        real(8), pointer, dimension(:)               :: VECG                     !Auxiliar thomas arrays 
 !        real(8), pointer, dimension(:)               :: VECW                     !Auxiliar thomas arrays     
 
-        logical                                      :: PorousMediaProperties
-        real,    pointer, dimension(:,:,:)           :: Volume   
-        integer                                      :: PropertiesNumber    = 0
-        integer                                      :: SedimentRatesNumber  = 0
-        integer                                      :: NumberPropForBoxes   = 0
-        real   , pointer, dimension(:,:,:)           :: DissolvedToParticulate3D
-        real                                         :: ResidualTime
+        logical                                      :: PorousMediaProperties  = .false.
+        real,    pointer, dimension(:,:,:)           :: Volume                 => null()
+        integer                                      :: PropertiesNumber       = 0
+        integer                                      :: SedimentRatesNumber    = 0
+        integer                                      :: NumberPropForBoxes     = 0
+        real   , pointer, dimension(:,:,:)           :: DissolvedToParticulate3D => null()
+        real                                         :: ResidualTime           = null_real
         
-        integer                                      :: InstanceID
+        integer                                      :: InstanceID             = null_int
         type (T_Size3D)                              :: Size, WorkSize
         type (T_Size2D)                              :: Size2D
 
         type(T_Property_3D)                          :: Disper_Trans
         type(T_Property_3D)                          :: Disper_Longi
                
-        logical                                      :: AdvDiff_Explicit            ! True - All explicit; False - Vertical Implicit
-        logical                                      :: AdvDiff_AdvectionH_ImpExp   ! True - Horiz Adv Expl; False - Horiz Adv Impl
-        logical                                      :: AdvDiff_CheckCoefs    !
-        logical                                      :: Vertical1D
-        logical                                      :: XZFlow
+        logical                                      :: AdvDiff_Explicit        = .false.    ! 1 All explicit; 0 Vertical Implicit
+        logical                                      :: AdvDiff_AdvectionH_ImpExp = .false.  ! 1 Horiz Adv Expl; 0 Horiz Adv Impl
+        logical                                      :: AdvDiff_CheckCoefs      = .false.
+        logical                                      :: Vertical1D              = .false.
+        logical                                      :: XZFlow                  = .false.
         
-        logical                                      :: NewFormulation              !New formulation for advection being computed
-        integer                                      :: AdvDiff_AdvMethodV          !inside porou smedia properties. the advection
-        integer                                      :: AdvDiff_AdvMethodH          !methods are general for all the properties
+        logical                                      :: NewFormulation          = .false.   !New formulation for advection 
+        integer                                      :: AdvDiff_AdvMethodV      = null_int  !
+        integer                                      :: AdvDiff_AdvMethodH      = null_int  !methods are general for all properties
        
 
         type(T_ThetaAtFaces)                         :: ThetaAtFaces
-        integer                                      :: ThetaAtFacesMethod
+        integer                                      :: ThetaAtFacesMethod      = null_int
          
 #ifdef _PHREEQC_
         type(T_PhreeqC)                              :: PhreeqC
@@ -653,26 +657,26 @@ Module ModulePorousMediaProperties
         real, dimension(:,:,:), pointer              :: CellMass     => null()
 
         !--For PorousMediaProperties Advection-Diffusion Method
-        real,    pointer, dimension(:,:,:)           :: DifusionNumber
-        real,    pointer, dimension(:,:,:)           :: ReynoldsMNumber    
+        real,    pointer, dimension(:,:,:)           :: DifusionNumber  => null()
+        real,    pointer, dimension(:,:,:)           :: ReynoldsMNumber => null()  
 
         
-        logical                                      :: CheckGlobalMass       
+        logical                                      :: CheckGlobalMass = .false.     
         
-        real(8), pointer, dimension(:,:,:)           :: WaterVolume
-        real(8), pointer, dimension(:,:,:)           :: FluxWCorr 
+        real(8), pointer, dimension(:,:,:)           :: WaterVolume     => null()
+        real(8), pointer, dimension(:,:,:)           :: FluxWCorr       => null()
         
         logical                                      :: DTIntervalAssociated     = .false.
               
         !griflet, openmp
-        type(T_THOMAS), pointer                      :: THOMAS
-        integer                                      :: MaxThreads
+        type(T_THOMAS), pointer                      :: THOMAS          => null()
+        integer                                      :: MaxThreads      = null_int
 
     end type  T_PorousMediaProperties
 
     !Global Module Variables
-    type (T_PorousMediaProperties), pointer          :: FirstObjPorousMediaProperties
-    type (T_PorousMediaProperties), pointer          :: Me
+    type (T_PorousMediaProperties), pointer          :: FirstObjPorousMediaProperties => null()
+    type (T_PorousMediaProperties), pointer          :: Me                            => null()
 
     !--------------------------------------------------------------------------
     

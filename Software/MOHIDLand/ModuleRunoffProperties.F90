@@ -183,165 +183,168 @@ Module ModuleRunoffProperties
     end type T_RelatedID
 
     type T_ID
-        integer                       :: IDNumber
-        character(LEN = StringLength) :: name
-        character(LEN = StringLength) :: description
-        character(LEN = StringLength) :: units
+        integer                       :: IDNumber     = null_int
+        character(LEN = StringLength) :: name         = null_str
+        character(LEN = StringLength) :: description  = null_str
+        character(LEN = StringLength) :: units        = null_str
     end type T_ID
 
     type T_Property_2D
         type(T_PropertyID)               :: ID
-        real, pointer, dimension (:,:)   :: Field
-        real                             :: Scalar
-        logical                          :: Constant
+        real, pointer, dimension (:,:)   :: Field     => null()
+        real                             :: Scalar    = null_real
+        logical                          :: Constant  = .false.
     end type T_Property_2D
 
 
     type T_ExtVar
         !Map
-        integer, pointer, dimension(:,:,:)      :: LandPoints3D
-        integer, dimension(:,:), pointer        :: BasinPoints
-        integer, dimension(:,:), pointer        :: RiverPoints
-        real                                        :: RunoffpropDT
-        type(T_Time)                                :: Now
-        type(T_Time)                                :: BeginTime
-        type(T_Time)                                :: EndTime
+        integer, pointer, dimension(:,:,:)      :: LandPoints3D   => null()
+        integer, dimension(:,:), pointer        :: BasinPoints    => null()
+        integer, dimension(:,:), pointer        :: RiverPoints    => null()
+        real                                    :: RunoffpropDT   = null_real
+        type(T_Time)                            :: Now
+        type(T_Time)                            :: BeginTime
+        type(T_Time)                            :: EndTime
    
         ! from Runoff
-        real,    dimension(:,:), pointer           :: CenterVelV
-        real,    dimension(:,:), pointer           :: CenterVelU
-        real,    dimension(:,:), pointer           :: FlowToChannels
-        real(8), pointer, dimension(:,:)           :: WaterColumn           !Final WaterColumn
-        real(8), pointer, dimension(:,:)           :: WaterColumnOld        !Initial Water Column
-        real(8), pointer, dimension(:,:)           :: WaterColumnAT         !Water Column After Transport
-        real(8), pointer, dimension(:,:)           :: CellVolume
-        real(8), pointer, dimension(:,:)           :: CellWaterMass
-        real(8),    dimension(:,:), pointer        :: FluxU
-        real(8),    dimension(:,:), pointer        :: FluxV
-        real,    pointer, dimension(:,:  )         :: Area
-        real                                       :: DT
-        real,   pointer, dimension(:,:  )          :: DZY
-        real,   pointer, dimension(:,:  )          :: DZX
-        real,   pointer, dimension(:,:  )          :: DXX
-        real,   pointer, dimension(:,:  )          :: DYY        
-        real,   pointer, dimension(:,:  )          :: DUX
-        real,   pointer, dimension(:,:  )          :: DVY
-        real   , pointer, dimension(:,:  )          :: Topography  
+        real,    dimension(:,:), pointer           :: CenterVelV   => null()
+        real,    dimension(:,:), pointer           :: CenterVelU   => null()
+        real,    dimension(:,:), pointer           :: FlowToChannels => null()
+        real(8), pointer, dimension(:,:)           :: WaterColumn    => null()       !Final WaterColumn
+        real(8), pointer, dimension(:,:)           :: WaterColumnOld => null()       !Initial Water Column
+        real(8), pointer, dimension(:,:)           :: WaterColumnAT  => null()       !Water Column After Transport
+        real(8), pointer, dimension(:,:)           :: CellVolume     => null()
+        real(8), pointer, dimension(:,:)           :: CellWaterMass  => null()
+        real(8),    dimension(:,:), pointer        :: FluxU          => null()
+        real(8),    dimension(:,:), pointer        :: FluxV          => null()
+        real,    pointer, dimension(:,:  )         :: Area           => null()
+        real                                       :: DT             = null_real
+        real,   pointer, dimension(:,:  )          :: DZY            => null()
+        real,   pointer, dimension(:,:  )          :: DZX            => null()
+        real,   pointer, dimension(:,:  )          :: DXX            => null()
+        real,   pointer, dimension(:,:  )          :: DYY            => null()
+        real,   pointer, dimension(:,:  )          :: DUX            => null()
+        real,   pointer, dimension(:,:  )          :: DVY            => null()
+        real   , pointer, dimension(:,:  )          :: Topography    => null()
         
        
-        real(8), pointer, dimension(:,:)            :: InfiltrationFlux
+        real(8), pointer, dimension(:,:)            :: InfiltrationFlux => null()
 
-        logical                                     :: CoupledDN  = .false.
+        logical                                     :: CoupledDN        = .false.
 
         !from basin
 !        real,    dimension(:,:  ), pointer          :: WindVelocity2D  !m/s
 !        real,    dimension(:,:  ), pointer          :: WindVelocity  !km/day
-        real(8),    dimension(:,:  ), pointer       :: ThroughFall
-        real,       dimension(:,:  ), pointer       :: CanopyHeight
-        real(8),    dimension(:,:  ), pointer       :: CanopyDrainage
+        real(8),    dimension(:,:  ), pointer       :: ThroughFall    => null()
+        real,       dimension(:,:  ), pointer       :: CanopyHeight   => null()
+        real(8),    dimension(:,:  ), pointer       :: CanopyDrainage => null()
         
         !from vegetation to fluff layer
         !If vegetation organic particulated material in fertilization
-        logical                                     :: CoupledVegetation
-        logical                                     :: VegParticFertilization
-        logical                                     :: Pesticide
-        real,       dimension(:,:  ), pointer       :: FertilOrganicNParticFluff
-        real,       dimension(:,:  ), pointer       :: FertilOrganicPParticFluff
-        integer                                     :: VegetationDT
+        logical                                     :: CoupledVegetation         = .false.
+        logical                                     :: VegParticFertilization    = .false.
+        logical                                     :: Pesticide                 = .false.
+        real,       dimension(:,:  ), pointer       :: FertilOrganicNParticFluff => null()
+        real,       dimension(:,:  ), pointer       :: FertilOrganicPParticFluff => null()
+        integer                                     :: VegetationDT              = null_int
         
      end type T_ExtVar
 
     type T_OutPut
-        type (T_Time), pointer, dimension(:)    :: OutTime
-        type (T_Time), dimension(:), pointer    :: RestartOutTime        
-        integer                                 :: NextOutPut
-        integer                                 :: Number
-        logical                                 :: Yes = .false.
-        logical                                 :: TimeSerie_ON
-        logical                                 :: HDF_ON
-        logical                                 :: Profile_ON
-        logical                                 :: WriteRestartFile     = .false.        
-        logical                                 :: RestartOverwrite     = .false.
-        integer                                 :: NextRestartOutput    = 1        
+        type (T_Time), pointer, dimension(:)    :: OutTime                       => null()
+        type (T_Time), dimension(:), pointer    :: RestartOutTime                => null()
+        integer                                 :: NextOutPut                    = null_int
+        integer                                 :: Number                        = null_int
+        logical                                 :: Yes                           = .false.
+        logical                                 :: TimeSerie_ON                  = .false.
+        logical                                 :: HDF_ON                        = .false.
+        logical                                 :: Profile_ON                    = .false.
+        logical                                 :: WriteRestartFile              = .false.        
+        logical                                 :: RestartOverwrite              = .false.
+        integer                                 :: NextRestartOutput             = 1        
     end type T_OutPut
 
     type T_AdvectionDiffusion   
         !--For AdvectionDiffusion module use
-        integer                                :: BoundaryCondition
-        real                                   :: SchmidtNumberH
-        real                                   :: SchmidtCoefV
-        real                                   :: SchmidtBackgroundV
-        real                                   :: DiffusionH_imp_exp
-        real                                   :: ImplicitH_direction
-        logical                                :: Nulldif          = .false.
-        logical                                :: NumericStability = .false.
-        real                                   :: VolumeRelMax
-        integer                                :: AdvMethodH, TVDLimitationH
-        integer                                :: AdvMethodV, TVDLimitationV
-        logical                                :: Upwind2H, Upwind2V  
-        real                                   :: Molecular_Diff_Coef    
+        integer                                :: BoundaryCondition            = null_int
+        real                                   :: SchmidtNumberH               = null_real
+        real                                   :: SchmidtCoefV                 = null_real
+        real                                   :: SchmidtBackgroundV           = null_real
+        real                                   :: DiffusionH_imp_exp           = null_real
+        real                                   :: ImplicitH_direction          = null_real
+        logical                                :: Nulldif                      = .false.
+        logical                                :: NumericStability             = .false.
+        real                                   :: VolumeRelMax                 = null_real
+        integer                                :: AdvMethodH                   = null_int
+        integer                                :: TVDLimitationH               = null_int
+        integer                                :: AdvMethodV                   = null_int
+        integer                                :: TVDLimitationV               = null_int
+        logical                                :: Upwind2H                     = .false.
+        logical                                :: Upwind2V                     = .false.
+        real                                   :: Molecular_Diff_Coef          = null_real
     end type T_AdvectionDiffusion
 
     type       T_Partition
-        character (LEN = StringLength)          :: Couple
-        integer                                 :: Couple_ID            = FillValueInt
-        real                                    :: Fraction             = FillValueReal
-        real                                    :: Rate                 = FillValueReal
-        real                                    :: EmpiricCoef          = FillValueReal
-        real                                    :: SedimentRefConc      = FillValueReal
+        character (LEN = StringLength)          :: Couple               = null_str
+        integer                                 :: Couple_ID            = null_int
+        real                                    :: Fraction             = null_real
+        real                                    :: Rate                 = null_real
+        real                                    :: EmpiricCoef          = null_real
+        real                                    :: SedimentRefConc      = null_real
         logical                                 :: UseSedimentRefConc   = .false.
         logical                                 :: SalinityEffect       = .false.
         
         !Isothermic Adsortion
-        logical                                 :: NonLinear
-        character(LEN = StringLength)           :: NonLinear_ks_Units
+        logical                                 :: NonLinear            = .false.
+        character(LEN = StringLength)           :: NonLinear_ks_Units   = null_str
         type(T_Property_2D)                     :: Nu            
         type(T_Property_2D)                     :: Be          
         type(T_Property_2D)                     :: ks
         type(T_Property_2D)                     :: PartitionRate
         type(T_Property_2D)                     :: Fraction2D 
-        character (LEN = StringLength)          :: Partition_Couple        
+        character (LEN = StringLength)          :: Partition_Couple     = null_str   
     end type T_Partition
 
     type T_Evolution
         logical                                 :: Partitioning         = .false.
-        logical                                 :: BottomFluxes
+        logical                                 :: BottomFluxes         = .false.
         logical                                 :: Variable             = .false.
-        logical                                 :: Pesticide
-        real                                    :: DTInterval
+        logical                                 :: Pesticide            = .false.
+        real                                    :: DTInterval           = null_real
         logical                                 :: DTIntervalAssociated = .false.
         type(T_Time)                            :: LastCompute
         type(T_Time)                            :: NextCompute
 !        logical                                 :: SoilQuality
 !        logical                                 :: SoilChemistry
-        logical                                 :: CationExchangeProcess
-        logical                                 :: ChemEquilibriumProcess
-        logical                                 :: AdvectionDiffusion
-        logical                                 :: Erosion
-        logical                                 :: Deposition
-        logical                                 :: SplashErosion
-        logical                                 :: SoilWaterFluxes
-        logical                                 :: Macropores
-        logical                                 :: MinConcentration
-        logical                                 :: WarnOnNegativeValues
-        logical                                 :: Decay
-        real                                    :: DecayRate
+        logical                                 :: CationExchangeProcess  = .false.
+        logical                                 :: ChemEquilibriumProcess = .false.
+        logical                                 :: AdvectionDiffusion     = .false.
+        logical                                 :: Erosion                = .false.
+        logical                                 :: Deposition             = .false.
+        logical                                 :: SplashErosion          = .false.
+        logical                                 :: SoilWaterFluxes        = .false.
+        logical                                 :: Macropores             = .false.
+        logical                                 :: MinConcentration       = .false.
+        logical                                 :: WarnOnNegativeValues   = .false.
+        logical                                 :: Decay                  = .false.
+        real                                    :: DecayRate              = null_real
         type (T_AdvectionDiffusion)             :: AdvDiff
         type (T_Partition                    )  :: Partition
     end type T_Evolution
 
     type T_MassBalance
-        real(8)                                 :: TotalStoredMass
-        real(8)                                 :: DNExchangeMass
+        real(8)                                 :: TotalStoredMass        = null_real
+        real(8)                                 :: DNExchangeMass         = null_real
     end type T_MassBalance
     
     type T_Files
-        character(PathLength)                   :: InitialFile
-        character(PathLength)                   :: DataFile
-        character(PathLength)                   :: FinalFile
-        character(PathLength)                   :: TransientHDF
-        character(PathLength)                   :: DataSedimentQualityFile
-        integer                                 :: AsciiUnit        
+        character(PathLength)                   :: InitialFile            = null_str
+        character(PathLength)                   :: DataFile               = null_str
+        character(PathLength)                   :: FinalFile              = null_str
+        character(PathLength)                   :: TransientHDF           = null_str
+        character(PathLength)                   :: DataSedimentQualityFile = null_str
+        integer                                 :: AsciiUnit              = null_int
     end type T_Files    
 
     type T_Property
@@ -351,46 +354,47 @@ Module ModuleRunoffProperties
 !        real, dimension(:,:), pointer           :: Mass                     => null()
         real, dimension(:,:), pointer           :: ConcentrationOld         => null()
         real, dimension(:,:), pointer           :: BottomConcentration      => null()
-        real                                    :: BottomMinConc
+        real                                    :: BottomMinConc            = null_real
 !        real, dimension(:,:), pointer           :: BottomConcentrationOld   => null()
         real, dimension(:,:), pointer           :: ConcentrationDN          => null()
         real, dimension(:,:), pointer           :: TotalConcentration       => null()
-        real, dimension(:,:), pointer           :: ConcInInterfaceDN
+        real, dimension(:,:), pointer           :: ConcInInterfaceDN        => null()
         real, dimension(:,:),   pointer         :: PesticideFlux            => null()
-        logical                                 :: FallVelocity
-        real, dimension(:,:), pointer           :: ErosionRate          => null()
-        real, dimension(:,:), pointer           :: DepositionRate       => null()
-        real, dimension(:,:), pointer           :: Ws                   => null()
-        real, dimension(:,:), pointer           :: SplashRate           => null() 
-        integer                                 :: Ws_Type
-        real                                    :: Ws_Value             
+        logical                                 :: FallVelocity             = .false.
+        real, dimension(:,:), pointer           :: ErosionRate              => null()
+        real, dimension(:,:), pointer           :: DepositionRate           => null()
+        real, dimension(:,:), pointer           :: Ws                       => null()
+        real, dimension(:,:), pointer           :: SplashRate               => null() 
+        integer                                 :: Ws_Type                  = null_int
+        real                                    :: Ws_Value                 = null_real
 !        type (T_Property_2D)                    :: CHS
 !        type(T_Property_2D)                     :: KL
 !        type(T_Property_2D)                     :: KL1
 !        type(T_Property_2D)                     :: ML
 !        type(T_Property_2D)                     :: M
 !        type(T_Property_2D)                     :: IScoefficient       
-        real                                    :: CHS
-        real                                    :: KL
-        real                                    :: KL1
-        real                                    :: ML
-        real                                    :: M
-        real                                    :: IScoefficient           
+        real                                    :: CHS                      = null_real
+        real                                    :: KL                       = null_real
+        real                                    :: KL1                      = null_real
+        real                                    :: ML                       = null_real
+        real                                    :: M                        = null_real
+        real                                    :: IScoefficient            = null_real
         
-        real, pointer, dimension(:,:)           :: Mass_Created
-        real,    pointer, dimension(:,:)        :: ViscosityU
-        real,    pointer, dimension(:,:)        :: ViscosityV
-        type (T_Property), pointer              :: Next, Prev                     => null()
-        logical                                 :: Particulate
-        logical                                 :: Pesticide
+        real, pointer, dimension(:,:)           :: Mass_Created             => null()
+        real,    pointer, dimension(:,:)        :: ViscosityU               => null()
+        real,    pointer, dimension(:,:)        :: ViscosityV               => null()
+        type (T_Property), pointer              :: Next                     => null()
+        type (T_Property), pointer              :: Prev                     => null()
+        logical                                 :: Particulate              = .false.
+        logical                                 :: Pesticide                = .false.
         type (T_Evolution)                      :: Evolution
         type (T_MassBalance)                    :: MB
-        real, pointer, dimension(:,:)           :: Diff_Turbulence_H
-        real, pointer, dimension(:,:)           :: Viscosity
-        real, pointer, dimension(:,:)           :: Diffusivity
+        real, pointer, dimension(:,:)           :: Diff_Turbulence_H        => null()
+        real, pointer, dimension(:,:)           :: Viscosity                => null()
+        real, pointer, dimension(:,:)           :: Diffusivity              => null()
 
-        logical                                 :: Old     = .false.
-        real                                    :: MinValue        = FillValueReal
+        logical                                 :: Old              = .false.
+        real                                    :: MinValue         = null_real
         logical                                 :: WarnOnNegativeValues = .false.
         logical                                 :: TimeSerie        = .false.
         logical                                 :: BoxTimeSerie     = .false.
@@ -422,35 +426,35 @@ Module ModuleRunoffProperties
 
     type T_ComputeOptions
 
-        logical                                     :: AdvDiff_Explicit      ! 0 - Implicit; 1 explicit
-        logical                                     :: Splash_CriticalHeight
-        integer                                     :: Splash_ErosiveRainMethod ! 1-constant, 2 - real rain
+        logical                                     :: AdvDiff_Explicit         = .false.   ! 0 - Implicit; 1 explicit
+        logical                                     :: Splash_CriticalHeight    = .false.
+        integer                                     :: Splash_ErosiveRainMethod = null_int   ! 1-constant, 2 - real rain
         logical                                     :: DTIntervalAssociated     = .false.
             
     end type T_ComputeOptions
 
     !Implicit coef for thomas matrix
     type       T_DEF
-        real   , pointer, dimension(: , : )  :: D
-        real(8), pointer, dimension(: , : )  :: E
-        real   , pointer, dimension(: , : )  :: F
+        real   , pointer, dimension(: , : )  :: D    => null()
+        real(8), pointer, dimension(: , : )  :: E    => null()
+        real   , pointer, dimension(: , : )  :: F    => null()
     end type T_DEF
     
     !Explicit coefs
     type       T_A_B_C_Explicit
-        real, pointer, dimension(: , : )  :: CoefInterfDN
+        real, pointer, dimension(: , : )  :: CoefInterfDN   => null()
     end type T_A_B_C_Explicit
 
     type       T_FluxCoef
-        real   , pointer, dimension(: , : )  :: C_flux    !Coeficient to calculate AdvFlux and DifFlux
-        real   , pointer, dimension(: , : )  :: D_flux    !Coeficient to calculate AdvFlux and DifFlux
-        real   , pointer, dimension(: , : )  :: E_flux    !Coeficient to calculate AdvFlux and DifFlux
-        real   , pointer, dimension(: , : )  :: F_flux    !Coeficient to calculate AdvFlux and DifFlux
+        real   , pointer, dimension(: , : )  :: C_flux  => null()    !Coeficient to calculate AdvFlux and DifFlux
+        real   , pointer, dimension(: , : )  :: D_flux  => null()  !Coeficient to calculate AdvFlux and DifFlux
+        real   , pointer, dimension(: , : )  :: E_flux  => null()  !Coeficient to calculate AdvFlux and DifFlux
+        real   , pointer, dimension(: , : )  :: F_flux  => null()  !Coeficient to calculate AdvFlux and DifFlux
     end type T_FluxCoef
 
 
     type T_RunoffProperties
-        integer                                     :: ObjTime                   = 0
+        integer                                     :: ObjTime              = 0
         integer                                     :: ObjHorizontalGrid    = 0
         integer                                     :: ObjBasinGeometry     = 0
         integer                                     :: ObjRunoff            = 0
@@ -466,12 +470,12 @@ Module ModuleRunoffProperties
 !        integer                                     :: ObjInterfaceSoilChemistry = 0 
 !#endif        
         type (T_ExtVar)                             :: ExtVar
-        logical                                     :: CheckGlobalMass      
+        logical                                     :: CheckGlobalMass   = .false.    
         type (T_Files)                              :: Files
         type (T_OutPut)                             :: OutPut
-        type (T_Property), pointer                  :: FirstProperty    => null() !Lúcia
-        type (T_Property), pointer                  :: LastProperty        
-        type (T_RunoffProperties), pointer          :: Next             => null() !Lúcia
+        type (T_Property), pointer                  :: FirstProperty    => null() 
+        type (T_Property), pointer                  :: LastProperty     => null()   
+        type (T_RunoffProperties), pointer          :: Next             => null() 
         type (T_Coupled)                            :: Coupled
         type (T_Time)                               :: LastOutputHDF5
         type (T_ComputeOptions)                     :: ComputeOptions
@@ -480,26 +484,26 @@ Module ModuleRunoffProperties
         type(T_A_B_C_Explicit)                      :: COEFExpl 
         type(T_FluxCoef)                            :: COEF3_HorAdvXX           !Horizont advection coeficients
         type(T_FluxCoef)                            :: COEF3_HorAdvYY           !Horizont advection coeficients
-        real, pointer, dimension(: , :    )         :: TICOEF3               
-        real(8), pointer, dimension(:)              :: VECG                     !Auxiliar thomas arrays 
-        real(8), pointer, dimension(:)              :: VECW                     !Auxiliar thomas arrays  
+        real, pointer, dimension(: , :    )         :: TICOEF3         => null()      
+        real(8), pointer, dimension(:)              :: VECG            => null()         !Auxiliar thomas arrays 
+        real(8), pointer, dimension(:)              :: VECW            => null()         !Auxiliar thomas arrays  
         
-        integer                                     :: di                       !auxiliar direction   
-        integer                                     :: dj
+        integer                                     :: di              = null_int         !auxiliar direction   
+        integer                                     :: dj              = null_int
 
-        logical                                     :: RunoffProperties
-        integer                                     :: PropertiesNumber    = 0
-        real   , pointer, dimension(:,:)            :: DissolvedToParticulate2D
-        real                                        :: ResidualTime
+        logical                                     :: RunoffProperties = .false.
+        integer                                     :: PropertiesNumber = 0
+        real   , pointer, dimension(:,:)            :: DissolvedToParticulate2D => null()
+        real                                        :: ResidualTime     = null_real
         
-        integer                                     :: InstanceID
+        integer                                     :: InstanceID       = null_int
         type (T_Size2D)                             :: Size, WorkSize
 
         type(T_Property_2D)                         :: Disper_Trans
         type(T_Property_2D)                         :: Disper_Longi
         
-        real, dimension(:,:), pointer               :: ShearStress
-        real, dimension(:,:), pointer               :: RainKineticRate
+        real, dimension(:,:), pointer               :: ShearStress      => null()
+        real, dimension(:,:), pointer               :: RainKineticRate  => null()
         type(T_Property_2D)                         :: ErosionCriticalShear
         type(T_Property_2D)                         :: ErosionCoefficient
         type(T_Property_2D)                         :: DepositionCriticalShear 
@@ -510,22 +514,22 @@ Module ModuleRunoffProperties
          
 !        real, dimension(:,:), pointer               :: ShearStressY
                
-        real(8), pointer, dimension(:,:)            :: WaterVolume
-        integer, pointer, dimension(:,:)            :: DummyOpenPoints
+        real(8), pointer, dimension(:,:)            :: WaterVolume     => null()
+        integer, pointer, dimension(:,:)            :: DummyOpenPoints => null()
 
+       
+        logical                                     :: NewFormulation       = .false.   !New formulation for advection 
+        integer                                     :: AdvDiff_AdvMethodH   = null_int  !methods are general for all the properties
         
-        logical                                     :: NewFormulation              !New formulation for advection being computed
-        integer                                     :: AdvDiff_AdvMethodH          !methods are general for all the properties
-        
-        real                                        :: HminChezy                !for shear stress computation
-        real                                        :: HcriticSplash            !for splash erosion
-        real                                        :: Splash_ErosiveRainValue  !for splash erosion
+        real                                        :: HminChezy            = null_real    !for shear stress computation
+        real                                        :: HcriticSplash        = null_real    !for splash erosion
+        real                                        :: Splash_ErosiveRainValue = null_real !for splash erosion
 
     end type  T_RunoffProperties
 
     !Global Module Variables
-    type (T_RunoffProperties), pointer              :: FirstObjRunoffProperties
-    type (T_RunoffProperties), pointer              :: Me
+    type (T_RunoffProperties), pointer              :: FirstObjRunoffProperties => null()
+    type (T_RunoffProperties), pointer              :: Me                       => null()
 
 
     !--------------------------------------------------------------------------

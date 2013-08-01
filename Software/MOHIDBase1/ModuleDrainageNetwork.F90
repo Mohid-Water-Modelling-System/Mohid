@@ -454,28 +454,29 @@ Module ModuleDrainageNetwork
 
     !Types---------------------------------------------------------------------
     type       T_ID
-        integer                                     :: ID, IDNumber
-        character(LEN = StringLength)               :: Name
-        character(LEN = StringLength)               :: Description
-        character(LEN = StringLength)               :: Units
+        integer                                     :: ID          = null_int
+        integer                                     :: IDNumber    = null_int
+        character(LEN = StringLength)               :: Name        = null_str
+        character(LEN = StringLength)               :: Description = null_str
+        character(LEN = StringLength)               :: Units       = null_str
     end type T_ID
 
     type T_FlowFrequency
-        type (T_Time)                               :: StartDate
+        type (T_Time)                               :: StartDate 
         type (T_Time)                               :: StopDate
-        real                                        :: MinimumFlow
+        real                                        :: MinimumFlow  = null_real
     end type T_FlowFrequency
 
     type T_IntFlow
-        real                                        :: IntFlowDTOutput
+        real                                        :: IntFlowDTOutput = null_real
         type (T_Time)                               :: IntFlowNextOutput
     end type T_IntFlow
 
     type T_OutPut
-        type (T_Time), dimension(:), pointer        :: OutTime
-        type (T_Time), dimension(:), pointer        :: RestartOutTime
-        integer                                     :: NextOutPut
-        logical                                     :: Yes = .false.
+        type (T_Time), dimension(:), pointer        :: OutTime              => null()
+        type (T_Time), dimension(:), pointer        :: RestartOutTime       => null()
+        integer                                     :: NextOutPut           = null_int
+        logical                                     :: Yes                  = .false.
         logical                                     :: WriteRestartFile     = .false.
         logical                                     :: RestartOverwrite     = .false.
         integer                                     :: NextRestartOutput    = 1
@@ -488,11 +489,11 @@ Module ModuleDrainageNetwork
     end type T_OutPut
 
     type T_Files 
-         character(PathLength)                      :: InputData
-         character(PathLength)                      :: FinalFile
-         character(PathLength)                      :: HDFFile
-         character(PathLength)                      :: Initial
-         character(PathLength)                      :: Network
+         character(PathLength)                      :: InputData             = null_str
+         character(PathLength)                      :: FinalFile             = null_str
+         character(PathLength)                      :: HDFFile               = null_str
+         character(PathLength)                      :: Initial               = null_str
+         character(PathLength)                      :: Network               = null_str
          integer                                    :: ObjEnterDataNetwork   = 0
          integer                                    :: ObjEnterDataInitial   = 0
     end type T_Files
@@ -514,17 +515,17 @@ Module ModuleDrainageNetwork
         integer                                     :: IBottom                  = 0
         integer                                     :: NStations                = 0
         integer                                     :: NLevels                  = 0
-        real, dimension(:), pointer                 :: Station                  !length NStations
-        real, dimension(:), pointer                 :: Elevation                !length NStations
-        real, dimension(:), pointer                 :: BankSlope                !length NStations
+        real, dimension(:), pointer                 :: Station                  => null() !length NStations
+        real, dimension(:), pointer                 :: Elevation                => null() !length NStations
+        real, dimension(:), pointer                 :: BankSlope                => null() !length NStations
 
-        real, dimension(:), pointer                 :: Level                    !length NLevels
-        real, dimension(:), pointer                 :: LevelSlopeLeft           !length NLevels
-        real, dimension(:), pointer                 :: LevelSlopeRight          !length NLevels
-        real, dimension(:), pointer                 :: LevelBottomWidth         !length NLevels
-        real, dimension(:), pointer                 :: LevelVerticalArea        !length NLevels
-        real, dimension(:), pointer                 :: LevelWetPerimeter        !length NLevels       
-        real, dimension(:), pointer                 :: LevelSurfaceWidth        !length NLevels       
+        real, dimension(:), pointer                 :: Level                    => null() !length NLevels
+        real, dimension(:), pointer                 :: LevelSlopeLeft           => null() !length NLevels
+        real, dimension(:), pointer                 :: LevelSlopeRight          => null() !length NLevels
+        real, dimension(:), pointer                 :: LevelBottomWidth         => null() !length NLevels
+        real, dimension(:), pointer                 :: LevelVerticalArea        => null() !length NLevels
+        real, dimension(:), pointer                 :: LevelWetPerimeter        => null() !length NLevels       
+        real, dimension(:), pointer                 :: LevelSurfaceWidth        => null() !length NLevels       
        
     end type   T_CrossSection    
 
@@ -559,8 +560,8 @@ Module ModuleDrainageNetwork
         integer                                     :: nUpstreamReaches         = 0
         integer                                     :: nDownstreamReaches       = 0
         integer                                     :: Order                    = null_int
-        integer, dimension (:), pointer             :: UpstreamReaches
-        integer, dimension (:), pointer             :: DownstreamReaches
+        integer, dimension (:), pointer             :: UpstreamReaches          => null()
+        integer, dimension (:), pointer             :: DownstreamReaches        => null()
         logical                                     :: TimeSerie                = .FALSE.
         character(LEN = StringLength)               :: TimeSerieName            = ''
         logical                                     :: Discharges               = .FALSE.
@@ -588,7 +589,7 @@ Module ModuleDrainageNetwork
         real                                        :: PoolVerticalArea         = 0.0
         real                                        :: HydraulicRadius          = 0.0
         real                                        :: Manning                  = 0.0
-        logical                                     :: TimeSerie
+        logical                                     :: TimeSerie                = .false.
 
         real                                        :: HydroTimeGradient        = 0.0
         real                                        :: HydroAdvection           = 0.0
@@ -611,42 +612,42 @@ Module ModuleDrainageNetwork
     type T_TimeSerie
         integer                                                 :: ObjEnterData = 0
         logical                                                 :: ByNodes      = .false.
-        character(PathLength)                                   :: Location        
+        character(PathLength)                                   :: Location     = null_str   
         integer                                                 :: nNodes       = 0
         integer                                                 :: nProp        = 0
-        integer                 , dimension (:), pointer        :: ObjTimeSerie
-        integer                 , dimension (:), pointer        :: ObjTimeSerieMass           !for integrated mass
-        logical                 , dimension (:), pointer        :: ComputeMass                !for integrated mass        
-        character(StringLength) , dimension (:), pointer        :: Name
-        real                    , dimension (:), pointer        :: X
-        real                    , dimension (:), pointer        :: Y        
-        real, dimension(:), pointer                             :: DataLine
-        real, dimension(:), pointer                             :: DataLine2                 !for integrated volume
-        real, dimension(:), pointer                             :: DataLine3                 !for integrated mass
+        integer                 , dimension (:), pointer        :: ObjTimeSerie => null()
+        integer                 , dimension (:), pointer        :: ObjTimeSerieMass => null()      !for integrated mass
+        logical                 , dimension (:), pointer        :: ComputeMass  => null()          !for integrated mass        
+        character(StringLength) , dimension (:), pointer        :: Name         => null()
+        real                    , dimension (:), pointer        :: X            => null()
+        real                    , dimension (:), pointer        :: Y            => null()
+        real, dimension(:), pointer                             :: DataLine     => null()
+        real, dimension(:), pointer                             :: DataLine2    => null()          !for integrated volume
+        real, dimension(:), pointer                             :: DataLine3    => null()          !for integrated mass
         integer                                                 :: ObjTimeSerieIntFlow = 0
         
     end type T_TimeSerie
 
     type       T_ExtVar
-        real                                        :: DT
+        real                                        :: DT         = null_real
         logical                                     :: CoupledPMP = .false.
-        logical                                     :: CoupledRP = .false.
+        logical                                     :: CoupledRP  = .false.
     end type T_ExtVar
 
     type T_Downstream
-        integer                                     :: Boundary
-        integer                                     :: Evolution
-        real                                        :: DefaultValue !WaterColumn in meters
-        character(PathLength)                       :: FileName
-        integer                                     :: DataColumn
-        integer                                     :: ObjTimeSerie     = 0
+        integer                                     :: Boundary    = null_int
+        integer                                     :: Evolution   = null_int
+        real                                        :: DefaultValue = null_real !WaterColumn in meters
+        character(PathLength)                       :: FileName    = null_str
+        integer                                     :: DataColumn  = null_int
+        integer                                     :: ObjTimeSerie = 0
      end type T_Downstream
 
     type T_Toxicity
-        integer                                     :: Evolution        
-        real                                        :: Slope
-        real                                        :: EC50  !Concentration that causes 50% of effect (Tox = 0.5)        
-        real, dimension (:), pointer                :: Field                    => null()
+        integer                                     :: Evolution = null_int       
+        real                                        :: Slope     = null_real
+        real                                        :: EC50      = null_int !Concentration that causes 50% effect (Tox = 0.5)        
+        real, dimension (:), pointer                :: Field     => null()
     end type    T_Toxicity
 
     type T_ComputeOptions
@@ -697,9 +698,9 @@ Module ModuleDrainageNetwork
     end type T_Coupled
 
     type T_MassBalance
-        real(8)                                     :: TotalStoredMass
-        real(8)                                     :: TotalDischargeMass
-        real(8)                                     :: TotalOutFlowMass
+        real(8)                                     :: TotalStoredMass       = 0.
+        real(8)                                     :: TotalDischargeMass    = 0.
+        real(8)                                     :: TotalOutFlowMass      = 0.
     end type T_MassBalance
 
     type        T_Property
@@ -730,49 +731,50 @@ Module ModuleDrainageNetwork
         real, dimension (:), pointer                :: OutputTime               => null()    !s
         real, dimension (:), pointer                :: InitialOutputTime        => null()    !s
         
-        real                                        :: MinValue 
-        logical                                     :: WarnOnNegativeValues    
-        real                                        :: InitialValue 
-        real                                        :: BottomMinConc                        !kg m-2
-        real                                        :: BoundaryConcentration
+        real                                        :: MinValue                 = null_real
+        logical                                     :: WarnOnNegativeValues     = .false.
+        real                                        :: InitialValue             = null_real
+        real                                        :: BottomMinConc            = null_real  !kg m-2
+        real                                        :: BoundaryConcentration    = null_real
         
         !Advection Diffusion
-        real                                        :: Diffusivity 
-        integer                                     :: Advection_Scheme
-        integer                                     :: Diffusion_Scheme
+        real                                        :: Diffusivity              = null_real
+        integer                                     :: Advection_Scheme         = null_int
+        integer                                     :: Diffusion_Scheme         = null_int
 
         !Toxicity
         type (T_Toxicity)                           :: Toxicity
         
         !Decay
-        real                                        :: DecayRate
+        real                                        :: DecayRate                = null_real
 
         
         type (T_MassBalance)                        :: MB
 
-        real                                        :: IScoefficient
-        real                                        :: ExtinctionCoefficient
-        real                                        :: ErosionCriticalShear        
-        real                                        :: DepositionCriticalShear
-        real                                        :: ErosionCoefficient
-        real                                        :: CHS
-        integer                                     :: Ws_Type
-        real                                        :: Ws_Value
-        real                                        :: KL
-        real                                        :: KL1
-        real                                        :: ML
-        real                                        :: M
+        real                                        :: IScoefficient            = null_real
+        real                                        :: ExtinctionCoefficient    = null_real
+        real                                        :: ErosionCriticalShear     = null_real   
+        real                                        :: DepositionCriticalShear  = null_real
+        real                                        :: ErosionCoefficient       = null_real
+        real                                        :: CHS                      = null_real
+        integer                                     :: Ws_Type                  = null_int
+        real                                        :: Ws_Value                 = null_real
+        real                                        :: KL                       = null_real
+        real                                        :: KL1                      = null_real
+        real                                        :: ML                       = null_real
+        real                                        :: M                        = null_real
         
         !Mass integration output
-        real                                        :: IntMassFluxDT            
+        real                                        :: IntMassFluxDT            = null_real
         type (T_Time)                               :: IntMassFluxNextOutput
 
-        character(PathLength)                       :: OutputName
-        type (T_Property), pointer                  :: Next, Prev
+        character(PathLength)                       :: OutputName               = null_str
+        type (T_Property), pointer                  :: Next                     => null()
+        type (T_Property), pointer                  :: Prev                     => null()
        
        !property dt in quality modules
-        real                                        :: DTInterval        
-        type(T_Time)                                :: LastCompute
+        real                                        :: DTInterval               = null_real
+        type(T_Time)                                :: LastCompute 
         type(T_Time)                                :: NextCompute        
     end type    T_Property
 
@@ -780,10 +782,11 @@ Module ModuleDrainageNetwork
         type (T_ID)                             :: ID
         type (T_ID)                             :: FirstProp, SecondProp
         type (T_OutPut)                         :: OutPut
-        real, pointer, dimension(:)             :: Field
-        character(len=StringLength)             :: Model
-        type(T_WQRate), pointer                 :: next,prev
-        integer                                 :: CeQualID
+        real, pointer, dimension(:)             :: Field                        => null()
+        character(len=StringLength)             :: Model                        = null_str
+        type(T_WQRate), pointer                 :: next                         => null()
+        type(T_WQRate), pointer                 :: prev                         => null()
+        integer                                 :: CeQualID                     = null_int
     end type T_WQRate
 
     type T_StormWaterModelLink
@@ -797,7 +800,7 @@ Module ModuleDrainageNetwork
 
     type T_DrainageNetwork
         integer                                     :: InstanceID            = 0
-        character(len=StringLength)                 :: ModelName        
+        character(len=StringLength)                 :: ModelName             = null_str
         integer                                     :: ObjEnterData          = 0  
         integer                                     :: ObjDischarges         = 0
         integer                                     :: ObjTime               = 0 
@@ -817,53 +820,53 @@ Module ModuleDrainageNetwork
         integer                                     :: TotalNodes            = 0        
         integer                                     :: TotalReaches          = 0
         integer                                     :: TotalOutlets          = 0
-        integer, dimension(:), pointer              :: OutletReachPos
-        integer, dimension(:), pointer              :: OutletNodePos
+        integer, dimension(:), pointer              :: OutletReachPos        => null()
+        integer, dimension(:), pointer              :: OutletNodePos         => null()
         integer                                     :: HighestOrder          = 0
-        logical                                     :: CheckNodes
-        logical                                     :: CheckReaches
-        integer                                     :: XSCalc
-        logical                                     :: HasGrid
-        integer                                     :: CoordType
+        logical                                     :: CheckNodes            = .false.
+        logical                                     :: CheckReaches          = .false.
+        integer                                     :: XSCalc                = null_int
+        logical                                     :: HasGrid               = .false.
+        integer                                     :: CoordType             = null_int
         type (T_OutPut)                             :: OutPut
         type (T_ComputeOptions)                     :: ComputeOptions
         type (T_TimeSerie)                          :: TimeSerie
         type (T_Files )                             :: Files
         type (T_Coupled  )                          :: Coupled
         type (T_StormWaterModelLink)                :: StormWaterModelLink
-        logical                                     :: Continuous
-        logical                                     :: PropertyContinuous
-        logical                                     :: StopOnWrongDate
+        logical                                     :: Continuous            = .false.
+        logical                                     :: PropertyContinuous    = .false.
+        logical                                     :: StopOnWrongDate       = .false.
         type (T_Property), pointer                  :: FirstProperty         => null()
         type (T_Property), pointer                  :: LastProperty          => null()
         integer                                     :: PropertiesNumber      = 0
         integer                                     :: WQratesNumber         = 0
-        type(T_WqRate), pointer                     :: FirstWQrate
-        type(T_WqRate), pointer                     :: LastWQrate
+        type(T_WqRate), pointer                     :: FirstWQrate           => null()
+        type(T_WqRate), pointer                     :: LastWQrate            => null()
 
         logical                                     :: HasProperties         = .false.
         
         
-        real                                        :: GlobalManning
+        real                                        :: GlobalManning         = null_real
         logical                                     :: AllowBackwardWater    = .false.
-        real                                        :: MinimumSlope
-        real                                        :: InitialWaterDepth
-        real                                        :: MinimumWaterDepth
-        real                                        :: MinimumWaterDepthProcess
-        real                                        :: MinimumWaterDepthAdvection
-        real                                        :: HminChezy
+        real                                        :: MinimumSlope          = null_real
+        real                                        :: InitialWaterDepth     = null_real
+        real                                        :: MinimumWaterDepth     = null_real
+        real                                        :: MinimumWaterDepthProcess = null_real
+        real                                        :: MinimumWaterDepthAdvection = null_real
+        real                                        :: HminChezy             = null_real
         
-        integer                                     :: HydrodynamicApproximation
-        real                                        :: NumericalScheme
+        integer                                     :: HydrodynamicApproximation = null_int
+        real                                        :: NumericalScheme      = null_real
         real,    dimension(:)  , pointer            :: RunOffVector         => null()
         real,    dimension(:)  , pointer            :: GroundVector         => null()
         real,    dimension(:,:,:), pointer          :: GroundVectorLayers   => null()
         real,    dimension(:)  , pointer            :: DiffuseVector        => null()
         real,    dimension(:)  , pointer            :: TransmissionFlow     => null()
         
-        logical                                     :: GWFlowByLayers
-        integer, dimension(:), pointer              :: GWFlowBottomLayer
-        integer, dimension(:), pointer              :: GWFlowTopLayer
+        logical                                     :: GWFlowByLayers       = .false.
+        integer, dimension(:), pointer              :: GWFlowBottomLayer    => null()
+        integer, dimension(:), pointer              :: GWFlowTopLayer       => null()
 
         real,    dimension(:,:), pointer            :: ChannelsWaterLevel   => null()
         real,    dimension(:,:), pointer            :: ChannelsBottomLevel  => null()
@@ -902,10 +905,10 @@ Module ModuleDrainageNetwork
         real                                        :: InternalTimeStepSplit = 1.5
         real, dimension (:), pointer                :: GlobalToxicity       => null()
         integer                                     :: nToxicProp           = 0
-        character(len=StringLength)                 :: GlobalToxicityEvolution
+        character(len=StringLength)                 :: GlobalToxicityEvolution = null_str
         
         !MassBalance
-        logical                                     :: CheckMass 
+        logical                                     :: CheckMass                    = .false.
         real(8)                                     :: TotalStoredVolume            = 0.0
         real(8)                                     :: TotalOutputVolume            = 0.0
         real(8)                                     :: TotalFlowVolume              = 0.0 !TotalOutput trough outlets
@@ -921,12 +924,12 @@ Module ModuleDrainageNetwork
         !type(T_Reach), pointer                      :: OutletReach                  => null()
 
         logical                                     :: Stabilize                    = .true.
-        real                                        :: StabilizeFactor
-        real                                        :: StabilizeCoefficient
-        integer                                     :: MaxIterations
-        real                                        :: DTFactor
-        real                                        :: DTFactorUp
-        real                                        :: DTFactorDown        
+        real                                        :: StabilizeFactor              = null_real
+        real                                        :: StabilizeCoefficient         = null_real
+        integer                                     :: MaxIterations                = null_int
+        real                                        :: DTFactor                     = null_real
+        real                                        :: DTFactorUp                   = null_real
+        real                                        :: DTFactorDown                 = null_real
         logical                                     :: LimitDTCourant               = .false.
         logical                                     :: LimitDTVariation             = .true.
         real                                        :: MaxCourant                   = 1.0
@@ -939,17 +942,17 @@ Module ModuleDrainageNetwork
         integer                                     :: nPropWithDischarges          = 0   !Performance
         !T90    
         integer                                     :: T90Var_Method                = null_int
-        real                                        :: T90
+        real                                        :: T90                          = null_real
 
         !Ripirian Shading
-        real                                        :: ShadingFactor
+        real                                        :: ShadingFactor                = null_real
         
         logical                                     :: DTIntervalAssociated         = .false.
         
         !Transmission Losses
-        real                                        :: HydraulicConductivity                 
+        real                                        :: HydraulicConductivity        = null_real         
 
-        integer                                     :: AerationEquation
+        integer                                     :: AerationEquation             = null_int
         
       
         real,    dimension(:)  , pointer            :: ShearStress                  => null()        
@@ -959,8 +962,8 @@ Module ModuleDrainageNetwork
         logical                                     :: OutputHydro                  = .false.
         
         !Evapotranspirate in reach pools
-        real                                        :: EVTPMaximumDepth
-        real                                        :: EVTPCropCoefficient
+        real                                        :: EVTPMaximumDepth             = null_real
+        real                                        :: EVTPCropCoefficient          = null_real
 
         type (T_DrainageNetwork), pointer           :: Next                         => null()
     end type  T_DrainageNetwork

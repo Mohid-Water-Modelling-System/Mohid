@@ -228,13 +228,13 @@ Module ModulePorousMedia
 
     !Types---------------------------------------------------------------------
     type T_OutPut
-        type (T_Time), pointer, dimension(:)    :: OutTime
-        type (T_Time), dimension(:), pointer    :: RestartOutTime
-        type (T_Time), dimension(:), pointer    :: SurfaceOutTime
-        integer                                 :: NextOutPut
-        logical                                 :: Yes = .false.
-        logical                                 :: TimeSerieON
-        logical                                 :: ProfileON
+        type (T_Time), pointer, dimension(:)    :: OutTime              => null()
+        type (T_Time), dimension(:), pointer    :: RestartOutTime       => null()
+        type (T_Time), dimension(:), pointer    :: SurfaceOutTime       => null()
+        integer                                 :: NextOutPut           = null_int
+        logical                                 :: Yes                  = .false.
+        logical                                 :: TimeSerieON          = .false.
+        logical                                 :: ProfileON            = .false.
         logical                                 :: WriteRestartFile     = .false.
         logical                                 :: SurfaceOutput        = .false.
         logical                                 :: RestartOverwrite     = .false.
@@ -243,79 +243,83 @@ Module ModulePorousMedia
     end type T_OutPut
 
     type T_Files
-        character(PathLength)                   :: DataFile
-        character(PathLength)                   :: InitialFile
-        character(PathLength)                   :: FinalFile
-        character(PathLength)                   :: TransientHDF
-        character(PathLength)                   :: BottomFile
-        character(PathLength)                   :: ASCFile
-        integer                                 :: AsciiUnit
+        character(PathLength)                   :: DataFile             = null_str
+        character(PathLength)                   :: InitialFile          = null_str
+        character(PathLength)                   :: FinalFile            = null_str
+        character(PathLength)                   :: TransientHDF         = null_str
+        character(PathLength)                   :: BottomFile           = null_str
+        character(PathLength)                   :: ASCFile              = null_str
+        integer                                 :: AsciiUnit            = null_int
     end type T_Files    
 
 
     type T_ExtVar
-        integer, dimension(:,:), pointer        :: BasinPoints
+        integer, dimension(:,:), pointer        :: BasinPoints          => null()
         
         !ObjGeometry
-        real   , pointer, dimension(:,:  )      :: DUX, DVY
-        real   , pointer, dimension(:,:  )      :: DZX, DZY
-        real   , pointer, dimension(:,:,:)      :: DZZ, DWZ
-        real   , pointer, dimension(:,:,:)      :: CenterCell
-        real   , pointer, dimension(:,:  )      :: Area
+        real   , pointer, dimension(:,:  )      :: DUX                  => null()
+        real   , pointer, dimension(:,:  )      :: DVY                  => null()
+        real   , pointer, dimension(:,:  )      :: DZX                  => null()
+        real   , pointer, dimension(:,:  )      :: DZY                  => null()
+        real   , pointer, dimension(:,:,:)      :: DZZ                  => null()
+        real   , pointer, dimension(:,:,:)      :: DWZ                  => null()
+        real   , pointer, dimension(:,:,:)      :: CenterCell           => null()
+        real   , pointer, dimension(:,:  )      :: Area                 => null()
         
-        real   , pointer, dimension(:,:  )      :: Topography  
-        real   , pointer, dimension(:,:  )      :: BottomTopoG               
+        real   , pointer, dimension(:,:  )      :: Topography           => null()
+        real   , pointer, dimension(:,:  )      :: BottomTopoG          => null()      
         
-        real   , pointer, dimension(:,:,:)      :: AreaU, AreaV
+        real   , pointer, dimension(:,:,:)      :: AreaU                => null()
+        real   , pointer, dimension(:,:,:)      :: AreaV                => null()
 
-        integer, dimension(:,:), pointer        :: RiverPoints
-        integer, dimension(:,:), pointer        :: KFloor      
+        integer, dimension(:,:), pointer        :: RiverPoints          => null()
+        integer, dimension(:,:), pointer        :: KFloor               => null()
 
-        real(8), pointer, dimension(:,:,:)      :: CellVolume
-        real ,   pointer, dimension(:,:,:)      :: SZZ
+        real(8), pointer, dimension(:,:,:)      :: CellVolume           => null()
+        real ,   pointer, dimension(:,:,:)      :: SZZ                  => null()
                 
         
         !Map 
-        integer, pointer, dimension(:,:,:)      :: WaterPoints3D
-        integer, pointer, dimension(:,:,:)      :: OpenPoints3D
-        integer, pointer, dimension(:,:,:)      :: ComputeFacesU3D
-        integer, pointer, dimension(:,:,:)      :: ComputeFacesV3D
-        integer, pointer, dimension(:,:,:)      :: ComputeFacesW3D      
+        integer, pointer, dimension(:,:,:)      :: WaterPoints3D        => null()
+        integer, pointer, dimension(:,:,:)      :: OpenPoints3D         => null()
+        integer, pointer, dimension(:,:,:)      :: ComputeFacesU3D      => null()
+        integer, pointer, dimension(:,:,:)      :: ComputeFacesV3D      => null()
+        integer, pointer, dimension(:,:,:)      :: ComputeFacesW3D      => null() 
        
-        real(8), dimension(:,:  ), pointer      :: InfiltrationColumn
-        real, dimension(:,:,:), pointer         :: TranspirationFlux        
-        real, dimension(:,:  ), pointer         :: PotentialEvaporationFlux         
-        logical                                 :: ConstructEvaporation
-        logical                                 :: ConstructTranspiration   
+        real(8), dimension(:,:  ), pointer      :: InfiltrationColumn  => null()
+        real, dimension(:,:,:), pointer         :: TranspirationFlux   => null()     
+        real, dimension(:,:  ), pointer         :: PotentialEvaporationFlux  => null()       
+        logical                                 :: ConstructEvaporation      = .false.
+        logical                                 :: ConstructTranspiration    => .false.
 
         !Time
         type (T_Time)                           :: Now
-        real                                    :: DT
+        real                                    :: DT                   = null_real
     end type T_ExtVar
     
     !Unsaturated Zone Types
     type T_SoilOptions
-        logical :: CalcHorizontal
-        logical :: CalcDrainageNetworkFlux
-        integer :: CondutivityFace
-        logical :: Continuous
-        logical :: StopOnWrongDate
-        logical :: CheckGlobalMass
-        logical :: StartWithFieldCapacity
-        logical :: ComputeSoilField
-        real    :: HCondFactor
-        real    :: FCHCondFactor
-        logical :: LimitEVAPWaterVelocity
-        logical :: LimitEVAPHead
-        logical :: IgnoreWaterColumnOnEvap
-        real    :: HeadLimit
-        integer :: DNLink
-        logical :: ComputeHydroPressure
-        integer :: InfiltrationConductivity
-        logical :: DryChannelsCompletely = .false.
-        logical :: ImposeBoundaryValue
-        real    :: BoundaryValue
-        logical :: WriteLog
+        logical :: CalcHorizontal                                       = .false.
+        logical :: CalcDrainageNetworkFlux                              = .false.
+        integer :: CondutivityFace                                      = null_int
+        logical :: Continuous                                           = .false.
+        logical :: StopOnWrongDate                                      = .false.
+        logical :: CheckGlobalMass                                      = .false.
+        logical :: StartWithFieldCapacity                               = .false.
+        logical :: ComputeSoilField                                     = .false.
+        real    :: HCondFactor                                          = null_real
+        real    :: FCHCondFactor                                        = null_real
+        logical :: LimitEVAPWaterVelocity                               = .false.
+        logical :: LimitEVAPHead                                        = .false.
+        logical :: IgnoreWaterColumnOnEvap                              = .false.
+        real    :: HeadLimit                                            = null_real
+        integer :: DNLink                                               = null_int
+        logical :: ComputeHydroPressure                                 = .false.
+        integer :: InfiltrationConductivity                             = null_int
+        logical :: DryChannelsCompletely                                = .false.                   
+        logical :: ImposeBoundaryValue                                  = .false.
+        real    :: BoundaryValue                                        = null_real
+        logical :: WriteLog                                             = .false.
     end type T_SoilOptions
 
     type T_SoilType
@@ -330,9 +334,9 @@ Module ModulePorousMedia
     end type T_SoilType
 
     type T_Retention !Main parameters in the Mualem-van Genuchten retention and conductivity cuves
-        real, dimension(:,:,:), allocatable:: ThetaR     !      => null()     !Minimum water content
-        real, dimension(:,:,:), allocatable:: ThetaS     !      => null()     !Saturated water content
-        real, dimension(:,:,:), allocatable:: ThetaF     !      => null()     !(Theta-ThetaR)/(ThetaS-ThetaR)
+        real, dimension(:,:,:), allocatable:: ThetaR          !Minimum water content
+        real, dimension(:,:,:), allocatable:: ThetaS          !Saturated water content
+        real, dimension(:,:,:), allocatable:: ThetaF          !(Theta-ThetaR)/(ThetaS-ThetaR)
     end type T_Retention
 
     type T_Converge
@@ -346,15 +350,15 @@ Module ModulePorousMedia
         real         :: PredictedDT         = null_real 
         real         :: CurrentDT           = null_real 
         real         :: MinDT               = null_real
-        real         :: LimitThetaLo
-        real         :: LimitThetaHi
-        real         :: LimitThetaHiGWTable
+        real         :: LimitThetaLo        = null_real
+        real         :: LimitThetaHi        = null_real
+        real         :: LimitThetaHiGWTable = null_real
         real         :: ThetaHydroCoef      = null_real
         real         :: VelHydroCoef        = null_real
 
-        real,    allocatable, dimension(:,:,:) :: ThetaOld
-        real,    allocatable, dimension(:,:,:) :: ThetaIni
-        real,    allocatable, dimension(:,:,:) :: HeadIni
+        real,    allocatable, dimension(:,:,:) :: ThetaOld   
+        real,    allocatable, dimension(:,:,:) :: ThetaIni   
+        real,    allocatable, dimension(:,:,:) :: HeadIni    
     end type T_Converge
     
     type       T_PorousMedia        
@@ -376,7 +380,7 @@ Module ModulePorousMedia
         integer                                 :: ObjProfile               = 0
         type (T_PropertyID)                     :: ImpermeableFractionID
         
-        real,    allocatable, dimension(:,:,:)  :: ThetaField               ! => null() !!FieldCapacity [m3/m3]                
+        real,    allocatable, dimension(:,:,:)  :: ThetaField        !!FieldCapacity [m3/m3]                
 
         type (T_OutPut)                         :: OutPut
         type (T_ExtVar)                         :: ExtVar
@@ -399,47 +403,47 @@ Module ModulePorousMedia
         integer, dimension(:,:), pointer        :: UGCell                   => null()
         integer, dimension(:,:), pointer        :: UGCell_Old               => null()
         
-        real,    dimension(:,:,:), allocatable  :: lFlowBoundary            !=> null()
+        real,    dimension(:,:,:), allocatable  :: lFlowBoundary         
         !Exchange with channels
-        real,    dimension(:,:),   allocatable  :: lFlowToChannels          !=> null()
-        real,    dimension(:,:,:), allocatable  :: lFlowToChannelsLayer     !=> null()
-        real,    dimension(:,:),   allocatable  :: iFlowToChannels       !   => null()
-        real,    dimension(:,:,:), allocatable  :: iFlowToChannelsLayer   !  => null()
-        integer, dimension(:,:),   allocatable  :: FlowToChannelsTopLayer  ! => null()
-        integer, dimension(:,:),   allocatable  :: FlowToChannelsBottomLayer ! => null()
+        real,    dimension(:,:),   allocatable  :: lFlowToChannels         
+        real,    dimension(:,:,:), allocatable  :: lFlowToChannelsLayer     
+        real,    dimension(:,:),   allocatable  :: iFlowToChannels          
+        real,    dimension(:,:,:), allocatable  :: iFlowToChannelsLayer     
+        integer, dimension(:,:),   allocatable  :: FlowToChannelsTopLayer   
+        integer, dimension(:,:),   allocatable  :: FlowToChannelsBottomLayer 
 
         !Velocities
-        real,    dimension(:,:,:), allocatable  :: UnsatVelU              !  => null()
-        real,    dimension(:,:,:), allocatable  :: UnsatVelV               ! => null()
-        real,    dimension(:,:,:), allocatable  :: UnsatVelW               ! => null()
-        real,    dimension(:,:,:), allocatable  :: UnsatVelWFinal          ! => null()
+        real,    dimension(:,:,:), allocatable  :: UnsatVelU               
+        real,    dimension(:,:,:), allocatable  :: UnsatVelV                
+        real,    dimension(:,:,:), allocatable  :: UnsatVelW               
+        real,    dimension(:,:,:), allocatable  :: UnsatVelWFinal          
 
         !infiltration 
         real,   pointer, dimension(:,:)         :: InfiltrationVelocity     => null()
-        real,   pointer, dimension(:,:)         :: ImpermeableFraction
+        real,   pointer, dimension(:,:)         :: ImpermeableFraction      => null()
 
         !Fluxes
-        real(8), dimension(:,:,:), allocatable  :: FluxU                   ! => null()
-        real(8), dimension(:,:,:), allocatable  :: FluxV                   ! => null()
-        real(8), dimension(:,:,:), allocatable  :: FluxW                   ! => null()
-        real(8), dimension(:,:,:), allocatable  :: FluxWFinal              ! => null()  !Flux Corrected with Vertical continuity
+        real(8), dimension(:,:,:), allocatable  :: FluxU                   
+        real(8), dimension(:,:,:), allocatable  :: FluxV                   
+        real(8), dimension(:,:,:), allocatable  :: FluxW                   
+        real(8), dimension(:,:,:), allocatable  :: FluxWFinal            !Flux Corrected with Vertical continuity
         real,    dimension(:,:  ), pointer      :: EvaporationFlux          => null()
         !Flow Properties
-        real,    allocatable, dimension(:,:,:)      :: Theta               !     => null() !water content on each cell [m3/m3]
-        real,    allocatable, dimension(:,:,:)      :: Head                !     => null() !Suction Head on each cell 
-        real,    allocatable, dimension(:,:,:)      :: HydroPressure       !     => null() !Hydrostatic pressure
-        real,    allocatable, dimension(:,:,:)      :: FinalHead           !     !Sum of Suction, Hydrostatic and Topography
+        real,    allocatable, dimension(:,:,:)      :: Theta                !water content on each cell [m3/m3]
+        real,    allocatable, dimension(:,:,:)      :: Head                 !Suction Head on each cell 
+        real,    allocatable, dimension(:,:,:)      :: HydroPressure        !Hydrostatic pressure
+        real,    allocatable, dimension(:,:,:)      :: FinalHead            !Sum of Suction, Hydrostatic and Topography
 
         !Common Properties
-        real,    allocatable, dimension(:,:,:)      :: SatK                !     => null()
-        integer, allocatable, dimension(:,:,:)      :: SoilID              !     => null()
-        real,    allocatable, dimension(:,:,:)      :: UnSatK              !     => null()
-        real,    allocatable, dimension(:,:,:)      :: UnSatK_X            !     => null()
-        real,    allocatable, dimension(:,:,:)      :: UnSatK_Y            !     => null()
-        real,    allocatable, dimension(:,:,:)      :: UnSatK_Z            !     => null()
+        real,    allocatable, dimension(:,:,:)      :: SatK                
+        integer, allocatable, dimension(:,:,:)      :: SoilID              
+        real,    allocatable, dimension(:,:,:)      :: UnSatK              
+        real,    allocatable, dimension(:,:,:)      :: UnSatK_X            
+        real,    allocatable, dimension(:,:,:)      :: UnSatK_Y            
+        real,    allocatable, dimension(:,:,:)      :: UnSatK_Z            
 
         !Auxiliar SpeedUp Matrixes          
-        logical, allocatable, dimension(:,:,:)      :: CalculateHead        !    => null()
+        logical, allocatable, dimension(:,:,:)      :: CalculateHead       
     
         logical                                 :: TranspirationExists            = .false.
         logical                                 :: EvaporationExists              = .false.
@@ -448,9 +452,9 @@ Module ModulePorousMedia
         type (T_Converge        )               :: CV           !Converge data 
 
         !Options
-        real                                    :: NextDT
-        integer                                 :: LastGoodNiteration = 1
-        integer                                 :: NextNiteration = 1
+        real                                    :: NextDT                  = null_real
+        integer                                 :: LastGoodNiteration      = 1
+        integer                                 :: NextNiteration          = 1
         !Unsaturated Options
         type (T_SoilOptions )                   :: SoilOpt
 
