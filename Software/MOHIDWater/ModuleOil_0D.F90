@@ -7,8 +7,8 @@
 ! MODULE        : ModuleOil_0D
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-! DATE          : Jun 2003
-! REVISION      : Frank Braunschweig - v4.0
+! DATE          : August 2013
+! REVISION      : Rodrigo Fernandes
 ! DESCRIPTION   : Module responsbile for computing Oil processe (Spill / dissolution, etc)
 !
 !------------------------------------------------------------------------------
@@ -61,70 +61,85 @@ Module ModuleOil_0D
 !       <<BeginOil>>
 !       OIL_TIMESERIE         : char                                    [-]         !Name of the Output results file
 !       DT_OUTPUT_TIME        : real                                    [-]         !Time between output results
-!
+!	    DT_OIL_INTPROCESSES!  : real					                [DT_PARTIC] ! Time step for oil internal processes
 !       
+!       OILTYPE               : Crude/Refined                           [Crude]     !Oil Type
+!       API                   : real                                    [-]         !American Petroleum Institute (API) Gravity
+!       POURPOINT             : real (ºC)                               [-]         !Pour Point
+
+!       TEMPVISCREF           : real (ºC)                               [-]         !Temperature of Reference Viscosity
+!       VISCREF               : real (cP)                               [-]         !Reference Dynamic Viscosity
+!       VISCCINREF            : real (cSt)                              [-]         !Reference Cinematic Viscosity
+
 !       OIL_SPREADING         : 0/1                                     [1]         !Oil Spreading Process
+!       (next keyword only if OIL_SPREADING = 1)
 !       SPREADINGMETHOD       : Fay/ThicknessGradient                   []          !Method for Spreading 
 !       USERCOEFVELMANCHA     : real                                    [10.0]      !Empirical Thickness Gradient 
 !                                                                                    (typical values 5-30)
 !                                                                                    Spreading Vel. Coef. 
 !
 !       OIL_EVAPORATION       : 0/1                                     [0]         !Oil Evaporation Process
+!       (next keyword only if OIL_EVAPORATION = 1)
 !       EVAPORATIONMETHOD     : EvaporativeExposure/PseudoComponents    
-!                               /Fingas                                 []          !Method for Evaporation
-!       OIL_DISPERSION        : 0/1                                     [0]         !Oil Dispersion Process
-!       DISPERSIONMETHOD      : Delvigne/Mackay                         []          !Method for Dispersion
-!
-!       OIL_EMULSIFICATION    : 0/1                                     [0]         !Oil Emulsification Process
-!       EMULSIFICATIONMETHOD  : Mackay/Rasmussen                        []          !Method for Emulsification
-!
-!       OIL_DISSOLUTION       : 0/1                                     [0]         !Oil Dissolution Process
-!
-!       OIL_SEDIMENTATION     : 0/1                                     [0]         !Oil Sedimentation Process
-!
-!       OILTYPE               : Crude/Refined                           []          !Oil Type
-!       API                   : real                                    [-]         !American Petroleum Institute (API) Gravity
-!       POURPOINT             : real (ºC)                               [-]         !Pour Point
-!       CEMULS                : real (%)                                [0.0]       !Emulsification Constant 
-!                                                                                    (% of evaporated oil before emulsification
-!                                                                                     begins) 
-!       MAXVWATERCONTENT      : real (%)                                [null_real] !Maximum Volume Water Content   
-!       ASPHALTENECONTENT     : real (%)                                [-]         !Asphaltene Content
-!       WAXCONTENT            : real (%)                                [-]         !Wax Content
-!       EMULSPARAMETER        : real                                    [1.6E-6]    !Water Uptake Parameter 
-!                                                                                    (typical values 1.0E-6 to 2.0E-6) 
-!       TEMPVISCREF           : real (ºC)                               [-]         !Temperature of Reference Viscosity
-!       VISCREF               : real (cP)                               [-]         !Reference Dynamic Viscosity
-!       VISCCINREF            : real (cSt)                              [-]         !Reference Cinematic Viscosity
-!       OWINTERFACIALTENSION  : real (Dyne/cm)                          [-]         !Oil-Water Interfacial Tension
-!
+!                               /Fingas                                 [EvaporativeExposure]          !Method for Evaporation
 !       (the following 3 keywords are only necessary when Evaporation Method = PseudoComponents)
 !       NBRDISTCUTS           : int                                     [0]         !Number of Distillation Cuts
 !       TDISTEXP              : list(real) (ºC)                         [-]         !Vapour Temperature of Distillate 
 !       CPDISTEXP             : list(real) (%)                          [-]         !Cumulative Volume Fraction of Oil Distilled  
-!
 !       (the following 5 keywords are only necessary when Evaporation Method = Fingas)
 !       FINGAS_EVAP_EQTYPE    : Logarithmic / SquareRoot                []          !Evaporation Equation Type
 !       FINGAS_EVAP_EMP_DATA  : 0/1                                     [0]         !Knowledge of Empirical Data for Evaporation 
+!	    following 2 kewords are necessary if FINGAS_EVAP_EMP_DATA = 1
 !       FINGAS_EVAP_CONST1    : real                                    [-]         !Empirical Constant 1 
-!                                                                                    (Necessary If Fingas_Evap_Emp_Data = 1)
 !       FINGAS_EVAP_CONST2    : real                                    [-]         !Empirical Constant 2 
-!                                                                                    (Necessary If Fingas_Evap_Emp_Data = 1)
+!	    following keword is needed if FINGAS_EVAP_EMP_DATA = 0
 !       PERC_MASSDIST180      : real (%)                                [-]         !%(Wheight) of Oil Evaporated until 180ºC 
-!                                                                                    (Necessary If Fingas_Evap_Emp_Data = 0)
+!
+!       OIL_DISPERSION        : 0/1                                     [0]         !Oil Dispersion Process
+!       (next keyword only if OIL_DISPERSION = 1)
+!       DISPERSIONMETHOD      : Delvigne/Mackay                         [Delvigne]          !Method for Dispersion
+!       (next keyword only if DISPERSIONMETHOD = Mackay or METHOD_FLOAT_VEL = 3)
+!       OWINTERFACIALTENSION  : real (Dyne/cm)                          [-]         !Oil-Water Interfacial Tension
 
+!       OIL_EMULSIFICATION    : 0/1                                     [0]         !Oil Emulsification Process
+!       (next keyword only if OIL_EMULSIFICATION = 1)
+!       EMULSIFICATIONMETHOD  : Mackay/Rasmussen/Fingas                 [Rasmussen]          !Method for Emulsification
+!       CEMULS                : real (%)                                [0.0]       !Emulsification Constant 
+!                                                                                    (% of evaporated oil before emulsification
+!                                                                                     begins) 
+!                                                                                    (typical values 1.0E-6 to 2.0E-6) 
+!       (next keyword only if EMULSIFICATIONMETHOD = Mackay or Rasmussen)
+!       MAXVWATERCONTENT      : real (%)                                [null_real] !Maximum Volume Water Content   
+!       (next keyword only if EMULSIFICATIONMETHOD = Rasmussen)
+!       WAXCONTENT            : real (%)                                [-]         !Wax Content
+!       (next keyword only if EMULSIFICATIONMETHOD = Mackay)
+!       EMULSPARAMETER        : real                                    [1.6E-6]    !Water Uptake Parameter 
+!       (next keyword only if EMULSIFICATIONMETHOD = Fingas)
+!       RESINCONTENT          : real (%)                                [null_real] !Resine Content   
+!       SATURATECONTENT       : real (%)                                [null_real] !Saturate Content   
+!       (next keyword only if EMULSIFICATIONMETHOD = Fingas or Rasmussen)
+!       ASPHALTENECONTENT     : real (%)                                [-]         !Asphaltene Content
+!
+!       OIL_SEDIMENTATION     : 0/1                                     [0]         !Oil Sedimentation Process
+
+!       OIL_DISSOLUTION       : 0/1                                     [0]         !Oil Dissolution Process
+!
+!
+!
 !       OIL_CHEM_DISPERSION   : 0/1                                     [0]         !Chemical Dispersants Application
+!       (next keywords only if OIL_CHEM_DISPERSION = 1)
 !       P_AREA_SPRAYED        : real (%)                                [-]         !% of Spill Area sprayed whit dispersant
 !       EFFICIENCY            : real (%)                                [-]         !% of Area sprayed effectively dispersed
 !       START_CHEM_DISPERSION : YYYY MM DD HH MM SS                     [BeginModel]!Starting Time of Dispersant Application
 !       END_CHEM_DISPERSION   : YYYY MM DD HH MM SS                     [EndModel]  !Ending Time of Dispersant Application
-
+!
 !       OIL_MEC_CLEANUP       : 0/1                                     [0]         !Mechanical Cleanup Operation
+!       (next keywords only if OIL_MEC_CLEANUP = 1)
 !       START_MEC_CLEANUP     : YYYY MM DD HH MM SS                     [BeginModel]!Starting Time of Mechanical Cleanup Operation
 !       End_MEC_CLEANUP       : YYYY MM DD HH MM SS                     [EndModel]  !End Time of Mechanical Cleanup Operation
+!
 !       RECOVERY              : real (l/h or l)                         [-]         !rate or volume of Emulsion Recovered
-!       RECOVERY_DATAFORM     : Rate / Amount                           []          !DataForm of emulsion recovered
-    
+!       RECOVERY_DATAFORM     : Rate / Amount                           []          !DataForm of emulsion recovered   
 !       <<EndOil>>
 !    
 !    <EndOrigin>
@@ -172,7 +187,9 @@ Module ModuleOil_0D
     private :: OilOptionsAPI
     private :: EvapPropINI
     private :: F_MaxVWaterContent      !Function 
-    private :: F_Cdisp                 !Function
+    public  :: F_Cdisp                 !Function
+    public  :: F_Fwc                   !Function
+    public  :: F_Dba                   !Function
     private :: F_IBP                   !Function
     private :: F_Slope                 !Function
     private :: ReadTimeSerieFile
@@ -184,6 +201,8 @@ Module ModuleOil_0D
     public  :: GetOilSpreadingVelocity
     public  :: GetOilSpreadingList
     public  :: GetOilSpreading
+    public  :: GetOilViscCin
+    public  :: GetOWInterfacialTension
     public  :: UngetOil
 
 
@@ -202,10 +221,13 @@ Module ModuleOil_0D
     public  ::      OilActiveProcesses      !Influence on movement, growth, etc.
     private ::      OilPropIni
     private ::      AreaTeoric
+    public  ::      GetDropletDiameterParameters
+    public  ::      GetEntrainedClasses
     private ::      F_CVisc_E               !Function
     private ::      F_ThicknessLimit        !Function
     public  ::      F_FayArea               !Function
-
+    public  ::      F_AverageBeachHoldingCapacity ! Function
+    public  ::      F_BeachingOilType       ! Function
 
     !Destructor
     public  ::  KillOil 
@@ -214,6 +236,15 @@ Module ModuleOil_0D
     !Management
     private ::  Ready
     private ::      LocateObjOil
+
+    !Interfaces
+
+    private ::      UngetOil0D
+    private ::      UngetOil2D
+    interface  UngetOil
+        module procedure UngetOil0D
+        module procedure UngetOil2D
+    end interface  UngetOil
 
     !Parameter-----------------------------------------------------------------
 
@@ -247,7 +278,8 @@ Module ModuleOil_0D
     real, parameter :: CDisp_Deltad        = 65.0E-6
     real, parameter :: CDisp_Uvi           = 4.0
     real, parameter :: CDisp_b             = 0.032         
-
+    real, parameter :: EWave               = 5000.0
+    
     !Sedimentation
 
     real, parameter :: CSed_d0             = 135.0E-6
@@ -319,7 +351,12 @@ Module ModuleOil_0D
     integer, parameter :: Rasmussen           = 1
     integer, parameter :: Rate                = 1
     integer, parameter :: Amount              = 2
-
+    integer, parameter :: Unknown             = 0
+    integer, parameter :: Unstable            = 1
+    integer, parameter :: Entrained           = 2
+    integer, parameter :: Mesostable          = 3
+    integer, parameter :: Stable              = 4
+    
 
     !Types---------------------------------------------------------------------
 
@@ -332,13 +369,13 @@ Module ModuleOil_0D
     type       T_TimeSerie
         character(LEN = StringLength) :: TimeSerieFile = null_str
 
-        character(LEN = StringLength), dimension(:), pointer :: PropertyList
-        real,                          dimension(:), pointer :: DataLine
+        character(LEN = StringLength), dimension(:), pointer :: PropertyList => null()
+        real,                          dimension(:), pointer :: DataLine     => null()
     end type T_TimeSerie
 
 
     type       T_Files
-        character(LEN = StringLength) :: ConstructData = null_str
+        character(LEN = StringLength) :: ConstructData  = null_str
     end type T_Files
 
 
@@ -347,20 +384,20 @@ Module ModuleOil_0D
         type(T_Time)                        :: BeginTime
         type(T_Time)                        :: EndTime
 
-        logical                             :: BackTracking
+        logical                             :: BackTracking             = OFF
 
-        real                                :: Area
+        real                                :: Area                     = null_real
 
         !ObjParticProp
-        real                                :: Wind
-        real                                :: AtmosphericPressure
-        real                                :: WaterTemperature
-        real                                :: WaterDensity
-        real                                :: SPM
-        real                                :: WaveHeight
-        real                                :: WavePeriod
-        real                                :: VolOilBeached        
-        real                                :: VolumeBeached        
+        real                                :: Wind                     = null_real
+        real                                :: AtmosphericPressure      = null_real
+        real                                :: WaterTemperature         = null_real
+        real                                :: WaterDensity             = null_real
+        real                                :: SPM                      = null_real
+        real                                :: WaveHeight               = null_real
+        real                                :: WavePeriod               = null_real
+        real                                :: VolOilBeached            = null_real
+        real                                :: VolumeBeached            = null_real
    end type T_External
 
 
@@ -372,7 +409,7 @@ Module ModuleOil_0D
 
 
         !Time
-        real                                :: DTOilInternalProcesses
+        real                                :: DTOilInternalProcesses  = null_real
 
         
         !Mass
@@ -435,14 +472,14 @@ Module ModuleOil_0D
         real                                :: Slope                = null_real
         integer                             :: NbrDistCuts          = null_int
         integer                             :: NbrPC                = null_int
-        real,pointer,dimension(:)           :: TDistExp          
-        real,pointer,dimension(:)           :: CPDistExp         
-        real,pointer,dimension(:)           :: VolInicPC          
-        real,pointer,dimension(:)           :: VolPC          
-        real,pointer,dimension(:)           :: VEvaporatedPCDT          
-        real,pointer,dimension(:)           :: PvapPC         
-        real,pointer,dimension(:)           :: VmrelPC         
-        real,pointer,dimension(:)           :: MWPC         
+        real,pointer,dimension(:)           :: TDistExp             => null()
+        real,pointer,dimension(:)           :: CPDistExp            => null()
+        real,pointer,dimension(:)           :: VolInicPC            => null()
+        real,pointer,dimension(:)           :: VolPC                => null()
+        real,pointer,dimension(:)           :: VEvaporatedPCDT      => null()    
+        real,pointer,dimension(:)           :: PvapPC               => null()
+        real,pointer,dimension(:)           :: VmrelPC              => null()
+        real,pointer,dimension(:)           :: MWPC                 => null()
         logical                             :: Fingas_Evap_Emp_Data = OFF
         integer                             :: Fingas_Evap_EqType   = null_int
         real                                :: Fingas_Evap_Const1   = null_real
@@ -483,7 +520,11 @@ Module ModuleOil_0D
         real                                :: AsphalteneContent    = null_real
         real                                :: EmulsParameter       = null_real
         real                                :: WaxContent           = null_real
-
+        real                                :: EmulsStartTime       = null_real
+        real                                :: EmulsViscParam       = null_real
+        real                                :: ResinContent         = null_real
+        real                                :: SaturateContent      = null_real
+        integer                             :: StabilityIndex       = null_int
         
         !Dissolution
         logical                             :: OilDissolution       = OFF
@@ -526,7 +567,7 @@ Module ModuleOil_0D
 
 
     type      T_Oil
-        integer                 :: InstanceID
+        integer                 :: InstanceID = 0
         type(T_State    )       :: State
         type(T_Files    )       :: Files
         type(T_TimeSerie)       :: TimeSerie
@@ -547,13 +588,13 @@ Module ModuleOil_0D
         !Instance of Module_EnterData
         integer                 :: ObjEnterData = 0
 
-        type (T_Oil), pointer   :: Next
+        type (T_Oil), pointer   :: Next         => null()
 
     end type T_Oil
 
     !Global Module Variables
-    type (T_Oil), pointer              :: FirstObjOil
-    type (T_Oil), pointer              :: Me
+    type (T_Oil), pointer       :: FirstObjOil  => null()
+    type (T_Oil), pointer       :: Me           => null()
 
 
     !----------------------------------------------------------------------------
@@ -690,18 +731,27 @@ ifContCalc: if (.NOT. ContCalc ) then
                 Me%Var%MWaterContent     = 0.0
                 Me%Var%VWaterContent     = 0.0
                 Me%Var%Volume            = 0.0
-
                 Me%State%FirstStepIP     = ON
                 Me%State%FirstStepAP     = ON
+                Me%Var%StabilityIndex    = 0
 
                 !initialization of some properties
-                if (Me%Var%OilEmulsification) Me%Var%MaxVWaterContent = F_MaxVWaterContent()
-                
-                if (Me%Var%MaxVWaterContent < 1e-6) Me%Var%OilEmulsification = .false. 
+!                if (Me%Var%OilEmulsification) Me%Var%MaxVWaterContent = F_MaxVWaterContent()
+!                
+!                if (Me%Var%MaxVWaterContent < 1e-6) Me%Var%OilEmulsification = .false. 
             
                 Me%Var%SolubilityOilInWater = SolubilityFreshOil
 
                 Me%Var%ThicknessLimit       = F_ThicknessLimit ()
+                
+                if (Me%Var%OilEmulsification) then
+                    if (Me%Var%EmulsificationMethod .EQ. Fingas) then
+                        Me%Var%EmulsViscParam = 1.0                    
+                    else
+                        Me%Var%MaxVWaterContent = F_MaxVWaterContent()
+                        if (Me%Var%MaxVWaterContent < 1e-6) Me%Var%OilEmulsification = .false.   
+                    end if
+                end if
                     
 cd5:            if (Me%Var%OilEvaporation) then
 cd6:                if (Me%Var%EvaporationMethod .EQ. PseudoComponents) then
@@ -1118,6 +1168,28 @@ case77 :            select case(trim(adjustl(String)))
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR210")
 
+        call GetData(Me%Var%OWInterfacialTension,                               &
+                     Me%ObjEnterData,                                           &
+                     flag,                                                      &
+                     SearchType   = ExtractType,                                & 
+                     keyword      = 'OWINTERFACIALTENSION',                     &
+                     ClientModule ='ModuleOil_0D',                              &
+                     Default      = -9999.,                                     &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_,                                     &
+                         "Subroutine OilOptions; Module ModuleOil_0D. ERR240") 
+                         
+        if ((Me%Var%OWInterfacialTension < 0.) .AND. (Me%Var%OWInterfacialTension /= -9999.)) then
+            write(*,*) "Oil-Water Interfacial Tension below zero"
+            stop "Subroutine OilOptions; Module ModuleOil_0D. ERR243" 
+        endif
+
+        if (Me%Var%OWInterfacialTension > 1e6) then
+            write(*,*) "Oil-Water Interfacial Tension above 1e6 Dyne/cm"
+            stop "Subroutine OilOptions; Module ModuleOil_0D. ERR244" 
+        endif
+
 ifdisp: if  (Me%Var%OilDispersion) then
 
             call GetData(String,                                                         &
@@ -1148,31 +1220,12 @@ case3 :         select case(trim(adjustl(String)))
             end select case3
 
 
-cd9:        if (Me%Var%DispersionMethod .EQ. Mackay) then
-
-                call GetData(Me%Var%OWInterfacialTension,                               &
-                             Me%ObjEnterData,                                           &
-                             flag,                                                      &
-                             SearchType   = ExtractType,                                & 
-                             keyword      = 'OWINTERFACIALTENSION',                     &
-                             ClientModule ='ModuleOil_0D',                              &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR240") 
-                                 
-                if (Me%Var%OWInterfacialTension < 0.) then
-                    write(*,*) "Oil-Water Interfacial Tension below zero"
-                    stop "Subroutine OilOptions; Module ModuleOil_0D. ERR243" 
-                endif
-
-                if (Me%Var%OWInterfacialTension > 1e6) then
-                    write(*,*) "Oil-Water Interfacial Tension above 1e6 Dyne/cm"
-                    stop "Subroutine OilOptions; Module ModuleOil_0D. ERR244" 
-                endif
-
-            end if cd9
-
+            if (Me%Var%DispersionMethod .EQ. Mackay) then
+                if (Me%Var%OWInterfacialTension .EQ. -9999.) then
+                    write(*,*) 'Oil-Water Interfacial Tension not defined (needed in Mackay dispersion formulation)'
+                    stop 'Subroutine OilOptions - ModuleOil_0D - ERR245'
+                end if
+            end if
         end if ifdisp
 
 
@@ -1233,6 +1286,10 @@ case4 :         select case(trim(adjustl(String)))
 
                     Me%Var%EmulsificationMethod = Mackay
 
+                case(Char_Fingas)
+
+                    Me%Var%EmulsificationMethod = Fingas
+
                 case default
 
                     call SetError(FATAL_, KEYWORD_,                                     &
@@ -1278,18 +1335,6 @@ case4 :         select case(trim(adjustl(String)))
 
 cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
 
-                call GetData(Me%Var%AsphalteneContent,                                  &
-                             Me%ObjEnterData,                                           &
-                             flag,                                                      &
-                             SearchType   = ExtractType,                                & 
-                             keyword      = 'ASPHALTENECONTENT',                        &
-                             ClientModule ='ModuleOil_0D',                              &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR310") 
-
-
                 call GetData(Me%Var%WaxContent,                                         &
                              Me%ObjEnterData,                                           &
                              flag,                                                      &
@@ -1307,7 +1352,7 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                              Me%ObjEnterData,                                           &
                              flag,                                                      &
                              SearchType   = ExtractType,                                &  
-                             keyword      = 'EmulsParameter',                           &
+                             keyword      = 'EMULSPARAMETER',                           &
                              Default      = 1.6E-6,                                     &
                              ClientModule ='ModuleOil_0D',                              &
                              STAT         = STAT_CALL)
@@ -1315,8 +1360,47 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                     call SetError(FATAL_, KEYWORD_,                                     &
                                  "Subroutine OilOptions; Module ModuleOil_0D. ERR330") 
 
+            else if (Me%Var%EmulsificationMethod .EQ. Fingas) then cd11
+            
+                call GetData(Me%Var%ResinContent,                                       &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = ExtractType,                                &  
+                             keyword      = 'RESINCONTENT',                             &
+                             ClientModule ='ModuleOil_0D',                              &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR331") 
+
+                call GetData(Me%Var%SaturateContent,                                    &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = ExtractType,                                &  
+                             keyword      = 'SATURATECONTENT',                          &
+                             ClientModule ='ModuleOil_0D',                              &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR332") 
+
             end if cd11
 
+            if ((Me%Var%EmulsificationMethod .EQ. Rasmussen) .OR. (Me%Var%EmulsificationMethod .EQ. Fingas)) then
+
+                call GetData(Me%Var%AsphalteneContent,                                  &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = ExtractType,                                & 
+                             keyword      = 'ASPHALTENECONTENT',                        &
+                             ClientModule ='ModuleOil_0D',                              &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError(FATAL_, KEYWORD_,                                     &
+                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR333") 
+
+            end if
+            
         end if ifemul
 
         call GetData(Me%Var%TempViscRef,                                                &
@@ -1918,7 +2002,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         STAT_ = UNKNOWN_
 
         call Ready(OilID, ready_) 
-        
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                               &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             API = Me%Var%API
@@ -1932,6 +2016,74 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         !----------------------------------------------------------------------
 
     end subroutine GetOilAPI
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetOilViscCin(OilID, OilViscCin, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: OilID
+        real,              intent(OUT)              :: OilViscCin
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_, STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(OilID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                               &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            OilViscCin= Me%Var%ViscCin
+            STAT_ = SUCCESS_
+        else cd1
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetOilViscCin
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetOWInterfacialTension(OilID, OWInterfacialTension, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: OilID
+        real,              intent(OUT)              :: OWInterfacialTension
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_, STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(OilID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                               &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            OWInterfacialTension = Me%Var%OWInterfacialTension
+            if (OWInterfacialTension .EQ. -9999.) then
+                write(*,*) 'Oil-Water Interfacial Tension not defined (needed in Zheng method for rising velocity)'
+                stop 'GetOWInterfacialTension - ModuleOil_0D - ERR01'
+            end if
+            STAT_ = SUCCESS_
+        else cd1
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetOWInterfacialTension
 
     !--------------------------------------------------------------------------
 
@@ -1958,7 +2110,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                               &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-                    
+!ROD FALTA UM READLOCK??                    
 cd2 :   if  (Me%Var%SpreadingMethod .EQ. ThicknessGradient_) then
             
             if (Me%Var%OilSpreading .and. present(CoefVelMancha)) then
@@ -2055,7 +2207,38 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
     !----------------------------------------------------------------------------
 
-    subroutine UngetOil(OilID, Array, STAT)
+    subroutine UngetOil0D(OilID, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: OilID    
+        integer, optional, intent (OUT)             :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_, STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(OilID, ready_) 
+
+cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
+
+            call Read_UnLock(mOIL_, Me%InstanceID, "UngetOil0D")
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+    end subroutine UngetOil0D
+
+        !------------------------------------------------------------------------
+
+    subroutine UngetOil2D(OilID, Array, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                     :: OilID    
@@ -2074,7 +2257,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
             nullify(Array)
-            call Read_UnLock(mOIL_, Me%InstanceID, "UngetOil")
+            call Read_UnLock(mOIL_, Me%InstanceID, "UngetOil2D")
 
             STAT_ = SUCCESS_
         else 
@@ -2086,10 +2269,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         !------------------------------------------------------------------------
 
-    end subroutine UngetOil
+    end subroutine UngetOil2D
 
     !----------------------------------------------------------------------------
-
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2327,10 +2509,7 @@ cd2 :       if (LagrangianTime .GE. Me%NextInternalComputeTime) then
 
     end subroutine OilInternalProcesses
 
-    !----------------------------------------------------------------------------
-
-
-    !----------------------------------------------------------------------------
+!    !----------------------------------------------------------------------------
 
     subroutine Density
 
@@ -2354,20 +2533,30 @@ cd2 :       if (LagrangianTime .GE. Me%NextInternalComputeTime) then
 
         !Arguments---------------------------------------------------------------
 
+        !Local-------------------------------------------------------------------
+        real                                     :: EmulsFactor 
         !------------------------------------------------------------------------
                
-                       
-        Me%Var%Viscosity  = 1000.*(Me%Var%ViscRef/1000.) * exp( (Me%Var%CVisc_E         &
-                                * Me%Var%FMEvaporated) + (CVisc_V * Me%Var%VWaterContent)   &
-                                 / (1. - CVisc_M * Me%Var%VWaterContent)                        &
+        If (Me%Var%EmulsificationMethod .EQ. Fingas) then                       
+            EmulsFactor  = Me%Var%EmulsViscParam
+        Else
+            EmulsFactor  = exp((CVisc_V * Me%Var%VWaterContent)   / (1. - CVisc_M * Me%Var%VWaterContent))
+       End If
+       
+       Me%Var%Viscosity  = 1000.*(Me%Var%ViscRef/1000.) * EmulsFactor * & 
+                           exp( (Me%Var%CVisc_E  * Me%Var%FMEvaporated)   &
                                 + CVisc_T*(1./(Me%ExternalVar%WaterTemperature+273.15)          &
-                                - 1./(Me%Var%TempViscRef+273.15))  )
-        !a viscosidade anterior é calculada em cP
+                                              - 1./(Me%Var%TempViscRef+273.15))  )
+            !a viscosidade anterior é calculada em cP
+!            Me%Var%Viscosity  = 1000.*(Me%Var%ViscRef/1000.) * exp( (Me%Var%CVisc_E         &
+!                                    * Me%Var%FMEvaporated) + (CVisc_V * Me%Var%VWaterContent)   &
+!                                     / (1. - CVisc_M * Me%Var%VWaterContent)                        &
+!                                    + CVisc_T*(1./(Me%ExternalVar%WaterTemperature+273.15)          &
+!                                                   - 1./(Me%Var%TempViscRef+273.15))  )
                   
         Me%Var%ViscCin    = 1.0e6 * (Me%Var%Viscosity/1000.) / Me%Var%Density !cSt
         !unidades - cSt
                                           
-
         !------------------------------------------------------------------------
 
     end subroutine Viscosity
@@ -2579,11 +2768,12 @@ cd4:   if  (Me%Var%MassOil - (Me%Var%MEvaporatedDT) * Me%Var%DTOilInternalProces
 
 
         !Internal----------------------------------------------------------------
-        real            :: Hrms
-        real            :: Dba
-        real            :: Fwc
+        !real            :: Hrms
+!        real            :: Dba
+!        real            :: Fwc
         integer         :: n
-
+        real            :: QdTotal
+        real            :: DropletDiameter(5), Qd(5)
         !------------------------------------------------------------------------
 
 
@@ -2591,23 +2781,30 @@ cd4:   if  (Me%Var%MassOil - (Me%Var%MEvaporatedDT) * Me%Var%DTOilInternalProces
 
 cd1:    if (Me%Var%DispersionMethod .EQ. Delvigne)  then
 
-            Hrms                              = Me%ExternalVar%WaveHeight / sqrt(2.0)
-            Dba                               = 0.0034 * Me%ExternalVar%WaterDensity            &
-                                                * Gravity * Hrms**2
+!            Hrms                              = Me%ExternalVar%WaveHeight / sqrt(2.0)
+!            Dba                               = 0.0034 * Me%ExternalVar%WaterDensity            &
+!                                                * Gravity * Hrms**2
+!        Dba   = F_Dba ()
+!        Fwc   = F_Fwc ()
+!        Cdisp = F_Cdisp ()
+!cd2:        if (CDisp_Uvi .GT. Me%ExternalVar%Wind) then
+!
+!                Fwc = 3E-06 * (Me%ExternalVar%Wind**3.5 / Me%ExternalVar%WavePeriod)
+!
+!            else    cd2
+!
+!                Fwc = CDisp_b*(Me%ExternalVar%Wind - CDisp_Uvi) / Me%ExternalVar%WavePeriod
+!
+!            end if  cd2
 
-cd2:        if (CDisp_Uvi .GT. Me%ExternalVar%Wind) then
+            Call GetEntrainedClasses(Me%Var%Viscosity, 5, QdTotal, Qd, DropletDiameter)
 
-                Fwc = 0
 
-            else    cd2
-
-                Fwc = CDisp_b*(Me%ExternalVar%Wind - CDisp_Uvi) / Me%ExternalVar%WavePeriod
-
-            end if  cd2
-
-            Me%Var%MDispersedDT           = (1-Me%Var%MWaterContent) * (Me%Var%Cdisp    &
-                                                * Dba**0.57 * Fwc * CDisp_d0**0.7 * CDisp_Deltad)   &
+            Me%Var%MDispersedDT           = (1-Me%Var%MWaterContent) * QdTotal    &
                                                 * Me%ExternalVar%Area 
+!            Me%Var%MDispersedDT           = (1-Me%Var%MWaterContent) * (Me%Var%Cdisp    &
+!                                                * Dba**0.57 * Fwc * CDisp_d0**0.7 * CDisp_Deltad)   &
+!                                                * Me%ExternalVar%Area 
         
         else if (Me%Var%DispersionMethod .EQ. Mackay)  then   cd1
    
@@ -2683,13 +2880,94 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
 
         !------------------------------------------------------------------------
 
+    subroutine GetDropletDiameterParameters(ParticleViscCin, ComputedD50, MinDropletDiameter, MaxDropletDiameter)
+        !Arguments---------------------------------------------------------------
+        real,              intent(IN )               :: ParticleViscCin
+        real, optional,     intent(OUT )             :: ComputedD50
+        real, optional,     intent(OUT )             :: MinDropletDiameter
+        real, optional,     intent(OUT )             :: MaxDropletDiameter
+
+        !Internal----------------------------------------------------------------
+        !real, parameter :: EWave = 5000.0 ! energy dissipation rate per unit volume (J/m3-s) between 1000 and 10000 - Delvigne 1988
+        real            :: ViscCin
+        real            :: MinDropletDiameter_
+        real            :: MaxDropletDiameter_
+        real            :: ComputedD50_
+        !------------------------------------------------------------------------
+            !ViscCin             = 1000. * ParticleViscosity / ParticleDensity
+            ViscCin             = ParticleViscCin 
+            ComputedD50_         = 1818. * (EWave**(-0.5)) * (ViscCin**0.34) ! in microns
+            ComputedD50_         = ComputedD50_ * 1E-06 ! in meters
+        if (present(ComputedD50))                                                      &
+            ComputedD50 = ComputedD50_
+
+            MinDropletDiameter_  = 0.1 * ComputedD50_
+        if (present(MinDropletDiameter))                                                      &
+            MinDropletDiameter = MinDropletDiameter_
+
+            MaxDropletDiameter_  = min(ComputedD50_, 70.E-06)
+        if (present(MaxDropletDiameter))                                                      &
+            MaxDropletDiameter = MaxDropletDiameter_
+
+    end subroutine GetDropletDiameterParameters
+
+        !------------------------------------------------------------------------
+
+    subroutine GetEntrainedClasses(ParticleViscCin, ClassesNbr, QdTotal, Qd, DropletDiameter)
+
+        !Arguments---------------------------------------------------------------
+        real,              intent(IN )               :: ParticleViscCin
+        integer,           intent(IN )               :: ClassesNbr
+        real,              intent(OUT )              :: QdTotal
+        real, dimension(ClassesNbr), intent(OUT )    :: Qd
+        real, dimension(ClassesNbr), intent(OUT )    :: DropletDiameter
+
+        !Internal----------------------------------------------------------------
+        !real, parameter :: EWave = 5000.0 ! energy dissipation rate per unit volume (J/m3-s) between 1000 and 10000 - Delvigne 1988
+        real            :: MinDropletDiameter
+        real            :: MaxDropletDiameter
+        real            :: DeltaDiameter
+        real            :: Dba
+        real            :: Fwc
+        real            :: Cdisp
+        integer         :: i
+        !------------------------------------------------------------------------
+
+        Dba = F_Dba ()
+        Fwc = F_Fwc ()
+        
+        If (Me%Var%Cdisp == null_real) then
+                Cdisp = F_CDisp ()
+        Else
+                Cdisp = Me%Var%Cdisp
+        End If
+        
+        call GetDropletDiameterParameters(ParticleViscCin      = ParticleViscCin, &
+                                          MinDropletDiameter   = MinDropletDiameter, &
+                                          MaxDropletDiameter   = MaxDropletDiameter)
+
+        DeltaDiameter       = (MaxDropletDiameter - MinDropletDiameter) / ClassesNbr
+                             
+        QdTotal = 0.
+        do i = 1,ClassesNbr
+            ! Calculate mean droplet diameter for each oil droplet interval
+            DropletDiameter(i) = MinDropletDiameter + DeltaDiameter * (i-1) + 0.5 * DeltaDiameter
+            Qd(i) = Cdisp  * (Dba**0.57) * Fwc * (DropletDiameter(i) **0.7)* DeltaDiameter
+            QdTotal = QdTotal + Qd(i)
+            
+        end do
+
+    end subroutine GetEntrainedClasses
+
+        !------------------------------------------------------------------------
+
     subroutine Sedimentation
 
         !Arguments---------------------------------------------------------------
 
 
         !Internal----------------------------------------------------------------
-        real            :: Hrms
+        !real            :: Hrms
         real            :: Dba                      !J/m2
         real            :: Fwc
         real            :: IntrusionDepth
@@ -2699,17 +2977,17 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
         integer         :: n
         !------------------------------------------------------------------------
 
-        Hrms                              = Me%ExternalVar%WaveHeight / sqrt(2.0)
-        Dba                               = 0.0034 * Me%ExternalVar%WaterDensity                &
-                                            * Gravity * Hrms**2
-        
-        
-cd1:    if (CDisp_Uvi .GT. Me%ExternalVar%Wind) then
-            Fwc                           = 0
-        else
-            Fwc                           = CDisp_b*(Me%ExternalVar%Wind - CDisp_Uvi)           &
-                                            / Me%ExternalVar%WavePeriod
-        end if  cd1
+!        Hrms                              = Me%ExternalVar%WaveHeight / sqrt(2.0)
+!        Dba                               = 0.0034 * Me%ExternalVar%WaterDensity                &
+!                                            * Gravity * Hrms**2
+        Dba = F_Dba ()
+        Fwc = F_Fwc ()
+!cd1:    if (CDisp_Uvi .GT. Me%ExternalVar%Wind) then
+!            Fwc                           = 0
+!        else
+!            Fwc                           = CDisp_b*(Me%ExternalVar%Wind - CDisp_Uvi)           &
+!                                            / Me%ExternalVar%WavePeriod
+!        end if  cd1
 
         IntrusionDepth                    = 1.5 * Me%ExternalVar%WaveHeight
 
@@ -2843,7 +3121,7 @@ cd2:    if (Me%Var%MassOil - (Me%Var%MdissolvedDT) * Me%Var%DTOilInternalProcess
         Else
             Me%Var%Volume           = 0.
         End If
-        
+
         if (Me%ExternalVar%Area > 0.) then
             Me%Var%SlickThickness       = Me%Var%Volume    / Me%ExternalVar%Area
             Me%Var%OilThickness         = Me%Var%VolumeOil / Me%ExternalVar%Area
@@ -2869,9 +3147,27 @@ cd2:    if (Me%Var%MassOil - (Me%Var%MdissolvedDT) * Me%Var%DTOilInternalProcess
     subroutine Emulsification
 
         !Arguments---------------------------------------------------------------
+        ! -----------Fingas--------------------------------------
+        real    ::  St, Rt, ARt, Vt, At, Dt_ !transformed values      
+        real    :: StabilityC          
+        real    :: AR
+        integer :: StabilityIndex
+        integer :: NewStabilityIndex
+        real    :: DensityRel
+        real, dimension(4,2) :: FormationTimeParam
+        real, dimension(4,3) :: ViscIncreaseMatrix
+        real, dimension(4,3) :: WaterContentMatrix
+        real                 :: ViscosityIncrease, ViscIncreaseDT
+        real                 :: WaterContent, WaterContentDT, DT
+        real                 :: FormationTime
+!        real                 :: EmulsStartTime
+        real                 :: DayAfterEmulsFormation
+        real                 :: WeekAfterEmulsFormation
+        real                 :: YearAfterEmulsFormation
+        real                 :: TimeAfterEmulsStart
         
-     
         !------------------------------------------------------------------------
+ 
 
  
 cd1:    if  (Me%Var%FMEvaporated  .GE. (Me%Var%Cemuls/100)) then
@@ -2892,6 +3188,173 @@ cd2:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                                              * (1 - Me%Var%VWaterContent                        &
                                              / (Me%Var%MaxVWaterContent/100.))
             
+            
+            else if (Me%Var%EmulsificationMethod .EQ. Fingas) then   cd2
+
+                DT = Me%Var%DTOilInternalProcesses
+                WaterContent = Me%Var%MWaterContent
+                WaterContentDT = 0.0
+                ViscosityIncrease = Me%Var%EmulsViscParam
+                
+                                              !Unstable, Entrained, Mesostable, Stable
+                FormationTimeParam = reshape((/0.,    30.8,    47.,  27.1, &     !Parameter a
+                                               0.,  18300., 49100., 7520./), &   !Parameter b
+                                              shape(FormationTimeParam))
+
+                                              !Unstable, Entrained, Mesostable, Stable
+                ViscIncreaseMatrix  = reshape((/0.99,  1.9, 7.2,  405.,   &       ! First Day
+                                                1.0,  1.9, 11., 1054.,   &       ! Week
+                                                1.0,  2.1, 32.,  991./), &       ! Year
+                                               shape(ViscIncreaseMatrix))
+                                                               
+                                              !Unstable, Entrained, Mesostable, Stable
+                WaterContentMatrix       = reshape((/0.06,  0.42, 0.64,  0.77,   &       ! First Day
+                                                     0.07,  0.38, 0.32,  0.75,   &       ! Week
+                                                     0.05,  0.40,  0.2,  0.70/), &       ! Year
+                                                     shape(WaterContentMatrix))
+                
+                AR                  = Me%Var%AsphalteneContent / Me%Var%ResinContent
+                
+                DensityRel          = Me%Var%Density / Me%ExternalVar%WaterDensity
+                
+                
+
+                If (exp(DensityRel) < 2.5) then
+                    Dt_ = 2.5 - exp(DensityRel)
+                Else
+                    Dt_ = max(exp(DensityRel) - 2.5, allmostzero)
+                End If
+
+                If (log(Me%Var%Viscosity) < 5.8) then
+                    Vt = 5.8 - log(Me%Var%Viscosity)
+                Else
+                    Vt = max(log(Me%Var%Viscosity) - 5.8, allmostzero)
+                End If
+                
+                If (Me%Var%SaturateContent < 45.0) then
+                    St = 45.0 - Me%Var%SaturateContent
+                Else
+                    St = max(Me%Var%SaturateContent - 45.0,allmostzero) 
+                End If
+                
+                If (Me%Var%ResinContent == 0.0) then
+                    Rt = 20.
+                ElseIf (Me%Var%ResinContent < 10.0) then
+                    Rt = 10.0 - Me%Var%ResinContent
+                Else
+                    Rt = max(Me%Var%ResinContent - 10.0, allmostzero) 
+                End If
+                
+                If (Me%Var%AsphalteneContent == 0.0) then
+                    At = 20.
+                ElseIf (Me%Var%AsphalteneContent < 4.0) then
+                    At = 4.0 - Me%Var%AsphalteneContent
+                Else
+                    At = max(Me%Var%AsphalteneContent - 4.0, allmostzero) 
+                End If
+
+                If (AR < 0.6) then
+                    ARt = 0.6 - AR
+                Else
+                    ARt = max(AR - 0.6, allmostzero) 
+                End If
+                
+            
+                StabilityC = 12.3 + (0.259 * St) - (1.601 * Rt) - 17.2 * ARt - (0.5 * (Vt**3.0))        !&
+                StabilityC = StabilityC + (0.002 * (Rt**3.0)) + (0.001 * At**3.0) + (8.51 * (ARt**3.0))         !&
+                StabilityC = StabilityC - (1.12 * log(Vt)) + (0.700 * log(Rt)) + (2.97 * log(ARt))             !&
+                StabilityC = StabilityC + (6.0E-8 * (exp(Vt)**2.0)) - (1.96 * (exp(ARt)**2.0))                 !& 
+                StabilityC = StabilityC - (4.0E-6 * (log10(Dt_)/(Dt_**2.0))) - (1.5E-4 * (log10(ARt)/(ARt**2.0)))
+                         
+                If ((StabilityC >= 2.2) .AND. (StabilityC <= 15.)) then
+                    NewStabilityIndex = 4      ! Stable
+                ElseIf (((StabilityC >= -39.1)            .AND. (StabilityC <= -7.1))           .AND. &
+                        ((DensityRel        < 0.85)       .OR. (DensityRel       > 1.0      ))  .AND. &
+                        ((Me%Var%Viscosity  < 100.0)      .OR. (Me%Var%Viscosity > 800000.0 ))  .AND. &
+                        ((Me%Var%AsphalteneContent < 1.0) .OR. (Me%Var%ResinContent  < 1.0  )))  then
+
+                    NewStabilityIndex = 1 ! Unstable
+
+                ElseIf ((StabilityC >= -18.3)  .AND. (StabilityC <= -9.1)  .AND. &                                            
+                        (DensityRel > 0.96)    .AND. (Me%Var%Viscosity > 6000.0)) then
+
+                    NewStabilityIndex = 2  ! Entrained                
+
+                ElseIf ((StabilityC >= -12.)         .AND. (StabilityC <= -0.7)) then
+
+                    NewStabilityIndex = 3  ! Mesostable
+
+                Else
+
+                    NewStabilityIndex = 0  ! unknown
+
+                End If
+                
+                !emulsion starts to form when a different stability class (more stable than previous state) is reached
+                If (NewStabilityIndex > Me%Var%StabilityIndex) then
+                    Me%Var%EmulsStartTime  = Me%Var%Time
+                End If
+
+                Me%Var%StabilityIndex              = NewStabilityIndex
+                StabilityIndex                     = Me%Var%StabilityIndex       
+                                 
+                ! if emulsion is unstable, there is no formation time
+                If (StabilityIndex > 1) then
+                    FormationTime = FormationTimeParam(StabilityIndex,1) +  FormationTimeParam(StabilityIndex,2) / &
+                                ((Me%ExternalVar%WaveHeight*100.)**1.5)                                                          
+                Else
+                    FormationTime = 0.
+                End If
+
+                !Time in seconds for the 3 curve points used to find viscosity increase or water content
+                DayAfterEmulsFormation = FormationTime   * 60. + (1 * 86400.)
+                WeekAfterEmulsFormation = FormationTime  * 60. + (7 * 86400.)
+                YearAfterEmulsFormation = FormationTime  * 60. + (365 * 86400.)
+                               
+                If (StabilityIndex > 0) then
+                    !time spent since emulsion formation
+                    TimeAfterEmulsStart = Me%Var%Time - Me%Var%EmulsStartTime 
+
+                    If (TimeAfterEmulsStart <= DayAfterEmulsFormation) then                     
+                        WaterContentDT      = (WaterContentMatrix(StabilityIndex, 1) - 0.                                )       &
+                                              / (DayAfterEmulsFormation  - Me%Var%EmulsStartTime)
+                        WaterContent        = min(WaterContent + (WaterContentDT * DT), WaterContentMatrix(StabilityIndex, 1))
+
+                        ViscIncreaseDT      =  (ViscIncreaseMatrix(StabilityIndex, 1) - ViscosityIncrease              )         &
+                                              / (DayAfterEmulsFormation  - Me%Var%EmulsStartTime)
+                        ViscosityIncrease        = min((ViscosityIncrease + (ViscIncreaseDT * DT)),                              &
+                                                        ViscIncreaseMatrix(StabilityIndex, 1))
+
+                    ElseIf (TimeAfterEmulsStart <= WeekAfterEmulsFormation) then
+                        WaterContentDT      = (WaterContentMatrix(StabilityIndex, 2) - WaterContentMatrix(StabilityIndex, 1))    & 
+                                              / (WeekAfterEmulsFormation - DayAfterEmulsFormation)
+                        WaterContent        = max(WaterContent + (WaterContentDT * DT), WaterContentMatrix(StabilityIndex, 2))
+
+                        ViscIncreaseDT =  (ViscIncreaseMatrix(StabilityIndex, 2) - ViscIncreaseMatrix(StabilityIndex, 1))        &
+                                              / (DayAfterEmulsFormation  - Me%Var%EmulsStartTime)       
+                        ViscosityIncrease   = min(ViscosityIncrease + (ViscIncreaseDT * DT), ViscIncreaseMatrix(StabilityIndex, 2))
+                        
+                    ElseIf (TimeAfterEmulsStart <= YearAfterEmulsFormation) then
+                        WaterContentDT      = (WaterContentMatrix(StabilityIndex, 3) - WaterContentMatrix(StabilityIndex, 2))    & 
+                                              / (YearAfterEmulsFormation - WeekAfterEmulsFormation)
+                        WaterContent        = max(WaterContent + (WaterContentDT * DT), WaterContentMatrix(StabilityIndex, 3))  
+
+                        ViscIncreaseDT =  (ViscIncreaseMatrix(StabilityIndex, 3) - ViscIncreaseMatrix(StabilityIndex, 2))        &
+                                              / (DayAfterEmulsFormation  - Me%Var%EmulsStartTime)  
+                        ViscosityIncrease   = min(ViscosityIncrease + (ViscIncreaseDT * DT), ViscIncreaseMatrix(StabilityIndex, 3))
+
+                    Else
+                        WaterContent = WaterContentMatrix(StabilityIndex, 3)
+                        ViscosityIncrease = ViscIncreaseMatrix(StabilityIndex, 3)
+                    End If
+                ElseIf (StabilityIndex == Unknown) then
+                    WaterContent = WaterContent
+                    ViscosityIncrease = 1.0                
+                End If
+                
+!                WaterContent = WaterContent * 0.01 ! conversion from percentage to fraction
+                           
+                                                 
             end if cd2
         
         else cd1
@@ -2900,13 +3363,22 @@ cd2:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
         
         end if cd1
 
-        Me%Var%MWaterContentDT = Me%Var%VWaterContentDT / (Me%Var%Density               &
-                                     / Me%ExternalVar%WaterDensity) 
+        If (Me%Var%EmulsificationMethod .EQ. Fingas) then
+            Me%Var%EmulsViscParam   = ViscosityIncrease             
+            Me%Var%MWaterContent    = WaterContent
+            Me%Var%VWaterContent    = WaterContent * (Me%Var%Density / Me%ExternalVar%WaterDensity)
+        Else
+        
+            Me%Var%MWaterContentDT = Me%Var%VWaterContentDT / (Me%Var%Density               &
+                                         / Me%ExternalVar%WaterDensity) 
 
-        Me%Var%MWaterContent   = Me%Var%MWaterContent + (Me%Var%MWaterContentDT         &
-                                     * Me%Var%DTOilInternalProcesses)
-        Me%Var%VWaterContent   = Me%Var%VWaterContent + (Me%Var%VWaterContentDT         &
-                                     * Me%Var%DTOilInternalProcesses)
+            Me%Var%MWaterContent   = Me%Var%MWaterContent + (Me%Var%MWaterContentDT         &
+                                         * Me%Var%DTOilInternalProcesses)
+            Me%Var%VWaterContent   = Me%Var%VWaterContent + (Me%Var%VWaterContentDT         &
+                                         * Me%Var%DTOilInternalProcesses)
+
+        Endif
+        
         
         If (Me%Var%VWaterContent < 1) then
             Me%Var%Volume      = Me%Var%VolumeOil / (1 - Me%Var%VWaterContent)
@@ -2916,9 +3388,6 @@ cd2:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
 
         Me%Var%SlickThickness  = Me%Var%Volume / (max(AllmostZero,Me%ExternalVar%Area))
         Me%Var%OilThickness    = Me%Var%VolumeOil / (max(AllmostZero,Me%ExternalVar%Area))
-
-
-
 
         !------------------------------------------------------------------------
 
@@ -3143,7 +3612,11 @@ cd2 :       if (Me%Var%OilType .EQ. refined) then
         !------------------------------------------------------------------------
 
 !        F_Cdisp = max(0.0 , -390.07*log(Me%Var%ViscCin/1.0e6) - 2779.4 )
-
+!         IF (Me%Var%ViscCin < 132.0 ) THEN 
+!            F_Cdisp = exp( (-0.1023 * log(Me%Var%ViscCin)) + 7.572)
+!         ELSE 
+!            F_Cdisp = exp( (-1.8927 * log(Me%Var%ViscCin)) + 16.313) 
+!         ENDIF
          F_Cdisp = max(0.0 , -312.25*log(Me%Var%ViscCin) + 2509.8 )
 
         !------------------------------------------------------------------------
@@ -3152,8 +3625,45 @@ cd2 :       if (Me%Var%OilType .EQ. refined) then
 
     !----------------------------------------------------------------------------
 
+    real function F_Fwc ()
+
+        !Arguments---------------------------------------------------------------
+
+        !------------------------------------------------------------------------
+
+        if (CDisp_Uvi .GT. Me%ExternalVar%Wind) then
+
+            F_Fwc = 3E-06 * (Me%ExternalVar%Wind**3.5 / Me%ExternalVar%WavePeriod)
+
+        else    
+
+            F_Fwc = CDisp_b*(Me%ExternalVar%Wind - CDisp_Uvi) / Me%ExternalVar%WavePeriod
+
+        end if  
+
+        !------------------------------------------------------------------------
+
+    end function F_Fwc
+
     !----------------------------------------------------------------------------
     
+    real function F_Dba ()
+
+        !Arguments---------------------------------------------------------------
+
+        !Local-------------------------------------------------------------------
+            real                :: Hrms
+
+            Hrms                = Me%ExternalVar%WaveHeight / sqrt(2.0)
+            F_Dba               = 0.0034 * Me%ExternalVar%WaterDensity            &
+                                * Gravity * Hrms**2
+
+        !------------------------------------------------------------------------
+
+    end function F_Dba
+
+    !----------------------------------------------------------------------------
+
     real function F_IBP ()
 
         !Arguments---------------------------------------------------------------
@@ -3915,7 +4425,7 @@ cd2:        if (Me%State%FirstStepAP) then
 
     end function F_FayArea
 
-
+    !------------------------------------------------------------------------
 
     real  function TheoricArea(VolInic, Delta)
 
@@ -3935,6 +4445,84 @@ cd2:        if (Me%State%FirstStepAP) then
     
     end function TheoricArea
 
+   !------------------------------------------------------------------------
+
+    real  function F_BeachingOilType (ViscCin)
+
+        !Arguments---------------------------------------------------------------
+        real, intent (IN)                           :: ViscCin
+
+        !Local-------------------------------------------------------------------               
+        
+        !Begin-------------------------------------------------------------------    
+
+        If (ViscCin < 30) then
+            F_BeachingOilType = 1   !Light
+        ElseIf ((ViscCin >= 30) .AND. (ViscCin < 2000)) then
+            F_BeachingOilType = 2   !Medium
+        Else
+            F_BeachingOilType = 3   !Heavy
+        Endif        
+    
+    end function F_BeachingOilType
+
+
+    real function F_AverageBeachHoldingCapacity(ParticleVolume, ParticleOilType, BeachedVolType1In,    &
+                                                BeachedVolType2In, BeachedVolType3In, BeachedVolTotal, &
+                                                ShoreType, HorizontalBeachHoldingCapacity)
+
+        !Arguments---------------------------------------------------------------
+        integer, intent (IN)  :: ParticleOilType, ShoreType
+        real, intent (IN)     :: ParticleVolume, BeachedVolType1In, BeachedVolType2In 
+        real, intent (IN)     :: BeachedVolType3In, BeachedVolTotal, HorizontalBeachHoldingCapacity
+
+        !Local-------------------------------------------------------------------               
+        real, dimension(3,11) :: BeachThicknessMatrix
+        real                  :: AverageBeachThickness, BeachedVolType1, BeachedVolType2
+        real                  :: BeachedVolType3, BeachedVolFractionType1
+        real                  :: BeachedVolFractionType2, BeachedVolFractionType3
+        
+        !Begin-------------------------------------------------------------------    
+
+
+                                       !Light, Medium, Heavy
+        BeachThicknessMatrix =reshape((/0.5,    2.,    2.,  &   !1
+                                        0.5,    2.,    2.,  &   !2
+                                         4.,   17.,   25.,  &   !3
+                                         4.,   17.,   25.,  &   !4
+                                         2.,    9.,   15.,  &   !5
+                                         2.,    9.,   15.,  &   !6
+                                         3.,    6.,   10.,  &   !7
+                                         1.,    5.,   10.,  &   !8
+                                         6.,   30.,   40.,  &   !9
+                                         6.,   30.,   40.,  &   !10
+                                         2.,    4.,    6./), &   !11                                      
+                                        shape(BeachThicknessMatrix))
+
+        select case(ParticleOilType)
+        case (1)
+            BeachedVolType1 = BeachedVolType1 + ParticleVolume
+        case (2)
+            BeachedVolType2 = BeachedVolType2 + ParticleVolume
+        case (3)
+            BeachedVolType3 = BeachedVolType3 + ParticleVolume
+        end select
+
+        If  (BeachedVolTotal > 0) then
+        
+            BeachedVolFractionType1 =  BeachedVolType1In / (BeachedVolTotal + ParticleVolume)
+            BeachedVolFractionType2 =  BeachedVolType2In / (BeachedVolTotal + ParticleVolume)
+            BeachedVolFractionType3 =  BeachedVolType3In / (BeachedVolTotal + ParticleVolume)
+
+            AverageBeachThickness = BeachThicknessMatrix(1, ShoreType) * BeachedVolFractionType1 + &
+                                    BeachThicknessMatrix(2, ShoreType) * BeachedVolFractionType2 + &
+                                    BeachThicknessMatrix(3, ShoreType) * BeachedVolFractionType3
+
+            F_AverageBeachHoldingCapacity = HorizontalBeachHoldingCapacity * AverageBeachThickness
+        Else
+            F_AverageBeachHoldingCapacity = HorizontalBeachHoldingCapacity * BeachThicknessMatrix(ParticleOilType, ShoreType)
+        End If      
+    end function F_AverageBeachHoldingCapacity
 
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4224,17 +4812,27 @@ ifdisp:     if (Me%Var%OilDispersion) then
 ifemuls:    if (Me%Var%OilEmulsification) then
 
                 write (UnitID) Me%Var%EmulsificationMethod
-                write (UnitID) Me%Var%CEmuls
-                write (UnitID) Me%Var%MaxVWaterContent
 
                 if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
 
+                    write (UnitID) Me%Var%CEmuls
+                    write (UnitID) Me%Var%MaxVWaterContent
                     write (UnitID) Me%Var%AsphalteneContent
                     write (UnitID) Me%Var%WaxContent
 
                 else if (Me%Var%EmulsificationMethod .EQ. Mackay) then 
 
+                    write (UnitID) Me%Var%MaxVWaterContent
                     write (UnitID) Me%Var%EmulsParameter
+
+                else if (Me%Var%EmulsificationMethod .EQ. Fingas) then 
+
+                    write (UnitID) Me%Var%EmulsStartTime
+                    write (UnitID) Me%Var%EmulsViscParam
+                    write (UnitID) Me%Var%AsphalteneContent
+                    write (UnitID) Me%Var%ResinContent
+                    write (UnitID) Me%Var%SaturateContent
+                    write (UnitID) Me%Var%StabilityIndex
 
                 end if
 
@@ -4424,18 +5022,28 @@ ifdisp:     if (Me%Var%OilDispersion) then
 ifemuls:    if (Me%Var%OilEmulsification) then
 
                 read (UnitID) Me%Var%EmulsificationMethod
-                read (UnitID) Me%Var%CEmuls
-                read (UnitID) Me%Var%MaxVWaterContent
 
                 if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
 
+                    read (UnitID) Me%Var%MaxVWaterContent
+                    read (UnitID) Me%Var%CEmuls
                     read (UnitID) Me%Var%AsphalteneContent
                     read (UnitID) Me%Var%WaxContent
 
                 else if (Me%Var%EmulsificationMethod .EQ. Mackay) then 
 
+                    read (UnitID) Me%Var%MaxVWaterContent
                     read (UnitID) Me%Var%EmulsParameter
          
+                else if (Me%Var%EmulsificationMethod .EQ. Fingas) then 
+
+                    read (UnitID)  Me%Var%EmulsViscParam
+                    read (UnitID) Me%Var%EmulsStartTime
+                    read (UnitID) Me%Var%ResinContent
+                    read (UnitID) Me%Var%ResinContent
+                    read (UnitID) Me%Var%SaturateContent
+                    read (UnitID) Me%Var%StabilityIndex
+
                 end if
 
             end if ifemuls           

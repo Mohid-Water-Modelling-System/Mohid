@@ -84,7 +84,7 @@ Module ModuleWaves
                                        UnGetHorizontalGrid, GetXYCellZ
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,  &
                                        GetIfMatrixRemainsConstant, KillFillMatrix 
-    use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry
+    use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry, GetGeometryDistances, GetGeometrySize
     use ModuleHDF5,             only : ConstructHDF5, HDF5SetLimits, HDF5WriteData, &
                                        HDF5FlushMemory, GetHDF5FileAccess, KillHDF5
     use ModuleGridData,         only : GetGridData, UngetGridData, WriteGridData   
@@ -135,6 +135,7 @@ Module ModuleWaves
     private ::      ComputeWavePeriodSimple  
     private ::      ComputeWavePeriodFetch   
     private ::      ComputeWaveDirection
+    private ::      ComputeWaveLength
     private ::      Output_Results_HDF
     private ::      Output_TimeSeries
     public  :: ComputeRadiationStress
@@ -179,6 +180,7 @@ Module ModuleWaves
         real,    dimension(:,:), pointer                    :: WaterColumn
         real,    dimension(:,:), pointer                    :: XX_IE, YY_IE
         real,    dimension(:,:), pointer                    :: DUX, DVY   
+        real, dimension(:,:,:), pointer                     :: SZZ
         real,    dimension(:,:), pointer                    :: Bathymetry
         real                                                :: GridAngle
         logical                                             :: DistortionOn         = .false.
@@ -214,14 +216,15 @@ Module ModuleWaves
         type(T_Time  )                                      :: EndTime
         type(T_Time  )                                      :: ActualTime
         type(T_Time  )                                      :: LastCompute
-        type(T_Size2D)                                      :: Size, WorkSize
+        type(T_Size3D)                                      :: Size, WorkSize
         type(T_External)                                    :: ExternalVar
         type (T_WaveProperty)                               :: RadiationStressX
         type (T_WaveProperty)                               :: RadiationStressY
         type (T_WaveProperty)                               :: WavePeriod
         type (T_WaveProperty)                               :: WaveHeight
         type (T_WaveProperty)                               :: WaveDirection
-        real, dimension(:,:  ), pointer                     :: Abw, Ubw, WaveLength
+        type (T_WaveProperty)                               :: WaveLength
+        real, dimension(:,:  ), pointer                     :: Abw, Ubw, WaveLength_
         real, dimension(:,:  ), pointer                     :: En, k
         real, dimension(:,:,:), pointer                     :: Distance, Fetch, AverageDepth, Depth
         real, dimension(:    ), pointer                     :: AngleList  
@@ -415,11 +418,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Begin-----------------------------------------------------------------
       
         
-        call GetHorizontalGridSize(Me%ObjHorizontalGrid,                                &
-                                   Size        = Me%Size,                               &
-                                   WorkSize    = Me%WorkSize,                           &
-                                   STAT        = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalVariables - ModuleWaves - ERR10'
+!        call GetHorizontalGridSize(Me%ObjHorizontalGrid,                                &
+!                                   Size        = Me%Size,                               &
+!                                   WorkSize    = Me%WorkSize,                           &
+!                                   STAT        = STAT_CALL)
+!        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalVariables - ModuleWaves - ERR10'
+
+        !Gets Size
+        call GetGeometrySize(Me%ObjGeometry,                     &
+                             Size     = Me%Size,                 &
+                             WorkSize = Me%WorkSize,             &
+                             STAT = STAT_CALL)
 
         !Gets time
         call GetComputeTimeLimits(Me%ObjTime,                                           &
@@ -435,7 +444,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetBackTracking(Me%ObjTime, Me%ExternalVar%BackTracking, STAT = STAT_CALL)                    
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR20'        
         
-
     end subroutine ConstructGlobalVariables
     
     !--------------------------------------------------------------------------
@@ -516,6 +524,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ReadWaveParameters(WaveProperty = Me%WaveDirection,                    &
                                     BeginBlock   = "<begin_wavedirection>",             &
                                     EndBlock     = "<end_wavedirection>")    
+        endif
+
+        call GetData(Me%WaveLength%ON,                                                  &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'WAVE_LENGTH',                                        &
+                     Default    = .True.,                                               &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleWave',                                        &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR45'
+
+        if (Me%WaveLength%ON) then
+
+            Me%WaveLength%ID%Name = GetPropertyName(MeanWaveLength_)
+
+            call ReadWaveParameters(WaveProperty = Me%WaveLength,                       &
+                                    BeginBlock   = "<begin_wavelength>",                &
+                                    EndBlock     = "<end_wavelength>")    
         endif
 
         call GetData(Me%RadiationStressX%ON,                                            &
@@ -714,8 +742,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             allocate(Me%Ubw(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
             Me%Ubw(:,:)        =  FillValueReal
 
-            allocate(Me%WaveLength(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-            Me%WaveLength(:,:) =  FillValueReal
+            allocate(Me%WaveLength_(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            Me%WaveLength_(:,:) =  FillValueReal
 
         endif
 
@@ -920,8 +948,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         OutputON = OFF
 
         if ((Me%WavePeriod%OutputHDF).or.(Me%WaveHeight%OutputHDF).or.                  &
-            (Me%WaveDirection%OutputHDF).or.(Me%RadiationStressX%OutputHDF).or.         &
-            (Me%RadiationStressY%OutputHDF)) then
+            (Me%WaveDirection%OutputHDF).or.(Me%WaveLength%OutputHDF) .or.              & 
+            (Me%RadiationStressX%OutputHDF).or. (Me%RadiationStressY%OutputHDF)) then
     
             OutputON = ON
             Me%Output%HDF = .true.
@@ -979,8 +1007,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Begin-----------------------------------------------------------------
         
         if ((Me%WaveHeight%TimeSerieOn).or.(Me%WavePeriod%TimeSerieOn).or.              &
-            (Me%WaveDirection%TimeSerieOn).or.(Me%RadiationStressX%TimeSerieOn).or.     &
-            (Me%RadiationStressY%TimeSerieOn)) then
+            (Me%WaveDirection%TimeSerieOn).or.(Me%WaveLength%TimeSerieOn).or.           &
+            (Me%RadiationStressX%TimeSerieOn).or.(Me%RadiationStressY%TimeSerieOn)) then
 
             Me%OutPut%TimeSerie = .true.
 
@@ -995,6 +1023,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 nProperties = nProperties + 1
             endif
             if (Me%WaveDirection%TimeSerieOn) then
+                nProperties = nProperties + 1
+            endif
+            if (Me%WaveLength%TimeSerieOn) then
                 nProperties = nProperties + 1
             endif
             if (Me%RadiationStressX%TimeSerieOn) then
@@ -1022,6 +1053,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%WaveDirection%TimeSerieOn) then
                 PositionInList = PositionInList + 1
                 PropertyList (PositionInList) = 'Wave Direction'
+            endif
+            if (Me%WaveLength%TimeSerieOn) then
+                PositionInList = PositionInList + 1
+                PropertyList (PositionInList) = 'Wave Length'
             endif
             if (Me%RadiationStressX%TimeSerieOn) then
                 PositionInList = PositionInList + 1
@@ -2261,7 +2296,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 if (present(WaveLength)) then
                     call Read_Lock(mWaves_, Me%InstanceID)
-                    WaveLength => Me%WaveLength
+                    if (Me%WaveLength%ON) then
+                        WaveLength => Me%WaveLength%Field
+                    else
+                        WaveLength => Me%WaveLength_
+                    endif
                 endif
 
                 if (present(WaveDirection)) then
@@ -2594,6 +2633,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
 
 
+            !Modifies Wave Length
+            if (Me%WaveLength%ON) then
+                if (.not. Me%WaveLength%Constant) then  
+                    if (Me%WaveLength%ID%SolutionFromFile) then
+                        call ModifyFillMatrix (FillMatrixID     = Me%WaveLength%ID%ObjFillMatrix,   &
+                                               Matrix2D         = Me%WaveLength%Field,              &
+                                               PointsToFill2D   = Me%ExternalVar%WaterPoints2D,     &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,    &
+                                               STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR65'
+                    else
+                        if (Me%WaveHeight%ON .and. Me%WavePeriod%ON) then
+                            call ComputeWaveLength
+                        endif
+                    endif
+                endif
+            endif
+
             if (Me%ParametersON .and. (.not. Me%WaveHeight%Constant .or. .not. Me%WavePeriod%Constant)) then
 
                 call ComputeWaveParameters
@@ -2719,7 +2776,7 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
                         
                         Me%Ubw(i, j)              = 0.001
                         Me%Abw(i, j)              = 0.001
-                        Me%WaveLength(i, j)       = 0.
+                        Me%WaveLength_(i, j)       = 0.
 
                     else cd2
 
@@ -2731,9 +2788,9 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
 
                         call Secant(Celerity, C0, Me%ExternalVar%WaterColumn(i,j), COEFA, COEFB)
 
-                        Me%WaveLength(i, j)      = Celerity   * Me%WavePeriod%Field(i,j)
+                        Me%WaveLength_(i, j)      = Celerity   * Me%WavePeriod%Field(i,j)
                         OMEG                     = 2.  * PI   / Me%WavePeriod%Field(i,j)
-                        WAVN                     = 2.  * PI   / Me%WaveLength(i, j)
+                        WAVN                     = 2.  * PI   / Me%WaveLength_(i, j)
 
                         !To avoid sinh results larger then 1e100
                         !if (WAVN * Me%ExternalVar%WaterColumn(i,j) .gt. 230) then
@@ -3125,6 +3182,55 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
     end subroutine ComputeWaveDirection
 
     !--------------------------------------------------------------------------
+
+    subroutine ComputeWaveLength
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: i, j, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
+        real                                    :: WavePeriod, WaterDepth, WaveAmplitude, G_Aux, F_Aux
+        !Begin-----------------------------------------------------------------
+
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+        
+                !SZZ, DWZ    
+        call GetGeometryDistances(Me%ObjGeometry,                                           & 
+                                  SZZ         = Me%ExternalVar%SZZ,                         &
+                                  STAT        = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR50'
+
+        do j=JLB, JUB
+        do i=ILB, IUB
+            
+            if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+
+                WaterDepth         = Me%ExternalVar%SZZ(i, j, 0) - Me%ExternalVar%SZZ(i, j, KUB)
+                WaveAmplitude      = Me%WaveHeight%Field(i, j) / 2.
+                WavePeriod         = Me%WavePeriod%Field(i, j)
+                ! Hunt's Method to calculate Wave Length (accuracy of 0.1%)
+                G_Aux                       = ((2 * Pi / WavePeriod)**2) * WaterDepth / gravity
+                F_Aux                       = G_Aux + (1 / (1. + 0.6522 * G_Aux + 0.4622 * (G_Aux**2) + &
+                                              0.0864 * (G_Aux**4) + 0.0675 * (G_Aux**5)))
+                Me%WaveLength%Field(i, j)   = WavePeriod * sqrt(gravity * WaterDepth / F_Aux)
+
+            end if
+        
+        end do
+        end do
+
+
+        !SZZ
+        call UnGetGeometry (Me%ObjGeometry, Me%ExternalVar%SZZ, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR80'
+
+           
+    end subroutine ComputeWaveLength
+    !--------------------------------------------------------------------------
     
     !This subroutine compute the radiation stresses based in X
     !Xia et al. - Coastal Engineering 51 (2004) 309-321.
@@ -3301,6 +3407,18 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
                                                                                     
             endif                                                                   
                                                                                     
+            if (Me%WaveLength%OutputHDF) then
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%WaveLength%ID%Name),&
+                                     trim(Me%WaveLength%ID%Name), "m",                    &
+                                     Array2D      = Me%WaveLength%Field,                  &
+                                     OutputNumber = OutPutNumber,                         &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR75'                 
+                                                                                    
+            endif                                                                   
+
             if (Me%RadiationStressX%OutputHDF) then                                 
                                                                                     
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%RadiationStressX%ID%Name),&
@@ -3382,6 +3500,15 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
         endif                                                                   
                                                                                 
                                                                                 
+        if (Me%WaveLength%TimeSerieOn) then                                    
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D  = Me%WaveLength%Field,                          &
+                                STAT    = STAT_CALL)                              
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'OutPut_TimeSeries - ModuleWaves - ERR20'                    
+        endif                                                                   
+
+
         if (Me%RadiationStressX%TimeSerieOn) then                               
             call WriteTimeSerie(Me%ObjTimeSerie,                                        &
                                 Data2D  = Me%RadiationStressX%Field,                    &
@@ -3489,6 +3616,18 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 endif
 
 
+                if (Me%WaveLength%ON      ) then
+                
+                    if (Me%WaveLength%ID%SolutionFromFile) then
+                        call KillFillMatrix(Me%WaveLength%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR85'
+                    endif
+
+                    deallocate(Me%WaveLength%Field) 
+
+                endif
+
+
                 if (Me%RadiationStressX%ON) then
 
                     deallocate(Me%RadiationStressX%Field)
@@ -3514,7 +3653,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                     deallocate(Me%Abw)
                     deallocate(Me%Ubw)
-                    deallocate(Me%WaveLength)
+                    deallocate(Me%WaveLength_)
 
                 endif
 

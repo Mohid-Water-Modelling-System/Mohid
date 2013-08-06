@@ -64,7 +64,15 @@ Module ModuleLagrangianGlobal
 !   RESTART_FILE_OVERWRITE  : 0/1                       [1]                     !Overwrite intermediate restart files    
 !   PARTIC_BOX              : char                      []                      !Particle Box definition file
 !   MONITOR_BOX             : char                      []                      !Particle Monitoring box
+!   next keyword is read if MONITOR_BOX is defined
 !   MONITOR_BOX_PROP_MASS   : char                      []                      !Name of property to monitor Mass in a box
+!   following 3 keywords are read if MONITOR_BOX_PROP_MASS is defined
+! MONITOR_BOX_MASS_FRACTION : 1/2 			            [1]			            !Output Concentration Type of mass monitored in box
+!										                                        1 - Arithmetic; 2 - geometric
+!   MONITOR_BOX_MIN_CONC    : real			            [1]			            !Min. tracer concentration to be included in 
+!                                                                               !average concentration
+!										                                        !and contamination probability in each box
+!   MONITOR_BOX_CONT_DEPTH  : real			            []			            !Depth considered to contamination probability
 !   EULERIAN_MONITOR_BOX    : char                      []                      !Eulerian results monitoring box
 !   ASSOCIATE_BEACH_PROB    : 0/1                       [0]                     !Associates Beaching Probabilities
 !   DEFAULT_BEACHING_PROB   : real                      [0.5]                   !Outbox Beaching Probability
@@ -72,175 +80,310 @@ Module ModuleLagrangianGlobal
                                                                                 !for particle beaching
 !   BEACHING_BOX_FILENAME   : char                      []                      !Beaching Probability Box definition file
 !   BOXES_BEACHING_PROB     : real(Boxes Number)        []                      !List of Inbox Beaching Probability
+!   DEFAULT_SHORE_TYPE      : 1-11			            [5]			            !Default shoreline type
+!   SHORE_TYPE_BOX_FILENAME : char			            []			            !Shoreline types Boxes data file
+!   REMOVAL_RATE_COEF	    : real			            [0]			            !default removal rate coefficient (in 1/days)
+!   BEACHING_LIMIT_SPATIAL  : 1/2			            [1]			            !Spatial definition for Beaching  Limit
+                                                                                !1-Constant 2-Shore Type based
+!  REMOVAL_RATE_COEF_SPATIAL: 1/2			            [1]			            !Spatial definition for removal rate coef.
+                                                                                !1-Constant 2-Shore Type based
+
 !   OUTPUT_CONC             : 1/2                       [1]                     !OutPut Integration Type
+!                                                                                1 - Maximum 2 - Mean
 !   OUTPUT_MAX_TRACER       : 0/1                       [0]                     !Checks if the users wants to output the maximum 
                                                                                  ! tracer concentration in each cell
 !   OVERLAY_VELOCITY        : 0/1                       [0]                     !If a adicional velocity field is to be added
-!   OUTPUT_TRACER_INFO      : logical                   [0]                     !Output a file with detailed information for 
+!   OUTPUT_TRACER_INFO      : 0/1	                    [0]                     !Output a file with detailed information for 
 !                                                                               !each tracer (extension .tro)
-!                                                                                1 - Maximum 2 - Mean
+!
+!
+!   OUTPUT_MASS_TRACER      : 0/1			            [0]			            !Checks if the users wants to output the mass per cell
+!   OUTPUT_ORIGIN_ENVELOPE  : 0/1			            [0]			            !output origin envelope
+!   WRITE_DUMMY_PART        : 0/1			            [0]			            !Write dummy particle in the start date if 
+!                                                                               !start emission > start date
+!   COASTLINE_FILE	        : char			            []			            !Coastline file
+!   THINWALLS_FILE          : char			            []			            !Thin walls file
+!   NEW_GRID_CENTER         : Xcoord Ycoord 		    []			            !Recenter the model grid
+!   RUN_ONLINE	            : 0/1			            [0]			            !Run module lagrangian online
+!   IGNORE_ON		        : 0/1		                [0]			            !ignore discharges in land points
+!   COMPUTE_AVERAGE_POSITION: 0/1                       [0]                     !This logical option allows to compute the 		
+!                                                                                average position and the radius of influence of 	
+!                                                                                of the tracers of each origin				
+!   (next keyword is read if COMPUTE_AVERAGE_POSITION = 1)
+!   COEF_RADIUS		        : real			            [1.645]			        ! multiplying factor of particles radius of influence 
+!   STOP_WITH_NO_PART       : 0/1			            [0]			            ! stop model if particles number is zero
 !
 !
 !<BeginOrigin>
+!   DEFAULT	                : 0/1                       [0]             	    !????
 !   ORIGIN_NAME             : char                      [Origin_xx]             !Name of the origin
 !   OLD                     : 0/1                       [0]                     !Old Origin
 !   GROUP_ID                : integer                   [1]                     !Group to which belong Origin
 !   EMISSION_SPATIAL        : Point/Accident/Box        [-]                     !Spatial emission type
 !   EMISSION_TEMPORAL       : Continuous/Instantaneous  [-]                     !Temporal emission type
+!   EMISSION_ON	            : 0/1  			            [1] 	                !Turn on/off emission
+!   (next keyword is read if EMISSION_TEMPORAL = Instantaneous)
+!   INSTANT_PARTIC_EMIT	    : YYYY MM DD HH MM SS       [BeginModel]            !instantaneous emission
+
+!   (following 3 keywords are read if EMISSION_TEMPORAL = Continuous)
 !   DT_EMIT                 : sec                       [DT_PARTIC]             !Interval between continuous emissions
 !   START_PARTIC_EMIT       : YYYY MM DD HH MM SS       [BeginModel]            !InitialData of the emission
 !   STOP_PARTIC_EMIT        : YYYY MM DD HH MM SS       [EndModel]              !FinalData of the emission    
-!   NBR_PARTIC              : int                       [1]                     !Number of Particles in each emission
-!   FLOW                    : real                      [-]                     !Flow associated to point origin 
+
+!   (following 13 keywords are read if EMISSION_SPATIAL = Point)
 !   FLOW_VARIABLE           : 0/1                       [0]                     !Check if the user wants a variable water flow
+!   (following 5 keywords are read if FLOW_VARIABLE = 1)
 !   DISCHARGE_FILE          : char                      [ ]                     !Name of the time serie input where is defined 
                                                                                 !the variable flow
 !   FLOW_COLUMN             : int                       [ ]                     !Column of the time serie input where is defined
                                                                                 !a variable flow
 !                                                                                (continous emission)
+!   ESTIMATE_MIN_VOL        : 0/1			            [0]			            ! ?????
+!   (next keyword is read if ESTIMATE_MIN_VOL = 1)
+!   MAX_PART                : real			            [10000]			        ! ?????
+!   MAX_VOLUME		        : real 			            []			            ! ?????
+
+!   (next keyword is read if FLOW_VARIABLE = 0)
+!   FLOW                    : real                      [-]                     !Flow associated to point origin 
+
+!   MOVING_ORIGIN	        : 0/1			            [0]			            !Moving Origin
+!   (following 5 keywords are read if MOVING_ORIGIN = 1)
+!   MOVING_ORIGIN_FILE	    : char			            []			            !FileName with Trajectory of origin
+!   MOVING_ORIGIN_UNITS	    : char			            [Cells]			        !Time Serie given in meters or in cells
+!   MOVING_ORIGIN_COLUMN_X  : int			            []			            !Column to read X coordinate values in Moving Origin file
+!   MOVING_ORIGIN_COLUMN_Y  : int			            []			            !Column to read Y coordinate values in Moving Origin file
+!MOVING_ORIGIN_CLOUD_EMISSION:0/1			            [0]			            !Moving Origin Cloud Emission
 !   POINT_VOLUME            : real                      [-]                     !Volume of instantanous emission
 !                                                                                (point or accident)
 !   TVOL200                 : real                      [-]                     !Time to double volume
-!   VOLUME_INCREASE         : Double/Velocity                                   !Type of function to calculate volume increase
-!   VOLFAC                  : real                      [10]                    !Factor of how many times a particle can grow
 !   SPLIT_PART              : 0/1                       [0]                     !Split big particles
-!   KILL_LAND_PARTICLES     : 0/1                       [0]                     !Kills particles which are located in a Waterpoint
-!                                                                               !which is not a OpenPoint                   
-!   ACCIDENT_METHOD         : Fay/Thickness             [Fay]                   !Way to calculate initial area of accident
+!   VOLFAC                  : real                      [10]                    !Factor of how many times a particle can grow
+!   VOLUME_INCREASE         : Double/Velocity                                   !Type of function to calculate volume increase
 !   FLOAT                   : 0/1                       [0]                     !Floating particle
-!       THICKNESS_METERS    : meters                    []                      !Thickness of floating particles
-!                                                                               ! (just Boxes / Accident Initialization)
-!   MOVEMENT                : SullivanAllen/NotRandom   []                      !Aleatoria Horizontal Movement
-!       VARVELHX            :                           [0.2]                   !
-!       VARVELH             :                           [0.0]                   !
+!   ACCIDENT_METHOD         : Fay/Thickness             [Fay]                   !Way to calculate initial area of accident		
+!   ACCIDENT_TIME           : YYYY MM DD HH MM SS       [BeginModel]            !Accident time
+!   (next keyword is only read if EMISSION_SPATIAL = Accident and ACCIDENT_METHOD = Thickness)
+!   THICKNESS_METERS        : meters                    []                      !Thickness of floating particles
+!   MOVEMENT                : SullivanAllen/NotRandom   []                      !Random Horizontal Movement
+!   (following 5 keywords are read if MOVEMENT = SullivanAllen)
+!   VARVELHX                :                           [0.2]                   !
+!   VARVELH                 :                           [0.0]                   !
 !   TURB_V                  : Constant/Profile          []                      !Vertical turbulence parameterization
+!   (following 2 keywords are read if TURB_V = Constant)
 !       VARVELVX            :                           [0.0]
 !       VARVELV             :                           [0.0]
 !   ADVECTION               : 0/1                       [1]                     !Move Particle due horizontal velocity    
+!   (next keyword is only read if ADVECTION = 1)
+!   ADVECTION_Z             : 0/1                       [1]                     !Move Particle due vertical velocity    
+!   KILL_LAND_PARTICLES     : 0/1                       [0]                     !Kills particles which are located in a Waterpoint
+!                                                                               !which is not a OpenPoint                   
+!   STOKES_DRIFT            : 0/1                       [0]                     !Wave-driven particle velocity (Stokes Drift)
+!   STOKES_DRIFT_METHOD     : LonguetHigginsDeep/LonguetHigginsGeneric  [LonguetHigginsGeneric]  Stokes Drift Method
 !   WINDCOEF                : real                      [0.03]                  !Wind transfer Coeficient
 !   WINDXY                  : real real                 [0.0 0.0]               !If this keyword is defined than the the wind 
                                                                                 !the wind velocity defined in the atmosphere 
                                                                                 !module is override nad the wind use by the 
                                                                                 !tracers is this one 
-!   SEDIMENTATION           : Stokes/Imposed            []                      !Sedimentation type
-!       D50                 : real  (mm)                [0.002]                 !Stokes
-!       SED_VELOCITY        : real                      []                      !Sedimentation Velocity
-!       MIN_SED_VELOCITY    : real                      [0.0]                   !Minimum Sedimention velocity
-!   POSITION_METERS         : meters meters             []                      !X and Y Position of the origin in meters 
-!   POSITION_CELLS          : Cell Cell                 []                      !X and Y Position of the origin in grid cells
-!   POSITION_COORDINATES    : Xcoord Ycoord             []                      !X and Y Position of the origin in the grid        
-                                                                                !coordinates
-!   DEPTH_METERS            : meters (from surface)     []                      !Depth of emission relativ to surface
-!   DEPTH_CELLS             : Cell                      []                      !Depth in Cells (from bottom)
-!   MAINTAIN_RELATIVE_POSITION : logical                []                      !Check is the user wants to maintain 
-                                                                                !the vertical relative position of the origin
-!   INCRP                   : int                       [1]                     !Increment of grid cells to fill Boxes
-!   BOX_NUMBER              : int                       []                      !Number of box to associate to origin
-!   BOXVOLINIC              : real                      [VolumeOfBox]           !Initial Volume of a particle in the box
-!   KILL_PART_INSIDE_BOX    : logical                   [0]                     !Kill all particles inside the emission boxes. If  
-                                                                                !it is an instantaneous emission.                 
-
-!   SW_EXTINCTION_COEF      : real                      [1/20]                  !Short Wave Extintion factor
-!   SW_PERCENTAGE           : real                      [0.6]                   !Parcentage of shortwave radiation
-!   THEORIC_AREA            : 0/1                       [0]                     !Uses Theoric Area for Oil Processes
-!   MOVING_ORIGIN           : 0                         [0]                     !A moving origin (Just Point Emission)
-!   MOVING_ORIGIN_FILE      : char                      []                      !FileName with Trajectory of origin
-!   MOVING_ORIGIN_UNITS     : char                      [Cells]                 !Time Serie given in meters or in cells
-!   MOVING_ORIGIN_COLUMN_X  : int                       []                      !Column in time serie file - X Coordinate
-!   MOVING_ORIGIN_COLUMN_Y  : int                       []                      !Column in time serie file - Y Coordinate
-!   COMPUTE_AGE             : logical                   [0]                     !This logical option allows to compute the 
-
-!   COMPUTE_AVERAGE_POSITION: logical                   [0]                     !This logical option allows to compute the 
-!                                                                                average position and the radius of influence of 
-!                                                                                of the tracers of each origin
-!   COMPUTE_PLUME           : logical                   [0]                     !Computes Particle Plume due density gradients
-!   COMPUTE_BUOYANCY        : logical                   [0]                     !Computes Particle vertical velocity evolution
-                                                                                !due to density gradients
-!   DENSITY_METHOD          : int                       [3]                     !Way to calculate particle density 
-                                                                                !(1-LeendertseState_, 
-                                                                                ! 2-UNESCOState_)
-!   COEF_INITIAL_MIXING     : real                      []                      !Coefficient use to control volume increase due to 
-!   JET_DATA_FILE           : char                      [********.***]          !Data file where the jet properties are defined
-!   JET_DT                  : real                      [600]                   !Time interval between actualizations of the jet 
-!                                                                               !properties
-!   BEACHING                : 0/1                       [0]                     !Beaching Process 
-!                                                                               !velocities gradientes between the tracer and the 
-!                                                                               !avewage flow
-!   DEPOSITION              : logical                   []                      !Checks if the tracers can deposited
-!       TAU_ERO             : real                      [Pa]                    !Critical shear stress of erosion
-!       TAU_DEP             : real                      [Pa]                    !Critical shear stress of deposition
-!       BOTTOM_DISTANCE     : real                      [m]                     !Distance from bottom below which the tracer can 
+!   SLIP_CONDITION          : 0/1			            [1]			            !avoid particles to be kept stuck in the shoreline
+                                                                                !due to low velocities
+!   SEDIMENTATION  : Stokes/Imposed/Density Dynamic/Secondary Clarifier   []    !Sedimentation type
+!   (next keyword is read if SEDIMENTATION = Stokes or Density Dynamic)
+!   D50                     : real  (mm)            [0.002-Stokes or 0.00025]   !Median particle diameter
+!   (next keyword is read if SEDIMENTATION = Density Dynamic)
+!   D50_DENSITY             : real                      [920.]                  !D50 particle density
+!   (next keyword is read if SEDIMENTATION = Imposed)
+!   SED_VELOCITY            : real                      []                      !Sedimentation Velocity
+!   MIN_SED_VELOCITY        : real (m/s)                [0.0]                   !Minimum Sedimention velocity
+!   DEPOSITION              : 0/1                       [0]                     !Checks if the tracers can deposited
+!   (following 6 keywords are read if DEPOSITION = 1)
+!   TAU_ERO                 : real (Pa)                 [0.2]	                !Critical shear stress of erosion
+!   TAU_DEP                 : real (Pa)                 [0.1]                   !Critical shear stress of deposition
+!   BOTTOM_DISTANCE         : real (m)                  [0.1]                   !Distance from bottom below which the tracer can 
 !                                                                               !sediment
-!       TIME_DECAY          : real                      [s]                     !Decay time use to compute a relxation term that 
+!   TIME_DECAY              : real (s)                  [172800.]               !Decay time use to compute a relaxation term that 
                                                                                 !makes the critical shear stress of erosion tend to 
                                                                                 !the average tracer erosion rate
                                                                                 !of the cell where the tracer is deposited. 
                                                                                 !This is use to compute 
                                                                                 !the shadow effect of the large sediments over the 
                                                                                 !smaller ones. 
-!       BOTTOM_EMISSION     : logical                   []                      !Checks if the tracers are emited from the bottom
-!       EROSION_RATE        : real                      [g/m2/s]                !Rate of tracers erosion
+!   BOTTOM_EMISSION         : 0/1                       [0]                     !Checks if the tracers are emited from the bottom
+!   EROSION_RATE            : real (g/m2/s)             [5.e-2]                 !Rate of tracers erosion
 
-!   PARTITION_WATER            : logical                []                      !Checks if the tracers has two phases 
-!                                                                               !(adsorbe and dissolved) in the water column.
-!       PARTITION_COEF_WATER   : real                   []                      ! partition coefficent in the water column
-!       PARTITION_RATE_WATER   : real                   [s-1]                   !Rate of transfer between the two phases.
-!       PARTITION_COUPLE_WATER : real                   [M/L^3]                 !Concentration of the dissolved phase. 
-!                                                                               !The dissolved phase is admitted with a constant 
-!                                                                               !concentration
+!   NBR_PARTIC              : int                       [1]                     !Number of Particles in each emission
+!   POSITION_COORDINATES    : Xcoord Ycoord             []                      !X and Y Position of the origin in the grid        
+                                                                                !coordinates
+!   SURFACE_EMISSION        : 0/1                       [0]                     !Checks if the tracers are emited at the surface
+!   (following 3 keywords are read if SURFACE_EMISSION = 0)
+!   DEPTH_FROM_FREE_SURFACE : real (m)			        []			            ! Depth from free surface (including water level)
+!   (following keywords are read if DEPTH_FROM_FREE_SURFACE is not defined)
+!   DEPTH_METERS            : meters (from surface)     []                      !Depth of emission relativ to surface
+!   (next keyword is read if DEPTH_METERS is not defined)
+!   DEPTH_CELLS             : Cell                      []                      !Depth in Cells (from bottom)
+!   MAINTAIN_DEPTH          : 0/1			            [0]			            !Depth is kept constant in the whole simulation
+! MAINTAIN_RELATIVE_POSITION: 0/1			            [0]			            !Depth in relation to free surface is kept constant 
 
-!   PARTITION_SED              : logical                []                      !Checks if the tracers has two phases 
-!                                                                               !(adsorbe and dissolved) in the sediment
-!       PARTITION_COEF_SED     : real                   []                      ! partition coefficent in the sediment
-!       PARTITION_RATE_SED     : real                   [s-1]                   !Rate of transfer between the two phases.
-!       PARTITION_COUPLE_SED   : real                   [M/L^3]                 !Concentration of the dissolved phase in the 
-!                                                                               !intersticial water. The dissolved phase is 
-!                                                                               !admitted with a constant concentration.
-! WQM_DATA_FILE             : character                 []                      !Data File of the WQM module
-!
-!
+!   (following 3 keywords are read if EMISSION_SPATIAL = Box)
+!   INCRP                   : int                       [1]                     !Increment of grid cells to fill Boxes
+!   BOX_NUMBER              : int                       []                      !Number of box to associate to origin
+!   BOXVOLINIC              : real                      [VolumeOfBox]           !Initial Volume of a particle in the box
+!   (next keyword is read if EMISSION_TEMPORAL = Instantaneous)
+!   KILL_PART_INSIDE_BOX    : logical                   [0]                     !Kill all particles inside the emission boxes.   
+
+!   COMPUTE_PLUME           : 0/1                       [0]                     !Computes Particle Plume due density gradients		
+!   (following 4 keywords are read if COMPUTE_PLUME = 1)
+!   PLUME_SHEAR             : 0/1			            [1]			            ! Momentum balance in horizontal direction
+                                                                                !Increase of volume tracer due to shear effect
+!   COEF_INITIAL_MIXING     : real                      []                      !Coefficient used to control volume increase due to 
+!                                                                               !velocities gradients between the tracer and the 
+!                                                                               !average flow
+!   JET_DATA_FILE           : char                      [] 		                !Data file where the jet properties are defined
+!   JET_DT                  : real  (s)                 [600]                   !Time interval between actualizations of the jet 
+!                                                                               !properties
+!   COMPUTE_BUOYANCY        : 0/1	                    [0]                     !Computes Particle vertical velocity evolution
+                                                                                !due to density gradients
+!   DENSITY_METHOD          : int                       [2]                     !Way to calculate particle density 
+                                                                                !(1-LeendertseState_, 
+                                                                                ! 2-UNESCOState_)
+!   PRESSURE_CORRECTION     : 0/1                       [1]			            ! Change density due to pressure correction
+                                                                                ! (works only when DENSITY_METHOD = 2)
+!   (following keyword is read when simulating water Quality)
+!   WQM_DATA_FILE              : character              []                      !Data File of the WQM module				
+
+!   (following 5 keywords are read when simulating Oil Spills)
+!   AREA_METHOD             : int			            [1]			            !Method to compute volume in oil spills
+                                                                                ! 1 - GridCells_, 2-VoronoiArea_, 3-FayMethod_
+!   CDISP_OIL_OFF           : real 			            [1.]			        ! maximum fraction of submerged oil where oil 
+                                                                                ! internal processes are computed
+!   OIL_DROPLETS_D50        : real (m) 			        [50e-6]			        ! default median oil droplet diameter
+!   METHOD_BW_DROPLETS_DIAMETER: int			        [1]			            ! method to obtain oil droplets diameter
+                                                                                ! 1-UserDefined_; 2-Computed_Half_D50_; 
+                                                                                ! 3-Computed_Classes_Random_
+!   METHOD_FLOAT_VEL	    : int			            [1]			            ! method to compute rising velocity of submerged droplets
+                                                                                ! 1-SoaresDosSantos_; 2-PADM_; 3-Zheng_
+!   COMPUTE_AGE             : 0/1                       [0]                     ! compute the age of particles		
+!   AGE_LIMIT               : real (days)		        []			            ! particle age limit before killing particle
+
+!   ACCIDENT_PROBABILITY    : 0/1			            [0]			            ! Compute Accident Probability
+!   (following 3 keywords are read if ACCIDENT_PROBABILITY = 1)
+!   DEFAULT_ACCIDENT_PROBABILITY: real 			        [4.45238E-05]		    ! Default accident probability
+!   COMPUTE_RISK	        : 0/1			            [0]			            ! Compute Risk
+!   AREA_VTS		        : 0/1			            [1]			            ! Include VTS area correction factor
+!   BEACHING                : 0/1                       [0]                     !Beaching Process 				
+!   BEACH_REMOVAL	        : 0/1                       [0]                     !include the process of "unbeach" oil
+
+!   FLOATING_OBJECT         : 0/1                       [0]			            ! model the tracers as if they were solid floating objects
+                                                                                ! e.g. containers, etc.
+!   (following 3 keywords are read when simulating floating objects mif FLOATING_OBJECT = 1)
+!   AIR_DRAG_COEF           : real			            [1.0]			        !Air drag coefficient
+!   WATER_DRAG_COEF         : real 			            [1.0]			        !Water drag coefficient
+!   IMMERSION_RATIO         : real (in %)		        [50.0]			        !Percentage immersed
+
+!   (following keyword is read when simulating Human Body trajectories)
+!   DROWNED		    : 0/1			                    []			            ! To model sinking drowned human bodies
+
 !<<BeginProperty>>
 !   NAME                    : char                      []                      !Name of the property
 !   UNITS                   : char                      []                      !Units of the property
-!   CONCENTRATION           : real                      []                      !Concentration of the property
+!   EQUAL_TO_AMBIENT        : 0/1			            [0]			            !Concentration equal to the ambient concentration
 !   CONC_VARIABLE           : 0/1                       [0]                     !Check if the user wants a variable concentration
+!   (next 2 keywords are read if CONC_VARIABLE = 1)
+!   DISCHARGE_FILE          : char			            []			            !Filename with information about concentration
 !   CONC_COLUMN             : int                       [ ]                     !Column of the time serie input where is defined 
                                                                                 !a variable concentration
-
-!   NOWQM                   : logical                   [0]                     ! To compute age without running moduleWQM
-!   MIN_CONCENTRATION       : real                      []
+!   (next keyword is read if CONC_VARIABLE = 0)
+!   CONCENTRATION           : real                      []                      !Concentration of the property
+!   NOWQM                   : 0/1                       [0]                     ! To compute age without running moduleWQM
+!   MIN_CONCENTRATION       : real                      [0.0]			        ! Minimum Concentration
 !   AMBIENT_CONC            : real                      [0.0]                   !Ambient concentration
-!   T90_VARIABLE            : logical                   [0]                     !Check if the user wants to compute T90 function 
-!                                                                                of ambient properties: salinity,temperature,light
-!   T90_VAR_METHOD          : integer                   [1]                     !Fecal decay according to Canteras et al. (1995)
-!                                                       [2]                     !Fecal decay according to Chapra (1997)
-!   T90                     : real                      [7200]                  !Coliform Decay rate (s)
-!   T90_NAME                ; char                      [T90]
+!   TIME_SERIE              : 0/1                       [0]			            ! Write Property Concentration to Time Serie Output
+!   OUTPUT_HDF		    : 0/1                           [0]			            ! Write Property Concentration to HDF output
+
+!   (Following 9 keywords are read if NAME = larvae)
+!   VERTICAL_MIGRATION      : 0/1			            [0]			            !include vertical migration in larvae modelling 
+!   LARVAE_MAX_DEPTH        : real (m)			        [100]			        !maximum depth of larvae
+!   LARVAE_MIN_DEPTH        : real (m)			        [10]			        !minimum depth of larvae
+!   LARVAE_VELOCITY         : real (m/s)		        [0.001]			        !constant larvae velocity
+!   RADIATION_LIMIT	    : real			                [0.00]			        !set the radiation limit from where larvae move down
+!   LIGHT_RELATION          : 0/1			            [1]			            !????????
+!   COMPUTE_LARVAE_VELOCITY : 0/1			            [1]			            ! compute larvae velocity 
+!   (next keyword is read if COMPUTE_LARVAE_VELOCITY = 1)
+!   MIGRATION_TIME	    : real (s)			            [18000]			        ! time spent by larvae in one migration process
+
+!   T90                     : real (s)                  [7200]                  !Coliform Decay rate				
+!   T90_NAME                : char                      [T90]
+
+!   (Following 9 keywords are read if NAME = fecal coliforms or escherichia coli)
+!   T90_VARIABLE            : 0/1                       [0]                     !Check if the user wants to compute T90 function 	
+!                                                                                of ambient properties: salinity,temperature,light	
+!   (next keyword is read if T90_VARIABLE = 1)
+!   T90_VAR_METHOD          : int                   	[1]                     !1 - Fecal decay according to Canteras et al. (1995)	
+!   						                                                    !2 - Fecal decay according to Chapra (1997)
+                                                                                !3 - T90 decay from a timeserie			
+!   (Following 2 keywords are read if T90_VAR_METHOD = 3)
+!   T90_FILE                : char                      []			            !filename with timeserie of T90 values
+!   T90_COLUMN              : int                       []			            !number of with T90 values in timeserie
+
+!   PARTITION_WATER         : 0/1	                    [0]                     !Checks if the tracers has two phases 			
+!                                                                               !(adsorbe and dissolved) in the water column.		
+!   (Following 3 keywords are read if PARTITION_WATER = 1)
+!   PARTITION_COEF_WATER    : real                      [0.9]                   ! partition coefficent in the water column		
+!   PARTITION_RATE_WATER    : real  (s-1)               [1e-3]                  !Rate of transfer between the two phases.		
+!   PARTITION_COUPLE_WATER  : real  (M/L^3)             [0.0]                   !Concentration of the dissolved phase. 			
+!                                                                               !The dissolved phase is admitted with a constant 	
+!                                                                               !concentration						
+!   PARTITION_SED           : 0/1                       [0]                     !Checks if the tracers has two phases 			
+!                                                                               !(adsorbe and dissolved) in the sediment		
+!   (Following 3 keywords are read if PARTITION_SED = 1)
+!   PARTITION_COEF_SED     : real                   	[0.98]                  ! partition coefficent in the sediment			
+!   PARTITION_RATE_SED     : real   (s-1)               [1e-4]                  !Rate of transfer between the two phases.		
+!   PARTITION_COUPLE_SED   : real   (M/L^3)             [0]                 	!Concentration of the dissolved phase in the 		
+!                                                                               !intersticial water. The dissolved phase is 		
+!                                                                               !admitted with a constant concentration.		
+!   EXTINCTION_PARAMETER   : real			            [1.]			        !parameter to compute effect of the property in
+                                                                                ! light extinction
+!   FILTRATION             : 0/1                        [0]                     !property being filtered from the water column
+!   MIN_VALUE		   : real                           []			            !set a minimum value for the property
+!   MAX_VALUE              : real			            []			            !set a maximum value for the property
+!   HAS_ODOUR              : 0/1			            [0]			            !compute odour taking this property into account
+!   (next keyword is read if HAS_ODOUR = 1)
+!   ODOUR_CONC_THRESHOLD   : real  (mg/m3)		        [*]			            !*: Methane = 25.16; HydrogenSulfide = 6.58e-4
+!									                                            !   MethylMercaptan_ = 2e-3
 !<<EndProperty>>
-!!  parameter from the Module Oil
+
+!  parameters from the Module Oil
 !<<BeginOil>>
 !<<EndOil>>
 !
 !<EndOrigin>
 
+!<BeginBooms>
+!<<BeginIndividualBoom>>
+!   NAME			    	: char			            [BOOM X]
+!   DESCRIPTION			    : char			            [Boom to contain a oil spill]			
+!   VEL_THRESHOLD			: m/s			            [0.4]
+!   WAVE_THRESHOLD			: m			                [0.6]
+!   FILENAME			    : char			            []
+!<<EndIndividualBoom>>
+!<EndBooms>
+
+!<BeginMeteoOcean>
+!<<BeginProperty>>
+!   MASK_DIM  ??????????????????????????
+!<<<BeginMeteoOceanFiles>>>
+!<<<EndMeteoOceanFiles>>>
+!<<EndProperty>>
+!<EndMeteoOcean>
 
 !<BeginStatistic>
 !<<BeginProperty>>
 !NAME                    : char                      []                      !Name of the property
 !UNITS                   : char                      []                      !Units of the property
 !STATISTICS_FILE         : char                      []                      !File name with the statistics definition
-!STATISTICS_LAG          : logical                   [0]                     !Do a frequency analysis tracer by tracer.
+!STATISTICS_LAG          : 0/1                       [0]                     !Do a frequency analysis tracer by tracer.
 !<<EndProperty>>
 !<EndStatistic>
 
-!
-!
-!
-!
-! to do 
-!   - SPLIT_PART
-!   - GridThickness -> One per origin or one per Group????
-!
 
     use ModuleGlobalData
     use ModuleTriangulation,    only : ConstructTriangulation, GetNumberOfBoundaryNodes,    &
@@ -340,6 +483,7 @@ Module ModuleLagrangianGlobal
     private ::      VerifyOriginProperties
     private ::          VerifyPropertyList
     private ::      VerifyBeachingProbabilities
+    private ::      VerifyShoreTypes
     private ::      ReadFinalPartic
     private ::      MergeOldWithNewOrigins
     private ::      ConstructEmission
@@ -375,7 +519,10 @@ Module ModuleLagrangianGlobal
     private ::      FillGridThickness
     private ::      FillGridConcentration
     private ::      ParticleDensity
+    private ::      UpdateBeachedVolumes
     private ::      VerifyParticleBeaching
+    private ::      UpdateRemovedVolumes
+    private ::      VerifyBeachRemoval   
     private ::      MovePartic
     private ::          MoveParticHorizontal
     private ::              MoveParticVertical
@@ -509,6 +656,28 @@ Module ModuleLagrangianGlobal
     !Odours
     real, parameter                             :: PeakFactor               = 0.005833      ! = (60./3600.)^0.35
 
+    !Methods to compute Oil D50
+    integer, parameter                          :: UserDefined_             = 1
+    integer, parameter                          :: Computed_Half_D50_       = 2
+    integer, parameter                          :: Computed_Classes_Random_ = 3
+    
+    !Methods to compute buoyancy / floating velocity
+    !2-equation approach - Soares dos Santos and Daniel, 2000:
+    integer, parameter                          :: SoaresDosSantos_         = 1 
+    !same as previous, but with coefficients from PADM (Seatrackweb 2011):
+    integer, parameter                          :: PADM_                    = 2 
+    !3-equation approach - Zheng and Yapa, 2000:
+    integer, parameter                          :: Zheng_                   = 3 
+    
+    !Methods for Stokes Drift
+    integer, parameter                          :: LonguetHigginsDeep       = 1
+    integer, parameter                          :: LonguetHigginsGeneric    = 2
+    
+    !Spatial definition for BeachingLimit
+    integer, parameter                          :: Constant_                = 1
+    integer, parameter                          :: ShoreTypeBased_          = 2
+    
+    integer, parameter                         :: ShoreTypesNbr            = 11
     
     character(LEN = StringLength), parameter    :: block_begin              = '<BeginOrigin>'
     character(LEN = StringLength), parameter    :: block_end                = '<EndOrigin>'
@@ -557,187 +726,225 @@ Module ModuleLagrangianGlobal
 
     character(LEN = StringLength), parameter    :: Char_Cells               = 'Cells'
     character(LEN = StringLength), parameter    :: Char_Meters              = 'Meters'
+    
+    character(LEN = StringLength), parameter    :: Char_LonguetHigginsDeep  = 'LonguetHigginsDeep'
+    character(LEN = StringLength), parameter    :: Char_LonguetHigginsGeneric = 'LonguetHigginsGeneric'
+    
 !----------------------------------------------------------------------------
 !                                   Eulerian types
 !----------------------------------------------------------------------------
 
     type T_OverLay
-        real, dimension(:, :, :), pointer       :: VelUFinal
-        real, dimension(:, :, :), pointer       :: VelVFinal
+        real, dimension(:, :, :), pointer       :: VelUFinal                   => null()
+        real, dimension(:, :, :), pointer       :: VelVFinal                   => null()
     end type T_OverLay
 
     type T_ParticleGrid
-        integer                                 :: CoordType
-        logical                                 :: HaveLatLongGrid = .false.
-        logical                                 :: GeoGrid         = .false.
-        real                                    :: LatDefault, LongDefault
-        real, dimension(:, :), pointer          :: ParticXX
-        real, dimension(:, :), pointer          :: ParticYY
+        integer                                 :: CoordType                   = null_int 
+        logical                                 :: HaveLatLongGrid             = .false.
+        logical                                 :: GeoGrid                     = .false.
+        real                                    :: LatDefault                  = null_real
+        real                                    :: LongDefault                 = null_real
+        real, dimension(:, :), pointer          :: ParticXX                    => null()
+        real, dimension(:, :), pointer          :: ParticYY                    => null()
     end type T_ParticleGrid
 
     type T_Light
-        integer                                 :: ObjLightExtinction
+        integer                                 :: ObjLightExtinction          = 0
                           !i,j,k
-        real,    dimension(:,:,:), pointer      :: TopRadiationCells, ShortWaveExtinctionField
-        logical                                 :: Compute      = OFF
+        real,    dimension(:,:,:), pointer      :: TopRadiationCells           => null()
+        real,    dimension(:,:,:), pointer      :: ShortWaveExtinctionField    => null()
+        logical                                 :: Compute                     = OFF
     end type T_Light
 
     type T_EulerianMonitor
-        real(8), dimension(:, :, :), pointer    :: Mass
+        real(8), dimension(:, :, :), pointer    :: Mass                        => null()
     end type T_EulerianMonitor
 
     type T_Monitorization
-        real(8), dimension(:),    pointer       :: SurfaceBoxVolume
-        real(8), dimension(:),    pointer       :: InstBoxVolume
-        real(8), dimension(:),    pointer       :: InstBoxMass
-        real(8), dimension(:, :), pointer       :: InstMassByOrigin
-        real(8), dimension(:, :), pointer       :: InstVolumeByOrigin
-        real(8), dimension(:),    pointer       :: IntgBoxVolume
-        real(8), dimension(:, :), pointer       :: IntgVolumeByOrigin
-        integer, dimension(:),    pointer       :: NumberOfCellsPerBox
-        integer, dimension(:, :), pointer       :: NumberOfCellsFromOrigin
-        integer, dimension(:), pointer          :: ObjTimeSerie
+        real(8), dimension(:),    pointer       :: SurfaceBoxVolume            => null()
+        real(8), dimension(:),    pointer       :: InstBoxVolume               => null()
+        real(8), dimension(:),    pointer       :: InstBoxMass                 => null()
+        real(8), dimension(:, :), pointer       :: InstMassByOrigin            => null()
+        real(8), dimension(:, :), pointer       :: InstVolumeByOrigin          => null()
+        real(8), dimension(:),    pointer       :: IntgBoxVolume               => null()
+        real(8), dimension(:, :), pointer       :: IntgVolumeByOrigin          => null()
+        integer, dimension(:),    pointer       :: NumberOfCellsPerBox         => null()
+        integer, dimension(:, :), pointer       :: NumberOfCellsFromOrigin     => null()
+        integer, dimension(:), pointer          :: ObjTimeSerie                => null()
                            !i,j,k
-        integer, dimension(:,:,:), pointer      :: Boxes
-        integer                                 :: NumberOfBoxes
-        real(8), dimension(:),    pointer       :: InstBoxLogMass
-        real(8), dimension(:),    pointer       :: InstBoxConc
-        integer, dimension(:), pointer          :: NumberOfTracers
-        real(8), dimension(:, :), pointer       :: InstBoxMassFractionByOrigin
-        real(8), dimension(:, :), pointer       :: InstLogMassByOrigin
-        integer, dimension(:, :), pointer       :: NumberOfTracersFromOrigin
-        integer                                 :: EulerianMonitorBoxType   = Arithmetic
-        real(8), dimension(:), pointer          :: ContaminationProbability 
-        real(8), dimension(:), pointer          :: AverageBoxContaminatedConc  
-        integer, dimension(:), pointer          :: NbrBoxContaminatedTracers 
-        real(8), dimension(:), pointer          :: VolBoxContaminatedTracers 
+        integer, dimension(:,:,:), pointer      :: Boxes                       => null()
+        integer                                 :: NumberOfBoxes               = null_int
+        real(8), dimension(:),    pointer       :: InstBoxLogMass              => null()
+        real(8), dimension(:),    pointer       :: InstBoxConc                 => null()
+        integer, dimension(:), pointer          :: NumberOfTracers             => null()
+        real(8), dimension(:, :), pointer       :: InstBoxMassFractionByOrigin => null()
+        real(8), dimension(:, :), pointer       :: InstLogMassByOrigin         => null()
+        integer, dimension(:, :), pointer       :: NumberOfTracersFromOrigin   => null() 
+        integer                                 :: EulerianMonitorBoxType      = Arithmetic
+        real(8), dimension(:), pointer          :: ContaminationProbability    => null()
+        real(8), dimension(:), pointer          :: AverageBoxContaminatedConc  => null()
+        integer, dimension(:), pointer          :: NbrBoxContaminatedTracers   => null()
+        real(8), dimension(:), pointer          :: VolBoxContaminatedTracers   => null()
     end type T_Monitorization
 
 
     type T_Lag2Euler
                           !i, j, k, p, ig
-        real,    dimension(:, :, :, :, :), pointer          :: GridConc
-        integer, dimension(:, :, :, :   ), pointer          :: GridTracerNumber
-        real,    dimension(:, :, :, :, :), pointer          :: GridMaxTracer
-        real,    dimension(:, :, :, :, :), pointer          :: GridMaxMass        
-        real,    dimension(:, :,    :, :), pointer          :: GridBottomConc
+        real,    dimension(:, :, :, :, :), pointer     :: GridConc              => null()        
+        integer, dimension(:, :, :, :   ), pointer     :: GridTracerNumber      => null()
+        real,    dimension(:, :, :, :, :), pointer     :: GridMaxTracer         => null()
+        real,    dimension(:, :, :, :, :), pointer     :: GridMaxMass           => null()        
+        real,    dimension(:, :,    :, :), pointer     :: GridBottomConc        => null()
 
-        real(8), dimension(:, :, :, :   ), pointer          :: GridVolume
-        real,    dimension(:, :, :, :, :), pointer          :: GridMass
-        real,    dimension(:, :, :, :   ), pointer          :: GridBottomMass
+        real(8), dimension(:, :, :, :   ), pointer     :: GridVolume            => null()
+        real,    dimension(:, :, :, :, :), pointer     :: GridMass              => null()
+        real,    dimension(:, :, :, :   ), pointer     :: GridBottomMass        => null()
                           !p, ig  
-        real,    dimension(:, :),          pointer          :: MeanConc, AmbientConc
-        real,    dimension(:, :),          pointer          :: MinConc, MassVolCel
+        real,    dimension(:, :),          pointer     :: MeanConc              => null()
+        real,    dimension(:, :),          pointer     :: AmbientConc           => null()
+        real,    dimension(:, :),          pointer     :: MinConc               => null()
+        real,    dimension(:, :),          pointer     :: MassVolCel            => null()
 
         !Sediments
-        real,    dimension(:, :, :),       pointer          :: TauErosionGrid
-        real,    dimension(:, :, :),       pointer          :: MassSedGrid
-
+        real,    dimension(:, :, :),       pointer     :: TauErosionGrid        => null()
+        real,    dimension(:, :, :),       pointer     :: MassSedGrid           => null()
+        
+        !Beached
+        real,    dimension(:, :, :),       pointer     :: GridBeachedVolume             => null()
+        real,    dimension(:, :, :),       pointer     :: PreviousGridBeachedVolume     => null()
+        real,    dimension(:, :, :),       pointer     :: GridBeachedVolVar             => null()
+        real,    dimension(:, :, :, :),    pointer     :: GridBeachedVolumeByType       => null()
+        real,    dimension(:,:,:),         pointer     :: TheoricBeachedVolAfterRemoval => null()
+        real,    dimension(:,:,:),         pointer     :: GridVolToRemove               => null()
+        real,    dimension(:,:,:),         pointer     :: GridVolToRemoveFraction       => null()
+        real,    dimension(:,:,:),         pointer     :: GridVolRemovedDiff            => null()
+        
+        
+        
+        
         
     end type T_Lag2Euler
 
     type T_PropStatistic
                           !i,j,k,f,ig
-        real,    dimension(:,:,:,:,:), pointer :: FrequencyLag
+        real,    dimension(:,:,:,:,:), pointer :: FrequencyLag                          => null()
                                   !ig
-        integer, dimension(        :), pointer :: Statistic1_ID, Statistic2_ID,         &
-                                                  Statistic3_ID, Statistic4_ID
+        integer, dimension(        :), pointer :: Statistic1_ID                         => null()
+        integer, dimension(        :), pointer :: Statistic2_ID                         => null()
+        integer, dimension(        :), pointer :: Statistic3_ID                         => null()
+        integer, dimension(        :), pointer :: Statistic4_ID                         => null()
+
     end type T_PropStatistic
 
     type T_OilSpreading
         !Oil vectors
-        real,    pointer, dimension(:,:  )      :: VelocityX
-        real,    pointer, dimension(:,:  )      :: VelocityY
+        real,    pointer, dimension(:,:  )      :: VelocityX                            => null()
+        real,    pointer, dimension(:,:  )      :: VelocityY                            => null()
 
         !Oil
                           !i, j 
-        real,    dimension(:, :),       pointer          :: GridThickness
-        real,    dimension(:, :),       pointer          :: OilGridConcentration
-        real,    dimension(:, :, :), pointer             :: OilGridConcentration3D
-        real,    dimension(:, :, :), pointer             :: OilGridDissolution3D        
+        real,    dimension(:, :),    pointer    :: GridThickness                        => null()
+        real,    dimension(:, :),    pointer    :: OilGridConcentration                 => null()
+        real,    dimension(:, :, :), pointer    :: OilGridConcentration3D               => null()
+        real,    dimension(:, :, :), pointer    :: OilGridDissolution3D                 => null()
 
-        logical, dimension(:,:), pointer        :: AreaFlag
+        logical, dimension(:,:),     pointer    :: AreaFlag                             => null()
 
     end type T_OilSpreading
 
 
     type     T_EulerModel
 
-        character(len=StringLength)             :: Name
+        character(len=StringLength)             :: Name                                 = null_str
 
         !ObjBathymetry
-        real,    dimension(:, : ), pointer      :: Bathymetry
-        real,    dimension(:    ), pointer      :: XX
-        real,    dimension(:    ), pointer      :: YY
+        real,    dimension(:, : ), pointer      :: Bathymetry                           => null()
+        real,    dimension(:    ), pointer      :: XX                                   => null()
+        real,    dimension(:    ), pointer      :: YY                                   => null()
 
-        real,    dimension(:, : ), pointer      :: XX_IE
-        real,    dimension(:, : ), pointer      :: YY_IE
-        real,    dimension(:, : ), pointer      :: DZX, DZY
+        real,    dimension(:, : ), pointer      :: XX_IE                                => null()
+        real,    dimension(:, : ), pointer      :: YY_IE                                => null()
+        real,    dimension(:, : ), pointer      :: DZX                                  => null()
+        real,    dimension(:, : ), pointer      :: DZY                                  => null()
 
-        real,    dimension(:, : ), pointer      :: GridCellArea
+        real,    dimension(:, : ), pointer      :: GridCellArea                         => null()
 
         !ObjHorizontalMObj
-        integer, pointer, dimension(:,:  )      :: BoundaryPoints2D, WaterPoints2D
+        integer, pointer, dimension(:,:  )      :: BoundaryPoints2D                     => null()
+        integer, pointer, dimension(:,:  )      :: WaterPoints2D                        => null()
   
         !ObjGeometry
         type (T_Size3D)                         :: Size
         type (T_Size3D)                         :: WorkSize
-        real,    pointer, dimension(:,:  )      :: WaterColumn
-        real,    pointer, dimension(:,:,:)      :: SZZ, DWZ, ZCellCenter, DWZ_Xgrad, DWZ_Ygrad
-        real(8), pointer, dimension(:,:,:)      :: VolumeZ
-        integer, pointer, dimension(:,:  )      :: kFloor
+        real,    pointer, dimension(:,:  )      :: WaterColumn                          => null()
+        real,    pointer, dimension(:,:,:)      :: SZZ                                  => null()
+        real,    pointer, dimension(:,:,:)      :: DWZ                                  => null()
+        real,    pointer, dimension(:,:,:)      :: ZCellCenter                          => null()
+        real,    pointer, dimension(:,:,:)      :: DWZ_Xgrad                            => null()
+        real,    pointer, dimension(:,:,:)      :: DWZ_Ygrad                            => null()
+        real(8), pointer, dimension(:,:,:)      :: VolumeZ                              => null()
+        integer, pointer, dimension(:,:  )      :: kFloor                               => null()
 
         !ObjMap
-        integer, pointer, dimension(:,:,:)      :: WaterPoints3D
-        integer, pointer, dimension(:,:,:)      :: LandPoints3D
-        integer, pointer, dimension(:,:,:)      :: OpenPoints3D
-        integer, pointer, dimension(:,:,:)      :: ComputeFaces3D_U, ComputeFaces3D_V
+        integer, pointer, dimension(:,:,:)      :: WaterPoints3D                        => null()
+        integer, pointer, dimension(:,:,:)      :: LandPoints3D                         => null()
+        integer, pointer, dimension(:,:,:)      :: OpenPoints3D                         => null()
+        integer, pointer, dimension(:,:,:)      :: ComputeFaces3D_U                     => null()
+        integer, pointer, dimension(:,:,:)      :: ComputeFaces3D_V                     => null()
 
         !ObjTurbulence
-        real,    pointer, dimension(:,:,:)      :: Lupward
-        real,    pointer, dimension(:,:,:)      :: Ldownward
-        real,    pointer, dimension(:,:,:)      :: MixingLengthX    
-        real,    pointer, dimension(:,:,:)      :: MixingLengthY 
+        real,    pointer, dimension(:,:,:)      :: Lupward                              => null()
+        real,    pointer, dimension(:,:,:)      :: Ldownward                            => null()
+        real,    pointer, dimension(:,:,:)      :: MixingLengthX                        => null()
+        real,    pointer, dimension(:,:,:)      :: MixingLengthY                        => null()
 
         !ObjHydrodynamic
-        real,    pointer, dimension(:,:,:)      :: Velocity_U
-        real,    pointer, dimension(:,:,:)      :: Velocity_V
-        real,    pointer, dimension(:,:,:)      :: Velocity_W
+        real,    pointer, dimension(:,:,:)      :: Velocity_U                           => null()
+        real,    pointer, dimension(:,:,:)      :: Velocity_V                           => null()
+        real,    pointer, dimension(:,:,:)      :: Velocity_W                           => null()
 
         !ObjInterfaceWaterAir
-        real,    pointer, dimension(:,:  )      :: WindX
-        real,    pointer, dimension(:,:  )      :: WindY
-        real,    pointer, dimension(:,:  )      :: SurfaceRadiation
-        real,    pointer, dimension(:,:  )      :: AtmPressure
-        real,    pointer, dimension(:,:  )      :: WaveHeight, WavePeriod
+        real,    pointer, dimension(:,:  )      :: WindX                                => null()
+        real,    pointer, dimension(:,:  )      :: WindY                                => null()
+        real,    pointer, dimension(:,:  )      :: SurfaceRadiation                     => null()
+        real,    pointer, dimension(:,:  )      :: AtmPressure                          => null()
+        real,    pointer, dimension(:,:  )      :: WaveHeight                           => null()
+        real,    pointer, dimension(:,:  )      :: WavePeriod                           => null()
  
 
         !ObjInterfaceSedimentWater
-        real,    pointer, dimension(:,:  )      :: ShearVelocity
-        real,    pointer, dimension(:,:  )      :: BottomStress
+        real,    pointer, dimension(:,:  )      :: ShearVelocity                        => null()
+        real,    pointer, dimension(:,:  )      :: BottomStress                         => null()    
 
 
 
         !ObjAssimilation
-        real,    pointer, dimension(:,:,:)      :: OverLayU
-        real,    pointer, dimension(:,:,:)      :: OverLayV
+        real,    pointer, dimension(:,:,:)      :: OverLayU                             => null()
+        real,    pointer, dimension(:,:,:)      :: OverLayV                             => null()
 
         !ObjWaterProperties
-        real,    pointer, dimension(:,:,:)      :: Density
-        real,    pointer, dimension(:,:,:)      :: SigmaDensity
-        real,    pointer, dimension(:,:,:)      :: Temperature3D
-        real,    pointer, dimension(:,:,:)      :: Salinity3D
-        real,    pointer, dimension(:,:,:)      :: FishFood3D
-        real,    pointer, dimension(:,:,:)      :: SPM3D
+        real,    pointer, dimension(:,:,:)      :: Density                              => null()
+        real,    pointer, dimension(:,:,:)      :: SigmaDensity                         => null()
+        real,    pointer, dimension(:,:,:)      :: Temperature3D                        => null()
+        real,    pointer, dimension(:,:,:)      :: Salinity3D                           => null()
+        real,    pointer, dimension(:,:,:)      :: FishFood3D                           => null()
+        real,    pointer, dimension(:,:,:)      :: SPM3D                                => null()
         
         !ObjWaves
-        real,    pointer, dimension(:,:  )      :: WaveHeight2D
-        real,    pointer, dimension(:,:  )      :: WavePeriod2D
-        real,    pointer, dimension(:,:  )      :: WaveDirection2D
+        real,    pointer, dimension(:,:  )      :: WaveHeight2D                         => null()
+        real,    pointer, dimension(:,:  )      :: WavePeriod2D                         => null()
+        real,    pointer, dimension(:,:  )      :: WaveDirection2D                      => null()
+        real,    pointer, dimension(:,:  )      :: WaveLength2D                         => null()
 
 
-        real   , dimension(:,:,:),    pointer   :: BeachingProbability
-        real   , dimension(:,:  ),    pointer   :: DistanceToCoast
+        real   , dimension(:,:,:),    pointer   :: BeachingProbability                  => null()
+        integer, dimension(:,:  ),    pointer   :: ShoreType                            => null()
+        real   , dimension(:,:),      pointer   :: HorizontalBeachHoldingCapacity       => null()
+        real   , dimension(:,:  ),    pointer   :: DistanceToCoast                      => null()
+        real   , dimension(:,:  ),    pointer   :: BeachingLimit                        => null()
+        real   , dimension(:,:  ),    pointer   :: RemovalRateCoef                      => null()
+        real   , dimension(:,:  ),    pointer   :: OldSurfaceDepth                      => null()
 
         integer                                 :: ObjTimeSerie         = 0
         integer                                 :: ObjWaterProperties   = 0
@@ -754,6 +961,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: ObjMonBox            = 0
         integer                                 :: ObjEulMonBox         = 0
         integer                                 :: ObjBeachingProbBox   = 0
+        integer                                 :: ObjShoreTypeBox      = 0
         integer                                 :: ObjAssimilation      = 0
 
 
@@ -762,16 +970,17 @@ Module ModuleLagrangianGlobal
 
         type(T_Monitorization )                 :: Monitor
                           !i, j, k  
-        real,    dimension(:, :, :   ), pointer :: RelativeMassFilter, MassFiltered
+        real,    dimension(:, :, :   ), pointer :: RelativeMassFilter   => null() 
+        real,    dimension(:, :, :   ), pointer :: MassFiltered         => null()
 
         type(T_OverLay        )                 :: Overlay
                                 !ig
-        type(T_Light), dimension(:),pointer     :: Light
+        type(T_Light), dimension(:),pointer     :: Light                => null()
         type(T_Lag2Euler      )                 :: Lag2Euler
                                           !p  
-        type(T_PropStatistic  ), dimension(:),pointer :: PropStatistic
+        type(T_PropStatistic  ), dimension(:),pointer :: PropStatistic  => null()
                                           !ig  
-        type(T_OilSpreading   ), dimension(:),pointer :: OilSpreading
+        type(T_OilSpreading   ), dimension(:),pointer :: OilSpreading   => null()
 
     end type T_EulerModel
 !----------------------------------------------------------------------------
@@ -796,6 +1005,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: Partition            = OFF
         logical                                 :: AssociateBeachProb   = OFF
         logical                                 :: HaveBeachingProbBox  = OFF
+        logical                                 :: HaveShoreTypeBox     = OFF
         logical                                 :: Statistics           = OFF
         logical                                 :: Age                  = OFF
         logical                                 :: ComputePlume         = OFF
@@ -825,50 +1035,59 @@ Module ModuleLagrangianGlobal
 
     !IO
     type T_Files
-        character(PathLength)                   :: ConstructData
-        character(PathLength)                   :: Initial
-        character(PathLength)                   :: Final
-        character(PathLength)                   :: TransientHDF
-        character(PathLength)                   :: BoxDataFile
-        character(PathLength)                   :: MonitorBox
-        character(PathLength)                   :: EulerianMonitorBox
-        character(PathLength)                   :: BeachingBoxFileName
-        character(PathLength)                   :: Nomfich    
+        character(PathLength)                   :: ConstructData        = null_str
+        character(PathLength)                   :: Initial              = null_str
+        character(PathLength)                   :: Final                = null_str
+        character(PathLength)                   :: TransientHDF         = null_str
+        character(PathLength)                   :: BoxDataFile          = null_str
+        character(PathLength)                   :: MonitorBox           = null_str
+        character(PathLength)                   :: EulerianMonitorBox   = null_str
+        character(PathLength)                   :: BeachingBoxFileName  = null_str
+        character(PathLength)                   :: ShoreTypeBoxFileName = null_str    
+        character(PathLength)                   :: Nomfich              = null_str
     end type T_Files
 
 
     type T_Online
-        real,    dimension(:,:), pointer        :: StartDate
-        real,    dimension(:),   pointer        :: X, Y 
-        real,    dimension(:),   pointer        :: WindCoef
-        integer                                 :: EmissionTemporal
-        real,    dimension(:),   pointer        :: Flow, Concentration, T90
+        real,    dimension(:,:), pointer        :: StartDate            => null()
+        real,    dimension(:),   pointer        :: X                    => null()
+        real,    dimension(:),   pointer        :: Y                    => null()
+        real,    dimension(:),   pointer        :: WindCoef             => null()
+        integer                                 :: EmissionTemporal     = null_int
+        real,    dimension(:),   pointer        :: Flow                 => null()
+        real,    dimension(:),   pointer        :: Concentration        => null()
+        real,    dimension(:),   pointer        :: T90                  => null()
     end type T_Online
     
     type T_IndividualBoom
-        type (T_Lines),          pointer        :: Lines
-        real                                    :: VelLimit, WaveLimit
-        character(Len=StringLength)             :: Name, Description
+        type (T_Lines),          pointer        :: Lines                => null()
+        real                                    :: VelLimit             = null_real
+        real                                    :: WaveLimit            = null_real
+        character(Len=StringLength)             :: Name                 = null_str
+        character(Len=StringLength)             :: Description          = null_str
     end type T_IndividualBoom
     
     type T_Booms
-        logical                                 :: ON
-        integer                                 :: Number
-        type (T_IndividualBoom), dimension(:), pointer :: Individual
+        logical                                 :: ON                   = .false.
+        integer                                 :: Number               = null_int
+        type (T_IndividualBoom), dimension(:), pointer :: Individual    => null()
     end type T_Booms
 
     !Output
     type       T_OutPut
-         type (T_Time), pointer, dimension(:)   :: OutTime, RestartOutTime
-         integer                                :: NextOutPut, NextRestartOutPut
-         integer                                :: TotalOutputs
-         integer                                :: OutPutConcType = Maximum
-         logical                                :: ConcMaxTracer   
-         logical                                :: MassTracer            
-         logical                                :: OriginEnvelope
-         logical                                :: Write_, WriteRestartFile = .false. 
-         logical                                :: RestartOverwrite
-         logical                                :: DummyParticleStartDate
+         type (T_Time), pointer, dimension(:)   :: OutTime              => null()
+         type (T_Time), pointer, dimension(:)   :: RestartOutTime       => null()
+         integer                                :: NextOutPut           = null_int
+         integer                                :: NextRestartOutPut    = null_int
+         integer                                :: TotalOutputs         = null_int
+         integer                                :: OutPutConcType       = Maximum
+         logical                                :: ConcMaxTracer        = .false.
+         logical                                :: MassTracer           = .false. 
+         logical                                :: OriginEnvelope       = .false.
+         logical                                :: Write_               = .false.
+         logical                                :: WriteRestartFile     = .false. 
+         logical                                :: RestartOverwrite     = .false.
+         logical                                :: DummyParticleStartDate = .false.
     end type T_OutPut
 
   
@@ -915,7 +1134,8 @@ Module ModuleLagrangianGlobal
 
         real                                    :: WindTransferCoef         = 0.03
         logical                                 :: WindOriginON             = .false.
-        real                                    :: WindX, WindY
+        real                                    :: WindX                    = null_real
+        real                                    :: WindY                    = null_real
 
        
         logical                                 :: SlipCondition            = .true.         
@@ -957,12 +1177,14 @@ Module ModuleLagrangianGlobal
         real                                    :: JetTemperature           = null_real
         real                                    :: PlumeDilution            = null_real
         type (T_Time)                           :: NextJetActualization
-        character(PathLength)                   :: JetDataFile
-        character(PathLength)                   :: JetFileOut
-        integer                                 :: JetUnit
+        character(PathLength)                   :: JetDataFile              = null_str
+        character(PathLength)                   :: JetFileOut               = null_str
+        integer                                 :: JetUnit                  = null_int
         integer                                 :: ObjJet                   = 0
 
-        real                                    :: R_ice                    = null_real
+        !Stokes Drift
+        integer                                 :: StokesDriftMethod        = LonguetHigginsGeneric
+!        real                                    :: R_ice                    = null_real
 
     end type T_Movement
 
@@ -974,7 +1196,7 @@ Module ModuleLagrangianGlobal
         real                                    :: VolVar                   = null_real
         real                                    :: Thickness                = null_real
         real                                    :: VoronoiArea              = null_real
-        real                                    :: OilDropletsD50           = null_real
+        real                                    :: OilDropletsDiameter      = null_real
     end type T_ParticleGeometry
 
     !Defines the parameters necessary to compute the fluxes associated to a 
@@ -990,21 +1212,21 @@ Module ModuleLagrangianGlobal
     end type T_Partition
 
     type T_Larvae
-        logical                                 :: Vertical_Migration = OFF
-        logical                                 :: Compute_Larvae_Velocity = ON 
-        logical                                 :: Light_Relation = ON
-        real                                    :: Larvae_Max_Depth
-        real                                    :: Larvae_Min_Depth
-        real                                    :: Larvae_Velocity
-        real                                    :: Migration_Time
-        real                                    :: Radiation_Limit
+        logical                                 :: Vertical_Migration       = OFF
+        logical                                 :: Compute_Larvae_Velocity  = ON 
+        logical                                 :: Light_Relation           = ON
+        real                                    :: Larvae_Max_Depth         = null_real
+        real                                    :: Larvae_Min_Depth         = null_real
+        real                                    :: Larvae_Velocity          = null_real
+        real                                    :: Migration_Time           = null_real
+        real                                    :: Radiation_Limit          = null_real
     end type T_Larvae
 
     !One Property
     type  T_Property
         integer                                 :: ID                       = null_int
-        character(StringLength)                 :: Name
-        character(StringLength)                 :: units
+        character(StringLength)                 :: Name                     = null_str
+        character(StringLength)                 :: units                    = null_str
         real                                    :: concentration            = null_real 
         real                                    :: min_concentration        = 0.0       !Used to cut values in GridConcentration
         real                                    :: AmbientConcentration     = null_real
@@ -1014,31 +1236,33 @@ Module ModuleLagrangianGlobal
         integer                                 :: T90Var_Method            = null_int
         real                                    :: T90                      = 7200.     !Coliform Bacteria decay time
         type(T_Larvae)                          :: Larvae
-        character(StringLength)                 :: T90Name
+        character(StringLength)                 :: T90Name                  = null_str
         logical                                 :: T90ON                    = OFF
-        character(PathLength)                   :: T90File
+        character(PathLength)                   :: T90File                  = null_str
         integer                                 :: T90Column                = null_int
         integer                                 :: TimeSerieT90             = 0
         type(T_Partition)                       :: SedimentPartition
         type(T_Partition)                       :: WaterPartition
-        logical                                 :: ConcVariable
-        integer                                 :: ConcColumn
-        logical                                 :: NoWQM                    =.false.
-        type (T_Property), pointer              :: Next
-        real                                    :: ExtinctionParameter
+        logical                                 :: ConcVariable             = .false.
+        integer                                 :: ConcColumn               = null_int
+        logical                                 :: NoWQM                    = .false.
+        type (T_Property), pointer              :: Next                     => null()
+        real                                    :: ExtinctionParameter      = null_real
         logical                                 :: Filtration               = OFF
         logical                                 :: WritesTimeSerie          = OFF
         logical                                 :: WritesPropHDF            = OFF
-        real                                    :: MinValue, MaxValue
-        logical                                 :: MinON, MaxON
-        character(PathLength)                   :: DischargeFile
+        real                                    :: MinValue                 = null_real
+        real                                    :: MaxValue                 = null_real
+        logical                                 :: MinON                    = .false.
+        logical                                 :: MaxON                    = .false.
+        character(PathLength)                   :: DischargeFile            = null_str
         integer                                 :: TimeSerieInput           = 0
         logical                                 :: EqualToAmbient           = OFF
         real                                    :: Risk                     = null_real  
         logical                                 :: MeteoOceanFiles          = OFF      
         logical                                 :: HasOdour                 = OFF
-        real                                    :: OdourConcThreshold       = null_real      
-        logical                                 :: Interpolate  
+        real                                    :: OdourConcThreshold       = null_real        
+        logical                                 :: Interpolate              = .false.
     end type T_Property
 
 
@@ -1047,10 +1271,10 @@ Module ModuleLagrangianGlobal
         integer                                 :: ID
         type (T_Position)                       :: Position
         type (T_ParticleGeometry)               :: Geometry
-        real, dimension(:), pointer             :: Concentration
-        real, dimension(:), pointer             :: ConcentrationInterpol
-        real, dimension(:), pointer             :: AmbientConc
-        real, dimension(:), pointer             :: Mass
+        real, dimension(:), pointer             :: Concentration            => null()
+        real, dimension(:), pointer             :: ConcentrationInterpol    => null()
+        real, dimension(:), pointer             :: AmbientConc              => null()
+        real, dimension(:), pointer             :: Mass                     => null()
         real                                    :: TpercursoH               = -null_real
         real                                    :: TpercursoZ               = -null_real
         real                                    :: UD_old                   = null_real
@@ -1077,12 +1301,19 @@ Module ModuleLagrangianGlobal
         real                                    :: OilMass                  = null_real
         real                                    :: OilDissolvedMass         = null_real
         real                                    :: OilDensity               = null_real
+        real                                    :: OilViscosity             = null_real
+        real                                    :: OilViscCin               = null_real
+        real                                    :: OWInterfacialTension     = null_real
+        real                                    :: FMEvaporated             = null_real
+        real                                    :: VWaterContent            = null_real
+        real                                    :: FMDispersed              = null_real
         real                                    :: AccidentProbability      = null_real
         logical                                 :: ComputeAccidentProb      = .false.
         type (T_Time)                           :: EmissionTime
         real                                    :: WaveHeight               = FillValueReal
         real                                    :: WavePeriod               = FillValueReal
         real                                    :: WaveDirection            = FillValueReal    
+        real                                    :: WaveLength               = FillValueReal    
         real                                    :: WindX                    = FillValueReal
         real                                    :: WindY                    = FillValueReal
         real                                    :: CurrentX                 = FillValueReal
@@ -1092,6 +1323,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: SolutionWH               = FillValueInt
         integer                                 :: SolutionWP               = FillValueInt
         integer                                 :: SolutionWD               = FillValueInt
+        integer                                 :: SolutionWL               = FillValueInt
         integer                                 :: SolutionWX               = FillValueInt
         integer                                 :: SolutionWY               = FillValueInt
         integer                                 :: SolutionCX               = FillValueInt
@@ -1099,6 +1331,8 @@ Module ModuleLagrangianGlobal
         integer                                 :: SolutionCZ               = FillValueInt        
         integer                                 :: SolutionS                = FillValueInt
         integer                                 :: SolutionT                = FillValueInt        
+        integer                                 :: BeachingOilType          = 2
+        integer                                 :: ParticleState            = FillValueInt
     end type T_Partic
 
     !Particle deposition
@@ -1125,124 +1359,130 @@ Module ModuleLagrangianGlobal
 
     !Origin list
     type T_Origin
-        character(StringLength)                 :: Name
+        character(StringLength)                 :: Name                     = null_str
         integer                                 :: ID
         integer                                 :: GroupID                  = 1
         logical                                 :: Old                      = OFF
         type (T_State)                          :: State
-        integer                                 :: EmissionSpatial    
-        integer                                 :: EmissionTemporal
-        logical                                 :: EmissionON
-        real                                    :: DT_Emit
-        real                                    :: Flow
+        integer                                 :: EmissionSpatial          = null_int
+        integer                                 :: EmissionTemporal         = null_int
+        logical                                 :: EmissionON               = .false.
+        real                                    :: DT_Emit                  = null_real
+        real                                    :: Flow                     = null_real
         integer                                 :: NbrParticlesIteration    = 1
-        integer                                 :: AccidentMethod
+        integer                                 :: AccidentMethod           = null_int
         type (T_Time)                           :: AccidentTime
         logical                                 :: AccidentFinished         = .false.
-        real                                    :: PointVolume
-        logical                                 :: FlowVariable
-        integer                                 :: FlowColumn
-        character(PathLength)                   :: DischargeFile
-        integer                                 :: TimeSerieInputFlow           = 0
+        real                                    :: PointVolume              = null_real
+        logical                                 :: FlowVariable             = .false.
+        integer                                 :: FlowColumn               = null_int
+        character(PathLength)                   :: DischargeFile            = null_str
+        integer                                 :: TimeSerieInputFlow       = 0
         type (T_Time)                           :: InstantEmission
         type (T_Time)                           :: StartEmission
         type (T_Time)                           :: StopEmission
         type (T_Time)                           :: NextEmission
         integer                                 :: INCRP                    = 1
         integer                                 :: BoxNumber                = 1
-        real                                    :: ParticleBoxVolume
+        real                                    :: ParticleBoxVolume        = null_real
         type (T_Movement)                       :: Movement
         type (T_Deposition)                     :: Deposition
         type (T_Position)                       :: Position
-        real, dimension(:), pointer             :: x, y, z
-        integer                                 :: nParticle
+        real, dimension(:), pointer             :: x                        => null()
+        real, dimension(:), pointer             :: y                        => null()
+        real, dimension(:), pointer             :: z                        => null()
+        integer                                 :: nParticle                = null_int
         integer                                 :: NbrSubmerged             = 0
-        integer                                 :: nProperties
-        integer                                 :: nPropT90
-        integer                                 :: NextParticID
-        real                                    :: Photoinhibition
-        real                                    :: ShortWavePercentage
-        integer                                 :: AreaMethod
-        real                                    :: AreaTotal
-        real                                    :: ParticleArea
-        real                                    :: VolumeTotal
-        real                                    :: VolumeOilTotal
-        real                                    :: VolTotOilBeached
-        real                                    :: VolTotBeached
-        logical                                 :: MovingOrigin
-        character(StringLength)                 :: MovingOriginUnits
-        integer                                 :: MovingOriginColumnX
-        integer                                 :: MovingOriginColumnY
-        character(PathLength)                   :: MovingOriginFile
-        logical                                 :: MovingOriginCloudEmission        
-        character(PathLength)                   :: WQM_DataFile
-        integer                                 :: ObjTimeSerie   = 0
-        integer                                 :: WaterQualityID = 0
+        integer                                 :: nProperties              = null_int
+        integer                                 :: nPropT90                 = null_int
+        integer                                 :: NextParticID             = null_int
+        real                                    :: Photoinhibition          = null_real
+        real                                    :: ShortWavePercentage      = null_real
+        integer                                 :: AreaMethod               = null_int
+        real                                    :: AreaTotal                = null_real
+        real                                    :: ParticleArea             = null_real
+        real                                    :: VolumeTotal              = null_real
+        real                                    :: VolumeOilTotal           = null_real
+        real                                    :: VolTotOilBeached         = null_real
+        real                                    :: VolTotBeached            = null_real
+        logical                                 :: MovingOrigin             = .false.
+        character(StringLength)                 :: MovingOriginUnits        = null_str
+        integer                                 :: MovingOriginColumnX      = null_int
+        integer                                 :: MovingOriginColumnY      = null_int
+        character(PathLength)                   :: MovingOriginFile         = null_str
+        logical                                 :: MovingOriginCloudEmission = .false.
+        character(PathLength)                   :: WQM_DataFile             = null_str
+        integer                                 :: ObjTimeSerie             = 0
+        integer                                 :: WaterQualityID           = 0
         type (T_Time)                           :: NextWQMCompute
-        real                                    :: DTWQM
-        integer                                 :: ObjOil = 0
-        logical                                 :: ComputeAge
-        type (T_Property), pointer              :: FirstProperty  => null()
-        type (T_Partic), pointer                :: FirstPartic    => null()
-        type (T_Origin), pointer                :: Next           => null()
-        logical                                 :: Beaching          = OFF
-        logical                                 :: Filtration        = OFF
-        logical                                 :: Default           = OFF
-        logical                                 :: OnlyOnceEmit      = OFF
-        logical                                 :: KillPartInsideBox = OFF
-        logical                                 :: EstimateMinVol    = OFF
-        integer                                 :: MaxPart
-        real                                    :: MaxVol
-        real                                    :: AgeLimit
-        real                                    :: AccidentProbDefault = FillValueReal
-        logical                                 :: AreaVTS           = .true.
+        real                                    :: DTWQM                    = null_real
+        integer                                 :: ObjOil                   = 0
+        logical                                 :: ComputeAge               = .false.
+        type (T_Property), pointer              :: FirstProperty            => null()
+        type (T_Partic), pointer                :: FirstPartic              => null()
+        type (T_Origin), pointer                :: Next                     => null()
+        logical                                 :: Beaching                 = OFF
+        logical                                 :: Filtration               = OFF
+        logical                                 :: Default                  = OFF
+        logical                                 :: OnlyOnceEmit             = OFF
+        logical                                 :: KillPartInsideBox        = OFF
+        logical                                 :: EstimateMinVol           = OFF
+        integer                                 :: MaxPart                  = null_int
+        real                                    :: MaxVol                   = null_real
+        real                                    :: AgeLimit                 = null_real
+        real                                    :: AccidentProbDefault      = FillValueReal
+        logical                                 :: AreaVTS                  = .true.
         type (T_FloatingObject)                 :: FloatingObject        
         type (T_HumanBody)                      :: HumanBody        
-        logical                                 :: StartWithTriang   = .false.
-        character(PathLength)                   :: OutputTracerInfoFileName  
-        integer                                 :: troUnit  
-        integer                                 :: NbrParticlesBeached = 0
-        real                                    :: Fdisp               = 0
-        real                                    :: Fblowout            = 1
-        real                                    :: CDispOilOff         = null_real
-        real                                    :: OilDropletsD50      = null_real
+        logical                                 :: StartWithTriang          = .false.
+        character(PathLength)                   :: OutputTracerInfoFileName = null_str 
+        integer                                 :: troUnit                  = null_int
+        integer                                 :: NbrParticlesBeached      = 0
+        real                                    :: Fdisp                    = 0
+        real                                    :: Fblowout                 = 1
+        real                                    :: CDispOilOff              = null_real
+        real                                    :: OilDropletsD50           = null_real
+        integer                                 :: MethodBWDropletsDiameter = null_int
+        integer                                 :: MethodFloatVel           = null_int
+        logical                                 :: BeachRemoval             = OFF
+
     end type T_Origin
 
     type T_OptionsStat
 
         type(T_PropertyID)                      :: ID
-        integer                                 :: PropOrder
+        integer                                 :: PropOrder                = null_int
         
-        character(len=PathLength)               :: File
-        integer                                 :: nClassesLag
-        real, dimension(:,:    ), pointer       :: ClassesLag
-        logical                                 :: Lag
+        character(len=PathLength)               :: File                     = null_str
+        integer                                 :: nClassesLag              = null_int
+        real, dimension(:,:    ), pointer       :: ClassesLag               => null()
+        logical                                 :: Lag                      = .false.
         
     end type T_OptionsStat
 
     type T_Statistic
-        integer                                     :: PropNumber
-        type(T_OptionsStat), dimension(:), pointer  :: OptionsStat
-        logical            , dimension(:), pointer  :: ON
+        integer                                     :: PropNumber           = null_int
+        type(T_OptionsStat), dimension(:), pointer  :: OptionsStat          => null()
+        logical            , dimension(:), pointer  :: ON                   => null()
     end type T_Statistic
 
     type T_Field
         character(Len=PathLength)                   :: FileName
-        integer                                     :: ID = 0
+        integer                                     :: ID                   = 0
     end type T_Field
 
     type T_MetOceanProp
         type (T_PropertyID)                         :: ID
-        type(T_Field), dimension(:), pointer        :: Field
-        integer                                     :: FieldNumber
-        integer                                     :: MaskDim
-        integer                                     :: LagPropI
-        logical                                     :: EqualToAmbient
+        type(T_Field), dimension(:), pointer        :: Field                => null()
+        integer                                     :: FieldNumber          = null_int
+        integer                                     :: MaskDim              = null_int
+        integer                                     :: LagPropI             = null_int
+        logical                                     :: EqualToAmbient       = .false.
     end type T_MetOceanProp
 
     type T_MeteoOcean
-        integer                                     :: PropNumber
-        type(T_MetOceanProp), dimension(:), pointer :: Prop
+        integer                                     :: PropNumber           = null_int
+        type(T_MetOceanProp), dimension(:), pointer :: Prop                 => null()
     end type T_MeteoOcean
 
     !ExternalVar
@@ -1251,30 +1491,32 @@ Module ModuleLagrangianGlobal
         !ObjOil
         !real,    pointer, dimension(:,:  )      :: SpreadingVelocityX
         !real,    pointer, dimension(:,:  )      :: SpreadingVelocityY
-        real                                    :: DiffVelocity
-        real                                    :: OilDiffCoef
-        real                                    :: VWaterContent
-        real                                    :: MWaterContent
-        real                                    :: AreaTotal
-        real                                    :: OilDensity
-        real                                    :: MassINI     
-        real                                    :: OilViscosity
-        real                                    :: FMDispersed
-        real                                    :: FMEvaporated
-        real                                    :: MDispersed
-        integer                                 :: ThicknessGradient, Fay, SpreadingMethod
-        real                                    :: MDissolvedDT
+        real                                    :: DiffVelocity             = null_real
+        real                                    :: OilDiffCoef              = null_real
+        real                                    :: VWaterContent            = null_real
+        real                                    :: MWaterContent            = null_real
+        real                                    :: AreaTotal                = null_real
+        real                                    :: OilDensity               = null_real
+        real                                    :: MassINI                  = null_real
+        real                                    :: OilViscosity             = null_real
+        real                                    :: FMDispersed              = null_real
+        real                                    :: FMEvaporated             = null_real
+        real                                    :: MDispersed               = null_real
+        integer                                 :: ThicknessGradient        = null_int
+        integer                                 :: Fay                      = null_int
+        integer                                 :: SpreadingMethod          = null_int
+        real                                    :: MDissolvedDT             = null_real
 
         !Time - by default is used the time object of the model with higher priority 
-        integer                                 :: ObjTime              = 0
+        integer                                 :: ObjTime                  = 0
         type(T_Time)                            :: Now
         type(T_Time     )                       :: BeginTime
         type(T_Time     )                       :: EndTime
         type(T_Time     )                       :: LastConcCompute
 
-        real                                    :: RunPeriod
+        real                                    :: RunPeriod                = null_real
         
-        logical                                 :: Backtracking         = .false.           
+        logical                                 :: Backtracking             = .false.           
 
     end type T_ExternalVar
 
@@ -1284,24 +1526,28 @@ Module ModuleLagrangianGlobal
         type (T_State)                          :: State
         type (T_Files)                          :: Files
         type (T_OutPut)                         :: Output
-        integer                                 :: nOrigins
-        integer                                 :: nOldOrigins
-        integer                                 :: nGroups
-        logical                                 :: RunOnline
-        logical                                 :: IgnoreON
-        integer, dimension(:    ),  pointer     :: GroupIDs
-        integer, dimension(:    ),  pointer     :: nOriginsGroup
+        integer                                 :: nOrigins                    = null_int
+        integer                                 :: nOldOrigins                 = null_int
+        integer                                 :: nGroups                     = null_int
+        logical                                 :: RunOnline                   = .false.
+        logical                                 :: IgnoreON                    = .false.
+        integer, dimension(:    ),  pointer     :: GroupIDs                    => null()
+        integer, dimension(:    ),  pointer     :: nOriginsGroup               => null()
 
-        character(StringLength)                 :: MonitorProperty
+        character(StringLength)                 :: MonitorProperty             = null_str
         integer                                 :: MonitorPropertyID           = null_int
         integer                                 :: MonitorMassFractionType     = Arithmetic
         real                                    :: MonitorBox_TracerMinConc    = null_real
         real                                    :: MonitorContaminationDepth   = null_real
 
-        real                                    :: DT_Partic
-        integer                                 :: Vert_Steps
-        real                                    :: BeachingLimit
-        real                                    :: DefaultBeachingProbability
+        real                                    :: DT_Partic                   = null_real
+        integer                                 :: Vert_Steps                  = null_int
+        real                                    :: DefaultBeachingLimit        = null_real 
+        integer                                 :: BeachingLimitSpatial        = null_int
+        real                                    :: DefaultBeachingProbability  = null_real
+        integer                                 :: DefaultShoreType            = null_int
+        real                                    :: DefaultRemovalRateCoef      = null_real
+        integer                                 :: RemovalRateCoefSpatial      = null_int
 
         type(T_Statistic)                       :: Statistic
         type(T_MeteoOcean)                      :: MeteoOcean
@@ -1318,19 +1564,19 @@ Module ModuleLagrangianGlobal
 
         type(T_ExternalVar)                     :: ExternalVar
 
-        type(T_EulerModel ), pointer, dimension(:) :: EulerModel
-        integer                                 :: EulerModelNumber
+        type(T_EulerModel ), pointer, dimension(:) :: EulerModel        => null()
+        integer                                 :: EulerModelNumber     = null_int
         
-        type (T_Polygon), pointer               :: CoastLine
-        character(StringLength)                 :: CoastLineFile
-        logical                                 :: CoastLineON
+        type (T_Polygon), pointer               :: CoastLine            => null()
+        character(StringLength)                 :: CoastLineFile        = null_str
+        logical                                 :: CoastLineON          = .false.
         
 
-        type (T_Polygon), pointer               :: ThinWalls
-        character(StringLength)                 :: ThinWallsFile
-        logical                                 :: ThinWallsON
+        type (T_Polygon), pointer               :: ThinWalls            => null()
+        character(StringLength)                 :: ThinWallsFile        = null_str
+        logical                                 :: ThinWallsON          = .false.
 
-        logical                                 :: NewGridLocation
+        logical                                 :: NewGridLocation      = .false.
         
         type (T_Booms)                          :: Booms
 
@@ -1341,15 +1587,15 @@ Module ModuleLagrangianGlobal
 
         logical                                 :: WritesTimeSerie      = .false.
         logical                                 :: RunOnlyMov2D         = .false.
-        logical                                 :: Overlay
+        logical                                 :: Overlay              = .false.
         logical                                 :: FirstIteration       = .true.
         logical                                 :: ConstructLag         = .true. 
         
         logical                                 :: AveragePositionON    = .false. 
-        real                                    :: CoefRadius
+        real                                    :: CoefRadius           = null_real
         logical                                 :: StopWithNoPart       = .false.
 
-        integer, dimension(:), pointer          :: ObjHDF5              
+        integer, dimension(:), pointer          :: ObjHDF5              => null()
 
         integer                                 :: ObjEnterData         = 0
         integer                                 :: ObjEnterDataClone    = 0
@@ -1596,7 +1842,9 @@ em2:            do em =1, Me%EulerModelNumber
             
             !Verifies the Oil-Beaching Probabilities
             if (Me%State%AssociateBeachProb) then
+                call AllocateBeaching
                 call VerifyBeachingProbabilities
+                call VerifyShoreTypes
             end if
             
             if (Me%State%DistanceToCoast) then
@@ -1724,9 +1972,9 @@ em2:            do em =1, Me%EulerModelNumber
         CurrentOrigin => Me%FirstOrigin
 CurrOr: do while (associated(CurrentOrigin))
 
-             Call GetOilSedimentation(OilID                   = CurrentOrigin%ObjOil,    & 
+             Call GetOilSedimentation(CurrentOrigin%ObjOil,                              &
                                       OilSedimentation        = OilSedimentation,        & 
-                                      STAT = STAT_CALL)
+                                      STAT                    = STAT_CALL)
             
             CurrentOrigin%State%OilSedimentation = OilSedimentation
 
@@ -1734,7 +1982,7 @@ CurrOr: do while (associated(CurrentOrigin))
 
         enddo CurrOr
 
-end subroutine
+end subroutine GetOilOptions
 
     !--------------------------------------------------------------------------
 
@@ -1745,7 +1993,6 @@ end subroutine
         !Local-----------------------------------------------------------------
         type (T_Lagrangian), pointer                :: NewLagrangian
         type (T_Lagrangian), pointer                :: PreviousLagrangian
-
 
         !Allocates new instance
         allocate (NewLagrangian)
@@ -1770,8 +2017,43 @@ end subroutine
 
     end subroutine AllocateInstance
 
-    !------------------------------------------------------------------------------
+   !------------------------------------------------------------------------------
 
+    subroutine AllocateBeaching
+
+        !Local---------------------------------------------------------------------
+        integer                                     :: em, STAT_CALL                          
+
+        !Begin---------------------------------------------------------------------
+
+d1:     do em =1, Me%EulerModelNumber 
+
+            allocate (Me%EulerModel(em)%HorizontalBeachHoldingCapacity(Me%EulerModel(em)%Size%ILB: &
+                                                                       Me%EulerModel(em)%Size%IUB, &
+                                                                       Me%EulerModel(em)%Size%JLB: &
+                                                                       Me%EulerModel(em)%Size%JUB), &
+                                                                       STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AllocateBeaching - ModuleLagrangianGlobal - ERR01'
+
+            Me%EulerModel(em)%HorizontalBeachHoldingCapacity(:,:) = 0.
+
+            allocate (Me%EulerModel(em)%OldSurfaceDepth(Me%EulerModel(em)%Size%ILB: &
+                                                        Me%EulerModel(em)%Size%IUB, &
+                                                        Me%EulerModel(em)%Size%JLB: &
+                                                        Me%EulerModel(em)%Size%JUB), &
+                                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AllocateBeaching - ModuleLagrangianGlobal - ERR02'
+
+            Me%EulerModel(em)%OldSurfaceDepth(:,:) = null_real
+
+        enddo d1
+
+
+    end subroutine AllocateBeaching
+
+    !------------------------------------------------------------------------------
+    
+    
     subroutine AllocateOil
 
         !Local---------------------------------------------------------------------
@@ -2783,6 +3065,31 @@ d1:     do em = 1, Me%EulerModelNumber
                 endif
             endif
             
+            if (Me%State%AssociateBeachProb) then
+                allocate (Me%EulerModel(em)%Lag2Euler%GridBeachedVolume(ILB:IUB, JLB:JUB, 1:Me%NGroups))
+                Me%EulerModel(em)%Lag2Euler%GridBeachedVolume(:,:,:) = 0.
+
+                allocate (Me%EulerModel(em)%Lag2Euler%PreviousGridBeachedVolume(ILB:IUB, JLB:JUB, 1:Me%NGroups))
+                Me%EulerModel(em)%Lag2Euler%PreviousGridBeachedVolume(:,:,:) = 0.
+
+                allocate (Me%EulerModel(em)%Lag2Euler%GridBeachedVolVar(ILB:IUB, JLB:JUB, 1:Me%NGroups))
+                Me%EulerModel(em)%Lag2Euler%GridBeachedVolVar(:,:,:) = 1.
+
+                allocate (Me%EulerModel(em)%Lag2Euler%GridBeachedVolumeByType(ILB:IUB, JLB:JUB, 1:Me%NGroups, 1:3))
+                Me%EulerModel(em)%Lag2Euler%GridBeachedVolumeByType(:,:,:,:) = 0.
+
+                allocate (Me%EulerModel(em)%Lag2Euler%TheoricBeachedVolAfterRemoval(ILB:IUB, JLB:JUB, 1:Me%NGroups))
+                Me%EulerModel(em)%Lag2Euler%TheoricBeachedVolAfterRemoval(:,:,:) = 0.
+
+                allocate (Me%EulerModel(em)%Lag2Euler%GridVolToRemove(ILB:IUB, JLB:JUB, 1:Me%NGroups))
+                Me%EulerModel(em)%Lag2Euler%GridVolToRemove(:,:,:) = 0.
+
+                allocate (Me%EulerModel(em)%Lag2Euler%GridVolToRemoveFraction(ILB:IUB, JLB:JUB, 1:Me%NGroups))
+                Me%EulerModel(em)%Lag2Euler%GridVolToRemoveFraction(:,:,:) = 0.
+
+                allocate (Me%EulerModel(em)%Lag2Euler%GridVolRemovedDiff(ILB:IUB, JLB:JUB, 1:Me%NGroups))
+                Me%EulerModel(em)%Lag2Euler%GridVolRemovedDiff(:,:,:) = 0.
+            endif
         enddo d1
 
 
@@ -3814,11 +4121,11 @@ i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
 
         !Time to double volume
         call GetData(NewOrigin%Movement%TVOL200,                                 &
-                     Me%ObjEnterData,                                 &
+                     Me%ObjEnterData,                                            &
                      flag,                                                       &
                      SearchType   = FromBlock,                                   &
                      keyword      ='TVOL200',                                    &
-                     ClientModule ='ModuleLagrangianGlobal',                           &
+                     ClientModule ='ModuleLagrangianGlobal',                     &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR470'
 
@@ -3857,7 +4164,7 @@ i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
                      SearchType   = FromBlock,                                   &
                      keyword      = 'VOLUME_INCREASE',                           &
                      Default      = Char_Double,                                 &
-                     ClientModule ='ModuleLagrangianGlobal',                           &
+                     ClientModule ='ModuleLagrangianGlobal',                     &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR500'
 
@@ -3914,7 +4221,7 @@ i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
 
    
         !Type of Accident
-AC:             if (NewOrigin%EmissionSpatial == Accident_) then
+AC:     if (NewOrigin%EmissionSpatial == Accident_) then
 
             call GetData(NewOrigin%AccidentMethod,                                      &
                          Me%ObjEnterData,                                               &
@@ -4142,15 +4449,40 @@ TURB_V:                 if (flag == 1) then
 
             Me%State%StokesDrift = .true.
 
-            call GetData(NewOrigin%Movement%R_ice,                                      &
-                         Me%ObjEnterData,                                               &
-                         flag,                                                          &
-                         SearchType   = FromBlock,                                      &
-                         keyword      ='R_ICE',                                         &
-                         ClientModule ='ModuleLagrangianGlobal',                        &  
-                         Default      = 1.,                                             &
+            call GetData(String,                                                            &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromBlock,                                          &
+                         keyword      ='STOKES_DRIFT_METHOD',                               &
+                         ClientModule ='ModuleLagrangianGlobal',                            &  
+                         Default      = Char_LonguetHigginsGeneric,                         &
                          STAT         = STAT_CALL)             
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR835'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR831'
+            
+            select case (trim(adjustl(String)))
+            
+!            case (Char_Seatrackweb2007)
+!                NewOrigin%Movement%StokesDriftMethod = Seatrackweb2007
+!                call GetData(NewOrigin%Movement%R_ice,                                      &
+!                             Me%ObjEnterData,                                               &
+!                             flag,                                                          &
+!                             SearchType   = FromBlock,                                      &
+!                             keyword      ='R_ICE',                                         &
+!                             ClientModule ='ModuleLagrangianGlobal',                        &  
+!                             Default      = 1.,                                             &
+!                             STAT         = STAT_CALL)             
+!                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR832'
+            case (Char_LonguetHigginsDeep)
+                NewOrigin%Movement%StokesDriftMethod = LonguetHigginsDeep
+            case (Char_LonguetHigginsGeneric)
+                NewOrigin%Movement%StokesDriftMethod = LonguetHigginsGeneric
+
+            case default
+                write(*,*)'Invalid Stokes Drift method'
+                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR833'
+                       
+            end select
+
             
         endif 
 
@@ -4243,7 +4575,7 @@ SE:             if (flag == 1) then
                              flag,                                               &
                              SearchType   = FromBlock,                           &
                              keyword      ='D50',                                &
-                             !oil droplets diameter comoing from oil slicks - average diameter value (Delvigne and Sweeney, 1989))
+                             !oil droplets diameter coming from oil slicks - average diameter value (Delvigne and Sweeney, 1989))
                              default      = 0.00025,                             & 
                              ClientModule ='ModuleLagrangianGlobal',             &
                              STAT         = STAT_CALL)             
@@ -4317,7 +4649,7 @@ SE:             if (flag == 1) then
             call SetError(FATAL_, KEYWORD_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR920')
 
 
-DE:             if (NewOrigin%State%Deposition) then
+DE:     if (NewOrigin%State%Deposition) then
 
             Me%State%Deposition = ON
 
@@ -4744,7 +5076,7 @@ BX:     if (NewOrigin%EmissionSpatial == Box_) then
                 write(*,*) 'ConstructOneOrigin - ModuleLagrangianGlobal - WRN10'
             endif
 
-            !Momentum balance in horizontal direcction
+            !Momentum balance in horizontal direction
             !Increase of volume tracer due to shear effect
             call GetData(NewOrigin%State%PlumeShear,                             &
                          Me%ObjEnterData,                                        &
@@ -5540,7 +5872,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                          ClientModule ='ModuleLagrangianGlobal',                 &
                          Default      = 1.,                                      &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1510'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1511'
 
             call GetData(NewOrigin%OilDropletsD50,                               &
                          Me%ObjEnterData,                                        &
@@ -5553,6 +5885,24 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1515'
 
+            call GetData(NewOrigin%MethodBWDropletsDiameter,                     &
+                         Me%ObjEnterData,                                        &
+                         flag,                                                   &
+                         SearchType   = FromBlock,                               &
+                         keyword      ='METHOD_BW_DROPLETS_DIAMETER',            &
+                         ClientModule ='ModuleLagrangianGlobal',                 &
+                         Default      = UserDefined_,                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1516'
+            call GetData(NewOrigin%MethodFloatVel,                               &
+                         Me%ObjEnterData,                                        &
+                         flag,                                                   &
+                         SearchType   = FromBlock,                               &
+                         keyword      ='METHOD_FLOAT_VEL',                       &
+                         ClientModule ='ModuleLagrangianGlobal',                 &
+                         Default      = SoaresDosSantos_,                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1517'
         endif
         call GetData(NewOrigin%State%Age,                                               &
                      Me%ObjEnterData,                                                   &
@@ -5706,6 +6056,20 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             Me%State%Waves        = .true.
         endif
         
+        !Shoreline Oil Removal
+        call GetData(NewOrigin%BeachRemoval,                                    &
+                     Me%ObjEnterData,                                           &
+                     flag,                                                      &
+                     SearchType   = FromBlock,                                  &
+                     keyword      ='BEACH_REMOVAL',                             &
+                     ClientModule ='ModuleLagrangianGlobal',                    &
+                     Default      = OFF,                                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1630'
+
+
+
+
         if (Me%State%OutputTracerInfo) then
             call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
             NewOrigin%OutputTracerInfoFileName = trim(RootPath)//trim(NewOrigin%Name)//".tro"
@@ -6039,13 +6403,13 @@ NDF:    if (.not. Default .and. trim(adjustl(EmissionSpatial)) /= trim(Char_Box)
         if (Me%State%AssociateBeachProb) then
 
             !Maximum distance between particles and coast for particle beaching 
-            call GetData(Me%BeachingLimit,                                              &
+            call GetData(Me%DefaultBeachingLimit,                                       &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
                          SearchType   = FromFile,                                       &
                          keyword      ='BEACHING_LIMIT',                                &
                          Default      = 5.0,                                            &
-                         ClientModule ='ModuleLagrangianGlobal',                              &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'BoxTypeVariablesDefiniton - ModuleLagrangianGlobal - ERR200'
 
@@ -6076,7 +6440,68 @@ NDF:    if (.not. Default .and. trim(adjustl(EmissionSpatial)) /= trim(Char_Box)
         
             endif
 
+            call GetData(Me%DefaultShoreType,                                           &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='DEFAULT_SHORE_TYPE',                            &
+                         Default      = 5,                                              &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BoxTypeVariablesDefiniton - ModuleLagrangianGlobal - ERR230'
+
+            !Shoreline types Boxes data file
+            call GetData(Me%Files%ShoreTypeBoxFileName,                                 &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='SHORE_TYPE_BOX_FILENAME',                       &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BoxTypeVariablesDefiniton - ModuleLagrangianGlobal - ERR240'
+            if (flag == 1) then
+
+                Me%State%HaveShoreTypeBox = .true.
+        
+            endif
+
+
+            call GetData(Me%DefaultRemovalRateCoef,                                     &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='REMOVAL_RATE_COEF',                             &
+                         Default      = 0.,                                             &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BoxTypeVariablesDefiniton - ModuleLagrangianGlobal - ERR230'
+
+            !Spatial definition for Beaching  Limit
+            call GetData(Me%BeachingLimitSpatial,                                           &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      ='BEACHING_LIMIT_SPATIAL',                            &
+                         Default      = Constant_,                                          &
+                         ClientModule ='ModuleLagrangianGlobal',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BoxTypeVariablesDefiniton - ModuleLagrangianGlobal - ERR205'
+           
+            !Spatial definition for Removal Rate Coef
+            call GetData(Me%RemovalRateCoefSpatial,                                         &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      ='REMOVAL_RATE_COEF_SPATIAL',                         &
+                         Default      = Constant_,                                          &
+                         ClientModule ='ModuleLagrangianGlobal',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BoxTypeVariablesDefiniton - ModuleLagrangianGlobal - ERR206'
+
+        else
+            Me%BeachingLimitSpatial = Constant_                       
         endif
+            
 
 d1:     do em = 1, Me%EulerModelNumber
 
@@ -6122,6 +6547,23 @@ d1:     do em = 1, Me%EulerModelNumber
                                  WorkSize3D       = Me%EulerModel(em)%WorkSize,            &
                                  STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'BoxTypeVariablesDefiniton - ModuleLagrangianGlobal - ERR230'
+
+                Me%State%HaveBeachingProbBox = .true.
+        
+            endif
+
+            if (Me%State%HaveShoreTypeBox) then
+
+                !Starts BoxDif
+                call StartBoxDif(BoxDifID         = Me%EulerModel(em)%ObjShoreTypeBox,                  &
+                                 TimeID           = Me%EulerModel(em)%ObjTime,                          &
+                                 HorizontalGridID = Me%EulerModel(em)%ObjHorizontalGrid,                &
+                                 BoxesFilePath    = Me%Files%ShoreTypeBoxFileName,                      &
+                                 WaterPoints3D    = Me%EulerModel(em)%Waterpoints3D,                    &
+                                 Size3D           = Me%EulerModel(em)%Size,                             &
+                                 WorkSize3D       = Me%EulerModel(em)%WorkSize,                         &
+                                 STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BoxTypeVariablesDefiniton - ModuleLagrangianGlobal - ERR170'
 
                 Me%State%HaveBeachingProbBox = .true.
         
@@ -8697,7 +9139,262 @@ d1:     do em = 1, Me%EulerModelNumber
 
     end subroutine VerifyBeachingProbabilities
 
-    !--------------------------------------------------------------------------
+     !--------------------------------------------------------------------------
+
+    subroutine VerifyShoreTypes
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real,    pointer, dimension(:)              :: BoxesShoreType
+        real,    pointer, dimension(:)              :: BeachingLimitList
+        real,    pointer, dimension(:)              :: RemovalRateCoefList       
+        integer, pointer, dimension(:,:)            :: ShoreTypeBoxes
+        integer                                     :: flag
+        integer                                     :: NumberOfBoxes
+        integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: i, j, Box, em
+        integer                                     :: STAT_CALL
+
+        !-----------------------------------------------------------------------
+        
+        if (Me%State%HaveShoreTypeBox) then        
+            !Get the boxes only
+            em = 1
+            call GetNumberOfBoxes(Me%EulerModel(em)%ObjShoreTypeBox, NumberOfBoxes2D = NumberOfBoxes, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyShoreTypes - ModuleLagrangianGlobal - ERR03'
+
+            allocate (BoxesShoreType(NumberOfBoxes))
+
+            call GetData(BoxesShoreType,                                            &
+                         Me%ObjEnterData,                                           &
+                         flag,                                                      &
+                         SearchType = FromFile,                                     &
+                         keyword    = 'BOXES_SHORE_TYPE',                           &
+                         ClientModule = 'ModuleLagrangianGlobal',                   &
+                         STAT       = STAT_CALL)
+            if       (STAT_CALL .EQ. SIZE_ERR_)  then
+                write(*,*) 
+                write(*,*) 'Error calling GetData.  '
+                write(*,*) 'Number of box values is incorrect:'
+                write(*,*) '    NumberOfBoxes =', NumberOfBoxes
+                write(*,*) '    BoxesData   =', flag
+                stop       'Subroutine VerifyShoreTypes; Module ModuleLagrangianGlobal. ERR04.'
+
+            else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                               &
+                     (STAT_CALL .NE. SUCCESS_)) then                                                                        
+                stop 'Subroutine VerifyShoreTypes; Module ModuleLagrangianGlobal. ERR05.'
+            end if               
+
+            if (flag==0) then
+                write(*,*) 
+                write(*,*) 'Error do not have the box beaching probability.'           
+                stop       'Subroutine VerifyShoreTypes; Module ModuleLagrangianGlobal. ERR06.'
+            end if
+
+        endif
+
+        if (Me%BeachingLimitSpatial .EQ. ShoreTypeBased_) then
+
+            allocate (BeachingLimitList(ShoreTypesNbr))
+
+            call GetData(BeachingLimitList,                                         &
+                         Me%ObjEnterData,                                           &
+                         flag,                                                      &
+                         SearchType = FromFile,                                     &
+                         keyword    = 'BEACHING_LIMIT_LIST',                        &
+                         ClientModule = 'ModuleLagrangianGlobal',                   &
+                         STAT       = STAT_CALL)
+            if       (STAT_CALL .EQ. SIZE_ERR_)  then
+                write(*,*) 
+                write(*,*) 'Error calling GetData.  '
+                write(*,*) 'Number of values defined is incorrect:'
+                write(*,*) '    Number of Shore Types =', ShoreTypesNbr
+                write(*,*) '    Number of Values defined   =', flag
+                stop       'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR04.'
+
+            else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                               &
+                     (STAT_CALL .NE. SUCCESS_)) then                                                                        
+                stop 'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR05.'
+            end if               
+
+            if (flag==0) then
+                write(*,*) 
+                write(*,*) 'Error do not have the beaching limit list.'           
+                stop       'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR06.'
+            end if
+
+        endif
+
+        if (Me%RemovalRateCoefSpatial .EQ. ShoreTypeBased_) then
+
+            allocate (RemovalRateCoefList(ShoreTypesNbr))
+
+            call GetData(RemovalRateCoefList,                                       &
+                         Me%ObjEnterData,                                           &
+                         flag,                                                      &
+                         SearchType = FromFile,                                     &
+                         keyword    = 'REMOVAL_RATE_COEF_LIST',                     &
+                         ClientModule = 'ModuleLagrangianGlobal',                   &
+                         STAT       = STAT_CALL)
+            if       (STAT_CALL .EQ. SIZE_ERR_)  then
+                write(*,*) 
+                write(*,*) 'Error calling GetData.  '
+                write(*,*) 'Number of values defined is incorrect:'
+                write(*,*) '    Number of Shore Types =', ShoreTypesNbr
+                write(*,*) '    Number of Values defined   =', flag
+                stop       'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR07.'
+
+            else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                               &
+                     (STAT_CALL .NE. SUCCESS_)) then                                                                        
+                stop 'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR08.'
+            end if               
+
+            if (flag==0) then
+                write(*,*) 
+                write(*,*) 'Error do not have the removal rate coef list.'           
+                stop       'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR09.'
+            end if
+
+        endif
+
+
+
+d1:     do em = 1, Me%EulerModelNumber
+        
+            allocate (Me%EulerModel(em)%ShoreType(Me%EulerModel(em)%Size%ILB: &
+                                                  Me%EulerModel(em)%Size%IUB, &
+                                                  Me%EulerModel(em)%Size%JLB: &
+                                                  Me%EulerModel(em)%Size%JUB),&
+                                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyShoreTypes - ModuleLagrangianGlobal - ERR01'
+        
+            allocate (Me%EulerModel(em)%BeachingLimit(Me%EulerModel(em)%Size%ILB: &
+                                                      Me%EulerModel(em)%Size%IUB, &
+                                                      Me%EulerModel(em)%Size%JLB: &
+                                                      Me%EulerModel(em)%Size%JUB),&
+                                                      STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyShoreTypes - ModuleLagrangianGlobal - ERR11'
+
+            allocate (Me%EulerModel(em)%RemovalRateCoef(Me%EulerModel(em)%Size%ILB: &
+                                                       Me%EulerModel(em)%Size%IUB, &
+                                                       Me%EulerModel(em)%Size%JLB: &
+                                                       Me%EulerModel(em)%Size%JUB),&
+                                                       STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyShoreTypes - ModuleLagrangianGlobal - ERR12'
+            
+            if ( .NOT. Me%State%HaveShoreTypeBox) then
+                Me%EulerModel(em)%ShoreType       = Me%DefaultShoreType
+
+                if (Me%BeachingLimitSpatial .EQ. ShoreTypeBased_) then
+                    Me%EulerModel(em)%BeachingLimit = BeachingLimitList(Me%DefaultShoreType)
+                elseif (Me%BeachingLimitSpatial .EQ. Constant_) then
+                    Me%EulerModel(em)%BeachingLimit   = Me%DefaultBeachingLimit
+                end if
+                
+                if (Me%RemovalRateCoefSpatial .EQ. ShoreTypeBased_) then
+                    Me%EulerModel(em)%RemovalRateCoef = RemovalRateCoefList(Me%DefaultShoreType) 
+                elseif (Me%BeachingLimitSpatial .EQ. Constant_) then
+                    Me%EulerModel(em)%RemovalRateCoef = Me%DefaultRemovalRateCoef
+                end if
+                            
+            else if (Me%State%HaveShoreTypeBox) then
+
+                !Shorten
+                ILB    = Me%EulerModel(em)%WorkSize%ILB
+                IUB    = Me%EulerModel(em)%WorkSize%IUB
+                JLB    = Me%EulerModel(em)%WorkSize%JLB
+                JUB    = Me%EulerModel(em)%WorkSize%JUB
+        
+
+                call GetBoxes(Me%EulerModel(em)%ObjShoreTypeBox, ShoreTypeBoxes, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'VerifyShoreTypes - ModuleLagrangianGlobal - ERR02'
+
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    Box = ShoreTypeBoxes(i, j)
+            
+                    if (Box .GE. 0 ) then
+
+                        if (BoxesShoreType(Box) > ShoreTypesNbr) then
+                            write(*,*) "A shore type value in box ", Box, &
+                                       " is greater than the number of shore types defined in model."
+                            write(*,*) "Number of shore types defined in the model: ", ShoreTypesNbr                               
+                            stop 'VerifyShoreTypes - ModuleLagrangianGlobal - ERR07'
+                        end if
+            
+                        Me%EulerModel(em)%ShoreType (i,j) = BoxesShoreType(Box)
+                     
+                    else if (Box .LT. 0 ) then
+            
+                        Me%EulerModel(em)%ShoreType (i,j) = Me%DefaultShoreType
+            
+                    endif
+                enddo
+                enddo
+                
+                if (Me%BeachingLimitSpatial .EQ. Constant_) then
+                    Me%EulerModel(em)%BeachingLimit = Me%DefaultBeachingLimit
+                elseif (Me%BeachingLimitSpatial .EQ. ShoreTypeBased_) then
+
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+                        Box = ShoreTypeBoxes(i, j)
+                
+                        if (Box .GE. 0 ) then
+                                                   
+                            !assigns value based on shore type value
+                            Me%EulerModel(em)%BeachingLimit (i,j) = BeachingLimitList(Me%EulerModel(em)%ShoreType (i,j))
+                         
+                        else if (Box .LT. 0 ) then
+                
+                            Me%EulerModel(em)%BeachingLimit (i,j) = Me%DefaultBeachingLimit
+                
+                        endif
+                    enddo
+                    enddo
+
+                    deallocate (BeachingLimitList)
+                end if                          
+
+                if (Me%RemovalRateCoefSpatial .EQ. Constant_) then
+                    Me%EulerModel(em)%RemovalRateCoef = Me%DefaultRemovalRateCoef
+                elseif (Me%RemovalRateCoefSpatial .EQ. ShoreTypeBased_) then
+
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+                        Box = ShoreTypeBoxes(i, j)
+                
+                        if (Box .GE. 0 ) then
+                                                   
+                            !assigns value based on shore type value
+                            Me%EulerModel(em)%RemovalRateCoef (i,j) = RemovalRateCoefList(Me%EulerModel(em)%ShoreType (i,j))
+                                                                      
+                         
+                        else if (Box .LT. 0 ) then
+                
+                            Me%EulerModel(em)%RemovalRateCoef (i,j) = Me%DefaultRemovalRateCoef
+                
+                        endif
+                    enddo
+                    enddo
+
+                    deallocate (RemovalRateCoefList)
+                end if                          
+                
+                deallocate (BoxesShoreType)
+                
+                !Unget The Boxes
+                call UngetBoxDif(Me%EulerModel(em)%ObjShoreTypeBox, ShoreTypeBoxes, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'VerifyShoreTypes - ModuleLagrangianGlobal - ERR08'
+
+            end if
+
+        enddo d1
+
+    end subroutine VerifyShoreTypes
+
+   !--------------------------------------------------------------------------
 
     subroutine ConstructHDF5Output
 
@@ -10001,7 +10698,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 if ( Me%State%Larvae ) then
                     call LightEvolution      ()
                 endif   
-
+               
                 !Moves the Origins
                 call MoveOrigin             ()
 
@@ -10022,10 +10719,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 
                 call CheckSurfaceParticles  ()
 
-                !Verifies is a particle is beached
-                if (Me%State%AssociateBeachProb) then
-                    call VerifyParticleBeaching() 
-                endif
+!                !Verifies is a particle is beached
+!                if (Me%State%AssociateBeachProb) then
+!!                    call GetOilProperties   ()                 
+!                    call VerifyParticleBeaching()
+!                    call UpdateRemovedVolumes()                  
+!                    call VerifyBeachRemoval()
+!                endif
 
                 !Dilute Particle with Ambiente Concentration
                 call Dilution                ()
@@ -10054,6 +10754,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 if (Me%State%Oil) then
                     call ComputeAreaVolume  ()
                     call InternalParticOil   ()
+
+                    !Verifies is a particle is beached
+                    if (Me%State%AssociateBeachProb) then
+    !                    call GetOilProperties   ()                 
+!                        !update beached volumes after volume variation (weathering processes)
+                        call UpdateBeachHoldingCapacity
+                        call UpdateBeachedVolumes()
+                        call VerifyParticleBeaching()
+                        call UpdateRemovedVolumes()                  
+                        call VerifyBeachRemoval()
+                    endif
+!                    if (Me%State%AssociateBeachProb) then
+!                        !update beached volumes after volume variation (weathering processes)
+!                        call UpdateBeachedVolumes()
+!                    endif
+
                 endif
 
                 !Check the concentration limits
@@ -10096,6 +10812,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                     call ActualizesTauErosionGrid()
                 endif
                 
+                call UpdateParticleState()
                 !Writes Time Series
                 if (Me%State%OutputTracerInfo) then
                     call WriteIndividualTracerOutput()
@@ -10529,6 +11246,7 @@ d1:     do while (associated(CurrentOrigin))
                     CurrentPartic%WaveHeight    = FillValueReal
                     CurrentPartic%WavePeriod    = FillValueReal
                     CurrentPartic%WaveDirection = FillValueReal
+                    CurrentPartic%WaveLength    = FillValueReal
 
                     CurrentPartic%SolutionCX    = FillValueInt
                     CurrentPartic%SolutionCY    = FillValueInt
@@ -10538,6 +11256,7 @@ d1:     do while (associated(CurrentOrigin))
                     CurrentPartic%SolutionWH    = FillValueInt
                     CurrentPartic%SolutionWP    = FillValueInt
                     CurrentPartic%SolutionWD    = FillValueInt
+                    CurrentPartic%SolutionWL    = FillValueInt
                     CurrentPartic%SolutionS     = FillValueInt
                     CurrentPartic%SolutionT     = FillValueInt                    
 
@@ -10708,6 +11427,11 @@ d1:     do while (associated(CurrentOrigin))
             CurrentPartic%WaveDirection = PropValue
             CurrentPartic%SolutionWD    = Solution
             
+        elseif  (PropIDNumber == WaveLength_ ) then  
+
+            CurrentPartic%WaveLength    = PropValue
+            CurrentPartic%SolutionWL    = Solution
+
         else
             if (PropValue > FillValueReal/100) then 
                 CurrentPartic%AmbientConc(LagPropI) = PropValue
@@ -11529,6 +12253,105 @@ d2:         do em = 1, Me%EulerModelNumber
 
     !--------------------------------------------------------------------------
 
+    subroutine UpdateBeachedVolumes
+    
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic
+        integer                                     :: i, j, em, emp, ig, ILB, IUB, JLB, JUB
+        logical                                     :: InsideDomain
+      
+
+        do em = 1, Me%EulerModelNumber 
+            Me%EulerModel(em)%Lag2Euler%PreviousGridBeachedVolume = Me%EulerModel(em)%Lag2Euler%GridBeachedVolume
+            Me%EulerModel(em)%Lag2Euler%GridBeachedVolumeByType(:, :, :, :) = 0.
+            Me%EulerModel(em)%Lag2Euler%GridBeachedVolume(:, :, :) = 0.
+            Me%EulerModel(em)%Lag2Euler%GridBeachedVolVar(:, :, :) = 1.
+        end do
+        
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+           ig = CurrentOrigin%GroupID
+
+IfBeaching: if (CurrentOrigin%Beaching) then
+                    
+                CurrentOrigin%VolTotBeached     = 0.
+                CurrentOrigin%VolTotOilBeached  = 0.
+                
+                CurrentPartic => CurrentOrigin%FirstPartic
+CurrPart:       do while (associated(CurrentPartic))
+                   
+                    ! since oil was weathered, oil type is updated
+                    CurrentPartic%BeachingOilType = F_BeachingOilType(CurrentPartic%OilViscCin)
+
+                    !Grid Cell of the particle
+                    i     = CurrentPartic%Position%I
+                    j     = CurrentPartic%Position%J
+                                      
+                    emp    = CurrentPartic%Position%ModelID
+    
+                    InsideDomain = .true.
+
+                    if (CurrentPartic%Beached .AND. InsideDomain ) then
+                                                                                              
+                        Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, CurrentPartic%BeachingOilType) = &
+                        Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, CurrentPartic%BeachingOilType) + &
+                            CurrentPartic%Geometry%Volume   
+
+                        Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) =                               &
+                                        Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) +               &
+                                        CurrentPartic%Geometry%Volume   
+
+                        CurrentOrigin%VolTotBeached     = CurrentOrigin%VolTotBeached +         &
+                                                          CurrentPartic%Geometry%Volume
+
+                        CurrentOrigin%VolTotOilBeached  = CurrentOrigin%VolTotOilBeached +      &
+                                                          CurrentPartic%Geometry%VolumeOil
+
+                    end if
+
+                    CurrentPartic => CurrentPartic%Next
+
+                enddo CurrPart
+
+            end if IfBeaching
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+        
+        ! finding the variation ratio on beached oil, due to weathering processes
+        ! later this ratio is used to correct theorical removed oil
+        
+        do em = 1, Me%EulerModelNumber 
+            !Shorten
+            ILB    = Me%EulerModel(em)%Size%ILB
+            IUB    = Me%EulerModel(em)%Size%IUB
+            JLB    = Me%EulerModel(em)%Size%JLB
+            JUB    = Me%EulerModel(em)%Size%JUB
+            
+            do ig = 1, Me%nGroups
+                do j = JLB, JUB
+                    do i = ILB, IUB
+                        if (Me%EulerModel(em)%Lag2Euler%PreviousGridBeachedVolume(i,j,ig) > 0.) then
+                            Me%EulerModel(em)%Lag2Euler%GridBeachedVolVar(i,j,ig) =                     &
+                                            Me%EulerModel(em)%Lag2Euler%GridBeachedVolume(i,j,ig) /     &
+                                            Me%EulerModel(em)%Lag2Euler%PreviousGridBeachedVolume(i,j,ig)
+                        else
+                            Me%EulerModel(em)%Lag2Euler%GridBeachedVolVar(i,j,ig) = 1.
+                        end if            
+                    end do
+                end do
+            end do
+        end do
+
+    end subroutine UpdateBeachedVolumes
+
+    !--------------------------------------------------------------------------
+
     subroutine VerifyParticleBeaching()
 
         !Arguments-------------------------------------------------------------
@@ -11536,21 +12359,28 @@ d2:         do em = 1, Me%EulerModelNumber
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Partic), pointer                    :: CurrentPartic
-        integer                                     :: i, j, k, emp
+        integer                                     :: i, j, k, emp, ig
         real                                        :: CellI, CellJ, CellK
         real                                        :: BalX, BalY
         real                                        :: Rand1
         logical                                     :: InsideDomain
+        logical                                     :: FreshlyBeached = .False.
+        real                                        :: SpecificHoldingCapacity
+
+
 
         CurrentOrigin => Me%FirstOrigin
 CurrOr: do while (associated(CurrentOrigin))
 
+           ig = CurrentOrigin%GroupID
 
 IfBeaching: if (CurrentOrigin%Beaching) then
                     
                 CurrentPartic => CurrentOrigin%FirstPartic
 CurrPart:       do while (associated(CurrentPartic))
 
+                    CurrentPartic%BeachingOilType = F_BeachingOilType(CurrentPartic%OilViscCin)
+                    
                     !Grid Cell of the particle
                     i     = CurrentPartic%Position%I
                     j     = CurrentPartic%Position%J
@@ -11575,46 +12405,87 @@ CurrPart:       do while (associated(CurrentPartic))
                     BALX  = CellJ - int(CellJ)
                     BALY  = CellI - int(CellI)
 
+                    FreshlyBeached = .false.
+                    
 IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
 
-                        call RANDOM_NUMBER(Rand1)
+                        SpecificHoldingCapacity =  &
+                        F_AverageBeachHoldingCapacity(CurrentPartic%Geometry%Volume,           &
+                            CurrentPartic%BeachingOilType,                                     &
+                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, 1), &
+                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, 2), &
+                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, 3), &
+                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig),          &
+                            Me%EulerModel(emp)%ShoreType(i,j),                                 &
+                            Me%EulerModel(emp)%HorizontalBeachHoldingCapacity(i,j))
+                            
+                        if (Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) + &
+                            CurrentPartic%Geometry%Volume <= SpecificHoldingCapacity) then
+                            
+                            call RANDOM_NUMBER(Rand1)
 
-                        if ((Me%EulerModel(emp)%OpenPoints3D(i, j+1, k).NE. OpenPoint)  .AND. &
-                              ((1-BALX) *  (Me%EulerModel(emp)%Grid%ParticXX(i, j+1) - &
-                               Me%EulerModel(emp)%Grid%ParticXX(i, j)) .LT. Me%BeachingLimit)) then
+                            if ((Me%EulerModel(emp)%OpenPoints3D(i, j+1, k).NE. OpenPoint)  .AND. &
+                                  ((1-BALX) *  (Me%EulerModel(emp)%Grid%ParticXX(i, j+1) - &
+                                   Me%EulerModel(emp)%Grid%ParticXX(i, j)) .LT. Me%EulerModel(emp)%BeachingLimit(i,j+1))) then
 
-                            if ((Me%EulerModel(emp)%BeachingProbability(i,j+1,k) .GT. Rand1)   &
-                                .OR. (Me%EulerModel(emp)%BeachingProbability(i,j+1,k) .EQ. 1)) &  
-                               CurrentPartic%Beached = ON
-       
-                        else if ((Me%EulerModel(emp)%OpenPoints3D(i, j-1, k).NE. OpenPoint)  .AND.  &
-                                   (BALX *  (Me%EulerModel(emp)%Grid%ParticXX(i, j+1) - &
-                                    Me%EulerModel(emp)%Grid%ParticXX(i, j)).LT. Me%BeachingLimit)) then
+                                if ((Me%EulerModel(emp)%BeachingProbability(i,j+1,k) .GT. Rand1)   &
+                                    .OR. (Me%EulerModel(emp)%BeachingProbability(i,j+1,k) .EQ. 1)) &  
+                                   CurrentPartic%Beached = ON
+                                   FreshlyBeached = .true.
+           
+                            else if ((Me%EulerModel(emp)%OpenPoints3D(i, j-1, k).NE. OpenPoint)  .AND.  &
+                                       (BALX *  (Me%EulerModel(emp)%Grid%ParticXX(i, j+1) - &
+                                        Me%EulerModel(emp)%Grid%ParticXX(i, j)).LT. Me%EulerModel(emp)%BeachingLimit(i,j-1))) then
 
 
-                            if ((Me%EulerModel(emp)%BeachingProbability(i,j-1,k) .GT. Rand1)   &
-                                .OR. (Me%EulerModel(emp)%BeachingProbability(i,j-1,k) .EQ. 1)) &  
-                               CurrentPartic%Beached = ON
-     
-                        else if ((Me%EulerModel(emp)%OpenPoints3D(i+1, j, k).NE. OpenPoint)  .AND. &
-                                   ((1-BALY) *  (Me%EulerModel(emp)%Grid%ParticYY(i+1, j) - &
-                                   Me%EulerModel(emp)%Grid%ParticYY(i, j)).LT. Me%BeachingLimit)) then
+                                if ((Me%EulerModel(emp)%BeachingProbability(i,j-1,k) .GT. Rand1)   &
+                                    .OR. (Me%EulerModel(emp)%BeachingProbability(i,j-1,k) .EQ. 1)) &  
+                                   CurrentPartic%Beached = ON
+                                   FreshlyBeached = .true.
+         
+                            else if ((Me%EulerModel(emp)%OpenPoints3D(i+1, j, k).NE. OpenPoint)  .AND. &
+                                       ((1-BALY) *  (Me%EulerModel(emp)%Grid%ParticYY(i+1, j) - &
+                                       Me%EulerModel(emp)%Grid%ParticYY(i, j)).LT. Me%EulerModel(emp)%BeachingLimit(i+1,j))) then
 
-                            if ((Me%EulerModel(emp)%BeachingProbability(i+1,j,k) .GT. Rand1) &
-                                .OR. (Me%EulerModel(emp)%BeachingProbability(i+1,j,k) .EQ. 1)) &  
-                               CurrentPartic%Beached = ON
-       
-                        else if ((Me%EulerModel(emp)%OpenPoints3D(i-1, j, k).NE. OpenPoint)  .AND. &
-                                   (BALY *  (Me%EulerModel(emp)%Grid%ParticYY(i+1, j) -            &
-                                   Me%EulerModel(emp)%Grid%ParticYY(i, j)) .LT. Me%BeachingLimit)) then
+                                if ((Me%EulerModel(emp)%BeachingProbability(i+1,j,k) .GT. Rand1) &
+                                    .OR. (Me%EulerModel(emp)%BeachingProbability(i+1,j,k) .EQ. 1)) &  
+                                   CurrentPartic%Beached = ON
+                                   FreshlyBeached = .true.
+           
+                            else if ((Me%EulerModel(emp)%OpenPoints3D(i-1, j, k).NE. OpenPoint)  .AND. &
+                                       (BALY *  (Me%EulerModel(emp)%Grid%ParticYY(i+1, j) -            &
+                                       Me%EulerModel(emp)%Grid%ParticYY(i, j)) .LT. Me%EulerModel(emp)%BeachingLimit(i-1,j))) then
 
-                            if ((Me%EulerModel(emp)%BeachingProbability(i-1,j,k) .GT. Rand1)   &
-                                .OR. (Me%EulerModel(emp)%BeachingProbability(i-1,j,k) .EQ. 1)) &  
-                               CurrentPartic%Beached = ON
-                
+                                if ((Me%EulerModel(emp)%BeachingProbability(i-1,j,k) .GT. Rand1)   &
+                                    .OR. (Me%EulerModel(emp)%BeachingProbability(i-1,j,k) .EQ. 1)) &  
+                                   CurrentPartic%Beached = ON
+                                   FreshlyBeached = .true.
+                    
+                            end if
+
+                        endif
+                    endif IfParticNotBeached
+
+                    if (CurrentPartic%Beached) then
+                        if (InsideDomain) then
+                            if (FreshlyBeached) then
+
+                                Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, CurrentPartic%BeachingOilType) = &
+                                Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, CurrentPartic%BeachingOilType) + &
+                                    CurrentPartic%Geometry%Volume   
+                                                      
+                                Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) =               &
+                                Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) +  CurrentPartic%Geometry%Volume   
+
+                                CurrentOrigin%VolTotBeached     = CurrentOrigin%VolTotBeached +         &
+                                                                  CurrentPartic%Geometry%Volume
+
+                                CurrentOrigin%VolTotOilBeached  = CurrentOrigin%VolTotOilBeached +      &
+                                                                  CurrentPartic%Geometry%VolumeOil
+                            end if
                         end if
+                    end if
 
-                    end if IfParticNotBeached
                 
                     CurrentPartic => CurrentPartic%Next
 
@@ -11626,6 +12497,257 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
         enddo CurrOr
 
     end subroutine VerifyParticleBeaching
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine UpdateRemovedVolumes()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, ILB, IUB, JLB, JUB,  em, ig
+        real                                        :: TheoricBeachedVolAfterRemoval, GridVoltoRemove, GridVoltoRemoveFraction
+        real                                        :: GridBeachedVolume, GridVolRemovedDiff, GridBeachedVolVar
+        
+DoEM:   do em =1, Me%EulerModelNumber
+
+            !Shorten
+            ILB    = Me%EulerModel(em)%Size%ILB
+            IUB    = Me%EulerModel(em)%Size%IUB
+            JLB    = Me%EulerModel(em)%Size%JLB
+            JUB    = Me%EulerModel(em)%Size%JUB
+
+            
+Group:      do ig = 1, Me%nGroups
+
+                Me%EulerModel(em)%Lag2Euler%TheoricBeachedVolAfterRemoval(:,:,ig) = 0.
+                Me%EulerModel(em)%Lag2Euler%GridVoltoRemove(:, :, ig)             = 0.
+                Me%EulerModel(em)%Lag2Euler%GridVoltoRemoveFraction(:, :, ig)     = 0.
+!                Me%EulerModel(em)%GridVolRemovedDiff(:, :, ig)                   = 0.
+
+                do j = JLB, JUB
+                do i = ILB, IUB
+                        
+                    TheoricBeachedVolAfterRemoval = Me%EulerModel(em)%Lag2Euler%TheoricBeachedVolAfterRemoval(i,j, ig)
+                    GridBeachedVolume             = Me%EulerModel(em)%Lag2Euler%GridBeachedVolume(i, j, ig)
+                    GridVoltoRemove               = Me%EulerModel(em)%Lag2Euler%GridVoltoRemove(i, j, ig)
+                    GridVoltoRemoveFraction       = Me%EulerModel(em)%Lag2Euler%GridVoltoRemoveFraction(i, j, ig)
+                    GridVolRemovedDiff            = Me%EulerModel(em)%Lag2Euler%GridVolRemovedDiff(i, j, ig)
+                    GridBeachedVolVar             = Me%EulerModel(em)%Lag2Euler%GridBeachedVolVar(i,j,ig)
+                    
+                    !next value is corrected with gridbeachedvolvar, since weathering processes also changed the 
+                    ! beached oil volume
+                    TheoricBeachedVolAfterRemoval = (GridBeachedVolume + (GridVolRemovedDiff * GridBeachedVolVar)) * &
+                                                     exp(-Me%EulerModel(em)%RemovalRateCoef(i,j) * (Me%DT_Partic/86400.))
+                    TheoricBeachedVolAfterRemoval = max(0.,  TheoricBeachedVolAfterRemoval)
+                    GridVoltoRemove               = max(0.,GridBeachedVolume - TheoricBeachedVolAfterRemoval)
+                    if (GridBeachedVolume > 0.) then
+                        GridVoltoRemoveFraction       = GridVoltoRemove / GridBeachedVolume
+                    end if
+                    Me%EulerModel(em)%Lag2Euler%TheoricBeachedVolAfterRemoval(i,j, ig) = TheoricBeachedVolAfterRemoval
+                    Me%EulerModel(em)%Lag2Euler%GridVoltoRemove(i, j, ig)              = GridVoltoRemove
+                    Me%EulerModel(em)%Lag2Euler%GridVoltoRemoveFraction(i, j, ig)      = GridVoltoRemoveFraction                
+                enddo
+                enddo                        
+
+            enddo Group
+        enddo DoEM
+
+    end subroutine UpdateRemovedVolumes
+
+    !--------------------------------------------------------------------------
+
+    subroutine VerifyBeachRemoval()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer    :: CurrentOrigin
+        type (T_Partic), pointer    :: CurrentPartic
+        integer                     :: i, j, KUB, em, emp, ig, IUB, ILB, JUB, JLB
+        logical                     :: InsideDomain, FreshlyRemoved
+        real                        :: TheoricBeachedVolAfterRemoval, GridVoltoRemove, GridVoltoRemoveFraction, Rand2
+        real                        :: GridBeachedVolume, GridVolRemovedDiff
+               
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+           ig = CurrentOrigin%GroupID
+
+IfBeaching: if (CurrentOrigin%Beaching) then
+                    
+                CurrentPartic => CurrentOrigin%FirstPartic
+CurrPart:       do while (associated(CurrentPartic))
+                   
+                    !Grid Cell of the particle
+                    i     = CurrentPartic%Position%I
+                    j     = CurrentPartic%Position%J
+                                      
+                    emp    = CurrentPartic%Position%ModelID
+                    KUB   = Me%EulerModel(emp)%WorkSize%KUB
+
+                    TheoricBeachedVolAfterRemoval = Me%EulerModel(emp)%Lag2Euler%TheoricBeachedVolAfterRemoval(i,j, ig)
+                    GridBeachedVolume             = Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig)
+                    GridVoltoRemove               = Me%EulerModel(emp)%Lag2Euler%GridVoltoRemove(i, j, ig)
+                    GridVolRemovedDiff            = Me%EulerModel(emp)%Lag2Euler%GridVolRemovedDiff(i, j, ig)
+                    GridVoltoRemoveFraction       = Me%EulerModel(emp)%Lag2Euler%GridVoltoRemoveFraction(i, j, ig)
+                    
+                    InsideDomain = .true.
+
+                    if (j <= Me%EulerModel(emp)%WorkSize%JLB + 1) InsideDomain = .false.
+                    if (i <= Me%EulerModel(emp)%WorkSize%ILB + 1) InsideDomain = .false.
+                    
+                    if (j >= Me%EulerModel(emp)%WorkSize%JUB - 1) InsideDomain = .false.
+                    if (i >= Me%EulerModel(emp)%WorkSize%IUB - 1) InsideDomain = .false.
+
+                    FreshlyRemoved = .false.
+
+                    if (CurrentPartic%Beached .AND. InsideDomain) then
+                                                                                              
+                        call RANDOM_NUMBER(Rand2)
+
+                            ! if tide is rising -> oil can be removed
+                        if ( (Me%EulerModel(emp)%OldSurfaceDepth(i,j) .NE. null_real) .AND. &
+                             (Me%EulerModel(emp)%SZZ(i, j, KUB) >=  Me%EulerModel(emp)%OldSurfaceDepth(i,j)) ) then
+                            ! if random number  < volume fraction to be removed, particle will be "unbeached"
+                            if (Rand2 < GridVoltoRemoveFraction) then
+                                CurrentPartic%Beached = OFF                            
+                                FreshlyRemoved = .true.
+                            end if
+                                                            
+                        end if
+
+                    end if
+                    
+                    if ((.NOT. CurrentPartic%Beached) .AND. InsideDomain) then
+                        if (FreshlyRemoved) then
+                            !Update volumes, subtracting unbeached particles
+                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, CurrentPartic%BeachingOilType) =  &
+                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, CurrentPartic%BeachingOilType) -  &
+                                CurrentPartic%Geometry%Volume   
+
+                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) =               &
+                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) -  CurrentPartic%Geometry%Volume   
+
+                            CurrentOrigin%VolTotBeached     = CurrentOrigin%VolTotBeached -         &
+                                                              CurrentPartic%Geometry%Volume
+
+                            CurrentOrigin%VolTotOilBeached  = CurrentOrigin%VolTotOilBeached -      &
+                                                              CurrentPartic%Geometry%VolumeOil
+
+                        end if
+                    end if
+
+                    Me%EulerModel(emp)%OldSurfaceDepth(i,j)    =   Me%EulerModel(emp)%SZZ(i, j, KUB)
+
+                    CurrentPartic => CurrentPartic%Next
+
+                enddo CurrPart
+
+
+            end if IfBeaching
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+        
+        
+DoEM:   do em =1, Me%EulerModelNumber         
+Group:      do ig = 1, Me%nGroups
+                do j = JLB, JUB
+                    do i = ILB, IUB
+                        Me%EulerModel(em)%Lag2Euler%GridVolRemovedDiff(i, j, ig)    =                  &
+                                Me%EulerModel(em)%Lag2Euler%TheoricBeachedVolAfterRemoval(i,j, ig) -   &
+                                Me%EulerModel(em)%Lag2Euler%GridBeachedVolume(i, j, ig) 
+                    enddo
+                enddo                        
+            enddo Group
+        enddo DoEM
+        
+
+    end subroutine VerifyBeachRemoval
+
+    !--------------------------------------------------------------------------
+
+
+    subroutine UpdateBeachHoldingCapacity()
+
+        !Arguments-------------------------------------------------------------
+   
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: em             
+        real, dimension(:, :), pointer              :: DXX, DYY               
+        integer                                     :: ILB, IUB, JLB, JUB, KUB
+        integer                                     :: i,j, ShoreType
+        real, dimension(:), pointer                 :: BeachWidth
+        integer                                     :: STAT_CALL
+        real                                        :: WidthFractionX1, WidthFractionX2, WidthFractionX
+        real                                        :: WidthFractionY1, WidthFractionY2, WidthFractionY
+        real                                        :: RemainingWidthFractionX, RemainingWidthFractionY
+        real                                        :: RemainingAreaFraction
+        
+        !Begin---------------------------------------------------------------------
+
+        allocate (BeachWidth(1:10))
+        
+d1:     do em =1, Me%EulerModelNumber 
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+            KUB = Me%EulerModel(em)%WorkSize%KUB
+            
+            call GetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DXX = DXX, DYY = DYY, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ComputeAreas - Geometry - ERR01'
+
+d3:         do j  = JLB, JUB
+d4:         do i  = ILB, IUB
+                !only checks holding capacity for waterpoints             
+i1:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+                        WidthFractionX1 = 0.
+                        WidthFractionX2 = 0.
+                        WidthFractionY1 = 0.
+                        WidthFractionY2 = 0.
+                        
+                        !take width fraction of cells with any land cells at the neighborhood
+                        if (Me%EulerModel(em)%OpenPoints3D(i, j+1, KUB).NE. OpenPoint) then
+                            ShoreType = Me%EulerModel(em)%ShoreType(i,j+1)
+                            WidthFractionX1   = min(1., Me%EulerModel(em)%BeachingLimit(i,j) / DXX (i, j))
+                        endif
+                        if (Me%EulerModel(em)%OpenPoints3D(i, j-1, KUB).NE. OpenPoint) then
+                            ShoreType = Me%EulerModel(em)%ShoreType(i,j-1)
+                            WidthFractionX2   = min(1.,Me%EulerModel(em)%BeachingLimit(i,j) / DXX (i, j))
+                        endif
+                        if (Me%EulerModel(em)%OpenPoints3D(i+1, j, KUB).NE. OpenPoint) then
+                            ShoreType = Me%EulerModel(em)%ShoreType(i+1,j)
+                            WidthFractionY1   = min(1.,Me%EulerModel(em)%BeachingLimit(i,j) / DYY (i, j))
+                        endif
+                        if (Me%EulerModel(em)%OpenPoints3D(i-1, j, KUB).NE. OpenPoint) then
+                            ShoreType = Me%EulerModel(em)%ShoreType(i-1,j)
+                            WidthFractionY2   = min(1.,Me%EulerModel(em)%BeachingLimit(i,j) / DYY (i, j))
+                        endif
+                            !Sums Width Fractions for X and Y (maximum fraction is obviously 1)
+                            WidthFractionX = min(1., WidthFractionX1 + WidthFractionX2)
+                            WidthFractionY = min(1., WidthFractionY1 + WidthFractionY2)
+                            RemainingWidthFractionX  = 1. - WidthFractionX
+                            RemainingWidthFractionY  = 1. - WidthFractionY
+                            
+                            !Area without any holding capacity
+                            RemainingAreaFraction    = RemainingWidthFractionX * RemainingWidthFractionY
+                            
+                            ! Holding capacity is based on Area fraction capable of holding beached particles
+                            Me%EulerModel(em)%HorizontalBeachHoldingCapacity(i,j) = &
+                                Me%EulerModel(em)%GridCellArea(i, j) * (1 - RemainingAreaFraction)  
+                endif i1
+
+            enddo d4
+            enddo d3
+            
+        enddo d1
+
+
+    end subroutine UpdateBeachHoldingCapacity
 
     !--------------------------------------------------------------------------
 
@@ -11897,8 +13019,7 @@ CurrOr: do while (associated(CurrentOrigin))
                          DiffCoef       = Me%ExternalVar%OilDiffCoef,                   &
                          STAT           = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'MovePartic - ModuleLagrangianGlobal - ERR40'
-                endif
-
+                end if
             endif
 
             !Moves the particles horizontaly
@@ -11969,13 +13090,42 @@ CurrOr: do while (associated(CurrentOrigin))
         logical                                     :: InterpolVel3D
         integer                                     :: nn, Npi, Npj, ts 
         real                                        :: LineAngle, AuxAngle, IntersectVel, DXn, DYn
-        
+        !new method for stokes drift
+        real                                        :: WaveLength
+!        real                                        :: Celerity
+!        character                                   :: WaveType
+        real                                        :: WaterDepth
+        real                                        :: WaveAmplitude
+!        real                                        :: WaveLength_Deep, WaveLength_Shallow
+        real                                        :: C_Term
+        real                                        :: OilViscCin, OWInterfacialTension
         !Begin-----------------------------------------------------------------------------------------
         
-
+        if (Me%State%Oil) then
+            call GetOilViscCin(OilID         = CurrentOrigin%ObjOil,       &
+                               OilViscCin    = OilViscCin,                 &              
+                                 STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR01'
+            
+            !next property needed for rising velocity, method Zheng 
+            If (CurrentOrigin%MethodFloatVel .EQ. Zheng_) then
+                call GetOWInterfacialTension(CurrentOrigin%ObjOil,                                &
+                                             OWInterfacialTension   = OWInterfacialTension,       &              
+                                             STAT                   = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR02'
+               
+            endif
+        end if
         CurrentPartic => CurrentOrigin%FirstPartic
 CP:     do while (associated (CurrentPartic))
 
+            if (Me%State%Oil) then
+                CurrentPartic%OilViscCin = OilViscCin
+                If (CurrentOrigin%MethodFloatVel .EQ. Zheng_) then
+                    CurrentPartic%OWInterfacialTension = OWInterfacialTension
+                end if
+            end if
+            
             ComputeTrajectory = .true. 
 
 CT:         do while (ComputeTrajectory) 
@@ -12146,36 +13296,56 @@ MF:             if (CurrentPartic%Position%Surface) then
                             CurrentPartic%WaveDirection = Me%EulerModel(emp)%WaveDirection2D(i, j)
                         endif
 
+                        if (CurrentPartic%WaveLength    < 0) then
+                            CurrentPartic%WaveLength    = Me%EulerModel(emp)%WaveLength2D(i, j)
+                        endif
+
                         WaveHeight      = CurrentPartic%WaveHeight
                         WavePeriod      = CurrentPartic%WavePeriod
                         WaveDirection   = CurrentPartic%WaveDirection
 
-                        WavePeriodAux       = max (WavePeriod, 0.01)
+                        WavePeriodAux   = max (WavePeriod, 0.01)
+                        AngFrequency    = 2 * Pi / WavePeriodAux
                         
                         if (WavePeriod == 0 .and. WaveHeight>0) then
                             write(*,*) 'Can not have a null wave period and a positive wave height'
                             stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR10'
                         endif
-                        
-                        AngFrequency        = 2 * Pi / WavePeriodAux
-                        WaveNumber          = AngFrequency * AngFrequency / gravity
-                        
+
                         Depth               = CurrentPartic%Position%Z-             &
                                               Me%EulerModel(emp)%SZZ(i, j, WS_KUB)
                                               
                         if (Depth < 0.)       Depth = 0. 
-                        
-                        VelStokesDrift      = 0.5 * (WaveHeight /  2 )**2 * WaveNumber * AngFrequency * & 
-                                              exp(- 2. * WaveNumber * Depth)
-                                              
-                        VelStokesDrift      = CurrentOrigin%Movement%R_ice * VelStokesDrift
-                                              
+
+                        WaterDepth         = Me%EulerModel(emp)%SZZ(i, j, 0) - Me%EulerModel(emp)%SZZ(i, j, WS_KUB)
+                        WaveAmplitude      = CurrentPartic%WaveHeight / 2.
+                        WaveLength         = CurrentPartic%WaveLength
+                        WaveNumber         = 2 * Pi / WaveLength
+
+if_stm:                 If (CurrentOrigin%Movement%StokesDriftMethod == LonguetHigginsGeneric) then 
+                            C_Term             = - (WaveAmplitude * WaveAmplitude * AngFrequency *           &
+                                                   sinh(2 * WaveNumber *  WaterDepth)) / &
+                                                   ( 4 * WaterDepth * sinh(WaveNumber * WaterDepth)**2)
+                            
+                            VelStokesDrift     = WaveAmplitude * WaveAmplitude * AngFrequency * WaveNumber * &
+                                                 ( ( cosh(2 * WaveNumber * (WaterDepth - Depth)) ) /         &
+                                                   ( 2 * (sinh(WaveNumber * WaterDepth)*                     &
+                                                    sinh(WaveNumber * WaterDepth))      )   )     +  C_Term 
+                            
+                        elseif (CurrentOrigin%Movement%StokesDriftMethod == LonguetHigginsDeep) then   if_stm
+
+                            VelStokesDrift     = WaveAmplitude * WaveAmplitude * AngFrequency * WaveNumber * &
+                                                 exp(-2* WaveNumber * Depth)
+                                                                           
+                        end if if_stm
+                                                                      
                         if (VelStokesDrift > 10) then
                             write(*,*) 'Stokes drift velocity > 10, null value is assumed'
                             write(*,*) 'i j =',i, j
                             write(*,*)'WaveHeight  =', WaveHeight
                             write(*,*)'WavePeriod  =', WavePeriod
                             write(*,*)'WaveDirection  =', WaveDirection
+                            write(*,*)'WaveLength  =', WaveLength
                             write(*,*) 'MoveParticHorizontal - ModuleLagrangianGlobal - WRN10'
                             VelStokesDrift = 0
                         endif
@@ -12820,7 +13990,6 @@ dts:        do ts = 1, 2
 
         enddo CP
 
-
     end subroutine MoveParticHorizontal
 
     !--------------------------------------------------------------------------
@@ -13221,7 +14390,9 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                     
                         VELQZ = DropletsFloatVel(ParticleDensity = CurrentOrigin%Movement%Density, &
                                                  WaterDensity    = Me%EulerModel(emp)%Density(i, j, k), &
-                                                 D50             = CurrentOrigin%Movement%D50)
+                                                 Diameter        = CurrentOrigin%Movement%D50, &
+                                                 MethodFloatVel  = CurrentOrigin%MethodFloatVel, &
+                                                 InterfTension   = CurrentPartic%OWInterfacialTension)
                         
                         CurrentPartic%D50vel = VELQZ 
                         
@@ -13420,9 +14591,13 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                                     BreakingWaveHeight = 1.5 * WaveHeight
                                     NewPosition%Z = min(r2 * 1.5 * BreakingWaveHeight + SurfaceDepth, BottomDepth)
                                     
-                                    !ROD TO DO: D50 SHOULD BE COMPUTED IN THE FUTURE
-                                    !CurrentPartic%Geometry%OilDropletsD50 = 0.000050
-                                    CurrentPartic%Geometry%OilDropletsD50 = CurrentOrigin%OilDropletsD50
+                                    !CurrentPartic%Geometry%OilDropletsD50 = CurrentOrigin%OilDropletsD50
+
+                                    CurrentPartic%Geometry%OilDropletsDiameter = OilDropletDiameter(&
+                                                  MethodBWDropletsDiameter    = CurrentOrigin%MethodBWDropletsDiameter, &
+                                                  D50                         = CurrentOrigin%OilDropletsD50, &
+                                                  ParticleViscCin             = CurrentPartic%OilViscCin)
+
 
                                     !VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 & 
                                     !           * CurrentPartic%Geometry%OilDropletsD50 & 
@@ -13432,7 +14607,9 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
                                     VELFLOAT = DropletsFloatVel(ParticleDensity = CurrentPartic%OilDensity, &
                                                                 WaterDensity    = Me%EulerModel(emp)%Density (i, j, k), &
-                                                                D50             = CurrentOrigin%OilDropletsD50)
+                                                                Diameter        = CurrentPartic%Geometry%OilDropletsDiameter, &
+                                                                MethodFloatVel  = CurrentOrigin%MethodFloatVel, &
+                                                                InterfTension   = CurrentPartic%OWInterfacialTension)
                                     
                                 else
                                      NewPosition%Z = SurfaceDepth
@@ -13447,7 +14624,10 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                             !           * (1. - (CurrentPartic%OilDensity/Me%EulerModel(emp)%Density (i, j, k)) ) &
                             !           / (18. * WaterCinematicVisc)
 
-                            CurrentPartic%Geometry%OilDropletsD50 = CurrentOrigin%OilDropletsD50
+                            !This situation can be verified in the case of a underwater release of oil
+                            if (CurrentPartic%Geometry%OilDropletsDiameter < 0.) then
+                                CurrentPartic%Geometry%OilDropletsDiameter = CurrentOrigin%OilDropletsD50
+                            endif
                             
                             !This situation can be verified in the case of a underwater release of oil
                             !The particle oil density is only initialized if the particle is at some point has the float condition
@@ -13460,8 +14640,10 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
                             VELFLOAT = DropletsFloatVel(ParticleDensity = CurrentPartic%OilDensity, &
                                                         WaterDensity    = Me%EulerModel(emp)%Density (i, j, k), &
-                                                        D50             = CurrentPartic%Geometry%OilDropletsD50)
-                                       
+                                                        Diameter        = CurrentPartic%Geometry%OilDropletsDiameter, &
+                                                        MethodFloatVel  = CurrentOrigin%MethodFloatVel, &
+                                                        InterfTension   = CurrentPartic%OWInterfacialTension)
+                                      
                         endif SU1                       
                                       
                 endif
@@ -13564,38 +14746,179 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
     
     !--------------------------------------------------------------------------    
     
-    real function DropletsFloatVel(ParticleDensity, WaterDensity, D50)
+    real function DropletsFloatVel(ParticleDensity, WaterDensity, Diameter, MethodFloatVel, InterfTension)
     
         !Arguments----------------------------------------------------------------------
-        real            :: ParticleDensity, WaterDensity, D50
+        real, intent (IN)                 :: ParticleDensity, WaterDensity, Diameter
+        integer, intent (IN)              :: MethodFloatVel
+        real, intent (IN)                 :: InterfTension
         
         !Local--------------------------------------------------------------------------
-        real            :: DensRel, dc, dpx
-        
+        real            :: DensRel, dc, dpx, Reynolds
+        real            :: alfa, beta
+        real            :: M_, Eo, H_, J_
         !Begin--------------------------------------------------------------------------
             
         DensRel = ParticleDensity/WaterDensity
-        
-        if (DensRel <1) then
-        
-            dc = ((9.52 * WaterCinematicVisc**2)/(Gravity*(1-DensRel)))**0.333
-            
-            dpx = D50
-            
-            if (dpx < dc) then
-                DropletsFloatVel = Gravity*dpx**2*(1-DensRel)/18./WaterCinematicVisc
-            else
-                DropletsFloatVel = sqrt(8./3.*Gravity*dpx*(1-DensRel))
-            endif   
-        
-        else
 
-            DropletsFloatVel = 0.
-            
+        if (MethodFloatVel == SoaresDosSantos_) then
+            alfa = 9.52
+            beta = 8./3.
+        elseif (MethodFloatVel == PADM_) then
+            alfa = 5.47
+            beta = 0.711*0.711
         endif
-        
+
+        if ((MethodFloatVel == SoaresDosSantos_) .OR. (MethodFloatVel == PADM_)) then
+            if (DensRel <1) then
+            
+                dc = ((alfa * WaterCinematicVisc**2)/(Gravity*(1-DensRel)))**0.333
+                
+                dpx = Diameter
+                
+                if (dpx < dc) then
+                    DropletsFloatVel = Gravity*dpx**2*(1-DensRel)/18./WaterCinematicVisc
+                else
+                    DropletsFloatVel = sqrt(beta*Gravity*dpx*(1-DensRel))
+                endif   
+            
+            else
+
+                DropletsFloatVel = 0.
+                
+            endif
+        elseif (MethodFloatVel == Zheng_) then
+            if (Diameter < 1E-3) then
+                !regime of spherical shape (small size range)
+                
+                Reynolds = F_Reynolds(ParticleDensity, DensRel, Diameter)
+
+                DropletsFloatVel = (WaterDynamicVisc * Reynolds) / &
+                                   (ParticleDensity * Diameter)
+            elseif (Diameter > 1E-3) then              
+                Eo = Gravity * DensRel * (Diameter **2.) / InterfTension
+                M_ = Gravity * (WaterDynamicVisc **4.) * DensRel / &
+                     ( (ParticleDensity**2) * (InterfTension**3) ) 
+                if ((M_ < 1E-3) .AND. (Eo < 40.)) then
+                    !regime of ellipsoidal shape (intermediate size range)
+                    
+                    H_ = (4/3) * Eo * (M_**(-0.149))
+                    ! original previous formula multiplies by:
+                    ! (ambient fluid viscosity / WaterDynamicVisc)**-0.14
+                    ! but it is assumed that
+                    ! ambient fluid viscosity = WaterDynamicVisc
+                    If (H_ > 59.3) then
+                        J_ = 3.42 * (H_**0.441)
+                    ElseIf ((H_ > 2) .AND. (H_ <= 59.3)) then
+                        J_ = 0.94 * (H_**0.757) 
+                    Else
+                        write(*,*)'Error computing rising velocity (H < 2)'
+                        stop 'Lagrangian - DropletsFloatVel - ERR01'
+                    End If            
+                                 
+                    DropletsFloatVel = (WaterDynamicVisc / (  ParticleDensity * Diameter)) * &
+                                        M_**(-0.149) * (J_ - 0.857)
+                                                        
+                elseif (Eo > 40.) then
+                    !regime of spherical-cap (large size range)
+                    
+                    DropletsFloatVel = 0.711 * sqrt(Gravity * Diameter * DensRel / ParticleDensity)
+               
+                else
+                    write(*,*)'Error computing rising velocity (Eo <=40 and M >=1E-3)'
+                    stop 'Lagrangian - DropletsFloatVel - ERR02'
+                endif    
+            end if
+        endif        
         
     end function DropletsFloatVel                         
+
+    !--------------------------------------------------------------------------    
+    
+    real function F_Reynolds(ParticleDensity, DensRel, Diameter)
+    !Correlation for Reynolds (Clift et al., 1978 from  Zheng & Yapa 2000)
+        !Arguments----------------------------------------------------------------------
+        real, intent (IN)       :: ParticleDensity, DensRel, Diameter
+        
+        !Local--------------------------------------------------------------------------
+        real            :: Nd, W_
+        !Begin--------------------------------------------------------------------------
+
+        Nd = 4 * ParticleDensity * DensRel * Gravity * (Diameter**3.) / (3 * WaterDynamicVisc * WaterDynamicVisc)
+        W_  = log(Nd)
+        If (Nd <= 73.) then
+
+            F_Reynolds = (Nd / 24.) - (1.7569E-4 * Nd**2) + (6.9252E-7 * Nd**3) - (2.3027E-10* Nd**4)
+
+        ElseIf ( (Nd > 73. ) .AND. (Nd <= 580.)) then
+
+            F_Reynolds = exp( -1.7095 + 1.33438 * W_ - 0.11591 * W_**2)
+
+        ElseIf ( (Nd > 580.) .AND. (Nd <= 1.55E10**7.)) then
+
+            F_Reynolds = exp( -1.81391 + 1.34671 * W_ - 0.12427 * W_**2 + 0.006344 * W_**3)
+
+        Else
+            write(*,*)'Error computing Reynolds Number (Nd > 1.55E10**7)'
+            stop 'Lagrangian - F_Reynolds - ERR01'
+        End If          
+        
+    end function F_Reynolds                         
+
+    !--------------------------------------------------------------------------
+    real function OilDropletDiameter(MethodBWDropletsDiameter, D50, ParticleViscCin)
+    
+        !Arguments----------------------------------------------------------------------
+        integer, intent(IN)            :: MethodBWDropletsDiameter
+        real,    intent(IN)            :: D50, ParticleViscCin
+
+        !Local--------------------------------------------------------------------------
+        !type (T_Origin), pointer                    :: CurrentOrigin
+        real            :: ComputedD50
+        integer         :: i
+        real, parameter :: EWave = 5000. ! energy dissipation rate per unit volume (J/m3-s) between 1000 and 10000 - Delvigne 1988
+        real            :: DropletDiameter(5) ! mean droplet diameter per size class
+        real            :: Qd(5) ! Entrainment rate per size class
+        real            :: QdTotal ! Total entrainment rate
+        real            :: RandVal
+        real            :: CumulativeFraction(5)
+        !Begin--------------------------------------------------------------------------
+        select case (MethodBWDropletsDiameter)
+        
+        case (UserDefined_)
+            OilDropletDiameter = D50
+            
+        case (Computed_Half_D50_)
+            call GetDropletDiameterParameters(ParticleViscCin      = ParticleViscCin, &
+                                              ComputedD50          = ComputedD50)
+            OilDropletDiameter  = 0.5 * ComputedD50 
+                  
+        case (Computed_Classes_Random_)
+          
+            call GetEntrainedClasses(ParticleViscCin, 5, QdTotal, Qd, DropletDiameter)
+                                  
+        call random_number(RandVal)
+
+        CumulativeFraction(1) = (Qd(1) / QdTotal)
+        do i = 2,5
+            CumulativeFraction(i) =  CumulativeFraction(i-1) + (Qd(i) / QdTotal)
+        end do
+
+        If (RandVal <= CumulativeFraction(1)) then
+                OilDropletDiameter = DropletDiameter(1)
+        else
+            do i = 2,5 
+                if ((RandVal <= CumulativeFraction(i)) .and. (RandVal > CumulativeFraction(i-1))) then
+                    OilDropletDiameter = DropletDiameter(i)
+                    exit
+                endif        
+            end do             
+        Endif
+        
+        end select       
+       
+        
+    end function OilDropletDiameter                         
 
     !--------------------------------------------------------------------------
 
@@ -15256,25 +16579,21 @@ CurrProp:       do while (associated(CurrentProperty))
         integer                                     :: i, j, em, ig, emp, ObjTriangulation, ip, NumberOfNodes, iN, iT        
         integer                                     :: STAT_CALL, NNi, NeighborNodesNumber, ni, ic, NumberOfBoundaryNodes
         real                                        :: dx, dy, dt, Angle, Grad, vx, vy, Aux, x1, y1, t1, AuxT, RAND, dist
-        
+
         !Begin-----------------------------------------------------------------
 
         
-
         do em = 1, Me%EulerModelNumber
-        do ig = 1, Me%NGroups
-            Me%EulerModel(em)%OilSpreading(ig)%AreaFlag(:,:) = .true. 
-        enddo
+            do ig = 1, Me%NGroups
+                Me%EulerModel(em)%OilSpreading(ig)%AreaFlag(:,:)           = .true. 
+            enddo
         enddo
 
         
         CurrentOrigin => Me%FirstOrigin
 CurrOr: do while (associated(CurrentOrigin))
 
-            CurrentOrigin%VolTotOilBeached = 0.
-            CurrentOrigin%VolTotBeached    = 0.
             CurrentOrigin%AreaTotal        = 0.
-
             CurrentOrigin%VolumeTotal      = 0.
             CurrentOrigin%VolumeOilTotal   = 0.
 
@@ -15288,16 +16607,7 @@ CurrOr: do while (associated(CurrentOrigin))
                 j = CurrentPartic%Position%J
                 emp= CurrentPartic%Position%ModelID
                 
-                if (CurrentPartic%Beached)    then
-
-                    CurrentOrigin%VolTotBeached     = CurrentOrigin%VolTotBeached +         &
-                                                      CurrentPartic%Geometry%Volume
-
-                    CurrentOrigin%VolTotOilBeached  = CurrentOrigin%VolTotOilBeached +      &
-                                                      CurrentPartic%Geometry%VolumeOil
-
-                        
-                else if (.NOT. CurrentPartic%Beached) then
+                if (.NOT. CurrentPartic%Beached) then
 
                     if (CurrentOrigin%AreaMethod == GridCells_) then
                         if (Me%EulerModel(emp)%OilSpreading(ig)%AreaFlag(i, j)) then
@@ -15327,7 +16637,7 @@ CurrOr: do while (associated(CurrentOrigin))
 !                        endif                            
 !                    endif                        
                 end if
-
+                
                 CurrentPartic => CurrentPartic%Next
             enddo
 
@@ -15336,7 +16646,7 @@ CurrOr: do while (associated(CurrentOrigin))
 iAM:        if (CurrentOrigin%AreaMethod == FayMethod_ .or.                             &
                (CurrentOrigin%AreaMethod == VoronoiArea_ .and. NumberOfNodes < 20)) then
 
-                call GetOilAPI (CurrentOrigin%ObjOil, API = API)
+                call GetOilAPI (CurrentOrigin%ObjOil, API = API, STAT = STAT_CALL)
 
                 select case (CurrentOrigin%EmissionTemporal)
                 case (Continuous_)
@@ -15750,19 +17060,30 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                     CurrentPartic                           => CurrentOrigin%FirstPartic
                     do while (associated(CurrentPartic))
 
-                            !Particle Mass
-                            !É necessário depois acrescentar CurrentOrigin%NbrParticlesIteration para ser atribuido
-                            !também na subrotina EmissionBox
-                              
-                            CurrentPartic%OilMass          = Me%ExternalVar%MassINI / CurrentOrigin%NbrParticlesIteration
-                            CurrentPartic%OilDissolvedMass = 0.
-                            CurrentPartic%OilDensity       = Me%ExternalVar%OilDensity
+                        !Particle Mass
+                        !É necessário depois acrescentar CurrentOrigin%NbrParticlesIteration para ser atribuido
+                        !também na subrotina EmissionBox
+                          
+                        CurrentPartic%OilMass          = Me%ExternalVar%MassINI / CurrentOrigin%NbrParticlesIteration
+                        CurrentPartic%OilDissolvedMass = 0.
                             
                         CurrentPartic => CurrentPartic%Next
 
                     enddo
                    
-                End If
+                End If              
+                
+                CurrentPartic                               => CurrentOrigin%FirstPartic
+                do while (associated(CurrentPartic))
+                        CurrentPartic%FMDispersed           = Me%ExternalVar%FMDispersed
+                        CurrentPartic%FMEvaporated          = Me%ExternalVar%FMEvaporated
+                        CurrentPartic%VWaterContent         = Me%ExternalVar%VWaterContent
+                        CurrentPartic%OilDensity            = Me%ExternalVar%OilDensity
+                        CurrentPartic%OilViscosity          = Me%ExternalVar%OilViscosity
+
+                        CurrentPartic                       => CurrentPartic%Next
+                enddo
+                
 
                 ! Count Number of particles beached
                 CurrentOrigin%NbrParticlesBeached           = 0
@@ -15805,14 +17126,17 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                          if (CurrentPartic%Position%Surface) then
 
                             !Particle Mass 
-                            CurrentPartic%OilMass = CurrentPartic%Geometry%Volume*Me%ExternalVar%OilDensity
+                            CurrentPartic%OilMass = CurrentPartic%Geometry%Volume*CurrentPartic%OilDensity
                             
-                            ! Atenção falta Corrects Density to include only evaporation (excludes water content, which is at water column)
-                            CurrentPartic%OilDensity = Me%ExternalVar%OilDensity
+!                            ! Atenção falta Corrects Density to include only evaporation (excludes water content, 
+                             !which is at water column)
+!                            CurrentPartic%OilDensity   = Me%ExternalVar%OilDensity
+!                            CurrentPartic%OilViscosity = Me%ExternalVar%OilViscosity
                          else       
  
                             ! Atenção falta Corrects Density to include only water content (wxcludes evaporation, which is at surface)
-                            CurrentPartic%OilDensity = Me%ExternalVar%OilDensity
+!                            CurrentPartic%OilDensity   = Me%ExternalVar%OilDensity
+!                            CurrentPartic%OilViscosity = Me%ExternalVar%OilViscosity
 
                          end if
 
@@ -15838,7 +17162,7 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                     
                 !Calculate the dillution concentration
                 call OilGridDissolution3D   (CurrentOrigin)
-
+                
                 !Ungets Concentration from the eulerian module
                 call UngetWaterProperties (Me%EulerModel(emp)%ObjWaterProperties, Temperature3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR10'
@@ -18336,8 +19660,11 @@ i1:             if (nP>0) then
                             enddo            
                             if (nP > 0) then
                                 !HDF 5
-                                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Surface State", &
-                                                    "State",  "ON/OFF", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
+                                call HDF5WriteData  (Me%ObjHDF5(em),                                              &
+                                                     "/Results/"//trim(CurrentOrigin%Name)//"/Surface State",     &
+                                                     "Surface State",                                             &
+                                                     "ON/OFF",                                                    &
+                                                     Array1D = Matrix1D, OutputNumber = OutPutNumber,             &
                                                      STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR295'
                             endif
@@ -18412,7 +19739,22 @@ i1:             if (nP>0) then
                     
                         endif
 
-
+                        !Particle State
+                        CurrentPartic   => CurrentOrigin%FirstPartic
+                        nP = 0
+                        do while (associated(CurrentPartic))
+                            nP = nP + 1
+                            Matrix1D(nP)  =  CurrentPartic%ParticleState
+                            CurrentPartic => CurrentPartic%Next
+                        enddo            
+                        if (nP > 0) then
+                            !HDF 5
+                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//&
+                                                "/Particle State", "Particle State",  "-",              &
+                                                Array1D = Matrix1D, OutputNumber = OutPutNumber,        &
+                                                STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR240'
+                        endif
 
                         CurrentProperty => CurrentOrigin%FirstProperty
                         do while (associated(CurrentProperty))
@@ -19002,6 +20344,74 @@ ModelID:                do while (associated(CurrentOrigin))
                                                    OutputNumber = OutPutNumber,              &
                                                    STAT = STAT_CALL)
 
+                        !Surface State
+                        nP = 1
+                        CurrentOrigin => Me%FirstOrigin
+SurfaceState:           do while (associated(CurrentOrigin))
+
+                            if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+                                CurrentPartic   => CurrentOrigin%FirstPartic
+                                do while (associated(CurrentPartic))
+
+                                    if (CurrentPartic%Position%Surface) then 
+
+                                        ParticSurface  = 1
+
+                                    else
+
+                                        ParticSurface  = 2
+
+                                    end if
+
+                                    Matrix1D(nP) = ParticSurface
+
+                                    CurrentPartic => CurrentPartic%Next
+                                    nP = nP + 1
+                                enddo            
+                            endif
+                
+                            CurrentOrigin => CurrentOrigin%Next
+                        enddo SurfaceState
+
+
+                        !HDF 5
+                        call HDF5WriteData        (Me%ObjHDF5(em),                    &
+                                                   "/Results/"//trim(GroupName)//"/Surface State",&
+                                                   "Surface State",                               &
+                                                   "ON/OFF",                                      &
+                                                   Array1D = Matrix1D,                            &
+                                                   OutputNumber = OutPutNumber,                   &
+                                                   STAT = STAT_CALL)
+
+                        !Particle State
+                        nP = 1
+                        CurrentOrigin => Me%FirstOrigin
+ParticleState:          do while (associated(CurrentOrigin))
+
+                            if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+                                CurrentPartic   => CurrentOrigin%FirstPartic
+                                do while (associated(CurrentPartic))
+
+                                    Matrix1D(nP) = CurrentPartic%ParticleState
+
+                                    CurrentPartic => CurrentPartic%Next
+                                    nP = nP + 1
+                                enddo            
+                            endif
+                
+                            CurrentOrigin => CurrentOrigin%Next
+                        enddo ParticleState
+
+
+                        !HDF 5
+                        call HDF5WriteData        (Me%ObjHDF5(em),                    &
+                                                   "/Results/"//trim(GroupName)//"/Particle State",&
+                                                   "Particle State",                               &
+                                                   "-",                                            &
+                                                   Array1D = Matrix1D,                             &
+                                                   OutputNumber = OutPutNumber,                    &
+                                                   STAT = STAT_CALL)
+
                         !(Oil-Beached Particles)
 iobp:                   if (Me%State%AssociateBeachProb) then
 
@@ -19032,7 +20442,7 @@ iobp:                   if (Me%State%AssociateBeachProb) then
                             !HDF 5
                             call HDF5WriteData        (Me%ObjHDF5(em),                           &
                                                        "/Results/"//trim(GroupName)//"/Beached", &
-                                                       "Origin ID",                              &
+                                                       "Beached",                                &
                                                        "-",                                      &
                                                        Array1D = Matrix1D,                       &
                                                        OutputNumber = OutPutNumber,              &
@@ -19328,7 +20738,6 @@ thick:                      do while (associated(CurrentOrigin))
 
                     endif iTP
                     enddo dig
-
                 
                     if (Me%State%Monitor) then
                         call WriteMonitorOutput (OutputNumber)
@@ -19636,6 +21045,40 @@ thick:                      do while (associated(CurrentOrigin))
             
         endif
         
+        CurrentPartic => CurrentOrigin%FirstPartic
+        nP = 0
+        do while (associated(CurrentPartic))
+            nP = nP + 1
+            Matrix1D(nP)   =  CurrentPartic%WaveLength
+            Solution1D(nP) =  CurrentPartic%SolutionWL
+            CurrentPartic  => CurrentPartic%Next
+        enddo            
+        if (nP > 0) then
+            !HDF 5
+            Name = "wave length"
+            Units ="m"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR150'
+
+            Name = "wave length Solution"
+            Units ="m"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Solution1D,                                  &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR160'
+        endif
 
         deallocate(Matrix1D  )
         deallocate(Solution1D)
@@ -21384,6 +22827,66 @@ CurrOr:     do while (associated(CurrentOrigin))
 
     !--------------------------------------------------------------------------
 
+    subroutine UpdateParticleState
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Partic), pointer                    :: CurrentPartic
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: em, ig
+        integer                                     :: i, j, k
+        integer                                     :: kbottom        
+
+            CurrentOrigin => Me%FirstOrigin
+    CurrOr: do while (associated(CurrentOrigin))
+                em = CurrentOrigin%Position%ModelID
+                ig = CurrentOrigin%GroupID
+
+                CurrentPartic => CurrentOrigin%FirstPartic
+
+    CurrPartic: do while (associated(CurrentPartic))
+
+                    i  = CurrentPartic%Position%I
+                    j  = CurrentPartic%Position%J
+                    k  = CurrentPartic%Position%K
+
+                    !default tracer status = on water column
+                    CurrentPartic%ParticleState = 1 
+
+                    !tracer status = on sea surface
+                    If (CurrentPartic%Position%Surface)     CurrentPartic%ParticleState = 5             
+
+                    !tracer status = beached
+                    If (CurrentPartic%Beached)              CurrentPartic%ParticleState = 10             
+
+                    !tracer status = at the bottom
+                    kbottom = Me%EulerModel(em)%KFloor(i, j)
+                    
+                    if (CurrentOrigin%State%FloatingObject) then
+                        CurrentPartic%ParticleState = nint(CurrentOrigin%FloatingObject%ImmersionRatio * 0.1)
+                    end if
+                    
+                    if (CurrentOrigin%State%Deposition) then
+                        if (CurrentPartic%Position%Z >=         &
+                        (Me%EulerModel(em)%SZZ(i, j, kbottom -1)- CurrentOrigin%Deposition%BottomDistance)) &
+                        CurrentPartic%ParticleState = 00
+                    else
+                        if (CurrentPartic%Position%Z >= Me%EulerModel(em)%SZZ(i, j, kbottom -1)) &
+                        CurrentPartic%ParticleState = 00
+                    endif
+
+                    CurrentPartic => CurrentPartic%Next
+    
+                enddo CurrPartic
+
+            CurrentOrigin => CurrentOrigin%Next
+            enddo CurrOr
+
+    end subroutine UpdateParticleState
+    
+    !--------------------------------------------------------------------------
+
     subroutine WriteIndividualTracerOutput
 
         !Arguments-------------------------------------------------------------
@@ -21546,13 +23049,12 @@ if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                     WaterTemperature        = Temperature3D             (i, j, k)
 
 
-                100 format(4X, i6,4X,f12.2, 4X, f12.2, 4X, f12.2, 4X, i3, 4X, i6, 4X,   &
+                100 format(4X, i6,4X,f12.2, 4X, f12.5, 4X, f12.5, 4X, i3, 4X, i6, 4X,   &
                            i7, 4X,  i3, 4X, i3, 4X, i3, 4X, f12.2, 4X, f12.2, 4X, i3.3, &
                            i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
-                110 format(4X, i6,4X,f12.2, 4X, f12.2, 4X, f12.2, 4X, i3, 4X,   &
+                110 format(4X, i6,4X,f12.2, 4X, f12.5, 4X, f12.5, 4X, i3, 4X,   &
                            i3.3, i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
-
-                   
+                                                                 
                     If (CurrentOrigin%State%Oil) then
                         Write(CurrentOrigin%troUnit,100) n, &
                         RunPeriod, &
@@ -21561,11 +23063,11 @@ if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                         TracerStatus, &
                         nint(OilGridThick2D(i,j)), &
                         nint(MassOil), &
-                        nint(Me%ExternalVar%FMEvaporated  * 100), &
-                        nint(Me%ExternalVar%VWaterContent * 100), &
-                        nint(Me%ExternalVar%FMDispersed   * 100), &
-                        Me%ExternalVar%OilViscosity, &
-                        Me%ExternalVar%OilDensity, &
+                        nint(CurrentPartic%FMEvaporated  * 100), &
+                        nint(CurrentPartic%VWaterContent * 100), &
+                        nint(CurrentPartic%FMDispersed   * 100), &
+                        CurrentPartic%OilViscosity, &
+                        CurrentPartic%OilDensity, &
                         nint(WindDirection), &
                         nint(WindIntensityInKnots), &
                         nint(CurrentsDirection), &
@@ -22019,8 +23521,22 @@ d1:         do em = 1, Me%EulerModelNumber
 
                     end if
 
-                    deallocate (Me%EulerModel(em)%BeachingProbability)
+                    if (Me%State%HaveShoreTypeBox) then
 
+                        call KillBoxDif(Me%EulerModel(em)%ObjShoreTypeBox, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'DeallocateLagrangianGlobal - ModuleLagrangianGlobal - ERR60'
+
+                    end if
+                    
+                    deallocate (Me%EulerModel(em)%BeachingProbability)
+                    deallocate (Me%EulerModel(em)%ShoreType)
+                    deallocate (Me%EulerModel(em)%BeachingLimit)
+
+                    deallocate (Me%EulerModel(em)%HorizontalBeachHoldingCapacity)
+                    
+                    deallocate (Me%EulerModel(em)%RemovalRateCoef)
+                    deallocate (Me%EulerModel(em)%OldSurfaceDepth)
+                                    
                 end if
                 
                 if (Me%State%DistanceToCoast) then
@@ -22719,6 +24235,18 @@ d1:     do em = 1, Me%EulerModelNumber
                 endif
             endif
 
+
+            if (Me%State%AssociateBeachProb) then
+                deallocate (Me%EulerModel(em)%Lag2Euler%GridBeachedVolume)
+                deallocate (Me%EulerModel(em)%Lag2Euler%GridBeachedVolVar)
+                deallocate (Me%EulerModel(em)%Lag2Euler%PreviousGridBeachedVolume)
+                deallocate (Me%EulerModel(em)%Lag2Euler%GridBeachedVolumeByType)
+                deallocate (Me%EulerModel(em)%Lag2Euler%TheoricBeachedVolAfterRemoval)
+                deallocate (Me%EulerModel(em)%Lag2Euler%GridVolToRemove)
+                deallocate (Me%EulerModel(em)%Lag2Euler%GridVolToRemoveFraction)
+            endif
+
+
         enddo d1
 
         !----------------------------------------------------------------------
@@ -23017,6 +24545,7 @@ em1:    do em =1, Me%EulerModelNumber
                                    WavePeriod   = EulerModel%WavePeriod2D,                &
                                    WaveHeight   = EulerModel%WaveHeight2D,                &
                                    WaveDirection= EulerModel%WaveDirection2D,             &
+                                   WaveLength   = EulerModel%WaveLength2D,                &
                                    STAT       = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) then
                         write(*,*) 
@@ -23260,6 +24789,8 @@ i1:         if (.not. Me%RunOnlyMov2D) then
                     call UnGetWaves (EulerModel%ObjWaves, EulerModel%WaveDirection2D, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR270'
 
+                    call UnGetWaves (EulerModel%ObjWaves, EulerModel%WaveLength2D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR270'
 
                 endif      
 #endif                         

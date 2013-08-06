@@ -654,6 +654,7 @@ Module ModuleGlobalData
     integer, parameter ::  WaveY_                          = 3406
 
     !!Monocromatic:
+    integer, parameter ::  WaveLength_                     = 3500
     integer, parameter ::  WaveAmplitude_                  = 3501
     integer, parameter ::  WavePeriod_                     = 3502
     integer, parameter ::  WaveDirection_                  = 3503
@@ -1386,6 +1387,7 @@ Module ModuleGlobalData
 
 
     !!Monocromatic:
+    character(StringLength), private, parameter :: Char_WaveLength               = 'wave length'
     character(StringLength), private, parameter :: Char_WaveAmplitude            = 'wave amplitude'
     character(StringLength), private, parameter :: Char_WavePeriod               = 'wave period'
     character(StringLength), private, parameter :: Char_WaveDirection            = 'wave direction'
@@ -2618,6 +2620,7 @@ Module ModuleGlobalData
 
 
             !!Monocromatic:
+            call AddPropList (WaveLength_,              Char_WaveLength,                 ListNumber)
             call AddPropList (WaveAmplitude_,           Char_WaveAmplitude,              ListNumber)
             call AddPropList (WavePeriod_,              Char_WavePeriod,                 ListNumber)
             call AddPropList (WaveDirection_,           Char_WaveDirection,              ListNumber)
