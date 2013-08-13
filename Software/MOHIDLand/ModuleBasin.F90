@@ -6231,10 +6231,11 @@ cd2 :           if (BlockFound) then
                                        ChannelsID                 = ChannelsID,                             &
                                        STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0108'      
-                endif
+                    
+                    call UnGetDrainageNetwork (Me%ObjDrainageNetwork, DNConcentration, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - RunoffPropertiesProcesses - ERR109'
 
-                call UnGetDrainageNetwork (Me%ObjDrainageNetwork, DNConcentration, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - RunoffPropertiesProcesses - ERR109'
+                endif
                 
             enddo   
             
