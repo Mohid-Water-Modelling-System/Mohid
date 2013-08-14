@@ -9671,7 +9671,7 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
         real(8)                                     :: DischargeVolume
         real(8)                                     :: OldMass, NewMass
         real                                        :: ISDischargeConc, ISConcentration
-
+        
         ISDischargeConc = DischargeConc * ISCoef
         ISConcentration = Property%Concentration(NodeID) * ISCoef
 
@@ -12671,8 +12671,7 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
         real                                        :: BottomArea
         real                                        :: aux
         integer                                     :: STAT_CALL
-
-
+        
         call SearchProperty(Property, PropertyXIDNumber = TSS_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) then
          call SearchProperty(Property, PropertyXIDNumber = Cohesive_Sediment_)
@@ -12712,28 +12711,32 @@ if3:                    if (Me%ShearStress (ReachID) > Property%ErosionCriticalS
                                         * Property%BottomConc (NodeID)                      &
                                         / SedimentConc (NodeID)                             &
                                         * aux 
-                        
-                            ErodedConc = ErosionRate * Me%ExtVar%DT
+                            
+                            !kg m-2 = kg m-2 s-1 * s
+                            ErodedConc = ErosionRate * Me%ExtVar%DT                   
                                                   
                             if (ErodedConc < Property%BottomConc (NodeID) ) then
 
                                 Property%BottomConc (NodeID) = Property%BottomConc (NodeID) &
-                                                             - ErodedConc
-
+                                                             - ErodedConc                             
+                                
                             else
 
                                 ErodedConc = Property%BottomConc (NodeID) - Property%BottomMinConc 
                                 Property%BottomConc (NodeID) = Property%BottomMinConc
-
+                                
+                                !kg m-2 s-1 = kg m-2 / s
                                 ErosionRate = ErodedConc / Me%ExtVar%DT
                             
                             end if
 
                         
-
+                            !m2 = m * m
                             BottomArea = CurrNode%CrossSection%BottomWidth * CurrNode%Length
+                            !kg = kg m-2 * m2
                             ErodedMass = ErodedConc * BottomArea
-                           
+                            
+                            !g m-3 = g m-3 + kg / m3 / 1E-3 g kg-1
                             Property%Concentration (NodeID) = Property%Concentration (NodeID) &
                                                             + ErodedMass / CurrNode%VolumeNew &
                                                             / Property%IScoefficient
@@ -12774,7 +12777,6 @@ if3:                    if (Me%ShearStress (ReachID) > Property%ErosionCriticalS
         real                                        :: BottomArea, MinimumMass, aux, SPMConc
 
 
-
         nullify (Property)
         Property => Me%FirstProperty                                                    
         do while (associated (Property))
@@ -12812,7 +12814,7 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
                             end if
                     
 
-                            
+                            !m2 = m * m
                             BottomArea = CurrNode%CrossSection%BottomWidth * CurrNode%Length
 
                             aux = 1.0 - Me%ShearStress (ReachID) / Property%DepositionCriticalShear 
@@ -12821,18 +12823,21 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
                             DepositionRate = Property%Concentration (NodeID) * Property%IScoefficient       &
                                            * Property%Ws (NodeID) * aux
                             
+                            !kg = kg m-2 s-1 * s
                             DepositedMass = DepositionRate * BottomArea * Me%ExtVar%DT
+                            !kg = g m-3 * 1E-3 kg g-1 * m3
                             Mass = Property%Concentration (NodeID) * Property%IScoefficient * CurrNode%VolumeNew 
 
                             if (DepositedMass < Mass ) then
-
+                                
+                                !g m-3 = g m-3 - kg / m3 / 1E-3 kg g-1
                                 Property%Concentration (NodeID) = Property%Concentration (NodeID)           &
                                                                 - DepositedMass / CurrNode%VolumeNew        &
                                                                 / Property%IScoefficient
 
                             else
                                 if (Me%ComputeOptions%MinConcentration) then
-                                    
+                                    !kg = g m-3 * 1E-3 kg g-1 * m3
                                     MinimumMass   = Property%MinValue * Property%IScoefficient * CurrNode%VolumeNew
                                     DepositedMass = Mass - MinimumMass
                                     Property%Concentration (NodeID) = Property%MinValue                                
@@ -12841,16 +12846,17 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
                                     Property%Concentration (NodeID) = 0.0
                                 endif
 
-                                
+                                !kg m-2 s-1 = kg / (m2 * s)
                                 DepositionRate = DepositedMass / (BottomArea * Me%ExtVar%DT)
 
                             
                             end if
         
-                        
+                            !kg m-2 = kg m-2 + kg / m2
                             Property%BottomConc (NodeID) = Property%BottomConc (NodeID)                     &
                                                          + DepositedMass / BottomArea
-
+                         
+                            
                             Property%DepositionRate (NodeID) = DepositionRate
 
                         end if if3
