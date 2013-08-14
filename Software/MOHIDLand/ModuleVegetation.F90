@@ -561,6 +561,12 @@ Module ModuleVegetation
         real                                            :: FrGrow2              = null_real
         real                                            :: LAIShape1            = null_real
         real                                            :: LAIShape2            = null_real
+        real                                            :: NitrogenShape1       = null_real
+        real                                            :: NitrogenShape2       = null_real
+        real                                            :: PhosphorusShape1     = null_real
+        real                                            :: PhosphorusShape2     = null_real        
+        real                                            :: CO2Shape1            = null_real
+        real                                            :: CO2Shape2            = null_real        
         logical                                         :: Evergreen            = .false.
         real                                            :: FrGrowLAIDecline     = null_real
         real                                            :: LAIMax               = null_real
@@ -5411,6 +5417,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
         integer                                     :: VegetationID
         integer                                     :: GrowthClientNumber
         type(T_GrowthDatabase), pointer             :: gdb !gdb is a pointer to the GrowthDataBase structure
+        real                                        :: b1, b2, b3, c1
         !Begin-----------------------------------------------------------------
 
         GrowthObjEnterData = 0
@@ -5664,13 +5671,7 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                    trim(Me%VegetationTypes(ivt)%Name)
                         stop 'ReadGrowthDatabase - ModuleVegetation - ERR185'
                     endif
-                
-                    !Computes LAIShape1 and LAIShape2
-                    gdb => Me%VegetationTypes(ivt)%GrowthDatabase
-                    call ComputeShapeCoefficients (gdb%FrLAIMax1, gdb%FrLAIMax2,   &
-                                                   gdb%FrGrow1  , gdb%FrGrow2,     &
-                                                   gdb%LAIShape1, gdb%LAIShape2)
-
+                    
                     !LAI decline will not happen to EVERGREEN plants.
                     call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%Evergreen, GrowthObjEnterData,  iflag,               &
                                  SearchType     = FromBlock,                                                                 &
@@ -5847,6 +5848,43 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                             stop 'ReadGrowthDatabase - ModuleVegetation - ERR305'
                         endif
                     endif
+                    
+                    !Compute parameters that do not need to be computed every cell and time step
+                    gdb => Me%VegetationTypes(ivt)%GrowthDatabase
+                
+                    !Computes LAIShape1 and LAIShape2
+                    call ComputeShapeCoefficients (gdb%FrLAIMax1, gdb%FrLAIMax2,   &
+                                                   gdb%FrGrow1  , gdb%FrGrow2,     &
+                                                   gdb%LAIShape1, gdb%LAIShape2)
+                    
+                    !Computes NitrogenShape1 and NitrogenShape2
+                    b1 = gdb%PlantFractionN1 - gdb%PlantFractionN3       
+                    b2 = 1. - (gdb%PlantFractionN2 - gdb%PlantFractionN3) / b1
+                    b3 = 1. - .00001 / b1
+                    
+                    call ComputeShapeCoefficients (b2, b3,                 &
+                                                   0.5, 1.0,               &
+                                                   gdb%NitrogenShape1, gdb%NitrogenShape2)
+                   
+                    !Computes PhosphorusShape1 and PhosphorusShape2
+                    b1 = gdb%PlantFractionP1 - gdb%PlantFractionP3       
+                    b2 = 1. - (gdb%PlantFractionP2 - gdb%PlantFractionP3) / b1
+                    b3 = 1. - .00001 / b1
+
+                    call ComputeShapeCoefficients (b2, b3,                 &
+                                                   0.5, 1.0,               &
+                                                   gdb%PhosphorusShape1, gdb%PhosphorusShape2)
+                    
+                    !Computes CO2Shape1 and CO2Shape2
+                    c1 = 330.                                     !! ambient CO2 concentration
+                    b1 = gdb%BiomassEnergyRatio * .01             !! "ambient" bio-e ratio/100
+                    b2 = gdb%BiomassEnergyRatioHigh * .01         !! "elevated" bio-e ratio/100
+
+                    call ComputeShapeCoefficients (b1, b2,                 &
+                                                   c1, gdb%CO2ConcHigh,    &
+                                                   gdb%CO2Shape1, gdb%CO2Shape2)
+
+
                     
                     exit doH1
                     
@@ -10011,10 +10049,10 @@ do3 :               do k = KUB, KLB, -1
         integer                                         :: VegetationID
         real                                            :: TotalPlantNitrogen, TotalPlantBiomass
         real                                            :: PredictedNitrogenBiomass
-        real                                            :: PlantFractionN1, PlantFractionN2
-        real                                            :: PlantFractionN3
-        real                                            :: b1, b2, b3
-        real                                            :: PlantShape1, PlantShape2
+!        real                                            :: PlantFractionN1, PlantFractionN2
+!        real                                            :: PlantFractionN3
+!        real                                            :: b1, b2, b3
+!        real                                            :: PlantShape1, PlantShape2
         real                                            :: NitrogenDemand, OptimalNContent
         real                                            :: Stress, HUAcc
         real                                            :: TopDepth, BottomDepth
@@ -10031,7 +10069,7 @@ do3 :               do k = KUB, KLB, -1
         integer                                         :: k, KUB, KLB, PlantType
         logical                                         :: Dormant
         real                                            :: AmountAvailable
-        
+        type(T_GrowthDatabase), pointer                 :: gdb !gdb is a pointer to the GrowthDataBase structure
        !Begin-----------------------------------------------------------------        
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -10054,20 +10092,22 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     .and. Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) then  
                 
                     VegetationID    = Me%VegetationID(i,j)
-                    PlantFractionN1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN1
-                    PlantFractionN2 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN2
-                    PlantFractionN3 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN3
-    
-                    !Parameters for Nitrogen Shape curve
-                    b1 = PlantFractionN1 - PlantFractionN3       
-                    b2 = 1. - (PlantFractionN2 - PlantFractionN3) / b1
-                    b3 = 1. - .00001 / b1
-                    call ComputeShapeCoefficients(b2, b3, 0.5, 1.0, PlantShape1, PlantShape2)
-    
+!                    PlantFractionN1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN1
+!                    PlantFractionN2 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN2
+!                    PlantFractionN3 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN3
+!    
+!                    !Parameters for Nitrogen Shape curve
+!                    b1 = PlantFractionN1 - PlantFractionN3       
+!                    b2 = 1. - (PlantFractionN2 - PlantFractionN3) / b1
+!                    b3 = 1. - .00001 / b1
+!                    call ComputeShapeCoefficients(b2, b3, 0.5, 1.0, PlantShape1, PlantShape2)
+                    
+                    gdb => Me%VegetationTypes(VegetationID)%GrowthDatabase    
+                    
                     HUAcc = Me%HeatUnits%PlantHUAccumulated (i,j)
-                    Me%PlantNitrogenFraction(i,j) = (PlantFractionN1 - PlantFractionN3)                                &
-                                                    * (1. - HUAcc / (HUAcc + exp(PlantShape1 - PlantShape2 *  HUAcc)))  &
-                                                    + PlantFractionN3
+                    Me%PlantNitrogenFraction(i,j) = (gdb%PlantFractionN1 - gdb%PlantFractionN3)                                   &
+                                                    *(1. - HUAcc/(HUAcc + exp(gdb%NitrogenShape1 - gdb%NitrogenShape2 * HUAcc)))  &
+                                                    + gdb%PlantFractionN3
 
                     !   kgN/ha
                     OptimalNContent = 0.
@@ -10089,7 +10129,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     !plant will not grow and with this formulation in the next step demand will be reduced because 
                     !plant did not grow and stress will be low (closer to 1). And so on so on
                     if (Me%ComputeOptions%NutrientReduceDemand) then
-                        NitrogenDemand = min(4. * PlantFractionN3 * Me%Growth%BiomassGrowthOld(i,j), NitrogenDemand)
+                        NitrogenDemand = min(4. * gdb%PlantFractionN3 * Me%Growth%BiomassGrowthOld(i,j), NitrogenDemand)
                     endif
 
     cd1:            if(NitrogenDemand .lt. 1e-5) then
@@ -10237,10 +10277,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                         :: VegetationID
         real                                            :: TotalPlantNitrogen, TotalPlantBiomass
         real                                            :: PredictedNitrogenBiomass
-        real                                            :: PlantFractionN1, PlantFractionN2
-        real                                            :: PlantFractionN3
-        real                                            :: b1, b2, b3
-        real                                            :: PlantShape1, PlantShape2
+!        real                                            :: PlantFractionN1, PlantFractionN2
+!        real                                            :: PlantFractionN3
+!        real                                            :: b1, b2, b3
+!        real                                            :: PlantShape1, PlantShape2
         real                                            :: NitrogenDemand, OptimalNContent
         real                                            :: Stress, HUAcc
         real                                            :: TopDepth, BottomDepth
@@ -10252,7 +10292,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: SumUptake
         integer                                         :: k, KUB, KLB, PlantType
         logical                                         :: ComputeCell !Dormant
-        
+        type(T_GrowthDatabase), pointer                 :: gdb !gdb is a pointer to the GrowthDataBase structure
        !Begin-----------------------------------------------------------------        
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -10293,20 +10333,22 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
                 
                         VegetationID    = Me%VegetationID(i,j)
-                        PlantFractionN1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN1
-                        PlantFractionN2 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN2
-                        PlantFractionN3 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN3
+!                        PlantFractionN1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN1
+!                        PlantFractionN2 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN2
+!                        PlantFractionN3 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN3
+!    
+!                        !Parameters for Nitrogen Shape curve
+!                        b1 = PlantFractionN1 - PlantFractionN3       
+!                        b2 = 1. - (PlantFractionN2 - PlantFractionN3) / b1
+!                        b3 = 1. - .00001 / b1
+!                        call ComputeShapeCoefficients(b2, b3, 0.5, 1.0, PlantShape1, PlantShape2)
     
-                        !Parameters for Nitrogen Shape curve
-                        b1 = PlantFractionN1 - PlantFractionN3       
-                        b2 = 1. - (PlantFractionN2 - PlantFractionN3) / b1
-                        b3 = 1. - .00001 / b1
-                        call ComputeShapeCoefficients(b2, b3, 0.5, 1.0, PlantShape1, PlantShape2)
-    
+                        gdb => Me%VegetationTypes(VegetationID)%GrowthDatabase    
+                        
                         HUAcc = Me%HeatUnits%PlantHUAccumulated (i,j)
-                        Me%PlantNitrogenFraction(i,j) = (PlantFractionN1 - PlantFractionN3)                                &
-                                                        * (1. - HUAcc / (HUAcc + exp(PlantShape1 - PlantShape2 *  HUAcc)))  &
-                                                        + PlantFractionN3
+                        Me%PlantNitrogenFraction(i,j) = (gdb%PlantFractionN1 - gdb%PlantFractionN3)                               &
+                                                      *(1. - HUAcc/(HUAcc + exp(gdb%NitrogenShape1 - gdb%NitrogenShape2 * HUAcc)))&
+                                                      + gdb%PlantFractionN3
 
                         !   kgN/ha
                         OptimalNContent = 0.
@@ -10327,7 +10369,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         !plant will not grow and with this formulation in the next step demand will be reduced because 
                         !plant did not grow and stress will be low (closer to 1). And so on so on
                         if (Me%ComputeOptions%NutrientReduceDemand) then                        
-                            NitrogenDemand = min(4. * PlantFractionN3 * Me%Growth%BiomassGrowthOld(i,j), NitrogenDemand)
+                            NitrogenDemand = min(4. * gdb%PlantFractionN3 * Me%Growth%BiomassGrowthOld(i,j), NitrogenDemand)
                         endif
                     endif
     
@@ -10506,10 +10548,10 @@ do3:                do k = KUB, KLB, -1
         integer                                         :: VegetationID
         real                                            :: TotalPlantBiomass, TotalPlantPhosphorus
         real                                            :: PredictedPhosphorusBiomass
-        real                                            :: PlantFractionP1, PlantFractionP2
-        real                                            :: PlantFractionP3
-        real                                            :: b1, b2, b3
-        real                                            :: PlantShape1, PlantShape2
+!        real                                            :: PlantFractionP1, PlantFractionP2
+!        real                                            :: PlantFractionP3
+!        real                                            :: b1, b2, b3
+!        real                                            :: PlantShape1, PlantShape2
         real                                            :: PhosphorusDemand, OptimalPContent
         real                                            :: Stress, HUAcc
         real                                            :: TopDepth, BottomDepth
@@ -10526,7 +10568,7 @@ do3:                do k = KUB, KLB, -1
         integer                                         :: k, KUB, KLB, PlantType
         logical                                         :: Dormant
         real                                            :: AmountAvailable
-        
+        type(T_GrowthDatabase), pointer                 :: gdb !gdb is a pointer to the GrowthDataBase structure
        !Begin-----------------------------------------------------------------
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -10549,20 +10591,22 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     .and. Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) then    
 
                     VegetationID    = Me%VegetationID(i,j)
-                    PlantFractionP1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP1
-                    PlantFractionP2 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP2
-                    PlantFractionP3 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP3
-        
-                    !Parameters for Nitrogen Shape curve
-                    b1 = PlantFractionP1 - PlantFractionP3       
-                    b2 = 1. - (PlantFractionP2 - PlantFractionP3) / b1
-                    b3 = 1. - .00001 / b1
-                    call ComputeShapeCoefficients(b2, b3, 0.5, 1.0, PlantShape1, PlantShape2)
+!                    PlantFractionP1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP1
+!                    PlantFractionP2 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP2
+!                    PlantFractionP3 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP3
+!        
+!                    !Parameters for Nitrogen Shape curve
+!                    b1 = PlantFractionP1 - PlantFractionP3       
+!                    b2 = 1. - (PlantFractionP2 - PlantFractionP3) / b1
+!                    b3 = 1. - .00001 / b1
+!                    call ComputeShapeCoefficients(b2, b3, 0.5, 1.0, PlantShape1, PlantShape2)
+
+                    gdb => Me%VegetationTypes(VegetationID)%GrowthDatabase
         
                     HUAcc = Me%HeatUnits%PlantHUAccumulated (i,j)
-                    Me%PlantPhosphorusFraction(i,j) = (PlantFractionP1 - PlantFractionP3)        &
-                                                    * (1. - HUAcc/ (HUAcc + exp(PlantShape1 - PlantShape2 *  HUAcc)))  &
-                                                    + PlantFractionP3
+                    Me%PlantPhosphorusFraction(i,j) = (gdb%PlantFractionP1 - gdb%PlantFractionP3)                                 &
+                                                  *(1. - HUAcc/(HUAcc + exp(gdb%PhosphorusShape1 - gdb%PhosphorusShape2 * HUAcc)))&
+                                                  + gdb%PlantFractionP3
 
                     !   kgP/ha
                     OptimalPContent      = 0.
@@ -10584,7 +10628,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     !plant will not grow and with this formulation in the next step demand will be reduced because 
                     !plant did not grow and stress will be low (closer to 1). And so on so on
                     if (Me%ComputeOptions%NutrientReduceDemand) then                    
-                        PhosphorusDemand = min(4. * PlantFractionP3 * Me%Growth%BiomassGrowthOld(i,j), PhosphorusDemand)
+                        PhosphorusDemand = min(4. * gdb%PlantFractionP3 * Me%Growth%BiomassGrowthOld(i,j), PhosphorusDemand)
                     endif
                     
                     !Luxury P uptake
@@ -10734,10 +10778,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                         :: VegetationID
         real                                            :: TotalPlantBiomass, TotalPlantPhosphorus
         real                                            :: PredictedPhosphorusBiomass
-        real                                            :: PlantFractionP1, PlantFractionP2
-        real                                            :: PlantFractionP3
-        real                                            :: b1, b2, b3
-        real                                            :: PlantShape1, PlantShape2
+!        real                                            :: PlantFractionP1, PlantFractionP2
+!        real                                            :: PlantFractionP3
+!        real                                            :: b1, b2, b3
+!        real                                            :: PlantShape1, PlantShape2
         real                                            :: PhosphorusDemand, OptimalPContent
         real                                            :: Stress, HUAcc
         real                                            :: TopDepth, BottomDepth
@@ -10749,7 +10793,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: SumUptake
         integer                                         :: k, KUB, KLB, PlantType
         logical                                         :: ComputeCell !Dormant
-         
+        type(T_GrowthDatabase), pointer                 :: gdb !gdb is a pointer to the GrowthDataBase structure 
        !Begin-----------------------------------------------------------------
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -10790,20 +10834,22 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
 
                         VegetationID    = Me%VegetationID(i,j)
-                        PlantFractionP1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP1
-                        PlantFractionP2 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP2
-                        PlantFractionP3 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP3
-        
-                        !Parameters for Nitrogen Shape curve
-                        b1 = PlantFractionP1 - PlantFractionP3       
-                        b2 = 1. - (PlantFractionP2 - PlantFractionP3) / b1
-                        b3 = 1. - .00001 / b1
-                        call ComputeShapeCoefficients(b2, b3, 0.5, 1.0, PlantShape1, PlantShape2)
+!                        PlantFractionP1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP1
+!                        PlantFractionP2 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP2
+!                        PlantFractionP3 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP3
+!        
+!                        !Parameters for Nitrogen Shape curve
+!                        b1 = PlantFractionP1 - PlantFractionP3       
+!                        b2 = 1. - (PlantFractionP2 - PlantFractionP3) / b1
+!                        b3 = 1. - .00001 / b1
+!                        call ComputeShapeCoefficients(b2, b3, 0.5, 1.0, PlantShape1, PlantShape2)
+
+                        gdb => Me%VegetationTypes(VegetationID)%GrowthDatabase
         
                         HUAcc = Me%HeatUnits%PlantHUAccumulated (i,j)
-                        Me%PlantPhosphorusFraction(i,j) = (PlantFractionP1 - PlantFractionP3)        &
-                                                        * (1. - HUAcc/ (HUAcc + exp(PlantShape1 - PlantShape2 *  HUAcc)))  &
-                                                        + PlantFractionP3
+                        Me%PlantPhosphorusFraction(i,j) = (gdb%PlantFractionP1 - gdb%PlantFractionP3)                             &
+                                                  *(1. - HUAcc/(HUAcc + exp(gdb%PhosphorusShape1 - gdb%PhosphorusShape2 * HUAcc)))&
+                                                  + gdb%PlantFractionP3
 
                         !   kgP/ha
                         OptimalPContent      = 0.
@@ -10824,7 +10870,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         !plant will not grow and with this formulation in the next step demand will be reduced because 
                         !plant did not grow and stress will be low (closer to 1). And so on so on
                         if (Me%ComputeOptions%NutrientReduceDemand) then                        
-                            PhosphorusDemand = min(4. * PlantFractionP3 * Me%Growth%BiomassGrowthOld(i,j), PhosphorusDemand)
+                            PhosphorusDemand = min(4. * gdb%PlantFractionP3 * Me%Growth%BiomassGrowthOld(i,j), PhosphorusDemand)
                         endif
                         
                         !Luxury P uptake
@@ -11029,14 +11075,14 @@ do3 :               do k = KUB, KLB, -1
         real                                              :: CO2ConcHigh, RUEDeclineRate
         real                                              :: Decline, PotentialBiomassGrowth
         real                                              :: SolarRadiation  
-        real                                              :: b1, b2, c1 
-        real                                              :: PlantShape1, PlantShape2
+!        real                                              :: b1, b2, c1 
+!        real                                              :: PlantShape1, PlantShape2
         real                                              :: VapourPressureDeficit
         real                                              :: SaturatedVapourPressure
         real                                              :: ActualVapourPressure
         integer                                           :: PlantType
         logical                                           :: Dormant
-        
+        type(T_GrowthDatabase), pointer                   :: gdb !gdb is a pointer to the GrowthDataBase structure
        !Begin-----------------------------------------------------------------
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -11071,11 +11117,12 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%IsPlantGrowing(i,j) .and. .not. Dormant .and. Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) then     
         
                     VegetationID           =   Me%VegetationID(i,j)
-                    ExtinctCoef            =   Me%VegetationTypes(VegetationID)%GrowthDatabase%ExtinctCoef
-                    BiomassEnergyRatio     =   Me%VegetationTypes(VegetationID)%GrowthDatabase%BiomassEnergyRatio
-                    CO2ConcHigh            =   Me%VegetationTypes(VegetationID)%GrowthDatabase%CO2ConcHigh
-                    BiomassEnergyRatioHigh =   Me%VegetationTypes(VegetationID)%GrowthDatabase%BiomassEnergyRatioHigh
-                    RUEDeclineRate         =   Me%VegetationTypes(VegetationID)%GrowthDatabase%RUEDeclineRate
+                    gdb                    => Me%VegetationTypes(VegetationID)%GrowthDatabase
+                    ExtinctCoef            =   gdb%ExtinctCoef
+                    BiomassEnergyRatio     =   gdb%BiomassEnergyRatio
+                    CO2ConcHigh            =   gdb%CO2ConcHigh
+                    BiomassEnergyRatioHigh =   gdb%BiomassEnergyRatioHigh
+                    RUEDeclineRate         =   gdb%RUEDeclineRate
                     !  m2/m2
                     LAI                    =   Me%StateVariables%LeafAreaIndex(i,j)
     !                LAI                    =   PropLeafAreaIndex%Field(i,j)
@@ -11092,11 +11139,11 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     RUE = BiomassEnergyRatio
 
                     if (Me%ComputeOptions%AdjustRUEForCO2) then
-                        !Parameters used to construct the radiation efficience use shape curve
-                        c1 = 330.                                 !! ambient CO2 concentration
-                        b1 = BiomassEnergyRatio * .01             !! "ambient" bio-e ratio/100
-                        b2 = BiomassEnergyRatioHigh * .01         !! "elevated" bio-e ratio/100
-                        call ComputeShapeCoefficients(b1, b2, c1, CO2ConcHigh, PlantShape1, PlantShape2)
+!                        !Parameters used to construct the radiation efficience use shape curve
+!                        c1 = 330.                                 !! ambient CO2 concentration
+!                        b1 = BiomassEnergyRatio * .01             !! "ambient" bio-e ratio/100
+!                        b2 = BiomassEnergyRatioHigh * .01         !! "elevated" bio-e ratio/100
+!                        call ComputeShapeCoefficients(b1, b2, c1, CO2ConcHigh, PlantShape1, PlantShape2)
 
                         !Adjust radiation-use efficiency for CO2
                         !RUE units in (kg/ha)/(MJ/m**2)
@@ -11104,7 +11151,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         RUE = 0.
                         if (Me%ComputeOptions%AtmosphereCO2 .gt. 330.) then
                             RUE = (100. * Me%ComputeOptions%AtmosphereCO2) / (Me%ComputeOptions%AtmosphereCO2 +         &
-                                          Exp(PlantShape1 - Me%ComputeOptions%AtmosphereCO2) * PlantShape2)     
+                                          Exp(gdb%CO2Shape1 - Me%ComputeOptions%AtmosphereCO2) * gdb%CO2Shape2)     
                         else
                             RUE = BiomassEnergyRatio
                         end if

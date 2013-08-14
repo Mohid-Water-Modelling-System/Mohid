@@ -11573,7 +11573,7 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
         call GetRadiationPercentages(Me%ObjLightExtinction, SWPercentage, LWPercentage, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyTopRadiation - ModuleDrainageNetwork - ERR01'
 
-        do i = 1, Me%TotalReaches
+        do i = 1, Me%TotalNodes
             Me%ShortWaveField(i) = SWPercentage * Me%TopRadiation(i)
             Me%LongWaveField (i) = LWPercentage * Me%TopRadiation(i)
         enddo
