@@ -85,20 +85,20 @@ Module ModuleOpenBoundary
 
     !Type----------------------------------------------------------------------
     type T_Station
-        real, dimension(:), pointer     :: Elevation
-        real, dimension(:), pointer     :: OpenPoints
-        real, dimension(:), pointer     :: ReferenceLevel
+        real, dimension(:), pointer     :: Elevation      => null() !inicialization: Carina
+        real, dimension(:), pointer     :: OpenPoints     => null() !inicialization: Carina
+        real, dimension(:), pointer     :: ReferenceLevel => null() !inicialization: Carina
         !Velocities measured by a current meter
-        real, dimension(:), pointer     :: VelocityU
-        real, dimension(:), pointer     :: VelocityV
+        real, dimension(:), pointer     :: VelocityU      => null() !inicialization: Carina
+        real, dimension(:), pointer     :: VelocityV      => null() !inicialization: Carina
         !Station position 
-        real, dimension(:), pointer     :: MetricX
-        real, dimension(:), pointer     :: MetricY
+        real, dimension(:), pointer     :: MetricX        => null() !inicialization: Carina
+        real, dimension(:), pointer     :: MetricY        => null() !inicialization: Carina
     end type T_Station
 
 
     type      T_OpenBoundary
-        integer                             :: InstanceID
+        integer                             :: InstanceID   = null_int !inicialization: Carina
 
         type (T_Time)                       :: StartTime
         type (T_Size2D)                     :: Size, WorkSize
@@ -106,35 +106,35 @@ Module ModuleOpenBoundary
         type (T_Station)                    :: Station
 
         !Elevation along the boundary
-        real, pointer, dimension(:, :)      :: ImposedElevation
+        real, pointer, dimension(:, :)      :: ImposedElevation        => null() !inicialization: Carina
 
         !Old Elevation along the boundary
-        real, pointer, dimension(:, :)      :: OldImposedElevation
+        real, pointer, dimension(:, :)      :: OldImposedElevation     => null() !inicialization: Carina
         
         !Average Elevation imposed in the open boundary
-        real                                :: AverageImposedElevation
+        real                                :: AverageImposedElevation = null_real !inicialization: Carina
 
         !Boundary reference level
-        real, pointer, dimension(:, :)      :: BoundaryReferenceLevel
+        real, pointer, dimension(:, :)      :: BoundaryReferenceLevel  => null() !inicialization: Carina
 
         !Initial Reference level common to the interior and to the boundary
-        real                                :: InitialReferenceLevel
+        real                                :: InitialReferenceLevel  = null_real !inicialization: Carina
 
         !Velocity along the open boundary
-        real, pointer, dimension(:, :)      :: VelocityU
-        real, pointer, dimension(:, :)      :: VelocityV
+        real, pointer, dimension(:, :)      :: VelocityU => null() !inicialization: Carina
+        real, pointer, dimension(:, :)      :: VelocityV => null() !inicialization: Carina
         
         !Compute Tide
-        logical                             :: Compute_tide
+        logical                             :: Compute_tide = .false.  !inicialization: Carina
 
         !Impose the inverted barometer effect 
-        logical                             :: InvertBarometer
-        logical                             :: InvertBaromSomeBound
-        real, pointer, dimension(:,:)       :: InvertBarometerCells        
+        logical                             :: InvertBarometer      = .false.  !inicialization: Carina
+        logical                             :: InvertBaromSomeBound = .false.  !inicialization: Carina
+        real, pointer, dimension(:,:)       :: InvertBarometerCells => null() !inicialization: Carina     
 
         !This coefficient is zero if the water level is the real one
         !Any slow start is consider in this case
-        real                                :: SlowStartCoef
+        real                                :: SlowStartCoef = null_real !inicialization: Carina     
         
         logical                             :: TriangGaugesON = .true.
 
@@ -150,8 +150,8 @@ Module ModuleOpenBoundary
     end type T_OpenBoundary
 
     !Global Module Variables
-    type (T_OpenBoundary), pointer           :: FirstOpenBoundary
-    type (T_OpenBoundary), pointer           :: Me
+    type (T_OpenBoundary), pointer           :: FirstOpenBoundary => null() !inicialization: Carina   
+    type (T_OpenBoundary), pointer           :: Me    => null() !inicialization: Carina   
 
     !--------------------------------------------------------------------------
     

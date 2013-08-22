@@ -237,8 +237,8 @@ Module ModuleSequentialAssimilation
 
     type T_TimeSerie
         integer                                     :: ID                   = 0
-        character(PathLength)                       :: FileName
-        integer                                     :: DataColumn
+        character(PathLength)                       :: FileName             = null_str
+        integer                                     :: DataColumn           = null_int
     end type T_TimeSerie
 
     type T_Localization
@@ -249,7 +249,7 @@ Module ModuleSequentialAssimilation
 
     private :: T_Property
     type       T_Property
-        type (T_PropertyID)                         :: ID
+        type (T_PropertyID)                         :: ID                   = null_int
         integer                                     :: Dim                  = null_int
         integer                                     :: TypeZUV              = null_int
         
@@ -259,90 +259,101 @@ Module ModuleSequentialAssimilation
         integer                                     :: ModuleType           = null_int
         logical                                     :: Measure              = .false.
         integer                                     :: MeasuresNumber       = 0
-        integer                                     :: FirstStatePosition
+        integer                                     :: FirstStatePosition   = null_int !initialization: Carina
 
-        real, dimension (:, :), pointer             :: Field2D
-        real, dimension (:, :, :), pointer          :: Field
-        real(8), dimension (:, :, :), pointer       :: FieldR8
-        real, dimension (:, :, :), pointer          :: CenteredField
-        real(8), dimension (:, :, :), pointer       :: CenteredFieldR8
+        real, dimension (:, :), pointer             :: Field2D              => null()
+        real, dimension (:, :, :), pointer          :: Field                => null()
+        real(8), dimension (:, :, :), pointer       :: FieldR8              => null()
+        real, dimension (:, :, :), pointer          :: CenteredField        => null()
+        real(8), dimension (:, :, :), pointer       :: CenteredFieldR8      => null()
 
         !logical                                     :: CyclicBoundary       = .false.
 
-        type (T_Property), pointer                  :: Next, Prev           => null()
+        type (T_Property), pointer                  :: Next           => null()
+		type (T_Property), pointer                  :: Prev           => null()
     end type T_Property
 
     private :: T_Measure
     type       T_Measure
-        type (T_PropertyID)                         :: ID
-        integer                                     :: FileType
-        real                                        :: DT
-        real                                        :: Variance
+        type (T_PropertyID)                         :: ID                   = null_int  !initialization: Carina
+        integer                                     :: FileType             = null_int  !initialization: Carina
+        real                                        :: DT                   = null_real !initialization: Carina
+        real                                        :: Variance             = null_real !initialization: Carina
         integer                                     :: StateLocation        = FillValueInt
         
         type (T_TimeSerie)                          :: TimeSerie
 
         type (T_Localization)                       :: Localization
 
-        character(PathLength)                       :: FileName
+        character(PathLength)                       :: FileName            = null_str  !initialization: Carina
 
-        logical                                     :: ValueExists
-        real                                        :: Tolerance
+        logical                                     :: ValueExists         = .false.   !initialization: Carina
+        real                                        :: Tolerance           = null_real !initialization: Carina
 
-        type (T_Measure), pointer                   :: Next, Prev           => null()
+        type (T_Measure), pointer                   :: Next           => null()
+		type (T_Measure), pointer                   :: Prev           => null()
     end type T_Measure
 
     private :: T_StateProp
     type       T_StateProp
-        integer                                     :: IDNumber
-        real, dimension (:, :, :), pointer          :: Field
+        integer                                     :: IDNumber           = null_int  !initialization: Carina
+        real, dimension (:, :, :), pointer          :: Field              => null()  !initialization: Carina
 
-        type (T_StateProp), pointer                 :: Next, Prev           => null()
-    end type T_StateProp
+        type (T_StateProp), pointer                 :: Next         => null()
+        type (T_StateProp), pointer                 :: Prev         => null()
+ end type T_StateProp
 
     private :: T_FullState
     type       T_FullState
         !ModuleHydrodynamic properties
-        real,    dimension (:, :),    pointer       :: WaterLevel
-        real,    dimension (:, :, :), pointer       :: VelocityU
-        real,    dimension (:, :, :), pointer       :: VelocityV
-        real,    dimension (:, :, :), pointer       :: VelocityUOld
-        real,    dimension (:, :, :), pointer       :: VelocityVOld
-        real,    dimension (:, :, :), pointer       :: VelocityAcross
-        real(8), dimension (:, :, :), pointer       :: WaterFluxX
-        real(8), dimension (:, :, :), pointer       :: WaterFluxY
-        real(8), dimension (:, :, :), pointer       :: WaterFluxZ
-        real(8), dimension(:,:,:)   , pointer       :: SubModelqX, SubModelqY
-        real,    dimension(:,:)     , pointer       :: ChezyVelUV
+        real,    dimension (:, :),    pointer       :: WaterLevel         => null()  !initialization: Carina
+        real,    dimension (:, :, :), pointer       :: VelocityU          => null()  !initialization: Carina
+        real,    dimension (:, :, :), pointer       :: VelocityV          => null()  !initialization: Carina
+        real,    dimension (:, :, :), pointer       :: VelocityUOld       => null()  !initialization: Carina
+        real,    dimension (:, :, :), pointer       :: VelocityVOld       => null()  !initialization: Carina
+        real,    dimension (:, :, :), pointer       :: VelocityAcross     => null()  !initialization: Carina
+        real(8), dimension (:, :, :), pointer       :: WaterFluxX         => null()  !initialization: Carina
+        real(8), dimension (:, :, :), pointer       :: WaterFluxY         => null()  !initialization: Carina
+        real(8), dimension (:, :, :), pointer       :: WaterFluxZ         => null()  !initialization: Carina
+        real(8), dimension(:,:,:)   , pointer       :: SubModelqX         => null()  !initialization: Carina
+        real(8), dimension(:,:,:)   , pointer       :: SubModelqY         => null()  !initialization: Carina
+        real,    dimension(:,:)     , pointer       :: ChezyVelUV         => null()  !initialization: Carina
 
         !ModuleWaterProperties
-        real, pointer, dimension(:,:,:)             :: Density
-        real, pointer, dimension(:,:,:)             :: SigmaDensity
-        type (T_StateProp), pointer                 :: FirstWaterProperty
-        type (T_StateProp), pointer                 :: LastWaterProperty
+        real, pointer, dimension(:,:,:)             :: Density            => null()  !initialization: Carina
+        real, pointer, dimension(:,:,:)             :: SigmaDensity       => null()  !initialization: Carina
+        type (T_StateProp), pointer                 :: FirstWaterProperty => null()  !initialization: Carina
+        type (T_StateProp), pointer                 :: LastWaterProperty  => null()  !initialization: Carina
 
         !ModuleGeometry properties
-        real,    dimension(:, :, :), pointer        :: SZZ 
-        real,    dimension(:, :, :), pointer        :: DWZ, DUZ, DVZ
-        real,    dimension(:, :, :), pointer        :: DZZ
-        real,    dimension(:, :, :), pointer        :: AreaU, AreaV
-        real,    dimension(:, :, :), pointer        :: ZCellCenter
-        real,    dimension(:, :), pointer           :: WaterColumnU, WaterColumnV
-        real,    dimension(:, :), pointer           :: WaterColumnZ
-        real(8), dimension(:, :, :), pointer        :: VolumeZ, VolumeU
-        real(8), dimension(:, :, :), pointer        :: VolumeV, VolumeZOld
+        real,    dimension(:, :, :), pointer        :: SZZ                => null()  !initialization: Carina
+        real,    dimension(:, :, :), pointer        :: DWZ                => null()  !initialization: Carina
+		real,    dimension(:, :, :), pointer        :: DUZ                => null()  !initialization: Carina
+		real,    dimension(:, :, :), pointer        :: DVZ                => null()  !initialization: Carina
+        real,    dimension(:, :, :), pointer        :: DZZ                => null()  !initialization: Carina
+        real,    dimension(:, :, :), pointer        :: AreaU              => null()  !initialization: Carina
+		real,    dimension(:, :, :), pointer        :: AreaV              => null()  !initialization: Carina
+        real,    dimension(:, :, :), pointer        :: ZCellCenter        => null()  !initialization: Carina
+        real,    dimension(:, :), pointer           :: WaterColumnU      => null()  !initialization: Carina
+		real,    dimension(:, :), pointer           :: WaterColumnV       => null()  !initialization: Carina
+        real,    dimension(:, :), pointer           :: WaterColumnZ       => null()  !initialization: Carina
+        real(8), dimension(:, :, :), pointer        :: VolumeZ           => null()  !initialization: Carina
+		real(8), dimension(:, :, :), pointer        :: VolumeU           => null()  !initialization: Carina
+        real(8), dimension(:, :, :), pointer        :: VolumeV           => null()  !initialization: Carina
+		real(8), dimension(:, :, :), pointer        :: VolumeV           => null()  !initialization: Carina
     end type T_FullState
 
     private :: T_Files
     type       T_Files
-         character(len=StringLength)                :: ConstructData
-         character(len=StringLength)                :: OutPutFields
+         character(len=StringLength)                :: ConstructData = null_str !initialization: Carina
+         character(len=StringLength)                :: OutPutFields  = null_str !initialization: Carina
     end type T_Files
 
     private :: T_OutPut
     type       T_OutPut
-         type (T_Time), pointer, dimension(:)       :: OutTime
-         integer                                    :: NextOutPut, Number
+         type (T_Time), pointer, dimension(:)       :: OutTime => null()  !initialization: Carina
+         integer                                    :: NextOutPut = null_int  !initialization: Carina
+		 integer                                    :: Number = null_int  !initialization: Carina
          logical                                    :: HDF5ON = .false.
          logical                                    :: TimeSerieON = .false.
          logical                                    :: ErrorTimeSerieON = .false.
@@ -360,19 +371,19 @@ Module ModuleSequentialAssimilation
 
     private :: T_External
     type T_External
-        integer, dimension(:,:,:), pointer          :: WaterPoints
-        integer, dimension(:,:,:), pointer          :: OpenPoints
-        integer, dimension(:,:,:), pointer          :: ComputeFacesU
-        integer, dimension(:,:,:), pointer          :: ComputeFacesV
-        integer, dimension(:,:,:), pointer          :: ImposedNormFacesU
-        integer, dimension(:,:,:), pointer          :: ImposedNormFacesV
-        integer, dimension(:,:,:), pointer          :: ImposedTangFacesU
-        integer, dimension(:,:,:), pointer          :: ImposedTangFacesV
+        integer, dimension(:,:,:), pointer          :: WaterPoints          => null()  !initialization: Carina
+        integer, dimension(:,:,:), pointer          :: OpenPoints           => null()  !initialization: Carina
+        integer, dimension(:,:,:), pointer          :: ComputeFacesU        => null()  !initialization: Carina
+        integer, dimension(:,:,:), pointer          :: ComputeFacesV        => null()  !initialization: Carina
+        integer, dimension(:,:,:), pointer          :: ImposedNormFacesU    => null()  !initialization: Carina
+        integer, dimension(:,:,:), pointer          :: ImposedNormFacesV    => null()  !initialization: Carina
+        integer, dimension(:,:,:), pointer          :: ImposedTangFacesU    => null()  !initialization: Carina
+        integer, dimension(:,:,:), pointer          :: ImposedTangFacesV    => null()  !initialization: Carina
     end type T_External
 
     private :: T_SequentialAssimilation
     type       T_SequentialAssimilation
-        integer                                     :: InstanceID
+        integer                                     :: InstanceID = null_int  !initialization: Carina
         type (T_Size3D)                             :: Size, WorkSize
 
         type(T_Files)                               :: Files
@@ -388,60 +399,60 @@ Module ModuleSequentialAssimilation
 
         !Data assimilation options
         type (T_Time)                               :: AssimilationTime
-        integer                                     :: Method
-        real                                        :: DT
-        character(len=StringLength)                 :: InitialStateCovFile
-        integer                                     :: StateCovRank
-        logical                                     :: ObjectiveAnalysis
+        integer                                     :: Method = null_int  !initialization: Carina
+        real                                        :: DT     = null_real  !initialization: Carina
+        character(len=StringLength)                 :: InitialStateCovFile = null_str  !initialization: Carina
+        integer                                     :: StateCovRank = null_int  !initialization: Carina
+        logical                                     :: ObjectiveAnalysis = .false. !initialization: Carina
         logical                                     :: MeasureErrorVar = .true.
-        real                                        :: ForgettingFactor
-        logical                                     :: StateCovEvolution
-        real                                        :: StateCov_LinFactor
-        logical                                     :: StateCov_Evolution_Split
-        logical                                     :: ReNormalization
-        logical                                     :: ReOrthonormalization
-        real                                        :: ReOrthoNorm_DT
+        real                                        :: ForgettingFactor   = null_real  !initialization: Carina
+        logical                                     :: StateCovEvolution = .false. !initialization: Carina
+        real                                        :: StateCov_LinFactor  = null_real  !initialization: Carina
+        logical                                     :: StateCov_Evolution_Split = .false. !initialization: Carina
+        logical                                     :: ReNormalization = .false. !initialization: Carina
+        logical                                     :: ReOrthonormalization = .false. !initialization: Carina
+        real                                        :: ReOrthoNorm_DT = null_real  !initialization: Carina
         type (T_Time)                               :: ReOrthonormTime
 
         !Data assimilation variables
-        real(8), dimension (:, :), pointer          :: State
-        integer, dimension (:, :), pointer          :: OpenPointState
-        real(8), dimension (:, :), pointer          :: MeasuredState
-        real,    dimension (:, :), pointer          :: MeasuresInvCov
-        real,    dimension (:, :), pointer          :: ObservOperator
+        real(8), dimension (:, :), pointer          :: State            => null()  !initialization: Carina
+        integer, dimension (:, :), pointer          :: OpenPointState   => null()  !initialization: Carina
+        real(8), dimension (:, :), pointer          :: MeasuredState    => null()  !initialization: Carina
+        real,    dimension (:, :), pointer          :: MeasuresInvCov   => null()  !initialization: Carina
+        real,    dimension (:, :), pointer          :: ObservOperator   => null()  !initialization: Carina
         !real, dimension (:, :), pointer              :: KalmanGain
-        real(8), dimension (:, :), pointer          :: LMatrix
-        real, dimension (:, :), pointer             :: InvUMatrix
+        real(8), dimension (:, :), pointer          :: LMatrix          => null()  !initialization: Carina
+        real, dimension (:, :), pointer             :: InvUMatrix       => null()  !initialization: Carina
 
         !Full state variables (for model covariance evolution)
         type (T_FullState)                          :: FS
-        type (T_FullState), dimension (:), pointer  :: DFS
+        type (T_FullState), dimension (:), pointer  :: DFS => null()  !initialization: Carina
         integer                                     :: FullWaterPropNumber
-        integer, dimension(:), pointer              :: PropertiesIDArray
-        logical                                     :: HydroSubModel        = .false.
-        logical                                     :: PerturbeState        = .true.
+        integer, dimension(:), pointer              :: PropertiesIDArray   => null()  !initialization: Carina
+        logical                                     :: HydroSubModel       = .false.
+        logical                                     :: PerturbeState       = .true.
         !logical                                     :: CalculateEOF         = .false.
 
         !Property list
-        type(T_Property), pointer                   :: FirstProperty
-        type(T_Property), pointer                   :: LastProperty
+        type(T_Property), pointer                   :: FirstProperty  => null()  !initialization: Carina
+        type(T_Property), pointer                   :: LastProperty  => null()  !initialization: Carina
         integer                                     :: PropertiesNumber     = FillValueInt
-        integer                                     :: StateVarNumber       = 0
+        integer                                     :: StateVarNumber       = 0 a
         logical                                     :: PropertiesInFaces    = .false.
 
         !Measurement list
-        type(T_Measure), pointer                    :: FirstMeasure
-        type(T_Measure), pointer                    :: LastMeasure
+        type(T_Measure), pointer                    :: FirstMeasure  => null()  !initialization: Carina
+        type(T_Measure), pointer                    :: LastMeasure   => null()  !initialization: Carina
         integer                                     :: MeasuresNumber       = FillValueInt
-        integer                                     :: CurrentMeasuresNumber
-        integer                                     :: PreviousMeasuresNumber
+        integer                                     :: CurrentMeasuresNumber = null_int  !initialization: Carina
+        integer                                     :: PreviousMeasuresNumber = null_int  !initialization: Carina
 
         !Mapping variables
         type(T_External)                            :: External_Var
-        integer, dimension(:,:,:), pointer          :: WaterFacesU
-        integer, dimension(:,:,:), pointer          :: WaterFacesV
-        integer, dimension(:,:,:), pointer          :: OpenFacesU
-        integer, dimension(:,:,:), pointer          :: OpenFacesV
+        integer, dimension(:,:,:), pointer          :: WaterFacesU  => null()  !initialization: Carina
+        integer, dimension(:,:,:), pointer          :: WaterFacesV  => null()  !initialization: Carina
+        integer, dimension(:,:,:), pointer          :: OpenFacesU   => null()  !initialization: Carina
+        integer, dimension(:,:,:), pointer          :: OpenFacesV   => null()  !initialization: Carina
 
         !Instance of other modules
         integer                                     :: ObjEnterData         = 0

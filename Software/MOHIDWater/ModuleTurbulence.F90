@@ -225,63 +225,63 @@ Module ModuleTurbulence
 
     !Types---------------------------------------------------------------------
     type       T_Files
-         character(len=PathLength)                  :: ConstructData
-         character(len=PathLength)                  :: OutPutFields
+         character(len=PathLength)                  :: ConstructData = null_str !inicialization: Carina
+         character(len=PathLength)                  :: OutPutFields = null_str !inicialization: Carina
     end type T_Files
 
 
     type       T_TurbOptions
-         integer                                    :: MODTURB = null_int
-         integer                                    :: MODVISH = null_int
-         integer                                    :: MLD_Method
-         logical                                    :: Continuous_Compute
-         logical                                    :: MLD_Calc
-         logical                                    :: MLD_Calc_Bot
-         integer                                    :: DensityMethod
-         logical                                    :: PressureCorrec
+         integer                                    :: MODTURB        = null_int
+         integer                                    :: MODVISH        = null_int
+         integer                                    :: MLD_Method     = null_int !inicialization: Carina
+         logical                                    :: Continuous_Compute = .false. !inicialization: Carina
+         logical                                    :: MLD_Calc       = .false. !inicialization: Carina
+         logical                                    :: MLD_Calc_Bot   = .false. !inicialization: Carina
+         integer                                    :: DensityMethod  = null_int !inicialization: Carina
+         logical                                    :: PressureCorrec = .false. !inicialization: Carina
     end type T_TurbOptions
 
     type       T_Statistics
-         integer                                    :: ID, FrBV_ID
-         character(LEN=StringLength)                :: File 
-         logical                                    :: ON
+         integer                                    :: ID, FrBV_ID   = null_int !inicialization: Carina
+         character(LEN=StringLength)                :: File          = null_str !inicialization: Carina
+         logical                                    :: ON            = .false. !inicialization: Carina
     end type T_Statistics
 
     type       T_Viscosity
-        real, dimension(:,:,:), pointer             :: Vertical
-        real, dimension(:,:,:), pointer             :: HorizontalCenter
-        real, dimension(:,:,:), pointer             :: HorizontalCorner
-        real                                        :: Background
-        real                                        :: VertMax
-        logical                                     :: VertMaxON
+        real, dimension(:,:,:), pointer             :: Vertical         => null() !inicialization: Carina
+        real, dimension(:,:,:), pointer             :: HorizontalCenter => null() !inicialization: Carina
+        real, dimension(:,:,:), pointer             :: HorizontalCorner => null() !inicialization: Carina
+        real                                        :: Background       = null_real !inicialization: Carina
+        real                                        :: VertMax          = null_real !inicialization: Carina
+        logical                                     :: VertMaxON        = .false.  !inicialization: Carina
     end type T_Viscosity
 
     type       T_Diffusivity
-        real, dimension(:,:,:), pointer             :: Vertical
+        real, dimension(:,:,:), pointer             :: Vertical     => null() !inicialization: Carina
     end type T_Diffusivity
 
     type       T_TurbVar
-        real, dimension(:,:,:), pointer             :: Richardson
-        real, dimension(:,:,:), pointer             :: FPRANDTL           !Prandtl freq.
-        real, dimension(:,:,:), pointer             :: FBRUNTV            !Brunt-Vaisalla freq.
-        real, dimension(:,:,:), pointer             :: MixingLengthX      !MixingLength
-        real, dimension(:,:,:), pointer             :: MixingLengthY      !MixingLength
-        real, dimension(:,:,:), pointer             :: MixingLengthZ      !MixingLength
-        real, dimension(:,:,:), pointer             :: Ldownward          !H. Coelho
-        real, dimension(:,:,:), pointer             :: VMOD
-        real, dimension(:,:,:), pointer             :: VertPrandtlNumber  !Vertical Prandtl Number 
-        real, dimension(:,:)  , pointer             :: MLD_Surf
-        real, dimension(:,:)  , pointer             :: MLD_Bot
+        real, dimension(:,:,:), pointer             :: Richardson     => null() !inicialization: Carina
+        real, dimension(:,:,:), pointer             :: FPRANDTL       => null() !inicialization: Carina           !Prandtl freq.
+        real, dimension(:,:,:), pointer             :: FBRUNTV        => null() !inicialization: Carina           !Brunt-Vaisalla freq.
+        real, dimension(:,:,:), pointer             :: MixingLengthX  => null() !inicialization: Carina     !MixingLength
+        real, dimension(:,:,:), pointer             :: MixingLengthY  => null() !inicialization: Carina     !MixingLength
+        real, dimension(:,:,:), pointer             :: MixingLengthZ  => null() !inicialization: Carina      !MixingLength
+        real, dimension(:,:,:), pointer             :: Ldownward      => null() !inicialization: Carina      !H. Coelho
+        real, dimension(:,:,:), pointer             :: VMOD           => null() !inicialization: Carina
+        real, dimension(:,:,:), pointer             :: VertPrandtlNumber => null() !inicialization: Carina  !Vertical Prandtl Number 
+        real, dimension(:,:)  , pointer             :: MLD_Surf       => null() !inicialization: Carina
+        real, dimension(:,:)  , pointer             :: MLD_Bot        => null() !inicialization: Carina
         !Variables from TurbGOTM. Needed for output.
         real, dimension(:,:,:), pointer             :: TKE, L, eps, P, B          
-        real                                        :: MAXMixingLength        = null_real     !Nihoul & Leendertsee
-        real                                        :: MINHorizontalViscosity = null_real     !Estuary & Smagorinsky
-        real                                        :: ReferenceDepth         = null_real     !Estuary
-        real                                        :: ReferenceVelocity      = null_real     !Estuary
-        real                                        :: HORCON                 = null_real     !Smagorinsky
-        real                                        :: TKE_MLD,RICH_MLD
-        logical                                     :: SmagorinskyStratified
-        real                                        :: RichardsonCritical
+        real                                        :: MAXMixingLength        = null_real !inicialization: Carina    !Nihoul & Leendertsee
+        real                                        :: MINHorizontalViscosity = null_real !inicialization: Carina    !Estuary & Smagorinsky
+        real                                        :: ReferenceDepth         = null_real !inicialization: Carina    !Estuary
+        real                                        :: ReferenceVelocity      = null_real !inicialization: Carina    !Estuary
+        real                                        :: HORCON                 = null_real !inicialization: Carina    !Smagorinsky
+        real                                        :: TKE_MLD,RICH_MLD       = null_real !inicialization: Carina
+        logical                                     :: SmagorinskyStratified  = .false.   !inicialization: Carina
+        real                                        :: RichardsonCritical     = null_real !inicialization: Carina
     end type T_TurbVar
 
     type       T_External
@@ -291,50 +291,50 @@ Module ModuleTurbulence
         type(T_Time         )                       :: EndTime
         
         !Hydrodynamic
-        real,    pointer, dimension(:,:,:)          :: VelocityX
-        real,    pointer, dimension(:,:,:)          :: VelocityY
-        real,    pointer, dimension(:,:,:)          :: VelocityZ
-        real,    pointer, dimension(:,:  )          :: Chezy
+        real,    pointer, dimension(:,:,:)          :: VelocityX  => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)          :: VelocityY  => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)          :: VelocityZ  => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  )          :: Chezy      => null() !inicialization: Carina
         !Geometry
-        real,    pointer, dimension(:,:,:)          :: ZCellCenter
-        real,    pointer, dimension(:,:,:)          :: SZZ
-        real,    pointer, dimension(:,:,:)          :: DWZ
-        real,    pointer, dimension(:,:,:)          :: DZZ 
-        real,    pointer, dimension(:,:  )          :: HT
-        integer, pointer, dimension(:,:  )          :: KFloorZ
+        real,    pointer, dimension(:,:,:)          :: ZCellCenter  => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)          :: SZZ          => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)          :: DWZ          => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)          :: DZZ          => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  )          :: HT           => null() !inicialization: Carina
+        integer, pointer, dimension(:,:  )          :: KFloorZ      => null() !inicialization: Carina
 
         !Bathymetry    
-        real,    pointer, dimension(:,:  )          :: Bathymetry        
+        real,    pointer, dimension(:,:  )          :: Bathymetry   => null() !inicialization: Carina
 
         !HorizontalGrid
-        real,    pointer, dimension(:,:  )          :: DUX
-        real,    pointer, dimension(:,:  )          :: DVY
-        real,    pointer, dimension(:,:  )          :: DYY
-        real,    pointer, dimension(:,:  )          :: DZX
-        real,    pointer, dimension(:,:  )          :: DZY
+        real,    pointer, dimension(:,:  )          :: DUX          => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  )          :: DVY          => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  )          :: DYY          => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  )          :: DZX          => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  )          :: DZY          => null() !inicialization: Carina
 
         !WaterProperties
-        real,    dimension(:,:,:), pointer          :: Temperature
-        real,    dimension(:,:,:), pointer          :: Salinity
-        real,    dimension(:,:,:), pointer          :: SigmaNoPressure
-        integer                                     :: DensMethod
-        logical                                     :: CorrecPress
+        real,    dimension(:,:,:), pointer          :: Temperature  => null() !inicialization: Carina
+        real,    dimension(:,:,:), pointer          :: Salinity     => null() !inicialization: Carina
+        real,    dimension(:,:,:), pointer          :: SigmaNoPressure  => null() !inicialization: Carina
+        integer                                     :: DensMethod   = null_int !inicialization: Carina
+        logical                                     :: CorrecPress  = .false. !inicialization: Carina
 
         !Bottom
-        real                                        :: BottomRugosity
+        real                                        :: BottomRugosity = null_real  !inicialization: Carina
 
         !Map
-        integer, pointer, dimension(:,:,:)          :: WaterPoints3D   
-        integer, pointer, dimension(:,:,:)          :: OpenPoints3D
-        integer, pointer, dimension(:,:,:)          :: ComputeFacesU3D
-        integer, pointer, dimension(:,:,:)          :: ComputeFacesV3D
-        integer, pointer, dimension(:,:,:)          :: ComputeFacesW3D
-        integer, pointer, dimension(:,:,:)          :: ImposedTangentialFacesU
-        integer, pointer, dimension(:,:,:)          :: ImposedTangentialFacesV
-        integer, pointer, dimension(:,:,:)          :: ImposedNormalFacesU
-        integer, pointer, dimension(:,:,:)          :: ImposedNormalFacesV
+        integer, pointer, dimension(:,:,:)          :: WaterPoints3D     => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:)          :: OpenPoints3D      => null() !inicialization: Carina 
+        integer, pointer, dimension(:,:,:)          :: ComputeFacesU3D   => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:)          :: ComputeFacesV3D   => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:)          :: ComputeFacesW3D   => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:)          :: ImposedTangentialFacesU  => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:)          :: ImposedTangentialFacesV  => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:)          :: ImposedNormalFacesU      => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:)          :: ImposedNormalFacesV      => null() !inicialization: Carina
 
-        integer, pointer, dimension(:,:  )          :: WaterPoints2D   
+        integer, pointer, dimension(:,:  )          :: WaterPoints2D    => null() !inicialization: Carina 
     end type T_External
 
     type       T_OutPut         
@@ -342,18 +342,18 @@ Module ModuleTurbulence
          logical                                    :: ON                       = .false.
          logical                                    :: WriteRestartFile         = .false.
          logical                                    :: RestartOverwrite         = .false.
-         logical                                    :: Run_End
-         type (T_Time), dimension(:), pointer       :: OutTime, RestartOutTime
-         real, dimension(:, :, :), pointer          :: Aux3D
+         logical                                    :: Run_End                  = .false. !inicialization: Carina
+         type (T_Time), dimension(:), pointer       :: OutTime, RestartOutTime  => null() !inicialization: Carina
+         real, dimension(:, :, :), pointer          :: Aux3D                    => null() !inicialization: Carina
          logical                                    :: TimeSerie                = .false.
          logical                                    :: ProfileON                = .false.
     end type T_OutPut
 
     type      T_Turbulence
-        integer                                     :: InstanceID
-        character(PathLength)                       :: ModelName
+        integer                                     :: InstanceID = null_int !inicialization: Carina
+        character(PathLength)                       :: ModelName = null_str  !inicialization: Carina
         type(T_Size3D     )                         :: Size   
-        type(T_Size3D     )                         :: WorkSize   
+        type(T_Size3D     )                         :: WorkSize
         logical                                     :: MixingLengthH = .false.
         type(T_Files      )                         :: Files
         type(T_OutPut     )                         :: OutPut
@@ -400,15 +400,15 @@ Module ModuleTurbulence
         integer                                     :: ObjProfile           = 0
 
                                                     
-        type(T_Turbulence), pointer                 :: Next
+        type(T_Turbulence), pointer                 :: Next    => null() !inicialization: Carina
 
     end type T_Turbulence
 
    
     !Global Module Variables
    
-    type (T_Turbulence), pointer                    :: FirstObjTurbulence
-    type (T_Turbulence), pointer                    :: Me        
+    type (T_Turbulence), pointer                    :: FirstObjTurbulence    => null() !inicialization: Carina
+    type (T_Turbulence), pointer                    :: Me                    => null() !inicialization: Carina
 
     !--------------------------------------------------------------------------
     

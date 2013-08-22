@@ -79,7 +79,7 @@ Module ModuleToga
 
     !Type
     type      T_Toga
-        integer                                 :: InstanceID
+        integer                                 :: InstanceID = null_int !inicialization: Carina
         real(8)                                 :: DS    = null_real
         real(8)                                 :: DH    = null_real
         real(8)                                 :: DP    = null_real
@@ -94,17 +94,17 @@ Module ModuleToga
         real(8)                                 :: P     = null_real
         real(8)                                 :: PP    = null_real
         real(8)                                 :: ENP   = null_real
-        character(len=5), pointer, dimension(:) :: kon
-        integer, pointer, dimension(:)          :: indx
-        real, pointer, dimension(:)             :: Sig, twoc
-        real, pointer, dimension(:)             :: CH, CHP     
-        real, pointer, dimension(:)             :: VMare, UMare, FMare, Freq
-        type (T_Toga), pointer                  :: Next
+        character(len=5), pointer, dimension(:) :: kon   => null()  !inicialization: Carina
+        integer, pointer, dimension(:)          :: indx  => null()  !inicialization: Carina
+        real, pointer, dimension(:)             :: Sig, twoc  => null()  !inicialization: Carina
+        real, pointer, dimension(:)             :: CH, CHP    => null()  !inicialization: Carina  
+        real, pointer, dimension(:)             :: VMare, UMare, FMare, Freq  => null()  !inicialization: Carina
+        type (T_Toga), pointer                  :: Next  => null()  !inicialization: Carina
     end type T_Toga
 
     !Global Module Variables
-    type (T_Toga), pointer                      :: FirstToga
-    type (T_Toga), pointer                      :: Me
+    type (T_Toga), pointer                      :: FirstToga   => null()  !inicialization: Carina
+    type (T_Toga), pointer                      :: Me          => null()  !inicialization: Carina
 
     !Data----------------------------------------------------------------------
     character(LEN = 5), dimension(NCompt ), parameter  :: KonTB = (/                             &

@@ -94,45 +94,45 @@ Module ModuleStatistic
     integer, parameter :: Depth_ = 1, Layer_ = 2
 
     type T_Classification
-        logical                                     :: On
-        real                                        :: Percentil
-        integer                                     :: nClasses
-        real, dimension(:, :),       pointer        :: Classes
-        real, dimension(:, :, :, :), pointer        :: Frequency
-        real, dimension(:, :   , :), pointer        :: Frequency2D
-        real                                        :: RunPeriod
+        logical                                     :: On            = .false. !inicialization: Carina
+        real                                        :: Percentil     = null_real !inicialization: Carina
+        integer                                     :: nClasses      = null_int !inicialization: Carina
+        real, dimension(:, :),       pointer        :: Classes       => null() !inicialization: Carina
+        real, dimension(:, :, :, :), pointer        :: Frequency     => null() !inicialization: Carina
+        real, dimension(:, :   , :), pointer        :: Frequency2D   => null() !inicialization: Carina
+        real                                        :: RunPeriod     = null_real !inicialization: Carina
         type (T_Time)                               :: LastCalculation
     end type T_Classification
 
     type T_SimpleStatistic
         logical                                     :: On           = .false.
         
-        real, dimension(:, :, :), pointer           :: Minimum
-        real, dimension(:, :, :), pointer           :: Maximum
-        real, dimension(:, :, :), pointer           :: Average
-        real, dimension(:, :, :), pointer           :: SquareAverage
-        real, dimension(:, :, :), pointer           :: StandardDeviation
-        real, dimension(:, :, :), pointer           :: GeomAverage
-        real, dimension(:, :, :), pointer           :: SquareGeomAverage
-        real, dimension(:, :, :), pointer           :: GeomStandardDeviation
-        real, dimension(:, :, :), pointer           :: Accumulated
+        real, dimension(:, :, :), pointer           :: Minimum      => null() !inicialization: Carina
+        real, dimension(:, :, :), pointer           :: Maximum      => null() !inicialization: Carina
+        real, dimension(:, :, :), pointer           :: Average      => null() !inicialization: Carina
+        real, dimension(:, :, :), pointer           :: SquareAverage  => null() !inicialization: Carina
+        real, dimension(:, :, :), pointer           :: StandardDeviation => null() !inicialization: Carina
+        real, dimension(:, :, :), pointer           :: GeomAverage       => null() !inicialization: Carina
+        real, dimension(:, :, :), pointer           :: SquareGeomAverage => null() !inicialization: Carina
+        real, dimension(:, :, :), pointer           :: GeomStandardDeviation  => null() !inicialization: Carina
+        real, dimension(:, :, :), pointer           :: Accumulated   => null() !inicialization: Carina
         !guillaume juan
-        real, dimension(:, :, :), pointer           :: PercentBelowCriticalValue
+        real, dimension(:, :, :), pointer           :: PercentBelowCriticalValue  => null() !inicialization: Carina
 
-        real, dimension(:, :   ), pointer           :: Minimum2D
-        real, dimension(:, :   ), pointer           :: Maximum2D
-        real, dimension(:, :   ), pointer           :: Average2D
-        real, dimension(:, :   ), pointer           :: SquareAverage2D
-        real, dimension(:, :   ), pointer           :: StandardDeviation2D
-        real, dimension(:, :   ), pointer           :: GeomAverage2D
-        real, dimension(:, :   ), pointer           :: SquareGeomAverage2D
-        real, dimension(:, :   ), pointer           :: GeomStandardDeviation2D
-        real, dimension(:, :   ), pointer           :: Accumulated2D
+        real, dimension(:, :   ), pointer           :: Minimum2D            => null() !inicialization: Carina
+        real, dimension(:, :   ), pointer           :: Maximum2D            => null() !inicialization: Carina
+        real, dimension(:, :   ), pointer           :: Average2D            => null() !inicialization: Carina
+        real, dimension(:, :   ), pointer           :: SquareAverage2D      => null() !inicialization: Carina
+        real, dimension(:, :   ), pointer           :: StandardDeviation2D  => null() !inicialization: Carina
+        real, dimension(:, :   ), pointer           :: GeomAverage2D        => null() !inicialization: Carina
+        real, dimension(:, :   ), pointer           :: SquareGeomAverage2D  => null() !inicialization: Carina
+        real, dimension(:, :   ), pointer           :: GeomStandardDeviation2D => null() !inicialization: Carina
+        real, dimension(:, :   ), pointer           :: Accumulated2D       => null() !inicialization: Carina
         !guillaume juan
-        real, dimension(:, :   ), pointer           :: PercentBelowCriticalValue2D
+        real, dimension(:, :   ), pointer           :: PercentBelowCriticalValue2D => null() !inicialization: Carina
 
-        real                                        :: RunPeriod
-        integer                                     :: OutputNumber
+        real                                        :: RunPeriod    = null_real !inicialization: Carina
+        integer                                     :: OutputNumber = null_int !inicialization: Carina
         type (T_Time)                               :: LastCalculation
         type (T_Time)                               :: NextOutputTime
     end type T_SimpleStatistic
@@ -140,26 +140,28 @@ Module ModuleStatistic
 
     type T_Layers
 
-        integer                                     :: Number
+        integer                                     :: Number = null_int !inicialization: Carina
 
-        integer, dimension(:), pointer              :: Definition   !1 - Matrix of layer numbers 
-                                                                    !2 - Matrix of depths 
+        integer, dimension(:), pointer              :: Definition  => null() !inicialization: Carina  !1 - Matrix of layer numbers 
+                                                                                                     !2 - Matrix of depths 
 
-        real,    dimension(:,:,: ), pointer         :: UpperDepth   ! This two matrixes are depths 
-        real,    dimension(:,:,: ), pointer         :: LowerDepth   ! This two matrixes are only allocate 
-                                                                    ! when Methodology = 2 (Values 3D and Statistic 2D) 
+        real,    dimension(:,:,: ), pointer         :: UpperDepth  => null() !inicialization: Carina   ! This two matrixes are depths 
+        real,    dimension(:,:,: ), pointer         :: LowerDepth  => null() !inicialization: Carina   ! This two matrixes are only allocate 
+                                                                                                      ! when Methodology = 2 (Values 3D and Statistic 2D) 
 
-        real,    dimension(:,:,: ), pointer         :: UpperLayer   ! This two matrixes are layers number
-        real,    dimension(:,:,: ), pointer         :: LowerLayer   ! This two matrixes are only allocate 
-                                                                    ! when Methodology = 2 (Values 3D and Statistic 2D) 
+        real,    dimension(:,:,: ), pointer         :: UpperLayer  => null() !inicialization: Carina   ! This two matrixes are layers number
+        real,    dimension(:,:,: ), pointer         :: LowerLayer  => null() !inicialization: Carina   ! This two matrixes are only allocate 
+                                                                                                      ! when Methodology = 2 (Values 3D and Statistic 2D) 
 
-        real,    dimension(:,:,: ), pointer         :: Value        !The average value in the layer
+        real,    dimension(:,:,: ), pointer         :: Value  => null() !inicialization: Carina        !The average value in the layer
 
-        integer, dimension(:,:,: ), pointer         :: WaterPoints   ! if exist one water point between the layer limits
-                                                                     ! in this case WaterPoints2D (i, j) = 1
+        integer, dimension(:,:,: ), pointer         :: WaterPoints  => null() !inicialization: Carina   ! if exist one water point between the layer limits
+                                                                                                       ! in this case WaterPoints2D (i, j) = 1
 
-        integer, dimension(:), pointer              :: MinLayer, MaxLayer
-        real,    dimension(:), pointer              :: MinDepth, MaxDepth
+        integer, dimension(:), pointer              :: MinLayer  => null() !inicialization: Carina
+		integer, dimension(:), pointer              :: MaxLayer  => null() !inicialization: Carina
+        real,    dimension(:), pointer              :: MinDepth  => null() !inicialization: Carina
+		real,    dimension(:), pointer              :: MaxDepth  => null() !inicialization: Carina
 
     end type T_Layers
 
@@ -167,38 +169,38 @@ Module ModuleStatistic
         type (T_Time    )                           :: Now
         type (T_Size3D  )                           :: Size
         type (T_Size3D  )                           :: WorkSize
-        real,    dimension(:, :, :), pointer        :: Value3D
-        real,    dimension(:, :   ), pointer        :: Value2D
+        real,    dimension(:, :, :), pointer        :: Value3D  => null() !inicialization: Carina
+        real,    dimension(:, :   ), pointer        :: Value2D  => null() !inicialization: Carina
     end type T_ExternalVar
 
 
     type T_Statistic
-        integer                                     :: InstanceID
+        integer                                     :: InstanceID = null_int !inicialization: Carina
         type (T_ExternalVar    )                    :: ExternalVar
-        integer                                     :: Methodology !1 - Values 3D and Statistic 3D
-                                                                   !2 - Values 3D and Statistic 2D (2D layer)
-                                                                   !3 - Values 2D and Statistic 2D
+        integer                                     :: Methodology = null_int !inicialization: Carina !1 - Values 3D and Statistic 3D
+                                                                                                      !2 - Values 3D and Statistic 2D (2D layer)
+                                                                                                      !3 - Values 2D and Statistic 2D
         type (T_Layers )                            :: Layers 
         type (T_SimpleStatistic)                    :: Global
         type (T_SimpleStatistic)                    :: Daily
         type (T_SimpleStatistic)                    :: Monthly
         type (T_SimpleStatistic)                    :: SpecificHour
-        integer                                     :: SpecificHourValue
+        integer                                     :: SpecificHourValue = null_int !inicialization: Carina
         type (T_Classification )                    :: Classification
         integer                                     :: ObjTime          = 0
         integer                                     :: ObjHDF5          = 0
         integer                                     :: ObjEnterData     = 0
-        character(len=StringLength)                 :: Name
-        character(len=StringLength)                 :: GroupName
+        character(len=StringLength)                 :: Name             = null_str !inicialization: Carina
+        character(len=StringLength)                 :: GroupName        = null_str !inicialization: Carina
         logical                                     :: Accumulated      = .false.  !Accumulated Values
         logical                                     :: GeomMean         = .false. !Geometric statistics
         !guillaume juan
         logical                                     :: Critical = .false.
-        real                                        :: CriticalValue
+        real                                        :: CriticalValue  = null_real !inicialization: Carina
         
-        logical                                     :: NormalizeFreq
+        logical                                     :: NormalizeFreq = .false.  !inicialization: Carina
         
-        type (T_Statistic      ), pointer           :: Next
+        type (T_Statistic      ), pointer           :: Next  => null() !inicialization: Carina
     end type T_Statistic
 
 

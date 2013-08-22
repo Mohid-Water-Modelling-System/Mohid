@@ -237,36 +237,36 @@ Module ModuleSedimentProperties
                                                                         
     !Types---------------------------------------------------------------------
     type       T_ID
-        integer                                 :: IDNumber
-        character(LEN = StringLength)           :: Name
-        character(LEN = StringLength)           :: Description
-        character(LEN = StringLength)           :: Units
+        integer                                 :: IDNumber     = null_int !inicialization: Carina
+        character(LEN = StringLength)           :: Name         = null_str  !inicialization: Carina
+        character(LEN = StringLength)           :: Description  = null_str  !inicialization: Carina
+        character(LEN = StringLength)           :: Units        = null_str  !inicialization: Carina
     end type T_ID
 
     type       T_Property_3D
          type(T_PropertyID)                     :: ID
-         real                                   :: Scalar
-         real, pointer, dimension (:,:,:)       :: Field
+         real                                   :: Scalar  = null_real !inicialization: Carina
+         real, pointer, dimension (:,:,:)       :: Field   => null() !inicialization: Carina
     end type   T_Property_3D
 
     type       T_AdvectionDiffusion_Parameters
-        integer                                 :: BoundaryCondition
-        integer                                 :: Diffusion_Method
-        real                                    :: Molecular_Diff_Coef
+        integer                                 :: BoundaryCondition   = null_int !inicialization: Carina
+        integer                                 :: Diffusion_Method    = null_int !inicialization: Carina
+        real                                    :: Molecular_Diff_Coef = null_real !inicialization: Carina
     end type T_AdvectionDiffusion_Parameters
 
     type       T_Partition                      
         type(T_Property_3D)                     :: Rate
         type(T_Property_3D)                     :: Fraction 
-        character(LEN = StringLength)           :: Couple
+        character(LEN = StringLength)           :: Couple     = null_str  !inicialization: Carina
         integer                                 :: Couple_ID  = null_int
     end type T_Partition
 
     type       T_Bioturbation 
-        real                                    :: DefaultCoef
-        real                                    :: BioDepth
-        real                                    :: DecayCoef
-        real, pointer, dimension(:,:,:)         :: Coef
+        real                                    :: DefaultCoef = null_real !inicialization: Carina
+        real                                    :: BioDepth    = null_real !inicialization: Carina
+        real                                    :: DecayCoef   = null_real !inicialization: Carina
+        real, pointer, dimension(:,:,:)         :: Coef        => null() !inicialization: Carina
     end type   T_Bioturbation
     
     type       T_Evolution
@@ -296,37 +296,39 @@ Module ModuleSedimentProperties
         logical                                 :: TimeSerie            = .false.
         logical                                 :: BoxTimeSerie         = .false.
         logical                                 :: OutputHDF            = .false.
-        real, pointer, dimension(:,:,:)         :: Concentration
-        real, pointer, dimension(:,:,:)         :: HorizontalDiffusivity
-        real, pointer, dimension(:,:,:)         :: VerticalDiffusivity
-        real, pointer, dimension(:,:,:)         :: Mass_Created
-        real, pointer, dimension(:,:  )         :: BoundaryFlux
+        real, pointer, dimension(:,:,:)         :: Concentration        => null() !inicialization: Carina
+        real, pointer, dimension(:,:,:)         :: HorizontalDiffusivity => null() !inicialization: Carina
+        real, pointer, dimension(:,:,:)         :: VerticalDiffusivity  => null() !inicialization: Carina
+        real, pointer, dimension(:,:,:)         :: Mass_Created         => null() !inicialization: Carina
+        real, pointer, dimension(:,:  )         :: BoundaryFlux         => null() !inicialization: Carina
         real                                    :: MinValue             = FillValueReal
-        type(T_Property), pointer               :: Next, Prev
+        type(T_Property), pointer               :: Next                 => null() !inicialization: Carina
+        type(T_Property), pointer               :: Prev                 => null() !inicialization: Carina
     end type T_Property
 
     type       T_SedimentRate
         type (T_ID)                             :: ID
         type (T_ID)                             :: FirstProp
         type (T_ID)                             :: SecondProp
-        real, pointer, dimension(:,:,:)         :: Field 
-        real, pointer, dimension(:,:,:)         :: Field2
-        type(T_SedimentRate), pointer           :: Next, Prev
+        real, pointer, dimension(:,:,:)         :: Field         => null() !inicialization: Carina
+        real, pointer, dimension(:,:,:)         :: Field2        => null() !inicialization: Carina
+        type(T_SedimentRate), pointer           :: Next          => null() !inicialization: Carina
+        type(T_SedimentRate), pointer           :: Prev          => null() !inicialization: Carina
     end type T_SedimentRate
 
     type  T_OutPut
-         type (T_Time), pointer, dimension(:)   :: OutTime
-         integer                                :: NextOutPut
-         logical                                :: Yes
+         type (T_Time), pointer, dimension(:)   :: OutTime        => null() !inicialization: Carina   
+         integer                                :: NextOutPut     = null_int !inicialization: Carina
+         logical                                :: Yes            = .false. !inicialization: Carina
     end type   T_OutPut
 
 
     type       T_Files
-         character(len=StringLength)            :: Initial
-         character(len=StringLength)            :: Final
-         character(len=StringLength)            :: HDFResults
-         character(len=StringLength)            :: InputData
-         character(len=StringLength)            :: BoxesFile
+         character(len=StringLength)            :: Initial     = null_str !inicialization: Carina
+         character(len=StringLength)            :: Final       = null_str !inicialization: Carina
+         character(len=StringLength)            :: HDFResults  = null_str !inicialization: Carina
+         character(len=StringLength)            :: InputData   = null_str !inicialization: Carina
+         character(len=StringLength)            :: BoxesFile   = null_str !inicialization: Carina
     end type T_Files
 
     type       T_Coupling
@@ -351,55 +353,58 @@ Module ModuleSedimentProperties
 
     type       T_External
         type(T_Time)                            :: Now
-        real,    pointer, dimension(:,:  )      :: GridCellArea
-        real(8), pointer, dimension(:,:  )      :: WaterFlux      
-        real,    pointer, dimension(:,:,:)      :: DWZ, DZZ
-        real,    pointer, dimension(:,:,:)      :: SZZ
-        real,    pointer, dimension(:,:,:)      :: WaterPercentage
-        real(8), pointer, dimension(:,:,:)      :: VolumeZ
-        real(8), pointer, dimension(:,:,:)      :: WaterVolume
-        real(8), pointer, dimension(:,:,:)      :: WaterVolumeOld
-        real(8), pointer, dimension(:,:,:)      :: DrySedimentVolume
-        real(8), pointer, dimension(:,:,:)      :: DrySedimentVolumeOld
-        real(8), pointer, dimension(:,:,:)      :: WaterFluxX
-        real(8), pointer, dimension(:,:,:)      :: WaterFluxY
-        real(8), pointer, dimension(:,:,:)      :: WaterFluxZ
-        real   , pointer, dimension(:,:,:)      :: Velocity_U
-        real   , pointer, dimension(:,:,:)      :: Velocity_V
-        real   , pointer, dimension(:,:,:)      :: Velocity_W
-        real   , pointer, dimension(:,:,:)      :: Tortuosity
-        integer, pointer, dimension(:,:,:)      :: ComputeFacesU3D
-        integer, pointer, dimension(:,:,:)      :: ComputeFacesV3D
-        integer, pointer, dimension(:,:,:)      :: ComputeFacesW3D
-        integer, pointer, dimension(:,:,:)      :: OpenPoints3D
-        integer, pointer, dimension(:,:,:)      :: WaterPoints3D
-        integer, pointer, dimension(:,:  )      :: WaterPoints2D
-        integer, pointer, dimension(:,:,:)      :: LandPoints3D   
-        integer, pointer, dimension(:,:  )      :: BoundaryPoints2D
-        real,    pointer, dimension(:,:  )      :: Bathymetry
-        real,    pointer, dimension(:,:  )      :: XX_IE, YY_IE
-        real   , pointer, dimension(:,:,:)      :: Depth
-        real   , pointer, dimension(:,:,:)      :: Porosity
-        integer, pointer, dimension(:,:  )      :: KTop, KTopState
-        real                                    :: MinLayerThickness
-        real                                    :: DT
+        real,    pointer, dimension(:,:  )      :: GridCellArea      => null() !inicialization: Carina   
+        real(8), pointer, dimension(:,:  )      :: WaterFlux         => null() !inicialization: Carina   
+        real,    pointer, dimension(:,:,:)      :: DWZ               => null() !inicialization: Carina   
+        real,    pointer, dimension(:,:,:)      :: DZZ               => null() !inicialization: Carina   
+        real,    pointer, dimension(:,:,:)      :: SZZ               => null() !inicialization: Carina   
+        real,    pointer, dimension(:,:,:)      :: WaterPercentage   => null() !inicialization: Carina   
+        real(8), pointer, dimension(:,:,:)      :: VolumeZ           => null() !inicialization: Carina   
+        real(8), pointer, dimension(:,:,:)      :: WaterVolume       => null() !inicialization: Carina   
+        real(8), pointer, dimension(:,:,:)      :: WaterVolumeOld    => null() !inicialization: Carina   
+        real(8), pointer, dimension(:,:,:)      :: DrySedimentVolume => null() !inicialization: Carina   
+        real(8), pointer, dimension(:,:,:)      :: DrySedimentVolumeOld  => null() !inicialization: Carina   
+        real(8), pointer, dimension(:,:,:)      :: WaterFluxX        => null() !inicialization: Carina   
+        real(8), pointer, dimension(:,:,:)      :: WaterFluxY        => null() !inicialization: Carina   
+        real(8), pointer, dimension(:,:,:)      :: WaterFluxZ        => null() !inicialization: Carina   
+        real   , pointer, dimension(:,:,:)      :: Velocity_U        => null() !inicialization: Carina   
+        real   , pointer, dimension(:,:,:)      :: Velocity_V        => null() !inicialization: Carina   
+        real   , pointer, dimension(:,:,:)      :: Velocity_W        => null() !inicialization: Carina   
+        real   , pointer, dimension(:,:,:)      :: Tortuosity        => null() !inicialization: Carina   
+        integer, pointer, dimension(:,:,:)      :: ComputeFacesU3D   => null() !inicialization: Carina   
+        integer, pointer, dimension(:,:,:)      :: ComputeFacesV3D   => null() !inicialization: Carina   
+        integer, pointer, dimension(:,:,:)      :: ComputeFacesW3D   => null() !inicialization: Carina   
+        integer, pointer, dimension(:,:,:)      :: OpenPoints3D      => null() !inicialization: Carina   
+        integer, pointer, dimension(:,:,:)      :: WaterPoints3D     => null() !inicialization: Carina   
+        integer, pointer, dimension(:,:  )      :: WaterPoints2D     => null() !inicialization: Carina   
+        integer, pointer, dimension(:,:,:)      :: LandPoints3D      => null() !inicialization: Carina   
+        integer, pointer, dimension(:,:  )      :: BoundaryPoints2D  => null() !inicialization: Carina   
+        real,    pointer, dimension(:,:  )      :: Bathymetry        => null() !inicialization: Carina   
+        real,    pointer, dimension(:,:  )      :: XX_IE             => null() !inicialization: Carina   
+        real,    pointer, dimension(:,:  )      :: YY_IE             => null() !inicialization: Carina
+        real   , pointer, dimension(:,:,:)      :: Depth             => null() !inicialization: Carina   
+        real   , pointer, dimension(:,:,:)      :: Porosity          => null() !inicialization: Carina   
+        integer, pointer, dimension(:,:  )      :: KTop              => null() !inicialization: Carina   
+        integer, pointer, dimension(:,:  )      :: KTopState         => null() !inicialization: Carina
+        real                                    :: MinLayerThickness = null_real !inicialization: Carina   
+        real                                    :: DT                = null_real !inicialization: Carina   
     end type T_External
 
    type       T_SeagrassesRoots
         type(T_PropertyID)                      :: ID
-        real,    pointer, dimension(:,:  )      :: Biomass     !gdw/m2
-        real,    pointer, dimension(:,:  )      :: Length 
-        real,    pointer, dimension(:,:,:)      :: Occupation
-        real,    pointer, dimension(:,:,:)      :: NintFactor3DR
-        real,    pointer, dimension(:,:  )      :: NintFactor2DR
-        real,    pointer, dimension(:,:,:)      :: PintFactor3DR
-        real,    pointer, dimension(:,:  )      :: PintFactor2DR
-        real,    pointer, dimension(:,:,:)      :: RootsMort3DR
-        real,    pointer, dimension(:,:  )      :: RootsMort2DR
-        real,    pointer, dimension(:,:,:)      :: UptakeNH4s3D  
-        real,    pointer, dimension(:,:,:)      :: UptakePO4s3D 
-        real                                    :: DefaultValue, LBRatio
-        real(8), pointer, dimension(:,:,:)      :: Volume
+        real,    pointer, dimension(:,:  )      :: Biomass       => null() !inicialization: Carina    !gdw/m2
+        real,    pointer, dimension(:,:  )      :: Length        => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)      :: Occupation    => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)      :: NintFactor3DR => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  )      :: NintFactor2DR => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)      :: PintFactor3DR => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  )      :: PintFactor2DR => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)      :: RootsMort3DR  => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  )      :: RootsMort2DR  => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)      :: UptakeNH4s3D  => null() !inicialization: Carina 
+        real,    pointer, dimension(:,:,:)      :: UptakePO4s3D  => null() !inicialization: Carina
+        real                                    :: DefaultValue, LBRatio = null_real !inicialization: Carina
+        real(8), pointer, dimension(:,:,:)      :: Volume        => null() !inicialization: Carina
     end type   T_SeagrassesRoots
 
 
@@ -424,17 +429,20 @@ Module ModuleSedimentProperties
         type(T_SeagrassesRoots)                 :: SeagrassesRoots
         integer                                 :: PropertiesNumber     = 0
         integer                                 :: SedimentRatesNumber  = 0
-        real(8), pointer, dimension(:,:  )      :: PartitionMatrix
-        real   , pointer, dimension(:    )      :: IndependentTerm
-        real   , pointer, dimension(:,:,:)      :: DissolvedToParticulate3D
+        real(8), pointer, dimension(:,:  )      :: PartitionMatrix      => null() !inicialization: Carina
+        real   , pointer, dimension(:    )      :: IndependentTerm      => null() !inicialization: Carina
+        real   , pointer, dimension(:,:,:)      :: DissolvedToParticulate3D => null() !inicialization: Carina
         real                                    :: ResidualTime         = 0.
-        real(8), pointer, dimension(:,:,:)      :: MassFluxesX
-        real(8), pointer, dimension(:,:,:)      :: MassFluxesY
-        real(8), pointer, dimension(:,:,:)      :: MassFluxesZ
-        real(8), pointer, dimension(:,:,:)      :: CellMass
-        real(8), pointer, dimension(:    )      :: Ti_Coef, D_Coef, E_Coef, F_Coef
-        real(8), pointer, dimension(:    )      :: VolZOld, VolZ
-        real,    pointer, dimension(:    )      :: DZZ, DiffCoef, Concentration, DWZ
+        real(8), pointer, dimension(:,:,:)      :: MassFluxesX          => null() !inicialization: Carina
+        real(8), pointer, dimension(:,:,:)      :: MassFluxesY          => null() !inicialization: Carina
+        real(8), pointer, dimension(:,:,:)      :: MassFluxesZ          => null() !inicialization: Carina
+        real(8), pointer, dimension(:,:,:)      :: CellMass             => null() !inicialization: Carina
+        real(8), pointer, dimension(:    )      :: Ti_Coef              => null() !inicialization: Carina
+		real(8), pointer, dimension(:    )      :: D_Coef               => null() !inicialization: Carina
+		real(8), pointer, dimension(:    )      :: E_Coef               => null() !inicialization: Carina
+		real(8), pointer, dimension(:    )      :: F_Coef               => null() !inicialization: Carina
+		real(8), pointer, dimension(:    )      :: VolZOld, VolZ        => null() !inicialization: Carina
+        real,    pointer, dimension(:    )      :: DZZ, DiffCoef, Concentration, DWZ  => null() !inicialization: Carina
 
         !Instance of ModuleHDF5        
         integer                                 :: ObjHDF5              = 0
@@ -480,13 +488,13 @@ Module ModuleSedimentProperties
         integer                                 :: ObjSeagrassSedimInteraction     = 0  
 
         !Collection of instances
-        type(T_SedimentProperties), pointer     :: Next
+        type(T_SedimentProperties), pointer     :: Next => null() !inicialization: Carina
 
     end type T_SedimentProperties
     
     !Global Module Variables
-    type (T_SedimentProperties),    pointer     :: FirstObjSedimentProperties
-    type (T_SedimentProperties),    pointer     :: Me
+    type (T_SedimentProperties),    pointer     :: FirstObjSedimentProperties   => null() !inicialization: Carina
+    type (T_SedimentProperties),    pointer     :: Me      => null() !inicialization: Carina
 
     !--------------------------------------------------------------------------
     

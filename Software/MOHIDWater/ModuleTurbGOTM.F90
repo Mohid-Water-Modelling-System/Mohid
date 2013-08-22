@@ -88,50 +88,50 @@ Module ModuleTurbGOTM
     !Types---------------------------------------------------------------------
 
     type     T_ID
-        integer                       :: IDnumber
-        character(LEN = StringLength) :: name
+        integer                       :: IDnumber = null_int !inicialization: Carina
+        character(LEN = StringLength) :: name     = null_str !inicialization: Carina
     end type T_ID
 
     type       T_Files
-         character(len=PathLength)    :: ConstructData
-         character(len=PathLength)    :: FinalTurbulence
-         character(len=PathLength)    :: InitialTurbulence
+         character(len=PathLength)    :: ConstructData     = null_str !inicialization: Carina
+         character(len=PathLength)    :: FinalTurbulence   = null_str !inicialization: Carina
+         character(len=PathLength)    :: InitialTurbulence = null_str !inicialization: Carina
     end type T_Files
 
     type       T_External
-        real,    pointer, dimension(:,:,:) :: DWZ,dzz
-        real,    pointer, dimension(:,:,:) :: NN       !SQUARED FREQ. BRUNT-VAISALLA N=SQRT(G/ROo*dB/dZ)
-        real,    pointer, dimension(:,:,:) :: SS       !SQUARED FREQ. PRANDTL        M=dU/dZ
-        integer, pointer, dimension(:,:,:) :: WaterPoints3D
-        integer, pointer, dimension(:,:  ) :: WaterPoints2D
-        integer, pointer, dimension(:,:,:) :: ComputeFacesU3D
-        integer, pointer, dimension(:,:,:) :: ComputeFacesV3D
-        integer, pointer, dimension(:,:,:) :: LandPoints
-        integer, pointer, dimension(:,:,:) :: OpenPoints3D       
-        real,    pointer, dimension(:,:  ) :: HT
-        real,    pointer, dimension(:,:  ) :: u_taub  !shear bottom velocity
-        real,    pointer, dimension(:,:  ) :: u_taus  !shear surface velocity
-        integer, pointer, dimension(:,:  ) :: KFloorZ
-        real,    pointer, dimension(:,:  ) :: SurfaceRugosity
-        real,    pointer, dimension(:,:  ) :: BottomRugosity
+        real,    pointer, dimension(:,:,:) :: DWZ,dzz           => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:) :: NN                => null() !inicialization: Carina     !SQUARED FREQ. BRUNT-VAISALLA N=SQRT(G/ROo*dB/dZ)
+        real,    pointer, dimension(:,:,:) :: SS                => null() !inicialization: Carina     !SQUARED FREQ. PRANDTL        M=dU/dZ
+        integer, pointer, dimension(:,:,:) :: WaterPoints3D     => null() !inicialization: Carina
+        integer, pointer, dimension(:,:  ) :: WaterPoints2D     => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:) :: ComputeFacesU3D   => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:) :: ComputeFacesV3D   => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:) :: LandPoints        => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:) :: OpenPoints3D      => null() !inicialization: Carina    
+        real,    pointer, dimension(:,:  ) :: HT                => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  ) :: u_taub            => null() !inicialization: Carina !shear bottom velocity
+        real,    pointer, dimension(:,:  ) :: u_taus            => null() !inicialization: Carina !shear surface velocity
+        integer, pointer, dimension(:,:  ) :: KFloorZ           => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  ) :: SurfaceRugosity   => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  ) :: BottomRugosity    => null() !inicialization: Carina
         type(T_Time)                       :: Now, BeginTime, EndTime
     end type T_External
 
     type      T_TurbGOTM
-        integer                                     :: InstanceID
+        integer                                     :: InstanceID = null_int !inicialization: Carina
         type(T_Size3D  )                            :: Size            !Allocated size -> former IIM,  JJM,  KKM
         type(T_Size3D  )                            :: WorkSize        !Work      size -> former IMAX, JMAX, KMAX
-        real(8), dimension(:, :, :),  pointer       :: Matrix
-        type(T_TurbGOTM), pointer                   :: Next
-        real,    pointer, dimension(:,:,:)          :: TKE
-        real,    pointer, dimension(:,:,:)          :: L
-        real,    pointer, dimension(:,:,:)          :: EPS
-        real,    pointer, dimension(:,:,:)          :: NUM  
-        real,    pointer, dimension(:,:,:)          :: NUH
+        real(8), dimension(:, :, :),  pointer       :: Matrix     => null() !inicialization: Carina
+        type(T_TurbGOTM), pointer                   :: Next       => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)          :: TKE        => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)          :: L          => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)          :: EPS        => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)          :: NUM        => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)          :: NUH        => null() !inicialization: Carina
         !real,    pointer, dimension(:,:,:)          :: Lupward
         !real,    pointer, dimension(:,:,:)          :: Ldownward
-        real,    pointer, dimension(:,:,:)          :: P
-        real,    pointer, dimension(:,:,:)          :: B
+        real,    pointer, dimension(:,:,:)          :: P          => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:)          :: B          => null() !inicialization: Carina
 !        real(8), pointer, dimension(:    )          :: P_1D,B_1D,NN_1D,SS_1D,h
 !        double precision, pointer, dimension(:)     :: tke_1D,L_1D,eps_1D,num_1D,nuh_1D
         real                           :: DT            = null_real
@@ -140,11 +140,11 @@ Module ModuleTurbGOTM
         type(T_Files   ) :: Files
 
         !griflet
-        type (T_Gotm), dimension(:), pointer            :: ObjGotm
-        integer                                         :: MaxThreads
+        type (T_Gotm), dimension(:), pointer            :: ObjGotm     => null() !inicialization: Carina
+        integer                                         :: MaxThreads  = null_int !inicialization: Carina
         !Information associated with the Gotm model that does not change 
         !in time and in space 
-        type(T_GOTMParameters), pointer                 :: ObjGOTMparameters
+        type(T_GOTMParameters), pointer                 :: ObjGOTMparameters  => null() !inicialization: Carina
 
         !Instance of ModuleTime
         integer                                 :: ObjTime            = 0
@@ -167,8 +167,8 @@ Module ModuleTurbGOTM
     end type T_TurbGOTM
 
     !Global Module Variables
-    type (T_TurbGOTM), pointer                      :: FirstObjTurbGOTM
-    type (T_TurbGOTM), pointer                      :: Me
+    type (T_TurbGOTM), pointer                      :: FirstObjTurbGOTM   => null() !inicialization: Carina
+    type (T_TurbGOTM), pointer                      :: Me                 => null() !inicialization: Carina
 
     !--------------------------------------------------------------------------
 
