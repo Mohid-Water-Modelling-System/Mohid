@@ -107,6 +107,8 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "FilterBathymetry", "FilterB
 		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
 	EndProjectSection
 EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "ConvertHDF5ToGridData", "ConvertHDF5ToGridData\ConvertHDF5ToGridData.vfproj", "{7D60003A-7B07-4DAE-9046-FAB75E690696}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug Developper Single|Win32 = Debug Developper Single|Win32
@@ -840,6 +842,42 @@ Global
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release|Win32.ActiveCfg = Release|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release|Win32.Build.0 = Release|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release|x64.ActiveCfg = Release|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Developper Single|Win32.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Developper Single|Win32.Build.0 = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Developper Single|x64.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Double Openmp|Win32.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Double Openmp|Win32.Build.0 = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Double Openmp|x64.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Double PhreeqC|Win32.Build.0 = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Double PhreeqC|x64.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Double|Win32.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Double|Win32.Build.0 = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug Double|x64.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug OpenMI|Win32.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug OpenMI|Win32.Build.0 = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug OpenMI|x64.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug OpenMP|Win32.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug OpenMP|Win32.Build.0 = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug OpenMP|x64.ActiveCfg = Debug Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug|Win32.ActiveCfg = Debug|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug|Win32.Build.0 = Debug|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug|x64.ActiveCfg = Debug|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double OpenMP|Win32.ActiveCfg = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double OpenMP|Win32.Build.0 = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double OpenMP|x64.ActiveCfg = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double|Win32.ActiveCfg = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double|Win32.Build.0 = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double|x64.ActiveCfg = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release OpenMP|Win32.ActiveCfg = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release OpenMP|Win32.Build.0 = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release OpenMP|x64.ActiveCfg = Release Double|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release|Win32.ActiveCfg = Release|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release|Win32.Build.0 = Release|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -865,5 +903,6 @@ Global
 		{C447F70C-970B-4274-A711-048C5D6F2C87} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
+		{7D60003A-7B07-4DAE-9046-FAB75E690696} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 	EndGlobalSection
 EndGlobal
