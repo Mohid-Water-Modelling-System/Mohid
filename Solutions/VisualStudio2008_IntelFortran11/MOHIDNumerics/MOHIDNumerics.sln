@@ -108,6 +108,10 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "FilterBathymetry", "FilterB
 	EndProjectSection
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "ConvertHDF5ToGridData", "ConvertHDF5ToGridData\ConvertHDF5ToGridData.vfproj", "{7D60003A-7B07-4DAE-9046-FAB75E690696}"
+	ProjectSection(ProjectDependencies) = postProject
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78} = {98ABA093-7927-4BCD-B011-BF409B5BBB78}
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
