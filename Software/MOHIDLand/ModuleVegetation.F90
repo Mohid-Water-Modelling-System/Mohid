@@ -266,7 +266,7 @@ Module ModuleVegetation
     use ModulePorousMedia,    only : GetWaterContent, GetHead, GetThetaR, GetComputeSoilField,    &
                                      GetThetaField, GetLimitThetaLow, GetUnsatK, UngetPorousMedia
     use ModuleFunctions,      only : SetMatrixValue, ConstructPropertyID, LinearInterpolation,    &
-                                     InterpolateValueInTime
+                                     InterpolateValueInTime, TimeToString, ChangeSuffix
     use ModuleHorizontalGrid, only : GetHorizontalGridSize, GetGridCellArea, WriteHorizontalGrid, &
                                      UngetHorizontalGrid, GetGridLatitudeLongitude, GetXYCellZ
 !    use ModuleHorizontalMap,  only : GetOpenPoints2D, UngetHorizontalMap
@@ -504,6 +504,10 @@ Module ModuleVegetation
         integer                                         :: NextOutput           = null_int
         integer                                         :: Number               = null_int
         logical                                         :: TimeSerie_ON         = .false.
+        type (T_Time), dimension(:), pointer            :: RestartOutTime       => null()
+        logical                                         :: WriteRestartFile     = .false.
+        logical                                         :: RestartOverwrite     = .false.
+        integer                                         :: NextRestartOutput    = 1         
     end type T_OutPut
     
     type T_Property
@@ -1848,6 +1852,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     stop 'ReadOptions - ModuleVegetation - ERR470'  
             endif
         endif
+        
+        !Output for restart
+        call GetOutPutTime(Me%ObjEnterData,                                             &
+                           CurrentTime  = Me%ExternalVar%Now,                           &
+                           EndTime      = Me%EndTime,                                   &
+                           keyword      = 'RESTART_FILE_OUTPUT_TIME',                   &
+                           SearchType   = FromFile,                                     &
+                           OutPutsTime  = Me%OutPut%RestartOutTime,                     &
+                           OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
+                           STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleVegetation - ERR480'
+
+        call GetData(Me%OutPut%RestartOverwrite,                                        &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RESTART_FILE_OVERWRITE',                           &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleBasin',                                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadOptions - ModuleVegetation - ERR490'
+
 
     end subroutine ReadOptions
 
@@ -8468,7 +8494,14 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
             !Outgoing Variables
             ActualTranspiration => Me%Fluxes%WaterUptakeLayer
-
+           
+            !Restart Output            
+            if (Me%Output%WriteRestartFile .and. .not. (Me%ExternalVar%Now == Me%EndTime)) then
+                if(Me%ExternalVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
+                    call Write_FinalVegetation_HDF
+                    Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
+                endif
+            endif           
            
             STAT_ = SUCCESS_
         else               
@@ -14735,10 +14768,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Gets File Access Code
         call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
 
-
-        filename = trim(Me%Files%FinalFile)
-
-
+        if (Me%ExternalVar%Now == Me%EndTime) then
+            filename = trim(Me%Files%FinalFile)
+        else
+            filename = ChangeSuffix(trim(Me%Files%FinalFile),                            &
+                            "_"//trim(TimeToString(Me%ExternalVar%Now))//".fin")
+        endif 
+        
         ObjHDF5 = 0
         !Opens HDF5 File
         call ConstructHDF5 (ObjHDF5,                                                     &
@@ -14775,14 +14811,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 
         !Writes the Grid
-        call HDF5WriteData   (ObjHDF5, "//Grid/Topography", "Topography", "m",           &
+        call HDF5WriteData   (ObjHDF5, "//Grid", "Topography", "m",           &
                               Array2D = Me%ExternalVar%Topography,                       &
                               STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR30'
 
 
-        call HDF5WriteData  (ObjHDF5, "//Grid/BasinPoints", "BasinPoints",               &
+        call HDF5WriteData  (ObjHDF5, "//Grid", "BasinPoints",               &
                              "-", Array2D = Me%ExternalVar%BasinPoints,                &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
