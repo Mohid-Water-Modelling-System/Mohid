@@ -1322,7 +1322,7 @@ case4 :         select case(trim(adjustl(String)))
                 call SetError(FATAL_, KEYWORD_,                                         &
                              "Subroutine OilOptions; Module ModuleOil_0D. ERR300") 
 
-             if (Me%Var%MaxVWaterContent < 0) then
+             if ((Me%Var%EmulsificationMethod .NE. Fingas).AND. (Me%Var%MaxVWaterContent < 0)) then
                 write(*,*) "Max water content below 0%"
                 stop "Subroutine OilOptions; Module ModuleOil_0D. ERR302"
              endif

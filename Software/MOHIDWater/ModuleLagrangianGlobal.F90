@@ -85,9 +85,12 @@ Module ModuleLagrangianGlobal
 !   REMOVAL_RATE_COEF	    : real			            [0]			            !default removal rate coefficient (in 1/days)
 !   BEACHING_LIMIT_SPATIAL  : 1/2			            [1]			            !Spatial definition for Beaching  Limit
                                                                                 !1-Constant 2-Shore Type based
-!  REMOVAL_RATE_COEF_SPATIAL: 1/2			            [1]			            !Spatial definition for removal rate coef.
+!   (next keyword is read if BEACHING_LIMIT_SPATIAL = 2)
+!   BEACHING_LIMIT_LIST     : real (Shore types number)                         !List of Beaching Limits for each shore type
+!   REMOVAL_RATE_COEF_SPATIAL: 1/2			            [1]			            !Spatial definition for removal rate coef.
                                                                                 !1-Constant 2-Shore Type based
-
+!   (next keyword is read if REMOVAL_RATE_COEF_SPATIAL = 2)
+!   REMOVAL_RATE_COEF_LIST  : real (Shore types number)                         !List of Removal rates for each shore type
 !   OUTPUT_CONC             : 1/2                       [1]                     !OutPut Integration Type
 !                                                                                1 - Maximum 2 - Mean
 !   OUTPUT_MAX_TRACER       : 0/1                       [0]                     !Checks if the users wants to output the maximum 
@@ -1548,6 +1551,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: DefaultShoreType            = null_int
         real                                    :: DefaultRemovalRateCoef      = null_real
         integer                                 :: RemovalRateCoefSpatial      = null_int
+        real                                    :: NearCoastDistance           = null_real
 
         type(T_Statistic)                       :: Statistic
         type(T_MeteoOcean)                      :: MeteoOcean
@@ -5757,7 +5761,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1453'
                 
-                if (NewProperty%Units /= 'mg/m3' .and. (NewProperty%ID == Methane_ .or. & 
+                if (NewProperty%Units /= 'mg/m3' .and. (NewProperty%ID == Ammonia_ .or. & 
                     NewProperty%ID==HydrogenSulfide_ .or. NewProperty%ID==MethylMercaptan_)) then
                     write(*,*) 'Property with odour : ', trim(NewProperty%Name), ' must have units of mg/m3'
                     stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1453'
@@ -5774,7 +5778,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                     
                     OdourConcThreshold = 0.0
                     select case (NewProperty%ID)                         
-                    case (Methane_)
+                    case (Ammonia_)
                         OdourConcThreshold = 25.16
                     case (HydrogenSulfide_)
                         OdourConcThreshold = 6.58e-4
@@ -6502,7 +6506,19 @@ NDF:    if (.not. Default .and. trim(adjustl(EmissionSpatial)) /= trim(Char_Box)
             Me%BeachingLimitSpatial = Constant_                       
         endif
             
-
+        if (Me%State%OutputTracerInfo) then
+            !Distance to assume tracer is near coastline
+            call GetData(Me%NearCoastDistance,                                              &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      ='NEAR_COAST_DISTANCE',                               &
+                         Default      = 500.,                                               &
+                         ClientModule ='ModuleLagrangianGlobal',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BoxTypeVariablesDefiniton - ModuleLagrangianGlobal - ERR207'
+        end if
+        
 d1:     do em = 1, Me%EulerModelNumber
 
             if (Me%State%BoxDif) then
@@ -13323,12 +13339,19 @@ MF:             if (CurrentPartic%Position%Surface) then
                         WaveNumber         = 2 * Pi / WaveLength
 
 if_stm:                 If (CurrentOrigin%Movement%StokesDriftMethod == LonguetHigginsGeneric) then 
+                            If (WaterDepth > (WaveLength / 2.)) then
+                                write(*,*) 'Can not compute Stokes Drift with generic formulation (potential floating overflow). &
+                                            Since (WaterDepth > WaveLength / 2), deep water approach is adequate                &
+                                            - change Stokes Drift Method to LonguetHigginsDeep'
+                                stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR11'
+                            endif
+                            
                             C_Term             = - (WaveAmplitude * WaveAmplitude * AngFrequency *           &
                                                    sinh(2 * WaveNumber *  WaterDepth)) / &
                                                    ( 4 * WaterDepth * sinh(WaveNumber * WaterDepth)**2)
                             
                             VelStokesDrift     = WaveAmplitude * WaveAmplitude * AngFrequency * WaveNumber * &
-                                                 ( ( cosh(2 * WaveNumber * (WaterDepth - Depth)) ) /         &
+                                                 ( ( cosh(2 * WaveNumber * (Depth - WaterDepth)) ) /         &
                                                    ( 2 * (sinh(WaveNumber * WaterDepth)*                     &
                                                     sinh(WaveNumber * WaterDepth))      )   )     +  C_Term 
                             
@@ -22912,12 +22935,15 @@ CurrOr:     do while (associated(CurrentOrigin))
         real                                        :: WindX, WindY, WindIntensityInKnots, CurrentsIntensityInKnots
         real                                        :: CurrentsDirection, WindDirection
         real                                        :: MassOil
-        integer                                     :: kbottom        
+        integer                                     :: kbottom     
+        real                                        :: NearCoastDistance
+        logical                                     :: InsideDomain   
         
         WaterTemperature = -99
        
         RunPeriod = (Me%ExternalVar%Now - Me%ExternalVar%BeginTime) / 3600
-        
+
+        nearcoastdistance = Me%NearCoastDistance        
         OutPutNumber = Me%OutPut%NextOutPut
 if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then 
 
@@ -22993,8 +23019,56 @@ if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                     !tracer status = on sea surface
                     If (CurrentPartic%Position%Surface)     TracerStatus = 5             
 
-                    !tracer status = beached
-                    If (CurrentPartic%Beached)              TracerStatus = 10             
+        IfBeaching: if (CurrentOrigin%Beaching) then
+                        !tracer status = beached
+                        If (CurrentPartic%Beached)              TracerStatus = 10             
+
+                        !check if tracer is near coastline
+                        NearCoastDistance = 200.
+                        
+                        InsideDomain = .true.
+                        
+                        if (j <= WS_JLB + 1) InsideDomain = .false.
+                        if (i <= WS_ILB + 1) InsideDomain = .false.
+                        
+                        if (j >= WS_JUB - 1) InsideDomain = .false.
+                        if (i >= WS_IUB - 1) InsideDomain = .false.
+                        
+    IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
+
+                                if ((Me%EulerModel(em)%OpenPoints3D(i, j+1, k).NE. OpenPoint)  .AND. &
+                                      ((1-BALX) *  (Me%EulerModel(em)%Grid%ParticXX(i, j+1) - &
+                                       Me%EulerModel(em)%Grid%ParticXX(i, j)) .LT. (NearCoastDistance + Me%EulerModel(em)%BeachingLimit(i,j+1)))) then
+                                    
+                                    if (TracerStatus .EQ. 1) TracerStatus = 110
+                                    if (TracerStatus .EQ. 5) TracerStatus = 510
+
+               
+                                else if ((Me%EulerModel(em)%OpenPoints3D(i, j-1, k).NE. OpenPoint)  .AND.  &
+                                           (BALX *  (Me%EulerModel(em)%Grid%ParticXX(i, j+1) - &
+                                            Me%EulerModel(em)%Grid%ParticXX(i, j)).LT. (NearCoastDistance + Me%EulerModel(em)%BeachingLimit(i,j-1)))) then
+
+                                    if (TracerStatus .EQ. 1) TracerStatus = 110
+                                    if (TracerStatus .EQ. 5) TracerStatus = 510
+             
+                                else if ((Me%EulerModel(em)%OpenPoints3D(i+1, j, k).NE. OpenPoint)  .AND. &
+                                           ((1-BALY) *  (Me%EulerModel(em)%Grid%ParticYY(i+1, j) - &
+                                           Me%EulerModel(em)%Grid%ParticYY(i, j)).LT. (NearCoastDistance + Me%EulerModel(em)%BeachingLimit(i+1,j)))) then
+
+                                    if (TracerStatus .EQ. 1) TracerStatus = 110
+                                    if (TracerStatus .EQ. 5) TracerStatus = 510
+               
+                                else if ((Me%EulerModel(em)%OpenPoints3D(i-1, j, k).NE. OpenPoint)  .AND. &
+                                           (BALY *  (Me%EulerModel(em)%Grid%ParticYY(i+1, j) -            &
+                                           Me%EulerModel(em)%Grid%ParticYY(i, j)) .LT. (NearCoastDistance + Me%EulerModel(em)%BeachingLimit(i-1,j)))) then
+
+                                    if (TracerStatus .EQ. 1) TracerStatus = 110
+                                    if (TracerStatus .EQ. 5) TracerStatus = 510
+                        
+                                end if
+                            
+                        endif IfParticNotBeached
+                    endif IfBeaching
 
                     !tracer status = at the bottom
                     kbottom = Me%EulerModel(em)%KFloor(i, j)
