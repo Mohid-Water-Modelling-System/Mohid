@@ -5761,7 +5761,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1453'
                 
-                if (NewProperty%Units /= 'mg/m3' .and. (NewProperty%ID == Ammonia_ .or. & 
+                if (NewProperty%Units /= 'mg/m3' .and. (NewProperty%ID == AmmoniaGas_ .or. & 
                     NewProperty%ID==HydrogenSulfide_ .or. NewProperty%ID==MethylMercaptan_)) then
                     write(*,*) 'Property with odour : ', trim(NewProperty%Name), ' must have units of mg/m3'
                     stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1453'
@@ -5778,7 +5778,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                     
                     OdourConcThreshold = 0.0
                     select case (NewProperty%ID)                         
-                    case (Ammonia_)
+                    case (AmmoniaGas_)
                         OdourConcThreshold = 25.16
                     case (HydrogenSulfide_)
                         OdourConcThreshold = 6.58e-4
