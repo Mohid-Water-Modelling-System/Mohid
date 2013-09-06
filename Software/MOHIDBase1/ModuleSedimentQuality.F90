@@ -3709,7 +3709,8 @@ do1 :       do index = ArrayLB, ArrayUB
  
             
             CalcTterm = (Boltzman * tcalc / Planck) * A * &
-                        exp (- Eactivation / (UnivGC * tcalc) ) 
+                         exp (- Eactivation / (UnivGC * tcalc) ) 
+            CalcTterm = max(CalcTterm, 0.)
         !------------------------------------------------------------------------
 
     end function CalcTterm
@@ -3749,7 +3750,9 @@ do1 :       do index = ArrayLB, ArrayUB
  
  
             CalcTtermDeath = (Boltzman * tcalc / Planck) * A / &
-                        exp (- Eactivation / (UnivGC * tcalc) ) 
+                                exp (- Eactivation / (UnivGC * tcalc) ) 
+            CalcTtermDeath = max(CalcTtermDeath, 0.)            
+                    
         !------------------------------------------------------------------------
 
     end function CalcTtermDeath
@@ -3771,6 +3774,7 @@ do1 :       do index = ArrayLB, ArrayUB
         ConcOpt = Coeficient%ConcOptO2 * 1E-3 / 32.
         
         CalcOxygenTerm = min (Oxygen / ConcOpt, 1.)
+        CalcOxygenTerm = max (CalcOxygenTerm, 0.)
         !------------------------------------------------------------------------
 
     end function CalcOxygenTerm
@@ -3796,6 +3800,7 @@ do1 :       do index = ArrayLB, ArrayUB
         !from here all the pH were transformed in pH lower than optimum (mirror around optimum)
         !optimum gives 1 and lower give lower accordingly
         CalcpHTerm = pHread / (2 * OptimumpH - pHread)
+        CalcpHTerm = max(CalcpHTerm, 0.)
        
        
         !------------------------------------------------------------------------

@@ -94,7 +94,7 @@ Module ModulePorousMediaProperties
                                          GetThetaS, GetGWFlowToChannels, GetThetaF,        &
                                          GetGWLayerOld, GetPotentialInfiltration,          &
                                          GetGWFlowToChannelsByLayer, GetGWToChannelsLayers,&
-                                         GetGWFlowOption, GetTranspiration
+                                         GetGWFlowOption, GetTranspiration, GetEvaporation
                                          
     use ModuleChainReactions,     only : StartChainReactions, SetCRPropertyConcentration,  &
                                          GetCRPropertiesList, UnGetChainReactions,         &
@@ -417,6 +417,7 @@ Module ModulePorousMediaProperties
         logical                                 :: Partitioning         = .false.
         logical                                 :: CationExchangeProcess = .false.
         logical                                 :: ChemEquilibriumProcess = .false.
+        logical                                 :: TransportedInEVTP    = .false.    
         logical                                 :: AdvectionDiffusion   = .false.
         logical                                 :: SoilWaterFluxes      = .false.
         logical                                 :: Macropores           = .false.
@@ -538,9 +539,10 @@ Module ModulePorousMediaProperties
 !        real(8), pointer, dimension(: , : , :)  :: CoefA_V
 !        real(8), pointer, dimension(: , : , :)  :: CoefB_V
 !        real(8), pointer, dimension(: , : , :)  :: CoefC_V
-        real, pointer, dimension(: , : , :)  :: CoefInterfRunoff  => null()
-        real, pointer, dimension(: , : , :)  :: CoefInterfDN      => null()
-        real, pointer, dimension(: , : , :)  :: CoefInterfVeg     => null()
+        real, pointer, dimension(: , : , :)  :: CoefInterfRunoff  => null() !transport from and to Runoff
+        real, pointer, dimension(: , : , :)  :: CoefInterfDN      => null() !transport from and to River
+        real, pointer, dimension(: , : , :)  :: CoefInterfTransp  => null() !transport to plants
+        real, pointer, dimension(: , : , :)  :: CoefInterfEvap    => null() !transport to evaporation
     end type T_A_B_C_Explicit
 
     type       T_FluxCoef
@@ -1395,7 +1397,8 @@ doi3:   do J = JLB, JUB
     !        allocate (Me%COEFExpl%CoefC_V          (ILB:IUB,JLB:JUB,KLB:KUB))
             allocate (Me%COEFExpl%CoefInterfRunoff (ILB:IUB,JLB:JUB,KLB:KUB))
             allocate (Me%COEFExpl%CoefInterfDN     (ILB:IUB,JLB:JUB,KLB:KUB))
-            allocate (Me%COEFExpl%CoefInterfVeg    (ILB:IUB,JLB:JUB,KLB:KUB))
+            allocate (Me%COEFExpl%CoefInterfTransp (ILB:IUB,JLB:JUB,KLB:KUB))
+            allocate (Me%COEFExpl%CoefInterfEvap   (ILB:IUB,JLB:JUB,KLB:KUB))
             
 #ifdef _USE_PAGELOCKED
             ! Allocate pagelocked memory to optimize CUDA transfers
@@ -1847,7 +1850,6 @@ cd2 :           if (BlockFound) then
             endif     
         endif  
 
-
         if (NewProperty%Evolution%AdvectionDiffusion) then
             Me%Coupled%AdvectionDiffusion  = .true.
             NewProperty%Evolution%Variable = .true.
@@ -1863,8 +1865,33 @@ cd2 :           if (BlockFound) then
 !        end if
 !
 !        call ConstructPropertyDiffusivity (NewProperty)
-
-
+        
+        !properties that are transported in transpiration and evaporation 
+        !except nitrate and inorganic phosphorus that are accounted already (e.g. temperature and oxygen)
+        !if the flux is not accounted than the properties increase when transpiration and evaporation occurs
+        if (NewProperty%Evolution%AdvectionDiffusion) then
+            call GetData(NewProperty%Evolution%TransportedInEVTP,                            &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromBlock,                                           &
+                         keyword      = 'TRANSPORTED_IN_EVTP',                               &
+                         ClientModule = 'ModulePorousMediaProperties',                       &
+                         Default      = .false.,                                             &
+                         STAT         = STAT_CALL)
+            if(STAT_CALL .NE. SUCCESS_)                                                      &
+                stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR037'
+            
+            !do not account for nitrate and inorganic phosphorus that are already accounted 
+            !these properties are special because the uptake may not be Q*C (as SWAT generates)
+            !and as reality roots can create gradients to assimilate more nutrients    
+            if ((NewProperty%Evolution%TransportedInEVTP)       &
+                 .and. ((NewProperty%ID%IDNumber == Nitrate_)    &
+                        .or. (NewProperty%ID%IDNumber == Inorganic_Phosphorus_))) then
+                write(*,*) 'Using TRANSPORTED_IN_EVTP option in nitrate and/or inorganic phosphorus property'
+                write(*,*) 'These properties cant have this option active'
+                stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR038'                
+            endif                
+        endif
+        
         !<BeginKeyword>
             !Keyword          : SOIL_QUALITY
             !<BeginDescription>
@@ -5171,7 +5198,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             
             !Nutrient sources from vegetation. Sinks are explicit or implict cared in transport
             call InterfaceFluxes
-
+            
             if (Me%Coupled%AdvectionDiffusion) then
                 call AdvectionDiffusionProcesses
             endif
@@ -5603,6 +5630,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real                                        :: ModelDT, VegDT, CellWaterVolume, CellSoilMass
         type (T_Property), pointer                  :: Property
         integer                                     :: STAT_CALL
+        character(len=5)                            :: char_i, char_j, char_k
+        character(len=15)                           :: char_conc        
+        character (len = StringLength)              :: StrWarning 
 
         !Begin--------------------------------------------------------------------
 
@@ -5973,12 +6003,24 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             !avoid negative because vegetation check to mass available is done daily
                             !meanwhile the mass may exit cell by transport or transformation
                             if (Property%ConcentrationOld (i,j,k) .lt. 0.0) then
+
+                                write(char_i, '(i4)')i
+                                write(char_j, '(i4)')j
+                                write(char_k, '(i4)')k
+                                write(char_conc, '(ES10.3)') Property%ConcentrationOld(i,j,k)                                 
+                                StrWarning = 'Soil nitrate negative concentration corrected'// &
+                                             ' because vegetation uptake in cell(i,j,k)'//     &
+                                               char_i//','//char_j//','//char_k//' '//char_conc
+
+                                call SetError(WARNING_, INTERNAL_, StrWarning, OFF)                                
+
                                 !g = g + g/m3 * m3
                                 Property%Mass_created(i, j, k) = Property%Mass_Created(i, j, k)   +   &
                                                                (- Property%ConcentrationOld(i, j, k)) &
                                                                *  (Me%ExtVar%WaterContentOld(i,j,k)   &
                                                                * Me%ExtVar%CellVolume (i, j, k))                                
-                                !uptake is waht exists
+                                
+                                !uptake is waht exists. However this fix will not be updated in plant uptake!
                                 !g  = g/m3 * m3
                                 NitrogenUptake = NitrogenUptake - (- Property%ConcentrationOld(i, j, k))  &
                                                  *  (Me%ExtVar%WaterContentOld(i,j,k)                     &
@@ -5986,10 +6028,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                 
                                 Property%ConcentrationOld (i,j,k) = 0.0
 
-                                write(*,*) 'WARNING: '
-                                write(*,*) 'Soil nitrate concentration negative corrected '
-                                write(*,*) 'because vegetation uptake in cell', i, j, k
+  !                              write(*,*) 'WARNING: '
+  !                              write(*,*) 'Soil nitrate concentration negative corrected '
+  !                              write(*,*) 'because vegetation uptake in cell', i, j, k 
   !                              stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR135'
+  
                             endif
                             
 
@@ -6020,21 +6063,32 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             !avoid negative because vegetation check to mass available is done daily
                             !meanwhile the mass may exit cell by transport or transformation
                             if (Property%ConcentrationOld (i,j,k) .lt. 0.0) then
+
+                                write(char_i, '(i4)')i
+                                write(char_j, '(i4)')j
+                                write(char_k, '(i4)')k
+                                write(char_conc, '(ES10.3)') Property%ConcentrationOld(i,j,k)                                 
+                                StrWarning = 'Soil nitrate negative concentration corrected'// &
+                                             ' because vegetation uptake in cell(i,j,k)'//     &
+                                               char_i//','//char_j//','//char_k//' '//char_conc
+                                               
+                                call SetError(WARNING_, INTERNAL_, StrWarning, OFF)                 
+                                
                                 !g = g + g/m3 * m3
                                 Property%Mass_created(i, j, k) = Property%Mass_Created(i, j, k)   +   &
                                                                (- Property%ConcentrationOld(i, j, k)) &
                                                                *  (Me%ExtVar%WaterContentOld(i,j,k)   &
                                                                * Me%ExtVar%CellVolume (i, j, k))                                
-                                !g  = g/m3 * m3
+                                !g  = g/m3 * m3 - this will not be updated in plant!
                                 NitrogenUptake = NitrogenUptake - (- Property%ConcentrationOld(i, j, k))  &
                                                  *  (Me%ExtVar%WaterContentOld(i,j,k)                     &
                                                  * Me%ExtVar%CellVolume (i, j, k))        
                                 
                                 Property%ConcentrationOld (i,j,k) = 0.0
 
-                                write(*,*) 'WARNING: '
-                                write(*,*) 'Soil nitrate concentration negative corrected '
-                                write(*,*) 'because vegetation uptake in cell', i, j, k
+  !                              write(*,*) 'WARNING: '
+  !                              write(*,*) 'Soil nitrate concentration negative corrected '
+  !                              write(*,*) 'because vegetation uptake in cell', i, j, k
   !                              stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR135'
                             endif
 
@@ -6091,21 +6145,32 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             !avoid negative because vegetation check to mass available is done daily
                             !meanwhile the mass may exit cell by transport or transformation
                             if (Property%ConcentrationOld (i,j,k) .lt. 0.0) then
+
+                                write(char_i, '(i4)')i
+                                write(char_j, '(i4)')j
+                                write(char_k, '(i4)')k
+                                write(char_conc, '(ES10.3)') Property%ConcentrationOld(i,j,k)                                 
+                                StrWarning = 'Soil inorganic phosphorus negative concentration corrected'// &
+                                             ' because vegetation uptake in cell(i,j,k)'//                  &
+                                               char_i//','//char_j//','//char_k//' '//char_conc
+                                               
+                                call SetError(WARNING_, INTERNAL_, StrWarning, OFF)                 
+                            
                                 !g = g + g/m3 * m3
                                 Property%Mass_created(i, j, k) = Property%Mass_Created(i, j, k)   +   &
                                                                (- Property%ConcentrationOld(i, j, k)) &
                                                                *  (Me%ExtVar%WaterContentOld(i,j,k)   &
                                                                * Me%ExtVar%CellVolume (i, j, k))                                
-                                !g  = g/m3 * m3
+                                !g  = g/m3 * m3 - this will not be updated in plant!
                                 PhosphorusUptake = PhosphorusUptake - (- Property%ConcentrationOld(i, j, k))  &
                                                  *  (Me%ExtVar%WaterContentOld(i,j,k)                         &
                                                  * Me%ExtVar%CellVolume (i, j, k))      
                                 
                                 Property%ConcentrationOld (i,j,k) = 0.0
 
-                                write(*,*) 'WARNING: '
-                                write(*,*) 'Soil dissolved phosphorus concentration negative corrected '
-                                write(*,*) 'because vegetation uptake in cell', i, j, k
+  !                              write(*,*) 'WARNING: '
+  !                              write(*,*) 'Soil dissolved phosphorus concentration negative corrected '
+  !                              write(*,*) 'because vegetation uptake in cell', i, j, k
   !                              stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR135'
                             endif
 
@@ -6131,21 +6196,32 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             !avoid negative because vegetation check to mass available is done daily
                             !meanwhile the mass may exit cell by transport or transformation
                             if (Property%ConcentrationOld (i,j,k) .lt. 0.0) then
+                            
+                                write(char_i, '(i4)')i
+                                write(char_j, '(i4)')j
+                                write(char_k, '(i4)')k
+                                write(char_conc, '(ES10.3)') Property%ConcentrationOld(i,j,k)                                 
+                                StrWarning = 'Soil inorganic phosphorus negative concentration corrected'// &
+                                             ' because vegetation uptake in cell(i,j,k)'//                  &
+                                               char_i//','//char_j//','//char_k//' '//char_conc
+                                               
+                                call SetError(WARNING_, INTERNAL_, StrWarning, OFF)
+                                                            
                                 !g = g + g/m3 * m3
                                 Property%Mass_created(i, j, k) = Property%Mass_Created(i, j, k)   +   &
                                                                (- Property%ConcentrationOld(i, j, k)) &
                                                                *  (Me%ExtVar%WaterContentOld(i,j,k)   &
                                                                * Me%ExtVar%CellVolume (i, j, k))                                
-                                !g  = g/m3 * m3
+                                !g  = g/m3 * m3 - this will not be updated in plant!
                                 PhosphorusUptake = PhosphorusUptake - (- Property%ConcentrationOld(i, j, k))  &
                                                  *  (Me%ExtVar%WaterContentOld(i,j,k)                         &
                                                  * Me%ExtVar%CellVolume (i, j, k))      
                                 
                                 Property%ConcentrationOld (i,j,k) = 0.0
 
-                                write(*,*) 'WARNING: '
-                                write(*,*) 'Soil dissolved phosphorus concentration negative corrected '
-                                write(*,*) 'because vegetation uptake in cell', i, j, k
+  !                              write(*,*) 'WARNING: '
+  !                              write(*,*) 'Soil dissolved phosphorus concentration negative corrected '
+  !                              write(*,*) 'because vegetation uptake in cell', i, j, k
   !                              stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR135'
                             endif                                                             
                                                                
@@ -6334,7 +6410,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 !        call SetMatrixValue (Me%COEFExpl%CoefC_V, Me%Size, 0.0)
         call SetMatrixValue (Me%COEFExpl%CoefInterfRunoff, Me%Size, 0.0)
         call SetMatrixValue (Me%COEFExpl%CoefInterfDN, Me%Size, 0.0)
-        call SetMatrixValue (Me%COEFExpl%CoefInterfVeg, Me%Size, 0.0)
+        call SetMatrixValue (Me%COEFExpl%CoefInterfTransp, Me%Size, 0.0)
+        call SetMatrixValue (Me%COEFExpl%CoefInterfEvap, Me%Size, 0.0)
         call SetMatrixValue (CurrProperty%ConcInInterfaceDN, Me%Size, 0.0)
         
         call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
@@ -6673,15 +6750,22 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         call ModifyAdvectionDiffusionCoefs(PropertyX)
 
         !Evaporation
-        !Evaporation fluxes do not take mass and do not need to be accounted
+        !Evaporation fluxes do not take mass and do not need to be accounted (e.g. salinity)
+        !But some properties as temperature and oxygen are transported - see below
         
         !Transpiration fluxes - in cells along roots - take all dissolved properties
         !Vegetation may remove mass not associated to Q*C and be selective for species
-        !so this option was abandoned and nitrate and dissolved phosphorus removed in
+        !so this option was abandoned and nitrate and dissolved phosphorus (only) removed in
         !routine VegetationInterfaceFluxes as mass sink
         !if (Me%ExtVar%CoupledVegetation .and. Me%ExtVar%ModelWater ) then
         !    call ModifyVegetationCoefs(PropertyX)
         !endif
+        
+        !Some special dissolved properties are transported with evaporation and transpiration and 
+        !if not accounted will produce increase concentration in soil (e.g. temperature and oxygen)
+        if (PropertyX%Evolution%TransportedInEVTP) then
+            call ModifyEVTPCoefs()
+        endif
         
         !Infiltration - in surface cells
         call ModifyInfiltrationCoefs(PropertyX)
@@ -7561,7 +7645,6 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     end subroutine VerticalAdvection
 
     !--------------------------------------------------------------------------
-
 !    subroutine ModifyExplicitCoefs(PropertyX) 
 !    
 !        !Arguments-------------------------------------------------------------
@@ -7809,6 +7892,107 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     
     !---------------------------------------------------------------------------
 
+    subroutine ModifyEVTPCoefs()
+
+        !Arguments----------------------------------------------------------------
+        !type (T_Property), pointer                  :: PropertyX
+        
+        !Local--------------------------------------------------------------------
+        real, pointer, dimension(:,:,:)             :: TranspirationLayer
+        real, pointer, dimension(:,:  )             :: Evaporation
+        logical                                     :: TranspirationExists, EvaporationExists
+        integer                                     :: i,j,k, CHUNK, STAT_CALL
+        real(8)                                     :: aux
+        
+        !Begin--------------------------------------------------------------------
+        
+        TranspirationExists = .false.
+        EvaporationExists   = .false.
+        
+        !Effective transpiration used in PM (computed in ModuleVegetation) in [m3/s]
+        call GetTranspiration(Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop ' ModifyEVTPCoefs - ModulePorousMediaProperties - ERR01'
+        
+        if (associated(TranspirationLayer)) TranspirationExists = .true.
+        
+        !Effective evaporation computed in PM in [m]
+        call GetEvaporation(Me%ObjPorousMedia, Evaporation, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop ' ModifyEVTPCoefs - ModulePorousMediaProperties - ERR010'
+        
+        if (associated(Evaporation)) EvaporationExists = .true.
+        
+        !Computation
+        if (TranspirationExists) then
+        
+            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
+          
+            !$OMP PARALLEL PRIVATE(i,j,k,aux)
+            
+            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                if ((Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint)) then
+                    
+                    !Auxuliar value for transport - units of flow^-1
+                    !s/m3
+                    aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
+                    
+                    ! Positive flow -> looses mass
+                    Me%COEFExpl%CoefInterfTransp(i,j,k) = - aux * TranspirationLayer(i,j,k)
+                
+                endif
+                
+            enddo
+            enddo
+            !$OMP END DO
+            enddo
+            
+            !$OMP END PARALLEL
+
+        endif
+
+        if (EvaporationExists) then
+        
+            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
+          
+            !$OMP PARALLEL PRIVATE(i,j,k,aux)
+            
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                K = Me%WorkSize%KUB
+                if ((Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint)) then
+                    
+                    !Auxuliar value for transport - units of flow^-1
+                    !s/m3
+                    aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
+                    
+                    ! Positive flow -> looses mass
+                    !evaporation flux [m3/s] = [m*m2/s]
+                    Me%COEFExpl%CoefInterfEvap(i,j,k) =  - aux * (Evaporation(i,j) * Me%ExtVar%Area(i,j) / Me%ExtVar%DT)
+                
+                endif
+                
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+
+        endif
+        
+        call UngetPorousMedia (Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyEVTPCoefs - ModulePorousMediaProperties - ERR050'
+
+        call UngetPorousMedia (Me%ObjPorousMedia, Evaporation, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyEVTPCoefs - ModulePorousMediaProperties - ERR060'
+
+    
+    end subroutine ModifyEVTPCoefs
+
+    !-----------------------------------------------------------------------------
+
     subroutine ModifyDrainageNetworkCoefs (PropertyX)
     
         !Arguments-------------------------------------------------------------
@@ -8014,7 +8198,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
        
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
       
-        !$OMP PARALLEL PRIVATE(i,j,k,aux,TopDiffusion)
+        !$OMP PARALLEL PRIVATE(i,j,k,aux,TopDiffusion,DZZ)
         
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -8098,7 +8282,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !                    aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
 !                    
 !                    !Positive flow - looses mass
-!                    Me%COEFExpl%CoefInterfVeg(i,j,k) = - aux * TranspirationLayer(i,j,k)
+!                    Me%COEFExpl%CoefInterfTransp(i,j,k) = - aux * TranspirationLayer(i,j,k)
 !                    
 !                    
 !!                    !Change nitrate and diss phosphorus flux because it may be disconnected from flow (if SWAT model original
@@ -8113,7 +8297,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !!                        
 !!                        !AssociatedFlux - g/s / g/m3 = g/s * m3/g = m3/s
 !!                        CorrectedTranspirationFlux        = NitrogenUptake * CurrProperty%ConcentrationOld(i,j,k)
-!!                        Me%COEFExpl%CoefInterfVeg(i,j,k) = - aux * CorrectedTranspirationFlux
+!!                        Me%COEFExpl%CoefInterfTransp(i,j,k) = - aux * CorrectedTranspirationFlux
 !! 
 !!                    elseif (Me%ExtVar%ModelPhosphorus .and. CurrProperty%ID%IDNumber == Inorganic_Phosphorus_) then
 !!                        !      gN/s       = KgN/ha * 1E3g/kg * (m2) * 1ha/10000m2 / s                     
@@ -8122,7 +8306,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !!                        
 !!                        !AssociatedFlux - g/s / g/m3 = g/s * m3/g = m3/s
 !!                        CorrectedTranspirationFlux        = PhosphorusUptake * CurrProperty%ConcentrationOld(i,j,k)
-!!                        Me%COEFExpl%CoefInterfVeg(i,j,k) = - aux * CorrectedTranspirationFlux
+!!                        Me%COEFExpl%CoefInterfTransp(i,j,k) = - aux * CorrectedTranspirationFlux
 !!                            
 !!                    endif
 !
@@ -8155,8 +8339,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: CurrProperty
         integer                                     :: i, j, k, CHUNK
-        real(8)                                     :: coefB, CoefInterfDN, CoefInterfVeg
-        real(8)                                     :: CoefInterfRunoff
+        real(8)                                     :: coefB, CoefInterfDN, CoefInterfTransp
+        real(8)                                     :: CoefInterfRunoff, CoefInterfEvap
         real(8), pointer, dimension(:,:,:)          :: FluxW
         !Begin-----------------------------------------------------------------    
 
@@ -8168,7 +8352,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfVeg, coefB)
+            !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfTransp,CoefInterfEvap,coefB)
                
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)              
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -8178,14 +8362,16 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
                     CoefInterfRunoff = Me%COEFExpl%CoefInterfRunoff(i,j,k)
                     CoefInterfDN     = Me%COEFExpl%CoefInterfDN(i,j,k)
-                    CoefInterfVeg    = Me%COEFExpl%CoefInterfVeg(i,j,k)
+                    CoefInterfTransp = Me%COEFExpl%CoefInterfTransp(i,j,k)
+                    CoefInterfEvap   = Me%COEFExpl%CoefInterfEvap(i,j,k)
                    
                     CoefB = Me%ExtVar%WaterContentOld(i,j,k)/Me%ExtVar%WaterContent(i,j,k)
                     
                     Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k) + CoefB * CurrProperty%ConcentrationOld(i,j,k  )                  &
                                                       + CoefInterfRunoff * CurrProperty%ConcentrationOnInfColumn(i,j)         &
                                                       + CoefInterfDN     * CurrProperty%ConcInInterfaceDN(i,j,k)              &
-                                                      + CoefInterfVeg    * CurrProperty%ConcentrationOld(i,j,k  )     
+                                                      + CoefInterfTransp * CurrProperty%ConcentrationOld(i,j,k  )             &
+                                                      + CoefInterfEvap   * CurrProperty%ConcentrationOld(i,j,k  )
                                                                      
                     CurrProperty%Concentration(i,j,k) = Me%TICOEF3(i,j,k  )
 
@@ -8202,7 +8388,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfVeg, coefB)
+            !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfTransp,CoefInterfEvap,coefB)
                
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)                          
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -8212,7 +8398,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
                     CoefInterfRunoff = Me%COEFExpl%CoefInterfRunoff(i,j,k)
                     CoefInterfDN     = Me%COEFExpl%CoefInterfDN(i,j,k)
-                    CoefInterfVeg    = Me%COEFExpl%CoefInterfVeg(i,j,k)
+                    CoefInterfTransp = Me%COEFExpl%CoefInterfTransp(i,j,k)
+                    CoefInterfEvap   = Me%COEFExpl%CoefInterfEvap(i,j,k)
                     
                     !Water exiting soil to runoff - Compute Conc Implicitly
                     if ((CoefInterfRunoff /= 0.0) .and. (FluxW(i,j,k+1) .gt. 0.0)) then
@@ -8229,9 +8416,15 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     endif
                     
                     !Water exiting soil to plants - Comput Conc Implicitly
-                    if (CoefInterfVeg .lt. 0.0) then
-                        Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k) - CoefInterfVeg
-                        CoefInterfVeg       = 0.0
+                    if (CoefInterfTransp .lt. 0.0) then
+                        Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k) - CoefInterfTransp
+                        CoefInterfTransp    = 0.0
+                    endif
+
+                    !Water exiting soil to atmosphere by evaporation - Comput Conc Implicitly
+                    if (CoefInterfEvap .lt. 0.0) then
+                        Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k) - CoefInterfEvap
+                        CoefInterfEvap       = 0.0
                     endif
 
                     CoefB = Me%ExtVar%WaterContentOld(i,j,k)/Me%ExtVar%WaterContent(i,j,k)
@@ -8240,7 +8433,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                         + coefB * CurrProperty%ConcentrationOld(i,j,k)                           &
                                         + CoefInterfRunoff * CurrProperty%ConcentrationOnInfColumn(i,j)          &
                                         + CoefInterfDN     * CurrProperty%ConcInInterfaceDN(i,j,k)               & 
-                                        + CoefInterfVeg    * CurrProperty%ConcentrationOld(i,j,k  )
+                                        + CoefInterfTransp * CurrProperty%ConcentrationOld(i,j,k  )              &
+                                        + CoefInterfEvap   * CurrProperty%ConcentrationOld(i,j,k  )
 
                 endif
             enddo
