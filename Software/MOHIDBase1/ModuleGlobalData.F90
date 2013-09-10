@@ -75,7 +75,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  86
+    integer, parameter  :: MaxModules           =  88
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -1518,7 +1518,7 @@ Module ModuleGlobalData
     integer, parameter :: Father3DSon2D      = 3
 
     !Methodologies use to compute sedimentation velocity of fine sediments
-    integer, parameter :: WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3
+    integer, parameter :: WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4
 
     !Advection 1D parameters
     integer, parameter :: UpwindOrder1 = 1, UpwindOrder2 = 2, UpwindOrder3 = 3, P2_TVD = 4, CentralDif = 5, LeapFrog = 6
@@ -1676,6 +1676,8 @@ Module ModuleGlobalData
     integer, parameter ::  mTimeSeriesAnalyser_     = 84
     integer, parameter ::  mNetworkStatistics_      = 85
     integer, parameter ::  mTimeSeriesOperator_     = 86
+    integer, parameter ::  mPressureDifferences_    = 87
+    integer, parameter ::  mAnalytical_LDS_         = 88
 
     type T_Size1D
         integer                 :: ILB            = null_int
@@ -1774,7 +1776,8 @@ Module ModuleGlobalData
         T_Module(mSEAGRASSWATERINTERAC_  , "SeagrassWaterInteraction"),                                                            &
         T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
         T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics"),     &
-        T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     /)
+        T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     ,  T_Module(mAnalytical_LDS_      , "Analytical_LDS"),     & 
+        T_Module(mPressureDifferences_   , "PressureDifferences") /)
         
 
     !Variables
