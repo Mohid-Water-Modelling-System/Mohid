@@ -36,7 +36,7 @@
 !   CHS                         : real            [4 g/l]       !Hindered settling threshold concentration  
 !   WS_VALUE                    : real          [0.0001 m/s]    !Constant settling velocity
 !   WS_TYPE                     : int               [1]         !Settling velocity compute method 
-!                                                               !Constant = 1, SPMFunction = 2, WSSecondaryClarifier = 3
+!                                                               !Constant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4
 !   SALTINT                     : 0/1               [0]         !Use salinity effect on settling velocity
 !   SALTINTVALUE                : real            [3 psu]       !Salinity threshold concentration for affecting
 !                                                               !settling velocity
@@ -55,7 +55,8 @@ Module ModuleFreeVerticalMovement
     use ModuleGlobalData
     use ModuleFunctions,        only: THOMASZ, ConstructPropertyID, SettlingVelocity,          &
                                       SetMatrixValue, CHUNK_J, CHUNK_K, T_VECGW,                &
-                                      T_THOMAS, T_D_E_F, Pad, SettlingVelSecondaryClarifier
+                                      T_THOMAS, T_D_E_F, Pad, SettlingVelSecondaryClarifier,    &
+                                      SettlingVelPrimaryClarifier
     use ModuleTime
     use ModuleHorizontalGrid,   only: GetGridCellArea, UngetHorizontalGrid
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,      &
@@ -136,6 +137,11 @@ Module ModuleFreeVerticalMovement
         logical                                 :: WithCompression  = .true.
         real                                    :: SVI              = FillValueReal
         real                                    :: Clarification    = FillValueReal
+        real                                    :: Rh               = FillValueReal
+        real                                    :: Rf               = FillValueReal
+        real                                    :: v0max            = FillValueReal
+        real                                    :: v0               = FillValueReal
+        
         real, pointer, dimension(:,:,:)         :: FreeConvFlux     => null()
         real, pointer, dimension(:,:,:)         :: Velocity         => null()
         type(T_Property), pointer               :: Next             => null(), &
@@ -663,7 +669,7 @@ cd2 :           if (BlockFound) then
             !Type             : integer 
             !Default          : WSConstant
             !File keyword     : FREE_DAT
-            !Multiple Options : WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3
+            !Multiple Options : WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4
             !Search Type      : FromBlock
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
@@ -682,6 +688,8 @@ cd2 :           if (BlockFound) then
         if(NewProperty%Ws_Type == SPMFunction          ) Me%Needs%SPM = .true.       
         
         if(NewProperty%Ws_Type == WSSecondaryClarifier ) Me%Needs%SPM = .true.              
+        
+        if(NewProperty%Ws_Type == WSPrimaryClarifier   ) Me%Needs%SPM = .true.                      
         
         if(NewProperty%Ws_Type == WSConstant)then
             call SetMatrixValue(NewProperty%Velocity, Me%Size, NewProperty%Ws_Value)
@@ -941,7 +949,46 @@ cd2 :           if (BlockFound) then
             stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR160'
         endif
             
+        call GetData(NewProperty%Rh,                                            &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType   = FromBlock,                                  &
+                     keyword      = 'Rh',                                       &
+                     Default      = 0.1,                                        &
+                     ClientModule = 'ModuleFreeVerticalMovement',               &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR170'
+            
 
+        call GetData(NewProperty%Rf,                                            &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType   = FromBlock,                                  &
+                     keyword      = 'Rf',                                       &
+                     Default      = 5.,                                         &
+                     ClientModule = 'ModuleFreeVerticalMovement',               &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR180'
+
+        call GetData(NewProperty%v0max,                                         &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType   = FromBlock,                                  &
+                     keyword      = 'v0max',                                    &
+                     Default      = 218.4,                                      &
+                     ClientModule = 'ModuleFreeVerticalMovement',               &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR190'
+
+        call GetData(NewProperty%v0,                                            &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType   = FromBlock,                                  &
+                     keyword      = 'v0',                                       &
+                     Default      = 199.2,                                      &
+                     ClientModule = 'ModuleFreeVerticalMovement',               &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR200'
             
     end subroutine Construct_PropertyParameters
 
@@ -1041,7 +1088,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 Me%ExternalVar%SalinityField => SalinityField
             end if
 
-            if(PropertyX%Ws_Type == SPMFunction .or. PropertyX%Ws_Type == WSSecondaryClarifier )then
+            if(PropertyX%Ws_Type == SPMFunction .or. PropertyX%Ws_Type == WSSecondaryClarifier .or. &
+               PropertyX%Ws_Type == WSPrimaryClarifier)then
                 Me%ExternalVar%SPMISCoef =  SPMISCoef
                 Me%ExternalVar%SPM       => SPM
             end if
@@ -1423,6 +1471,27 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             enddo
             enddo
             enddo
+
+        elseif(PropertyX%Ws_Type ==  WSPrimaryClarifier) then            
+            
+            do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExternalVar%OpenPoints3D(i, j, k)== OpenPoint) then
+
+                    PropertyX%Velocity(i, j, k)=-SettlingVelPrimaryClarifier (Cx    = SPM(i, j, k)*SPMISCoef, &
+                                                                              Rh_i  = PropertyX%Rh,           &
+                                                                              Rf_i  = PropertyX%Rf,           &
+                                                                              v0max_i = PropertyX%v0max,      &
+                                                                              v0_i  = PropertyX%v0            )
+                else
+                    PropertyX%Velocity(i, j, k)= 0.                                            
+                end if
+            enddo
+            enddo
+            enddo
+        
+
         
         elseif(PropertyX%Ws_Type ==  WSConstant) then
             
