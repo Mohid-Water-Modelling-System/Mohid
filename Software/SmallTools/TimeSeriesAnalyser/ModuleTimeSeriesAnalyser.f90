@@ -256,7 +256,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine ReadKeywords
 
         !Local--------------------------------------------------------------
-        integer                 :: status, flag, STAT_CALL, flag_min, flag_max
+        integer                 :: flag, STAT_CALL, flag_min, flag_max
         
         !Begin--------------------------------------------------------------
 
@@ -374,6 +374,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
         if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR160'
+        
+        if (Me%PercentileEvolution .and. .not. Me%PercentileAnalysis) then
+            write(*,*) 'PERCENTILE_EVOLUTION can not be true'
+            write(*,*) 'if PERCENTILE_ANALYSIS is false'
+            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR165'
+        endif
 
         call GetData(Me%InterpolInTime,                                                 &
                      Me%ObjEnterData,                                                   &
@@ -776,7 +782,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             SpectralAnalysisFile = "SpectralOut_"//Me%TimeSerieDataFile 
             !Open Output files
             call UnitsManager(Me%iS, FileOpen, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - Main - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructPatternsTS - ERR10'
             
             open(unit   = Me%iS      , file =trim(SpectralAnalysisFile), form = 'FORMATTED',   &
                  status = 'UNKNOWN')
@@ -789,7 +795,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Open Output files
             call UnitsManager(Me%iP, FileOpen, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - Main - ERR20' 
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructPatternsTS - ERR20' 
             
             open(unit   = Me%iP      , file =trim(PercentileFile), form = 'FORMATTED',     &
                  status = 'UNKNOWN')
@@ -800,7 +806,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 !Open Output files
                 call UnitsManager(Me%iPWeekEnd, FileOpen, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - Main - ERR30' 
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructPatternsTS - ERR30' 
                 
                 open(unit   = Me%iPWeekEnd, file =trim(PercentileWeekEndFile), form = 'FORMATTED',     &
                      status = 'UNKNOWN')
@@ -809,7 +815,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 !Open Output files
                 call UnitsManager(Me%iPWeekWay, FileOpen, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - Main - ERR40' 
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructPatternsTS - ERR40' 
                 
                 open(unit   = Me%iPWeekWay, file =trim(PercentileWeekWayFile), form = 'FORMATTED',     &
                      status = 'UNKNOWN')
@@ -824,7 +830,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Open Output files
             call UnitsManager(Me%iPE, FileOpen, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - Main - ERR50' 
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructPatternsTS - ERR50' 
             
             open(unit   = Me%iPE      , file =trim(PerEvolutionFile), form = 'FORMATTED',  &
                  status = 'UNKNOWN')
@@ -868,6 +874,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         Me%BeginTime = Me%InitialData + Me%DataMatrix(1,1) 
         Me%EndTime   = Me%InitialData + Me%DataMatrix(Me%DataValues,1) 
+        
+        if ((Me%EndTime - Me%BeginTime) < 86400. * Me%FrequencyWindow) then
+        
+            if (Me%PercentileAnalysis ) then
+                Me%PercentileAnalysis  = .false.
+            endif
+            
+            if (Me%PercentileEvolution) then
+                Me%PercentileEvolution = .false. 
+            endif
+       
+        endif
         
         do i=1,Me%DataValues
             Me%TimeTS(i) = Me%InitialData + Me%DataMatrix(i,1)
@@ -1197,10 +1215,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !Local-----------------------------------------------------------------
         type (T_Time)                  :: CurrentTime, StartNightTime, EndNightTime, OutNightTime
-        real                           :: TS_Value, RelativeOutFlux, NewMass, OldMass, InFlux, Year, Month, Day, NightPeriod, NightPeriodValid
+        real                           :: TS_Value, Year, Month, Day, NightPeriod, NightPeriodValid
         real                           :: NightAvFlux, NightP50Flux, hour, minute, second
         real, dimension(:  ), pointer  :: WriteAuxNight, SortArray, AuxSort
-        integer                        :: STAT_CALL, iN, i50, iP50, jmin, jmax, j, k, iTotal, i, iNight, FilterValues, iSort
+        integer                        :: STAT_CALL, iN, i50, i, iNight, FilterValues, iSort
         logical                        :: NightPeriodON, NightPeriodOut, TS_Gap
         
         
@@ -1335,11 +1353,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         
         !Local-----------------------------------------------------------------
-        type (T_Time)                  :: CurrentTime, StartNightTime, EndNightTime, OutNightTime
-        real                           :: TS_Value, RelativeOutFlux, NewMass, OldMass, InFlux, Year, Month, Day, NightPeriod, NightPeriodValid
-        real                           :: NightAvFlux, NightP50Flux, hour, minute, second
+        type (T_Time)                  :: CurrentTime
+        real                           :: TS_Value, Year, Month, Day, NightPeriod, NightPeriodValid
+        real                           :: NightAvFlux, hour, minute, second
         real, dimension(:  ), pointer  :: WriteAux, SortArray, AuxSort
-        integer                        :: STAT_CALL, iSort, iN, i50, iP50, jmin, jmax, j, k, iTotal, i, imax, iAll, FilterValues
+        integer                        :: STAT_CALL, iSort, iN, i50, iP50, jmin, jmax, j, k, i, iAll, FilterValues
         logical                        :: NightPeriodON, NightPeriodOut, TS_Gap
         
         
@@ -1696,7 +1714,6 @@ d3:         do i=1, Me%DataValues
         real                                        :: Value1, Value2, NewValue
         real                                        :: Year, Month, Day, hour, minute, second
         logical                                     :: search
-        real     (SP),  dimension(:),   allocatable :: TimeSerieFilter
         integer                                     :: FilterValues
         
         !----------------------------------------------------------------------
