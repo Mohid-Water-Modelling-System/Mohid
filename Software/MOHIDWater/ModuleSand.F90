@@ -153,34 +153,50 @@ Module ModuleSand
     private :: T_External
     type       T_External
         type(T_Time)                            :: Now
-        real,    pointer, dimension(:,:)        :: DUX, DVY, DXX, DYY, DZX, DZY
-        integer, pointer, dimension(:,:)        :: ComputeFacesU2D
-        integer, pointer, dimension(:,:)        :: ComputeFacesV2D
-        integer, pointer, dimension(:,:)        :: OpenPoints2D
-        integer, pointer, dimension(:,:)        :: WaterPoints2D
-        integer, pointer, dimension(:,:)        :: BoundaryPoints2D
-        real                                    :: WaterDensity
-        logical                                 :: WaveTensionON
-        real,    pointer, dimension(:,:)        :: Bathymetry
-        real,    pointer, dimension(:,:)        :: InitialBathym
-        real,    pointer, dimension(:,:)        :: WaveDirection, Abw, Ubw
-        real,    pointer, dimension(:,:)        :: TauTotal, CurrentRugosity, WaveRugosity
-        real,    pointer, dimension(:,:)        :: WaterColumn, VelU, VelV, VelMod
-        real,    pointer, dimension(:,:)        :: TauWave, TauCurrent, ShearVelocity, WaveHeight, WavePeriod
-        real                                    :: MinWaterColumn
+        real,    pointer, dimension(:,:)        :: DUX              => null()
+        real,    pointer, dimension(:,:)        :: DVY              => null()
+        real,    pointer, dimension(:,:)        :: DXX              => null()
+        real,    pointer, dimension(:,:)        :: DYY              => null()
+        real,    pointer, dimension(:,:)        :: DZX              => null()
+        real,    pointer, dimension(:,:)        :: DZY              => null()
+        integer, pointer, dimension(:,:)        :: ComputeFacesU2D  => null()
+        integer, pointer, dimension(:,:)        :: ComputeFacesV2D  => null()
+        integer, pointer, dimension(:,:)        :: OpenPoints2D     => null()
+        integer, pointer, dimension(:,:)        :: WaterPoints2D    => null()
+        integer, pointer, dimension(:,:)        :: BoundaryPoints2D => null()
+        real                                    :: WaterDensity     = FillValueReal 
+        logical                                 :: WaveTensionON    = .false. 
+        real,    pointer, dimension(:,:)        :: Bathymetry       => null()
+        real,    pointer, dimension(:,:)        :: InitialBathym    => null()
+        real,    pointer, dimension(:,:)        :: WaveDirection    => null()
+        real,    pointer, dimension(:,:)        :: Abw              => null()
+        real,    pointer, dimension(:,:)        :: Ubw              => null()
+        real,    pointer, dimension(:,:)        :: TauTotal         => null()
+        real,    pointer, dimension(:,:)        :: CurrentRugosity  => null()
+        real,    pointer, dimension(:,:)        :: WaveRugosity     => null()
+        real,    pointer, dimension(:,:)        :: WaterColumn      => null()
+        real,    pointer, dimension(:,:)        :: VelU             => null()
+        real,    pointer, dimension(:,:)        :: VelV             => null()
+        real,    pointer, dimension(:,:)        :: VelMod           => null()
+        real,    pointer, dimension(:,:)        :: TauWave          => null()
+        real,    pointer, dimension(:,:)        :: TauCurrent       => null()
+        real,    pointer, dimension(:,:)        :: ShearVelocity    => null()    
+        real,    pointer, dimension(:,:)        :: WaveHeight       => null()
+        real,    pointer, dimension(:,:)        :: WavePeriod       => null()
+        real                                    :: MinWaterColumn   = FillValueReal 
     end type T_External
 
     
     private :: T_Aceleration
     type       T_Aceleration
-        logical         :: Yes
-        real            :: Coef
+        logical         :: Yes      = .false.
+        real            :: Coef     = FillValueReal
     end type   T_Aceleration
 
     private :: T_OutPut
     type       T_OutPut
-         type (T_Time), pointer, dimension(:)   :: OutTime
-         integer                                :: NextOutPut
+         type (T_Time), pointer, dimension(:)   :: OutTime      => null ()
+         integer                                :: NextOutPut   = FillValueInt
          logical                                :: Yes          = .false.
     end type T_OutPut
 
@@ -196,64 +212,67 @@ Module ModuleSand
 
     private :: T_Filter
     type       T_Filter
-        logical                                 :: ON
-        integer                                 :: Scheme
-        integer                                 :: Radius
-        real, pointer, dimension(:,:  )         :: Field2D
+        logical                                 :: ON       = .false. 
+        integer                                 :: Scheme   = FillValueInt
+        integer                                 :: Radius   = FillValueInt
+        real, pointer, dimension(:,:  )         :: Field2D  => null()
     end type T_Filter
 
     private :: T_Evolution
     type       T_Evolution
-        logical                                 :: Old
+        logical                                 :: Old          = .false. 
         real                                    :: SandDT       = FillValueReal
         real                                    :: BathymDT     = FillValueReal
         type (T_Time)                           :: NextSand, NextBatim
-        logical                                 :: Bathym
+        logical                                 :: Bathym       = .false. 
         !Selma
-        integer                                 :: BathymType = Time_
+        integer                                 :: BathymType   = Time_
     end type T_Evolution
 
     private :: T_Property
     type       T_Property
         type (T_PropertyID)                     :: ID
 !        type (T_SubModel  )                     :: SubModel
-        real                                    :: Scalar           = FillValueReal
-        real, pointer, dimension(:,:  )         :: Field2D
+        real                                    :: Scalar       = FillValueReal
+        real, pointer, dimension(:,:  )         :: Field2D      => null ()
     end type T_Property
 
     private :: T_Classes
     type       T_Classes
-        integer                                            :: Number
-        character(Len=StringLength), dimension(:), pointer :: Name
-        type (T_Property),           dimension(:), pointer :: Diameter
-        type (T_Property),           dimension(:), pointer :: Percentage
+        integer                                            :: Number        = FillValueInt
+        character(Len=StringLength), dimension(:), pointer :: Name          => null ()
+        type (T_Property),           dimension(:), pointer :: Diameter      => null ()
+        type (T_Property),           dimension(:), pointer :: Percentage    => null ()
     end type T_Classes 
 
     private :: T_Files
     type       T_Files
-        character(Len = StringLength)           :: ConstructData
-        character(Len = StringLength)           :: InitialSand
-        character(Len = StringLength)           :: OutPutFields
-        character(Len = StringLength)           :: FinalSand
+        character(Len = StringLength)           :: ConstructData  = null_str
+        character(Len = StringLength)           :: InitialSand    = null_str  
+        character(Len = StringLength)           :: OutPutFields   = null_str
+        character(Len = StringLength)           :: FinalSand      = null_str
     end type  T_Files
 
     private :: T_SmoothSlope    
     type       T_SmoothSlope    
-        real        :: Critic, Factor
-        logical     :: ON
+        real        :: Critic = FillValueReal
+        real        :: Factor = FillValueReal
+        logical     :: ON     = .false.   
     end type  T_SmoothSlope    
         
 
     type       T_Discharges
         type(T_Time)                            :: NextCompute
         real                                    :: DT_Compute = FillValueReal
-        logical                                 :: Yes = .false.
+        logical                                 :: Yes        = .false.
     end type T_Discharges 
 
     type     T_Boxes
-        logical                                 :: Yes = .false.
-        character(Len = StringLength)           :: File
-        real(8), dimension(:,:), pointer        :: Mass, FluxesX, FluxesY
+        logical                                 :: Yes      = .false.
+        character(Len = StringLength)           :: File     =  null_str
+        real(8), dimension(:,:), pointer        :: Mass     => null()
+        real(8), dimension(:,:), pointer        :: FluxesX  => null()
+        real(8), dimension(:,:), pointer        :: FluxesY  => null()
     end type T_Boxes
 
 
@@ -261,7 +280,7 @@ Module ModuleSand
 
     private :: T_Sand
     type       T_Sand
-        integer                                    :: InstanceID
+        integer                                    :: InstanceID            = FillValueInt
         type (T_Size2D)                            :: Size, WorkSize
         type (T_Time)                              :: BeginTime, EndTime
         type (T_Evolution )                        :: Evolution
@@ -269,49 +288,56 @@ Module ModuleSand
         type (T_SmoothSlope)                       :: SmoothSlope
         type (T_Property)                          :: BedRock, DZ, BatimIncrement, DZ_Residual
         type (T_Aceleration)                       :: Aceleration
-        real                                       :: SandMin
         type (T_Property)                          :: D35, D50, D90
-        real                                       :: Porosity
-        real                                       :: Density, RelativeDensity, RhoSl
-        integer                                    :: Boundary
-        real                                       :: TransportFactor, TauMax
-        logical                                    :: TimeSerie
+        real                                       :: SandMin               = FillValueReal
+        real                                       :: Porosity              = FillValueReal
+        real                                       :: Density               = FillValueReal
+        real                                       :: RelativeDensity       = FillValueReal
+        real                                       :: RhoSl                 = FillValueReal
+        integer                                    :: Boundary              = FillValueInt
+        real                                       :: TransportFactor       = FillValueReal
+        real                                       :: TauMax                = FillValueReal
+        logical                                    :: TimeSerie             = .false. 
         type (T_Classes)                           :: Classes
         type (T_Files  )                           :: Files
         type (T_OutPut )                           :: OutPut
         type (T_External)                          :: ExternalVar
         type (T_Discharges)                        :: Discharges
         type (T_Boxes     )                        :: Boxes
-        real, dimension(:,:), pointer              :: FluxX, FluxY, TransportCapacity, TauCritic, Dast
-        integer                                    :: TransportMethod
+        real, dimension(:,:), pointer              :: FluxX                 => null ()
+        real, dimension(:,:), pointer              :: FluxY                 => null ()
+        real, dimension(:,:), pointer              :: TransportCapacity     => null ()
+        real, dimension(:,:), pointer              :: TauCritic             => null ()
+        real, dimension(:,:), pointer              :: Dast                  => null ()
+        integer                                    :: TransportMethod       = FillValueInt
         !Instance of ModuleHDF5        
-        integer                                    :: ObjHDF5              = 0
+        integer                                    :: ObjHDF5               = 0
         !Instance of ModuleTimeSerie            
-        integer                                    :: ObjTimeSerie         = 0
+        integer                                    :: ObjTimeSerie          = 0
         !Instance of Module_EnterData           
-        integer                                    :: ObjEnterData         = 0
-        !Instance of ModuleGridData where the bathymetry is define            
-        integer                                    :: ObjBathym            = 0
+        integer                                    :: ObjEnterData          = 0
+        !Instance of ModuleGridData where the bathymetry is define             
+        integer                                    :: ObjBathym             = 0
         !Instance of ModuleHorizontalGrid       
-        integer                                    :: ObjHorizontalGrid    = 0
+        integer                                    :: ObjHorizontalGrid     = 0
         !Instance of ModuleHorizontalMap        
-        integer                                    :: ObjHorizontalMap     = 0 
+        integer                                    :: ObjHorizontalMap      = 0 
         !Instance of ModuleTime                 
-        integer                                    :: ObjTime              = 0
+        integer                                    :: ObjTime               = 0
         !Instance of ModuleDischarges           
-        integer                                    :: ObjDischarges        = 0
+        integer                                    :: ObjDischarges         = 0
         !Instance of ModuleBoxDif               
-        integer                                    :: ObjBoxDif            = 0             
+        integer                                    :: ObjBoxDif             = 0             
         !Instance of ModuleWaves
-        integer                                    :: ObjWaves             = 0
+        integer                                    :: ObjWaves              = 0
         !List of Sand Instances
-        type(T_Sand), pointer                      :: Next
+        type(T_Sand), pointer                      :: Next                  => null ()
 
     end type  T_Sand
 
     !Global Module Variables
-    type (T_Sand), pointer                         :: FirstObjSand
-    type (T_Sand), pointer                         :: Me
+    type (T_Sand), pointer                         :: FirstObjSand          => null ()
+    type (T_Sand), pointer                         :: Me                    => null () 
 
 
     !--------------------------------------------------------------------------
