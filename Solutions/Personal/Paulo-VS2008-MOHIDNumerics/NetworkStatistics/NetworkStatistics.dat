@@ -1,0 +1,25 @@
+INPUT_FILE  : run.hdf5
+OUTPUT_FILE : run_out.hdf5
+
+
+<BeginPeakDemand>
+6 0 0 11 0 0 
+17 0 0 22 0 0 
+<EndPeakDemand>
+
+<BeginGroupsStat>
+/ResultsLinks/DepthLink
+/ResultsLinks/Flow
+/ResultsLinks/Percent
+/ResultsLinks/Velocity
+/ResultsNodes/DepthNode
+/ResultsNodes/Flooding
+/ResultsNodes/Head
+/ResultsNodes/Inflow
+/ResultsNodes/LateralInflow
+<EndGroupsStat>
+
+<BeginGroupsCopy>
+/Links
+/Nodes
+<EndGroupsCopy>

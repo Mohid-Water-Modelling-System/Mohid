@@ -1,0 +1,22 @@
+START                         : 2011 1 1 6 0 0
+END                           : 2011 1 2 6 0 0
+DT                            : 30
+
+
+OUTPUT_FILE : Leakage.dat
+
+<BeginInFlux>
+test1.dat
+test3.dat
+test2.dat
+test4.dat
+<EndInFlux>
+
+!<BeginOutFlux>
+test2.dat
+test4.dat
+!<EndOutFlux>
+
+!<BeginMass>
+!<EndMass>  
+  

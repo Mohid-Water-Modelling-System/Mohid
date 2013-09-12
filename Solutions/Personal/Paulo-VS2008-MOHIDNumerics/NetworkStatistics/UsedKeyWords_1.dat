@@ -1,0 +1,3 @@
+ DT_ANALYSIS               ModuleNetworkStatistics   1                         From File                 1                                                            YES
+ INPUT_FILE                ModuleNetworkStatistics   Do not have               From File                 run.hdf5                                                     YES
+ OUTPUT_FILE               ModuleNetworkStatistics   Do not have               From File                 run_out.hdf5                                                 YES
