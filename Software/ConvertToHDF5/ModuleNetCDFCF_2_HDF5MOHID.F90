@@ -4047,7 +4047,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             
             HundredDays = 100*86400 
             Aux1        = Aux
-            CurrentTime = Me%Date%RefDateTimeIn
+            call JulianDateToGregorianDate(Me%Date%RefDateTimeIn, CurrentTime)
 
             if (Aux1 > HundredDays) then            
                 
