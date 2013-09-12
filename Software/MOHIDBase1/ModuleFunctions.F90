@@ -222,6 +222,7 @@ Module ModuleFunctions
     !Compute settling velocity    
     public  :: SettlingVelocity
     public  :: SettlingVelSecondaryClarifier
+    public  :: SettlingVelPrimaryClarifier
 
     !Bathymetry smoother
     public  :: SLPMIN
@@ -4951,16 +4952,18 @@ d3:                     do dij=1,dijmax
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructPropertyID (PropertyID, ObjEnterData, ExtractType)
+    subroutine ConstructPropertyID (PropertyID, ObjEnterData, ExtractType, CheckProperty)
 
         !Arguments-------------------------------------------------------------
         type (T_PropertyID)                         :: PropertyID
         integer                                     :: ObjEnterData
         integer                                     :: ExtractType
+        logical, optional                           :: CheckProperty
 
         !Local-----------------------------------------------------------------
         integer                                     :: flag
         integer                                     :: STAT_CALL
+        logical                                     :: check
 
         !Property Name
         call GetData(PropertyID%Name, ObjEnterData, flag,                                &
@@ -4973,9 +4976,17 @@ d3:                     do dij=1,dijmax
             stop 'ConstructPropertyID - ModuleFunctions - ERR02'
         endif
 
+        if (present(CheckProperty)) then
+            check = CheckProperty
+        else
+            check = .true.
+        endif
+        
+        if (check) then
         if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
             write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
             stop 'ConstructPropertyID - ModuleFunctions - ERR03'
+        endif
         endif
  
         !Units
@@ -8918,6 +8929,74 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 
     end function SettlingVelocity
 
+
+    real function SettlingVelPrimaryClarifier (Cx, Rh_i, Rf_i, v0max_i, v0_i)
+        
+        !Arguments-------------------------------------------------
+        real,       intent(IN)           :: Cx     !kg/m3 or g/l 
+        real,       intent(IN), optional :: Rh_i, Rf_i, v0max_i, v0_i
+        
+        !Local-----------------------------------------------------
+        real(8)                :: v0max, v0, Rh, Rf, Fns, Cmin, vs, Cy, Cin_
+        
+        !Begin-----------------------------------------------------
+
+        
+        !Parameters - Hindering settling - PhD Thesis Takács (2008)
+        ![m/day]
+        if (present(v0max_i)) then
+            v0max   = v0max_i
+        else
+            v0max   = 218.4        
+        endif
+        
+        
+        ! 120 - 370
+
+        if (present(v0_i)) then
+            v0      = v0_i
+        else
+            v0      = 199.2        
+        endif
+
+        ![l/g]
+        !0.2 - 1
+        if (present(Rh_i)) then
+            Rh      = Rh_i
+        else
+            Rh      = 0.1        
+        endif
+
+        !5 - 100
+        if (present(Rf_i)) then
+            Rf      = Rf_i
+        else
+            Rf      = 5
+        endif
+        
+        ![-]
+        !No settling fraction
+        !1e-3 : 3e-3
+        Fns     = 1e-3
+        
+        Cin_ = 3.
+
+        !g/l
+        Cmin = Cin_ * Fns
+        Cy   = Cx - Cmin
+        
+        !Hindering settling (m/day)
+
+        vs = v0 * (exp(-Rh*Cy)-exp(-Rf*Cy))
+        
+        !From m/day to m/s
+        if (vs <0    ) vs = 0.                  
+        if (vs >v0max) vs = v0max 
+        
+        SettlingVelPrimaryClarifier = vs / 86400.
+
+    end function SettlingVelPrimaryClarifier    
+
     real function SettlingVelSecondaryClarifier (Cx, WithCompression, SVI, Clarification, Cin)
         
         !Arguments-------------------------------------------------
@@ -9460,7 +9539,7 @@ D2:     do I=imax-1,2,-1
 
     !--------------------------------------------------------------------------
 
-    character(len=15) function TimeToString(Date)
+    character(len=19) function TimeToString(Date)
 
         !Arguments-------------------------------------------------------------
         type(T_Time)                            :: Date
@@ -9471,6 +9550,8 @@ D2:     do I=imax-1,2,-1
         character(len=2)                        :: CharHour
         character(len=2)                        :: CharMinute
         character(len=2)                        :: CharSecond
+        character(len=6)                        :: CharMilliSecond        
+        integer                                 :: MilliSecond
 
         !Begin-----------------------------------------------------------------
 
@@ -9484,6 +9565,12 @@ D2:     do I=imax-1,2,-1
         write(CharHour,  '(i2)')int(AuxTime(4))
         write(CharMinute,'(i2)')int(AuxTime(5))
         write(CharSecond,'(i2)')int(AuxTime(6))
+
+        MilliSecond = int((AuxTime(6)- real(int(AuxTime(6))))* 1000.)
+
+        if (MilliSecond > 0) then
+            write(CharMilliSecond,'(i3)')MilliSecond
+        endif
 
         if(len_trim(trim(adjustl(CharMonth)))   < 2)then 
             CharMonth = "0"//trim(adjustl(CharMonth))
@@ -9504,10 +9591,23 @@ D2:     do I=imax-1,2,-1
         if(len_trim(trim(adjustl(CharSecond)))  < 2)then 
             CharSecond = "0"//trim(adjustl(CharSecond))
         endif
+        
 
-        !Output Format: YYYYMMDD-hhmmss
+        !Output Format: YYYYMMDD-hhmmss.sss
         TimeToString = CharYear//CharMonth//CharDay//"-"//&
                        CharHour//CharMinute//CharSecond
+
+        if (MilliSecond >0) then
+            if     (len_trim(trim(adjustl(CharMilliSecond))) == 1 ) then
+                TimeToString = trim(TimeToString)//"."//"00"//trim(adjustl(CharMilliSecond))
+            elseif (len_trim(trim(adjustl(CharMilliSecond))) == 2 ) then
+                TimeToString = trim(TimeToString)//"."//"0" //trim(adjustl(CharMilliSecond))
+            elseif (len_trim(trim(adjustl(CharMilliSecond))) == 3 ) then                
+                TimeToString = trim(TimeToString)//"."      //trim(adjustl(CharMilliSecond))
+            endif
+        endif
+        
+
 
     end function TimeToString
     
