@@ -33,7 +33,8 @@ Module ModuleOpenBoundary
     use ModuleTime  
     use ModuleTriangulation          
     use ModuleHorizontalGrid
-    use ModuleHorizontalMap,    only : GetBoundaryFaces, UnGetHorizontalMap,GetBoundaries
+    use ModuleHorizontalMap,    only : GetBoundaryFaces, UnGetHorizontalMap,            &
+                                       GetBoundaries, GetWaterPoints2D
     use ModuleGauge
     use ModuleFunctions,        only : RodaXY, CHUNK_J
     use ModuleStopWatch,        only : StartWatch, StopWatch
@@ -62,6 +63,7 @@ Module ModuleOpenBoundary
 
     !Modifier
     public  :: Modify_OpenBoundary
+    public  :: Modify_AllDomain
 
 
     !Destructor
@@ -1305,6 +1307,123 @@ cd23:                       if (STAT_CALL == NOT_FOUND_ERR_) then
         !----------------------------------------------------------------------
 
     end subroutine Modify_OpenBoundary
+
+
+   !----------------------------------------------------------------------
+
+    subroutine Modify_AllDomain(OpenBoundaryID, time_, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                             :: OpenBoundaryID  
+        type(T_Time), intent(IN)            :: time_
+        integer, optional, intent(OUT)      :: STAT  
+
+        !External--------------------------------------------------------------
+        integer                             :: ready_             
+        integer                             :: STAT_CALL
+        integer, dimension(:,:), pointer    :: WaterPoints2D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_ 
+        integer                             :: i, j, NGauges
+ 
+
+        !----------------------------------------------------------------------                         
+
+        STAT_ = UNKNOWN_
+
+        call Ready(OpenBoundaryID, ready_)
+
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            Me%OldImposedElevation = Me%ImposedElevation
+            
+            Me%ImposedElevation(:,:) = 0.
+            Me%VelocityU       (:,:) = 0.
+            Me%VelocityV       (:,:) = 0.
+            
+
+
+            !Gets WaterPoints from the HorizontalMap
+            call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Modify_AllDomain - ModuleOpenBoundary - ERR01'
+
+            if (MonitorPerformance)                                     &
+                call StartWatch ("ModuleOpenBoundary", "Modify_AllDomain")
+
+cd2:        if (Me%Compute_Tide) then
+
+                !Get the number of gauges in use
+                call GetNGauges(Me%ObjGauge, NGauges, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Modify_AllDomain - ModuleOpenBoundary - ERR02'
+
+
+                !Get the current elevation at the gauges
+                call GaugeLevel(Me%ObjGauge,                                &
+                                Me%Station%Elevation,                       &
+                                Me%Station%OpenPoints,                      &
+                                Time_,                                                   &    
+                                ReferenceLevel = Me%Station%ReferenceLevel, &
+                                VelocityU      = Me%Station%VelocityU,      &
+                                VelocityV      = Me%Station%VelocityV,      &
+                                STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'Modify_AllDomain - ModuleOpenBoundary - ERR03'
+
+                !If there are less then three gauges, only the first is considered
+cd3:            if (NGauges < 3) then
+                    
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                        if ( WaterPoints2D(i, j) == 1 ) then
+
+                            Me%ImposedElevation(i, j) = Me%Station%Elevation(1)  +      &
+                                                        Me%Station%ReferenceLevel(1) 
+
+                            Me%VelocityU(i, j) = Me%Station%VelocityU(1) 
+
+                            Me%VelocityV(i, j) = Me%Station%VelocityV(1)
+
+
+                        else
+
+                            Me%ImposedElevation(i, j) = 0.
+                            Me%VelocityU       (i, j) = 0.
+                            Me%VelocityV       (i, j) = 0.
+
+                        endif
+                    enddo
+                    enddo
+
+            
+                    if (NGauges == 2) stop 'Warning - Second gauge ignored'
+
+                endif cd3
+            
+            endif cd2
+
+            if (MonitorPerformance)                                     &
+                call StopWatch ("ModuleOpenBoundary", "Modify_AllDomain")
+
+            !Unget boundary points 2D
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Modify_AllDomain - ModuleOpenBoundary - ERR18'
+
+            STAT_ = SUCCESS_
+        else               
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine Modify_AllDomain
+
+    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
