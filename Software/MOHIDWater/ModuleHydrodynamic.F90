@@ -148,7 +148,8 @@ Module ModuleHydrodynamic
                                        GetAverageImposedElevation, GetImposedElevation,  &
                                        UnGetOpenBoundary, GetOldImposedElevation,        &
                                        GetOpenBoundParameter, GetImposedVelocity,        &
-                                       GetBoundaryReferenceLevel, KillOpenBoundary
+                                       GetBoundaryReferenceLevel, KillOpenBoundary,      &
+                                       Modify_AllDomain
     use ModuleTurbulence,       only : GetContinuousGOTM, GetMLD_Surf, UnGetTurbulence,  &
                                        GetHorizontalViscosity, GetVerticalViscosity   
     use ModuleHydrodynamicFile, only : StartHydrodynamicFile, GetHydrodynamicFileIOState,&
@@ -572,6 +573,7 @@ Module ModuleHydrodynamic
     integer, parameter :: ImposedSolution_       = 6
     !Guillaume
     integer, parameter :: Vertical1D_            = 7
+    integer, parameter :: Harmonics_             = 8
 
     !Parameters
     character(LEN = StringLength), parameter :: Char_Solve_Equations        = trim(adjustl('Solve_Equations'      ))
@@ -580,7 +582,8 @@ Module ModuleHydrodynamic
     character(LEN = StringLength), parameter :: Char_Residual_hydrodynamic  = trim(adjustl('Residual_hydrodynamic'))
     character(LEN = StringLength), parameter :: Char_Run_Off                = trim(adjustl('Run_Off'              ))
     character(LEN = StringLength), parameter :: Char_ImposedSolution        = trim(adjustl('Imposed Solution'     ))
-    character(LEN = StringLength), parameter :: Char_Vertical1D             = trim(adjustl('Vertical1D'          ))
+    character(LEN = StringLength), parameter :: Char_Vertical1D             = trim(adjustl('Vertical1D'           ))
+    character(LEN = StringLength), parameter :: Char_Harmonics              = trim(adjustl('Harmonics'            ))
 
 
 
@@ -4314,6 +4317,10 @@ case1 : select case(String)
 
                 Me%ComputeOptions%Evolution = Vertical1D_
 
+            case(Char_Harmonics            )
+
+                Me%ComputeOptions%Evolution = Harmonics_
+                Me%ComputeOptions%Compute_Tide = .true. 
 
             case default
 
@@ -7088,6 +7095,7 @@ cd3:            if (Me%ComputeOptions%Continuous) then
             Me%ComputeOptions%Evolution /= Run_Off_               .and.     &
             Me%ComputeOptions%Evolution /= ImposedSolution_       .and.     &
             Me%ComputeOptions%Evolution /= Vertical1D_            .and.     &
+            Me%ComputeOptions%Evolution /= Harmonics_             .and.     &            
             Me%ComputeOptions%Evolution /= Residual_hydrodynamic_         ) &   
             call SetError(FATAL_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR11.')
 
@@ -7118,6 +7126,7 @@ cd3:            if (Me%ComputeOptions%Continuous) then
         if ((Me%ComputeOptions%Evolution == Read_File_             .or.                 &
              Me%ComputeOptions%Evolution == No_hydrodynamic_       .or.                 &
              Me%ComputeOptions%Evolution == Run_Off_               .or.                 &
+             Me%ComputeOptions%Evolution == Harmonics_             .or.                 &             
              Me%ComputeOptions%Evolution == ImposedSolution_      ).and.                &
              Me%ComputeOptions%Continuous)                                              &        
             call SetError(FATAL_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR14.')
@@ -20082,7 +20091,9 @@ cd3:        if (Previous_Direction == DirectionY_) then
 
 
         !Local----------------------------------------------------------------------
+        real, dimension(:,:), pointer               :: GaugeElevation, GaugeVelocity    
         integer                                     :: Evolution, Grid
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, k
         
         
 
@@ -20167,6 +20178,45 @@ cd1:    if (Evolution == Solve_Equations_) then
             !(change direction to assure that only real runs change direction)
             if (Me%VirtualRun) call ChangeDirection
 #endif _USE_SEQASSIMILATION
+
+        else if (Evolution == Harmonics_)  then cd1
+        
+            ILB = Me%WorkSize%ILB
+            IUB = Me%WorkSize%IUB
+            JLB = Me%WorkSize%JLB
+            JUB = Me%WorkSize%JUB   
+            KLB = Me%WorkSize%KLB
+            KUB = Me%WorkSize%KUB                      
+        
+            call Modify_AllDomain(Me%ObjOpenBoundary, Me%CurrentTime)            
+            
+            call GetImposedElevation(Me%ObjOpenBoundary, GaugeElevation)    
+            
+            Me%WaterLevel%New(:,:) = GaugeElevation(:,:)
+            
+            call UnGetOpenBoundary(Me%ObjOpenBoundary, GaugeElevation)                                     
+            
+            call GetImposedVelocity(Me%ObjOpenBoundary, GaugeVelocity, DirectionX_)  
+            
+            do k=KLB,KUB
+                Me%Velocity%Horizontal%U%New(ILB:IUB,JLB:JUB,k) = GaugeVelocity(ILB:IUB,JLB:JUB) 
+            enddo                                 
+            
+            call UnGetOpenBoundary(Me%ObjOpenBoundary, GaugeVelocity)                                                     
+        
+            call GetImposedVelocity(Me%ObjOpenBoundary, GaugeVelocity, DirectionY_)  
+            
+            do k=KLB,KUB
+                Me%Velocity%Horizontal%V%New(ILB:IUB,JLB:JUB,k) = GaugeVelocity(ILB:IUB,JLB:JUB) 
+            enddo  
+
+            call UnGetOpenBoundary(Me%ObjOpenBoundary, GaugeVelocity)   
+ 
+            call New_Geometry
+
+            !call Bottom_Boundary
+            
+
 
         else if (Evolution == Vertical1D_) then cd1
             

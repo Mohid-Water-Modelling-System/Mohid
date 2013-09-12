@@ -110,6 +110,13 @@ Module ModuleGauge
     end type T_TidalWave
 
 
+    type T_TidalVelocity
+        character(LEN = WaveNameLength), dimension(:), pointer :: Name      
+        real                           , dimension(:), pointer :: Amplitude 
+        real                           , dimension(:), pointer :: Phase     
+        integer                                                :: NWaves    = FillValueInt
+    end type T_TidalVelocity
+
     type T_TideGauge 
         character (len=StringLength)        :: Name             = null_str
         real, dimension(3)                  :: Longitude        = FillValueReal
@@ -144,6 +151,9 @@ Module ModuleGauge
 
         integer                             :: CoveredColumn    = FillValueInt
         character (len=StringLength)        :: TimeSerieDataFile= null_str
+        
+        type (T_TidalVelocity)              :: VelocityU
+        type (T_TidalVelocity)              :: VelocityV
         
         type(T_TidalWave), pointer          :: FirstWave
         type(T_TidalWave), pointer          :: LastWave
@@ -933,7 +943,12 @@ if2 :   if (control == 0) then
                call SetError(FATAL_, INTERNAL_, "ReadGaugeData - ModuleGauge - ERR290")
           
         endif
-
+        
+        if (PresentGauge%VelEvolution == Harmonics) then        
+            
+            !call ReadVelocityHarmonics(PresentGauge)        
+        
+        endif
 
 
         if (PresentGauge%LevelEvolution == Harmonics) then
@@ -2548,17 +2563,22 @@ do5 :   do while (associated(PresentWave))
 
         !----------------------------------------------------------------------
 
-
         call GetTimeSerieValue(PresentGauge%ObjTimeSerie, Time, Column,                 &
                      Time1, Value1, Time2, Value2, TimeCycle, STAT = status) 
-       
-        if (Time < Time1)       stop "TimeSerieValue - ModuleGauge - ERR10"
-               
-        Value = ((Time - Time1) * Value2 + (Time2 - Time) * Value1) / (Time2 - Time1)
 
-        if (status /= SUCCESS_) stop "TimeSerieValue - ModuleGauge - ERR20"
+        if (TimeCycle) then
+            
+            Value = Value1
+            
+        else
+      
+            if (Time < Time1)       stop "TimeSerieValue - ModuleGauge - ERR10"
+                   
+            Value = ((Time - Time1) * Value2 + (Time2 - Time) * Value1) / (Time2 - Time1)
 
-        if (TimeCycle)          stop "TimeSerieValue - ModuleGauge - ERR30"
+            if (status /= SUCCESS_) stop "TimeSerieValue - ModuleGauge - ERR20"
+
+        endif
 
     end subroutine TimeSerieValue
 
