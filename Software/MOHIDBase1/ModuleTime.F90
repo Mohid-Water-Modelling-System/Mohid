@@ -72,6 +72,7 @@ Module ModuleTime
     public  :: null_time            !Turns type(time) to FillValueInt
     public  :: PrintProgress        !Writes a message to the screen         !Frank 3-8-99
     public  :: ConvertTimeToString  !Converts T_Time to a String like 2000:01:01:23:59:59
+    public  :: JulianDateToGregorianDate
 
 
     !Operator------------------------------------------------------------------
@@ -1246,6 +1247,52 @@ do1 :   do i = 1, 6
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+    subroutine JulianDateToGregorianDate(TimeIn, TimeOut)
+    
+        !Arguments-------------------------------------------------------------
+        type (T_Time), intent(IN)                   :: TimeIn
+        type (T_Time), intent(OUT)                  :: TimeOut
+
+        !Local-----------------------------------------------------------------
+        type (T_Time)                               :: JulDate1, JulDate2
+        real                                        :: Year, Month, Day, hour, minute, second
+        real                                        :: Y, Aux
+        !Begin-----------------------------------------------------------------
+
+
+
+        !Any date in the range 5/10/1582 to 14/10/1582 is invalid 
+        call SetDate    (JulDate1, 1582., 10.,  5., 0., 0., 0.)
+        call SetDate    (JulDate2, 1582., 10., 14., 0., 0., 0.)        
+        
+        if (TimeIn > JulDate1 .and. TimeIn < JulDate2) then 
+            write(*,*) "DateToGregorianDay - ModlueTime - ERR10"
+            write(*,*) "This date is not valid as it does not exist in"
+            stop       "either the Julian or the Gregorian calendars"
+        endif            
+
+        !Gets Date in format YY MM DD hh mm ss
+        call ExtractDate(TimeIn, Year, Month, Day, hour, minute, second)
+
+        if (TimeIn < JulDate1) then
+            if (month > 2) then 
+                Y = Year
+            else
+                Y = Year - 1
+            endif       
+            
+            Aux = - (2. - Y / 100. + Y / 100. / 4.)*86400.
+            
+            TimeOut = TimeIn + Aux
+
+        else            
+            TimeOut = TimeIn
+        endif
+
+    end subroutine JulianDateToGregorianDate
+    
+    !--------------------------------------------------------------------------
+
     subroutine DateToGregorianDay(TimeIn, GregDay)
     
         !Arguments-------------------------------------------------------------
@@ -1255,7 +1302,10 @@ do1 :   do i = 1, 6
         !Local-----------------------------------------------------------------
         real                                        :: Year, Month, Day, hour, minute, second
         integer                                     :: n400, n100, n4, nx
-        
+
+
+        !Begin-----------------------------------------------------------------
+
         !Gets Date in format YY MM DD hh mm ss
         call ExtractDate(TimeIn, Year, Month, Day, hour, minute, second)
 
@@ -1288,7 +1338,7 @@ do1 :   do i = 1, 6
         
         !Add days of current months
         GregDay = GregDay + Day
-
+        
     end subroutine DateToGregorianDay
     
     !--------------------------------------------------------------------------
@@ -1300,9 +1350,9 @@ do1 :   do i = 1, 6
         integer, intent(IN)                         :: GreorgianDay
 
         !Local-----------------------------------------------------------------
-        integer                                     :: GregDay, i
+        integer                                     :: GregDay, i, GregDayLimit1, GregDayLimit2, iMonth
 
-        real                                        :: Year, Month, Day
+        real                                        :: Year, Month, Day, Y
         integer                                     :: n400, n100, n4, nx
         integer                                     :: DaysInMonth
 
@@ -1365,10 +1415,11 @@ do1 :   do i = 1, 6
             GregDay = GregDay +1
         endif
 
-       
+      
         !Calculates Month
 do1:    do i=1, 12
-            DaysInMonth = NumberOfDaysInMonth(nint(Year), i)
+            iMonth = i
+            DaysInMonth = NumberOfDaysInMonth(nint(Year), iMonth)
             if (GregDay <= DaysInMonth) then
                 exit do1
             else
@@ -1376,11 +1427,12 @@ do1:    do i=1, 12
             endif
         enddo do1
         
-        Month   = i
+        Month   = iMonth
         Day     = GregDay
         
         call SetDate(TimeOut, Year, Month, Day, 0., 0., 0.)
-       
+   
+
     end subroutine GregorianDayToDate
     
     !--------------------------------------------------------------------------
