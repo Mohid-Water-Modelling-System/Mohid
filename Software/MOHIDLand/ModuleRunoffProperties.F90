@@ -80,7 +80,9 @@ Module ModuleRunoffProperties
                                          GetFlowToChannels, GetRunoffCenterVelocity,          &
                                          GetRunoffWaterColumnOld, GetRunoffWaterColumn,       &
                                          GetManning, GetManningDelta, GetRunoffCenterVelocity, &
-                                         GetRunoffWaterColumnAT      
+                                         GetRunoffWaterColumnAT, GetBoundaryImposed,          &
+                                         GetBoundaryCells, GetBoundaryFlux
+                                           
 !    use ModuleInterface,          only : ConstructInterface, Modify_Interface
     use ModuleAdvectionDiffusion, only : StartAdvectionDiffusion, AdvectionDiffusion,      &
                                          GetAdvFlux, GetDifFlux, GetBoundaryConditionList, &
@@ -173,6 +175,12 @@ Module ModuleRunoffProperties
     integer, parameter                :: AdvDif_CentralDif_ = 2    
     integer, parameter                :: AdvDif_Diff_Jury_  = 1
     integer, parameter                :: AdvDif_Diff_Old_   = 2        
+    
+    !Boundary condition
+    integer, parameter                      :: ImposedValue_  = 1
+    integer, parameter                      :: NullGradient_  = 2
+
+    
     !Types---------------------------------------------------------------------
     
     private :: T_RunoffProperties
@@ -249,6 +257,11 @@ Module ModuleRunoffProperties
         real,       dimension(:,:  ), pointer       :: FertilOrganicPParticFluff => null()
         integer                                     :: VegetationDT              = null_int
         
+        !From Runoff Boundary
+        logical                                     :: BoundaryImposed     = .false.
+        integer, pointer, dimension(:,:)            :: BoundaryCells       => null()
+        real   , pointer, dimension(:,:)            :: BoundaryFlux        => null()
+        
      end type T_ExtVar
 
     type T_OutPut
@@ -306,6 +319,11 @@ Module ModuleRunoffProperties
         character (LEN = StringLength)          :: Partition_Couple     = null_str   
     end type T_Partition
 
+    type T_Boundary
+        integer                                 :: BoundaryCondition   = null_int
+        real                                    :: DefaultBoundary     = null_real
+    end type T_Boundary
+
     type T_Evolution
         logical                                 :: Partitioning         = .false.
         logical                                 :: BottomFluxes         = .false.
@@ -331,6 +349,7 @@ Module ModuleRunoffProperties
         real                                    :: DecayRate              = null_real
         type (T_AdvectionDiffusion)             :: AdvDiff
         type (T_Partition                    )  :: Partition
+        type (T_Boundary)                       :: Boundary                
     end type T_Evolution
 
     type T_MassBalance
@@ -359,7 +378,8 @@ Module ModuleRunoffProperties
         real, dimension(:,:), pointer           :: ConcentrationDN          => null()
         real, dimension(:,:), pointer           :: TotalConcentration       => null()
         real, dimension(:,:), pointer           :: ConcInInterfaceDN        => null()
-        real, dimension(:,:),   pointer         :: PesticideFlux            => null()
+        real, dimension(:,:), pointer           :: ConcInBoundary           => null()
+        real, dimension(:,:), pointer           :: PesticideFlux            => null()
         logical                                 :: FallVelocity             = .false.
         real, dimension(:,:), pointer           :: ErosionRate              => null()
         real, dimension(:,:), pointer           :: DepositionRate           => null()
@@ -442,7 +462,8 @@ Module ModuleRunoffProperties
     
     !Explicit coefs
     type       T_A_B_C_Explicit
-        real, pointer, dimension(: , : )  :: CoefInterfDN   => null()
+        real, pointer, dimension(: , : )  :: CoefInterfDN         => null()
+        real, pointer, dimension(: , : )  :: CoefInterfBoundary   => null()
     end type T_A_B_C_Explicit
 
     type       T_FluxCoef
@@ -614,6 +635,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ExtVar%VegParticFertilization = VegParticFertilization
             Me%ExtVar%Pesticide              = Pesticide
 
+            call CheckBoundary
+
             call ReadFileNames
 
 
@@ -686,6 +709,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     end subroutine ConstructRunoffProperties
  
+    !--------------------------------------------------------------------------
+
+    subroutine CheckBoundary
+
+        !Arguments-------------------------------------------------------------
+                                                    
+        !Local-----------------------------------------------------------------
+        integer                                        :: STAT_CALL
+        !Begin-----------------------------------------------------------------
+        
+        !check if boundary is imposed
+        call GetBoundaryImposed (Me%ObjRunoff, Me%ExtVar%BoundaryImposed, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckBoundary - ModulePorousMedia - ERR01'
+        
+        if (Me%ExtVar%BoundaryImposed) then
+            call GetBoundaryCells (Me%ObjRunoff, Me%ExtVar%BoundaryCells, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CheckBoundary - ModulePorousMedia - ERR010'
+        endif
+        
+    end subroutine CheckBoundary
+
     !--------------------------------------------------------------------------
 
     subroutine ConstructLog
@@ -965,7 +1009,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%DummyOpenPoints = 0
 
             allocate (Me%COEFExpl%CoefInterfDN     (ILB:IUB,JLB:JUB))
-            Me%COEFExpl%CoefInterfDN     = 0.0
+            Me%COEFExpl%CoefInterfDN        = 0.0
+            allocate (Me%COEFExpl%CoefInterfBoundary (ILB:IUB,JLB:JUB))
+            Me%COEFExpl%CoefInterfBoundary  = 0.0
+
             allocate(Me%TICOEF3                 (ILB:IUB, JLB:JUB))
             Me%TICOEF3                   = 0.0
 
@@ -1407,6 +1454,37 @@ cd2 :           if (BlockFound) then
 
         call ConstructPropertyDiffusivity (NewProperty)
 
+        !By default the boundary value is imposed - currently water can only exit but
+        !useful in the future
+        call GetData(NewProperty%Evolution%Boundary%BoundaryCondition,                   &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'BOUNDARY_CONDITION',                                &
+                     ClientModule = 'ModuleRunoffProperties',                            &
+                     Default      = ImposedValue_,                                       &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_)                                                      &
+            stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR020'
+
+        if (NewProperty%Evolution%Boundary%BoundaryCondition /= ImposedValue_   .and.    &
+            NewProperty%Evolution%Boundary%BoundaryCondition /= NullGradient_        ) then 
+            write(*,*) ' Boundary Condition can only be ImposedValue = 1 or'
+            write(*,*) ' NullGradient = 2. Check BOUNDARY_CONDITION keyword'
+            stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR25'
+        endif
+        
+        !By default if not given the property enters with zero concentration.
+        call GetData(NewProperty%Evolution%Boundary%DefaultBoundary,                     &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'DEFAULTBOUNDARY',                                   &
+                     ClientModule = 'ModuleRunoffProperties',                            &
+                     Default      = 0.0,                                                 &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_)                                                      &
+            stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR030'
+        
+
         !Checks for Bottom Fluxes
         call GetData(NewProperty%Evolution%BottomFluxes,                            &
                      Me%ObjEnterData, iflag,                                        &
@@ -1691,7 +1769,7 @@ cd2 :           if (BlockFound) then
         integer                   :: Orlanski, MassConservNullGrad
 
         !Local-----------------------------------------------------------------
-        integer                   :: iflag, BoundaryCondition
+        integer                   :: iflag !, BoundaryCondition
 
         !----------------------------------------------------------------------
 
@@ -1757,28 +1835,28 @@ cd2 :           if (BlockFound) then
                                       MassConservNullGrad = MassConservNullGrad, &
                                       CyclicBoundary      = CyclicBoundary)
 
-        call GetData(BoundaryCondition,                            &
-                     Me%ObjEnterData,  iflag,                      &
-                     SearchType   = FromBlock,                     &
-                     keyword      = 'ADVDIFF_BOUNDARY_CONDITION',  &
-                     Default      = MassConservation,              &
-                     ClientModule = 'ModuleRunoffProperties', &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadAdvectionDiffusionParameters - ModuleRunoffProperties - ERR70'
-
-        ! By default it's imposed a value dependent only from the exterior
-        ! value and of the decay time. However this method doesn't conserve mass
-        ! when the water fluxes near the frontier are dominant
-
-        if (BoundaryCondition /= MassConservation     .and. &
-            BoundaryCondition /= ImposedValue         .and. &
-            BoundaryCondition /= NullGradient         .and. &
-            BoundaryCondition /= CyclicBoundary       .and. &
-            BoundaryCondition /= Orlanski             .and. &
-            BoundaryCondition /= MassConservNullGrad) &
-            stop 'ReadAdvectionDiffusionParameters - ModuleRunoffProperties - ERR80'
-
-        NewProperty%Evolution%AdvDiff%BoundaryCondition = BoundaryCondition
+!        call GetData(BoundaryCondition,                            &
+!                     Me%ObjEnterData,  iflag,                      &
+!                     SearchType   = FromBlock,                     &
+!                     keyword      = 'ADVDIFF_BOUNDARY_CONDITION',  &
+!                     Default      = MassConservation,              &
+!                     ClientModule = 'ModuleRunoffProperties', &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_) stop 'ReadAdvectionDiffusionParameters - ModuleRunoffProperties - ERR70'
+!
+!        ! By default it's imposed a value dependent only from the exterior
+!        ! value and of the decay time. However this method doesn't conserve mass
+!        ! when the water fluxes near the frontier are dominant
+!
+!        if (BoundaryCondition /= MassConservation     .and. &
+!            BoundaryCondition /= ImposedValue         .and. &
+!            BoundaryCondition /= NullGradient         .and. &
+!            BoundaryCondition /= CyclicBoundary       .and. &
+!            BoundaryCondition /= Orlanski             .and. &
+!            BoundaryCondition /= MassConservNullGrad) &
+!            stop 'ReadAdvectionDiffusionParameters - ModuleRunoffProperties - ERR80'
+!
+!        NewProperty%Evolution%AdvDiff%BoundaryCondition = BoundaryCondition
 
         !By default the horizontal Diffusion discretization is explicit
         NewProperty%Evolution%AdvDiff%DiffusionH_imp_exp  = ExplicitScheme
@@ -2179,6 +2257,12 @@ cd2 :           if (BlockFound) then
         allocate(NewProperty%ConcInInterfaceDN(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR25'
         NewProperty%ConcInInterfaceDN(:,:) = FillValueReal         
+        
+        !Currently is not needed since water only leaves runoff and concentration can only be from runoff
+        !Here for future use
+        allocate(NewProperty%ConcInBoundary(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR25'
+        NewProperty%ConcInBoundary(:,:) = FillValueReal  
       
         call GetData(NewProperty%MinValue,                                                  &
                      Me%ObjEnterData,iflag,                                                 &
@@ -4580,7 +4664,12 @@ cd0:    if (Exist) then
             if (Me%ExtVar%CoupledDN) then
                 call ModifyDrainageNetworkInterface
             endif
-
+            
+            !Boundary fluxes had to be changed for same reason
+            if (Me%ExtVar%BoundaryImposed) then
+                call ModifyBoundaryInterface
+            endif
+            
 !            if (Me%Coupled%SoilQuality) then
 !                call SoilQualityProcesses
 !            endif
@@ -5055,7 +5144,9 @@ cd0:    if (Exist) then
 
         call SetMatrixValue (Me%COEFExpl%CoefInterfDN, Me%Size, 0.0)
         call SetMatrixValue (CurrProperty%ConcInInterfaceDN, Me%Size, 0.0)
-        
+        call SetMatrixValue (Me%COEFExpl%CoefInterfBoundary, Me%Size, 0.0)
+        call SetMatrixValue (CurrProperty%ConcInBoundary, Me%Size, 0.0)
+       
         call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
 
         if (.not. Me%NewFormulation) then
@@ -5299,8 +5390,10 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !call ModifyDrainageNetworkCoefs(PropertyX)
         !endif
 
-        !Boundary condition
-        !Boundary Fluxes not yet accounted
+        !BoundaryFluxes - moved. same reason as for DN fluxes
+!        if (Me%ExtVar%BoundaryImposed) then
+!            call ModifyBoundaryCoefs(PropertyX)
+!        endif
 
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyCoefs")
         
@@ -6020,6 +6113,159 @@ doi4 :      do i = ILB, IUB
 
     !---------------------------------------------------------------------------
 
+!    subroutine ModifyBoundaryCoefs(PropertyX)
+!
+!        !Arguments----------------------------------------------------------------
+!        type (T_Property), pointer                  :: PropertyX
+!        
+!        !Local--------------------------------------------------------------------
+!        integer                                     :: i,j, CHUNK !, STAT_CALL
+!        real(8)                                     :: aux
+!        
+!        !Begin--------------------------------------------------------------------
+!        
+!        
+!        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
+!      
+!        !$OMP PARALLEL PRIVATE(i,j,aux)
+!        
+!        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+!        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+!            
+!            if ((Me%ExtVar%BoundaryCells(I,J) == WaterPoint) .and. (Me%WaterVolume(i,j) .gt. AlmostZero)) then
+!                
+!                !Auxuliar value for transport - units of flow^-1
+!                !s/m3
+!                aux             = (Me%ExtVar%DT/Me%WaterVolume(i,j) )
+!                
+!                ! Positive flow -> gains mass
+!                !Currently BoundaryFlux is always negative (water can only exit) so also the coef
+!                Me%COEFExpl%CoefInterfBoundary(i,j) = aux * Me%ExtVar%BoundaryFlux(i,j)
+!                
+!                !negative flow - exiting - Prop is from runoff if explicit
+!                if (Me%ExtVar%BoundaryFlux(i,j) .le. 0.0) then
+!                    
+!                    PropertyX%ConcInBoundary(i,j) = PropertyX%ConcentrationOld(i,j)
+!                
+!                else !entering - Prop is imposed
+!                    
+!                    if (PropertyX%Evolution%Boundary%BoundaryCondition == ImposedValue_) then
+!                        
+!                        PropertyX%ConcInBoundary(i,j) = PropertyX%Evolution%Boundary%DefaultBoundary
+!                    
+!                    elseif (PropertyX%Evolution%Boundary%BoundaryCondition == NullGradient_) then
+!                        
+!                        PropertyX%ConcInBoundary(i,j) = PropertyX%ConcentrationOld(i,j)
+!                    
+!                    endif
+!                endif
+!                
+!            endif
+!            
+!        enddo
+!        enddo
+!        !$OMP END DO
+!        !$OMP END PARALLEL
+!
+!    
+!    end subroutine ModifyBoundaryCoefs
+!
+!    !-----------------------------------------------------------------------------
+
+    !Boundary fluxes had to be separated from Advection diffusion since in one time step
+    !runoff could run out of water and the mixing between runoff cels happens before boundary
+    subroutine ModifyBoundaryInterface
+    
+        !Arguments-------------------------------------------------------------
+
+
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: CurrProperty
+        integer                                     :: i, j, CHUNK, STAT_CALL
+        real(8)                                     :: Prop, WaterVolumeOld, WaterVolumeNew
+        real(8)                                     :: FlowMass
+        real(8), dimension(:,:), pointer            :: WaterColumnFinal
+        !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyBoundaryInterface")
+   
+        call GetRunoffWaterColumn (Me%ObjRunoff, WaterColumnFinal, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyBoundaryInterface - ModuleRunoffProperties - ERR10'
+
+        CurrProperty => Me%FirstProperty
+        
+        do while (associated(CurrProperty))
+
+            if (CurrProperty%Evolution%AdvectionDiffusion) then        
+               !Flux between runoff and outside 
+               
+                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+              
+                !!$OMP PARALLEL PRIVATE(i,j,Prop, WaterVolumeOld, WaterVolumeNew, FlowMass)
+                
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    
+                    if ((Me%ExtVar%BoundaryCells(I,J) == BasinPoint)) then   
+                        
+                        ! mass going to outside -> conc from runoff - concentration does not change
+                        if (Me%ExtVar%BoundaryFlux(i,j) .lt. 0.0) then
+                            
+                            !this is conc after transport, just before going to outside
+                            Prop =  CurrProperty%Concentration(i,j)
+                       
+                        !mass coming from outsie currently does no happen
+                        elseif (Me%ExtVar%BoundaryFlux(i,j) .ge. 0.0) then
+                            
+                            if (CurrProperty%Evolution%Boundary%BoundaryCondition == ImposedValue_) then
+                                
+                                Prop = CurrProperty%Evolution%Boundary%DefaultBoundary
+                            
+                            elseif (CurrProperty%Evolution%Boundary%BoundaryCondition == NullGradient_) then
+                                
+                                Prop = CurrProperty%Concentration(i,j)
+                            
+                            endif                            
+                        endif
+
+                        !Prop and WaterVolumeOld are after transport and before this update
+                        WaterVolumeOld = Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i,j)
+                        WaterVolumeNew = WaterColumnFinal(i,j) * Me%ExtVar%Area(i,j)
+                        
+                        !g = m3/s * s * g/m3
+                        FlowMass       = Me%ExtVar%BoundaryFlux(i,j) * Me%ExtVar%DT * Prop                    
+                        
+                        if (WaterColumnFinal(i,j) .gt. AlmostZero) then
+                            !Update New Concentration
+                            !g/m3 = ((g/m3 * m3) + g)/ m3
+                            CurrProperty%Concentration(i,j) = ((Prop * WaterVolumeOld) + FlowMass) / WaterVolumeNew
+                        endif
+
+                   endif
+                
+                enddo
+                enddo
+                !!$OMP END DO
+                
+                !!$OMP END PARALLEL
+
+            endif
+            
+            CurrProperty => CurrProperty%Next
+        
+        enddo
+        
+        call UngetRunoff (Me%ObjRunoff, WaterColumnFinal, STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_)  stop 'ModifyBoundaryInterface - ModuleRunoffProperties - ERR020'     
+                           
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyBoundaryInterface")
+
+   
+   end subroutine ModifyBoundaryInterface
+
+    !---------------------------------------------------------------------------
 
     subroutine ModifyPropertyValues(PropertyX)
         
@@ -6031,6 +6277,7 @@ doi4 :      do i = ILB, IUB
         integer                                     :: i, j, CHUNK, di, dj
         integer                                     :: IJmin, IJmax, JImin, JImax
         real(8)                                     :: coefB, CoefInterfDN
+        real(8)                                     :: CoefInterfBoundary        
         !Begin-----------------------------------------------------------------    
 
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyPropertyValues")
@@ -6042,7 +6289,7 @@ doi4 :      do i = ILB, IUB
 
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,CoefInterfDN, coefB)
+            !$OMP PARALLEL PRIVATE(i,j,CoefInterfDN,CoefInterfBoundary, coefB)
                
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)              
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -6051,13 +6298,15 @@ doi4 :      do i = ILB, IUB
                     
                     !evaluate if there is water
                     if (Me%WaterVolume(i,j) .gt. AlmostZero) then
-                        CoefInterfDN     = Me%COEFExpl%CoefInterfDN(i,j)
+                        CoefInterfDN       = Me%COEFExpl%CoefInterfDN(i,j)
+                        CoefInterfBoundary = Me%COEFExpl%CoefInterfBoundary(i,j)
                        
                         !CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumn(i,j)
                         CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumnAT(i,j)
                         
                         Me%TICOEF3(i,j  ) = Me%TICOEF3(i,j) + CoefB * CurrProperty%ConcentrationOld(i,j  )                  &
-                                                          + CoefInterfDN     * CurrProperty%ConcInInterfaceDN(i,j)              
+                                                            + CoefInterfDN     * CurrProperty%ConcInInterfaceDN(i,j)        &
+                                                            + CoefInterfBoundary * CurrProperty%ConcInBoundary(i,j)
                     else
                         Me%TICOEF3(i,j  ) = 0.0
                     endif                                                 
@@ -6083,7 +6332,7 @@ doi4 :      do i = ILB, IUB
             
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,CoefInterfDN, coefB)
+            !$OMP PARALLEL PRIVATE(i,j,CoefInterfDN,CoefInterfBoundary, coefB)
                
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)                          
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -6092,7 +6341,8 @@ doi4 :      do i = ILB, IUB
                     
                     if (Me%WaterVolume(i,j) .gt. AlmostZero) then
                     
-                        CoefInterfDN     = Me%COEFExpl%CoefInterfDN(i,j)
+                        CoefInterfDN       = Me%COEFExpl%CoefInterfDN(i,j)
+                        CoefInterfBoundary = Me%COEFExpl%CoefInterfBoundary(i,j)
                         
                         !Water exiting runoff to DN - Comput Conc Implicitly
                         if (CoefInterfDN .lt. 0.0) then
@@ -6102,13 +6352,22 @@ doi4 :      do i = ILB, IUB
                             CoefInterfDN        = 0.0
                         endif
                         
+                        !Currently is alwasy negative - water exiting runoff
+                        if (CoefInterfBoundary .lt. 0.0) then
+                            !Add coef to implicit part
+                            Me%COEF3%E(i,j) = Me%COEF3%E(i,j) - CoefInterfBoundary
+                            !Nullify explicit coef that enters in TICoef
+                            CoefInterfBoundary  = 0.0
+                        endif
 
                         !CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumn(i,j)
                         CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumnAT(i,j)
 
                         Me%TICOEF3(i,j) = Me%TICOEF3(i,j)                                                      &
                                             + coefB * CurrProperty%ConcentrationOld(i,j)                       &
-                                            + CoefInterfDN     * CurrProperty%ConcInInterfaceDN(i,j)            
+                                            + CoefInterfDN     * CurrProperty%ConcInInterfaceDN(i,j)           &
+                                            + CoefInterfBoundary * CurrProperty%ConcInBoundary(i,j)
+                                                      
                     else
                         Me%TICOEF3(i,j) = 0.0
                     endif
@@ -8731,6 +8990,10 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             
         endif    
 
+        if (Me%ExtVar%BoundaryImposed) then
+            call GetBoundaryFlux (Me%ObjRunoff, Me%ExtVar%BoundaryFlux, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR170'
+        endif
 
     end subroutine ReadLockExternalVar
 
@@ -8798,10 +9061,16 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
   
             
         endif
+        
+        if (Me%ExtVar%BoundaryImposed) then
+            call UnGetRunoff (Me%ObjRunoff, Me%ExtVar%BoundaryFlux, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0190'      
+        endif
 
 
     endsubroutine ReadUnlockExternalVar
-
+    
+    !--------------------------------------------------------------------------
 
 end module ModuleRunoffProperties
 

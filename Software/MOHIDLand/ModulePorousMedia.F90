@@ -79,10 +79,12 @@ Module ModulePorousMedia
     use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,    &
                                        GetNumberOfTimeSeries, GetTimeSerieLocation,      &
                                        TryIgnoreTimeSerie, CorrectsCellsTimeSerie,       &
-                                       GetTimeSerieName
+                                       GetTimeSerieName, StartTimeSerieInput,            &
+                                       GetTimeSerieInitialData, GetTimeSerieValue
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, GetGridCellArea,               &
                                        WriteHorizontalGrid, UnGetHorizontalGrid,         &
-                                       GetXYCellZ
+                                       GetXYCellZ, GetCoordTypeList, GetGridCoordType,   &
+                                       GetGridLatitudeLongitude
     use ModuleBasinGeometry,    only : GetBasinPoints, GetRiverPoints, GetCellSlope,     &
                                        UnGetBasin
     use ModuleGeometry,         only : ConstructGeometry, GetGeometrySize,               &
@@ -98,7 +100,10 @@ Module ModulePorousMedia
     use ModuleDrainageNetwork,  only : GetChannelsWaterLevel, GetChannelsBottomLevel,    &
                                        GetChannelsBottomWidth, GetChannelsOpenProcess,   &
                                        GetChannelsNodeLength, UnGetDrainageNetwork
-
+    use ModuleTriangulation,    only : InterPolation, ConstructTriangulation,            &
+                                       SetHeightValues, GetNumberOfTriangles,            &
+                                       GetTriangleList, GetNumberOfNodes, GetNodesList,  &
+                                       KillTriangulation
 
     implicit none
 
@@ -154,6 +159,10 @@ Module ModulePorousMedia
     public  ::  GetPMBoundaryFlowVolume
     public  ::  GetPMStoredVolume
     public  ::  GetIgnoreWaterColumnOnEVAP
+    public  ::  GetBoundaryImposed
+    public  ::  GetBoundaryFluxWalls
+    public  ::  GetBoundaryFluxBottom
+    public  ::  GetBoundaryCells
     public  ::  UnGetPorousMedia
     
     !Modifier
@@ -209,6 +218,15 @@ Module ModulePorousMedia
     !Min Thickness UG Watercolumn
     real, parameter    :: MinUGThickness    = 0.10
     
+    !Boundary Conditions interpolation methods
+    integer, parameter                          :: Triangulation_  = 1
+    integer, parameter                          :: InverseWeight_  = 2
+    
+    !Boundary Piezometers
+    character(len=9 ),           parameter      :: FromTimeSerie        = 'TIMESERIE' 
+    character(len=12),           parameter      :: SingleValue          = 'CONSTANT'
+    
+    
     !Water Contents
     character(LEN = StringLength), parameter :: char_Theta        = trim(adjustl('Theta'            ))
 
@@ -221,6 +239,11 @@ Module ModulePorousMedia
     !Infiltration conductivity - for tests only - by default nothing changes
     integer, parameter                       :: SatCond_   = 1
     integer, parameter                       :: UnSatCond_ = 2
+    
+    !Bottom Boundary Condition
+    integer, parameter                       :: NullGradient_ = 1   !Boundary theta is bottom Theta (Null in Theta)
+                                                                     !and no hidrostatic pressure (always moving)
+                                                                     !so velocity is conductivity (Final Head gradient is 1)
     
     !Drainage Network link formulations - for tests
 !    integer, parameter :: GWFlowToChanByCell_            = 1
@@ -263,6 +286,8 @@ Module ModulePorousMedia
         real   , pointer, dimension(:,:  )      :: DZY                  => null()
         real   , pointer, dimension(:,:,:)      :: DZZ                  => null()
         real   , pointer, dimension(:,:,:)      :: DWZ                  => null()
+        real   , pointer, dimension(:,:  )      :: YY_IE                => null()
+        real   , pointer, dimension(:,:  )      :: XX_IE                => null()
         real   , pointer, dimension(:,:,:)      :: CenterCell           => null()
         real   , pointer, dimension(:,:  )      :: Area                 => null()
         
@@ -296,6 +321,64 @@ Module ModulePorousMedia
         type (T_Time)                           :: Now
         real                                    :: DT                   = null_real
     end type T_ExtVar
+
+    type     T_PointF
+        real                                    :: X            = null_real
+        real                                    :: Y            = null_real
+    end type T_PointF
+
+    type     T_FromTimeSerie
+        integer                                 :: ObjTimeSerie         = 0
+        character(len=StringLength)             :: FileName             = null_str
+        integer                                 :: DataColumn           = null_int
+    end type T_FromTimeSerie
+
+    type     T_Piezometer
+        character(len=StringLength)             :: Name                 = null_str
+        type(T_PointF)                          :: Location             
+        integer                                 :: ID                   = null_int
+        real                                    :: DefaultValue         = null_real
+        character(len=StringLength)             :: ValueType            = null_str
+        logical                                 :: TimeSerieHasData     = .false.
+        type(T_FromTimeSerie)                   :: TimeSerie
+        type(T_Piezometer), pointer             :: Next
+    end type T_Piezometer
+
+    type T_InverseWeight
+        real                                    :: MaxDistance          = null_real
+        real                                    :: IWDn                 = null_real
+    end type T_InverseWeight
+
+    type     T_Nodes
+        real, dimension(:), pointer             :: X
+        real, dimension(:), pointer             :: Y
+        real, dimension(:), pointer             :: Z
+    end type T_Nodes
+        
+    type T_Triangulation
+        logical                                 :: FillOutsidePoints    = .false.
+        logical                                 :: OutputTriangles      = .false.
+        integer                                 :: Instant              = null_int
+        character(len=StringLength)             :: FileName             = null_str
+        type (T_Nodes)                          :: Nodes
+    end type T_Triangulation
+    
+    type T_Boundary
+        logical                                 :: ImposedLevelConstant = .false.
+        logical                                 :: ImposedLevelInTime   = .false. 
+        integer                                 :: InterpolationMethod  = null_int  
+        integer                                 :: NumberOfPiezometers  = null_int
+        integer                                 :: ImposeBoundaryBottomCondition = null_int
+        real                                    :: BoundaryValue        = null_real
+        real                                    :: MaxDtmForBoundary    = null_real  !Max DTM to apply Walls Boundary
+        real                                    :: MinThetaFForBoundary = null_real  !Min ThetaF to apply Bottom Boundary
+        type(T_PointF), dimension(:,:), pointer :: GridPoint            => null()
+        real, dimension(:,:), pointer           :: ImposedBoundaryLevel => null()
+        integer, dimension(:,:), pointer        :: BoundaryCells        => null()
+        type (T_Triangulation)                  :: Triangulation
+        type (T_InverseWeight)                  :: InverseWeight
+        type (T_Piezometer), pointer            :: FirstPiezometer
+    end type T_Boundary
     
     !Unsaturated Zone Types
     type T_SoilOptions
@@ -317,8 +400,9 @@ Module ModulePorousMedia
         logical :: ComputeHydroPressure                                 = .false.
         integer :: InfiltrationConductivity                             = null_int
         logical :: DryChannelsCompletely                                = .false.                   
-        logical :: ImposeBoundaryValue                                  = .false.
-        real    :: BoundaryValue                                        = null_real
+        logical :: ImposeBoundary                                       = .false. !Boundary imposed
+        logical :: ImposeBoundaryWalls                                  = .false. !Boundary imposed in wall
+        logical :: ImposeBoundaryBottom                                 = .false. !Boundary imposed in bottom
         logical :: WriteLog                                             = .false.
     end type T_SoilOptions
 
@@ -378,6 +462,7 @@ Module ModulePorousMedia
         integer                                 :: ObjBottomTopography      = 0
         integer                                 :: ObjEnterData             = 0
         integer                                 :: ObjProfile               = 0
+        integer                                 :: ObjTriangulation         = 0
         type (T_PropertyID)                     :: ImpermeableFractionID
         
         real,    allocatable, dimension(:,:,:)  :: ThetaField        !!FieldCapacity [m3/m3]                
@@ -387,6 +472,7 @@ Module ModulePorousMedia
         type (T_Files)                          :: Files
         type (T_Time)                           :: BeginTime
         type (T_Time)                           :: EndTime
+        type (T_Boundary)                       :: Boundary
         real(8),    pointer, dimension(:,:  )   :: WaterColumn              => null()
         real(8),    pointer, dimension(:,:  )   :: Infiltration             => null()
         real(8),    pointer, dimension(:,:  )   :: EfectiveEVTP             => null()
@@ -403,7 +489,8 @@ Module ModulePorousMedia
         integer, dimension(:,:), pointer        :: UGCell                   => null()
         integer, dimension(:,:), pointer        :: UGCell_Old               => null()
         
-        real,    dimension(:,:,:), allocatable  :: lFlowBoundary         
+        real,    dimension(:,:,:), allocatable  :: iFlowBoundaryWalls
+        real,    dimension(:,:  ), allocatable  :: iFlowBoundaryBottom         
         !Exchange with channels
         real,    dimension(:,:),   allocatable  :: lFlowToChannels         
         real,    dimension(:,:,:), allocatable  :: lFlowToChannelsLayer     
@@ -612,8 +699,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Build Initial fields
             call InitialFields
             
-            !if (Me%SoilOpt%ImposeBoundaryValue) call UpdateBoundaryConditions
-
+            !if (Me%SoilOpt%ImposeBoundary) call UpdateBoundaryConditions
+            !See if boundary piezometers exist
+            if (Me%SoilOpt%ImposeBoundary .and. Me%SoilOpt%ImposeBoundaryWalls) then
+                call CheckBoundaryCells
+                call ReadBoundaryConditions
+                !initial values
+                if (.not. Me%Boundary%ImposedLevelConstant) call ModifyBoundaryLevel
+            endif
+            
             if (Me%SoilOpt%Continuous)  call ReadInitialSoilFile
             
             !Calculates initial Theta
@@ -680,6 +774,44 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ConstructPorousMedia
  
     !--------------------------------------------------------------------------
+
+    subroutine CheckBoundaryCells
+        
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                                      :: CHUNK, i, j, di, dj
+        real                                         :: Sum
+        !Begin-----------------------------------------------------------------
+
+   
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(I,J,di,dj,Sum)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint) then
+
+                !Check if near a boundary point (no diagonal)
+do3:            do dj = -1, 1
+do4:            do di = -1, 1
+                    Sum = dj + di
+                    if ((Me%ExtVar%BasinPoints(i+di, j+dj) == 0) .and. (Sum .eq. -1 .or. Sum .eq. 1)) then
+                        Me%Boundary%BoundaryCells(i,j) = BasinPoint
+                        exit do3 
+                    endif
+                enddo do4
+                enddo do3
+                
+            endif
+        enddo do2
+        enddo do1
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+        
+    end subroutine CheckBoundaryCells
+    
+    !--------------------------------------------------------------------------    
 
     subroutine CheckRiverBelowSoil
 
@@ -1024,8 +1156,8 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR270'
         
-        !Impose boundary saturated levels
-        call GetData(Me%SoilOpt%ImposeBoundaryValue,                            &
+        !Impose boundary saturated levels in walls
+        call GetData(Me%SoilOpt%ImposeBoundaryWalls,                            &
                      Me%ObjEnterData, iflag,                                    &
                      SearchType = FromFile,                                     &
                      keyword    = 'IMPOSE_BOUNDARY_VALUE',                      &
@@ -1034,100 +1166,75 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR271'
         
-        if (Me%SoilOpt%ImposeBoundaryValue) then
-
-            call GetData(Me%SoilOpt%BoundaryValue,                                  &
-                         Me%ObjEnterData, iflag,                                    &
-                         SearchType = FromFile,                                     &
-                         keyword    = 'BOUNDARY_VALUE',                             &
-                         ClientModule ='ModulePorousMedia',                         &
-                         STAT       = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR271' 
+        if (Me%SoilOpt%ImposeBoundaryWalls) then
+            
+            Me%SoilOpt%ImposeBoundary = .true.
+            
+            call GetData(Me%Boundary%MaxDtmForBoundary,                         &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'MAX_DTM_FOR_BOUNDARY',                 &
+                         ClientModule = 'ModulePorousMedia',                    &
+                         SearchType   = FromFile,                               &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR272'        
 
             if (iflag == 0) then
-                write(*,*)'BOUNDARY_VALUE must be defined in module Runoff'
-                stop 'ReadDataFile - ModuleRunOff - ERR0230'
-            endif            
-!            !impose level on x lower and upper grid boundary
-!            call GetData(Me%SoilOpt%ImposeBoundaryLevelX,                           &
+                write(*,*)'MAX_DTM_FOR_BOUNDARY must be defined in module PorousMedia'
+                stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR0273'
+            endif
+            
+            !Moved to after checking if piezometers exist
+!            call GetData(Me%Boundary%BoundaryValue,                                 &
 !                         Me%ObjEnterData, iflag,                                    &
 !                         SearchType = FromFile,                                     &
-!                         keyword    = 'IMPOSE_BOUNDARY_LEVEL_X',                    &
-!                         Default    = .false.,                                      & 
+!                         keyword    = 'BOUNDARY_VALUE',                             &
 !                         ClientModule ='ModulePorousMedia',                         &
 !                         STAT       = STAT_CALL)            
-!            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR272'   
-!            
-!            if (Me%SoilOpt%ImposeBoundaryLevelX) then
-!                call GetData(Me%SoilOpt%ImposedLevelLowerX,                             &
-!                             Me%ObjEnterData, iflag,                                    &
-!                             SearchType = FromFile,                                     &
-!                             keyword    = 'IMPOSED_LEVEL_LOWERX',                       &
-!                             Default    = -99.,                                         & 
-!                             ClientModule ='ModulePorousMedia',                         &
-!                             STAT       = STAT_CALL)            
-!                if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR273'  
+!            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR271' 
 !
-!                call GetData(Me%SoilOpt%ImposedLevelUpperX,                             &
-!                             Me%ObjEnterData, iflag,                                    &
-!                             SearchType = FromFile,                                     &
-!                             keyword    = 'IMPOSED_LEVEL_UPPERX',                       &
-!                             Default    = -99.,                                         & 
-!                             ClientModule ='ModulePorousMedia',                         &
-!                             STAT       = STAT_CALL)            
-!                if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR274'
-!            endif
-!            
-!            !impose level on y lower and upper grid boundary                             
-!            call GetData(Me%SoilOpt%ImposeBoundaryLevelY,                           &
-!                         Me%ObjEnterData, iflag,                                    &
-!                         SearchType = FromFile,                                     &
-!                         keyword    = 'IMPOSE_BOUNDARY_LEVEL_Y',                    &
-!                         Default    = .false.,                                      & 
-!                         ClientModule ='ModulePorousMedia',                         &
-!                         STAT       = STAT_CALL)            
-!            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR275'   
-!            
-!            if (Me%SoilOpt%ImposeBoundaryLevelY) then
-!                call GetData(Me%SoilOpt%ImposedLevelLowerY,                             &
-!                             Me%ObjEnterData, iflag,                                    &
-!                             SearchType = FromFile,                                     &
-!                             keyword    = 'IMPOSED_LEVEL_LOWERY',                       &
-!                             Default    = -99.,                                         & 
-!                             ClientModule ='ModulePorousMedia',                         &
-!                             STAT       = STAT_CALL)            
-!                if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR276'  
-!
-!                call GetData(Me%SoilOpt%ImposedLevelUpperY,                             &
-!                             Me%ObjEnterData, iflag,                                    &
-!                             SearchType = FromFile,                                     &
-!                             keyword    = 'IMPOSED_LEVEL_UPPERX',                       &
-!                             Default    = -99.,                                         & 
-!                             ClientModule ='ModulePorousMedia',                         &
-!                             STAT       = STAT_CALL)            
-!                if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR277' 
-!            endif
-!            
-!            !boundary outside basin but not belonging to grid boundary
-!            call GetData(Me%SoilOpt%ImposeBoundaryLevelInside,                      &
-!                         Me%ObjEnterData, iflag,                                    &
-!                         SearchType = FromFile,                                     &
-!                         keyword    = 'IMPOSE_BOUNDARY_LEVEL_INSIDE',               &
-!                         Default    = .false.,                                      & 
-!                         ClientModule ='ModulePorousMedia',                         &
-!                         STAT       = STAT_CALL)            
-!            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR278'   
-!            
-!            if (Me%SoilOpt%ImposeBoundaryLevelInside) then
-!                call GetData(Me%SoilOpt%ImposedLevelInside,                             &
-!                             Me%ObjEnterData, iflag,                                    &
-!                             SearchType = FromFile,                                     &
-!                             keyword    = 'IMPOSED_LEVEL_INSIDE',                       &
-!                             Default    = -99.,                                         & 
-!                             ClientModule ='ModulePorousMedia',                         &
-!                             STAT       = STAT_CALL)            
-!                if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR279'              
-!            endif
+!            if (iflag == 0) then
+!                write(*,*)'BOUNDARY_VALUE must be defined in module PorousMedia'
+!                stop 'ReadDataFile - ModulePorousMedia - ERR0230'
+!            endif            
+            
+        endif
+
+        !Impose boundary in bottom
+        call GetData(Me%SoilOpt%ImposeBoundaryBottom,                           &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType = FromFile,                                     &
+                     keyword    = 'IMPOSE_BOUNDARY_BOTTOM',                     &
+                     Default    = .false.,                                      & 
+                     ClientModule ='ModulePorousMedia',                         &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR274'
+        
+        if (Me%SoilOpt%ImposeBoundaryBottom) then
+            
+            Me%SoilOpt%ImposeBoundary = .true.
+            
+            call GetData(Me%Boundary%MinThetaFForBoundary,                      &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'MIN_THETAF_FOR_BOUNDARY',              &
+                         Default      = 0.0,                                    &
+                         ClientModule = 'ModulePorousMedia',                    &
+                         SearchType   = FromFile,                               &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR275'        
+
+            call GetData(Me%Boundary%ImposeBoundaryBottomCondition,             &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'IMPOSE_BOUNDARY_BOTTOM_CONDITION',     &
+                         Default      = NullGradient_,                          &
+                         ClientModule = 'ModulePorousMedia',                    &
+                         SearchType   = FromFile,                               &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR276'
+            
+            if (Me%Boundary%ImposeBoundaryBottomCondition /= NullGradient_) then
+                write(*,*)'IMPOSE_BOUNDARY_BOTTOM_CONDITION for now can only be 1 (NullGradient)'
+                stop 'ReadDataFile - ModulePorousMedia - ERR0277'
+            endif
             
         endif
 
@@ -1627,9 +1734,19 @@ do1:     do
         allocate(Me%lFlowToChannelsLayer    (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate(Me%FlowToChannelsTopLayer          (ILB:IUB,JLB:JUB))
         allocate(Me%FlowToChannelsBottomLayer       (ILB:IUB,JLB:JUB))
-        if (Me%SoilOpt%ImposeBoundaryValue) then
-            allocate(Me%lFlowBoundary       (ILB:IUB,JLB:JUB,KLB:KUB))
-            Me%lFlowBoundary = 0.0
+        if (Me%SoilOpt%ImposeBoundary) then
+            if (Me%SoilOpt%ImposeBoundaryWalls) then
+                allocate(Me%Boundary%ImposedBoundaryLevel (ILB:IUB,JLB:JUB))
+                Me%Boundary%ImposedBoundaryLevel = null_real
+                allocate(Me%Boundary%BoundaryCells        (ILB:IUB,JLB:JUB))
+                Me%Boundary%BoundaryCells        = 0
+                allocate(Me%iFlowBoundaryWalls              (ILB:IUB,JLB:JUB,KLB:KUB))
+                Me%iFlowBoundaryWalls            = 0.0
+            endif
+            if (Me%SoilOpt%ImposeBoundaryBottom) then
+                allocate(Me%iFlowBoundaryBottom                (ILB:IUB,JLB:JUB))
+                Me%iFlowBoundaryBottom          = 0.0
+            endif
         endif
         Me%iFlowToChannels      = 0.0
         Me%iFlowToChannelsLayer = 0.0
@@ -2195,7 +2312,7 @@ doSP:           do
             if (Me%ExtVar%BasinPoints(i, j) == 0) then           
                 do k= Me%Size%KLB, Me%Size%KUB
 
-                    Me%FinalHead(i,j,k) = Me%SoilOpt%BoundaryValue
+                    Me%FinalHead(i,j,k) = Me%Boundary%ImposedBoundaryLevel(i,j)
                     
                 enddo
             endif
@@ -2211,6 +2328,707 @@ doSP:           do
     end subroutine UpdateBoundaryConditions
 
     !--------------------------------------------------------------------------
+
+    subroutine ReadBoundaryConditions
+        
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: iflag, STAT_CALL
+        logical                                     :: BlockFound
+        integer                                     :: ClientNumber
+        !Begin-----------------------------------------------------------------
+
+        !it will be changed to true if level is constant(in space and time - no piezometer)
+        Me%Boundary%ImposedLevelConstant = .false.
+        
+        !it will be changed to true if at least a piezometer exists and has timeserie
+        Me%Boundary%ImposedLevelInTime = .false.
+        
+        !Search for boundary block
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModulePorousMedia - ERR10'
+
+        !Constructs Impermeable Fraction
+        call ExtractBlockFromBuffer(Me%ObjEnterData,                                        &
+                                    ClientNumber    = ClientNumber,                         &
+                                    block_begin     = '<begin_boundary>',                   &
+                                    block_end       = '<end_boundary>',                     &
+                                    BlockFound      = BlockFound,                           &   
+                                    STAT            = STAT_CALL)
+        if (STAT_CALL == SUCCESS_ .and. BlockFound) then
+        
+            call GetData (Me%Boundary%InterpolationMethod, Me%ObjEnterData, iflag,      &
+                          SearchType   = FromBlock_,                                     &
+                          keyword      ='INTERPOLATION_METHOD',                         &
+                          ClientModule ='ModulePorousMedia',                            &
+                          STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModulePorousMedia - ERR20'
+            if (iflag == 0) then
+                write(*,*)'Interpolation Method not given'
+                write(*,*)'Use Keyword INTERPOLATION_METHOD '   
+                write(*,*)' [1 - Triangulation / 2 - IWD]'
+                stop 'ReadBoundaryConditions - ModulePorousMedia - ERR30'
+            endif
+            
+            !info needed for interpolation
+            call DefineGridPoints
+            
+            select case (Me%Boundary%InterpolationMethod)
+
+            case (Triangulation_)
+
+                call GetData(Me%Boundary%Triangulation%FillOutsidePoints,                   &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock_,                                     &
+                             keyword      = 'FILL_OUTSIDE_POINTS',                          &
+                             ClientModule = 'ModulePorousMedia',                            &
+                             default      = .false.,                                        &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModulePorousMedia - ERR40'
+
+
+                call GetData (Me%Boundary%Triangulation%OutputTriangles, Me%ObjEnterData, iflag,  &
+                              SearchType   = FromBlock_,                                    &
+                              keyword      ='WRITE_TRIANGLES',                              &
+                              default      = .false.,                                       &
+                              ClientModule ='ModulePorousMedia',                            &
+                              STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModulePorousMedia - ERR50'
+
+                call GetData (Me%Boundary%Triangulation%FileName, Me%ObjEnterData, iflag,   &
+                              SearchType   = FromBlock_,                                    &
+                              keyword      ='TRIANGLES_FILE',                               &
+                              ClientModule ='ModulePorousMedia',                            &
+                              STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModulePorousMedia - ERR60'
+                
+                if(Me%Boundary%Triangulation%OutputTriangles) then
+                    !first instant for triangles output
+                    Me%Boundary%Triangulation%Instant = 1
+                endif
+                
+            case (InverseWeight_)
+
+                call GetData(Me%Boundary%InverseWeight%MaxDistance,                         &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock_,                                     &
+                             keyword      = 'MAX_DISTANCE',                                 &
+                             ClientModule = 'ModulePorousMedia',                            &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModulePorousMedia - ERR70'
+                if (iflag == 0) then
+                    write(*,*)'Max Distance not given'
+                    write(*,*)'Use Keyword MAX_DISTANCE'
+                    stop 'ReadBoundaryConditions - ModulePorousMedia - ERR70'
+                endif
+                
+                call GetData(Me%Boundary%InverseWeight%IWDn,                                &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock_,                                     &
+                             keyword      = 'IWD_N',                                        &
+                             default      = 2.0,                                            &
+                             ClientModule = 'ModulePorousMedia',                            &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModulePorousMedia - ERR80'
+            
+            case default
+                write(*,*)'Invalid Interpolation Method for boundary condition'
+                write(*,*)'Use Keyword INTERPOLATION_METHOD  '
+                write(*,*)'[1 - Triangulation / 2 - IWD]'
+                stop 'ReadBoundaryConditions - ModulePorousMedia - ERR90'
+            end select
+
+            call ConstructPiezometers(ClientNumber)
+
+        else
+
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadBoundaryConditions - ModulePorousMedia - ERR150'
+            
+        endif
+        
+        !separate from the last if block because of SearchType different
+        if (.not. BlockFound) then
+        
+            !boundary values are given by the constant value everywhere
+            Me%Boundary%ImposedLevelConstant = .true.
+            
+            call GetData(Me%Boundary%BoundaryValue,                                 &
+                         Me%ObjEnterData, iflag,                                    &
+                         SearchType = FromFile,                                     &
+                         keyword    = 'BOUNDARY_VALUE',                             &
+                         ClientModule ='ModulePorousMedia',                         &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR100' 
+
+            if (iflag == 0) then
+                write(*,*)'if using boundary, BOUNDARY_VALUE must be defined in module PorousMedia'
+                stop 'ReadDataFile - ModulePorousMedia - ERR0110'
+            endif
+        
+            !boundary values are given by the constant value everywhere
+            call SetMatrixValue (Me%Boundary%ImposedBoundaryLevel, Me%Size2D, Me%Boundary%BoundaryValue, Me%Boundary%BoundaryCells)
+
+        endif
+        
+    end subroutine ReadBoundaryConditions
+
+    !--------------------------------------------------------------------------
+
+
+    subroutine ConstructPiezometers(ClientNumber)
+        
+        !Arguments-----------------------------------------------------
+        integer                                     :: ClientNumber
+        !Local---------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: iflag
+        logical                                     :: BlockFound
+        type(T_Piezometer), pointer                 :: NewPiezometer
+
+        !Begin---------------------------------------------------------
+
+        nullify(Me%Boundary%FirstPiezometer, NewPiezometer)
+        Me%Boundary%NumberOfPiezometers = 0
+        
+do1 :   do
+            call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,              &
+                                        '<<begin_piezometer>>', '<<end_piezometer>>',  &
+                                        BlockFound, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPiezometers - ModulePorousMedia - ERR10'
+
+if1 :       if(STAT_CALL .EQ. SUCCESS_) then 
+   
+if2 :           if (BlockFound) then
+
+                    call AddPiezometer(Me%Boundary%FirstPiezometer, NewPiezometer)
+
+                    call GetData(NewPiezometer%Name,                                &
+                                 Me%ObjEnterData, iflag,                            &
+                                 SearchType   = FromBlockInBlock,                   &
+                                 keyword      = 'NAME',                             &
+                                 ClientModule = 'ModulePorousMedia',                &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructPiezometers - ModulePorousMedia - ERR20'
+
+                    call GetData(NewPiezometer%Location%X,                      &
+                                 Me%ObjEnterData, iflag,                        &
+                                 SearchType   = FromBlockInBlock,               &
+                                 keyword      = 'COORD_X',                      &
+                                 ClientModule = 'ModulePorousMedia',            &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructPiezometers - ModulePorousMedia - ERR30'
+
+                    call GetData(NewPiezometer%Location%Y,                      &
+                                 Me%ObjEnterData, iflag,                        &
+                                 SearchType   = FromBlockInBlock,               &
+                                 keyword      = 'COORD_Y',                      &
+                                 ClientModule = 'ModulePorousMedia',            &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructPiezometers - ModulePorousMedia - ERR40'
+                    
+
+                    call GetData(NewPiezometer%ValueType,                           &
+                                 Me%ObjEnterData, iflag,                            &
+                                 SearchType   = FromBlockInBlock,                   &
+                                 keyword      = 'VALUE_TYPE',                       &
+                                 Default      = SingleValue,                        &
+                                 ClientModule = 'ModulePorousMedia',                &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructPiezometers - ModulePorousMedia - ERR50'
+
+                    select case(trim(NewPiezometer%ValueType))
+                        
+                        case(SingleValue)
+                            
+                            call GetData(NewPiezometer%DefaultValue,                &
+                                         Me%ObjEnterData, iflag,                    &
+                                         SearchType   = FromBlockInBlock,           &
+                                         keyword      = 'DEFAULTVALUE',             &
+                                         ClientModule = 'ModulePorousMedia',        &
+                                         STAT         = STAT_CALL)        
+                            if (STAT_CALL /= SUCCESS_) stop 'ConstructPiezometers - ModulePorousMedia - ERR60'
+
+                        case(FromTimeSerie)
+                        
+                            Me%Boundary%ImposedLevelInTime = .true.
+
+                            call ReadPiezometerTimeSerie(NewPiezometer)
+
+                    end select
+
+
+                else
+
+                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                    if(STAT_CALL .ne. SUCCESS_) stop 'ConstructPiezometers - ModulePorousMedia - ERR70'
+                        
+                    exit do1    !No more blocks
+
+                end if if2
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then if1
+                write(*,*)  
+                write(*,*) 'Error calling ExtractBlockFromBuffer. '
+                if(STAT_CALL .ne. SUCCESS_)stop 'ConstructPiezometers - ModulePorousMedia - ERR80'
+                    
+            end if if1
+        end do do1
+
+
+    end subroutine ConstructPiezometers
+
+    !------------------------------------------------------------------    
+
+    subroutine AddPiezometer (FirstPiezometer, ObjPiezometer)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Piezometer), pointer                   :: FirstPiezometer
+        type (T_Piezometer), pointer                   :: ObjPiezometer
+
+        !Local-----------------------------------------------------------------
+        type (T_Piezometer), pointer                   :: NewPiezometer
+        type (T_Piezometer), pointer                   :: PreviousPiezometer
+        
+        !Begin-----------------------------------------------------------------
+        
+        !Allocates new instance
+        allocate (NewPiezometer)
+        nullify  (NewPiezometer%Next)
+
+        Me%Boundary%NumberOfPiezometers = Me%Boundary%NumberOfPiezometers + 1
+
+        !Insert New Instance into list and makes Current point to it
+        if (.not. associated(FirstPiezometer)) then
+            FirstPiezometer         => NewPiezometer
+            ObjPiezometer           => NewPiezometer
+        else
+            PreviousPiezometer      => FirstPiezometer
+            ObjPiezometer           => FirstPiezometer%Next
+            do while (associated(ObjPiezometer))
+                PreviousPiezometer  => ObjPiezometer
+                ObjPiezometer       => ObjPiezometer%Next
+            enddo
+            ObjPiezometer           => NewPiezometer
+            PreviousPiezometer%Next => NewPiezometer
+        endif
+
+
+    end subroutine AddPiezometer
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ReadPiezometerTimeSerie(NewPiezometer)   
+    
+        !Arguments-------------------------------------------------------------
+        type (T_Piezometer), pointer                   :: NewPiezometer
+
+        !Local-----------------------------------------------------------------
+        integer                                        :: iflag, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+
+        call GetData(NewPiezometer%TimeSerie%FileName,                  &
+                     Me%ObjEnterData, iflag,                            &
+                     SearchType   = FromBlockInBlock,                   &
+                     keyword      = 'FILENAME',                         &
+                     ClientModule = 'FillMatrix',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPiezometerTimeSerie - ModulePorousMedia - ERR01'
+
+
+        call GetData(NewPiezometer%TimeSerie%DataColumn,                &
+                     Me%ObjEnterData, iflag,                            &
+                     SearchType   = FromBlockInBlock,                   &
+                     keyword      = 'DATA_COLUMN',                      &
+                     ClientModule = 'FillMatrix',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPiezometerTimeSerie - ModulePorousMedia - ERR02'
+
+
+        call StartTimeSerieInput(NewPiezometer%TimeSerie%ObjTimeSerie,  &
+                                 NewPiezometer%TimeSerie%FileName,      &
+                                 Me%ObjTime,                            &
+                                 CheckDates = .false.,                  &
+                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPiezometerTimeSerie - ModulePorousMedia - ERR03'
+
+
+
+    end subroutine ReadPiezometerTimeSerie
+    
+    !------------------------------------------------------------------
+
+    subroutine ModifyBoundaryLevel
+
+        !Local-----------------------------------------------------------------
+        type (T_Piezometer), pointer                :: Piezometer
+        integer                                     :: i,j, STAT_CALL, CHUNK
+        real                                        :: Nominator, Denominator, dist
+!        character(5)                                :: AuxChar
+        !Begin-----------------------------------------------------------------
+
+        call SetMatrixValue (Me%Boundary%ImposedBoundaryLevel, Me%Size2D, null_real, Me%ExtVar%BasinPoints)
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        
+        select case (Me%Boundary%InterpolationMethod)
+
+        case (Triangulation_)
+
+            if (Me%Boundary%NumberOfPiezometers < 3) then
+                write (*,*)'Need at least 3 piezometers'
+                write (*,*)'for triangulation'
+                stop 'ModifyBoundaryLevel - ModulePorousMedia - ERR01'
+            endif
+
+            allocate(Me%Boundary%Triangulation%Nodes%X(1:Me%Boundary%NumberOfPiezometers))
+            allocate(Me%Boundary%Triangulation%Nodes%Y(1:Me%Boundary%NumberOfPiezometers))
+            allocate(Me%Boundary%Triangulation%Nodes%Z(1:Me%Boundary%NumberOfPiezometers))
+
+            Piezometer => Me%Boundary%FirstPiezometer
+        
+            i = 0
+
+            do while(associated(Piezometer))
+
+                i = i + 1
+                
+                call UpDatePiezometerValue(Piezometer, Me%ExtVar%Now)
+                Me%Boundary%Triangulation%Nodes%X(i) = Piezometer%Location%X
+                Me%Boundary%Triangulation%Nodes%Y(i) = Piezometer%Location%Y
+                Me%Boundary%Triangulation%Nodes%Z(i) = Piezometer%DefaultValue
+            
+                Piezometer => Piezometer%Next
+
+            end do
+
+            !Constructs Triangulation
+            call ConstructTriangulation (Me%ObjTriangulation,                           &
+                                         Me%Boundary%NumberOfPiezometers,               &
+                                         Me%Boundary%Triangulation%Nodes%X,             &
+                                         Me%Boundary%Triangulation%Nodes%Y,             &
+                                         Me%Boundary%Triangulation%OutputTriangles,     &
+                                         STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyBoundaryLevel - ModulePorousMedia - ERR10'
+
+
+            call SetHeightValues(Me%ObjTriangulation, Me%Boundary%Triangulation%Nodes%Z, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyBoundaryLevel - ModulePorousMedia - ERR20'
+
+            !This cycle can not be parallelized because of the function Interpolation
+!            !$OMP PARALLEL PRIVATE(I,J)
+!            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                if(Me%Boundary%BoundaryCells(i, j) == BasinPoint) then
+
+                    Me%Boundary%ImposedBoundaryLevel(i, j) = InterPolation(Me%ObjTriangulation,            &
+                                                              Me%Boundary%GridPoint(i,j)%X,                &
+                                                              Me%Boundary%GridPoint(i,j)%Y,                &
+                                                              Me%Boundary%Triangulation%FillOutsidePoints, &
+                                                              Default = null_real,                         &
+                                                              STAT    = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyBoundaryLevel - ModulePorousMedia - ERR30'
+                
+                end if
+
+            enddo
+            enddo
+!            !$OMP END DO NOWAIT
+!            !$OMP END PARALLEL
+
+            !Only write at the end since triangles are always the same (time span was removed)
+            if(Me%Boundary%Triangulation%OutputTriangles .and. Me%ExtVar%Now == Me%EndTime) then
+                call WriteTriangles(trim(adjustl(Me%Boundary%Triangulation%FileName)))
+            endif
+
+            !Kills Triangulation
+            call KillTriangulation (Me%ObjTriangulation, STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyBoundaryLevel - ModulePorousMedia - ERR40'
+
+            !Deallocates Matrixes 
+            deallocate(Me%Boundary%Triangulation%Nodes%X)
+            deallocate(Me%Boundary%Triangulation%Nodes%Y)
+            deallocate(Me%Boundary%Triangulation%Nodes%Z)
+
+        case (InverseWeight_)
+
+            !Interpolates Values
+            
+            !$OMP PARALLEL PRIVATE(I,J, Nominator, Denominator, Piezometer, dist)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                if(Me%Boundary%BoundaryCells(i, j) == BasinPoint) then
+
+                    Nominator   = 0.0
+                    Denominator = 0.0
+                    Piezometer  => Me%Boundary%FirstPiezometer
+DoPiezometers:      do while(associated(Piezometer))
+                        !if (Piezometer%TimeSerieHasData) then
+                            dist = sqrt((Me%Boundary%GridPoint(i,j)%X - Piezometer%Location%X)**2.0 + &
+                                        (Me%Boundary%GridPoint(i,j)%Y - Piezometer%Location%Y)**2.0)
+
+                            if (dist > 0.0) then    
+                                if (dist < Me%Boundary%InverseWeight%MaxDistance) then 
+                                    Nominator   = Nominator   + Piezometer%DefaultValue / (dist ** Me%Boundary%InverseWeight%IWDn)
+                                    Denominator = Denominator + 1.0 / (dist ** Me%Boundary%InverseWeight%IWDn)
+                                endif
+                            else
+                                Nominator   = Piezometer%DefaultValue
+                                Denominator = 1.0
+                                exit DoPiezometers
+                            endif
+                        !endif
+                        Piezometer => Piezometer%Next
+                    enddo DoPiezometers
+
+                    if (Denominator .lt. AllMostZero) then
+                        write (*,*)'Insufficient data avaliable'
+                        write (*,*)'Increase MAX_DISTANCE or get more piezometers '
+                        write (*,*)'Point [i, j]', i, j
+                        stop 'ModifyBoundaryLevel - ModulePorousMedia - ERR01'
+                    endif
+                    Me%Boundary%ImposedBoundaryLevel(i, j) = Nominator / Denominator
+
+                end if
+
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+
+
+        end select
+
+    end subroutine ModifyBoundaryLevel
+
+    !--------------------------------------------------------------------------
+
+    subroutine UpDatePiezometerValue(Piezometer, CurrentTime)
+        
+        !Arguments-------------------------------------------------------------
+        type(T_Piezometer), pointer                 :: Piezometer
+        type(T_Time)                                :: CurrentTime
+
+        !Local-----------------------------------------------------------------
+        logical                                     :: TimeCycle
+        type (T_Time)                               :: Time1, Time2, InitialDate
+        real                                        :: Value1, Value2
+!        real                                        :: dt1, dt2
+        integer                                     :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+        
+        
+        select case(trim(Piezometer%ValueType))
+            
+            case(SingleValue)
+
+                !Remains Constant
+                !Piezometer%TimeSerieHasData = .true.
+
+            case(FromTimeSerie)
+
+                call GetTimeSerieInitialData(Piezometer%TimeSerie%ObjTimeSerie, InitialDate, &
+                                             STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'UpDatePiezometerValue - ModulePorousMedia - ERR01'
+
+                
+                if (CurrentTime >= InitialDate) then
+
+                    !Gets Value for current Time
+                    call GetTimeSerieValue (Piezometer%TimeSerie%ObjTimeSerie,                &
+                                            CurrentTime,                                      &
+                                            Piezometer%TimeSerie%DataColumn,                  &
+                                            Time1, Value1, Time2, Value2, TimeCycle,          &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'UpDatePiezometerValue - ModulePorousMedia - ERR10'
+
+                    if (TimeCycle) then
+                        Piezometer%DefaultValue     = Value1
+                        !Piezometer%TimeSerieHasData = .true.
+                    else
+                        
+                        !Do not use TimeSpan. Use all values to interpolate
+!                        dt1 = CurrentTime - Time1
+!                        dt2 = Time2 - CurrentTime
+!
+!                        if (dt1 <= Me%Time%MaxTimeSpan .and. dt2 <= Me%Time%MaxTimeSpan) then
+
+                            !Piezometer%TimeSerieHasData = .true.
+
+                            !Interpolates Value for current instant
+                            call InterpolateValueInTime(CurrentTime, Time1, Value1, Time2, Value2, Piezometer%DefaultValue)
+                        
+!                        else
+!
+!                            Piezometer%TimeSerieHasData = .false.
+!
+!                        endif
+                    
+                                                
+                    endif
+
+                else
+                    write(*,*) 'Piezometer time serie does not have data' 
+                    write(*,*) 'for the beggining of the simulation'
+                    write(*,*) 'Piezometer name: ', Piezometer%Name
+                    stop 'UpDatePiezometerValue - ModulePorousMedia - ERR20'
+                    !Piezometer%TimeSerieHasData = .false.
+
+                endif
+
+            case default
+
+        end select
+
+    end subroutine UpDatePiezometerValue
+
+    !------------------------------------------------------------------
+
+    subroutine WriteTriangles (TrianglesFileName)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                :: TrianglesFileName
+        
+        !Local-----------------------------------------------------------------
+        integer                         :: STAT_CALL, nNodes
+        integer                         :: UnitNumber, iT, nTriangles
+        real,    dimension(:), pointer  :: XT, YT, ZT
+        integer, dimension(:), pointer  :: V1, V2, V3
+
+        !Begin-----------------------------------------------------------------
+
+        !Get the number of triangles
+        call GetNumberOfTriangles   (Me%ObjTriangulation, nTriangles)
+
+        !Allocates space for the Triangle vertices and gets them
+        allocate(V1(nTriangles))
+        allocate(V2(nTriangles))
+        allocate(V3(nTriangles))
+
+        call GetTriangleList (Me%ObjTriangulation, v1, v2, v3, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModulePorousMedia - ERR10'
+
+
+        !Gets nodes effictive used and the reordered nodes 
+        call GetNumberOfNodes (Me%ObjTriangulation, nNodes, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModulePorousMedia - ERR20'
+
+        allocate(XT(nNodes))
+        allocate(YT(nNodes))
+        allocate(ZT(nNodes))
+
+        call GetNodesList   (Me%ObjTriangulation, XT, YT, ZT, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModulePorousMedia - ERR30'
+
+
+        call UnitsManager (UnitNumber, OPEN_FILE, STAT = STAT_CALL)
+        open (unit=UnitNumber, status = 'unknown', file = TrianglesFileName)
+        do iT = 1, nTriangles
+            write(UnitNumber,*)'<beginpolygon>'
+            write(UnitNumber,*)XT(V1(iT)), YT(V1(iT))
+            write(UnitNumber,*)XT(V2(iT)), YT(V2(iT))
+            write(UnitNumber,*)XT(V3(iT)), YT(V3(iT))
+            write(UnitNumber,*)XT(V1(iT)), YT(V1(iT))
+            write(UnitNumber,*)'<endpolygon>'
+        enddo
+        call UnitsManager (UnitNumber, CLOSE_FILE, STAT = STAT_CALL)
+
+        deallocate(XT, YT, ZT, v1, v2, v3)
+
+
+    end subroutine WriteTriangles
+
+    !--------------------------------------------------------------------------
+
+    subroutine DefineGridPoints
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i, j, CHUNK
+        real                                :: XSW, YSW, XSE, YSE, XNE, YNE, XNW, YNW
+        integer                             :: GEOG, UTM, MIL_PORT, SIMPLE_GEOG, NLRD
+        integer                             :: GRID_COORD, CoordType, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        allocate(Me%Boundary%GridPoint(Me%WorkSize%ILB-1:Me%WorkSize%IUB+1, &
+                                       Me%WorkSize%JLB-1:Me%WorkSize%JUB+1))
+
+        !Gets Coordinates in use
+        call GetGridCoordType(Me%ObjHorizontalGrid, CoordType, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DefineGridPoints - ModulePorousMedia - ERR10'
+        
+        call GetCoordTypeList (GEOG = GEOG, UTM = UTM, MIL_PORT = MIL_PORT,             &
+                               SIMPLE_GEOG = SIMPLE_GEOG, GRID_COORD = GRID_COORD,      &
+                               NLRD = NLRD)
+
+        if    (CoordType == SIMPLE_GEOG)then
+            
+            call GetGridLatitudeLongitude(Me%ObjHorizontalGrid,                 &
+                                          GridLatitudeConn  = Me%ExtVar%YY_IE,  &
+                                          GridLongitudeConn = Me%ExtVar%XX_IE,  &
+                                          STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DefineGridPoints - ModulePorousMedia - ERR20'
+
+        elseif(CoordType == UTM        .or. CoordType == MIL_PORT .or. &
+               CoordType == GRID_COORD .or. CoordType == NLRD)then
+
+            call GetHorizontalGrid(Me%ObjHorizontalGrid,                        &
+                                   XX_IE = Me%ExtVar%XX_IE,                     &
+                                   YY_IE = Me%ExtVar%YY_IE,                     &
+                                   STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DefineGridPoints - ModulePorousMedia - ERR30'
+
+        else
+
+            write(*,*)'GEOG coordinate type cannot be used in digital terrain generation'
+            stop 'DefineGridPoints - ModulePorousMedia - ERR40'
+
+        end if
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(I,J,XSW, YSW, XSE, YSE, XNE, YNE, XNW, YNW)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do i = Me%WorkSize%ILB,  Me%WorkSize%IUB
+        do j = Me%WorkSize%JLB , Me%WorkSize%JUB
+                       
+            XSW = Me%ExtVar%XX_IE(i, j)
+            YSW = Me%ExtVar%YY_IE(i, j)
+            XSE = Me%ExtVar%XX_IE(i, j + 1)
+            YSE = Me%ExtVar%YY_IE(i, j + 1)
+            XNE = Me%ExtVar%XX_IE(i + 1, j + 1)
+            YNE = Me%ExtVar%YY_IE(i + 1, j + 1)
+            XNW = Me%ExtVar%XX_IE(i + 1, j)
+            YNW = Me%ExtVar%YY_IE(i + 1, j)
+
+            Me%Boundary%GridPoint(i,j)%X = (XSW+XNW+XNE+XSE) / 4.
+            Me%Boundary%GridPoint(i,j)%Y = (YSW+YNW+YNE+YSE) / 4.
+
+
+        end do
+        end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%XX_IE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DefineGridPoints - ModulePorousMedia - ERR50'
+
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%YY_IE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DefineGridPoints - ModulePorousMedia - ERR60'
+
+    end subroutine DefineGridPoints
+    
+    !------------------------------------------------------------------
     
     subroutine StartWithFieldCapacity
 
@@ -3612,6 +4430,8 @@ i1:         if (CoordON) then
         
     end subroutine GetPMStoredVolume
     
+    !---------------------------------------------------------------------------
+    
     subroutine GetIgnoreWaterColumnOnEVAP (ObjPorousMediaID, IgnoreWaterColumnOnEvap, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -3642,6 +4462,130 @@ i1:         if (CoordON) then
     end subroutine GetIgnoreWaterColumnOnEVAP
 
     !--------------------------------------------------------------------------    
+
+    subroutine GetBoundaryImposed (ObjPorousMediaID, BoundaryOpen, BoundaryWallsOpen, BoundaryBottomOpen, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        logical, intent(OUT)                            :: BoundaryOpen
+        logical, intent(OUT)                            :: BoundaryWallsOpen
+        logical, intent(OUT)                            :: BoundaryBottomOpen
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            BoundaryOpen       = Me%SoilOpt%ImposeBoundary
+            BoundaryWallsOpen  = Me%SoilOpt%ImposeBoundaryWalls
+            BoundaryBottomOpen = Me%SoilOpt%ImposeBoundaryBottom
+            
+            STAT_ = SUCCESS_
+            
+        else
+         
+            STAT_ = ready_
+            
+        end if
+
+        if (present(STAT)) STAT = STAT_
+            
+    end subroutine GetBoundaryImposed
+
+    !--------------------------------------------------------------------------   
+
+    subroutine GetBoundaryFluxWalls (ObjPorousMediaID, BoundaryFlux, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real,    pointer, dimension(:,:,:)              :: BoundaryFlux
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            BoundaryFlux => Me%iFlowBoundaryWalls
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetBoundaryFluxWalls
+
+    !--------------------------------------------------------------------------   
+
+    subroutine GetBoundaryFluxBottom (ObjPorousMediaID, BoundaryFlux, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real,    pointer, dimension(:,:)                :: BoundaryFlux
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            BoundaryFlux => Me%iFlowBoundaryBottom
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetBoundaryFluxBottom
+
+    !--------------------------------------------------------------------------   
+
+    subroutine GetBoundaryCells (ObjPorousMediaID, BoundaryCells, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        integer,   pointer, dimension(:,:)              :: BoundaryCells
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            BoundaryCells => Me%Boundary%BoundaryCells
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetBoundaryCells
+
+    !--------------------------------------------------------------------------
+    
 
     subroutine GetThetaField (ObjPorousMediaID, ThetaField, STAT)
 
@@ -4034,8 +4978,9 @@ i1:         if (CoordON) then
             !Calculate flow in unsaturated part of soil
             call VariableSaturatedFlow (InfiltrationColumn)
             
-            if (Me%SoilOpt%ImposeBoundaryValue) then
-                call ImposeBoundaryValue
+            if (Me%SoilOpt%ImposeBoundary) then
+                if (Me%SoilOpt%ImposeBoundaryWalls .and. Me%Boundary%ImposedLevelInTime) call ModifyBoundaryLevel
+                call ModifyBoundaryFlux
             endif
             
             call CalculateUGWaterLevel
@@ -5849,93 +6794,185 @@ do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 
     !--------------------------------------------------------------------------
 
-    subroutine ImposeBoundaryValue
+    subroutine ModifyBoundaryFlux
     
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j, k, di, dj, Sum, SumFaces
-        logical                                     :: NearBoundary
-        real                                        :: AverageArea, AverageDist
-        real                                        :: OldVolume
-        
-        call SetMatrixValueAllocatable (Me%lFlowBoundary, Me%Size, 0.0, Me%ExtVar%WaterPoints3D)
+        integer                                     :: i, j, k, di, dj, CHUNK !, Sum, SumFaces
+        !logical                                     :: NearBoundary
+        !real                                        :: AverageArea, AverageDist
+        real                                        :: OldVolume, AreaZX, AreaZY, BoundaryFinalHead
+        real                                        :: NewTheta, ConductivityFace
+        !Begin-----------------------------------------------------------------
+
         
         Me%AccBoundaryFlowVolume = 0.0
         
-        !Sets Boundary values
-        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint) then
+        !Impose lateral aquifer levels
+        if (Me%SoilOpt%ImposeBoundaryWalls) then
 
-                !Check if near a boundary point (no diagonal)
-                NearBoundary = .false.
-                do dj = -1, 1
-                do di = -1, 1
-                    Sum = dj + di
-                    if ((Me%ExtVar%BasinPoints(i+di, j+dj) == 0) .and. (Sum .eq. -1 .or. Sum .eq. 1)) then
-                        NearBoundary = .true.
-                    endif
-                enddo
-                enddo
-                
-                
-                if (NearBoundary) then
+            call SetMatrixValueAllocatable (Me%iFlowBoundaryWalls, Me%Size, 0.0, Me%ExtVar%WaterPoints3D)
 
-do1:                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+
+            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+            !$OMP PARALLEL PRIVATE(I,J,K,di,dj,BoundaryFinalHead,ConductivityFace,AreaZX,AreaZY,OldVolume,NewTheta)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                !Process cells collumns that are boundary and that have topography lower than maximum
+                if (Me%Boundary%BoundaryCells(i,j) == BasinPoint     &
+                     .and. Me%ExtVar%Topography(i,j) < Me%Boundary%MaxDtmForBoundary) then
+                 
+                    !Final Head is in all boundary cells the same as BoundaryValue (field capacity)
+                    !Limit it to bottom or it may create high fluxes
+                    BoundaryFinalHead = max(Me%Boundary%ImposedBoundaryLevel(i,j), Me%ExtVar%BottomTopoG(i, j))
+
+    do1:            do k = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
                         
                         !do not process in saturated cells below BoundaryValue and any above maximum level 
                         !so flux occurs only between areas where saturation occurs in boundary an not inside
                         !or not inside but in boundary
-                        if ((- Me%ExtVar%SZZ(i,j,k) .gt. max(Me%SoilOpt%BoundaryValue, Me%UGWaterLevel2D(i, j))) &
-                            .or. ((- Me%ExtVar%SZZ(i,j,k) .lt. Me%SoilOpt%BoundaryValue) .and.                   &
-                                   (Me%Theta(i,j,k) .gt. (Me%RC%ThetaS(i,j,k) - Me%CV%LimitThetaHi)))) then
-                            exit do1
+                        if (     (- Me%ExtVar%SZZ(i,j,k-1)                                                     &
+                                   .ge. max(Me%Boundary%ImposedBoundaryLevel(i,j), Me%UGWaterLevel2D(i, j)))   &
+                            .or. (- Me%ExtVar%SZZ(i,j,k)                                                       &
+                                   .lt. min (Me%Boundary%ImposedBoundaryLevel(i,j), Me%UGWaterLevel2D(i, j)))) then
+                            cycle do1
                         endif
+
+                        !Conductivity is the maximum (saturation front entering or exiting domain)
+                        ConductivityFace  = Me%SatK(i,j,k) * Me%SoilOpt%HCondFactor
                         
-                        !Do not know trough each area is flowing and areas do not change a lot
-                        SumFaces    = Me%ExtVar%ComputeFacesU3D(i,j  ,k) + Me%ExtVar%ComputeFacesU3D(i,j+1,k) + &
-                                      Me%ExtVar%ComputeFacesV3D(i,j  ,k) + Me%ExtVar%ComputeFacesV3D(i+1,j,k)
-                        AverageArea = (Me%ExtVar%AreaU(i,j  ,k) * Me%ExtVar%ComputeFacesU3D(i,j  ,k) +  &
-                                       Me%ExtVar%AreaU(i,j+1,k) * Me%ExtVar%ComputeFacesU3D(i,j+1,k) +  &
-                                       Me%ExtVar%AreaV(i,j  ,k) * Me%ExtVar%ComputeFacesV3D(i,j  ,k) +  &
-                                       Me%ExtVar%AreaV(i+1,j,k) * Me%ExtVar%ComputeFacesV3D(i+1,j,k)) / SumFaces 
-                        AverageDist =  ((Me%ExtVar%DUX(i,j) + Me%ExtVar%DVY(i,j)) / 2.) * 0.5
-                                                               
-                        !using sat conduct since flow is only computed with at least saturation in one side of face
-                        Me%lFlowBoundary(i,j,k) = AverageArea * BuckinghamDarcyEquation   &
-                                                  (con      = Me%SatK      (i  ,  j,k),   &
-                                                   hinf     = Me%SoilOpt%BoundaryValue,   &
+                        !U direction - use middle area because in closed faces does not exist AreaU
+                        !if gradient positive, than flow negative (exiting soil)
+                        AreaZX = Me%ExtVar%DVY(i,j) * Me%ExtVar%DWZ(i,j,k)
+                        do dj = 0, 1
+                            if ((Me%ExtVar%ComputeFacesU3D(i,j+dj,k) == 0)) then
+                                Me%iFlowBoundaryWalls(i,j,k) = Me%iFlowBoundaryWalls(i,j,k) + AreaZX &
+                                                          *     BuckinghamDarcyEquation   &
+                                                  (con      = ConductivityFace,           &
+                                                   hinf     = BoundaryFinalHead,          &
                                                    hsup     = Me%FinalHead (i  ,  j,k),   &
-                                                   delta    = AverageDist            )
-                        
+                                                   delta    = Me%ExtVar%DUX(i,j)       )
+                            endif
+                        enddo
+
+                        !V direction - use middle area because in closed faces does not exist AreaV
+                        AreaZY = Me%ExtVar%DUX(i,j) * Me%ExtVar%DWZ(i,j,k)                      
+                        do di = 0, 1
+                            if ((Me%ExtVar%ComputeFacesV3D(i+di,j,k) == 0)) then
+                                Me%iFlowBoundaryWalls(i,j,k) = Me%iFlowBoundaryWalls(i,j,k) + AreaZY &
+                                                          *     BuckinghamDarcyEquation   &
+                                                  (con      = ConductivityFace,           &
+                                                   hinf     = BoundaryFinalHead,          &
+                                                   hsup     = Me%FinalHead (i  ,  j,k),   &
+                                                   delta    = Me%ExtVar%DVY(i,j)       )
+                            endif
+                        enddo
+                                               
                         !m3H2O = m3H20/m3cell * m3cell
                         OldVolume = Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k)
                         
-                        !m3H20/m3cell = (m3H20 - m3/s * s) / m3cell
-                        Me%Theta(i,j,k) = (OldVolume - Me%lFlowBoundary(i,j,k) * Me%ExtVar%DT) / &
-                                           Me%ExtVar%CellVolume(i,j,k)
+                        !m3H20/m3cell = (m3H20 + m3/s * s) / m3cell
+                        NewTheta = (OldVolume + Me%iFlowBoundaryWalls(i,j,k) * Me%ExtVar%DT) / &
+                                    Me%ExtVar%CellVolume(i,j,k)
                         
-                        if (Me%Theta(i,j,k) .gt. (Me%RC%ThetaS(i,j,k) - Me%CV%LimitThetaHi)) then
-                            Me%Theta(i,j,k) = Me%RC%ThetaS(i,j,k)
+                        if (NewTheta .gt. (Me%RC%ThetaS(i,j,k) - Me%CV%LimitThetaHi)) then
+                            NewTheta = Me%RC%ThetaS(i,j,k)
                         elseif (Me%Theta(i,j,k) .lt. (Me%RC%ThetaR(i,j,k) + Me%CV%LimitThetaLo)) then
-                            Me%Theta(i,j,k) = Me%RC%ThetaR(i,j,k)
+                            NewTheta = Me%RC%ThetaR(i,j,k)
                         endif
                         
-                        Me%AccBoundaryFlowVolume = Me%AccBoundaryFlowVolume           &
-                                                   + (OldVolume - Me%Theta(i,j,k)     & 
-                                                   * Me%ExtVar%CellVolume(i,j,k))
+                        Me%Theta(i,j,k) = NewTheta
+                        
+                        !m3/s = m3 / s - if new > old positive flow
+                        Me%iFlowBoundaryWalls(i,j,k)  = ((Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k))  &
+                                                    - OldVolume) / Me%ExtVar%DT
+                        Me%AccBoundaryFlowVolume = Me%AccBoundaryFlowVolume                          &
+                                                   + (Me%iFlowBoundaryWalls(i,j,k) * Me%ExtVar%DT)
+                        
+                        Me%RC%ThetaF  (i, j, k)   = ThetaF_ (Me%Theta (i, j, k), Me%SoilID(i, j, k))
+                        Me%Head       (i, j, k)   = Head_   (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))
+                        Me%UnSatK     (i, j, k)   = UnsatK_ (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))
+                        
+
                         
                     enddo do1
 
                 endif
-           
-            endif
-        enddo
-        enddo
+               
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        
+        endif
+        
+        !Impose bottom flux - exterior theta = interior theta -> flux = conductivity * Area
+        if (Me%SoilOpt%ImposeBoundaryBottom .and. Me%Boundary%ImposeBoundaryBottomCondition == NullGradient_) then
 
+            call SetMatrixValueAllocatable (Me%iFlowBoundaryBottom, Me%Size2D, 0.0, Me%ExtVar%BasinPoints)
+
+            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+            !$OMP PARALLEL PRIVATE(I,J,K,di,dj,BoundaryFinalHead,ConductivityFace,AreaZX,AreaZY,OldVolume,NewTheta)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                k = Me%ExtVar%KFloor(i,j)
+                
+                !Process cells that are bottom and that have ThetaF higher than minimum
+                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint     &
+                     .and. Me%RC%ThetaF(i, j, k) > Me%Boundary%MinThetaFForBoundary) then
+                 
+                    !Conductivity is the maximum (saturation front entering or exiting domain)
+                    ConductivityFace  = Me%UnSatK(i,j,k)
+                    
+                    !flow negative (exiting soil)
+                    !Assuming that exterior and interior theta are the same (null_gradient)
+                    !than Final Head gradient is dz/dz = 1 and BuckingamDarcy velocity is 
+                    !interior conductivity and water exists soil (gravity). 
+                    !Assuming also no hydrostatic pressure (since water is moving through bottom)
+                    !m3/s = m2 * m/s
+                    Me%iFlowBoundaryBottom(i,j) =  - Me%ExtVar%Area(i,j) * Me%UnSatK(i,j,k)
+
+                    !m3H2O = m3H20/m3cell * m3cell
+                    OldVolume = Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k)
+                    
+                    !m3H20/m3cell = (m3H20 + m3/s * s) / m3cell
+                    NewTheta = (OldVolume + Me%iFlowBoundaryBottom(i,j) * Me%ExtVar%DT) / &
+                                Me%ExtVar%CellVolume(i,j,k)
+                    
+                    if (Me%Theta(i,j,k) .lt. (Me%RC%ThetaR(i,j,k) + Me%CV%LimitThetaLo)) then
+                        NewTheta = Me%RC%ThetaR(i,j,k)
+                    endif
+                    
+                    Me%Theta(i,j,k) = NewTheta
+                    
+                    !m3/s = m3 / s - if new > old positive flow
+                    Me%iFlowBoundaryBottom(i,j)  = ((Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k))  &
+                                                - OldVolume) / Me%ExtVar%DT
+                    Me%AccBoundaryFlowVolume = Me%AccBoundaryFlowVolume                               &
+                                               + (Me%iFlowBoundaryBottom(i,j) * Me%ExtVar%DT)
+                    
+                    Me%RC%ThetaF  (i, j, k)   = ThetaF_ (Me%Theta (i, j, k), Me%SoilID(i, j, k))
+                    Me%Head       (i, j, k)   = Head_   (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))
+                    Me%UnSatK     (i, j, k)   = UnsatK_ (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))
+                        
+
+                endif
+               
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        
+        endif
     
-    end subroutine ImposeBoundaryValue
+    end subroutine ModifyBoundaryFlux
     
     !--------------------------------------------------------------------------
 
@@ -6792,12 +7829,12 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                       Array3D      = Me%ExtVar%SZZ  ,               &
                                       OutputNumber = Me%OutPut%NextOutPut,          &
                                       STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR010'
 
 
                 !Limits 
                 call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR03'
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR020'
 
                 !Open Points
                 call HDF5WriteData   ( Me%ObjHDF5,  "/Grid/OpenPoints" ,            &
@@ -6805,7 +7842,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                        Array3D      = Me%ExtVar%OpenPoints3D ,      &
                                        OutputNumber = Me%OutPut%NextOutPut,         &
                                        STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR04'
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR030'
 
 
                 !----------------------------------------------------------------------------
@@ -6818,7 +7855,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                       Array2D      = Me%UGWaterLevel2D,             &
                                       OutputNumber = Me%OutPut%NextOutPut,          &
                                       STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR040'
 
                 !UGWaterDepth
                 call HDF5WriteData   (Me%ObjHDF5, "/Results/water table depth",     &
@@ -6826,7 +7863,17 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                       Array2D      = Me%UGWaterDepth2D,             &
                                       OutputNumber = Me%OutPut%NextOutPut,          &
                                       STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR050'
+
+                if (Me%SoilOpt%ImposeBoundary .and. Me%SoilOpt%ImposeBoundaryWalls) then
+                    !Imposedlevel on boundary cells
+                    call HDF5WriteData   (Me%ObjHDF5, "/Results/imposed boundary level",   &
+                                          "imposed boundary level", "m",                   &
+                                          Array2D      = Me%Boundary%ImposedBoundaryLevel, &
+                                          OutputNumber = Me%OutPut%NextOutPut,             &
+                                          STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR060'                
+                endif
 
                 !----------------------------------------------------------------------------
                 !Unsaturated Output----------------------------------------------------------
@@ -6836,35 +7883,35 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                      Array3D      =  GetPointer(Me%Theta) ,         &
                                      OutputNumber =  Me%OutPut%NextOutPut    ,      &
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR070'
                 
                 call HDF5WriteData ( Me%ObjHDF5,    "/Results/relative water content",   &
                                     "relative water content", "m3water/m3water"      ,   &
                                      Array3D      =  GetPointer(Me%RC%ThetaF)  ,         &
                                      OutputNumber =  Me%OutPut%NextOutPut    ,      &
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR080'
 
                 call HDF5WriteData ( Me%ObjHDF5, "/Results/Head"            ,       &
                                     "Head"     , 'm'                            ,   &
                                      Array3D      = GetPointer(Me%Head)   ,         &
                                      OutputNumber = Me%OutPut%NextOutPut        ,   & 
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR090'
 
                 call HDF5WriteData ( Me%ObjHDF5, "/Results/FinalHead"    ,          &
                                     "FinalHead"     , 'm'                       ,   &
                                      Array3D      = GetPointer(Me%FinalHead),       &
                                      OutputNumber = Me%OutPut%NextOutPut,           & 
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR0100'
 
                 call HDF5WriteData ( Me%ObjHDF5, "/Results/HydroPressure"    ,   &
                                     "HydroPressure"     , 'm'                            ,   &
                                      Array3D      = GetPointer(Me%HydroPressure),   &
                                      OutputNumber = Me%OutPut%NextOutPut        ,   & 
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR0110'
 
                 !Write unsat velocities
                 allocate(CenterU3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB), &
@@ -6896,7 +7943,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                      Array3D      = CenterU3D,                           &
                                      OutputNumber = Me%OutPut%NextOutPut,                &  
                                      STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR0120'
             
                 call HDF5WriteData (Me%ObjHDF5,                                          &
                                     "/Results/"//trim(GetPropertyName (VelocityV_)),     &
@@ -6905,7 +7952,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                      Array3D      = CenterV3D,                      &
                                      OutputNumber = Me%OutPut%NextOutPut,           &  
                                      STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR0130'
 
                 call HDF5WriteData (Me%ObjHDF5,                                          &
                                     "/Results/"//trim(GetPropertyName (VelocityW_)),     &
@@ -6914,7 +7961,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                      Array3D      = CenterW3D,                      &
                                      OutputNumber = Me%OutPut%NextOutPut,           &  
                                      STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR0140'
 
                 call HDF5WriteData (Me%ObjHDF5,                                                &
                                     "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
@@ -6923,7 +7970,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                      Array3D      = Modulus3D,                      &
                                      OutputNumber = Me%OutPut%NextOutPut,           &  
                                      STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR0150'
 
 
                 deallocate (CenterU3D, CenterV3D, CenterW3D, Modulus3D)
@@ -6935,7 +7982,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                 !----------------------------------------------------------------------------
 
                 call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR09'
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR0160'
 
 
             endif
@@ -6959,7 +8006,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                 TimePointer => AuxTime
 
                 call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)            
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR0170'
 
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time",                   &
@@ -6967,12 +8014,12 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                      Array1D      = TimePointer,                    &
                                      OutputNumber = Me%OutPut%NextSurfaceOutput,    &
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR02'
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR0180'
 
 
                 !Limits 
                 call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR03'
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR0190'
 
 
                 !Write unsat velocities
@@ -6993,7 +8040,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                     Array2D      =  SurfaceSlice,                                   &
                                     OutputNumber =  Me%OutPut%NextSurfaceOutput,                    &
                                     STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR0210'
                 
                 deallocate(SurfaceSlice)
                 
@@ -7004,7 +8051,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                       Array2D      = Me%UGWaterDepth2D,             &
                                       OutputNumber = Me%OutPut%NextSurfaceOutput,   &
                                       STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR0220'
 
 
                 Me%OutPut%NextSurfaceOutput = Me%OutPut%NextSurfaceOutput + 1
@@ -7015,7 +8062,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                 !----------------------------------------------------------------------------
 
                 call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR09'
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR0230'
     
             
             endif
@@ -7247,6 +8294,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
 
         !Local-------------------------------------------------------------------
         integer                             :: STAT_, nUsers, STAT_CALL           
+        type(T_Piezometer), pointer         :: Piezometer
 
         !------------------------------------------------------------------------
 
@@ -7266,53 +8314,69 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 !Kills the TimeSerie
                 if (Me%ObjTimeSerie /= 0) then
                     call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillPorousMedia - Porousmedia - ERR05'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillPorousMedia - Porousmedia - ERR01'
                 endif
 
                 !Kills Profile Output
                 if (Me%OutPut%ProfileON) then
                     call KillProfile(Me%ObjProfile, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillPorousMedia - Porousmedia - ERR01'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillPorousMedia - Porousmedia - ERR010'
                 endif
                                     
                 !Deassociates External Instances
                 if (Me%ObjDrainageNetwork /= 0) then
                     nUsers = DeassociateInstance (mDRAINAGENETWORK_, Me%ObjDrainageNetwork)
-                    if (nUsers == 0) stop 'KillPorousMedia - Porousmedia - ERR06'
+                    if (nUsers == 0) stop 'KillPorousMedia - Porousmedia - ERR020'
                 endif                
                 
                 if (Me%ImpermeableFractionID%ObjFillMatrix /= 0) then
                     call KillFillMatrix (Me%ImpermeableFractionID%ObjFillMatrix, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillPorousMedia - PorousMedia - ERR06.5'                
+                    if (STAT_CALL /= SUCCESS_) stop 'KillPorousMedia - PorousMedia - ERR030'                
+                endif
+                
+                if (Me%SoilOpt%ImposeBoundary) then
+                    
+                    Piezometer => Me%Boundary%FirstPiezometer
+
+                    do while(associated(Piezometer))  
+
+                        if (Piezometer%TimeSerie%ObjTimeSerie /= 0) then
+                            call KillTimeSerie(Piezometer%TimeSerie%ObjTimeSerie, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillPorousMedia - ModulePorousMedia - ERR40' 
+                        endif
+
+                        Piezometer => Piezometer%Next
+                                               
+                    enddo
                 endif
                 
                 nUsers = DeassociateInstance (mTIME_, Me%ObjTime)
-                if (nUsers == 0) stop 'KillPorousMedia - Porousmedia - ERR07'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMedia - ERR560'
 
                 nUsers = DeassociateInstance (mBASINGEOMETRY_, Me%ObjBasinGeometry)
-                if (nUsers == 0) stop 'KillPorousMedia - Porousmedia - ERR08'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMedia - ERR70'
 
                 nUsers = DeassociateInstance (mGRIDDATA_, Me%ObjTopography)
-                if (nUsers == 0) stop 'KillPorousMedia - Porousmedia - ERR09'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMedia - ERR80'
 
                 nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid)
-                if (nUsers == 0) stop 'KillPorousMedia - Porousmedia - ERR10'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMedia - ERR90'
 
                 nUsers = DeassociateInstance (mHORIZONTALMAP_,  Me%ObjHorizontalMap)
-                if (nUsers == 0) stop 'KillPorousMedia - Porousmedia - ERR11'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMedia - ERR100'
                 
                 call KillMap (Me%ObjMap, STAT = STAT_)
-                if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - Porousmedia - ERR02'
+                if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - ModulePorousMedia - ERR110'
 
                 call KillGeometry (Me%Objgeometry, STAT = STAT_)
-                if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - Porousmedia - ERR03'
+                if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - ModulePorousMedia - ERR120'
 
                 call KillGridData (Me%ObjBottomTopography, STAT = STAT_)
-                if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - Porousmedia - ERR01'                
+                if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - ModulePorousMedia - ERR130'                
                 
                 if (Me%OutPut%Yes .or. Me%Output%SurfaceOutput) then                    
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_)
-                    if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - Porousmedia - ERR05'
+                    if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - ModulePorousMedia - ERR140'
                 endif
 
 
@@ -7546,11 +8610,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, "ReadLockExternalVar; ModulePorousMedia. ERR12")
 
-        call GetGeometryAreas(Me%ObjGeometry,                                           &
-                              Me%ExtVar%AreaV, Me%ExtVar%AreaV,                         &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, "ReadLockExternalVar; ModulePorousMedia. ERR13")
+!        call GetGeometryAreas(Me%ObjGeometry,                                           &
+!                              Me%ExtVar%AreaV, Me%ExtVar%AreaV,                         &
+!                              STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_)                                                      &
+!            call SetError(FATAL_, INTERNAL_, "ReadLockExternalVar; ModulePorousMedia. ERR13")
 
         
 

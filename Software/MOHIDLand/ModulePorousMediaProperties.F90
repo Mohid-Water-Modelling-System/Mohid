@@ -94,7 +94,9 @@ Module ModulePorousMediaProperties
                                          GetThetaS, GetGWFlowToChannels, GetThetaF,        &
                                          GetGWLayerOld, GetPotentialInfiltration,          &
                                          GetGWFlowToChannelsByLayer, GetGWToChannelsLayers,&
-                                         GetGWFlowOption, GetTranspiration, GetEvaporation
+                                         GetGWFlowOption, GetTranspiration, GetEvaporation,&
+                                         GetBoundaryImposed, GetBoundaryCells,             &
+                                         GetBoundaryFluxWalls, GetBoundaryFluxBottom
                                          
     use ModuleChainReactions,     only : StartChainReactions, SetCRPropertyConcentration,  &
                                          GetCRPropertiesList, UnGetChainReactions,         &
@@ -226,6 +228,10 @@ Module ModulePorousMediaProperties
     
     integer, parameter                :: AdvDif_ModulePMP_  = 1
     integer, parameter                :: AdvDif_ModuleAD_   = 2
+    
+    !Boundary condition
+    integer, parameter                      :: ImposedValue_  = 1
+    integer, parameter                      :: NullGradient_  = 2
  
     !Types---------------------------------------------------------------------
     
@@ -298,6 +304,12 @@ Module ModulePorousMediaProperties
         integer, pointer, dimension(:,:)            :: GWFlowBottomLayer   => null()
         integer, pointer, dimension(:,:)            :: GWFlowTopLayer      => null()
         integer, pointer, dimension(:,:)            :: GWLayerOld          => null()
+        logical                                     :: BoundaryImposed     = .false.
+        logical                                     :: BoundaryImposedWalls = .false.
+        logical                                     :: BoundaryImposedBottom = .false.
+        integer, pointer, dimension(:,:)            :: BoundaryCells       => null()
+        real   , pointer, dimension(:,:,:)          :: BoundaryFluxWalls   => null()
+        real   , pointer, dimension(:,:  )          :: BoundaryFluxBottom  => null()
         
         !from vegetation
         logical                                     :: ComputeVegInterfaceFluxes = .false.
@@ -406,6 +418,11 @@ Module ModulePorousMediaProperties
 !        character (LEN = StringLength)          :: Partition_Couple        
     end type T_Partition
 
+    type T_Boundary
+        integer                                 :: BoundaryCondition   = null_int
+        real                                    :: DefaultBoundary     = null_real
+    end type T_Boundary
+
     type T_Evolution
         logical                                 :: Variable             = .false.
         real                                    :: DTInterval           = null_real
@@ -429,6 +446,7 @@ Module ModulePorousMediaProperties
         real                                    :: DecayRate            = null_real !day-1
         type (T_AdvectionDiffusion)             :: AdvDiff
         type (T_Partition)                      :: Partition
+        type (T_Boundary)                       :: Boundary        
     end type T_Evolution
     
     type T_ThetaAtFaces
@@ -465,6 +483,7 @@ Module ModulePorousMediaProperties
         real, dimension(:,:), pointer           :: ConcentrationOnInfColumn => null()
         real, dimension(:,:), pointer           :: ConcentrationDN          => null()
         real, dimension(:,:,:), pointer         :: ConcInInterfaceDN        => null()
+        real, dimension(:,:,:), pointer         :: ConcInBoundary           => null()
         real, dimension(:,:),   pointer         :: PesticideFlux            => null()
         logical, pointer, dimension(:,:,:)      :: UptakeActive             => null()
         real, pointer, dimension(:,:,:)         :: Mass_Created             => null()
@@ -543,6 +562,8 @@ Module ModulePorousMediaProperties
         real, pointer, dimension(: , : , :)  :: CoefInterfDN      => null() !transport from and to River
         real, pointer, dimension(: , : , :)  :: CoefInterfTransp  => null() !transport to plants
         real, pointer, dimension(: , : , :)  :: CoefInterfEvap    => null() !transport to evaporation
+        real, pointer, dimension(: , : , :)  :: CoefInterfBoundaryWalls => null() !transport trough boundary walls
+        real, pointer, dimension(: , : , :)  :: CoefInterfBoundaryBottom => null() !transport trough boundary bottom
     end type T_A_B_C_Explicit
 
     type       T_FluxCoef
@@ -695,6 +716,7 @@ Module ModulePorousMediaProperties
 
     subroutine ConstructPorousMediaProperties(ObjPorousMediaPropertiesID,                 &
                                               ComputeTimeID,                              &
+                                              GridDataID,                                 &
                                               HorizontalGridID,                           &
                                               HorizontalMapID,                            &
                                               BasinGeometryID,                            &
@@ -711,6 +733,7 @@ Module ModulePorousMediaProperties
         !Arguments---------------------------------------------------------------
         integer                                         :: ObjPorousMediaPropertiesID 
         integer                                         :: ComputeTimeID
+        integer                                         :: GridDataID
         integer                                         :: HorizontalGridID
         integer                                         :: HorizontalMapID
         integer                                         :: BasinGeometryID
@@ -748,6 +771,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Associate External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,           ComputeTimeID   )
+            Me%ObjGridData       = AssociateInstance (mGRIDDATA_,       GridDataID      )            
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
             Me%ObjBasinGeometry  = AssociateInstance (mBASINGEOMETRY_,  BasinGeometryID )
@@ -763,6 +787,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             Me%CheckGlobalMass       = CheckGlobalMass
             
+            call CheckBoundary
             
             call ReadFileNames
 
@@ -858,7 +883,33 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !----------------------------------------------------------------------
 
     end subroutine ConstructPorousMediaProperties
- 
+
+    !--------------------------------------------------------------------------
+     
+    subroutine CheckBoundary
+
+        !Arguments-------------------------------------------------------------
+                                                    
+        !Local-----------------------------------------------------------------
+        integer                                        :: STAT_CALL
+        !Begin-----------------------------------------------------------------
+        
+        !check if boundary is imposed
+        call GetBoundaryImposed (Me%ObjPorousMedia,               &
+                                 Me%ExtVar%BoundaryImposed,       &
+                                 Me%ExtVar%BoundaryImposedWalls,  &
+                                 Me%ExtVar%BoundaryImposedBottom, &
+                                 STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckBoundary - ModulePorousMedia - ERR01'
+        
+        if (Me%ExtVar%BoundaryImposedWalls) then
+            call GetBoundaryCells (Me%ObjPorousMedia, Me%ExtVar%BoundaryCells, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CheckBoundary - ModulePorousMedia - ERR010'
+            
+        endif
+        
+    end subroutine CheckBoundary
+
     !--------------------------------------------------------------------------
     
     subroutine CheckFlowDirections
@@ -1399,6 +1450,8 @@ doi3:   do J = JLB, JUB
             allocate (Me%COEFExpl%CoefInterfDN     (ILB:IUB,JLB:JUB,KLB:KUB))
             allocate (Me%COEFExpl%CoefInterfTransp (ILB:IUB,JLB:JUB,KLB:KUB))
             allocate (Me%COEFExpl%CoefInterfEvap   (ILB:IUB,JLB:JUB,KLB:KUB))
+            allocate (Me%COEFExpl%CoefInterfBoundaryWalls (ILB:IUB,JLB:JUB,KLB:KUB))
+            allocate (Me%COEFExpl%CoefInterfBoundaryBottom (ILB:IUB,JLB:JUB,KLB:KUB))
             
 #ifdef _USE_PAGELOCKED
             ! Allocate pagelocked memory to optimize CUDA transfers
@@ -1497,6 +1550,7 @@ doi3:   do J = JLB, JUB
         if (Me%CalculateECw) then
             allocate (Me%ECw(ILB:IUB,JLB:JUB,KLB:KUB))
         endif
+        
         
     end subroutine AllocateVariables
 
@@ -1892,6 +1946,37 @@ cd2 :           if (BlockFound) then
             endif                
         endif
         
+        !By default the boundary value is imposed (this is only used for "wall" level imposed
+        !in bottom flux it is free flux trough bottom and does not come up so does not need
+        !exterior prop
+        call GetData(NewProperty%Evolution%Boundary%BoundaryCondition,                   &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'BOUNDARY_CONDITION',                                &
+                     ClientModule = 'ModulePorousMediaProperties',                       &
+                     Default      = ImposedValue_,                                       &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_)                                                      &
+            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR039'
+
+        if (NewProperty%Evolution%Boundary%BoundaryCondition /= ImposedValue_   .and.    &
+            NewProperty%Evolution%Boundary%BoundaryCondition /= NullGradient_        ) then 
+            write(*,*) ' Boundary Condition can only be ImposedValue = 1 or'
+            write(*,*) ' NullGradient = 2. Check BOUNDARY_CONDITION keyword'
+            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR40'
+        endif
+        
+        !By default if not given the property enters with zero concentration.
+        call GetData(NewProperty%Evolution%Boundary%DefaultBoundary,                     &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'DEFAULTBOUNDARY',                                   &
+                     ClientModule = 'ModulePorousMediaProperties',                       &
+                     Default      = 0.0,                                                 &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_)                                                      &
+            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR041'
+        
         !<BeginKeyword>
             !Keyword          : SOIL_QUALITY
             !<BeginDescription>
@@ -1913,7 +1998,7 @@ cd2 :           if (BlockFound) then
                      default      = OFF,                                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR040'
+            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR045'
 
         if (NewProperty%Evolution%SoilQuality) then
             Me%Coupled%SoilQuality     = .true.
@@ -2548,7 +2633,7 @@ do1 :   do
         integer                   :: Orlanski, MassConservNullGrad
 
         !Local-----------------------------------------------------------------
-        integer                   :: iflag, BoundaryCondition
+        integer                   :: iflag !, BoundaryCondition
 
         !----------------------------------------------------------------------
 
@@ -2620,28 +2705,28 @@ do1 :   do
                                       MassConservNullGrad = MassConservNullGrad, &
                                       CyclicBoundary      = CyclicBoundary)
 
-        call GetData(BoundaryCondition,                            &
-                     Me%ObjEnterData,  iflag,                      &
-                     SearchType   = FromBlock,                     &
-                     keyword      = 'ADVDIFF_BOUNDARY_CONDITION',  &
-                     Default      = MassConservation,              &
-                     ClientModule = 'ModulePorousMediaProperties', &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadAdvectionDiffusionParameters - ModulePorousMediaProperties - ERR70'
-
-        ! By default it's imposed a value dependent only from the exterior
-        ! value and of the decay time. However this method doesn't conserve mass
-        ! when the water fluxes near the frontier are dominant
-
-        if (BoundaryCondition /= MassConservation     .and. &
-            BoundaryCondition /= ImposedValue         .and. &
-            BoundaryCondition /= NullGradient         .and. &
-            BoundaryCondition /= CyclicBoundary       .and. &
-            BoundaryCondition /= Orlanski             .and. &
-            BoundaryCondition /= MassConservNullGrad) &
-            stop 'ReadAdvectionDiffusionParameters - ModulePorousMediaProperties - ERR80'
-
-        NewProperty%Evolution%AdvDiff%BoundaryCondition = BoundaryCondition
+!        call GetData(BoundaryCondition,                            &
+!                     Me%ObjEnterData,  iflag,                      &
+!                     SearchType   = FromBlock,                     &
+!                     keyword      = 'ADVDIFF_BOUNDARY_CONDITION',  &
+!                     Default      = MassConservation,              &
+!                     ClientModule = 'ModulePorousMediaProperties', &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_) stop 'ReadAdvectionDiffusionParameters - ModulePorousMediaProperties - ERR70'
+!
+!        ! By default it's imposed a value dependent only from the exterior
+!        ! value and of the decay time. However this method doesn't conserve mass
+!        ! when the water fluxes near the frontier are dominant
+!
+!        if (BoundaryCondition /= MassConservation     .and. &
+!            BoundaryCondition /= ImposedValue         .and. &
+!            BoundaryCondition /= NullGradient         .and. &
+!            BoundaryCondition /= CyclicBoundary       .and. &
+!            BoundaryCondition /= Orlanski             .and. &
+!            BoundaryCondition /= MassConservNullGrad) &
+!            stop 'ReadAdvectionDiffusionParameters - ModulePorousMediaProperties - ERR80'
+!
+!        NewProperty%Evolution%AdvDiff%BoundaryCondition = BoundaryCondition
 
         !By default the horizontal Diffusion discretization is explicit
         NewProperty%Evolution%AdvDiff%DiffusionH_imp_exp  = ExplicitScheme
@@ -2876,8 +2961,13 @@ do1 :   do
         
         !it has to be always allocated
         allocate(NewProperty%ConcInInterfaceDN(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR50'
+        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR80'
         NewProperty%ConcInInterfaceDN(:,:,:) = FillValueReal            
+
+        allocate(NewProperty%ConcInBoundary(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR90'
+        NewProperty%ConcInBoundary(:,:,:) = FillValueReal            
+
         
         call GetData(NewProperty%MinValue,                                                  &
                      Me%ObjEnterData,iflag,                                                 &
@@ -3629,7 +3719,7 @@ i1:         if (CoordON) then
         call HDF5SetLimits (Me%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR030'
         
-        call GetGridData (Me%ObjGeometry, Me%ExtVar%Topography, STAT = STAT_CALL)
+        call GetGridData (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR040'
         
         call GetBasinPoints (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
@@ -3663,7 +3753,7 @@ i1:         if (CoordON) then
         call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR120'  
 
-        call UnGetGeometry              (Me%ObjGeometry, Me%ExtVar%Topography,  STAT = STAT_CALL )        
+        call UnGetGridData              (Me%ObjGridData, Me%ExtVar%Topography,  STAT = STAT_CALL )        
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR130'
 
         call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
@@ -6412,7 +6502,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         call SetMatrixValue (Me%COEFExpl%CoefInterfDN, Me%Size, 0.0)
         call SetMatrixValue (Me%COEFExpl%CoefInterfTransp, Me%Size, 0.0)
         call SetMatrixValue (Me%COEFExpl%CoefInterfEvap, Me%Size, 0.0)
+        call SetMatrixValue (Me%COEFExpl%CoefInterfBoundaryWalls, Me%Size, 0.0)
+        call SetMatrixValue (Me%COEFExpl%CoefInterfBoundaryBottom, Me%Size, 0.0)
         call SetMatrixValue (CurrProperty%ConcInInterfaceDN, Me%Size, 0.0)
+        call SetMatrixValue (CurrProperty%ConcInBoundary, Me%Size, 0.0)
         
         call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
         
@@ -6774,7 +6867,12 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (Me%ExtVar%CoupledDN) then
             call ModifyDrainageNetworkCoefs(PropertyX)
         endif
-
+        
+        !BoundaryFluxes
+        if (Me%ExtVar%BoundaryImposed) then
+            call ModifyBoundaryCoefs(PropertyX)
+        endif
+        
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ModifyCoefs")
 
         
@@ -8331,6 +8429,116 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     !---------------------------------------------------------------------------
 
+    subroutine ModifyBoundaryCoefs(PropertyX)
+
+        !Arguments----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        
+        !Local--------------------------------------------------------------------
+        integer                                     :: i,j,k, CHUNK, STAT_CALL
+        real(8)                                     :: aux
+        
+        !Begin--------------------------------------------------------------------
+        
+        
+        if (Me%ExtVar%BoundaryImposedWalls) then
+        
+            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
+          
+            !$OMP PARALLEL PRIVATE(i,j,k,aux)
+            
+            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                if ((Me%ExtVar%BoundaryCells(I,J) == WaterPoint)) then
+                    
+                    !Auxuliar value for transport - units of flow^-1
+                    !s/m3
+                    aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
+                    
+                    ! Positive flow -> gains mass
+                    Me%COEFExpl%CoefInterfBoundaryWalls(i,j,k) = aux * Me%ExtVar%BoundaryFluxWalls(i,j,k)
+                    
+                    !negative flow - exiting - Prop is from soil if explicit
+                    if (Me%ExtVar%BoundaryFluxWalls(i,j,k) .le. 0.0) then
+                        
+                        PropertyX%ConcInBoundary(i,j,k) = PropertyX%ConcentrationOld(i,j,k)
+                    
+                    else !entering - Prop is imposed
+                        
+                        if (PropertyX%Evolution%Boundary%BoundaryCondition == ImposedValue_) then
+                            
+                            PropertyX%ConcInBoundary(i,j,k) = PropertyX%Evolution%Boundary%DefaultBoundary
+                        
+                        elseif (PropertyX%Evolution%Boundary%BoundaryCondition == NullGradient_) then
+                            
+                            PropertyX%ConcInBoundary(i,j,k) = PropertyX%ConcentrationOld(i,j,k)
+                        
+                        endif
+                    endif
+                    
+                endif
+                
+            enddo
+            enddo
+            !$OMP END DO
+            enddo
+            
+            !$OMP END PARALLEL
+        
+        endif
+
+
+        if (Me%ExtVar%BoundaryImposedBottom) then
+
+            call GetGeometryKFloor(Me%ObjGeometry,                                          &
+                                   Z    = Me%ExtVar%KFloor,                                 &
+                                   STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, "ModifyBoundaryCoefs; ModulePorousMediaProperties. ERR10")
+        
+            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
+          
+            !$OMP PARALLEL PRIVATE(i,j,k,aux)
+            
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                K = Me%ExtVar%KFloor(i,j)
+                
+                if ((Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint)) then
+                    
+                    !Auxuliar value for transport - units of flow^-1
+                    !s/m3
+                    aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
+                    
+                    ! Is always negative flow -> losses mass
+                    Me%COEFExpl%CoefInterfBoundaryBottom(i,j,k) = aux * Me%ExtVar%BoundaryFluxBottom(i,j)
+                    
+                    !it does not need concentration definiton. it is always negative so removes what is in soil
+                                      
+                endif
+                
+            enddo
+            enddo
+            !$OMP END DO            
+            !$OMP END PARALLEL
+
+            call UnGetGeometry( Me%ObjGeometry, Me%ExtVar%KFloor,       STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, "ModifyBoundaryCoefs; ModulePorousMediaProperties. ERR20")
+        
+        endif
+
+        
+    
+    end subroutine ModifyBoundaryCoefs
+
+    !-----------------------------------------------------------------------------
+
     subroutine ModifyPropertyValues(PropertyX)
         
         !Arguments-------------------------------------------------------------
@@ -8341,6 +8549,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                     :: i, j, k, CHUNK
         real(8)                                     :: coefB, CoefInterfDN, CoefInterfTransp
         real(8)                                     :: CoefInterfRunoff, CoefInterfEvap
+        real(8)                                     :: CoefInterfBoundaryW, CoefInterfBoundaryB
         real(8), pointer, dimension(:,:,:)          :: FluxW
         !Begin-----------------------------------------------------------------    
 
@@ -8352,7 +8561,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfTransp,CoefInterfEvap,coefB)
+            !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfTransp, &
+            !$OMP& CoefInterfEvap,CoefInterfBoundaryW,CoefInterfBoundaryB,coefB)
                
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)              
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -8360,18 +8570,22 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then   
                     
-                    CoefInterfRunoff = Me%COEFExpl%CoefInterfRunoff(i,j,k)
-                    CoefInterfDN     = Me%COEFExpl%CoefInterfDN(i,j,k)
-                    CoefInterfTransp = Me%COEFExpl%CoefInterfTransp(i,j,k)
-                    CoefInterfEvap   = Me%COEFExpl%CoefInterfEvap(i,j,k)
-                   
+                    CoefInterfRunoff    = Me%COEFExpl%CoefInterfRunoff(i,j,k)
+                    CoefInterfDN        = Me%COEFExpl%CoefInterfDN(i,j,k)
+                    CoefInterfTransp    = Me%COEFExpl%CoefInterfTransp(i,j,k)
+                    CoefInterfEvap      = Me%COEFExpl%CoefInterfEvap(i,j,k)
+                    CoefInterfBoundaryW = Me%COEFExpl%CoefInterfBoundaryWalls(i,j,k)
+                    CoefInterfBoundaryB = Me%COEFExpl%CoefInterfBoundaryBottom(i,j,k)
+                    
                     CoefB = Me%ExtVar%WaterContentOld(i,j,k)/Me%ExtVar%WaterContent(i,j,k)
                     
                     Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k) + CoefB * CurrProperty%ConcentrationOld(i,j,k  )                  &
                                                       + CoefInterfRunoff * CurrProperty%ConcentrationOnInfColumn(i,j)         &
                                                       + CoefInterfDN     * CurrProperty%ConcInInterfaceDN(i,j,k)              &
                                                       + CoefInterfTransp * CurrProperty%ConcentrationOld(i,j,k  )             &
-                                                      + CoefInterfEvap   * CurrProperty%ConcentrationOld(i,j,k  )
+                                                      + CoefInterfEvap   * CurrProperty%ConcentrationOld(i,j,k  )             &
+                                                      + CoefInterfBoundaryW * CurrProperty%ConcInBoundary(i,j,k)              &
+                                                      + CoefInterfBoundaryB * CurrProperty%ConcentrationOld(i,j,k)
                                                                      
                     CurrProperty%Concentration(i,j,k) = Me%TICOEF3(i,j,k  )
 
@@ -8388,7 +8602,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfTransp,CoefInterfEvap,coefB)
+            !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfTransp, &
+            !$OMP& CoefInterfEvap,CoefInterfBoundaryW,CoefInterfBoundaryB,coefB)
                
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)                          
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -8396,10 +8611,12 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then           
                     
-                    CoefInterfRunoff = Me%COEFExpl%CoefInterfRunoff(i,j,k)
-                    CoefInterfDN     = Me%COEFExpl%CoefInterfDN(i,j,k)
-                    CoefInterfTransp = Me%COEFExpl%CoefInterfTransp(i,j,k)
-                    CoefInterfEvap   = Me%COEFExpl%CoefInterfEvap(i,j,k)
+                    CoefInterfRunoff    = Me%COEFExpl%CoefInterfRunoff(i,j,k)
+                    CoefInterfDN        = Me%COEFExpl%CoefInterfDN(i,j,k)
+                    CoefInterfTransp    = Me%COEFExpl%CoefInterfTransp(i,j,k)
+                    CoefInterfEvap      = Me%COEFExpl%CoefInterfEvap(i,j,k)
+                    CoefInterfBoundaryW = Me%COEFExpl%CoefInterfBoundaryWalls(i,j,k)
+                    CoefInterfBoundaryB = Me%COEFExpl%CoefInterfBoundaryBottom(i,j,k)
                     
                     !Water exiting soil to runoff - Compute Conc Implicitly
                     if ((CoefInterfRunoff /= 0.0) .and. (FluxW(i,j,k+1) .gt. 0.0)) then
@@ -8424,8 +8641,20 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     !Water exiting soil to atmosphere by evaporation - Comput Conc Implicitly
                     if (CoefInterfEvap .lt. 0.0) then
                         Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k) - CoefInterfEvap
-                        CoefInterfEvap       = 0.0
+                        CoefInterfEvap      = 0.0
                     endif
+
+                    !Water exiting soil to trough wall boundary - Comput Conc Implicitly
+                    if (CoefInterfBoundaryW .lt. 0.0) then
+                        Me%COEF3%E(i,j,k  )  = Me%COEF3%E(i,j,k) - CoefInterfBoundaryW
+                        CoefInterfBoundaryW  = 0.0
+                    endif
+                    
+                    !Water exiting soil to trough soil boundary (always) - Comput Conc Implicitly
+                    if (CoefInterfBoundaryB .lt. 0.0) then
+                        Me%COEF3%E(i,j,k  )  = Me%COEF3%E(i,j,k) - CoefInterfBoundaryB
+                        CoefInterfBoundaryB  = 0.0
+                    endif                    
 
                     CoefB = Me%ExtVar%WaterContentOld(i,j,k)/Me%ExtVar%WaterContent(i,j,k)
 
@@ -8434,7 +8663,10 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                         + CoefInterfRunoff * CurrProperty%ConcentrationOnInfColumn(i,j)          &
                                         + CoefInterfDN     * CurrProperty%ConcInInterfaceDN(i,j,k)               & 
                                         + CoefInterfTransp * CurrProperty%ConcentrationOld(i,j,k  )              &
-                                        + CoefInterfEvap   * CurrProperty%ConcentrationOld(i,j,k  )
+                                        + CoefInterfEvap   * CurrProperty%ConcentrationOld(i,j,k  )              &
+                                        + CoefInterfBoundaryW * CurrProperty%ConcInBoundary(i,j,k)               &
+                                        + CoefInterfBoundaryB * CurrProperty%ConcentrationOld(i,j,k)
+                                        
 
                 endif
             enddo
@@ -10249,7 +10481,7 @@ First:          if (LastTime.LT.Actual) then
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "WriteFinalFile")
 
         !Gets a pointer to Topography
-        call GetGridData        (Me%ObjGeometry, Me%ExtVar%Topography, STAT = STAT_CALL)
+        call GetGridData        (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR00'
 
         call GetGeometryDistances (Me%ObjGeometry,                                      &
@@ -10410,7 +10642,7 @@ First:          if (LastTime.LT.Actual) then
         call UnGetGeometry              (Me%ObjGeometry, Me%ExtVar%SZZ,  STAT = STAT_CALL )        
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR100'
 
-        call UnGetGeometry              (Me%ObjGeometry, Me%ExtVar%Topography,  STAT = STAT_CALL )        
+        call UnGetGridData              (Me%ObjGridData, Me%ExtVar%Topography,  STAT = STAT_CALL )        
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR120'
 
 
@@ -10641,6 +10873,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 nUsers = DeassociateInstance (mTIME_, Me%ObjTime)
                 if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMediaProperties - ERR07'
+
+                nUsers = DeassociateInstance (mGRIDDATA_, Me%ObjGridData)
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMediaProperties - ERR07.5'
 
                 nUsers = DeassociateInstance (mBASINGEOMETRY_, Me%ObjBasinGeometry)
                 if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMediaProperties - ERR08'
@@ -11012,7 +11247,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                   STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR101'
 
-        call GetGridData  (Me%ObjGeometry, Me%ExtVar%Topography, STAT = STAT_CALL)
+        call GetGridData  (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR110'
 
 
@@ -11049,6 +11284,17 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
             call GetGWLayerOld   (Me%ObjPorousMedia, Me%ExtVar%GWlayerOld, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR160'
+        endif
+        
+        if (Me%ExtVar%BoundaryImposed) then
+            if (Me%ExtVar%BoundaryImposedWalls) then
+                call GetBoundaryFluxWalls (Me%ObjPorousMedia, Me%ExtVar%BoundaryFluxWalls, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR170'
+            endif
+            if (Me%ExtVar%BoundaryImposedBottom) then
+                call GetBoundaryFluxBottom (Me%ObjPorousMedia, Me%ExtVar%BoundaryFluxBottom, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR180'
+            endif            
         endif
         
     end subroutine ReadLockExternalVar
@@ -11142,7 +11388,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR115'
 
 
-        call UnGetGeometry              (Me%ObjGeometry, Me%ExtVar%Topography,  STAT = STAT_CALL )        
+        call UnGetGridData              (Me%ObjGridData, Me%ExtVar%Topography,  STAT = STAT_CALL )        
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR120'
 
         call UnGetMap                   (Me%ObjMap, Me%ExtVar%ComputeFacesW3D, STAT = STAT_CALL) 
@@ -11180,9 +11426,21 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         
         endif
         
+        if (Me%ExtVar%BoundaryImposed) then
+            if (Me%ExtVar%BoundaryImposedWalls) then        
+                call UnGetPorousMedia (Me%ObjPorousMedia, Me%ExtVar%BoundaryFluxWalls, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0190'      
+            endif
+            if (Me%ExtVar%BoundaryImposedBottom) then        
+                call UnGetPorousMedia (Me%ObjPorousMedia, Me%ExtVar%BoundaryFluxBottom, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0200'      
+            endif            
+        endif
+        
     endsubroutine ReadUnlockExternalVar
 
-
+    !--------------------------------------------------------------------------
+    
 end module ModulePorousMediaProperties
 
 !MOHID Water Modelling System.

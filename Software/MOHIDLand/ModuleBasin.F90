@@ -73,7 +73,7 @@ Module ModuleBasin
                                      
     use ModuleRunOff,         only : ConstructRunOff, ModifyRunOff, GetOverLandFlow,     &
                                      GetFlowToChannels, GetNextRunOffDT,                 &
-                                     GetFlowAtBoundary, UnGetRunOff, KillRunOff,         &
+                                     GetBoundaryFlux, UnGetRunOff, KillRunOff,           &
                                      SetBasinColumnToRunoff, GetRunoffWaterColumn,       &
                                      GetRunoffWaterColumnOld, GetRunoffWaterLevel,       &
                                      GetRunoffTotalStoredVolume, GetMassError,           &
@@ -2771,6 +2771,7 @@ i1:         if (CoordON) then
             if (Me%Coupled%PorousMediaProperties) then
                 call ConstructPorousMediaProperties   (ObjPorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
                                                        ComputeTimeID              = Me%ObjTime,                   &
+                                                       GridDataID                 = Me%ObjGridData,               &
                                                        HorizontalGridID           = Me%ObjHorizontalGrid,         &
                                                        HorizontalMapID            = Me%ObjHorizontalMap,          &
                                                        BasinGeometryID            = Me%ObjBasinGeometry,          &
@@ -7856,7 +7857,9 @@ cd2 :           if (BlockFound) then
        !Gets flow at open boundary of Module Runoff - should be done in module runoff
        Me%MB%OutVolumeOverLand = 0.0
        if (Me%Coupled%Runoff) then
-            call GetFlowAtBoundary (Me%ObjRunoff, OL_FlowAtBoundary, STAT = STAT_CALL)
+!            call GetFlowAtBoundary (Me%ObjRunoff, OL_FlowAtBoundary, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR020'
+            call GetBoundaryFlux (Me%ObjRunoff, OL_FlowAtBoundary, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR020'
 
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
