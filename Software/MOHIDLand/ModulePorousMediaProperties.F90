@@ -96,7 +96,8 @@ Module ModulePorousMediaProperties
                                          GetGWFlowToChannelsByLayer, GetGWToChannelsLayers,&
                                          GetGWFlowOption, GetTranspiration, GetEvaporation,&
                                          GetBoundaryImposed, GetBoundaryCells,             &
-                                         GetBoundaryFluxWalls, GetBoundaryFluxBottom
+                                         GetBoundaryFluxWalls, GetBoundaryFluxBottom,      &
+                                         GetFlowDischarge
                                          
     use ModuleChainReactions,     only : StartChainReactions, SetCRPropertyConcentration,  &
                                          GetCRPropertiesList, UnGetChainReactions,         &
@@ -121,6 +122,13 @@ Module ModulePorousMediaProperties
 #ifdef _ENABLE_CUDA
     use ModuleCuda
 #endif _ENABLE_CUDA
+
+    use ModuleDischarges        ,only : Construct_Discharges, GetDischargesNumber,       &
+                                        GetDischargesGridLocalization,                   &
+                                        GetDischargeWaterFlow, GetDischargesIDName,      &
+                                        TryIgnoreDischarge, GetDischargeSpatialEmission, &
+                                        CorrectsCellsDischarges, Kill_Discharges,        &
+                                        GetDischargeConcentration
 
     !griflet
     !$ use omp_lib
@@ -444,6 +452,7 @@ Module ModulePorousMediaProperties
         real                                    :: MaxForUptakeConc     = 0.0   
         logical                                 :: Decay                = .false.
         real                                    :: DecayRate            = null_real !day-1
+        logical                                 :: Discharges           = .false.        
         type (T_AdvectionDiffusion)             :: AdvDiff
         type (T_Partition)                      :: Partition
         type (T_Boundary)                       :: Boundary        
@@ -460,6 +469,7 @@ Module ModulePorousMediaProperties
         real(8)                                 :: TranspiredMass      = null_real
         real(8)                                 :: DNExchangeMass      = null_real
         real(8)                                 :: RPExchangeMass      = null_real
+        real(8)                                 :: TotalDischargeMass  = null_real        
     end type T_MassBalance
     
     type T_Files
@@ -538,6 +548,8 @@ Module ModulePorousMediaProperties
         logical                                 :: WarnOnNegativeValues = .false.
         logical                                 :: Decay                = .false.
         logical                                 :: SedQualityOxygenForcing = .false.
+        logical                                 :: Discharges           = .false.
+        
     end type T_Coupled
     
     !Implicit coef for thomas matrix
@@ -616,6 +628,7 @@ Module ModulePorousMediaProperties
 #ifdef _ENABLE_CUDA
         integer                                      :: ObjCuda               = 0
 #endif _ENABLE_CUDA        
+        integer                                      :: ObjDischarges         = 0
 
         real,    pointer, dimension(:,:,:)           :: CellWaterVolume       => null() !Used SoilChemistry & ChainReactions        
         integer, pointer, dimension(:)               :: PropertiesList        => null() !List with ID of all properties used 
@@ -688,8 +701,11 @@ Module ModulePorousMediaProperties
         
         real(8), pointer, dimension(:,:,:)           :: WaterVolume     => null()
         real(8), pointer, dimension(:,:,:)           :: FluxWCorr       => null()
+        real(8), pointer, dimension(:,:,:)           :: WaterContentBT  => null()  !Water Content Before Transport
         
         logical                                      :: DTIntervalAssociated     = .false.
+
+        integer                                      :: nPropWithDischarge   = 0
               
         !griflet, openmp
         type(T_THOMAS), pointer                      :: THOMAS          => null()
@@ -723,6 +739,7 @@ Module ModulePorousMediaProperties
                                               PorousMediaID,                              &
                                               GeometryID,                                 &
                                               MapID,                                      &
+                                              DischargesID,                               &
                                               CoupledDN,                                  &
                                               CheckGlobalMass,                            &
 #ifdef _ENABLE_CUDA
@@ -740,6 +757,7 @@ Module ModulePorousMediaProperties
         integer                                         :: PorousMediaID
         integer                                         :: GeometryID
         integer                                         :: MapID
+        integer                                         :: DischargesID
         logical, optional                               :: CoupledDN
         logical                                         :: CheckGlobalMass
 #ifdef _ENABLE_CUDA
@@ -812,6 +830,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%Coupled%Partition) then
                 call ConstructPartition
             end if     
+
+            if (Me%Coupled%Discharges) then
+                call ConstructDischarges(DischargesID)
+            endif
+
             
             call AllocateVariables
        
@@ -884,6 +907,80 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     end subroutine ConstructPorousMediaProperties
 
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructDischarges(DischargesID)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: DischargesID 
+        !Local------------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: nDischarges, iDis
+        character(len=StringLength)                 :: DischargeName
+        real                                        :: CoordinateX, CoordinateY
+        logical                                     :: CoordinatesON, IgnoreOK
+        integer                                     :: Id, Jd
+         
+
+        !ObjDischarges comes from ModueRunoff
+!        call Construct_Discharges(Me%ObjDischarges,                              &
+!                                  Me%ObjTime,                                    &
+!                                  STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunoffProperties - ConstructDischarges - ERR01'  
+
+        if (DischargesID == 0)  then                                                
+            write(*,*)'You need to define DISCHARGES : 1 in the POROUS MEDIA input file' 
+            stop      'ModulePorousMediaProperties - ConstructDischarges - ERR01'
+        else            
+            Me%ObjDischarges     = AssociateInstance (mDISCHARGES_,     DischargesID    )
+        endif
+        
+        !Gets the number of discharges
+        call GetDischargesNumber(Me%ObjDischarges, nDischarges, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR010'
+
+        do iDis = 1, nDischarges
+
+            call GetDischargesGridLocalization(Me%ObjDischarges,                &
+                                               DischargeIDNumber = iDis,        &
+                                               CoordinateX   = CoordinateX,     &
+                                               CoordinateY   = CoordinateY,     & 
+                                               CoordinatesON = CoordinatesON,   &
+                                               STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR020' 
+                    
+            call GetDischargesIDName (Me%ObjDischarges, iDis, DischargeName, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR030' 
+
+            if (CoordinatesON) then
+                
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR040' 
+
+                if (Id < 0 .or. Jd < 0) then
+                
+                    call TryIgnoreDischarge(Me%ObjDischarges, iDis, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR050' 
+
+                    if (IgnoreOK) then
+                        write(*,*) 'Discharge outside the domain - ',trim(DischargeName)
+                        cycle
+                    else
+                        stop 'ModulePorousMediaProperties - ConstructDischarges - ERR060' 
+                    endif
+
+                endif
+
+                call CorrectsCellsDischarges(Me%ObjDischarges, iDis, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR070' 
+                    
+            endif
+            
+        enddo
+    
+    
+    endsubroutine ConstructDischarges            
+    
     !--------------------------------------------------------------------------
      
     subroutine CheckBoundary
@@ -1056,7 +1153,7 @@ doi3:   do J = JLB, JUB
             write(*, *)"---PREEQC           : ", CurrentProperty%Evolution%SoilChemistry
             write(*, *)"---Partitioning     : ", CurrentProperty%Evolution%Partitioning
             write(*, *)"---Particulate      : ", CurrentProperty%Particulate
- !           write(*, *)"---Discharges       : ", CurrentProperty%Evolution%Discharges
+            write(*, *)"---Discharges       : ", CurrentProperty%Evolution%Discharges
             write(*, *)
 
             CurrentProperty=>CurrentProperty%Next
@@ -1413,7 +1510,7 @@ doi3:   do J = JLB, JUB
         
         allocate (Me%CellWaterVolume (ILB:IUB,JLB:JUB,KLB:KUB))
         Me%CellWaterVolume = 0.
-
+                
 #ifdef _PHREEQC_
         if (Me%Coupled%SoilChemistry) then
             allocate (Me%PhreeqC%CellWaterMass (ILB:IUB,JLB:JUB,KLB:KUB))
@@ -1429,6 +1526,9 @@ doi3:   do J = JLB, JUB
         if (Me%Coupled%AdvectionDiffusion) then
             allocate (Me%WaterVolume          (ILB:IUB,JLB:JUB,KLB:KUB))
             allocate (Me%FluxWCorr                (ILB:IUB,JLB:JUB,KLB:KUB))
+
+            allocate (Me%WaterContentBT       (ILB:IUB,JLB:JUB,KLB:KUB))
+            Me%WaterContentBT = 0.
             
             allocate (Me%ThetaAtFaces%ThetaW (ILB:IUB,JLB:JUB,KLB:KUB))
             allocate (Me%ThetaAtFaces%ThetaU (ILB:IUB,JLB:JUB,KLB:KUB))
@@ -2100,7 +2200,20 @@ cd2 :           if (BlockFound) then
             
         endif
         
+        call GetData(NewProperty%Evolution%Discharges,                              &
+                     Me%ObjEnterData, iflag,                                        &
+                     Keyword        = 'DISCHARGES',                                 &
+                     ClientModule   = 'ModulePorousMediaProperties',                &
+                     SearchType     = FromBlock,                                    &
+                     Default        = OFF,                                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR80' 
         
+        if (NewProperty%Evolution%Discharges) then
+            Me%Coupled%Discharges = .true.
+            Me%nPropWithDischarge = Me%nPropWithDischarge + 1
+        endif        
 
         !Property time step
         if (NewProperty%Evolution%Variable) then
@@ -5277,6 +5390,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     PropertyX%MB%TranspiredMass      = 0.0
                     PropertyX%MB%DNExchangeMass      = 0.0
                     PropertyX%MB%RPExchangeMass      = 0.0
+                    PropertyX%MB%TotalDischargeMass  = 0.0
                 endif
                 
                 PropertyX => PropertyX%Next
@@ -5288,6 +5402,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             
             !Nutrient sources from vegetation. Sinks are explicit or implict cared in transport
             call InterfaceFluxes
+
+            !Water discharges fluxes - explicit because may exist more than one discharge in the same cell
+            if (Me%Coupled%Discharges) call ModifyDischarges
             
             if (Me%Coupled%AdvectionDiffusion) then
                 call AdvectionDiffusionProcesses
@@ -5364,6 +5481,193 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !-----------------------------------------------------------------------------
 
+    subroutine ModifyDischarges ()
+
+        !Arguments--------------------------------------------------------------
+        !Local------------------------------------------------------------------
+        integer                                 :: iDis, nDischarges
+        integer                                 :: i, j, k
+        integer                                 :: STAT_CALL
+        real, dimension(:, :, :), pointer       :: FlowDischarge
+        real, dimension(:, :   ), pointer       :: DischargesConc
+        type (T_Property), pointer              :: Property
+        integer                                 :: iProp
+        real                                    :: VolumeOld
+
+
+        !Get integrated flow from runoff to be sure using same values
+        call GetFlowDischarge (Me%ObjPorousMedia, FlowDischarge, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ModifyDischarges - ERR01'
+        
+        !Get concentration
+        !Gets the number of discharges
+        call GetDischargesNumber(Me%ObjDischarges, nDischarges, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ModifyDischarges - ERR010'
+        
+        allocate(DischargesConc(nDischarges, Me%nPropWithDischarge))
+        DischargesConc = null_real
+        
+        do iDis = 1, nDischarges
+
+            call GetDischargesGridLocalization(Me%ObjDischarges,                        &
+                                               DischargeIDNumber = iDis,                &
+                                               Igrid = i,                               &
+                                               JGrid = j,                               &
+                                               KGrid = k,                               &
+                                               STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ModifyDischarges - ERR020'
+            
+            if (k /= 0) then
+                
+                nullify (Property)
+                Property => Me%FirstProperty
+                iProp = 0
+                do while (associated (Property))
+                    
+                    if (Property%Evolution%Discharges) then 
+                        
+                        iProp = iProp + 1
+
+                        !Gets Discharge Concentration for this cycle of iter
+                        call GetDischargeConcentration (Me%ObjDischarges,                           &
+                                                        Me%ExtVar%Now,                              &
+                                                        iDis, DischargesConc(iDis, iProp),          &
+                                                        Property%ID%IDNumber,                       &
+                                                        STAT = STAT_CALL)
+                        if (STAT_CALL/=SUCCESS_) then
+                            if (STAT_CALL == NOT_FOUND_ERR_) then 
+                                !When a property is not found associated to a discharge
+                                !by default is consider that the concentration is zero
+                                DischargesConc(iDis, iProp) = 0.
+                            else
+                                stop 'ModulePorousMediaProperties - ModifyDischarges - ERR030'
+                            endif
+                        endif
+                        
+                        !In case of negative discharge flux for mass balance is done using old concentration
+                        !and before concentration is updated in routine DischargeProperty
+                        !Do not move this computation to after DischargeProperty
+                        !In case of positive use dicharge concentration
+                        if (Me%CheckGlobalMass) then
+                            if (FlowDischarge(i,j,k) .lt. 0.0) then                        
+                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j,k)   &
+                                                                 * Me%ExtVar%DT * Property%ConcentrationOld(i,j,k))
+                            else
+                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j,k)  &
+                                                                 * Me%ExtVar%DT * DischargesConc(i, j))
+                            
+                            endif
+                        endif
+                        
+                        !initial volume in runoff - no discharge
+                        !m3 = m3H20/m3cell * m3cell
+                        VolumeOld = Me%ExtVar%WaterContentOld(i,j,k) * Me%ExtVar%CellVolume(i,j,k)
+                        
+                        !Update old concentration (same as doing new concentrarion and then old = new before other processes)
+                        call DischargeProperty (FlowDischarge(i,j,k), DischargesConc(iDis, iProp),        &
+                                                i, j, k, VolumeOld,   Property, Me%ExtVar%DT, .false.)
+                        
+                    end if
+                                    
+                    Property => Property%Next
+
+                enddo
+           
+           endif
+           
+        enddo
+        
+        deallocate (DischargesConc)
+        
+        call UngetPorousMedia (Me%ObjPorousMedia, FlowDischarge, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ModifyDischarges - ERR040'
+
+    end subroutine ModifyDischarges  
+    
+    !--------------------------------------------------------------------------
+
+    subroutine DischargeProperty (DischargeFlow, DischargeConc, Igrid, Jgrid, Kgrid, VolumeOld,         &
+                                   Property, LocalDT, Accumulate)
+        !Arguments--------------------------------------------------------------
+        real                                        :: DischargeFlow, DischargeConc
+        real(8)                                     :: VolumeOld
+        integer                                     :: Igrid, Jgrid, Kgrid
+        type (T_Property), pointer                  :: Property
+        real                                        :: LocalDT
+        logical                                     :: Accumulate
+
+        !Local------------------------------------------------------------------
+        real(8)                                     :: DischargeVolume
+        real(8)                                     :: OldMass, NewMass
+        real                                        :: Concentration
+        
+        Concentration = Property%ConcentrationOld(Igrid,Jgrid,Kgrid) 
+
+        if (abs(DischargeFlow) > AllmostZero) then
+            
+            ![m3] = [s] * [m3/s]
+            DischargeVolume  = dble(LocalDT)*dble(DischargeFlow)
+            
+            ![g] = [g/m3] * [m3]
+            OldMass          = dble(Concentration) * VolumeOld            
+        
+            if      (DischargeFlow > 0.0) then
+
+                !Explicit discharges input 
+                ![g] = [g] + [m3] * [g/m3]
+                NewMass          = OldMass + DischargeVolume * dble(DischargeConc)                                       
+                
+                ![g/m3] = [g] / (m3 + m3/s * s)
+                Concentration = NewMass / (VolumeOld + DischargeFlow * LocalDT)
+
+            elseif (DischargeFlow < 0.0 .and. VolumeOld > 0.0) then
+                    
+                !If the discharge flow is negative (Output) then the concentration
+                !to consider is the concentration of the cell where the discharge
+                !is located
+
+                !There is no accumulation since there is no particulate properties dissolved
+                
+!                if (Accumulate) then
+!                    NewMass          = OldMass
+!                else
+                    NewMass          = OldMass * (1.0 + DischargeVolume / VolumeOld)
+!                endif
+                
+                !if water remains
+                if (abs(DischargeVolume) < VolumeOld) then
+                   
+                   ![g/m3] = [g] / [m3]
+                    Concentration    = NewMass / (VolumeOld + DischargeVolume)
+                
+                else   !if all water exits node than accumulated mass needs to be accounted in bottom!
+                    
+                    Concentration  = 0.0
+                    
+!                    if (Accumulate) then
+!                        ![kg/m2] = [kg/m2] + [g] * 1e-3 [kg/g] / m2
+!                        Property%BottomConcentration(Igrid,Jgrid) = Property%BottomConcentration(Igrid,Jgrid) +    &
+!                                                                    (NewMass * 1e-3 / Me%ExtVar%Area(Igrid,Jgrid))
+!                    endif
+                endif
+            endif
+
+        else
+            
+            !Do Nothing            
+
+        endif
+                    
+        !Update concOld with discharge
+        Property%ConcentrationOld(Igrid,Jgrid,KGrid) = Concentration
+
+
+    end subroutine DischargeProperty
+
+    !---------------------------------------------------------------------------
+
     subroutine ComputeECw 
     
         !Local--------------------------------------------------------------------
@@ -5395,9 +5699,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     subroutine ComputeVolumes
 
         !Local-----------------------------------------------------------------
-        integer :: i, j, k, CHUNK        
+        integer                                   :: i, j, k, CHUNK, STAT_CALL        
+        real, dimension(:,:,:), pointer           :: FlowDischarge
 
         !----------------------------------------------------------------------
+
+        !The discharge flows have to be added because they are accounted separately 
+        !see ModifyDischarges. Advection/Diffusion will onlye act between WaterContentBT 
+        !(Before Transport) and WaterColumnFinal (After Transport and other fluxes)
+
+        !Get integrated flow from runoff to be sure using same values
+        call GetFlowDischarge (Me%ObjPorousMedia, FlowDischarge, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ComputeVolumes - ERR01'
+        
         
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         !$OMP PARALLEL PRIVATE(I,J,K)
@@ -5412,13 +5726,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             if (Me%ExtVar%WaterPoints3D(i,j,k) == WaterPoint) then             
                  
                 Me%WaterVolume(i,j,k)        = Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)
-
+                
+                !m3H20/m3cell = m3H20/m3cell + m3H20/s * s /m3cell
+                Me%WaterContentBT(i,j,k)     = Me%ExtVar%WaterContentOld(i,j,k) +   &
+                                            (FlowDischarge(i,j,k) * Me%ExtVar%DT / Me%ExtVar%Cellvolume(i,j,k))
+                
             endif
         enddo
         enddo
         enddo
         !$OMP END DO
         !$OMP END PARALLEL 
+
+        call UngetPorousMedia (Me%ObjPorousMedia, FlowDischarge, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ComputeVolumes - ERR040'
+
                
         !Correct fluxw - take FluxW(KUB+1) because it would be interpreted by module advection diffusion
         !as an additional water flux with the conc of C(i,j,k)
@@ -5474,7 +5796,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         
         !$OMP PARALLEL PRIVATE(I,J,K)
 
-        ThetaOld  => Me%ExtVar%WaterContentOld
+        !ThetaOld  => Me%ExtVar%WaterContentOld
+        ThetaOld  => Me%WaterContentBT
         Theta     => Me%ExtVar%WaterContent
 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -5566,7 +5889,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         
         !$OMP PARALLEL PRIVATE(I,J,K)
 
-        ThetaOld  => Me%ExtVar%WaterContentOld
+        !ThetaOld  => Me%ExtVar%WaterContentOld
+        ThetaOld  => Me%WaterContentBT
         Theta     => Me%ExtVar%WaterContent
 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -6432,6 +6756,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
        !Compute water volume and remove infiltration from fluxZ 
        !(it would create error in AdvectionDiffusion routines)
+       !Also remove discharges because they were explicity computed
         call ComputeVolumes
         
         call ComputeThetaAtFaces
@@ -8577,7 +8902,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     CoefInterfBoundaryW = Me%COEFExpl%CoefInterfBoundaryWalls(i,j,k)
                     CoefInterfBoundaryB = Me%COEFExpl%CoefInterfBoundaryBottom(i,j,k)
                     
-                    CoefB = Me%ExtVar%WaterContentOld(i,j,k)/Me%ExtVar%WaterContent(i,j,k)
+                    !CoefB = Me%ExtVar%WaterContentOld(i,j,k)/Me%ExtVar%WaterContent(i,j,k)
+                    CoefB = Me%WaterContentBT(i,j,k)/Me%ExtVar%WaterContent(i,j,k)
                     
                     Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k) + CoefB * CurrProperty%ConcentrationOld(i,j,k  )                  &
                                                       + CoefInterfRunoff * CurrProperty%ConcentrationOnInfColumn(i,j)         &
@@ -8656,8 +8982,9 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         CoefInterfBoundaryB  = 0.0
                     endif                    
 
-                    CoefB = Me%ExtVar%WaterContentOld(i,j,k)/Me%ExtVar%WaterContent(i,j,k)
-
+                    !CoefB = Me%ExtVar%WaterContentOld(i,j,k)/Me%ExtVar%WaterContent(i,j,k)
+                    CoefB = Me%WaterContentBT(i,j,k)/Me%ExtVar%WaterContent(i,j,k)
+                    
                     Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k)                                                      &
                                         + coefB * CurrProperty%ConcentrationOld(i,j,k)                           &
                                         + CoefInterfRunoff * CurrProperty%ConcentrationOnInfColumn(i,j)          &

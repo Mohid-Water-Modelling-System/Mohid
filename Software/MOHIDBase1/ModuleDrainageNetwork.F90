@@ -1000,10 +1000,9 @@ Module ModuleDrainageNetwork
         integer, optional, intent(OUT)                  :: STAT     
 
         !Local-------------------------------------------------------------------
-        integer                                         :: nDischarges, iDis, NodePos, NodeID
-        logical                                         :: Found
         integer                                         :: STAT_CALL
-        integer                                         :: ready_         
+        integer                                         :: ready_ 
+        integer                                         :: NodeID        
         type (T_Node), pointer                          :: CurrNode
         type(T_Property), pointer                       :: Property
         real                                            :: BottomMass
@@ -1084,40 +1083,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call InitializeVariables
 
             if (Me%ComputeOptions%Discharges) then
-                call Construct_Discharges(Me%ObjDischarges,                              &
-                                          Me%ObjTime,                                    &
-                                          STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR02'  
-                
-                !Build Discharge NodeID / NodePos link
-                !Gets the number of discharges
-                call GetDischargesNumber(Me%ObjDischarges, nDischarges, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR03'
-
-                allocate(Me%DischargesLink(nDischarges))
-                allocate(Me%DischargesFlow(nDischarges))
-                allocate(Me%DischargesConc(nDischarges, Me%nPropWithDischarges))
-
-                do iDis = 1, nDischarges
-
-                    call GetDischargesNodeID  (Me%ObjDischarges, iDis, NodeID, STAT = STAT_CALL)
-                    if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR04'
-
-                    call FindNodePosition   (NodeID, NodePos, Found)
-
-                    CurrNode => Me%Nodes(NodePos)
-                    CurrNode%Discharges = .true.
-                    
-                    if (Found) then
-                        Me%DischargesLink(iDis) = NodePos
-                    else
-                        write (*,*) 'Discharge Node not found'
-                        write (*,*) 'Node ID = ', NodeID            
-                        stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR05'
-                    end if
-                    
-                end do
-                
+                call ConstructDischarges
             endif        
             
             !Link to StormWaterModel
@@ -1198,6 +1164,56 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ConstructDrainageNetwork
  
     !---------------------------------------------------------------------------
+    
+    subroutine ConstructDischarges
+
+        !Arguments--------------------------------------------------------------
+                                                    
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        integer                                         :: nDischarges, iDis, NodePos, NodeID
+        logical                                         :: Found
+        type (T_Node), pointer                          :: CurrNode
+
+
+        call Construct_Discharges(Me%ObjDischarges,                              &
+                                  Me%ObjTime,                                    &
+                                  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR02'  
+        
+        !Build Discharge NodeID / NodePos link
+        !Gets the number of discharges
+        call GetDischargesNumber(Me%ObjDischarges, nDischarges, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR03'
+
+        allocate(Me%DischargesLink(nDischarges))
+        allocate(Me%DischargesFlow(nDischarges))
+        allocate(Me%DischargesConc(nDischarges, Me%nPropWithDischarges))
+
+        do iDis = 1, nDischarges
+
+            call GetDischargesNodeID  (Me%ObjDischarges, iDis, NodeID, STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR04'
+
+            call FindNodePosition   (NodeID, NodePos, Found)
+
+            CurrNode => Me%Nodes(NodePos)
+            CurrNode%Discharges = .true.
+            
+            if (Found) then
+                Me%DischargesLink(iDis) = NodePos
+            else
+                write (*,*) 'Discharge Node not found'
+                write (*,*) 'Node ID = ', NodeID            
+                stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR05'
+            end if
+            
+        end do
+    
+    
+    endsubroutine ConstructDischarges            
+    
+    !--------------------------------------------------------------------------
     
     subroutine AllocateInstance
 
@@ -9671,6 +9687,7 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
         real(8)                                     :: DischargeVolume
         real(8)                                     :: OldMass, NewMass
         real                                        :: ISDischargeConc, ISConcentration
+        type (T_Node ), pointer                     :: CurrNode
         
         ISDischargeConc = DischargeConc * ISCoef
         ISConcentration = Property%Concentration(NodeID) * ISCoef
@@ -9715,7 +9732,12 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
                     ISConcentration  = 0.0
                     
                     if (Accumulate) then
-                        Property%BottomConc(NodeID) = Property%BottomConc(NodeID) + NewMass
+                        CurrNode => Me%Nodes(NodeID)
+                        ![kg/m2] = [kg/m2] + [g] * 1e-3 [kg/g] / m2
+                        Property%BottomConc(NodeID) = Property%BottomConc(NodeID) +            &
+                                                      (NewMass * 1e-3 /                        &
+                                                       (CurrNode%CrossSection%BottomWidth *    &
+                                                             CurrNode%Length))
                     endif
                 endif
             endif

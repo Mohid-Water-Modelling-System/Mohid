@@ -104,6 +104,11 @@ Module ModulePorousMedia
                                        SetHeightValues, GetNumberOfTriangles,            &
                                        GetTriangleList, GetNumberOfNodes, GetNodesList,  &
                                        KillTriangulation
+    use ModuleDischarges        ,only : Construct_Discharges, GetDischargesNumber,       &
+                                        GetDischargesGridLocalization,                   &
+                                        GetDischargeWaterFlow, GetDischargesIDName,      &
+                                        TryIgnoreDischarge, GetDischargeSpatialEmission, &
+                                        CorrectsCellsDischarges, Kill_Discharges
 
     implicit none
 
@@ -134,6 +139,7 @@ Module ModulePorousMedia
     public  ::  GetGWToChannelsLayers
     public  ::  GetGWLayer
     public  ::  GetGWLayerOld
+    public  ::  GetFlowDischarge
     public  ::  GetPorousMediaTotalStoredVolume
     public  ::  GetFluxU
     public  ::  GetFluxV
@@ -404,6 +410,7 @@ Module ModulePorousMedia
         logical :: ImposeBoundaryWalls                                  = .false. !Boundary imposed in wall
         logical :: ImposeBoundaryBottom                                 = .false. !Boundary imposed in bottom
         logical :: WriteLog                                             = .false.
+        logical :: Discharges                                           = .false.
     end type T_SoilOptions
 
     type T_SoilType
@@ -463,6 +470,7 @@ Module ModulePorousMedia
         integer                                 :: ObjEnterData             = 0
         integer                                 :: ObjProfile               = 0
         integer                                 :: ObjTriangulation         = 0
+        integer                                 :: ObjDischarges            = 0        
         type (T_PropertyID)                     :: ImpermeableFractionID
         
         real,    allocatable, dimension(:,:,:)  :: ThetaField        !!FieldCapacity [m3/m3]                
@@ -498,6 +506,10 @@ Module ModulePorousMedia
         real,    dimension(:,:,:), allocatable  :: iFlowToChannelsLayer     
         integer, dimension(:,:),   allocatable  :: FlowToChannelsTopLayer   
         integer, dimension(:,:),   allocatable  :: FlowToChannelsBottomLayer 
+        
+        !Discharge
+        real,    dimension(:,:,:), allocatable  :: lFlowDischarge          !Instantaneous Flow of discharges
+        real,    dimension(:,:,:), allocatable  :: iFlowDischarge          !Integrated    Flow of discharges
 
         !Velocities
         real,    dimension(:,:,:), allocatable  :: UnsatVelU               
@@ -597,6 +609,7 @@ Module ModulePorousMedia
                                     ConstructTranspiration,                     &
                                     GeometryID,                                 &
                                     MapID,                                      &
+                                    DischargesID,                               &
                                     STAT)
 
         !Arguments---------------------------------------------------------------
@@ -612,6 +625,7 @@ Module ModulePorousMedia
         logical                                         :: ConstructEvaporation
         logical                                         :: ConstructTranspiration
         integer, intent (OUT)                           :: GeometryID
+        integer, intent (OUT)                           :: DischargesID
         integer, intent (OUT)                           :: MapID
         integer, optional, intent(OUT)                  :: STAT     
 
@@ -708,6 +722,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (.not. Me%Boundary%ImposedLevelConstant) call ModifyBoundaryLevel
             endif
             
+            if (Me%SoilOpt%Discharges) then
+                call ConstructDischarges
+            endif
+            
             if (Me%SoilOpt%Continuous)  call ReadInitialSoilFile
             
             !Calculates initial Theta
@@ -757,7 +775,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Returns ID
             ObjPorousMediaID          = Me%InstanceID
-
+            DischargesID              = Me%ObjDischarges
+            
             STAT_ = SUCCESS_
 
         else cd0
@@ -1237,6 +1256,16 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             endif
             
         endif
+
+        !Discharges
+        call GetData(Me%SoilOpt%Discharges,                                 &
+                     Me%ObjEnterData, iflag,                                &  
+                     keyword      = 'DISCHARGES',                           &
+                     ClientModule = 'ModulePorousMedia',                    &
+                     SearchType   = FromFile,                               &
+                     Default      = .false.,                                &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR277'
 
         !Number of iterations below which the DT is increased
         call GetData(Me%CV%MinIter,                                             &
@@ -1734,6 +1763,12 @@ do1:     do
         allocate(Me%lFlowToChannelsLayer    (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate(Me%FlowToChannelsTopLayer          (ILB:IUB,JLB:JUB))
         allocate(Me%FlowToChannelsBottomLayer       (ILB:IUB,JLB:JUB))
+        
+        allocate(Me%lFlowDischarge    (ILB:IUB,JLB:JUB,KLB:KUB))
+        allocate(Me%iFlowDischarge    (ILB:IUB,JLB:JUB,KLB:KUB))
+        Me%lFlowDischarge        = 0.0   !Sets values initially to zero, so 
+        Me%iFlowDischarge        = 0.0   !model can run without Dis
+                
         if (Me%SoilOpt%ImposeBoundary) then
             if (Me%SoilOpt%ImposeBoundaryWalls) then
                 allocate(Me%Boundary%ImposedBoundaryLevel (ILB:IUB,JLB:JUB))
@@ -1761,6 +1796,150 @@ do1:     do
         Me%FluxWAccFinal = 0.0
     end subroutine AllocateVariables
 
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructDischarges
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------        
+        character(len=StringLength)                 :: DischargeName
+        real                                        :: CoordinateX, CoordinateY
+        logical                                     :: CoordinatesON, IgnoreOK
+        integer                                     :: Id, Jd, dn, DischargesNumber
+        integer                                     :: STAT_CALL
+
+        call Construct_Discharges(Me%ObjDischarges, Me%ObjTime, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMedia - ConstructDischarges - ERR01' 
+                
+        call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMedia - ConstructDischarges - ERR02' 
+
+        do dn = 1, DischargesNumber
+
+            call GetDischargesGridLocalization(Me%ObjDischarges, dn,            &
+                                               CoordinateX   = CoordinateX,     &
+                                               CoordinateY   = CoordinateY,     & 
+                                               CoordinatesON = CoordinatesON,   &
+                                               STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMedia - ConstructDischarges - ERR03' 
+                    
+            call GetDischargesIDName (Me%ObjDischarges, dn, DischargeName, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMedia - ConstructDischarges - ERR03' 
+
+            if (CoordinatesON) then
+                
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMedia - ConstructDischarges - ERR04' 
+
+                if (Id < 0 .or. Jd < 0) then
+                
+                    call TryIgnoreDischarge(Me%ObjDischarges, dn, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMedia - ConstructDischarges - ERR05' 
+
+                    if (IgnoreOK) then
+                        write(*,*) 'Discharge outside the domain - ',trim(DischargeName),' - ',trim(Me%ModelName)
+                        cycle
+                    else
+                        stop 'ModulePorousMedia - ConstructDischarges - ERR06' 
+                    endif
+
+                endif
+
+                call CorrectsCellsDischarges(Me%ObjDischarges, dn, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMedia - ConstructDischarges - ERR07' 
+                    
+            endif
+
+            !
+            !FROM HERE TO THE END NOT TESTED CODE
+            !
+
+!
+!            call GetDischargeSpatialEmission(Me%ObjDischarges, dn, LineX, PolygonX, &
+!                                             SpatialEmission, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR08' 
+!                    
+!            if (SpatialEmission == DischPoint_) then
+! 
+!                call GetDischargesGridLocalization(Me%ObjDischarges, dn,            &
+!                                                   Igrid         = Id,              &
+!                                                   JGrid         = Jd,              &
+!                                                   STAT          = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR09' 
+!
+!                if (Me%ExtVar%BasinPoints(Id,Jd) /= WaterPoint) then
+!                    call TryIgnoreDischarge(Me%ObjDischarges, dn, IgnoreOK, STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR10' 
+!
+!                    write(*,*) 'Discharge outside the domain I=',Id,' J=',Jd,'Model name=',trim(Me%ModelName)
+!
+!                    if (IgnoreOK) then
+!                        write(*,*) 'Discharge in a land cell - ',trim(DischargeName),' - ',trim(Me%ModelName)
+!                        cycle
+!                    else
+!                        stop 'ModuleRunOff - ConstructDischarges - ERR11' 
+!                    endif
+!                endif
+!
+!                nCells    = 1
+!                allocate(VectorI(nCells), VectorJ(nCells))
+!                VectorJ(nCells) = Jd
+!                VectorI(nCells) = Id
+!
+!            else
+!
+!                if (SpatialEmission == DischLine_) then
+!                    call GetCellZInterceptByLine(Me%ObjHorizontalGrid, LineX,       &
+!                                                 Me%ExtVar%BasinPoints, VectorI, VectorJ,   &
+!                                                 nCells, STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR12' 
+!
+!                    if (nCells < 1) then
+!                        write(*,*) 'Discharge line intercept 0 cells'       
+!                        stop 'ModuleRunOff - ConstructDischarges - ERR13' 
+!                    endif
+!
+!                endif 
+!
+!
+!                if (SpatialEmission == DischPolygon_) then
+!                    call GetCellZInterceptByPolygon(Me%ObjHorizontalGrid, PolygonX, &
+!                                                 Me%ExtVar%BasinPoints, VectorI, VectorJ,   &
+!                                                 nCells, STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR14' 
+!
+!                    if (nCells < 1) then
+!                        write(*,*) 'Discharge contains 0 center cells'       
+!                        write(*,*) 'Or the polygon is to small and is best to a discharge in a point or'
+!                        write(*,*) 'the polygon not define properly'
+!                        stop 'ModuleRunOff - ConstructDischarges - ERR15' 
+!                    endif
+!
+!                endif
+!
+!
+!            endif
+                        
+!            if (SpatialEmission /= DischPoint_) then
+!
+!
+!                call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR16' 
+!
+!            else  i4
+!                if (DischVertical == DischBottom_ .or. DischVertical == DischSurf_) then
+!                    call SetLayer (Me%ObjDischarges, dn, VectorK(nCells), STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR220' 
+!                endif
+!                deallocate(VectorI, VectorJ, VectorK)
+!            endif i4
+
+        enddo
+
+   
+    end subroutine
+    
     !--------------------------------------------------------------------------
     
     subroutine ReadSoilTypes
@@ -3730,6 +3909,37 @@ i1:         if (CoordON) then
 
     !--------------------------------------------------------------------------
 
+    subroutine GetFlowDischarge (ObjPorousMediaID, FlowDischarge, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real, dimension(:, :, :), pointer               :: FlowDischarge
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        call Ready(ObjPorousMediaID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            FlowDischarge => Me%iFlowDischarge
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetFlowDischarge    
+    
+    !--------------------------------------------------------------------------
+
     subroutine GetPorousMediaTotalStoredVolume (ObjPorousMediaID, TotalStoredVolume, LossToGround, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -5041,6 +5251,7 @@ i1:         if (CoordON) then
         call SetMatrixValue (Me%EfectiveEVTP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
         call SetMatrixValueAllocatable (Me%iFlowToChannels,  Me%Size2D, Zero,              Me%ExtVar%BasinPoints)
         call SetMatrixValueAllocatable (Me%iFlowToChannelsLayer,  Me%Size, Zero,         Me%ExtVar%WaterPoints3D)
+        call SetMatrixValueAllocatable (Me%iFlowDischarge,Me%Size, Zero,           Me%ExtVar%WaterPoints3D)
         if (Me%EvaporationExists) then
             call SetMatrixValue (Me%EfectiveEVAP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
         endif        
@@ -5064,6 +5275,7 @@ dConv:  do while (iteration <= Niteration)
             !Convergence Test
             call SetMatrixValueAllocatable (Me%CV%ThetaOld, Me%Size, Me%Theta, Me%ExtVar%WaterPoints3D)
 
+
             !Calculates Face Conductivities
             call Condutivity_Face
             
@@ -5083,6 +5295,11 @@ dConv:  do while (iteration <= Niteration)
             if (Me%EvaporationExists) then
                 call EvaporationFlux    ()
             endif
+
+            !Inputs Water from discharges - moved to CalculateNewTheta
+!            if (Me%SoilOpt%Discharges) then
+!                call ModifyWaterDischarges               
+!            endif
             
             !Calculates New Theta
             call CalculateNewTheta  ()
@@ -5110,6 +5327,7 @@ dConv:  do while (iteration <= Niteration)
                 call SetMatrixValue (Me%EfectiveEVTP,   Me%Size2D, dble(0.0),           Me%ExtVar%BasinPoints)
                 call SetMatrixValueAllocatable (Me%iFlowToChannels,Me%Size2D, Zero,                Me%ExtVar%BasinPoints)
                 call SetMatrixValueAllocatable (Me%iFlowToChannelsLayer,Me%Size, Zero,           Me%ExtVar%WaterPoints3D)
+                call SetMatrixValueAllocatable (Me%iFlowDischarge,Me%Size, Zero,           Me%ExtVar%WaterPoints3D)
                 if (Me%EvaporationExists) then
                     call SetMatrixValue (Me%EfectiveEVAP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
                 endif                 !Resets Accumulated flows
@@ -5172,6 +5390,73 @@ dConv:  do while (iteration <= Niteration)
         if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "VariableSaturatedFlow")   
 
     end subroutine VariableSaturatedFlow
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ModifyWaterDischarges ()
+
+        !Arguments--------------------------------------------------------------
+        !real                                    :: LocalDT
+
+        !Local------------------------------------------------------------------
+        integer                                 :: iDis, nDischarges
+        integer                                 :: i, j, k
+        real                                    :: SurfaceElevation    
+        real                                    :: Flow, MaxFlow
+        integer                                 :: STAT_CALL
+
+        !Sets to 0
+        call SetMatrixValueAllocatable(Me%lFlowDischarge, Me%Size, 0.0, Me%ExtVar%WaterPoints3D)
+
+        !Gets the number of discharges
+        call GetDischargesNumber(Me%ObjDischarges, nDischarges, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMedia - ModifyWaterDischarges - ERR01'
+
+        do iDis = 1, nDischarges
+
+            call GetDischargesGridLocalization(Me%ObjDischarges,                        &
+                                               DischargeIDNumber = iDis,                &
+                                               Igrid = i,                               &
+                                               JGrid = j,                               &
+                                               KGrid = k,                               &
+                                               STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMedia - ModifyWaterDischarges - ERR02'
+            
+            if (k /= 0) then
+                
+                !real(8) to real as expected in GetDischargeWaterFlow
+                SurfaceElevation = Me%ExtVar%Topography(i,j)
+                call GetDischargeWaterFlow(Me%ObjDischarges,                            &
+                                        Me%ExtVar%Now, iDis,                            &
+                                        SurfaceElevation,                               &
+                                        Flow, STAT = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMedia - ModifyWaterDischarges - ERR04'
+                
+                !each additional flow can remove all water column left
+                if (Flow .lt. 0.0) then
+                    !m3/s = m3 /s
+                    MaxFlow = - ((Me%Theta(i,j,k) - Me%RC%ThetaR(i, j,k)) *            &
+                                  Me%ExtVar%CellVolume(i,j,k)) / Me%CV%CurrentDT
+                  
+                    if (abs(Flow) .gt. abs(MaxFlow)) then
+                        Flow = MaxFlow 
+                    endif
+                endif
+
+                Me%lFlowDischarge(i, j, k)     = Me%lFlowDischarge(i, j, k) + Flow
+
+                Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) +          &
+                                     Me%lFlowDischarge(i, j, k) * Me%CV%CurrentDT) /              &
+                                     Me%ExtVar%CellVolume(i, j, k)
+
+
+                !if (Me%CheckMass) Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT
+ 
+            endif
+           
+        enddo
+
+    end subroutine ModifyWaterDischarges  
     
     !--------------------------------------------------------------------------
 
@@ -6209,6 +6494,14 @@ dConv:  do while (iteration <= Niteration)
         
         !$OMP END PARALLEL        
         
+        !Discharges - modify specific cells - more eficient than do's cicles fo all cells 
+        if (Me%SoilOpt%Discharges) then
+
+            call ModifyWaterDischarges
+            
+        endif        
+        
+        
         if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "CalculateNewTheta")
         
 
@@ -6234,9 +6527,44 @@ dConv:  do while (iteration <= Niteration)
             call IntegrateFlow (SumDT)
         endif
 
+        if (Me%SoilOpt%Discharges) then
+            call IntegrateDischargeFlow (SumDT)
+        endif
+
     end subroutine IntegrateValuesInTime
 
     !--------------------------------------------------------------------------
+
+
+    subroutine IntegrateDischargeFlow (SumDT)
+
+        !Arguments-------------------------------------------------------------
+        real                                        :: SumDT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k
+        integer                                     :: CHUNK
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !Integrates Flow Discharges        
+        !$OMP PARALLEL PRIVATE(I,J)
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            Me%iFlowDischarge(i, j, k) = (Me%iFlowDischarge(i, j, k) * SumDT + Me%lFlowDischarge(i, j, k) * Me%CV%CurrentDT) / &
+                                         (SumDT + Me%CV%CurrentDT)
+        enddo
+        enddo
+        !$OMP END DO NOWAIT      
+        enddo
+        !$OMP END PARALLEL  
+
+    end subroutine IntegrateDischargeFlow
+
+    !--------------------------------------------------------------------------
+
 
     subroutine UpdateWaterColumnInfiltration 
 

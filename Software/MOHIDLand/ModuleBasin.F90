@@ -560,6 +560,8 @@ Module ModuleBasin
         integer                                     :: ObjTimeSerieBasinMass2   = 0
         integer                                     :: ObjPorousMediaProperties = 0
         integer                                     :: ObjBWB                   = 0 !Basin Water Balance Timeseries ID
+        integer                                     :: ObjDischargesRunoff      = 0 !Discharges in Runoff
+        integer                                     :: ObjDischargesPM          = 0 !Discharges in PorousMedia
 #ifdef _ENABLE_CUDA
         integer                                     :: ObjCuda                  = 0
 #endif _ENABLE_CUDA
@@ -2752,6 +2754,7 @@ i1:         if (CoordON) then
                                          ConstructTranspiration = Me%ConstructTranspiration,&
                                          GeometryID             = Me%ObjGeometry,           &
                                          MapID                  = MapID,                    &
+                                         DischargesID           = Me%ObjDischargesPM,       &
                                          STAT                   = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR040'
             
@@ -2778,6 +2781,7 @@ i1:         if (CoordON) then
                                                        PorousMediaID              = Me%ObjPorousMedia,            &
                                                        GeometryID                 = Me%ObjGeometry,               &
                                                        MapID                      = MapID,                        &
+                                                       DischargesID               = Me%ObjDischargesPM,           &
                                                        CoupledDN                  = Me%Coupled%DrainageNetwork,   &
                                                        CheckGlobalMass            = Me%VerifyGlobalMass,          &
 #ifdef _ENABLE_CUDA
@@ -2835,6 +2839,7 @@ i1:         if (CoordON) then
                                          GridDataID         = Me%ObjGridData,            &
                                          BasinGeometryID    = Me%ObjBasinGeometry,       &
                                          DrainageNetworkID  = Me%ObjDrainageNetwork,     &
+                                         DischargesID       = Me%ObjDischargesRunoff,    &
                                          STAT               = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR070'
             
@@ -2848,6 +2853,7 @@ i1:         if (CoordON) then
                                                        BasinGeometryID            = Me%ObjBasinGeometry,          &
                                                        RunoffID                   = Me%ObjRunoff,                 &
                                                        GridDataID                 = Me%ObjGridData,               &
+                                                       DischargesID               = Me%ObjDischargesRunoff,       &
  !                                                      GeometryID                 = Me%ObjGeometry,               &
  !                                                      CoupledPMP                 = Me%Coupled%PorousMediaProperties, &
                                                        CoupledDN                  = Me%Coupled%DrainageNetwork,   &

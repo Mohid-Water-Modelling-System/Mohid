@@ -343,6 +343,7 @@ Module ModuleRunOff
                                GridDataID,                                      &
                                BasinGeometryID,                                 &
                                DrainageNetworkID,                               &
+                               DischargesID,                                    &
                                STAT)
 
         !Arguments---------------------------------------------------------------
@@ -355,6 +356,7 @@ Module ModuleRunOff
         integer                                         :: BasinGeometryID
         integer                                         :: DrainageNetworkID
         integer, optional, intent(OUT)                  :: STAT     
+        integer, intent (OUT)                           :: DischargesID
 
         !External----------------------------------------------------------------
         integer                                         :: ready_         
@@ -454,6 +456,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Returns ID
             RunOffID          = Me%InstanceID
+            DischargesID      = Me%ObjDischarges
 
             STAT_ = SUCCESS_
 
@@ -3361,7 +3364,7 @@ doIter:         do while (iter <= Niter)
         integer                                 :: iDis, nDischarges
         integer                                 :: i, j, k
         real                                    :: SurfaceElevation    
-        real                                    :: Flow    
+        real                                    :: Flow, MaxFlow   
         integer                                 :: STAT_CALL
 
         !Sets to 0
@@ -3390,6 +3393,16 @@ doIter:         do while (iter <= Niter)
                                         SurfaceElevation,                               &
                                         Flow, STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR04'
+                
+                !each additional flow can remove all water column left
+                if (Flow .lt. 0.0) then
+                    !m3/s = m3 /s
+                    MaxFlow = - Me%myWaterVolume(i, j) / LocalDT
+                  
+                    if (abs(Flow) .gt. abs(MaxFlow)) then
+                        Flow = MaxFlow 
+                    endif
+                endif
 
                 Me%lFlowDischarge(i, j)     = Me%lFlowDischarge(i, j) + Flow
 
@@ -6477,8 +6490,8 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: ILB, IUB, JLB, JUB
         real                                        :: dh, dVOl
         !logical                                     :: NearBoundary
-        real                                        :: AreaZX, AreaZY, Width
-        real                                        :: WaveHeight, Celerity
+        real                                        :: AreaZX, AreaZY !, Width
+        real                                        :: WaveHeight, Celerity, MaxFlow
 
         !Routes water outside the watershed if water is higher then a given treshold values
         ILB = Me%WorkSize%ILB
@@ -6487,7 +6500,7 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         JUB = Me%WorkSize%JUB
         
         !Default is zero
-        Me%lFlowBoundary = 0.0
+        Me%iFlowBoundary = 0.0
         
         !Sets Boundary values
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -6531,11 +6544,11 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 !                                                     0.5 * Area * sqrt(Gravity * dh))
 
                         !U direction - use middle area because in closed faces does not exist AreaU
-                        !if gradient positive, than flow negative (exiting soil)
+                        !flow negative (exiting runoff)
                         AreaZX = Me%ExtVar%DVY(i,j) * Me%myWaterColumn(i,j)
                         do dj = 0, 1
                             if ((Me%ComputeFaceU(i,j+dj) == 0)) then
-                                Me%lFlowBoundary(i, j) = Me%lFlowBoundary(i, j) + AreaZX * Celerity
+                                Me%iFlowBoundary(i, j) = Me%iFlowBoundary(i, j) - AreaZX * Celerity
                             endif
                         enddo
 
@@ -6543,18 +6556,23 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                         AreaZY = Me%ExtVar%DUX(i,j) * Me%myWaterColumn(i,j)                      
                         do di = 0, 1
                             if ((Me%ComputeFaceV(i+di,j) == 0)) then
-                                Me%lFlowBoundary(i, j) = Me%lFlowBoundary(i, j) + AreaZY * Celerity
+                                Me%iFlowBoundary(i, j) = Me%iFlowBoundary(i, j) - AreaZY * Celerity
                             endif
                         enddo
-
+                        
+                        !cant remove more than up to boundary or water column if boundary lower than topography 
+                        !negative flow 
+                        !m3/s = m * m2 / s
+                        MaxFlow = - min(dh, WaveHeight) *  Me%ExtVar%GridCellArea(i, j) / Me%ExtVar%DT
+                        
                         !m3/s = m2 * m/s 
-                        Me%lFlowBoundary(i, j)  = max (Me%lFlowBoundary(i, j), Me%myWaterVolume (i, j) / Me%ExtVar%DT)
+                        Me%iFlowBoundary(i, j)  = max (Me%iFlowBoundary(i, j), MaxFlow)
                         
                         !dVol
-                        dVol = Me%lFlowBoundary(i, j) * Me%ExtVar%DT
+                        dVol = Me%iFlowBoundary(i, j) * Me%ExtVar%DT
                             
                         !Updates Water Volume
-                        Me%myWaterVolume (i, j)   = Me%myWaterVolume (i, j)   - dVol 
+                        Me%myWaterVolume (i, j)   = Me%myWaterVolume (i, j)   + dVol 
                             
                         !Updates Water Column
                         Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)  / Me%ExtVar%GridCellArea(i, j)
@@ -6564,7 +6582,7 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                         
                     else
                     
-                        Me%lFlowBoundary(i, j) = 0.0
+                        Me%iFlowBoundary(i, j) = 0.0
                     
                     endif
 

@@ -81,12 +81,19 @@ Module ModuleRunoffProperties
                                          GetRunoffWaterColumnOld, GetRunoffWaterColumn,       &
                                          GetManning, GetManningDelta, GetRunoffCenterVelocity, &
                                          GetRunoffWaterColumnAT, GetBoundaryImposed,          &
-                                         GetBoundaryCells, GetBoundaryFlux
+                                         GetBoundaryCells, GetBoundaryFlux, GetFlowDischarge
                                            
 !    use ModuleInterface,          only : ConstructInterface, Modify_Interface
     use ModuleAdvectionDiffusion, only : StartAdvectionDiffusion, AdvectionDiffusion,      &
                                          GetAdvFlux, GetDifFlux, GetBoundaryConditionList, &
                                          UngetAdvectionDiffusion, KillAdvectionDiffusion
+
+    use ModuleDischarges        ,only : Construct_Discharges, GetDischargesNumber,       &
+                                        GetDischargesGridLocalization,                   &
+                                        GetDischargeWaterFlow, GetDischargesIDName,      &
+                                        TryIgnoreDischarge, GetDischargeSpatialEmission, &
+                                        CorrectsCellsDischarges, Kill_Discharges,        &
+                                        GetDischargeConcentration
 
    implicit none
 
@@ -347,6 +354,7 @@ Module ModuleRunoffProperties
         logical                                 :: WarnOnNegativeValues   = .false.
         logical                                 :: Decay                  = .false.
         real                                    :: DecayRate              = null_real
+        logical                                 :: Discharges             = .false.        
         type (T_AdvectionDiffusion)             :: AdvDiff
         type (T_Partition                    )  :: Partition
         type (T_Boundary)                       :: Boundary                
@@ -355,6 +363,7 @@ Module ModuleRunoffProperties
     type T_MassBalance
         real(8)                                 :: TotalStoredMass        = null_real
         real(8)                                 :: DNExchangeMass         = null_real
+        real(8)                                 :: TotalDischargeMass     = null_real
     end type T_MassBalance
     
     type T_Files
@@ -450,6 +459,7 @@ Module ModuleRunoffProperties
         logical                                     :: Splash_CriticalHeight    = .false.
         integer                                     :: Splash_ErosiveRainMethod = null_int   ! 1-constant, 2 - real rain
         logical                                     :: DTIntervalAssociated     = .false.
+        logical                                     :: Discharges               = .false.
             
     end type T_ComputeOptions
 
@@ -486,6 +496,7 @@ Module ModuleRunoffProperties
         integer                                     :: ObjHDF5              = 0
         integer                                     :: ObjProfile           = 0
         integer                                     :: ObjInterface         = 0
+        integer                                     :: ObjDischarges        = 0
 !#ifdef _PHREEQC_        
 !        integer                                     :: ObjPhreeqC                = 0
 !        integer                                     :: ObjInterfaceSoilChemistry = 0 
@@ -538,6 +549,9 @@ Module ModuleRunoffProperties
         real(8), pointer, dimension(:,:)            :: WaterVolume     => null()
         integer, pointer, dimension(:,:)            :: DummyOpenPoints => null()
 
+        real(8), pointer, dimension(:,:)           :: WaterColumnBT  => null()       !Water Column Before Transport
+        
+        integer                                     :: nPropWithDischarge   = 0
        
         logical                                     :: NewFormulation       = .false.   !New formulation for advection 
         integer                                     :: AdvDiff_AdvMethodH   = null_int  !methods are general for all the properties
@@ -573,6 +587,7 @@ Module ModuleRunoffProperties
                                               BasinGeometryID,                            &
                                               RunoffID,                                   &
                                               GridDataID,                                 &
+                                              DischargesID,                               &
                                               CoupledDN,                                  &
                                               CheckGlobalMass,                            &
                                               CoupledVegetation,                          &
@@ -588,6 +603,7 @@ Module ModuleRunoffProperties
         integer                                         :: BasinGeometryID
         integer                                         :: RunoffID
         integer                                         :: GridDataID
+        integer                                         :: DischargesID
         logical, optional                               :: CoupledDN 
         logical                                         :: CheckGlobalMass
         logical                                         :: CoupledVegetation
@@ -652,6 +668,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ConstructPartition
             end if            
             
+            if (Me%ComputeOptions%Discharges) then
+                call ConstructDischarges(DischargesID)
+            endif
+            
             call ConstructData2D
             
             call AllocateVariables
@@ -711,6 +731,80 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
  
     !--------------------------------------------------------------------------
 
+    subroutine ConstructDischarges(DischargesID)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: DischargesID 
+        !Local------------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: nDischarges, iDis
+        character(len=StringLength)                 :: DischargeName
+        real                                        :: CoordinateX, CoordinateY
+        logical                                     :: CoordinatesON, IgnoreOK
+        integer                                     :: Id, Jd
+         
+
+        !ObjDischarges comes from ModueRunoff
+!        call Construct_Discharges(Me%ObjDischarges,                              &
+!                                  Me%ObjTime,                                    &
+!                                  STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunoffProperties - ConstructDischarges - ERR01'  
+
+        if (DischargesID == 0)  then                                                
+            write(*,*)'You need to define DISCHARGES : 1 in the RUNOFF input file' 
+            stop      'ModuleRunoffProperties - ConstructDischarges - ERR01'
+        else            
+            Me%ObjDischarges     = AssociateInstance (mDISCHARGES_,     DischargesID    )
+        endif
+        
+        !Gets the number of discharges
+        call GetDischargesNumber(Me%ObjDischarges, nDischarges, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunoffProperties - ConstructDischarges - ERR010'
+
+        do iDis = 1, nDischarges
+
+            call GetDischargesGridLocalization(Me%ObjDischarges,                &
+                                               DischargeIDNumber = iDis,        &
+                                               CoordinateX   = CoordinateX,     &
+                                               CoordinateY   = CoordinateY,     & 
+                                               CoordinatesON = CoordinatesON,   &
+                                               STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunoffProperties - ConstructDischarges - ERR020' 
+                    
+            call GetDischargesIDName (Me%ObjDischarges, iDis, DischargeName, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunoffProperties - ConstructDischarges - ERR030' 
+
+            if (CoordinatesON) then
+                
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleRunoffProperties - ConstructDischarges - ERR040' 
+
+                if (Id < 0 .or. Jd < 0) then
+                
+                    call TryIgnoreDischarge(Me%ObjDischarges, iDis, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunoffProperties - ConstructDischarges - ERR050' 
+
+                    if (IgnoreOK) then
+                        write(*,*) 'Discharge outside the domain - ',trim(DischargeName)
+                        cycle
+                    else
+                        stop 'ModuleRunoffProperties - ConstructDischarges - ERR060' 
+                    endif
+
+                endif
+
+                call CorrectsCellsDischarges(Me%ObjDischarges, iDis, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleRunoffProperties - ConstructDischarges - ERR070' 
+                    
+            endif
+            
+        enddo
+    
+    
+    endsubroutine ConstructDischarges            
+    
+    !--------------------------------------------------------------------------
+
     subroutine CheckBoundary
 
         !Arguments-------------------------------------------------------------
@@ -757,7 +851,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write(*, *)"---Settl. Deposition: ", CurrentProperty%Evolution%Deposition
             write(*, *)"---Infil. Deposition:  T"                  !by default
             write(*, *)"---Partitioning     : ", CurrentProperty%Evolution%Partitioning
- !           write(*, *)"---Discharges       : ", CurrentProperty%Evolution%Discharges
+            write(*, *)"---Discharges       : ", CurrentProperty%Evolution%Discharges
             write(*, *)
 
             CurrentProperty=>CurrentProperty%Next
@@ -1007,7 +1101,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             allocate(Me%DummyOpenPoints(ILB:IUB, JLB:JUB))
             Me%DummyOpenPoints = 0
-
+            
+            allocate(Me%WaterColumnBT(ILB:IUB, JLB:JUB))
+            Me%WaterColumnBT = 0.0
+            
             allocate (Me%COEFExpl%CoefInterfDN     (ILB:IUB,JLB:JUB))
             Me%COEFExpl%CoefInterfDN        = 0.0
             allocate (Me%COEFExpl%CoefInterfBoundary (ILB:IUB,JLB:JUB))
@@ -1682,6 +1779,21 @@ cd2 :           if (BlockFound) then
             if (STAT_CALL .NE. SUCCESS_)                                                     &
                 stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR70'            
             
+        endif
+
+        call GetData(NewProperty%Evolution%Discharges,                              &
+                     Me%ObjEnterData, iflag,                                        &
+                     Keyword        = 'DISCHARGES',                                 &
+                     ClientModule   = 'ModuleRunoffProperties',                      &
+                     SearchType     = FromBlock,                                    &
+                     Default        = OFF,                                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR80' 
+        
+        if (NewProperty%Evolution%Discharges) then
+            Me%ComputeOptions%Discharges = .true.
+            Me%nPropWithDischarge = Me%nPropWithDischarge + 1
         endif
         
         !Property time step
@@ -4629,6 +4741,7 @@ cd0:    if (Exist) then
                 if (Me%CheckGlobalMass) then
                     PropertyX%MB%TotalStoredMass     = 0.0
                     PropertyX%MB%DNExchangeMass      = 0.0
+                    PropertyX%MB%TotalDischargeMass  = 0.0
                 endif
                 
                 PropertyX => PropertyX%Next
@@ -4643,7 +4756,11 @@ cd0:    if (Exist) then
             !Nutrient sources from vegetation - fertilization particulate to fluff layer 
             call InterfaceFluxes
             
-            !Now adevection diffusion has only the transport between cells existing in Runoff
+            !Water discharges fluxes - explicit because may exist more than one discharge in the same cell
+            if (Me%ComputeOptions%Discharges) call ModifyDischarges
+            
+            !Now adevection diffusion has only the transport between cells after discharge took place
+            !Discharge flow is accounted for "Old" volume and advection/diffusion new volume is the one after transport
             if (Me%Coupled%AdvectionDiffusion) then
                 call AdvectionDiffusionProcesses
             endif
@@ -4660,12 +4777,15 @@ cd0:    if (Exist) then
                 PropertyX => PropertyX%Next
             enddo
             
-            !DN fluxes had to be separated from Advection Diffusion 
+            !DN fluxes had to be separated from Advection Diffusion because these fluxes usually remove all water in one time step 
+            !that would generate conc zero to river. However flux to river took the concentration after transport
+            !Because boundary fluxes may occur the volumes had to be updated
             if (Me%ExtVar%CoupledDN) then
                 call ModifyDrainageNetworkInterface
             endif
             
-            !Boundary fluxes had to be changed for same reason
+            !Boundary fluxes had to be changed for same reason as DN fluxes
+            !Because DN fluxes may occur the volumes had to be updated
             if (Me%ExtVar%BoundaryImposed) then
                 call ModifyBoundaryInterface
             endif
@@ -4730,6 +4850,193 @@ cd0:    if (Exist) then
     end subroutine ModifyRunoffProperties
 
     !-----------------------------------------------------------------------------
+
+    subroutine ModifyDischarges ()
+
+        !Arguments--------------------------------------------------------------
+        !Local------------------------------------------------------------------
+        integer                                 :: iDis, nDischarges
+        integer                                 :: i, j, k
+        integer                                 :: STAT_CALL
+        real, dimension(:, :), pointer          :: FlowDischarge
+        real,    dimension(:,:), pointer        :: DischargesConc
+        type (T_Property), pointer              :: Property
+        integer                                 :: iProp
+        real                                    :: VolumeOld
+
+
+        !Get integrated flow from runoff to be sure using same values
+        call GetFlowDischarge (Me%ObjRunoff, FlowDischarge, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOffProperties - ModifyDischarges - ERR01'
+        
+        !Get concentration
+        !Gets the number of discharges
+        call GetDischargesNumber(Me%ObjDischarges, nDischarges, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOffProperties - ModifyDischarges - ERR010'
+        
+        allocate(DischargesConc(nDischarges, Me%nPropWithDischarge))
+        DischargesConc = null_real
+        
+        do iDis = 1, nDischarges
+
+            call GetDischargesGridLocalization(Me%ObjDischarges,                        &
+                                               DischargeIDNumber = iDis,                &
+                                               Igrid = i,                               &
+                                               JGrid = j,                               &
+                                               KGrid = k,                               &
+                                               STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOffProperties - ModifyDischarges - ERR020'
+            
+            if (k == 0) then
+                
+                nullify (Property)
+                Property => Me%FirstProperty
+                iProp = 0
+                do while (associated (Property))
+                    
+                    if (Property%Evolution%Discharges) then 
+                        
+                        iProp = iProp + 1
+
+                        !Gets Discharge Concentration for this cycle of iter
+                        call GetDischargeConcentration (Me%ObjDischarges,                           &
+                                                        Me%ExtVar%Now,                              &
+                                                        iDis, DischargesConc(iDis, iProp),          &
+                                                        Property%ID%IDNumber,                       &
+                                                        STAT = STAT_CALL)
+                        if (STAT_CALL/=SUCCESS_) then
+                            if (STAT_CALL == NOT_FOUND_ERR_) then 
+                                !When a property is not found associated to a discharge
+                                !by default is consider that the concentration is zero
+                                DischargesConc(iDis, iProp) = 0.
+                            else
+                                stop 'ModuleRunOffProperties - ModifyDischarges - ERR030'
+                            endif
+                        endif
+                        
+                        !In case of negative discharge flux for mass balance is done using old concentration
+                        !and before concentration is updated in routine DischargeProperty
+                        !Do not move this computation to after DischargeProperty
+                        !In case of positive use dicharge concentration
+                        if (Me%CheckGlobalMass) then
+                            if (FlowDischarge(i,j) .lt. 0.0) then                        
+                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j)   &
+                                                                 * Me%ExtVar%DT * Property%ConcentrationOld(i,j))
+                            else
+                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j)  &
+                                                                 * Me%ExtVar%DT * DischargesConc(i, j))
+                            
+                            endif
+                        endif
+                        
+                        !initial volume in runoff - no discarge
+                        VolumeOld = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j)
+                        
+                        !Update old concentration (same as doing new concentrarion and then old = new before other processes)
+                        call DischargeProperty (FlowDischarge(i,j), DischargesConc(iDis, iProp),        &
+                                                i, j, VolumeOld,   Property, Me%ExtVar%DT, .false.)
+                        
+                    end if
+                                    
+                    Property => Property%Next
+
+                enddo
+           
+           endif
+           
+        enddo
+        
+        deallocate (DischargesConc)
+        
+        call UngetRunoff (Me%ObjRunoff, FlowDischarge, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOffProperties - ModifyDischarges - ERR040'
+
+    end subroutine ModifyDischarges  
+    
+    !--------------------------------------------------------------------------
+
+    subroutine DischargeProperty (DischargeFlow, DischargeConc, Igrid, Jgrid, VolumeOld,         &
+                                   Property, LocalDT, Accumulate)
+        !Arguments--------------------------------------------------------------
+        real                                        :: DischargeFlow, DischargeConc
+        real(8)                                     :: VolumeOld
+        integer                                     :: Igrid, Jgrid
+        type (T_Property), pointer                  :: Property
+        real                                        :: LocalDT
+        logical                                     :: Accumulate
+
+        !Local------------------------------------------------------------------
+        real(8)                                     :: DischargeVolume
+        real(8)                                     :: OldMass, NewMass
+        real                                        :: Concentration
+        
+        Concentration = Property%ConcentrationOld(Igrid,Jgrid) 
+
+        if (abs(DischargeFlow) > AllmostZero) then
+            
+            ![m3] = [s] * [m3/s]
+            DischargeVolume  = dble(LocalDT)*dble(DischargeFlow)
+            
+            ![g] = [g/m3] * [m3]
+            OldMass          = dble(Concentration) * VolumeOld            
+        
+            if      (DischargeFlow > 0.0) then
+
+                !Explicit discharges input 
+                ![g] = [g] + [m3] * [g/m3]
+                NewMass          = OldMass + DischargeVolume * dble(DischargeConc)                                       
+                
+                ![g/m3] = [g] / (m3 + m3/s * s)
+                Concentration = NewMass / (VolumeOld + DischargeFlow * LocalDT)
+
+            elseif (DischargeFlow < 0.0 .and. VolumeOld > 0.0) then
+                    
+                !If the discharge flow is negative (Output) then the concentration
+                !to consider is the concentration of the cell where the discharge
+                !is located
+
+                !If the property acculumlates in the water column 
+                !(e.g particulate properties during infiltration) then the concentration will increase
+
+                if (Accumulate) then
+                    NewMass          = OldMass
+                else
+                    NewMass          = OldMass * (1.0 + DischargeVolume / VolumeOld)
+                endif
+                
+                !if water remains
+                if (abs(DischargeVolume) < VolumeOld) then
+                   
+                   ![g/m3] = [g] / [m3]
+                    Concentration    = NewMass / (VolumeOld + DischargeVolume)
+                
+                else   !if all water exits node than accumulated mass needs to be accounted in bottom!
+                    
+                    Concentration  = 0.0
+                    
+                    if (Accumulate) then
+                        ![kg/m2] = [kg/m2] + [g] * 1e-3 [kg/g] / m2
+                        Property%BottomConcentration(Igrid,Jgrid) = Property%BottomConcentration(Igrid,Jgrid) +    &
+                                                                    (NewMass * 1e-3 / Me%ExtVar%Area(Igrid,Jgrid))
+                    endif
+                endif
+            endif
+
+        else
+            
+            !Do Nothing            
+
+        endif
+                    
+        !Update concOld with discharge
+        Property%ConcentrationOld(Igrid,Jgrid) = Concentration
+
+
+    end subroutine DischargeProperty
+
+    !---------------------------------------------------------------------------
 
     subroutine InterfaceFluxes !routine for mass sources - from vegetation (OM fertilization to fluff layer)
                                !and pesticide if water column exists
@@ -4948,23 +5255,25 @@ cd0:    if (Exist) then
         
         !-------------------------------------------------------------------------    
 
-        PropertyX => Me%FirstProperty
-
-        do while (associated(PropertyX))
-
-            if (PropertyX%ID%SolutionFromFile) then
-            
-                call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix, &
-                                       Matrix2D       = PropertyX%Concentration,    &
-                                       PointsToFill2D = Me%ExtVar%BasinPoints,    &
-                                       STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleRunoffProperties - ERR01'
-            
-            endif
-            
-            PropertyX => PropertyX%Next
-            
-        enddo
+        !Properties can not be defined from file - RunoffProperties is not a forcing module
+        !The concentrations have to be computed or it will not be consistent with transport
+!        PropertyX => Me%FirstProperty
+!
+!        do while (associated(PropertyX))
+!
+!            if (PropertyX%ID%SolutionFromFile) then
+!            
+!                call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix, &
+!                                       Matrix2D       = PropertyX%Concentration,    &
+!                                       PointsToFill2D = Me%ExtVar%BasinPoints,    &
+!                                       STAT           = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleRunoffProperties - ERR01'
+!            
+!            endif
+!            
+!            PropertyX => PropertyX%Next
+!            
+!        enddo
         
         
         if (Me%Coupled%BottomFluxes .and. Me%Coupled%ErosionFluxes) then
@@ -5055,7 +5364,7 @@ cd0:    if (Exist) then
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "AdvectionDiffusionProcesses")
         
 
-       !Compute water volume 
+       !Compute water volume. Remove discharges because they were explicity computed
         call ComputeVolumes
         
         if (Me%NewFormulation) then
@@ -5098,21 +5407,35 @@ cd0:    if (Exist) then
     subroutine ComputeVolumes
 
         !Local-----------------------------------------------------------------
-        integer :: i, j, CHUNK        
+        integer                                   :: i, j, CHUNK, STAT_CALL        
+        real, dimension(:,:), pointer             :: FlowDischarge
 
         !----------------------------------------------------------------------
+        !The discharge flows have to be added because they are accounted separately 
+        !see ModifyDischarges. Advection/Diffusion will onlye act between WaterColumnBT 
+        !(Before Transport) and WaterColumnAT (After Transport) volumes
+
+        !Get integrated flow from runoff to be sure using same values
+        call GetFlowDischarge (Me%ObjRunoff, FlowDischarge, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOffProperties - ComputeVolumes - ERR01'
         
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-        !$OMP PARALLEL PRIVATE(I,J)
         
-       
+        !$OMP PARALLEL PRIVATE(I,J)     
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
                  
                 !Me%WaterVolume(i,j)        = Me%ExtVar%WaterColumn(i,j) * Me%ExtVar%Area(i,j)
+                !m3/s = m * m2 + (m3/s * s)
                 Me%WaterVolume(i,j)        = Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i,j)
+                
+                !Adding discharge flow (because is separated) for computing "Old" for tansport
+                !m = m + (m3/s * s / m2)
+                Me%WaterColumnBT(i,j)      = Me%ExtVar%WaterColumnOld(i,j) +   &
+                                            (FlowDischarge(i,j) * Me%ExtVar%DT / Me%ExtVar%Area(i,j))
+
                 
                 if (Me%WaterVolume(i, j) > AlmostZero) then
                     Me%DummyOpenPoints(i,j) = 1
@@ -5125,6 +5448,10 @@ cd0:    if (Exist) then
         enddo
         !$OMP END DO
         !$OMP END PARALLEL 
+
+        call UngetRunoff (Me%ObjRunoff, FlowDischarge, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOffProperties - ComputeVolumes - ERR040'
+
         
     end subroutine ComputeVolumes
 
@@ -6006,7 +6333,7 @@ doi4 :      do i = ILB, IUB
         type (T_Property), pointer                  :: CurrProperty
         integer                                     :: i, j, CHUNK, STAT_CALL
         real(8)                                     :: Prop, WaterVolumeOld, WaterVolumeNew
-        real(8)                                     :: FlowMass
+        real(8)                                     :: FlowMass, WaterColumnNew
         real(8), dimension(:,:), pointer            :: WaterColumnFinal
         character (Len = 5)                         :: str_i, str_j
         character (Len = 15)                        :: str_conc
@@ -6072,7 +6399,11 @@ doi4 :      do i = ILB, IUB
 
                         !Prop and WaterVolumeOld are after transport and before this update
                         WaterVolumeOld = Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i,j)
-                        WaterVolumeNew = WaterColumnFinal(i,j) * Me%ExtVar%Area(i,j)
+                        !New watervolume can not be the final because it may exist boundary flux (See BoundaryInterface).
+                        !So new is old (after transport) less flux. Positive flux removes WC
+                        !WaterVolumeNew = WaterColumnFinal(i,j) * Me%ExtVar%Area(i,j)
+                        WaterVolumeNew = WaterVolumeOld - Me%ExtVar%FlowToChannels(i,j) * Me%ExtVar%DT
+                        WaterColumnNew = WaterVolumeNew / Me%ExtVar%Area(i,j)
                         
                         !g = m3/s * s * g/m3
                         FlowMass       = Me%ExtVar%FlowToChannels(i,j) * Me%ExtVar%DT * Prop                    
@@ -6081,7 +6412,10 @@ doi4 :      do i = ILB, IUB
                             !Update New Concentration
                             !g/m3 = ((g/m3 * m3) + g)/ m3
                             CurrProperty%Concentration(i,j) = ((Prop * WaterVolumeOld) - FlowMass) / WaterVolumeNew
+                        else
+                            CurrProperty%Concentration(i,j) = 0.0                        
                         endif
+                        
                         if (Me%CheckGlobalMass) then
                             !kg = g * 1e-3 kg/g
                             CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass + (FlowMass * 1e-3)
@@ -6175,6 +6509,8 @@ doi4 :      do i = ILB, IUB
 
     !Boundary fluxes had to be separated from Advection diffusion since in one time step
     !runoff could run out of water and the mixing between runoff cels happens before boundary
+    !If river cells exist that are boundary than river flow has to be added/removed from
+    !volume after transport to get water volume old
     subroutine ModifyBoundaryInterface
     
         !Arguments-------------------------------------------------------------
@@ -6211,13 +6547,13 @@ doi4 :      do i = ILB, IUB
                     if ((Me%ExtVar%BoundaryCells(I,J) == BasinPoint)) then   
                         
                         ! mass going to outside -> conc from runoff - concentration does not change
-                        if (Me%ExtVar%BoundaryFlux(i,j) .lt. 0.0) then
+                        if (Me%ExtVar%BoundaryFlux(i,j) .le. 0.0) then
                             
                             !this is conc after transport, just before going to outside
                             Prop =  CurrProperty%Concentration(i,j)
                        
                         !mass coming from outsie currently does no happen
-                        elseif (Me%ExtVar%BoundaryFlux(i,j) .ge. 0.0) then
+                        elseif (Me%ExtVar%BoundaryFlux(i,j) .gt. 0.0) then
                             
                             if (CurrProperty%Evolution%Boundary%BoundaryCondition == ImposedValue_) then
                                 
@@ -6231,8 +6567,11 @@ doi4 :      do i = ILB, IUB
                         endif
 
                         !Prop and WaterVolumeOld are after transport and before this update
-                        WaterVolumeOld = Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i,j)
+                        !Old watervolume can not be the after transport because it may exist river flux (See DN Interface).
+                        !So old is new (final) less flux. Negative flux removes WC                         
+                        !WaterVolumeOld = Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i,j)
                         WaterVolumeNew = WaterColumnFinal(i,j) * Me%ExtVar%Area(i,j)
+                        WaterVolumeOld = WaterVolumeNew - Me%ExtVar%BoundaryFlux(i,j) * Me%ExtVar%DT
                         
                         !g = m3/s * s * g/m3
                         FlowMass       = Me%ExtVar%BoundaryFlux(i,j) * Me%ExtVar%DT * Prop                    
@@ -6241,6 +6580,8 @@ doi4 :      do i = ILB, IUB
                             !Update New Concentration
                             !g/m3 = ((g/m3 * m3) + g)/ m3
                             CurrProperty%Concentration(i,j) = ((Prop * WaterVolumeOld) + FlowMass) / WaterVolumeNew
+                        else
+                            CurrProperty%Concentration(i,j) = 0.0
                         endif
 
                    endif
@@ -6302,7 +6643,8 @@ doi4 :      do i = ILB, IUB
                         CoefInterfBoundary = Me%COEFExpl%CoefInterfBoundary(i,j)
                        
                         !CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumn(i,j)
-                        CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumnAT(i,j)
+                        !CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumnAT(i,j)
+                        CoefB = Me%WaterColumnBT(i,j)/Me%ExtVar%WaterColumnAT(i,j)
                         
                         Me%TICOEF3(i,j  ) = Me%TICOEF3(i,j) + CoefB * CurrProperty%ConcentrationOld(i,j  )                  &
                                                             + CoefInterfDN     * CurrProperty%ConcInInterfaceDN(i,j)        &
@@ -6361,7 +6703,8 @@ doi4 :      do i = ILB, IUB
                         endif
 
                         !CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumn(i,j)
-                        CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumnAT(i,j)
+                        !CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumnAT(i,j)
+                        CoefB = Me%WaterColumnBT(i,j)/Me%ExtVar%WaterColumnAT(i,j)
 
                         Me%TICOEF3(i,j) = Me%TICOEF3(i,j)                                                      &
                                             + coefB * CurrProperty%ConcentrationOld(i,j)                       &
@@ -8716,6 +9059,16 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%OutPut%HDF_ON) then                    
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_)
                     if (STAT_ /= SUCCESS_) stop 'KillVegetation - ModuleRunoffProperties  - ERR08'
+                endif
+                
+                !Runoff constructed, not RunoffProperties
+!                if (Me%ComputeOptions%Discharges) then
+!                    call Kill_Discharges(Me%ObjDischarges, STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunoffProperties - ERR05a'
+!                endif  
+                if (Me%ComputeOptions%Discharges) then
+                    nUsers = DeassociateInstance(mDISCHARGES_,    Me%ObjDischarges)
+                    if (nUsers == 0) stop 'KillRunoff - ModuleRunoffProperties - ERR06'
                 endif
                 
                 nUsers = DeassociateInstance (mTIME_, Me%ObjTime)
