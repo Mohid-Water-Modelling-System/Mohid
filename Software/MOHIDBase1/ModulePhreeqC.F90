@@ -95,7 +95,7 @@ Module ModulePhreeqC
     !Management
     private :: EndWithError
     
-#ifdef DEBUG_PHREEQC    
+#ifdef _DEBUG_PHREEQC_    
     private :: OpenDebugFile
     private :: CloseDebugFile
 #endif    
@@ -1801,7 +1801,7 @@ cd1:   if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) &
             call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR190.') 
-#ifdef DEBUG_PHREEQC                
+#ifdef _DEBUG_PHREEQC_
         call OpenDebugFile
 #endif        
 !        call ReadPhreeqCDatabase 
