@@ -5567,7 +5567,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         
                         !Update old concentration (same as doing new concentrarion and then old = new before other processes)
                         call DischargeProperty (FlowDischarge(i,j,k), DischargesConc(iDis, iProp),        &
-                                                i, j, k, VolumeOld,   Property, Me%ExtVar%DT, .false.)
+                                                i, j, k, VolumeOld,   Property, Me%ExtVar%DT) !, .false.)
                         
                     end if
                                     
@@ -5589,14 +5589,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !--------------------------------------------------------------------------
 
     subroutine DischargeProperty (DischargeFlow, DischargeConc, Igrid, Jgrid, Kgrid, VolumeOld,         &
-                                   Property, LocalDT, Accumulate)
+                                   Property, LocalDT) !, Accumulate)
         !Arguments--------------------------------------------------------------
         real                                        :: DischargeFlow, DischargeConc
         real(8)                                     :: VolumeOld
         integer                                     :: Igrid, Jgrid, Kgrid
         type (T_Property), pointer                  :: Property
         real                                        :: LocalDT
-        logical                                     :: Accumulate
+        !logical                                     :: Accumulate
 
         !Local------------------------------------------------------------------
         real(8)                                     :: DischargeVolume
@@ -10269,7 +10269,7 @@ cd1 :       if (Property%Evolution%WarnOnNegativeValues) then
             
         end do
 
-        if (Me%Coupled%MinConcentration)     call SetLimitsConcentration ('After Soil Chemistry')
+        if (Me%Coupled%MinConcentration)     call SetLimitsConcentration !('After Soil Chemistry')
         if (Me%Coupled%WarnOnNegativeValues) call WarnOnNegativeValues   ('After Soil Chemistry')
         
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "SoilChemistryProcesses")
