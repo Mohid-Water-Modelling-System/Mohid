@@ -63,6 +63,7 @@
 !   CONSOLIDATION               : 0/1              [0]          !Compute consolidation
 !   WAVETENSION                 : 0/1              [0]          !Compute wave induced shear stress
 !   SAND_TRANSPORT              : 0/1              [0]          !Compute sand tranport
+!   SHEAR_STRESS_METHOD         : 1/2              [1]          !1-Default Mohid Method 2-Soulsby and Clarke(2005) GFranz
 !   SHEAR_STRESS_LIMITATION     : 0/1              [0]          !Limit shear stress values in shallow zones
 !       REFERENCE_DEPTH         : real           [0.2 m]        !Reference depth below which shear stress is
 !                                                               !is limited
@@ -400,7 +401,9 @@ Module ModuleInterfaceSedimentWater
         real                                        :: MinWaterColumn   = null_real !initialization: Jauch  
         integer, pointer, dimension(:,:  )          :: KFloor_Z         => null()
         real,    pointer, dimension(:,:  )          :: WavePeriod       => null(), &
-                                                       WaveHeight       => null()
+                                                       WaveHeight       => null(), &
+                                                       WaveDirection    => null()
+        real,    pointer, dimension(:,:,:)          :: DirectionH       => null()
         real,    pointer, dimension(:,:  )          :: Ubw              => null(), &
                                                        Abw              => null()
         type(T_Time)                                :: LastComputeWave
@@ -548,6 +551,7 @@ Module ModuleInterfaceSedimentWater
          type (T_Time)                              :: LastCompute
          type (T_Statistics)                        :: Statistics
          logical                                    :: IntertidalRunOff     = .false.
+         integer                                    :: Method               = 1 !GFranz
     end type T_Shear
 
     type       T_WaveShear
@@ -1097,6 +1101,16 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      STAT         = STAT_CALL)            
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR40'
+            
+       call GetData(Me%Shear_Stress%Method,                              &    !GFranz 
+                     Me%ObjEnterData, iflag,                                        &
+                     SearchType   = FromFile,                                       &
+                     Keyword      = 'SHEAR_STRESS_METHOD',                     &
+                     ClientModule = 'ModuleInterfaceSedimentWater',                 &
+                     Default      = 1,                                        &
+                     STAT         = STAT_CALL)            
+        if(STAT_CALL .ne. SUCCESS_)&
+            stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR41'
 
 
     end subroutine ConstructShearStress
@@ -4055,6 +4069,7 @@ do1 :   do while (associated(PropertyX))
             call GetWaves (WavesID       = Me%ObjWaves,                                  &
                            WavePeriod    = Me%ExtWater%WavePeriod,                       &
                            WaveHeight    = Me%ExtWater%WaveHeight,                       &
+                           WaveDirection = Me%ExtWater%WaveDirection,                    &
                            Abw           = Me%ExtWater%Abw,                              &
                            Ubw           = Me%ExtWater%Ubw,                              &
                            LastCompute   = Me%ExtWater%LastComputeWave,                  &
@@ -4279,6 +4294,9 @@ do1 :   do while (associated(PropertyX))
 
             call UnGetWaves(Me%ObjWaves, Me%ExtWater%Ubw, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR21'
+            
+            call UnGetWaves(Me%ObjWaves, Me%ExtWater%WaveDirection, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR22'
 
         endif
 #endif
@@ -4524,10 +4542,14 @@ do1 :       do while (associated(Property))
         real,    pointer, dimension(:, :   )    :: Chezy
         integer, pointer, dimension(:, :, :)    :: LandPoints3D, OpenPoints3D
         integer, pointer, dimension(:, :   )    :: KFloorZ
-        real                                    :: VC,UC, UVC2, WaterDensity
-        integer                                 :: IUB, JUB, ILB, JLB, KUB
+        real                                    :: VC,UC, UVC2,UVC, WaterDensity
+        integer                                 :: IUB, JUB, ILB, JLB, KUB,KLB
         integer                                 :: i, j, kbottom
         integer                                 :: CHUNK
+        real                                    :: CWphi,phi,REW,REC,FWR,FWS
+        real                                    :: CDS,CDR,TAUMR,TAUMS,TAUWR,TAUWS,RECCR,REWCR,TAUM,TAUMAX
+        real                                    :: ar,T1,T2,T3,A1,A2,CDM,CDMAX,as,TAUMAXS,TAUW,TAUMAXR
+        real                                    :: KV     !Kinematic viscosity [m2/s]
 
         !Begin-----------------------------------------------------------------
 
@@ -4541,6 +4563,7 @@ do1 :       do while (associated(Property))
             ILB = Me%WaterWorkSize3D%ILB
             JLB = Me%WaterWorkSize3D%JLB
             KUB = Me%WaterWorkSize3D%KUB
+            KLB = Me%WaterWorkSize3D%KLB
 
             Velocity_U      => Me%ExtWater%Velocity_U
             Velocity_V      => Me%ExtWater%Velocity_V
@@ -4549,114 +4572,284 @@ do1 :       do while (associated(Property))
             LandPoints3D    => Me%ExtWater%LandPoints3D
             OpenPoints3D    => Me%ExtWater%OpenPoints3D
             KFloorZ         => Me%ExtWater%KFloor_Z
+            
+            if (Me%Shear_Stress%Method==1) then
 
-            if (Me%WaveShear_Stress%Yes) then
+                if (Me%WaveShear_Stress%Yes) then
 
-                if (Me%ExtWater%LastComputeWave > Me%WaveShear_Stress%LastCompute) then
+                    if (Me%ExtWater%LastComputeWave > Me%WaveShear_Stress%LastCompute) then
 
 
-                    if (.not. Me%WaveShear_Stress%Rugosity%Constant) then
-                        call ComputeWaveRugosity
+                        if (.not. Me%WaveShear_Stress%Rugosity%Constant) then
+                            call ComputeWaveRugosity
+                        endif
+                        call ComputeWaveTension
+
+                        Me%WaveShear_Stress%LastCompute = Me%ExternalVar%Now
+
                     endif
-                    call ComputeWaveTension
 
-                    Me%WaveShear_Stress%LastCompute = Me%ExternalVar%Now
+                end if
 
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method1")
                 endif
 
-            end if
+                CHUNK = CHUNK_J(JLB, JUB)
+                
+                !$OMP PARALLEL PRIVATE(i,j,kbottom,VC,UC,UVC2)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                ! Se alisa cantos com terra. Aumenta artificialmente a tensão de corte 
+                ! nos cantos com terra para evitar que estes se tornem em zonas 
+                ! de deposição acentuada
+                do j = JLB, JUB
+                do i = ILB, IUB
+                                            
+                    if (Me%ExtWater%OpenPoints3D(i, j, KUB) == OpenPoint) then
 
-            if (MonitorPerformance) then
-                call StartWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress")
-            endif
+                        kbottom = KFloorZ(i, j)
 
-            CHUNK = CHUNK_J(JLB, JUB)
-            
-            !$OMP PARALLEL PRIVATE(i,j,kbottom,VC,UC,UVC2)
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            ! Se alisa cantos com terra. Aumenta artificialmente a tensão de corte 
-            ! nos cantos com terra para evitar que estes se tornem em zonas 
-            ! de deposição acentuada
-            do j = JLB, JUB
-            do i = ILB, IUB
-                                        
-                if (Me%ExtWater%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                        if (((LandPoints3D(i,  j+1, kbottom)==1 .or. LandPoints3D(i,  j-1, kbottom)==1) .and.   &
+                             (LandPoints3D(i+1,j,   kbottom)==1 .or. LandPoints3D(i-1,j,   kbottom)==1))) then
 
-                    kbottom = KFloorZ(i, j)
-
-                    if (((LandPoints3D(i,  j+1, kbottom)==1 .or. LandPoints3D(i,  j-1, kbottom)==1) .and.   &
-                         (LandPoints3D(i+1,j,   kbottom)==1 .or. LandPoints3D(i-1,j,   kbottom)==1))) then
-
-                        VC = max(abs(Velocity_V(i+1,j,kbottom)),abs(Velocity_V(i,j,  kbottom)))
-                        UC = max(abs(Velocity_U(i,  j,kbottom)),abs(Velocity_U(i,j+1,kbottom)))
-
-                    else
-
-                        VC = (Velocity_V(i+1,j,kbottom)+Velocity_V(i,j,  kbottom))/2.
-                        UC = (Velocity_U(i,  j,kbottom)+Velocity_U(i,j+1,kbottom))/2.
-
-                    endif
-
-                    UVC2 = UC*UC+VC*VC
-
-
-                    Me%Shear_Stress%Tension (i,j) = Chezy(i,j) * UVC2 * WaterDensity
-
-                    if (Me%RunsSandTransport) then
-
-                        Me%Shear_Stress%CurrentVel(i, j) = sqrt(UVC2)
-                        Me%Shear_Stress%CurrentU  (i, j) = UC
-                        Me%Shear_Stress%CurrentV  (i, j) = VC
-
-                    endif
-
-                    if (Me%WaveShear_Stress%Yes) then
-
-                        if (Me%WaveShear_Stress%NonLinear) then
-
-                            Me%WaveShear_Stress%Tension (i,j) = Me%WaveShear_Stress%ChezyVel   (i,j) * &
-                                                                sqrt(UVC2) * WaterDensity
-
+                            VC = max(abs(Velocity_V(i+1,j,kbottom)),abs(Velocity_V(i,j,  kbottom)))
+                            UC = max(abs(Velocity_U(i,  j,kbottom)),abs(Velocity_U(i,j+1,kbottom)))
 
                         else
 
-                            Me%WaveShear_Stress%Tension (i,j) = Me%WaveShear_Stress%ChezyVel   (i,j) * &
-                                                                Me%ExtWater%Ubw (i,j) * WaterDensity
+                            VC = (Velocity_V(i+1,j,kbottom)+Velocity_V(i,j,  kbottom))/2.
+                            UC = (Velocity_U(i,  j,kbottom)+Velocity_U(i,j+1,kbottom))/2.
+
                         endif
 
-                        !Currents contribution 
+                        UVC2 = UC*UC+VC*VC
+
+
+                        Me%Shear_Stress%Tension (i,j) = Chezy(i,j) * UVC2 * WaterDensity
+
                         if (Me%RunsSandTransport) then
-                            Me%WaveShear_Stress%TensionCurrents(i, j) = Me%Shear_Stress%Tension (i,j)
+
+                            Me%Shear_Stress%CurrentVel(i, j) = sqrt(UVC2)
+                            Me%Shear_Stress%CurrentU  (i, j) = UC
+                            Me%Shear_Stress%CurrentV  (i, j) = VC
+
                         endif
 
-                        !Wave contribution
-                        Me%Shear_Stress%Tension(i, j) = Me%Shear_Stress%Tension (i,j) + Me%WaveShear_Stress%Tension(i, j)
+                        if (Me%WaveShear_Stress%Yes) then
+
+                            if (Me%WaveShear_Stress%NonLinear) then
+
+                                Me%WaveShear_Stress%Tension (i,j) = Me%WaveShear_Stress%ChezyVel   (i,j) * &
+                                                                    sqrt(UVC2) * WaterDensity
+
+
+                            else
+
+                                Me%WaveShear_Stress%Tension (i,j) = Me%WaveShear_Stress%ChezyVel   (i,j) * &
+                                                                    Me%ExtWater%Ubw (i,j) * WaterDensity
+                            endif
+
+                            !Currents contribution 
+                            if (Me%RunsSandTransport) then
+                                Me%WaveShear_Stress%TensionCurrents(i, j) = Me%Shear_Stress%Tension (i,j)
+                            endif
+
+                            !Wave contribution
+                            Me%Shear_Stress%Tension(i, j) = Me%Shear_Stress%Tension (i,j) + Me%WaveShear_Stress%Tension(i, j)
+
+                        endif
+
+                        if (Me%Shear_Stress%IntertidalRunOff) then
+
+                            if (Me%ExtWater%WaterColumn(i,j) < 2. * Me%ExtWater%MinWaterColumn) then
+
+                                Me%Shear_Stress%Tension(i, j) = Me%Shear_Stress%Tension (i,j) + 1.
+
+                            endif
+
+                        endif 
+
+                        ! [m/s]                       = [N/m^2/ (kg/m^3)]^0.5 = 
+                        Me%Shear_Stress%Velocity(i,j) = sqrt(Me%Shear_Stress%Tension (i,j) / WaterDensity)   
 
                     endif
 
-                    if (Me%Shear_Stress%IntertidalRunOff) then
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
 
-                        if (Me%ExtWater%WaterColumn(i,j) < 2. * Me%ExtWater%MinWaterColumn) then
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method1")
+                endif
+             
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            
+            elseif (Me%Shear_Stress%Method==2) then !GFranz
+            
+     
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method2")
+                endif
+                
+                KV = 1.3e-6 
+                
+                CHUNK = CHUNK_J(JLB, JUB)
+                
+                !$OMP PARALLEL PRIVATE(i,j,kbottom,VC,UC,UVC2,TAUMAX,TAUMAXR,TAUMAXS,TAUM,TAUMR,TAUMS,UVC,REC,REW) &
+                !$OMP PRIVATE(CDM,CDMAX,CDR,CDS,phi,CWphi,TAUW,RECCR,REWCR,FWR,FWS,T1,T2,T3,A1,A2)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                ! Se alisa cantos com terra. Aumenta artificialmente a tensão de corte 
+                ! nos cantos com terra para evitar que estes se tornem em zonas 
+                ! de deposição acentuada
+do1:            do j = JLB, JUB
+do2:            do i = ILB, IUB
+                    
+                                                                
+                    if (Me%ExtWater%OpenPoints3D(i, j,KLB) == OpenPoint) then
+                    
+                    TAUM=0.
+                    TAUMAX=0.
+                    
+                    kbottom = KFloorZ(i, j)
+                    Me%ExtWater%DWZ(i,j,kbottom)=max(Me%ExtWater%DWZ(i,j,kbottom),0.2)
+                    
+                        if (((LandPoints3D(i,  j+1, kbottom)==1 .or. LandPoints3D(i,  j-1, kbottom)==1) .and.   &
+                             (LandPoints3D(i+1,j,   kbottom)==1 .or. LandPoints3D(i-1,j,   kbottom)==1))) then
 
-                            Me%Shear_Stress%Tension(i, j) = Me%Shear_Stress%Tension (i,j) + 1.
+                            VC = max(abs(Velocity_V(i+1,j,kbottom)),abs(Velocity_V(i,j,  kbottom)))
+                            UC = max(abs(Velocity_U(i,  j,kbottom)),abs(Velocity_U(i,j+1,kbottom)))
+
+                        else
+
+                            VC = (Velocity_V(i+1,j,kbottom)+Velocity_V(i,j,  kbottom))/2.
+                            UC = (Velocity_U(i,  j,kbottom)+Velocity_U(i,j+1,kbottom))/2.
 
                         endif
 
-                    endif 
+                        UVC2 = UC*UC+VC*VC
 
-                    ! [m/s]                       = [N/m^2/ (kg/m^3)]^0.5 = 
-                    Me%Shear_Stress%Velocity(i,j) = sqrt(Me%Shear_Stress%Tension (i,j) / WaterDensity)   
+                        UVC = sqrt(UVC2)
+                        
+                        REC=UVC*(Me%ExtWater%DWZ(i,j,kbottom)/2.)/KV
+                        CDR=(0.40/(log((Me%ExtWater%DWZ(i,j,kbottom)/2.)/Me%Rugosity%Field(i,j))-1.))**2
+                        CDS=0.0001615
+                        
+                        if(UVC.gt.1.e-2)then !current-only flow
+                        
+                            CDS=0.0001615*EXP(6.*REC**(-0.08))
+                        
+                            if (REC.lt.2000)then !laminar flow
+                                TAUMAX=3*WaterDensity*KV*UVC/(Me%ExtWater%DWZ(i,j,kbottom)/2.)
+                                TAUM=TAUMAX
+                            else if(REC.gt.2000)then !turbulent flow
+                                TAUMR=WaterDensity*CDR*UVC**2 !rough
+                                TAUMS=WaterDensity*CDS*UVC**2 !smooth
+                                TAUMAX=MAX(TAUMR,TAUMS)
+                                TAUM=TAUMAX
+                            endif
+                        endif
+                        
+                        if (Me%WaveShear_Stress%Yes) then
+                            
+                            if (Me%ExtWater%Ubw(i,j).gt.1.e-2)then !To avoid overflow errors
 
+
+                                 REW=Me%ExtWater%Ubw(i,j)*Me%ExtWater%Abw(i,j)/KV     
+                                 FWS=0.0521*REW**(-0.187)
+                                 FWR=1.39*(Me%ExtWater%Abw(i,j)/Me%Rugosity%Field(i,j))**(-0.52)
+
+                                    
+                                if(UVC.lt.1.e-2 .and. Me%ExtWater%Ubw(i,j).gt.1.e-2)then !wave-only flow
+                                    if (REW.lt.1.5e5)then !laminar flow
+                                        TAUM=0.
+                                        TAUMAX=WaterDensity*REW**(-0.5)*Me%ExtWater%Ubw(i,j)**2
+                                    else if (REW.gt.1.5e5)then !turbulent flow
+                                        TAUWR=0.5*WaterDensity*FWR*Me%ExtWater%Ubw(i,j)**2
+                                        TAUWS=0.5*WaterDensity*FWS*Me%ExtWater%Ubw(i,j)**2
+                                        TAUM=0.
+                                        TAUMAX=MAX(TAUWR,TAUWS)
+                                    endif
+
+                                else if(UVC.gt.1.e-2 .and. Me%ExtWater%Ubw(i,j).gt.1.e-2)then !combined wave and current flow
+                                
+                                    !velocity direction phi(radians)
+                                    if(UC.gt.0. .and. VC.gt.0.)then
+                                        phi=asin(UC/UVC)
+                                    elseif (UC.gt.0. .and. VC.lt.0.)then
+                                        phi=asin(abs(VC)/UVC)+PI/2
+                                    elseif (UC.lt.0. .and. VC.lt.0.)then
+                                        phi=asin(abs(UC)/UVC)+PI
+                                    elseif (UC.lt.0. .and. VC.gt.0.)then
+                                        phi=asin(VC/UVC)+3./2*PI
+                                    endif
+                                    
+                                    Me%ExtWater%WaveDirection(i,j)=Me%ExtWater%WaveDirection(i,j)*pi/180. !(radians)
+                                    
+                                    CWphi = abs(phi-Me%ExtWater%WaveDirection(i,j)) !Current-wave angle
+                                        
+                                    RECCR=2000+(5.92*1.e5*REW)**0.35
+                                    REWCR=1.5e5
+                                    if(REC.lt.RECCR.and.REW.lt.REWCR)then !laminar flow
+                                        TAUM=3*WaterDensity*KV*UVC/(Me%ExtWater%DWZ(i,j,kbottom)/2.)
+                                        TAUW=WaterDensity*REW**(-0.5)*Me%ExtWater%Ubw(i,j)**2
+                                        TAUMAX=((TAUM+TAUW*COS(CWphi))**2+(TAUW*SIN(CWphi))**2)**(0.5)
+                                    else if(REC.gt.RECCR.or.REW.gt.REWCR)then !turbulent flow
+                                        !Rough-turbulent wave-plus-current shear-stress
+                                        ar=0.24
+                                        T1=MAX(ar*(FWR/2)**0.5*(Me%ExtWater%Abw(i,j)/Me%Rugosity%Field(i,j)),12.)
+                                        T2=(Me%ExtWater%DWZ(i,j,kbottom)/2.)/(T1*Me%Rugosity%Field(i,j))
+                                        T3=(CDR**2+(FWR/2)**2*(Me%ExtWater%Ubw(i,j)/UVC)**4)**(1./4)
+                                        A1=T3*(LOG(T2)-1)/(2*LOG(T1))
+                                        A2=0.40*T3/LOG(T1)
+                                        CDM=((A1**2+A2)**0.5-A1)**2
+                                        CDMAX=((CDM+T3*Me%ExtWater%Ubw(i,j)/UVC*(FWR/2)**0.5*COS(CWphi))**2+        &
+                                        (T3*Me%ExtWater%Ubw(i,j)/UVC*(FWR/2)**0.5*SIN(CWphi))**2)**0.5
+                                        TAUMR=WaterDensity*CDM*UVC**2
+                                        TAUMAXR=WaterDensity*CDMAX*UVC**2
+                                        
+                                        !Smooth-turbulent wave-plus-current shear-stress
+                                        as=0.24
+                                        T1=9*as*REW*(FWS/2)**0.5*(CDS**2*(UVC/Me%ExtWater%Ubw(i,j))**4+(FWS/2)**2)**(1./4)
+                                        T2=(REC/REW)*(Me%ExtWater%Ubw(i,j)/UVC)*1/as*(2/FWS)**0.5
+                                        T3=(CDS**2+(FWS/2)**2*(Me%ExtWater%Ubw(i,j)/UVC)**4)**(1./4)
+                                        A1=T3*(LOG(T2)-1)/(2*LOG(T1))
+                                        A2=0.40*T3/LOG(T1)
+                                        CDM=((A1**2+A2)**0.5-A1)**2
+                                        CDMAX=((CDM+T3*Me%ExtWater%Ubw(i,j)/UVC*(FWS/2)**0.5*COS(CWphi))**2+         &
+                                        (T3*Me%ExtWater%Ubw(i,j)/UVC*(FWS/2)**0.5*SIN(CWphi))**2)**0.5
+                                        TAUMS=WaterDensity*CDM*UVC**2
+                                        TAUMAXS=WaterDensity*CDMAX*UVC**2
+                                        
+                                        if(TAUMAXR.gt.TAUMAXS)then !flow is rough turbulent
+                                            TAUM=TAUMR
+                                            TAUMAX=TAUMAXR
+                                        else if(TAUMAXR.lt.TAUMAXS)then !flow is smooth turbulent
+                                            TAUM=TAUMS
+                                            TAUMAX=TAUMAXS
+                                        endif
+                                    endif   
+                                 endif
+                              endif                  
+                        endif
+                        
+                        Me%Shear_Stress%Tension(i,j) = TAUMAX
+                        ! [m/s]                       = [N/m^2/ (kg/m^3)]^0.5 = 
+                        Me%Shear_Stress%Velocity(i,j) = sqrt(Me%Shear_Stress%Tension (i,j) / WaterDensity) 
+                    
+                    endif !if (Me%ExtWater%OpenPoints3D(i, j, KBOTTOM) == OpenPoint) then
+
+
+                enddo do2
+                enddo do1
+                !$OMP END DO
+                !$OMP END PARALLEL
+
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method2")
                 endif
 
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-
-            if (MonitorPerformance) then
-                call StopWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress")
-            endif
+            endif !Method==2          
 
             if (Me%Shear_Stress%Statistics%ON) then
 
