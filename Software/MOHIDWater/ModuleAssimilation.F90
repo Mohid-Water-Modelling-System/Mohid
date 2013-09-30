@@ -140,19 +140,19 @@ Module ModuleAssimilation
 
     private :: T_Field
     type       T_Field
-        real, dimension(:,:  ), pointer         :: R2D
-        real, dimension(:,:,:), pointer         :: R3D
-        real                                    :: Minimum
-        real                                    :: DefaultValue
+        real, dimension(:,:  ), pointer         :: R2D                  => null()
+        real, dimension(:,:,:), pointer         :: R3D                  => null()
+        real                                    :: Minimum              = null_real
+        real                                    :: DefaultValue         = null_real
         integer                                 :: TypeZUV              = null_int
     end type   T_Field
 
     private :: T_OutPut
     type       T_OutPut
          type (T_Time), pointer, dimension(:)   :: OutTime
-         integer                                :: Next
-         logical                                :: ON
-         integer                                :: Number
+         integer                                :: Next                 = null_int
+         logical                                :: ON                   = .false.
+         integer                                :: Number               = null_int
     end type T_OutPut
 
 
@@ -162,8 +162,9 @@ Module ModuleAssimilation
         type (T_PropertyID)                     :: CoefID
         integer                                 :: Dim                  = null_int
         type (T_Field)                          :: Field
-        type (T_Field)                          :: CoefField
-        real                                    :: ColdRelaxPeriod, ColdOrder
+        type (T_Field)                          :: CoefField          
+        real                                    :: ColdRelaxPeriod      = null_real
+        real                                    :: ColdOrder            = null_real
         type (T_Time)                           :: LastActualization
         logical                                 :: TimeSerie            = .false.
         logical                                 :: OutputHDF            = .false.
@@ -173,52 +174,52 @@ Module ModuleAssimilation
 
     private :: T_Files
     type       T_Files
-         character(len=PathLength)              :: ConstructData
-         character(len=PathLength)              :: Results
+         character(len=PathLength)              :: ConstructData        = null_str
+         character(len=PathLength)              :: Results              = null_str
     end type T_Files
 
     ! guillaume nogueira : aqui define-se a estrutura de assimilacao de altimetria
 
     type       T_External                                                   ! J. Nogueira Assim
-        type(T_Time)                            :: Now
-        real,    pointer, dimension(:,:,:)      :: DWZ
-        real,    pointer, dimension(:,:,:)      :: SZZ
-        real,    pointer, dimension(:,:  )      :: GridCellArea
-        real,    pointer, dimension(:,:,:)      :: ZCellCenter
-        integer, pointer, dimension(:,:,:)      :: OpenPoints3D
-        integer, pointer, dimension(:,:  )      :: KFloor_Z
+        type(T_Time)                            :: Now          
+        real,    pointer, dimension(:,:,:)      :: DWZ          => null()    
+        real,    pointer, dimension(:,:,:)      :: SZZ          => null()
+        real,    pointer, dimension(:,:  )      :: GridCellArea => null()
+        real,    pointer, dimension(:,:,:)      :: ZCellCenter  => null()
+        integer, pointer, dimension(:,:,:)      :: OpenPoints3D => null()
+        integer, pointer, dimension(:,:  )      :: KFloor_Z     => null()
     end type T_External
 
     private :: T_Altimetric_Assim
     type       T_Altimetric_Assim                                           ! J. Nogueira Assim
-        real                                    :: DtAltimAssimilation
-        real                                    :: AltimetricDepth
-        real                                    :: AltimDecayTime
-        logical                                 :: UseVarianceField         ! Guillaume
-        real, dimension(:    ), pointer         :: ColumnTemperature
-        real, dimension(:    ), pointer         :: ColumnSalinity
-        real, dimension(:    ), pointer         :: ColumnDensity
-        real, dimension(:    ), pointer         :: DeltaTemperature
-        real, dimension(:    ), pointer         :: DeltaSalinity
-        real, dimension(:    ), pointer         :: DeltaDensity
-        real, dimension(:    ), pointer         :: DeltaPressure
-        real, dimension(:    ), pointer         :: AuxDepth
-        real, dimension(:    ), pointer         :: D_GradTemp
-        real, dimension(:    ), pointer         :: D_GradSalin
-        real, dimension(:    ), pointer         :: AuxSpline
-        real, dimension(:,:  ), pointer         :: WaterLevelToAssimilate
-        real, dimension(:,:  ), pointer         :: VarianceFieldToAssimilate
-        real, dimension(:,:  ), pointer         :: Delta_WaterLevel
-        real, dimension(:,:  ), pointer         :: Delta_WaterLevelToAssimilate
-        real, dimension(:,:  ), pointer         :: Delta_WaterLevelColumn
-        real, dimension(:,:  ), pointer         :: PressureAnomaly
-        real, dimension(:,:  ), pointer         :: WaterLevelAnalized
-        real, dimension(:,:  ), pointer         :: Observation_Error
-        real, dimension(:,:  ), pointer         :: Model_Error
-        real, dimension(:,:  ), pointer         :: Gain
-        real, dimension(:,:,:), pointer         :: SigmaDensAnalyzed
-        real, dimension(:,:,:), pointer         :: TemperatureAnalyzed
-        real, dimension(:,:,:), pointer         :: SalinityAnalyzed
+        real                                    :: DtAltimAssimilation          = null_real
+        real                                    :: AltimetricDepth              = null_real
+        real                                    :: AltimDecayTime               = null_real
+        logical                                 :: UseVarianceField             = .false.    ! Guillaume
+        real, dimension(:    ), pointer         :: ColumnTemperature            => null()
+        real, dimension(:    ), pointer         :: ColumnSalinity               => null()
+        real, dimension(:    ), pointer         :: ColumnDensity                => null()
+        real, dimension(:    ), pointer         :: DeltaTemperature             => null()
+        real, dimension(:    ), pointer         :: DeltaSalinity                => null()
+        real, dimension(:    ), pointer         :: DeltaDensity                 => null()
+        real, dimension(:    ), pointer         :: DeltaPressure                => null()
+        real, dimension(:    ), pointer         :: AuxDepth                     => null()
+        real, dimension(:    ), pointer         :: D_GradTemp                   => null()
+        real, dimension(:    ), pointer         :: D_GradSalin                  => null()
+        real, dimension(:    ), pointer         :: AuxSpline                    => null()
+        real, dimension(:,:  ), pointer         :: WaterLevelToAssimilate       => null()
+        real, dimension(:,:  ), pointer         :: VarianceFieldToAssimilate    => null()
+        real, dimension(:,:  ), pointer         :: Delta_WaterLevel             => null()
+        real, dimension(:,:  ), pointer         :: Delta_WaterLevelToAssimilate => null()
+        real, dimension(:,:  ), pointer         :: Delta_WaterLevelColumn       => null()
+        real, dimension(:,:  ), pointer         :: PressureAnomaly              => null()
+        real, dimension(:,:  ), pointer         :: WaterLevelAnalized           => null()
+        real, dimension(:,:  ), pointer         :: Observation_Error            => null()
+        real, dimension(:,:  ), pointer         :: Model_Error                  => null()
+        real, dimension(:,:  ), pointer         :: Gain                         => null()
+        real, dimension(:,:,:), pointer         :: SigmaDensAnalyzed            => null()
+        real, dimension(:,:,:), pointer         :: TemperatureAnalyzed          => null()
+        real, dimension(:,:,:), pointer         :: SalinityAnalyzed             => null()
         type(T_Time)                            :: NextCompute
     end type T_Altimetric_Assim
 
@@ -226,8 +227,8 @@ Module ModuleAssimilation
     private :: T_Assimilation
     type       T_Assimilation
         private
-        logical                                 :: AltimetricAssimilation   ! J. Nogueira Assim
-        integer                                 :: InstanceID       
+        logical                                 :: AltimetricAssimilation       = .false.! J. Nogueira Assim
+        integer                                 :: InstanceID                   = null_int
         type(T_Time)                            :: LastCall
         type(T_Time)                            :: EndTime      
         type(T_Time)                            :: ActualTime
@@ -239,7 +240,7 @@ Module ModuleAssimilation
         type(T_Altimetric_Assim)                :: Altimetric_Assim         ! J. Nogueira Assim
         type(T_Property), pointer               :: FirstAssimilationProp
         type(T_Property), pointer               :: LastAssimilationProp
-        integer                                 :: PropertiesNumber   = FillValueInt
+        integer                                 :: PropertiesNumber            = null_int
 
         !Instance of ModuleHDF5     
         integer                                 :: ObjHDF5            = 0

@@ -396,6 +396,8 @@ Module ModuleHydrodynamic
     public  :: GetHydroAltimAssim
     public  :: GetVertical1D
     public  :: GetXZFlow
+    public  :: GetVelocityModulus
+
 
 #ifdef _USE_SEQASSIMILATION
     public  :: GetHydroSeqAssimilation
@@ -12083,6 +12085,59 @@ cd3 :       if (present(OldVelocity_V)) then
     end subroutine GetOldHorizontalVelocity
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine GetVelocityModulus(HydrodynamicID, VelocityModulus, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,              intent(IN )           :: HydrodynamicID   
+        real, dimension(:,:,:), pointer, optional   :: VelocityModulus
+        integer, optional,    intent(OUT) :: STAT
+
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_        
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HydrodynamicID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            if(.not. associated(Me%OutPut%ModulusH))then
+            
+                write(*,*)'Please activate Hydrodynamic outputs'
+                call SetError(FATAL_, INTERNAL_, 'GetVelocityModulus - Hydrodynamic - ERR01') 
+
+            endif
+            
+            call Read_Lock(mHydrodynamic_, Me%InstanceID)
+            VelocityModulus => Me%OutPut%ModulusH
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetVelocityModulus
+
+    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
@@ -12137,12 +12192,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetWaterLevel(HydrodynamicID, WaterLevel, STAT)
+    subroutine GetWaterLevel(HydrodynamicID, WaterLevel, WaterLevelOld, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer,           intent(IN ) :: HydrodynamicID   
-        real, dimension(:,:), pointer  :: WaterLevel
-        integer, optional, intent(OUT) :: STAT
+        integer,           intent(IN )           :: HydrodynamicID   
+        real, dimension(:,:), optional, pointer  :: WaterLevelOld
+        real, dimension(:,:), pointer            :: WaterLevel
+        integer, optional, intent(OUT)           :: STAT
 
 
         !External--------------------------------------------------------------
@@ -12164,6 +12220,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
             call Read_Lock(mHydrodynamic_, Me%InstanceID)
             WaterLevel => Me%WaterLevel%New
+            
+            !this routine was changed (added if bellow) to be able to simulat exactly 
+            !the same tide conditions as in the standalone project for the population
+            ! in the Balgzand Area 
+            if(present(WaterLevelOld))then
+                WaterLevelOld => Me%WaterLevel%Old
+                call Read_Lock(mHydrodynamic_, Me%InstanceID)
+            endif
 
             STAT_ = SUCCESS_
         else 

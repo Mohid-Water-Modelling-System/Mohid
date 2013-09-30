@@ -185,25 +185,25 @@ Module ModuleConsolidation
                                                 
     type  T_Property_3D
          type(T_PropertyID)                     :: ID
-         real,    pointer, dimension (:,:,:)    :: Field
-         real                                   :: Scalar
-         logical                                :: Old          =.false.
+         real,    pointer, dimension (:,:,:)    :: Field          => null()
+         real                                   :: Scalar         = null_real
+         logical                                :: Old            = .false.
     end type   T_Property_3D                      
                                                 
     type       T_Files
-         character(len=StringLength)            :: Initial
-         character(len=StringLength)            :: Final
-         character(len=StringLength)            :: OutPutFields
-         character(len=StringLength)            :: ConstructData
-         character(len=StringLength)            :: BoxesFileName 
-         character(len=StringLength)            :: DomainFile
+         character(len=StringLength)            :: Initial        = null_str
+         character(len=StringLength)            :: Final          = null_str
+         character(len=StringLength)            :: OutPutFields   = null_str
+         character(len=StringLength)            :: ConstructData  = null_str
+         character(len=StringLength)            :: BoxesFileName  = null_str
+         character(len=StringLength)            :: DomainFile     = null_str
     end type T_Files
 
     type       T_OutPut
-         logical                                :: True
+         logical                                :: True         = .false.
          type (T_Time), dimension(:), pointer   :: OutTime
          integer                                :: NextOutPut   = null_int
-         integer                                :: Number
+         integer                                :: Number       = null_int
     end type   T_OutPut
 
     type       T_External
@@ -211,40 +211,40 @@ Module ModuleConsolidation
         type(T_Time)                            :: Now
 
         !ObjMap
-        integer, pointer, dimension(:,:,:)      :: WaterPoints3D
-        integer, pointer, dimension(:,:,:)      :: OpenPoints3D
-        integer, pointer, dimension(:,:,:)      :: ComputeFacesU3D
-        integer, pointer, dimension(:,:,:)      :: ComputeFacesV3D
-        integer, pointer, dimension(:,:,:)      :: ComputeFacesW3D
+        integer, pointer, dimension(:,:,:)      :: WaterPoints3D   => null()
+        integer, pointer, dimension(:,:,:)      :: OpenPoints3D    => null()
+        integer, pointer, dimension(:,:,:)      :: ComputeFacesU3D => null()
+        integer, pointer, dimension(:,:,:)      :: ComputeFacesV3D => null()
+        integer, pointer, dimension(:,:,:)      :: ComputeFacesW3D => null()
 
         !ObjGeometry
-        real,    pointer, dimension(:,:,:)      :: DWZ
-        real,    pointer, dimension(:,:  )      :: GridCellArea
-        real,    pointer, dimension(:,:,:)      :: SZZ
-        real(8), pointer, dimension(:,:,:)      :: Volume
-        real(8), pointer, dimension(:,:,:)      :: VolumeOld
-        integer, pointer, dimension(:,:  )      :: KTop
-        real,    pointer, dimension(:,:,:)      :: AreaU
-        real,    pointer, dimension(:,:,:)      :: AreaV
+        real,    pointer, dimension(:,:,:)      :: DWZ             => null()
+        real,    pointer, dimension(:,:  )      :: GridCellArea    => null()
+        real,    pointer, dimension(:,:,:)      :: SZZ             => null()
+        real(8), pointer, dimension(:,:,:)      :: Volume          => null()
+        real(8), pointer, dimension(:,:,:)      :: VolumeOld       => null()
+        integer, pointer, dimension(:,:  )      :: KTop            => null()
+        real,    pointer, dimension(:,:,:)      :: AreaU           => null()
+        real,    pointer, dimension(:,:,:)      :: AreaV           => null()
 
         !ObjSedimentProperties
-        real,    pointer, dimension(:,:,:)      :: SedimentDryDensity
+        real,    pointer, dimension(:,:,:)      :: SedimentDryDensity  => null()
 
         !ObjInterfaceSedimentWater
-        real,    pointer, dimension(:,:  )      :: ConsolidationFlux
+        real,    pointer, dimension(:,:  )      :: ConsolidationFlux   => null()
 
     end type T_External
 
     type       T_WaterFluxes
-        real(8), dimension(:,:,:), pointer      :: X
-        real(8), dimension(:,:,:), pointer      :: Y
-        real(8), dimension(:,:,:), pointer      :: Z
+        real(8), dimension(:,:,:), pointer      :: X  => null()
+        real(8), dimension(:,:,:), pointer      :: Y  => null() 
+        real(8), dimension(:,:,:), pointer      :: Z  => null()
     end type   T_WaterFluxes
 
 
     type      T_Consolidation
         private
-        integer                                 :: InstanceID
+        integer                                 :: InstanceID           = null_int
         type(T_Size3D        )                  :: Size   
         type(T_Size3D        )                  :: WorkSize   
         type(T_Files         )                  :: Files
@@ -254,41 +254,45 @@ Module ModuleConsolidation
         type(T_Property_3D)                     :: Porosity
         type(T_Property_3D)                     :: StationaryPorosity
         type(T_Property_3D)                     :: CriticalShearStress
-        real(8), pointer, dimension(:,:,:)      :: WaterVolume
-        real(8), pointer, dimension(:,:,:)      :: WaterVolumeOld
-        real(8), pointer, dimension(:,:,:)      :: DrySedimentVolume
-        real(8), pointer, dimension(:,:,:)      :: DrySedimentVolumeOld
-        real,    pointer, dimension(:,:,:)      :: VelocityU, WaterVelocityU
-        real,    pointer, dimension(:,:,:)      :: VelocityV, WaterVelocityV
-        real,    pointer, dimension(:,:,:)      :: VelocityW, WaterVelocityW
-        real,    pointer, dimension(:,:,:)      :: DrySedimentHeight
-        real,    pointer, dimension(:,:,:)      :: WaterPercentage
-        real,    pointer, dimension(:,:,:)      :: CellCenterDepth
-        real,    pointer, dimension(:,:,:)      :: Tortuosity
-        real,    pointer, dimension(:,:,:)      :: VerticalCoordinate
-        real,    pointer, dimension(:,:  )      :: Elevation
-        integer, pointer, dimension(:,:  )      :: KTop, KTopState
-        real,    pointer, dimension(:,:  )      :: TopCriticalShear
-        integer, pointer, dimension(:,:  )      :: SedimentColumnFull
+        real(8), pointer, dimension(:,:,:)      :: WaterVolume               => null()
+        real(8), pointer, dimension(:,:,:)      :: WaterVolumeOld            => null()
+        real(8), pointer, dimension(:,:,:)      :: DrySedimentVolume         => null()
+        real(8), pointer, dimension(:,:,:)      :: DrySedimentVolumeOld      => null()
+        real,    pointer, dimension(:,:,:)      :: VelocityU                 => null()
+        real,    pointer, dimension(:,:,:)      :: WaterVelocityU            => null()
+        real,    pointer, dimension(:,:,:)      :: VelocityV                 => null()
+        real,    pointer, dimension(:,:,:)      :: WaterVelocityV            => null()
+        real,    pointer, dimension(:,:,:)      :: VelocityW                 => null()
+        real,    pointer, dimension(:,:,:)      :: WaterVelocityW            => null()
+        real,    pointer, dimension(:,:,:)      :: DrySedimentHeight         => null()
+        real,    pointer, dimension(:,:,:)      :: WaterPercentage           => null()
+        real,    pointer, dimension(:,:,:)      :: CellCenterDepth           => null()
+        real,    pointer, dimension(:,:,:)      :: Tortuosity                => null()
+        real,    pointer, dimension(:,:,:)      :: VerticalCoordinate        => null()
+        real,    pointer, dimension(:,:  )      :: Elevation                 => null()
+        integer, pointer, dimension(:,:  )      :: KTop                      => null()
+        integer, pointer, dimension(:,:  )      :: KTopState                 => null()
+        real,    pointer, dimension(:,:  )      :: TopCriticalShear          => null()
+        integer, pointer, dimension(:,:  )      :: SedimentColumnFull        => null()
 
         real                                    :: MinLayerThickness    = null_real
         real                                    :: MaxLayerThickness    = null_real
         real                                    :: DecayTime            = null_real
         real                                    :: DT                   = null_real
 
-        real                                    :: Surface_CSE
-        real                                    :: Infinite_CSE
-        real                                    :: CSE_Coef
+        real                                    :: Surface_CSE          = null_real
+        real                                    :: Infinite_CSE         = null_real
+        real                                    :: CSE_Coef             = null_real
 
-        type(T_Time)                            :: NextCompute
+        type(T_Time)                            :: NextCompute     
         type(T_Time)                            :: BeginTime
         type(T_Time)                            :: EndTime
                                      
-        logical                                 :: TimeSerie            = OFF
-        logical                                 :: BoxTimeSerie         = OFF
+        logical                                 :: TimeSerie            = .false.
+        logical                                 :: BoxTimeSerie         = .false.
 
-        logical                                 :: ComputeShearStress   = OFF 
-        logical                                 :: ContinuesCompute     = OFF
+        logical                                 :: ComputeShearStress   = .false. 
+        logical                                 :: ContinuesCompute     = .false.
         logical                                 :: Consolidation        = ON
         logical                                 :: Decayment            = ON
                                                 

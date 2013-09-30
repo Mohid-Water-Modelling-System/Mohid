@@ -81,6 +81,7 @@ Module ModuleInterface
     private ::      PropertyIndexNumber
     private ::      UnfoldMatrix
     public  :: SetSOD
+    public  :: SetSettlementOnInterface
     public  :: UpdateMassDimensions
 
     !Selector
@@ -179,7 +180,7 @@ Module ModuleInterface
 
     !Type----------------------------------------------------------------------
     type       T_External
-        type(T_Time)                            :: Now
+        type(T_Time)                            :: Now, BeginTime, EndTime
         integer, dimension(:      ), pointer    :: RiverPoints1D    => null()
         integer, dimension(:, :   ), pointer    :: WaterPoints2D    => null()
         integer, dimension(:, :, :), pointer    :: WaterPoints3D    => null()
@@ -238,6 +239,8 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: pH                       => null()
         real(8), pointer, dimension(:    )      :: WaterVolume1D            => null() !Array with volumes from unfold matrix 
         real,    pointer, dimension(:    )      :: CellArea1D               => null()!Array with volumes from unfold matrix
+        real,    pointer, dimension(:    )      :: VelocityModulus1D
+        
 
 #ifdef _PHREEQC_        
         real,    pointer, dimension(:    )      :: pE                       => null()
@@ -269,6 +272,8 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: SeagOccupation           => null()
         real(8), pointer, dimension(:    )      :: SedimCellVol             => null() ! 3d   !Isabella
         real,    pointer, dimension(:    )      :: MacrOccupation           => null()
+        
+        real,    pointer, dimension(:    )      :: SettlementProbability
       
         !Instance of ModuleTime
         integer                                 :: ObjTime              = 0
@@ -1116,10 +1121,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 allocate(Me%CellArea1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR152'
-
-                Me%Salinity       = FillValueReal
-                Me%WaterVolume1D  = FillValueReal
-                Me%CellArea1D     = FillValueReal
+                
+                allocate(Me%VelocityModulus1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR153'
+     
+                Me%Salinity             = FillValueReal
+                Me%WaterVolume1D        = FillValueReal
+                Me%CellArea1D           = FillValueReal
+                Me%VelocityModulus1D    = FillValueReal
                 
             case default
                 write(*,*) 
@@ -1256,7 +1265,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
             case(BivalveModel) 
                 
                 Message  = trim('Bivalve Data File')
-                call ReadFileName('BIVALVE_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
+                call ReadFileName('BIV_DAT',Me%FileName, Message = Message, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR13' 
                 
             case default
@@ -1648,11 +1657,20 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
 
                 call GetComputeCurrentTime(Me%ObjTime,                  &
                                            Me%ExternalVar%Now,          &
-                                           STAT = STAT_CALL)                    
+                                           STAT = STAT_CALL)         
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR118'
+
+                call GetComputeTimeLimits(Me%ObjTime, EndTime = Me%ExternalVar%EndTime,     &      
+                                                      BeginTime = Me%ExternalVar%BeginTime, &
+                                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR119'
+                                                      
                 !Construct Bivalve Model
                 call ConstructBivalve(Me%ObjBivalve,                            &
                                       FileName = Me%FileName,                   &
-                                      TimeIN   = Me%ExternalVar%Now,            &
+                                      BeginTime= Me%ExternalVar%BeginTime,      &
+                                      EndTime  = Me%ExternalVar%EndTime,        &
+                                      ArraySize= Me%Array,                      &
                                       STAT     = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR120'
  
@@ -3242,7 +3260,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   NintFac3D, NintFac3DR, PintFac3D,                     &
                                   RootsMort, PintFac3DR,                                &
                                   SedimCellVol3D,                                       &
-                                  CellArea, WaterVolume,                                &
+                                  CellArea, WaterVolume,  VelocityModulus,              &
                                   SeagOccupation,MacrOccupation,                                    &
 #ifdef _PHREEQC_
                                   WaterMass, SolidMass, pE, Temperature,                & 
@@ -3271,6 +3289,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         !real(8),    optional, dimension(:,:,:), pointer    :: WaterCellVol3D  !Isabella
         real,    optional, dimension(:,:,:), pointer    :: RootsMort
         real(8), optional, dimension(:,:,:), pointer    :: WaterVolume
+        real,    optional, dimension(:,:,:), pointer    :: VelocityModulus
         real,    optional, dimension(:,:  ), pointer    :: CellArea
         real,    optional, dimension(:,:,:), pointer    :: MacrOccupation
         real,    optional, dimension(:,:,:), pointer    :: SeagOccupation
@@ -3385,6 +3404,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                  
             if(present(WaterVolume))then
                 call UnfoldMatrix(WaterVolume, Me%WaterVolume1D) 
+            end if 
+            
+            if(present(VelocityModulus))then
+                call UnfoldMatrix(VelocityModulus, Me%VelocityModulus1D) 
             end if 
             
             if(present(SedimCellVol3D))then
@@ -3704,10 +3727,10 @@ cd4 :           if (ReadyToCompute) then
                                                Me%Temperature,                       &
                                                Me%Salinity,                          &
                                                Me%Mass,                              &
-                                               Me%Array,                             &
                                                Me%OpenPoints,                        &
                                                WaterVolumeIN = Me%WaterVolume1D,     &
                                                CellAreaIN    = Me%CellArea1D,        &
+                                               VelocityIN    = Me%VelocityModulus1D, &
                                                TimeIN        = Me%ExternalVar%Now,   &
                                     STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR17a'
@@ -4619,8 +4642,54 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (MonitorPerformance) call StopWatch ("ModuleInterface", "UpdateMass")
 
     end subroutine UpdateMassDimensions
-
+    
+    
     !--------------------------------------------------------------------------
+    
+    subroutine SetSettlementOnInterface (InterfaceID, SpeciesIDNumber, SettlementProbability, STAT)
+    
+        !Arguments-------------------------------------------------------------        
+        integer                                 :: InterfaceID
+        integer, intent(in)                     :: SpeciesIDNumber
+        real   , dimension(:,:,:), pointer      :: SettlementProbability        
+        integer, optional                       :: STAT
+        
+        !External--------------------------------------------------------------        
+        integer                                 :: STAT_, ready_,STAT_CALL
+    
+        !----------------------------------------------------------------------
+       
+        if (MonitorPerformance) call StartWatch ("ModuleInterface", "SetSettlementOnInterface")
+
+        STAT_ = UNKNOWN_
+
+        call Ready(InterfaceID, ready_)    
+
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            allocate(Me%SettlementProbability(Me%Array%ILB:Me%Array%IUB))
+
+            call UnfoldMatrix(SettlementProbability, Me%SettlementProbability)
+            
+            call SetSettlementOnBivalve(Me%ObjBivalve, SpeciesIDNumber, Me%SettlementProbability, STAT = STAT_CALL)
+            
+            deallocate(Me%SettlementProbability)
+            nullify   (Me%SettlementProbability)
+            
+            
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT))STAT = STAT_
+            
+        if (MonitorPerformance) call StopWatch ("ModuleInterface", "SetSettlementOnInterface")
+
+    end subroutine SetSettlementOnInterface
+    
+    !--------------------------------------------------------------------------
+    
     subroutine SetSOD (SOD, OpenPoints2D, WaterPoints2D )
     
         !Arguments-------------------------------------------------------------        
@@ -8967,6 +9036,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             deallocate(Me%CellArea1D, STAT = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR81'
                         end if
+                        
+                        if(associated(Me%VelocityModulus1D))then
+                            deallocate(Me%VelocityModulus1D, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR82a'
+                        end if
+
                             
                         call KillBivalve(Me%ObjBivalve, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR82'

@@ -121,53 +121,53 @@ Module ModuleTimeSerie
     !Types---------------------------------------------------------------------
 
     type       T_TimeSerie
-        real                                        :: DT
+        real                                        :: DT                 = null_real
         integer                                     :: TotalOutPutsNumber = null_int
         integer                                     :: BufferSize         = null_int      !Number of instantes which can kept
         integer                                     :: BufferCount        = null_int      !Current number of instantes
-        integer                                     :: UnitNumber
-        integer                                     :: LocalizationI = null_int
-        integer                                     :: LocalizationJ = null_int
-        integer                                     :: LocalizationK = null_int
-        real                                        :: Latitude      = null_real
-        real                                        :: Longitude     = null_real
-        real                                        :: CoordX        = null_real
-        real                                        :: CoordY        = null_real
-        logical                                     :: CoordON       = .false.
-        real                                        :: DepthLevel    = null_real
-        logical                                     :: DepthON       = .false.
+        integer                                     :: UnitNumber         = null_int
+        integer                                     :: LocalizationI      = null_int
+        integer                                     :: LocalizationJ      = null_int
+        integer                                     :: LocalizationK      = null_int
+        real                                        :: Latitude           = null_real
+        real                                        :: Longitude          = null_real
+        real                                        :: CoordX             = null_real
+        real                                        :: CoordY             = null_real
+        logical                                     :: CoordON            = .false.
+        real                                        :: DepthLevel         = null_real
+        logical                                     :: DepthON            = .false.
         type (T_Time)                               :: BeginOutPut                  !Limit
         type (T_Time)                               :: EndOutPut                    !Limit
         type (T_Time)                               :: NextOutput
-        real, dimension(:, :), pointer              :: TimeSerieData
+        real, dimension(:, :), pointer              :: TimeSerieData      => null()
         type (T_Time), dimension(:), pointer        :: TimeBuffer
-        real, dimension(:), pointer                 :: ResidualValues
-        real                                        :: ResidualTime
+        real, dimension(:), pointer                 :: ResidualValues     => null()
+        real                                        :: ResidualTime       = null_real
         type (T_Time)                               :: LastResidual
-        character(len=PathLength)                   :: FromBlockFileName    = null_str
-        character(len=PathLength)                   :: FileName
-        logical                                     :: IgnoreON
+        character(len=PathLength)                   :: FromBlockFileName  = null_str
+        character(len=PathLength)                   :: FileName           = null_str
+        logical                                     :: IgnoreON           = .false.
     end type T_TimeSerie
 
     type      T_TimeSerieInOutPut
 
         !Instance ID
-        integer                                     :: InstanceID
-        character(PathLength)                       :: ModelName
-        logical                                     :: ModelNameON          = .false.
-        logical                                     :: ReplacePathON        = .false.
-        character(PathLength)                       :: ReplacePath
+        integer                                     :: InstanceID         = null_int
+        character(PathLength)                       :: ModelName          = null_str
+        logical                                     :: ModelNameON        = .false.
+        logical                                     :: ReplacePathON      = .false.
+        character(PathLength)                       :: ReplacePath        = null_str
 
         !Time Serie Input
-        real,    dimension(:,:), pointer            :: DataMatrix
-        integer, dimension(:  ), pointer            :: ColumnsRead
-        integer, dimension(:  ), pointer            :: FileColumns
-        integer                                     :: DataValues
-        integer                                     :: DataColumns        
+        real,    dimension(:,:), pointer            :: DataMatrix         => null()
+        integer, dimension(:  ), pointer            :: ColumnsRead        => null()
+        integer, dimension(:  ), pointer            :: FileColumns        => null()
+        integer                                     :: DataValues         = null_int
+        integer                                     :: DataColumns        = null_int
 
         !Time Serie Output
-        integer                                     :: NumberOfProperties
-        integer                                     :: InternalPropertyCount
+        integer                                     :: NumberOfProperties   = null_int
+        integer                                     :: InternalPropertyCount= null_int
         integer                                     :: NumberOfTimeSeries   = 0
         integer                                     :: MaxBufferSize        = null_int
         logical                                     :: Points               = IDLE
@@ -177,12 +177,12 @@ Module ModuleTimeSerie
         logical                                     :: ComputeResidual      = .true.
         logical                                     :: IgnoreON             = .false.
 
-        !TimeSerieInput
-        logical                                     :: TimeCycle
-        character(len=StringLength)                 :: CharTimeUnits
+        !TimeSerieInput 
+        logical                                     :: TimeCycle            = .false.
+        character(len=StringLength)                 :: CharTimeUnits        = null_str
         character(len=line_length)                  :: Header               = null_str
         type (T_Time)                               :: InitialData
-        integer                                     :: CurrentIndex  = 2
+        integer                                     :: CurrentIndex         = 2    
         integer                                     :: StartIndex = 1, EndIndex  = 1
 
         !TimeSerieOutput

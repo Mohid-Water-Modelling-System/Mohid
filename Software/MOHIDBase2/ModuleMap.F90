@@ -171,26 +171,29 @@ module ModuleMap
 
     private :: T_3D_INT
     type       T_3D_INT
-        integer, pointer, dimension(:,:,:)  :: U, V, W
+        integer, pointer, dimension(:,:,:)  :: U  => null()
+        integer, pointer, dimension(:,:,:)  :: V  => null()
+        integer, pointer, dimension(:,:,:)  :: W  => null()
     end type T_3D_INT
 
 
     private :: T_2D_INT
     type       T_2D_INT
-        integer, pointer, dimension(:,:,:)  :: U, V
+        integer, pointer, dimension(:,:,:)  :: U  => null()
+        integer, pointer, dimension(:,:,:)  :: V  => null()
     end type T_2D_INT
 
     private :: T_MapCell
     type       T_MapCell
-        integer                             :: Icell
-        integer                             :: Jcell
-        type(T_MapCell),            pointer :: Next                 => null()
+        integer                             :: Icell   = null_int
+        integer                             :: Jcell   = null_int
+        type(T_MapCell),            pointer :: Next    => null()
     end type T_MapCell
 
     private :: T_Map
     type       T_Map
         private 
-        integer                             :: InstanceID
+        integer                             :: InstanceID            = null_int
         type(T_Size3D  )                    :: Size
         type(T_Size3D  )                    :: WorkSize
         type(T_Time    )                    :: ActualTime
@@ -200,7 +203,9 @@ module ModuleMap
         type(T_2D_INT  )                    :: ImposedNormalFaces
         type(T_2D_INT  )                    :: ImposedTangentialFaces
         type(T_2D_INT  )                    :: WetFaces
-        integer, pointer, dimension(:,:,:)  :: WaterPoints3D, LandPoints3D, OpenPoints3D
+        integer, pointer, dimension(:,:,:)  :: WaterPoints3D        => null()
+        integer, pointer, dimension(:,:,:)  :: LandPoints3D         => null()
+        integer, pointer, dimension(:,:,:)  :: OpenPoints3D         => null()
 
         !Instance of ModuleTime
         integer                             :: ObjTime              = 0

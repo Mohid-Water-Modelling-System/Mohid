@@ -130,35 +130,36 @@ Module ModuleGridData
     type T_Evolution
 
         type(T_Time)                        :: Now
-        logical                             :: Yes
-        character(LEN = PathLength)         :: File
-        integer                             :: OldInstants
-        real,    dimension(:,:),   pointer  :: TimeInstants
-        real,    dimension(:,:,:), pointer  :: GridData2D
-        integer                             :: ObjHDF5             = 0
-        integer                             :: ObjTime             = 0
-        character(Len = StringLength)       :: PropName
+        logical                             :: Yes            = .false.
+        character(LEN = PathLength)         :: File           = null_str
+        integer                             :: OldInstants    = null_int
+        real,    dimension(:,:),   pointer  :: TimeInstants   => null()
+        real,    dimension(:,:,:), pointer  :: GridData2D     => null()
+        integer                             :: ObjHDF5        = 0
+        integer                             :: ObjTime        = 0
+        character(Len = StringLength)       :: PropName       = null_str
 
     end type T_Evolution
 
     type      T_GridData
-        integer                         :: InstanceID
-        character(LEN = PathLength)     :: FileName 
-        character(LEN = StringLength)   :: COMENT1 = '******'          
+        integer                         :: InstanceID          = null_int
+        character(LEN = PathLength)     :: FileName            = null_str
+        character(LEN = StringLength)   :: COMENT1 = '******'         
         character(LEN = StringLength)   :: COMENT2 = '******'          
-        real, dimension(:,:), pointer   :: GridData2D
-        real, dimension(:,:,:), pointer :: GridData3D
-        real, dimension(:,:), pointer   :: GridData2Dreference
-        real                            :: DefaultValue
-        logical                         :: ConstantInSpace        
-        real                            :: MaximumValue
-        real                            :: MinimumValue
-        logical                         :: Is3D
-        logical                         :: ReadFile        
+        real, dimension(:,:), pointer   :: GridData2D          => null()
+        real, dimension(:,:,:), pointer :: GridData3D          => null()
+        real, dimension(:,:), pointer   :: GridData2Dreference => null()
+        real                            :: DefaultValue        = null_real
+        logical                         :: ConstantInSpace     = .false.   
+        real                            :: MaximumValue        = null_real
+        real                            :: MinimumValue        = null_real
+        logical                         :: Is3D                = .false.
+        logical                         :: ReadFile            = .false.
         type (T_Size2D)                 :: WorkSize, Size
-        integer                         :: KLB, KUB
-        real                            :: FillValue
-        integer                         :: TypeZUV
+        integer                         :: KLB                 = null_int
+        integer                         :: KUB                 = null_int
+        real                            :: FillValue           = null_real
+        integer                         :: TypeZUV             = null_int
         type (T_Evolution)              :: Evolution
         integer                         :: ObjHorizontalGrid   = 0
         type (T_GridData), pointer      :: Next

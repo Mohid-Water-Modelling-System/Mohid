@@ -227,51 +227,73 @@ Module ModuleJet
     end type T_Port
 
     type T_Ambient
-        real, dimension(:,:,:), pointer :: Density, Salinity, Temperature
-        real, dimension(:,:,:), pointer :: VelU, VelV, VelW
-        real, dimension(:,:,:), pointer :: SZZ
-        integer                         :: BottomLayer, SurfaceLayer, I, J
-        real                            :: LocalDensity
-        real                            :: LocalSalinity, LocalTemperature
-        real                            :: LocalVelU, LocalVelV, LocalVelW, LocalVelModulus
-        integer                         :: LocalType
-        real                            :: DefaultSalinity, DefaultTemperature, DefaultVelU, DefaultVelV
-        real                            :: SurfaceSalinity, SurfaceTemperature, SurfaceVelU, SurfaceVelV
-        real                            :: BottomSalinity,  BottomTemperature,  BottomVelU,  BottomVelV
+        real, dimension(:,:,:), pointer :: Density                      => null()
+        real, dimension(:,:,:), pointer :: Salinity                     => null()
+        real, dimension(:,:,:), pointer :: Temperature                  => null()
+        real, dimension(:,:,:), pointer :: VelU                         => null()
+        real, dimension(:,:,:), pointer :: VelV                         => null()
+        real, dimension(:,:,:), pointer :: VelW                         => null()
+        real, dimension(:,:,:), pointer :: SZZ                          => null()
+        integer                         :: BottomLayer                  = null_int
+        integer                         :: SurfaceLayer                 = null_int
+        integer                         :: I                            = null_int
+        integer                         :: J                            = null_int
+        real                            :: LocalDensity                 = null_real
+        real                            :: LocalSalinity                = null_real
+        real                            :: LocalTemperature             = null_real
+        real                            :: LocalVelU                    = null_real
+        real                            :: LocalVelV                    = null_real
+        real                            :: LocalVelW                    = null_real
+        real                            :: LocalVelModulus              = null_real
+        integer                         :: LocalType                    = null_int
+        real                            :: DefaultSalinity              = null_real 
+        real                            :: DefaultTemperature           = null_real       
+        real                            :: DefaultVelU                  = null_real
+        real                            :: DefaultVelV                  = null_real
+        real                            :: SurfaceSalinity              = null_real
+        real                            :: SurfaceTemperature           = null_real 
+        real                            :: SurfaceVelU                  = null_real 
+        real                            :: SurfaceVelV                  = null_real 
+        real                            :: BottomSalinity               = null_real 
+        real                            :: BottomTemperature            = null_real 
+        real                            :: BottomVelU                   = null_real 
+        real                            :: BottomVelV                   = null_real 
     end type T_Ambient
 
     type T_NumericalOptions
-        real                            :: MaxSimulationPeriod, MinSimulationPeriod
-        real                            :: MaxDV, MaxDT
-        integer                         :: Parametrization
+        real                            :: MaxSimulationPeriod          = null_real
+        real                            :: MinSimulationPeriod          = null_real
+        real                            :: MaxDV                        = null_real
+        real                            :: MaxDT                        = null_real
+        integer                         :: Parametrization              = null_int
     end type T_NumericalOptions
 
     type T_OutPut
-        real                                   :: DT                = null_real
-        real                                   :: TimeOut           = null_real
-        real, dimension(:,:), pointer          :: Matrix
-        character(LEN=StringLength),                                                    &
-              dimension(:), pointer            :: Header
-        integer                                :: Number            = null_int
-        character(LEN=StringLength)            :: AxisX, AxisY
-        integer                                :: FormatType        = null_int
-        logical                                :: OK
-        integer                                :: ParticlesNumber   = null_int
-        integer                                :: OutColumns        = null_int
-        real                                   :: Concentration     = null_int
-        real                                   :: VelModulus_Old    = null_real
-        real                                   :: Dilution_Old      = null_real
-        real                                   :: Diameter_Old      = null_real
-        real                                   :: Salinity_Old      = null_real
-        real                                   :: Temperature_Old   = null_real
-        real                                   :: Density_Old       = null_real
+        real                                                :: DT                = null_real
+        real                                                :: TimeOut           = null_real
+        real, dimension(:,:), pointer                       :: Matrix            => null()
+        character(LEN=StringLength), dimension(:), pointer  :: Header            => null()
+        integer                                             :: Number            = null_int
+        character(LEN=StringLength)                         :: AxisX             = null_str
+        character(LEN=StringLength)                         :: AxisY             = null_str
+        integer                                             :: FormatType        = null_int
+        logical                                             :: OK                = .false.
+        integer                                             :: ParticlesNumber   = null_int
+        integer                                             :: OutColumns        = null_int
+        real                                                :: Concentration     = null_int
+        real                                                :: VelModulus_Old    = null_real
+        real                                                :: Dilution_Old      = null_real
+        real                                                :: Diameter_Old      = null_real
+        real                                                :: Salinity_Old      = null_real
+        real                                                :: Temperature_Old   = null_real
+        real                                                :: Density_Old       = null_real
 
-        real                                   :: x_old             = null_real
-        real                                   :: y_old             = null_real
-        real                                   :: z_old             = null_real
-        real                                   :: ex_old            = null_real
-        real                                   :: ey_old            = null_real
-        real                                   :: ez_old            = null_real
+        real                                                :: x_old             = null_real
+        real                                                :: y_old             = null_real
+        real                                                :: z_old             = null_real
+        real                                                :: ex_old            = null_real
+        real                                                :: ey_old            = null_real
+        real                                                :: ez_old            = null_real
     end type T_OutPut
 
     type T_Evolution
@@ -339,7 +361,7 @@ Module ModuleJet
 
 
     type      T_Jet 
-        integer                         :: InstanceID
+        integer                         :: InstanceID        = null_int
         type(T_Size3D )                 :: Size
         type(T_Size3D )                 :: WorkSize
         type(T_Port)                    :: Port
@@ -347,7 +369,7 @@ Module ModuleJet
         type(T_NumericalOptions)        :: NumericalOptions
         type(T_OutPut)                  :: OutPut
         type(T_Evolution)               :: Evolution
-        integer                         :: ObjEnterData = 0
+        integer                         :: ObjEnterData      = 0
 
         !Collection of instances
         type(T_Jet  ), pointer          :: Next

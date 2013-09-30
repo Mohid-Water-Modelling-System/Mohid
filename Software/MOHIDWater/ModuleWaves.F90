@@ -173,45 +173,47 @@ Module ModuleWaves
     !Types---------------------------------------------------------------------
                                                         
     type       T_External                               
-        real,    dimension(:,:), pointer                    :: WindVelocityX
-        real,    dimension(:,:), pointer                    :: WindVelocityY
-        integer, dimension(:,:), pointer                    :: WaterPoints2D
-        integer, dimension(:,:), pointer                    :: OpenPoints2D
-        real,    dimension(:,:), pointer                    :: WaterColumn
-        real,    dimension(:,:), pointer                    :: XX_IE, YY_IE
-        real,    dimension(:,:), pointer                    :: DUX, DVY   
-        real, dimension(:,:,:), pointer                     :: SZZ
-        real,    dimension(:,:), pointer                    :: Bathymetry
-        real                                                :: GridAngle
-        logical                                             :: DistortionOn         = .false.
-        real                                                :: CurrentValue4D       = FillValueReal
-        logical                                             :: Backtracking
+        real,    dimension(:,:),  pointer                    :: WindVelocityX       => null()
+        real,    dimension(:,:),  pointer                    :: WindVelocityY       => null()
+        integer, dimension(:,:),  pointer                    :: WaterPoints2D       => null()
+        integer, dimension(:,:),  pointer                    :: OpenPoints2D        => null()
+        real,    dimension(:,:),  pointer                    :: WaterColumn         => null()
+        real,    dimension(:,:),  pointer                    :: XX_IE               => null()
+        real,    dimension(:,:),  pointer                    :: YY_IE               => null()
+        real,    dimension(:,:),  pointer                    :: DUX                 => null()
+        real,    dimension(:,:),  pointer                    :: DVY                 => null()
+        real,    dimension(:,:,:),pointer                    :: SZZ                 => null()
+        real,    dimension(:,:),  pointer                    :: Bathymetry          => null() 
+        real                                                 :: GridAngle           = null_real
+        logical                                              :: DistortionOn        = .false.
+        real                                                 :: CurrentValue4D      = FillValueReal
+        logical                                              :: Backtracking        = .false.
     end type   T_External                               
 
     type       T_OutPut                                 
          type (T_Time), pointer, dimension(:)               :: OutTime
-         integer                                            :: NextOutPut
+         integer                                            :: NextOutPut           = null_int
          logical                                            :: TimeSerie            = .false.
          logical                                            :: HDF                  = .false.
-         integer                                            :: Number
-         logical                                            :: OutputGridData
-         logical                                            :: FetchDistances            = .false.
-         logical                                            :: FetchDepths               = .false.         
+         integer                                            :: Number               = null_int
+         logical                                            :: OutputGridData       = .false.
+         logical                                            :: FetchDistances       = .false.
+         logical                                            :: FetchDepths          = .false.         
     end type T_OutPut                                   
                                                         
     type T_WaveProperty                                 
         type(T_PropertyID)                                  :: ID
         logical                                             :: ON                   = .false.
         logical                                             :: Constant             = .false.
-        integer                                             :: Source
-        real, dimension(:,:),  pointer                      :: Field
+        integer                                             :: Source               = null_int
+        real, dimension(:,:),  pointer                      :: Field                => null()
         logical                                             :: OutputHDF            = .false.
         logical                                             :: TimeSerieOn          = .false.
     end type T_WaveProperty
 
     type       T_Waves
-        integer                                             :: InstanceID
-        character(PathLength)                               :: ModelName
+        integer                                             :: InstanceID              = null_int
+        character(PathLength)                               :: ModelName               = null_str
         type(T_Time  )                                      :: BeginTime
         type(T_Time  )                                      :: EndTime
         type(T_Time  )                                      :: ActualTime
@@ -224,14 +226,21 @@ Module ModuleWaves
         type (T_WaveProperty)                               :: WaveHeight
         type (T_WaveProperty)                               :: WaveDirection
         type (T_WaveProperty)                               :: WaveLength
-        real, dimension(:,:  ), pointer                     :: Abw, Ubw, WaveLength_
-        real, dimension(:,:  ), pointer                     :: En, k
-        real, dimension(:,:,:), pointer                     :: Distance, Fetch, AverageDepth, Depth
-        real, dimension(:    ), pointer                     :: AngleList  
-        real, dimension(:    ), pointer                     :: XX, YY 
-        real, dimension(:    ), pointer                     :: MinDistanceFromPoint                        
-        character(Len=PathLength)                           :: FileName
-        character(Len=PathLength)                           :: OutputFile
+        real, dimension(:,:  ), pointer                     :: Abw                     => null()
+        real, dimension(:,:  ), pointer                     :: Ubw                     => null()
+        real, dimension(:,:  ), pointer                     :: WaveLength_             => null()
+        real, dimension(:,:  ), pointer                     :: En                      => null()
+        real, dimension(:,:  ), pointer                     :: k                       => null()
+        real, dimension(:,:,:), pointer                     :: Distance                => null()
+        real, dimension(:,:,:), pointer                     :: Fetch                   => null()
+        real, dimension(:,:,:), pointer                     :: AverageDepth            => null()
+        real, dimension(:,:,:), pointer                     :: Depth                   => null()
+        real, dimension(:    ), pointer                     :: AngleList               => null()
+        real, dimension(:    ), pointer                     :: XX                      => null()
+        real, dimension(:    ), pointer                     :: YY                      => null()
+        real, dimension(:    ), pointer                     :: MinDistanceFromPoint    => null()                      
+        character(Len=PathLength)                           :: FileName                = null_str
+        character(Len=PathLength)                           :: OutputFile              = null_str
         logical                                             :: ParametersON            = .false.
         integer                                             :: ObjTime                 = 0
         integer                                             :: ObjHorizontalGrid       = 0
@@ -248,9 +257,22 @@ Module ModuleWaves
         integer                                             :: DepthType               = DepthLocal
         real                                                :: DepthValue              = 0.
         real                                                :: MeanSeaLevel            = 0.
-        integer                                             :: N, NNE, NE, ENE, E, ESE 
-        integer                                             :: SE, SSE, S, SSW, SW, WSW 
-        integer                                             :: W, WNW, NW, NNW
+        integer                                             :: N                       = null_int
+        integer                                             :: NNE                     = null_int
+        integer                                             :: NE                      = null_int
+        integer                                             :: ENE                     = null_int
+        integer                                             :: E                       = null_int
+        integer                                             :: ESE                     = null_int 
+        integer                                             :: SE                      = null_int
+        integer                                             :: SSE                     = null_int
+        integer                                             :: S                       = null_int
+        integer                                             :: SSW                     = null_int
+        integer                                             :: SW                      = null_int
+        integer                                             :: WSW                     = null_int
+        integer                                             :: W                       = null_int
+        integer                                             :: WNW                     = null_int
+        integer                                             :: NW                      = null_int
+        integer                                             :: NNW                     = null_int
         real                                                :: WaveHeightParameter     = 1.
         real                                                :: WavePeriodParameter     = 1.
         type (T_OutPut)                                     :: OutPut
