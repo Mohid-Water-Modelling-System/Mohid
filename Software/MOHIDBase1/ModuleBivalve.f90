@@ -7,12 +7,161 @@
     ! MODULE        : Bivalve
     ! URL           : http://www.mohid.com
     ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-    ! DATE          : 5 Out 2012
+    ! DATE          : 30 Set 2013
     ! REVISION      : Sofia Saraiva
     ! DESCRIPTION   : Individual Based Population (or individual) model for one/several bivalve
     !                 species following DED theory 
     !
     !-----------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------
+    !
+    !DataFile example
+    !
+    !DT                   : 1800.
+    !DENSITY_UNITS        : 1 !0:m2, 1:m3
+    !BIVALVE_OUTPUT_TIME  : 0 1800.
+    !PELAGIC_MODEL        : WaterQuality
+    !NITROGEN             : 1
+    !PHOSPHOR             : 1
+    !SIMPLE_FILTRATION    : 0
+    !CORRECT_FILTRATION   : 1
+    !INDEX_OUTPUT         : 411 ! cell for tim eserie results
+    !MASS_BALANCE         : 1 ! only works with no predation + the same NC ratio for food and bivalve (or with life) + complex filtrat
+    !MIN_NUMBER           : 1 ! minimum number of organism in a cohort
+    !TESTING_PARAMETERS   : 0 ! 0/1, the name of the output file will incude the parameters
+    !
+    !
+    !<begin_species>
+    !NAME                 : bivalve1
+    !DESCRIPTION          : Mytilus edulis
+    !TESTING_FILENAME     : All_ParameterTest.dat
+    !POPULATION           : 1
+    !FEED_ON_LARVAE       : 0
+    !LARVAE_MAXSIZE       : 0.026 !cm
+    !NUMBER_OF_COHORTS    : 1
+    !MIN_OBS_LENGTH       : 0.1
+    !COHORT_OUTPUT        : 1
+    !BYSIZE_OUTPUT        : 1
+    !!SIZE_STEP            : 1        !1cm classes from 0 to the maximum size of the species
+    !!MAX_SIZECLASS        : 10       !maximum size for size distribution representation
+    !<<begin_size_classes>>
+    !0.0
+    !0.026
+    !0.03
+    !0.05
+    !0.1
+    !0.15
+    !0.2
+    !0.5
+    !1.2
+    !2.6
+    !3.
+    !4.
+    !6.
+    !8.
+    !10.
+    !12.
+    !14.
+    !16.
+    !<<end_size_classes>>
+    !
+    !RESERVES_nH          : 1.8      !molH/molC, chemical index of hydrogen in bivalve reserves (Kooijman 2010)
+    !RESERVES_nO          : 0.53     !molO/molC, chemical index of oxygen in bivalve reserves (Kooijman 2010)
+    !RESERVES_nN          : 0.18     !molN/molC, chemical index of nitrogen in bivalve reserves
+    !RESERVES_nP          : 0.006    !molP/molC, chemical index of phosphorus in bivalve reserves
+    !
+    !STRUCTURE_nH         : 1.8      !molH/molC, chemical index of hydrogen in bivalve structure
+    !STRUCTURE_nO         : 0.53     !molO/molC, chemical index of oxygen in bivalve structure
+    !STRUCTURE_nN         : 0.18     !molN/molC, chemical index of nitrogen in bivalve structure
+    !STRUCTURE_nP         : 0.006    !molP/molC, chemical index of phosphorus in bivalve structure
+    !
+    !Tref                 : 293      !293, K, Rate Temperature reference (van der Veer etal., 2006)
+    !TA                   : 7022     !7022, K, Arrhenius temperature (van der Veer etal., 2006)
+    !TL                   : 275      !273, K, Lower Boundary tolerance range (van der Veer etal., 2006)
+    !TH                   : 296      !290, K, Upper Boundary tolerance range (van der Veer etal., 2006)
+    !TAL                  : 45430    !45430, K, Arrhenius temperature for lower boundary (van der Veer etal., 2006)
+    !TAH                  : 31376    !31376, K, Arrhenius temperature for upper boundary (van der Veer etal., 2006)
+    !
+    !F_FIX                : 1        !1, adim, constant food density parameter (only if simple filtration)
+    !PAM_FIX              : 94.79    !80.5, Jd-1cm-2, bivalve surface-specific assimilation rate if fix (Saraiva etal., inpress)
+    !DELTA_M              : 0.297    !0.297, cm(volumetric)/cm(real), shape coefficient  (Saraiva etal., inpress)
+    !LIFE_SPAN            : 24       !24, years, max life span for a mussel under natural conditions (Sukhotin et al. (2007))
+    !M_VELOCITY           : 0.0      !/d, fraction of individuals that die due to high velocity
+    !MAX_VELOCITY         : 0.5      !m/s, maximum  water velocity tolerable for this species
+    !M_NATURAL            : 0.50000E-02
+    !M_SPAT               : 0.9
+    !V_COND               : 0.056    !0.056, cm/d, energy conductance (Saraiva etal., in press)
+    !KAPPA                : 0.67     !0.67, adim, allocation fraction to growth/somatic maintenace (Saraiva etal., in press)
+    !KAP_R                : 0.95     !0.95, adim, fraction of flux allocated to reproduction (Kooijman, 2010)
+    !pM                   : 11.6     !11.6, J/(d.cm3), volume specific somatic maintenace energy flux (Saraiva etal., inpress)
+    !EG                   : 5993     !5993, J/cm3(volumetric), energy costs for structural volume growth (Saraiva etal., inpress)
+    !EH_B                 : 2.95e-5  !2.99e-5, J, Maturity threshold for birth (Saraiva etal., inpress)
+    !EH_P                 : 1.58e2   !1.58e2, J, Maturity threshold for puberty (Saraiva etal., inpress)
+    !CRM                  : 0.096    !0.096, m3/d.cm2, maximum clearance rate (Saraiva etal., 2011)
+    !JX1FM                : 4.8e-4   !4.8e-4, molC/(d.cm2), algae maximum surface area-specific filtration rate (Thomas etal., 2011)
+    !JX0FM                : 3.5      !3.5, g/(d.cm2), inorganic material maximum surface area-specific filtration rate (Saraiva etal.
+    !RO_X1                : 0.4      !0.4, adim, algae binding probability (Saraiva etal., inpress)
+    !RO_X0                : 0.4      !0.4, adim, inorganic material binding probability (Saraiva etal., inpress)
+    !JX1IM                : 1.3e4    !1.3e-4, molC/(d.cm2), algae maximum surface area-specific ingestion rate (Saraiva etal., 2011)
+    !JX0IM                : 0.11     !0.11, g/(d.cm2), inorganic material maximum surface area-specific ingestion rate (Saraiva etal.
+    !YEX                  : 0.75     !0.65, molCE/molCV, yield coeficienct of reserves in algae structure
+    !GSR_MIN              : 0.1      !0.1, molC(gam)/molC(struc), minimum gonado-somatic ratio in the organism (Cardoso et al., 2007)
+    !GSR_SPAWN            : 0.2      !0.2, molC(gam)/molC(struc), gonado-somatic ratio to spawn (Saraiva etal., submited)
+    !T_SPAWN              : 9.6      !9.6, C, minimum temperature for spawning (Hummel etal., 1989)
+    !MIN_SPAWN_TIME       : 0        !15, d, minimum time between spawning events
+    !ME_0                 : 1.49e-10 !1.48e-10, molC(reser), reserves in an embryo at optimal food conditions (Saraiva etal., submite
+    !ME_B                 : 6.0e-11  !1.0e-7, molC, reserves in a new born individual at optimal food conditions (Saraiva etal., subm
+    !MV_B                 : 7.92e-11 !7.52e-11, molC, structure in a new born individual at optimal food conditions (Saraiva etal., s
+    !MH_B                 : 4.24e-11 !4.24e-11, molC, maturity in a new born individual at optimal food conditions (Saraiva etal., su
+    !L_B                  : 7.3e-3   !7.3e-3, molC, length in a new born individual at optimal food conditions (Saraiva etal., submit
+    !DV                   : 0.2      !0.2, g(dw)/cm3, bivalve structure and reserves specific density (Rosland etal., 2009 and Brey,
+    !MU_E                 : 6.97e5   !6.97e5, J/molC(reser), chemical potential of reserves (van der Veer etal., 2006)
+    !SIMPLE_ASSI          : 0        !0, 0/1 option to compute simple assimilation
+    !SIMPLE_TEMP          : 1        !0, 0/1 option to compute simple temperature
+    !
+    !<<begin_particle>>
+    !NAME                 : phytoplankton
+    !DESCRIPTION          : description
+    !ORGANIC              : 1       !1/0, is this an organic particle?
+    !SILICA_USE           : 0       !1/0, does it have silica?, just important in case of life model (diatoms)
+    !RATIO_VARIABLE       : 0       !1/0, the N/C and P/C ratios of this property are variable?
+    !RATIOHC              : 0.15    !0.15, mgH/mgC in the food, same as bivalve
+    !RATIOOC              : 0.71    !0.71, mgO/mgC in the food, same as bivalve
+    !RATIONC              : 0.3396     !0.3, 0.18, Redfield, to define if RATIO_VARIABLE:0 and FOOD:1 and ORGANIC:1, must be equal to wq
+    !RATIOPC              : 0.07    !0.07, 0.024, Redfield, to define if RATIO_VARIABLE:0 and FOOD:1 and ORGANIC:1, must be equal to wq
+    !RATIOSiC             : 0.89    !0.89, to define if RATIO_VARIABLE:0 and FOOD:1 and ORGANIC:1, must be equal to wq
+    !RATIOCHLC            : 0.017   !0.017, to define if RATIO_VARIABLE:0 and FOOD:1 and ORGANIC:1, must be equal to wq
+    !SIZE                 : 0.2     !0.2, to define if FOOD:1, cm, mean size of property
+    !F_E                  : 0.8     !0.5, to define if FOOD:1, molCReserves/molCTotalFood, fraction of reserves in the food
+    !<<end_particle>>
+    !
+    !<<begin_predator>>
+    !NAME                 : shrimp
+    !DESCRIPTION          : shrimp
+    !SIZE                 : 1.2     !0.0, cm, shrimp average size (Beukema 1992)
+    !MINPREYSIZE          : 0.00   !0.0, cm, minimum size of the prey
+    !MAXPREYSIZE          : 0.2    !0.2, cm, maximum size of the prey, 10%
+    !FEEDING_RATE         : 48.35   !48.35; %J/cm2.d shrimp average ingestion rate (Campos etal., 2009)
+    !FEEDING_UNITS        : 3       !1-#/d.ind; 2-AFDW/d.ind, 3-J/cm2.d
+    !FEEDING_TIME         : 1       !1-Always; 2-LowTide, 3-HighTide
+    !DIET_FRACTION        : 0.00000E+00
+    !AFDW_DW              : 0.85    !-, conversion of afdw in dw (this study)
+    !DW_C                 : 2.5     !-, conversion of dw in gCarbon (Solobodkin and Richman 1961)
+    !
+    !CORRECT_TEMP         : 1        !0, 0/1 option to compute simple temperature for predator rate
+    !SIMPLE_TEMP          : 1        !0, 0/1 option to compute simple temperature for predator rate
+    !P_Tref               : 283.     !293, K, Rate Temperature reference for predator (same as the prey...for now)
+    !P_TA                 : 9000     !7022, K, Arrhenius temperature for predator
+    !P_TL                 : 273      !273, K, Lower Boundary tolerance range for predator
+    !P_TH                 : 303      !290, K, Upper Boundary tolerance range for predator
+    !P_TAL                : 6700000  !45430, K, Arrhenius temperature for lower boundary for predator
+    !P_TAH                : 49368    !31376, K, Arrhenius temperature for upper boundary for predator
+    !<<end_predator>>
+    !<end_species>
+
+    !-----------------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------------
+
     Module ModuleBivalve
 
     use ModuleGlobalData
@@ -1083,7 +1232,7 @@ do1:        do while (associated(ObjCohort%Next))
             character(len=16)                           :: IndexOutputStr
             character(len=16)                           :: SizeClassNameStr
             character(len=16)                           :: ParameterValueStr
-            character(len=16)                           :: ArgumentInComand
+            !character(len=16)                           :: ArgumentInComand
         !Begin----------------------------------------------------------------------
         
         !call getarg(1,ArgumentInComand) 
