@@ -182,6 +182,10 @@ Module ModuleLagrangianGlobal
 !                                                                               !which is not a OpenPoint                   
 !   STOKES_DRIFT            : 0/1                       [0]                     !Wave-driven particle velocity (Stokes Drift)
 !   STOKES_DRIFT_METHOD     : LonguetHigginsDeep/LonguetHigginsGeneric  [LonguetHigginsGeneric]  Stokes Drift Method
+!   WINDDRIFTCORRECTION     : 0/1/2                     [0]                     ! 0 = no wind drift correction; 
+!                                                                               ! 1 = user-defined; 3 = computed (Samuels, 1982)
+!   (next keyword is only read if WINDDRIFTCORRECTION = 1)
+!   WINDDRIFTANGLE          : real                      [0]                     !Wind Drift Angle Correction due to Coriolis
 !   WINDCOEF                : real                      [0.03]                  !Wind transfer Coeficient
 !   WINDXY                  : real real                 [0.0 0.0]               !If this keyword is defined than the the wind 
                                                                                 !the wind velocity defined in the atmosphere 
@@ -680,6 +684,11 @@ Module ModuleLagrangianGlobal
     integer, parameter                          :: Constant_                = 1
     integer, parameter                          :: ShoreTypeBased_          = 2
     
+    !Wind Drift Correction
+    integer, parameter                          :: NoCorrection_            = 0
+    !UderDefined_ option already declared
+    integer, parameter                          :: Computed_Samuels_        = 2
+
     integer, parameter                         :: ShoreTypesNbr            = 11
     
     character(LEN = StringLength), parameter    :: block_begin              = '<BeginOrigin>'
@@ -1136,6 +1145,8 @@ Module ModuleLagrangianGlobal
         real                                    :: VarVelV                  = 0.0
 
         real                                    :: WindTransferCoef         = 0.03
+        integer                                 :: WindDriftCorrection      = NoCorrection_
+        real                                    :: WindDriftAngle           = 0.
         logical                                 :: WindOriginON             = .false.
         real                                    :: WindX                    = null_real
         real                                    :: WindY                    = null_real
@@ -4502,6 +4513,31 @@ TURB_V:                 if (flag == 1) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR840'
 
         if (flag /=0) Me%State%Wind = .true. 
+
+        !WINDDRIFTCORRECTION
+        call GetData(NewOrigin%Movement%WindDriftCorrection,                     &
+                     Me%ObjEnterData,                                            &
+                     flag,                                                       &
+                     SearchType   = FromBlock,                                   &
+                     keyword      ='WINDDRIFTCORRECTION',                        &
+                     ClientModule ='ModuleLagrangianGlobal',                     &  
+                     Default      = NoCorrection_,                               &
+                     STAT         = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR840'
+
+        !WINDDRIFTANGLE
+        if (NewOrigin%Movement%WindDriftCorrection .EQ. UserDefined_) then
+            call GetData(NewOrigin%Movement%WindDriftAngle,                          &
+                         Me%ObjEnterData,                                            &
+                         flag,                                                       &
+                         SearchType   = FromBlock,                                   &
+                         keyword      ='WINDDRIFTANGLE',                             &
+                         ClientModule ='ModuleLagrangianGlobal',                     &  
+                         Default      = 0.,                                          &
+                         STAT         = STAT_CALL)             
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR840'
+        end if
+
 
         allocate(Aux2(2))
 
@@ -13066,8 +13102,11 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: V        = 0.
         real                                        :: UINT     = 0.
         real                                        :: VINT     = 0.
+        real                                        :: UWind_   = 0.
+        real                                        :: VWind_   = 0.
         real                                        :: UWind    = 0.
         real                                        :: VWind    = 0.
+        real                                        :: WindDriftAngle = 0.
         real                                        :: U1       = 0.
         real                                        :: V1       = 0.
         real                                        :: UD       = 0.
@@ -13115,6 +13154,7 @@ CurrOr: do while (associated(CurrentOrigin))
 !        real                                        :: WaveLength_Deep, WaveLength_Shallow
         real                                        :: C_Term
         real                                        :: OilViscCin, OWInterfacialTension
+        real                                        :: Wind
         !Begin-----------------------------------------------------------------------------------------
         
         if (Me%State%Oil) then
@@ -13277,13 +13317,25 @@ MF:             if (CurrentPartic%Position%Surface) then
                     WindX = CurrentPartic%WindX
                     WindY = CurrentPartic%WindY
                     
-                    UWind = CurrentOrigin%Movement%WindTransferCoef * WindX
-                    VWind = CurrentOrigin%Movement%WindTransferCoef * WindY
+                    UWind_ = CurrentOrigin%Movement%WindTransferCoef * WindX
+                    VWind_ = CurrentOrigin%Movement%WindTransferCoef * WindY
                     
+                    If (CurrentOrigin%Movement%WindDriftCorrection .EQ. Computed_Samuels_) then
+                        Wind    = abs(cmplx(WindX, WindY))
+
+                        !Samuels, 1982 - deflection angle is inversely proportional to wind speed
+                        WindDriftAngle = 25. * exp(-10.e-8 * (Wind**3) / ( WaterCinematicVisc * gravity) )
+                    Else
+                        WindDriftAngle = CurrentOrigin%Movement%WindDriftAngle 
+                    End If
+
                     if (Me%ExternalVar%BackTracking) then
                         UWind = - UWind
                         VWind = - VWind
                     endif                    
+
+                    UWind =   UWind_ * cos(WindDriftAngle * (Pi / 180.)) + VWind_ * sin(WindDriftAngle * (Pi / 180.))
+                    VWind = - UWind_ * sin(WindDriftAngle * (Pi / 180.)) + VWind_ * cos(WindDriftAngle * (Pi / 180.))                   
 
                     !Plume velocity
                     UPlume = 0.
@@ -13333,34 +13385,46 @@ MF:             if (CurrentPartic%Position%Surface) then
                                               
                         if (Depth < 0.)       Depth = 0. 
 
-                        WaterDepth         = Me%EulerModel(emp)%SZZ(i, j, 0) - Me%EulerModel(emp)%SZZ(i, j, WS_KUB)
+                        WaterDepth         = Me%EulerModel(emp)%WaterColumn(i, j)
                         WaveAmplitude      = CurrentPartic%WaveHeight / 2.
                         WaveLength         = CurrentPartic%WaveLength
-                        WaveNumber         = 2 * Pi / WaveLength
+                        
+                        If (WaveLength > 0.) then
+                            WaveNumber     = 2 * Pi / WaveLength
+                        Else
+                            WaveNumber     = 0.
+                        End If
+                        
+                        If ((WaveNumber *  WaterDepth == 0.) .OR. (WaveNumber == 0.)                             & 
+                           .OR. (WaterDepth == 0.)) then
+                            VelStokesDrift = 0.
+                        Else
+if_stm:                     If (CurrentOrigin%Movement%StokesDriftMethod == LonguetHigginsGeneric) then 
+                                If (WaterDepth > (WaveLength / 2.)) then
+                                    write(*,*) 'Can not compute Stokes Drift with generic formulation (potential floating overflow). &
+                                                Since (WaterDepth > WaveLength / 2), deep water approach is adequate                &
+                                                - change Stokes Drift Method to LonguetHigginsDeep'
+                                    stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR11'
+                                endif
+                                
+                                C_Term             = - (WaveAmplitude * WaveAmplitude * AngFrequency *           &
+                                                       sinh(2 * WaveNumber *  WaterDepth)) / &
+                                                       ( 4 * WaterDepth * sinh(WaveNumber * WaterDepth)**2)
+                                
+                                VelStokesDrift     = WaveAmplitude * WaveAmplitude * AngFrequency * WaveNumber * &
+                                                     ( ( cosh(2 * WaveNumber * (Depth - WaterDepth)) ) /         &
+                                                       ( 2 * (sinh(WaveNumber * WaterDepth)*                     &
+                                                        sinh(WaveNumber * WaterDepth))      )   )     +  C_Term 
+                                
+                            elseif (CurrentOrigin%Movement%StokesDriftMethod == LonguetHigginsDeep) then   if_stm
 
-if_stm:                 If (CurrentOrigin%Movement%StokesDriftMethod == LonguetHigginsGeneric) then 
-                            If (WaterDepth > (WaveLength / 2.)) then
-                                write(*,*) 'Can not compute Stokes Drift with generic formulation (potential floating overflow). &
-                                            Since (WaterDepth > WaveLength / 2), deep water approach is adequate                &
-                                            - change Stokes Drift Method to LonguetHigginsDeep'
-                                stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR11'
-                            endif
-                            
-                            C_Term             = - (WaveAmplitude * WaveAmplitude * AngFrequency *           &
-                                                   sinh(2 * WaveNumber *  WaterDepth)) / &
-                                                   ( 4 * WaterDepth * sinh(WaveNumber * WaterDepth)**2)
-                            
-                            VelStokesDrift     = WaveAmplitude * WaveAmplitude * AngFrequency * WaveNumber * &
-                                                 ( ( cosh(2 * WaveNumber * (Depth - WaterDepth)) ) /         &
-                                                   ( 2 * (sinh(WaveNumber * WaterDepth)*                     &
-                                                    sinh(WaveNumber * WaterDepth))      )   )     +  C_Term 
-                            
-                        elseif (CurrentOrigin%Movement%StokesDriftMethod == LonguetHigginsDeep) then   if_stm
-
-                            VelStokesDrift     = WaveAmplitude * WaveAmplitude * AngFrequency * WaveNumber * &
-                                                 exp(-2* WaveNumber * Depth)
-                                                                           
-                        end if if_stm
+                                VelStokesDrift     = WaveAmplitude * WaveAmplitude * AngFrequency * WaveNumber * &
+                                                     exp(-2* WaveNumber * Depth)
+                                                                               
+                            end if if_stm
+                        
+                        End If
+                        
                                                                       
                         if (VelStokesDrift > 10) then
                             write(*,*) 'Stokes drift velocity > 10, null value is assumed'

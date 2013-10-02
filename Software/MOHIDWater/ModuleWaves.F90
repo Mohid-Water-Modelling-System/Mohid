@@ -3234,12 +3234,21 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
                 WaterDepth         = Me%ExternalVar%SZZ(i, j, 0) - Me%ExternalVar%SZZ(i, j, KUB)
                 WaveAmplitude      = Me%WaveHeight%Field(i, j) / 2.
                 WavePeriod         = Me%WavePeriod%Field(i, j)
-                ! Hunt's Method to calculate Wave Length (accuracy of 0.1%)
-                G_Aux                       = ((2 * Pi / WavePeriod)**2) * WaterDepth / gravity
-                F_Aux                       = G_Aux + (1 / (1. + 0.6522 * G_Aux + 0.4622 * (G_Aux**2) + &
-                                              0.0864 * (G_Aux**4) + 0.0675 * (G_Aux**5)))
-                Me%WaveLength%Field(i, j)   = WavePeriod * sqrt(gravity * WaterDepth / F_Aux)
 
+                if (WavePeriod < 1e-3) then 
+                        
+                    Me%WaveLength%Field(i, j)       = 0.
+
+                else
+                
+                    ! Hunt's Method to calculate Wave Length (accuracy of 0.1%)
+                    G_Aux                       = ((2 * Pi / WavePeriod)**2) * WaterDepth / gravity
+                    F_Aux                       = G_Aux + (1 / (1. + 0.6522 * G_Aux + 0.4622 * (G_Aux**2) + &
+                                                  0.0864 * (G_Aux**4) + 0.0675 * (G_Aux**5)))
+                    Me%WaveLength%Field(i, j)   = WavePeriod * sqrt(gravity * WaterDepth / F_Aux)
+
+                end if
+                
             end if
         
         end do
