@@ -813,6 +813,9 @@ Module ModuleWaterProperties
         type (T_FreeVerticalMovParameters    )  :: FreeVert_Parameters
         type (T_Partition                    )  :: Partition
         type (T_LightExtinction              )  :: Extinction
+        
+        logical                                 :: NoAdvFluxCells       = .false. 
+        logical                                 :: NoDifFluxCells       = .false.
     end type T_Evolution
 
     type       T_LocalAssimila       
@@ -7812,7 +7815,62 @@ case1 : select case(PropertyID)
             NewProperty%evolution%DTInterval = FillValueReal
 
         endif
+        
+        if (Me%NoFlux%ON) then
 
+            !<BeginKeyword>
+                !Keyword          : NO_ADV_FLUX_CELLS
+                !<BeginDescription>       
+                   !  For this property in cell faces with velocity nudging a no advection flux condition is assumed. 
+                   !  If the flux is different from zero a mass balace inconsistence takes place
+                !<EndDescription>
+                !Type             : Boolean 
+                !Default          : Me%NoFlux%ON
+                !File keyword     : DISPQUAL
+                !Multiple Options : 1 (.true.), 0 (.false.)
+                !Search Type      : FromBlock
+                !Begin Block      : <beginproperty>
+                !End Block        : <endproperty>
+            !<EndKeyword>
+            call GetData(NewProperty%evolution%NoAdvFluxCells,                               &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromBlock,                                           &
+                         keyword      = 'NO_ADV_FLUX_CELLS',                                 &
+                         Default      = Me%NoFlux%ON,                                        &
+                         ClientModule = 'ModuleWaterProperties',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                     &
+                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR360'
+                
+                
+            !<BeginKeyword>
+                !Keyword          : NO_DIF_FLUX_CELLS
+                !<BeginDescription>       
+                   !  For this property in cell faces with velocity nudging a no diffusion flux condition is assumed. 
+                !<EndDescription>
+                !Type             : Boolean 
+                !Default          : Me%NoFlux%ON
+                !File keyword     : DISPQUAL
+                !Multiple Options : 1 (.true.), 0 (.false.)
+                !Search Type      : FromBlock
+                !Begin Block      : <beginproperty>
+                !End Block        : <endproperty>
+            !<EndKeyword>
+            call GetData(NewProperty%evolution%NoDifFluxCells,                               &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromBlock,                                           &
+                         keyword      = 'NO_DIF_FLUX_CELLS',                                 &
+                         Default      = Me%NoFlux%ON,                                        &
+                         ClientModule = 'ModuleWaterProperties',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                     &
+                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR370'
+                                
+        else
+            NewProperty%evolution%NoAdvFluxCells = .false. 
+            NewProperty%evolution%NoDifFluxCells = .false.             
+        endif
+        
         !----------------------------------------------------------------------
 
     end subroutine Construct_PropertyEvolution     
@@ -12932,7 +12990,8 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             NumericStability  = Property%evolution%Advec_Difus_Parameters%NumericStability,  &
                             PropOld           = Property%evolution%Advec_Difus_Parameters%PropOld,           &
                             SmallDepths       = Me%SmallDepths%ON,                          &
-                            NoFlux            = Me%NoFlux%ON,                               &
+                            NoAdvFlux         = Property%evolution%NoAdvFluxCells,          &
+                            NoDifFlux         = Property%evolution%NoDifFluxCells,          &
                             NoFluxU           = Me%NoFlux%U,                                &
                             NoFluxV           = Me%NoFlux%V,                                &                            
                             NoFluxW           = Me%NoFlux%W,                                &                            
