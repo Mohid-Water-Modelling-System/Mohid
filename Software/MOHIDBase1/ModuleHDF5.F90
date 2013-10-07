@@ -78,6 +78,7 @@ Module ModuleHDF5
     public  ::  GetHDF5DataSetExist
     public  ::  GetHDF5ObjectInfo
     public  ::  GetHDF5ArrayDimensions
+    public  ::  GetHDF5FileOkToRead
     
 
 #ifdef _GUI_
@@ -5004,6 +5005,36 @@ Module ModuleHDF5
     end subroutine GetHDF5FileID
 
     !--------------------------------------------------------------------------
+    
+    logical function GetHDF5FileOkToRead (FileName)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: FileName
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: FileID, STAT_CALL    
+        
+        !Local-----------------------------------------------------------------
+    
+        call h5fopen_f (trim(FileName), ACCESS_FLAGS = H5F_ACC_RDONLY_F,                &
+                        FILE_ID = FileID, HDFERR = STAT_CALL)    
+                        
+        if (STAT_CALL == SUCCESS_) then
+        
+            call h5fclose_f(FileID, HDFERR = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5FileOkToRead - ModuleHDF5 - ERR10'
+            
+            GetHDF5FileOkToRead = .true.
+            
+        else
+            
+            GetHDF5FileOkToRead = .false.
+        
+        endif                                                
+                        
+    end function GetHDF5FileOkToRead
+    
+    !--------------------------------------------------------------------------    
 
     subroutine GetHDF5FileAccess (HDF5_CREATE, HDF5_READ, HDF5_READWRITE)
 #ifdef _GUI_
