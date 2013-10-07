@@ -141,139 +141,165 @@ Module ModuleAdvectionDiffusion
     !Types---------------------------------------------------------------------
 
     type       T_State
-        logical :: VertAdv      = ON    !This state defines if the coeficients D E and F need to be recalculated
-        logical :: HorAdv       = ON    !This state defines if the coeficients D E and F need to be recalculated
-        logical :: VertDif      = ON    !This state defines if 
+        !This state defines if the coeficients D E and F need to be recalculated
+        logical :: VertAdv      = ON   
+        !This state defines if the coeficients D E and F need to be recalculated        
+        logical :: HorAdv       = ON    
+        logical :: VertDif      = ON    
         logical :: HorDif       = ON
         logical :: CellFluxes   = OFF
         logical :: OpenBoundary = OFF
     end type T_State
 
     type       T_FluxCoef
-        real   , pointer, dimension(: , : , :)  :: C_flux    !Coeficient to calculate AdvFlux and DifFlux
-        real   , pointer, dimension(: , : , :)  :: D_flux    !Coeficient to calculate AdvFlux and DifFlux
-        real   , pointer, dimension(: , : , :)  :: E_flux    !Coeficient to calculate AdvFlux and DifFlux
-        real   , pointer, dimension(: , : , :)  :: F_flux    !Coeficient to calculate AdvFlux and DifFlux
+        !Coeficients to calculate AdvFlux and DifFlux
+        real   , pointer, dimension(: , : , :)  :: C_flux       => null()  
+        real   , pointer, dimension(: , : , :)  :: D_flux       => null()    
+        real   , pointer, dimension(: , : , :)  :: E_flux       => null()    
+        real   , pointer, dimension(: , : , :)  :: F_flux       => null()    
     end type T_FluxCoef
 
     type       T_CellFluxes
-        real(8), pointer, dimension(:,:,:)      :: AdvFluxX         !Former CFLUX 
-        real(8), pointer, dimension(:,:,:)      :: AdvFluxY         !Former CFLUX 
-        real(8), pointer, dimension(:,:,:)      :: AdvFluxZ         !Former CFLUX 
-
-        real(8), pointer, dimension(:,:,:)      :: DifFluxX          !Former DFLUX
-        real(8), pointer, dimension(:,:,:)      :: DifFluxY          !Former DFLUX
-        real(8), pointer, dimension(:,:,:)      :: DifFluxZ          !Former DFLUX
-        type(T_Time)                            :: LastFluxCalculation           
+        !Former CFLUX 
+        real(8), pointer, dimension(:,:,:)      :: AdvFluxX     => null()
+        real(8), pointer, dimension(:,:,:)      :: AdvFluxY     => null()
+        real(8), pointer, dimension(:,:,:)      :: AdvFluxZ     => null()
+        !Former DFLUX
+        real(8), pointer, dimension(:,:,:)      :: DifFluxX     => null()
+        real(8), pointer, dimension(:,:,:)      :: DifFluxY     => null()
+        real(8), pointer, dimension(:,:,:)      :: DifFluxZ     => null()
+        type(T_Time)                            :: LastFluxCalculation          
     end type T_CellFluxes
     
 
     type       T_External
-        real,    pointer, dimension(:,:,:) :: PROP                          
-        real,    pointer, dimension(:,:,:) :: ReferenceProp                 
-        real,    pointer, dimension(:,:,:) :: PROPOld
+        real,    pointer, dimension(:,:,:) :: PROP              => null()                          
+        real,    pointer, dimension(:,:,:) :: ReferenceProp     => null()            
+        real,    pointer, dimension(:,:,:) :: PROPOld           => null()
     
         !Map    
-        integer, pointer, dimension(:,:,:) :: ComputeFacesU3D
-        integer, pointer, dimension(:,:,:) :: ComputeFacesV3D
-        integer, pointer, dimension(:,:,:) :: ComputeFacesW3D
-        integer, pointer, dimension(:,:,:) :: LandPoints3D
-        integer, pointer, dimension(:,:,:) :: OpenPoints3D
-        integer, pointer, dimension(:,:  ) :: BoundaryPoints2D
+        integer, pointer, dimension(:,:,:) :: ComputeFacesU3D   => null()
+        integer, pointer, dimension(:,:,:) :: ComputeFacesV3D   => null()
+        integer, pointer, dimension(:,:,:) :: ComputeFacesW3D   => null()
+        integer, pointer, dimension(:,:,:) :: LandPoints3D      => null()
+        integer, pointer, dimension(:,:,:) :: OpenPoints3D      => null()
+        integer, pointer, dimension(:,:  ) :: BoundaryPoints2D  => null()
+                                                                
+        integer, pointer, dimension(:,:  ) :: KFloorZ           => null()
+        real(8), pointer, dimension(:,:,:) :: VolumeZ           => null()
+        real(8), pointer, dimension(:,:,:) :: VolumeZOld        => null()
+        real,    pointer, dimension(:,:  ) :: DUX               => null()
+        real,    pointer, dimension(:,:  ) :: DVY               => null()
+        real,    pointer, dimension(:,:  ) :: DZX               => null()
+        real,    pointer, dimension(:,:  ) :: DZY               => null()
+        real,    pointer, dimension(:,:,:) :: DWZ               => null()
+        real,    pointer, dimension(:,:,:) :: DZZ               => null()
+        real,    pointer, dimension(:,:,:) :: AreaU             => null()
+        real,    pointer, dimension(:,:,:) :: AreaV             => null()
+                                                                
 
-        integer, pointer, dimension(:,:  ) :: KFloorZ
-        real(8), pointer, dimension(:,:,:) :: VolumeZ
-        real(8), pointer, dimension(:,:,:) :: VolumeZOld
-        real,    pointer, dimension(:,:  ) :: DUX
-        real,    pointer, dimension(:,:  ) :: DVY 
-        real,    pointer, dimension(:,:  ) :: DZX 
-        real,    pointer, dimension(:,:  ) :: DZY
-        real,    pointer, dimension(:,:,:) :: DWZ
-        real,    pointer, dimension(:,:,:) :: DZZ
-        real,    pointer, dimension(:,:,:) :: AreaU
-        real,    pointer, dimension(:,:,:) :: AreaV
+        real                               :: Schmidt_H             = null_real
+        real                               :: SchmidtCoef_V         = null_real
+        real                               :: SchmidtBackground_V   = null_real
+        real                               :: DecayTime             = null_real
+        real                               :: DTProp                = null_real
 
-        real                               :: Schmidt_H = null_real
-        real                               :: SchmidtCoef_V       = null_real
-        real                               :: SchmidtBackground_V = null_real
-        real                               :: DecayTime = null_real
-        real                               :: DTProp    = null_real
-
-        integer                            :: BoundaryCondition = null_int
+        integer                            :: BoundaryCondition     = null_int
 
 
         !Implicit-Explicit weight coeficients -> 1 = Implicit, 0 = Explicit
-        real :: ImpExp_AdvXX = null_real             
-        real :: ImpExp_AdvYY = null_real             
-        real :: ImpExp_DifH  = null_real             !Presentlty horizontal is explicitly computed
-        real :: ImpExp_AdvV  = null_real      
-        real :: ImpExp_DifV  = null_real      
+        !Presentlty horizontal is explicitly computed
+        real                               :: ImpExp_AdvXX  = null_real             
+        real                               :: ImpExp_AdvYY  = null_real             
+        real                               :: ImpExp_DifH   = null_real            
+        real                               :: ImpExp_AdvV   = null_real      
+        real                               :: ImpExp_DifV   = null_real      
 
 
 
         !Hydrodynamic
-        logical                            :: Nulldif=.false. !ppina    
-        real(8), pointer, dimension(:,:,:) :: Wflux_X
-        real(8), pointer, dimension(:,:,:) :: Wflux_Y
-        real(8), pointer, dimension(:,:,:) :: Wflux_Z
-
+        logical                            :: Nulldif       =  .false. 
+        real(8), pointer, dimension(:,:,:) :: Wflux_X       => null()
+        real(8), pointer, dimension(:,:,:) :: Wflux_Y       => null()
+        real(8), pointer, dimension(:,:,:) :: Wflux_Z       => null()
+                                                            
 
         !Turbulence
-        real,    pointer, dimension(:,:,:) :: Visc_H
-        real,    pointer, dimension(:,:,:) :: Diff_V  
-        logical, pointer, dimension(:,:  ) :: SmallDepths
-
-        logical                            :: SmallDepthsPresent
-
-        real                               :: VolumeRelMax
-        integer                            :: AdvMethodH, TVDLimitationH
-        integer                            :: AdvMethodV, TVDLimitationV
-        logical                            :: Upwind2H, Upwind2V
-        logical                            :: AdvectionNudging
-        integer                            :: AdvectionNudgingCells             
+        real,    pointer, dimension(:,:,:) :: Visc_H        => null()
+        real,    pointer, dimension(:,:,:) :: Diff_V        => null()
+        logical, pointer, dimension(:,:  ) :: SmallDepths   => null()
+                                                            
+        !Advection
+        logical                            :: SmallDepthsPresent    = .false. 
+        real                               :: VolumeRelMax          = null_real
+        integer                            :: AdvMethodH            = null_int
+        integer                            :: TVDLimitationH        = null_int
+        integer                            :: AdvMethodV            = null_int
+        integer                            :: TVDLimitationV        = null_int
+        logical                            :: Upwind2H              = .false.
+        logical                            :: Upwind2V              = .false.
+        logical                            :: AdvectionNudging      = .false.
+        integer                            :: AdvectionNudgingCells = null_int             
 
         !Discharges
-        real,    pointer, dimension(:)     :: DischFlow, DischConc
-        integer, pointer, dimension(:)     :: DischI, DischJ, DischK, DischnCells
-        integer, pointer, dimension(:)     :: DischKmin, DischKmax
-        integer, pointer, dimension(:)     :: DischVert
-        integer                            :: DischNumber  = null_int
-        logical                            :: DischON     
-        logical, pointer, dimension(:)     :: IgnoreDisch, ByPass
+        real,    pointer, dimension(:)     :: DischFlow     => null()
+        real,    pointer, dimension(:)     :: DischConc     => null()
+        integer, pointer, dimension(:)     :: DischI        => null()
+        integer, pointer, dimension(:)     :: DischJ        => null()
+        integer, pointer, dimension(:)     :: DischK        => null()
+        integer, pointer, dimension(:)     :: DischnCells   => null()
+        integer, pointer, dimension(:)     :: DischKmin     => null()
+        integer, pointer, dimension(:)     :: DischKmax     => null()
+        integer, pointer, dimension(:)     :: DischVert     => null()
+        logical, pointer, dimension(:)     :: IgnoreDisch   => null()
+        logical, pointer, dimension(:)     :: ByPass        => null()
+        integer                            :: DischNumber   = null_int
+        logical                            :: DischON       = .false.
 
         !No flux condition
-        logical                            :: NoFlux
-        integer, dimension(:,:,:), pointer :: NoFluxU, NoFluxV, NoFluxW
+        logical                            :: NoAdvFlux     = .false.
+        logical                            :: NoDifFlux     = .false.        
+        integer, dimension(:,:,:), pointer :: NoFluxU       => null()
+        integer, dimension(:,:,:), pointer :: NoFluxV       => null()
+        integer, dimension(:,:,:), pointer :: NoFluxW       => null()
 
 
     end type T_External
 
     !For performance reasons the coeffiecient are order in the way the are allocated
     type      T_AdvectionDiffusion
-        real , dimension(:,:,:), pointer        :: Diffusion_CoeficientX
-        real , dimension(:,:,:), pointer        :: Diffusion_CoeficientY
-        real , dimension(:,:,:), pointer        :: Diffusion_CoeficientZ
+        real , dimension(:,:,:), pointer        :: Diffusion_CoeficientX    => null()
+        real , dimension(:,:,:), pointer        :: Diffusion_CoeficientY    => null()
+        real , dimension(:,:,:), pointer        :: Diffusion_CoeficientZ    => null()
         type(T_CellFluxes)                      :: Fluxes
-        type(T_D_E_F)                           :: COEF3                    !Former DCOEF3  ECOEF3  FCOEF3
-        type(T_FluxCoef)                        :: COEF3_VertAdv            !Vertical    advection coeficients
-        type(T_FluxCoef)                        :: COEF3_HorAdvXX           !Horinzontal advection coeficients
-        type(T_FluxCoef)                        :: COEF3_HorAdvYY           !Horinzontal advection coeficients
-        real, pointer, dimension(: , : , :)     :: TICOEF3, AdvectionE, AdvectionD, AdvectionF, AdvectionTi
+        !Former DCOEF3  ECOEF3  FCOEF3
+        type(T_D_E_F)                           :: COEF3                    
+        !Vertical    advection coeficients
+        type(T_FluxCoef)                        :: COEF3_VertAdv            
+        !Horinzontal advection coeficients
+        type(T_FluxCoef)                        :: COEF3_HorAdvXX           
+        type(T_FluxCoef)                        :: COEF3_HorAdvYY           
+        real, pointer, dimension(: , : , :)     :: TICOEF3              => null()
+        real, pointer, dimension(: , : , :)     :: AdvectionE           => null()
+        real, pointer, dimension(: , : , :)     :: AdvectionD           => null()
+        real, pointer, dimension(: , : , :)     :: AdvectionF           => null()
+        real, pointer, dimension(: , : , :)     :: AdvectionTi          => null()
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                             :: TICOEF3Ptr
 #endif _USE_PAGELOCKED
-        real(8), pointer, dimension(:,:,:)      :: WaterFluxOBoundary
+        real(8), pointer, dimension(:,:,:)      :: WaterFluxOBoundary   => null()
         !griflet
         type(T_THOMAS), pointer                 :: THOMAS
-        real(8), pointer, dimension(:)          :: VECG                     !Auxiliar thomas arrays 
-        real(8), pointer, dimension(:)          :: VECW                     !Auxiliar thomas arrays     
+        !Auxiliar thomas arrays
+        real(8), pointer, dimension(:)          :: VECG                 => null()         
+        real(8), pointer, dimension(:)          :: VECW                 => null()    
 
         !griflet
-        integer                                 :: MaxThreads
+        integer                                 :: MaxThreads           = null_int
 
         type(T_External  )                      :: ExternalVar
 
-        integer                                 :: InstanceID
+        integer                                 :: InstanceID           = null_int
         type(T_Size3D    )                      :: Size
         type(T_Size3D    )                      :: WorkSize
         type(T_State     )                      :: State
@@ -281,35 +307,35 @@ Module ModuleAdvectionDiffusion
         type(T_Time      )                      :: Now
         type(T_Time      )                      :: LastCalc  
 
-        logical                                 :: Vertical1D        = .false.
-        logical                                 :: XZFlow            = .false.
+        logical                                 :: Vertical1D           = .false.
+        logical                                 :: XZFlow               = .false.
     
    
         !Instance of ModuleHorizontalMap
-        integer                                 :: ObjHorizontalMap   = 0
+        integer                                 :: ObjHorizontalMap     = 0
        
         !Instance of ModuleHorizontalGrid
-        integer                                 :: ObjHorizontalGrid  = 0
+        integer                                 :: ObjHorizontalGrid    = 0
        
         !Instance of ModuleGeometry
-        integer                                 :: ObjGeometry        = 0
+        integer                                 :: ObjGeometry          = 0
     
         !Instance of ModuleTime
-        integer                                 :: ObjTime            = 0
+        integer                                 :: ObjTime              = 0
 
 #ifdef _ENABLE_CUDA
-        integer                                 :: ObjCuda            = 0
+        integer                                 :: ObjCuda              = 0
 #endif
 
         !Collection of instances
-        type(T_AdvectionDiffusion),  pointer    :: Next               => null()
+        type(T_AdvectionDiffusion),  pointer    :: Next                 => null()
 
     end type T_AdvectionDiffusion
 
 
     !Global Module Variables
-    type (T_AdvectionDiffusion), pointer            :: FirstAdvectionDiffusion
-    type (T_AdvectionDiffusion), pointer            :: Me
+    type (T_AdvectionDiffusion), pointer        :: FirstAdvectionDiffusion => null()
+    type (T_AdvectionDiffusion), pointer        :: Me                      => null()
     
     !--------------------------------------------------------------------------
     
@@ -1058,7 +1084,8 @@ cd1 :   if (ready_ == IDLE_ERR_) then
                                   NumericStability,                             &   
                                   PROPOld,                                      &
                                   SmallDepths,                                  &
-                                  NoFlux,                                       &
+                                  NoAdvFlux,                                    &
+                                  NoDifFlux,                                    &                                  
                                   NoFluxU,                                      &
                                   NoFluxV,                                      &
                                   NoFluxW,                                      &
@@ -1109,7 +1136,8 @@ cd1 :   if (ready_ == IDLE_ERR_) then
 
         logical, dimension(:, : ), pointer, optional :: SmallDepths
         
-        logical, optional, intent(IN )     :: NoFlux
+        logical, optional, intent(IN )     :: NoAdvFlux
+        logical, optional, intent(IN )     :: NoDifFlux        
 
         integer, dimension(:,:,:), pointer, optional :: NoFluxU, NoFluxV, NoFluxW
 
@@ -1238,14 +1266,22 @@ cd10 :      if (present(BoundaryCondition)) then
             end if cd10
 
 
-cd110:      if (present(NoFlux)) then
-                Me%ExternalVar%NoFlux  =  NoFlux
-                Me%ExternalVar%NoFluxU => NoFluxU
-                Me%ExternalVar%NoFluxV => NoFluxV
-                Me%ExternalVar%NoFluxW => NoFluxW
+cd110:      if (present(NoAdvFlux)) then
+                Me%ExternalVar%NoAdvFlux  =  NoAdvFlux
             else
-                Me%ExternalVar%NoFlux  = .false.
+                Me%ExternalVar%NoAdvFlux  = .false.
             end if cd110
+
+cd111:      if (present(NoDifFlux)) then
+                Me%ExternalVar%NoDifFlux  =  NoDifFlux
+            else
+                Me%ExternalVar%NoDifFlux  = .false.
+            end if cd111
+            
+            if (present(NoFluxU)) Me%ExternalVar%NoFluxU => NoFluxU
+            if (present(NoFluxV)) Me%ExternalVar%NoFluxV => NoFluxV
+            if (present(NoFluxW)) Me%ExternalVar%NoFluxW => NoFluxW
+            
 
 cd7 :       if (ImpExp_DifH  /= 0.0) then    !0 = Explicit
                 write(*,*) 'Horizontal Diffusion must be explicit.'
@@ -2200,7 +2236,7 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == 1) then
                         / (Me%ExternalVar%DUX(i,j    )               &
                         +  Me%ExternalVar%DUX(i,j-1))     
                         
-                if (Me%ExternalVar%NoFlux) then
+                if (Me%ExternalVar%NoDifFlux) then
                     if (Me%ExternalVar%NoFluxU(i, j, k) == 1) then
                         Me%Diffusion_CoeficientX(i, j, k) = 0.
                     endif
@@ -2231,7 +2267,7 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == 1) then
                          / (Me%ExternalVar%DVY(i,j)                   &
                          +  Me%ExternalVar%DVY(i-1,j))
 
-                if (Me%ExternalVar%NoFlux) then
+                if (Me%ExternalVar%NoDifFlux) then
                     if (Me%ExternalVar%NoFluxV(i, j, k) == 1) then
                         Me%Diffusion_CoeficientY(i, j, k) = 0.
                     endif
@@ -2365,7 +2401,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                        * Me%ExternalVar%DVY      (i,j    )                              &
                        / Me%ExternalVar%DZZ      (i,j,k-1)
 
-                if (Me%ExternalVar%NoFlux) then
+                if (Me%ExternalVar%NoDifFlux) then
                     if (Me%ExternalVar%NoFluxW(i, j, k) == 1) then
                         AuxK = 0.
                     endif
@@ -2456,7 +2492,7 @@ i1:         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                                 Me%ExternalVar%Upwind2V)
                                                 
 
-                    if (Me%ExternalVar%NoFlux) then
+                    if (Me%ExternalVar%NoAdvFlux) then
 
                         do k=Me%ExternalVar%KFloorZ(i, j), Me%WorkSize%KUB
                             if (Me%ExternalVar%NoFluxW(i, j, k)==1) then
@@ -3377,7 +3413,7 @@ i1:         do i = ILB, IUB
                                         Me%ExternalVar%VolumeRelMax,                    &
                                         Me%ExternalVar%Upwind2H)
 
-                    if (Me%ExternalVar%NoFlux) then
+                    if (Me%ExternalVar%NoAdvFlux) then
                         do j = JLB, JUB
                             if (Me%ExternalVar%NoFluxU(i, j, k)==1) then
                                 Me%COEF3_HorAdvXX%C_flux     (i,j,k) = 0.
@@ -3706,7 +3742,7 @@ j1:         do j = JLB, JUB
 
 
 
-                    if (Me%ExternalVar%NoFlux) then
+                    if (Me%ExternalVar%NoAdvFlux) then
                         do i = ILB, IUB
                             if (Me%ExternalVar%NoFluxV(i, j, k)==1) then
                                 Me%COEF3_HorAdvXX%C_flux     (i,j,k) = 0.
