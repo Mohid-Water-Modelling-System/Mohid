@@ -2237,7 +2237,7 @@ BF:         if (BlockFound) then
         logical                                 :: BlockFound, LastLineON
         integer                                 :: iflag, line, FirstLine, LastLine,    &
                                                    STAT_CALL, HDF5_CREATE, iOut, status,&
-                                                   ncid, iP, i, io
+                                                   ncid, iP, i
                  
 
 
@@ -2959,8 +2959,8 @@ BF:         if (BlockFound) then
         real,    dimension(:,:,:), pointer              :: Vert3D
         real(8), dimension(:), pointer                  :: DepthAux
         real,    dimension(:), pointer                  :: DepthOut, DepthOutStag
-        real                                            :: Aux, DepthC, DepthC1
-        integer                                         :: iFinal, i, j, k, l, iT, STAT_CALL, kin
+        real                                            :: Aux, DepthC, DepthC_Below
+        integer                                         :: iFinal, i, j, k, iT, STAT_CALL, kin
         integer                                         :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         logical                                         :: SigmaIn
         real                                            :: SumDepth
@@ -3040,6 +3040,7 @@ d3:                 do k= Me%WorkSize%KUB, Me%WorkSize%KLB,-1
             
             do j= Me%WorkSize%JLB, Me%WorkSize%JUB
             do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+            
             do k= Me%WorkSize%KUB, Me%WorkSize%KLB, -1
             
                 if (Me%Mapping%Value3DOut(i,j,k) == 1) then
@@ -3054,20 +3055,24 @@ d3:                 do k= Me%WorkSize%KUB, Me%WorkSize%KLB,-1
                         DepthC = GetCellInDepth(i, j, k,Me%WorkSize%KUB,iT)
                         
                         if (DepthC <0 .and. k==Me%WorkSize%KUB) then
-                            SumDepth = - DepthC + 1
+                            if (Me%Mapping%Value3DOut(i,j,k-1) == 1) then
+                                DepthC_Below = GetCellInDepth(i, j, k-1,Me%WorkSize%KUB,iT)
+                            else
+                                DepthC_Below = 0.
+                            endif
+                            SumDepth = (DepthC_Below - DepthC)/2. - DepthC
                         endif 
-                        DepthC = DepthC + SumDepth
                         
-                        Aux    = 2. * DepthC - Me%Depth%Value3DOut(i, j, k)
+                        if (SumDepth > 0) then
+                            DepthC = DepthC + SumDepth
+                            Aux    = DepthC
+                        else
+                            Aux    = 2. * DepthC - Me%Depth%Value3DOut(i, j, k)
+                        endif
+                        
                         if (Aux >= DepthC) then
                             Me%Depth%Value3DOut(i, j, k-1) = Aux 
                         else
-!                            if (k>1) then
-!                                DepthC1 = GetCellInDepth(i, j, k-1,Me%WorkSize%KUB,iT)                            
-!                                Me%Depth%Value3DOut(i, j, k-1) = (DepthC + DepthC1)/2.
-!                            else
-!                                Me%Depth%Value3DOut(i, j, k-1) = DepthC + 100. 
-!                            endif
                              stop 'WriteDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR40' 
                         endif                        
                     else
@@ -3880,9 +3885,9 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         character(Len=StringLength)             :: ref_date
         real, dimension(6)                      :: AuxTime
         real(8)                                 :: Aux, HundredDays, Aux1
-        integer                                 :: n, status, dimid, i, tmax, jmax, Julian
+        integer                                 :: n, status, dimid, i, tmax, jmax
         logical                                 :: ReadTime
-        type (T_Time)                           :: CurrentTime, AuxDate
+        type (T_Time)                           :: CurrentTime
         
         !Begin-----------------------------------------------------------------
         
@@ -4087,7 +4092,6 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         integer, dimension(nf90_max_var_dims)   :: rhDimIdsLat, rhDimIdsLong
         real(8), dimension(:), allocatable      :: Long1D, Lat1D
         real(8)                                 :: X1, X2, X3, X4, Y1, Y2, Y3, Y4, Aux1, Aux2, Aux
-        logical                                 :: FirstValue
         !Begin-----------------------------------------------------------------
         
         write(*,*)
