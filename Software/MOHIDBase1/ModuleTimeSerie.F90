@@ -3350,66 +3350,77 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             StartTimeSerie = Me%InitialData + Me%DataMatrix(1,             1)
 
             EndTimeSerie   = Me%InitialData + Me%DataMatrix(Me%DataValues, 1)
+            
+            StoredColumn = Me%FileColumns(DataColumn)            
+            
+            if (Me%TimeCycle) then
+                
+                GetTimeSerieIntegral = TimeSerieCycleIntegral(StartTime, EndTime, StoredColumn) 
+            
+            else
 
-            if (StartTime > EndTime       ) stop 'GetTimeSerieIntegral - TimeSerie - ERR10'
-            if (StartTime < StartTimeSerie) stop 'GetTimeSerieIntegral - TimeSerie - ERR20'
-            if (EndTime   > EndTimeSerie  ) stop 'GetTimeSerieIntegral - TimeSerie - ERR30'
+                IntegAux = 0.
 
-            IntegAux = 0.
+                if (StartTime > EndTime       ) stop 'GetTimeSerieIntegral - TimeSerie - ERR10'
+                if (StartTime < StartTimeSerie) stop 'GetTimeSerieIntegral - TimeSerie - ERR20'
+                if (EndTime   > EndTimeSerie  ) stop 'GetTimeSerieIntegral - TimeSerie - ERR30'
 
-            StoredColumn = Me%FileColumns(DataColumn)
 
-            do i = 1, Me%DataValues
+                do i = 1, Me%DataValues
 
-                if ((Me%InitialData + Me%DataMatrix(i+1, 1)) >= StartTime) then
-                    StartIndex = i
-                    TSi        = Me%InitialData + Me%DataMatrix(StartIndex  , 1)
-                    TSi1       = Me%InitialData + Me%DataMatrix(StartIndex+1, 1)
-                    exit
-                endif
-            enddo
-
-            do i = 1, Me%DataValues
-
-                if ((Me%InitialData + Me%DataMatrix(i+1, 1)) >= EndTime  ) then
-                    EndIndex = i
-                    TEi        = Me%InitialData + Me%DataMatrix(EndIndex,   1)
-                    TEi1       = Me%InitialData + Me%DataMatrix(EndIndex+1, 1)
-                    exit
-                endif
-            enddo
-
-            dt1 = StartTime - TSi
-            dt2 = TSi1      - TSi
-            PSi = Me%DataMatrix(StartIndex  , StoredColumn)
-            PSi1= Me%DataMatrix(StartIndex+1, StoredColumn)
-
-            PS  = (PSi * (dt2-dt1) + PSi1 * dt1) / dt2
-
-            dt1 = EndTime   - TEi
-            dt2 = TEi1      - TEi
-            PEi = Me%DataMatrix(EndIndex  ,   StoredColumn)
-            PEi1= Me%DataMatrix(EndIndex+1,   StoredColumn)
-
-            PE  = (PEi * (dt2-dt1) + PEi1 * dt1) / dt2
-
-i1:         if (StartIndex == EndIndex) then
-
-                IntegAux = (PS + PE) / 2. * (EndTime - StartTime)
-
-            else i1
-
-                IntegAux =            (PS  + PSi1) / 2. * (TSi1    - StartTime)
-                IntegAux = IntegAux + (PEi + PE  ) / 2. * (EndTime - TEi      )
-
-                do i=StartIndex + 1, EndIndex-1
-                    IntegAux = IntegAux + (Me%DataMatrix(i+1,StoredColumn) + Me%DataMatrix(i,StoredColumn)) / 2. * &
-                                          (Me%DataMatrix(i+1,1           ) - Me%DataMatrix(i,1           ))
+                    if ((Me%InitialData + Me%DataMatrix(i+1, 1)) >= StartTime) then
+                        StartIndex = i
+                        TSi        = Me%InitialData + Me%DataMatrix(StartIndex  , 1)
+                        TSi1       = Me%InitialData + Me%DataMatrix(StartIndex+1, 1)
+                        exit
+                    endif
                 enddo
 
-            endif i1
+                do i = 1, Me%DataValues
 
-            GetTimeSerieIntegral = IntegAux
+                    if ((Me%InitialData + Me%DataMatrix(i+1, 1)) >= EndTime  ) then
+                        EndIndex = i
+                        TEi        = Me%InitialData + Me%DataMatrix(EndIndex,   1)
+                        TEi1       = Me%InitialData + Me%DataMatrix(EndIndex+1, 1)
+                        exit
+                    endif
+                enddo
+
+                dt1 = StartTime - TSi
+                dt2 = TSi1      - TSi
+                PSi = Me%DataMatrix(StartIndex  , StoredColumn)
+                PSi1= Me%DataMatrix(StartIndex+1, StoredColumn)
+
+                PS  = (PSi * (dt2-dt1) + PSi1 * dt1) / dt2
+
+                dt1 = EndTime   - TEi
+                dt2 = TEi1      - TEi
+                PEi = Me%DataMatrix(EndIndex  ,   StoredColumn)
+                PEi1= Me%DataMatrix(EndIndex+1,   StoredColumn)
+
+                PE  = (PEi * (dt2-dt1) + PEi1 * dt1) / dt2
+
+    i1:         if (StartIndex == EndIndex) then
+
+                    IntegAux = (PS + PE) / 2. * (EndTime - StartTime)
+
+                else i1
+
+                    IntegAux =            (PS  + PSi1) / 2. * (TSi1    - StartTime)
+                    IntegAux = IntegAux + (PEi + PE  ) / 2. * (EndTime - TEi      )
+
+                    do i=StartIndex + 1, EndIndex-1
+                        IntegAux = IntegAux + (Me%DataMatrix(i+1,StoredColumn) + Me%DataMatrix(i,StoredColumn)) / 2. * &
+                                              (Me%DataMatrix(i+1,1           ) - Me%DataMatrix(i,1           ))
+                    enddo
+
+                endif i1
+                
+                GetTimeSerieIntegral = IntegAux
+                
+            endif                
+
+            
 
 
             STAT_ = SUCCESS_
@@ -3425,8 +3436,71 @@ i1:         if (StartIndex == EndIndex) then
         
     end function GetTimeSerieIntegral
 
+    !--------------------------------------------------------------------------
+
+    real function TimeSerieCycleIntegral(StartTime, EndTime, StoredColumn) 
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time)                                :: StartTime, EndTime
+        integer                                     :: StoredColumn
+
+        !Local-----------------------------------------------------------------
+        type (T_Time)                               :: CurrentTime
+        real                                        :: DTAux, Year, Month, Day, Value1
+        real                                        :: Hour, Minute, Second, IntegAux
+        integer                                     :: JulDay
+        real, parameter                             :: DTinteg = 3600.
+
+        !Begin-----------------------------------------------------------------
+
+        IntegAux    = 0. 
+        CurrentTime = StartTime
+        
+        if (DTinteg > EndTime - StartTime) then
+            DTaux = EndTime - StartTime
+        else
+            DTaux = DTinteg
+        endif            
+
+        do while (CurrentTime < EndTime) 
+
+            CurrentTime = CurrentTime + DTaux 
+
+            if (CurrentTime > EndTime) then
+                DTaux       = EndTime - CurrentTime
+                CurrentTime = EndTime 
+            endif
+            
+            call ExtractDate(CurrentTime, Year, Month, Day, Hour, Minute, Second)            
+            
+            select case (trim(Me%CharTimeUnits))
+                case ('HOURS')
+                    !Hours range from 0 - 23
+                    Value1 = Me%DataMatrix(int(Hour+1), StoredColumn)
+                case ('DAYS')
+                    !Days range from 1 - 366 - Julian Day
+                    call JulianDay(CurrentTime, JulDay)
+                    Value1 = Me%DataMatrix(JulDay,    StoredColumn)
+                case ('MONTHS')
+                    !Month range from 1- 12
+                    Value1 = Me%DataMatrix(int(Month),  StoredColumn)
+                case default
+                    stop 'GetTimeSerieValue - ModuleTimeSerie - ERR01'
+            end select
+
+            IntegAux = IntegAux + Value1 * DTaux            
+            
+        enddo                        
+                
+        TimeSerieCycleIntegral = IntegAux
+                
+        
+    end function TimeSerieCycleIntegral
+
 
     !--------------------------------------------------------------------------
+    
+    
     !--------------------------------------------------------------------------
 
     subroutine GetTimeSerieTimeUnits(TimeSerieID, TimeUnits, STAT) 
