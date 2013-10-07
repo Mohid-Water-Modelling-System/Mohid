@@ -404,6 +404,8 @@ program MohidWater
                                                 CurrentModel%FatherLink%PropertyIDNumbers,   &
                                                 STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR150'
+                    write(*,*) "ConstructMohidWater - line 407", CurrentModel%ModelName
+                    read(*,*) 
 
                     do iProp = 1, CurrentModel%FatherLink%nProp
 
@@ -523,13 +525,22 @@ program MohidWater
         logical                                     :: SubModelWindowON, NotDefinedCells
         type(T_Time)                                :: SubModelBeginTime, SubModelEndTime
 
-
+        !Begin-----------------------------------------------------------------
 
         call MPI_INIT               (STAT_CALL )
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR10'
+        
         call MPI_COMM_RANK          (MPI_COMM_WORLD, myMPI_ID, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR20'
+        
         call MPI_COMM_SIZE          (MPI_COMM_WORLD, nMPI_Processes, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR30'
+        
         call MPI_GET_PROCESSOR_NAME (myMPI_Processor, length, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR40'
+        
         call MPI_Barrier            (MPI_COMM_WORLD, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR50'
 
         !This must be shifted elsewhere
         allocate (ModelDTs          (nMPI_Processes))
@@ -550,6 +561,7 @@ program MohidWater
 
             !Wait for all processes
             call MPI_Barrier   (MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR60'
         enddo
 
         !Construct all modules. Each module is constructed one after the other. Between each 
@@ -581,7 +593,7 @@ program MohidWater
                 if (MonitorDT) then
                     call UnitsManager (UnitDT, OPEN_FILE)      
                     open(UNIT   = UnitDT, FILE   = DTLogFile, STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR10'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR70'
                 end if
                 
                 !PCL 
@@ -591,6 +603,8 @@ program MohidWater
                                     ObjLagrangianGlobal, CurrentModel%ModelID,          &
                                     InitialSystemTime, CurrentModel%MPI_ID,             &
                                     STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR80'
                 
                 !Get the Instance IDs of the Objects which are necessary for Model/SubModel
                 !comunication
@@ -599,12 +613,12 @@ program MohidWater
                                                HydrodynamicID    = CurrentModel%HydrodynamicID,   &
                                                WaterpropertiesID = CurrentModel%WaterpropertiesID,&
                                                STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR20'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR90'
 
                 !Gets Current Time of the model
                 call GetModelCurrentTime      (CurrentModel%ModelID, CurrentModel%CurrentTime,    &
                                                STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR30'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR100'
 
                 !Sets the last info time 
                 CurrentModel%InfoTime = CurrentModel%CurrentTime
@@ -615,11 +629,13 @@ program MohidWater
 
             !Waits for all processes
             call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR110'
 
         enddo
 
         !Waits for all processes
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR120'
 
         !Sends the information about the Grid to the submodels
         CurrentModel => FirstModel
@@ -632,7 +648,7 @@ program MohidWater
                         
                     !Gets the name of the file
                     call GetGridFileName          (CurrentModel%HorizontalGridID, FileNameStr, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR40'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR130'
 
                     !Converts a String to an integer Array
                     call ConvertStrToInt (FileNameStr, FileNameInt, PathLength)
@@ -641,7 +657,7 @@ program MohidWater
                     call MPI_Send (FileNameInt, PathLength, MPI_INTEGER,                 &
                                    CurrentModel%SubMPIID(iSub), tag, MPI_COMM_WORLD,     &
                                    STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR50'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR140'
                     
                 enddo
 
@@ -650,7 +666,8 @@ program MohidWater
 
                     call MPI_Recv (FileNameInt, PathLength, MPI_INTEGER, CurrentModel%FatherModel%MPI_ID, &
                                    tag, MPI_COMM_WORLD, status, STAT_CALL)
-
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR150'
+                    
                     !Converts an integer Array to a String
                     call ConvertIntToStr (FileNameInt, FileNameStr, PathLength)
 
@@ -658,41 +675,41 @@ program MohidWater
                     call ConstructHorizontalGrid (HorizontalGridID = CurrentModel%FatherGridID, &
                                                   DataFile         = FileNameStr,               &
                                                   STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR60'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR160'
 
 
                     call GetNotDefinedCells(CurrentModel%FatherGridID,                          &
                                             NotDefinedCells, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR70'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR170'
 
 
                     call GetSubModelWindowON (CurrentModel%ModelID, SubModelWindowON,           &
                                               STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR80'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR180'
 
                     if (SubModelWindowON) then
 
                         call GetSubModelWindow (CurrentModel%ModelID, CurrentModel%FatherLink%Window,&
                                                 STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR90'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR190'
 
                     else
 
                         call GetHorizontalGridSize(CurrentModel%FatherGridID,                   &
                                                    WorkSize = CurrentModel%FatherLink%Window,   &
                                                    STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR100'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR200'
 
                     endif 
                     
-                    if (.not. SubModelWindowON .and. NotDefinedCells) stop 'ConstructMohidWaterMPI - MohidWater - ERR101'
+                    if (.not. SubModelWindowON .and. NotDefinedCells) stop 'ConstructMohidWaterMPI - MohidWater - ERR210'
 
                     !Constructs the location of the father grid
                     call ConstructFatherGridLocation(CurrentModel%HorizontalGridID,             &
                                                      CurrentModel%FatherGridID,                 &
                                                      Window = CurrentModel%FatherLink%Window,   &
                                                      STAT   = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR110'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR220'
 
                 endif
 
@@ -704,13 +721,14 @@ program MohidWater
              
         !Wait for all
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR230'
            
         !Sends to all processes the information about GlobalBeginTime end GlobalEndTime
         if (myMPI_ID == 0) then
 
             !Checks the limits of the model (always model one which controls it)
             call GetModelTimeLimits (FirstModel%ModelID, GlobalBeginTime, GlobalEndTime, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR240'
 
             call ExtractDate (GlobalBeginTime, AuxBeg(1), AuxBeg(2), AuxBeg(3),          &
                               AuxBeg(4), AuxBeg(5), AuxBeg(6))
@@ -723,8 +741,10 @@ program MohidWater
         Precision = MPIKind(AuxBeg(1))
 
         call MPI_Bcast(AuxBeg, 6, Precision, 0, MPI_COMM_WORLD, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR250'
         call MPI_Bcast(AuxEnd, 6, Precision, 0, MPI_COMM_WORLD, STAT_CALL)
-
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR260'
+        
 if1 :   if (myMPI_ID /= 0) then
             
             CurrentModel => FirstModel%Next
@@ -747,7 +767,7 @@ do1 :       do while (associated(CurrentModel))
             call GetModelTimeLimits (CurrentModel%ModelID, SubModelBeginTime, SubModelEndTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then 
                 write (*,*) 'MPIProcess: ', CurrentModel%MPI_ID
-                stop        'ConstructMohidWaterMPI - Main - ERR121'
+                stop        'ConstructMohidWaterMPI - Main - ERR270'
             endif
 
 if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
@@ -760,7 +780,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                 write(*,*)trim(CurrentModel%ModelName)
                 write(*,*)
                 write(*,*)"Differs from the initial/final date of the father model"
-                stop 'ConstructMohidWaterMPI - MohidWater - ERR122'
+                stop 'ConstructMohidWaterMPI - MohidWater - ERR280'
 
             end if if2
                     
@@ -772,6 +792,8 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
 
         !Wait for all
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR290'
+        
 
         !Fills in FatherLink
         CurrentModel => FirstModel
@@ -785,14 +807,14 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                     call GetHydroNeedsFather (CurrentModel%HydrodynamicID,               &
                                               CurrentModel%FatherLink%Hydro,             &
                                               STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR130'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR300'
                     
 
                     call GetWaterNeedsFather (CurrentModel%WaterpropertiesID,            &
                                               CurrentModel%FatherLink%Water,             &
                                               CurrentModel%FatherLink%nProp,             &
                                               STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR140'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR310'
                     
                     if (CurrentModel%FatherLink%Hydro .or. CurrentModel%FatherLink%Water) then
                         CurrentModel%FatherLink%Nesting = .true.
@@ -807,7 +829,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                         call GetPropListNeedsFather(CurrentModel%WaterPropertiesID,                 &
                                                     CurrentModel%FatherLink%PropertyIDNumbers,      &
                                                     STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR150'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR320'
 
                     endif
                 endif
@@ -820,6 +842,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
 
         !Waits for all processes
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR330'
 
         !Fills in SubModelLink
         CurrentModel => FirstModel
@@ -834,40 +857,49 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                     call MPI_Recv (CurrentModel%SubmodelLink(iSub)%Hydro, 1, MPI_LOGICAL, &
                                    CurrentModel%SubMPIID(iSub), tag, MPI_COMM_WORLD,      &
                                    status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR160'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR340'
 
                     call MPI_Recv (CurrentModel%SubmodelLink(iSub)%Water, 1, MPI_LOGICAL, &
                                    CurrentModel%SubMPIID(iSub), tag, MPI_COMM_WORLD,      &
                                    status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR170'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR350'
+                    
+                    if (CurrentModel%SubmodelLink(iSub)%Water) then
 
-                    call MPI_Recv (CurrentModel%SubmodelLink(iSub)%nProp, 1, MPI_INTEGER, &
-                                   CurrentModel%SubMPIID(iSub), tag, MPI_COMM_WORLD,      &
-                                   status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR180'
+                        call MPI_Recv (CurrentModel%SubmodelLink(iSub)%nProp, 1, MPI_INTEGER, &
+                                       CurrentModel%SubMPIID(iSub), tag, MPI_COMM_WORLD,      &
+                                       status, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR360'
 
-                    allocate (CurrentModel%SubmodelLink(iSub)%PropertyIDNumbers(CurrentModel%SubmodelLink(iSub)%nProp))
+                        allocate (CurrentModel%SubmodelLink(iSub)%PropertyIDNumbers(CurrentModel%SubmodelLink(iSub)%nProp))
 
-                    call MPI_Recv (CurrentModel%SubmodelLink(iSub)%PropertyIDNumbers,  &
-                                   CurrentModel%SubmodelLink(iSub)%nProp, MPI_INTEGER, &
-                                   CurrentModel%SubMPIID(iSub), tag, MPI_COMM_WORLD,    &
-                                   status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR190'
+                        call MPI_Recv (CurrentModel%SubmodelLink(iSub)%PropertyIDNumbers,  &
+                                       CurrentModel%SubmodelLink(iSub)%nProp, MPI_INTEGER, &
+                                       CurrentModel%SubMPIID(iSub), tag, MPI_COMM_WORLD,    &
+                                       status, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR370'
 
-
+                    endif
+                
                     call MPI_Recv (CurrentModel%SubmodelLink(iSub)%Window%ILB, 1,         &
                                    MPI_INTEGER, CurrentModel%SubMPIID(iSub), tag,         &
                                    MPI_COMM_WORLD, status, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR380'
+                    
                     call MPI_Recv (CurrentModel%SubmodelLink(iSub)%Window%IUB, 1,         &
                                    MPI_INTEGER, CurrentModel%SubMPIID(iSub), tag,         &
                                    MPI_COMM_WORLD, status, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR390'
+                                   
                     call MPI_Recv (CurrentModel%SubmodelLink(iSub)%Window%JLB, 1,         &
                                    MPI_INTEGER, CurrentModel%SubMPIID(iSub), tag,         &
                                    MPI_COMM_WORLD, status, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR400'
+
                     call MPI_Recv (CurrentModel%SubmodelLink(iSub)%Window%JUB, 1,         &
                                    MPI_INTEGER, CurrentModel%SubMPIID(iSub), tag,         &
                                    MPI_COMM_WORLD, status, STAT_CALL)
-
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR410'
                     
 
                 enddo
@@ -878,27 +910,40 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                     !Send to father information about Father link
                     call MPI_Send (CurrentModel%FatherLink%Hydro, 1, MPI_LOGICAL,        &
                                    CurrentModel%FatherModel%MPI_ID, tag, MPI_COMM_WORLD, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR420'
 
                     call MPI_Send (CurrentModel%FatherLink%Water, 1, MPI_LOGICAL,        &
                                    CurrentModel%FatherModel%MPI_ID, tag, MPI_COMM_WORLD, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR430'
                     
-                    call MPI_Send (CurrentModel%FatherLink%nProp, 1, MPI_INTEGER,        &
-                                   CurrentModel%FatherModel%MPI_ID, tag, MPI_COMM_WORLD, STAT_CALL)
+                    if (CurrentModel%FatherLink%Water) then
                     
-                    call MPI_Send (CurrentModel%FatherLink%PropertyIDNumbers,            &
-                                   CurrentModel%FatherLink%nProp, MPI_INTEGER,           & 
-                                   CurrentModel%FatherModel%MPI_ID, tag, MPI_COMM_WORLD, STAT_CALL)
+                        call MPI_Send (CurrentModel%FatherLink%nProp, 1, MPI_INTEGER,        &
+                                       CurrentModel%FatherModel%MPI_ID, tag, MPI_COMM_WORLD, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR440'
+                        
+                        call MPI_Send (CurrentModel%FatherLink%PropertyIDNumbers,            &
+                                       CurrentModel%FatherLink%nProp, MPI_INTEGER,           & 
+                                       CurrentModel%FatherModel%MPI_ID, tag, MPI_COMM_WORLD, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR450'
 
-
+                    endif 
+                    
                     call MPI_Send (CurrentModel%FatherLink%Window%ILB, 1, MPI_INTEGER,   &
                                    CurrentModel%FatherModel%MPI_ID, tag, MPI_COMM_WORLD, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR460'
+                    
                     call MPI_Send (CurrentModel%FatherLink%Window%IUB, 1, MPI_INTEGER,   &
                                    CurrentModel%FatherModel%MPI_ID, tag, MPI_COMM_WORLD, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR470'
+                    
                     call MPI_Send (CurrentModel%FatherLink%Window%JLB, 1, MPI_INTEGER,   &
                                    CurrentModel%FatherModel%MPI_ID, tag, MPI_COMM_WORLD, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR480'
+                    
                     call MPI_Send (CurrentModel%FatherLink%Window%JUB, 1, MPI_INTEGER,   &
                                    CurrentModel%FatherModel%MPI_ID, tag, MPI_COMM_WORLD, STAT_CALL)
-
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR490'
 
                 endif
 
@@ -910,7 +955,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
 
         !Waits for all processes
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
-
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR500'
 
         !Sends Initial Hydro Information.
         CurrentModel => FirstModel
@@ -927,6 +972,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                                                   CurrentModel%SubmodelLink(iSub)%Window,&
                                                   InitialField = .true.,                 &
                                                   STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR510'
                     end if
 
                 enddo
@@ -938,7 +984,8 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                                                   CurrentModel%FatherLink%Window,           &
                                                   InitialField = .true.,                    &
                                                   FatherGridID = CurrentModel%FatherGridID, &
-                                                  STAT = STAT_CALL)                                                  
+                                                  STAT = STAT_CALL)                
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR520'
                     endif
                 endif
 
@@ -950,6 +997,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
 
         !Waits for all processes
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR530'
 
         !Sends Initial Water Information.
         CurrentModel => FirstModel
@@ -970,7 +1018,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                                              InitialField = .true.,                                             &
                                              PropIDNumber = CurrentModel%SubmodelLink(iSub)%PropertyIDNumbers(iProp),   &
                                              STAT = STAT_CALL)
-
+                            if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR540'
                         enddo
 
                     endif
@@ -989,7 +1037,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                                                          FatherGridID = CurrentModel%FatherGridID, &
                                                          PropIDNumber = CurrentModel%FatherLink%PropertyIDNumbers(iProp), &
                                                          STAT = STAT_CALL)
-
+                            if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR550'
                         end do
 
                     end if
@@ -1005,7 +1053,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
 
         !Waits for all processes
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
-
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR560'
 
 
         !Gets System Time
@@ -1251,12 +1299,17 @@ doNext:     do while (associated(NextModel))
         
         if (RunInParallel) then
         
+            write(*,*) 'Start run MPI'
+        
             CurrentModel => FirstModel
             
             do while (associated(CurrentModel))
             
+                write(*,*) 'Start CurrentModel%MPI_ID == myMPI_ID'
+            
                 if (CurrentModel%MPI_ID == myMPI_ID) then
                 
+                    write(*,*) 'UpdateTimeAndMapping Main'    
                     call UpdateTimeAndMapping    (CurrentModel%ModelID, GlobalCurrentTime, DoNextStep, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR10'
                     
@@ -1287,8 +1340,10 @@ doNext:     do while (associated(NextModel))
                         
                                 !Post next recieve...
                                 if (CurrentModel%CurrentTime == CurrentModel%InfoTime) then
+                                    write(*,*) 'ReceiveInformationMPI Main'
                                     call ReceiveInformationMPI (CurrentModel)
                                 else if (CurrentModel%CurrentTime < CurrentModel%InfoTime) then 
+                                    write(*,*) 'UpdateSubModelValues Main'
                                     call UpdateSubModelValues (CurrentModel)
                                 else if (CurrentModel%CurrentTime > CurrentModel%InfoTime) then
 
@@ -1299,18 +1354,25 @@ doNext:     do while (associated(NextModel))
                             endif                                
 
                         endif
-                        !pcl
+                        write(*,*) 'RunModel Main'
                         call RunModel(CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR40'
+                        write(*,*) 'End RunModel Main'
                         if (CurrentModel%FatherLink%Nesting) then
+                            write(*,*) 'SendInformationMPI Main'
                             call SendInformationMPI (CurrentModel)
                         endif
+                        write(*,*) 'end if 1' 
                     endif
+                    write(*,*) 'end if 2'
                 endif
+                write(*,*) 'end if 3'
                 
                 CurrentModel => CurrentModel%Next
                 
             enddo
+            
+            write(*,*) ' Finish run cycle'
             
         else
 
@@ -1356,6 +1418,7 @@ doNext:     do while (associated(NextModel))
         else
             DoOneTimeStep = .false.
         endif
+        
         
     end function DoOneTimeStep
     
@@ -1616,14 +1679,11 @@ do1:        do i=2,StringLength
         !Arguments-------------------------------------------------------------
         real, intent(INOUT)                         :: DTmin, DTmax
         
-        !Local-----------------------------------------------------------------
-        real                                        :: DT
-        integer                                     :: STAT_CALL
-        type (T_MohidWater), pointer                :: CurrentModel
 
-        !Begin-----------------------------------------------------------------
 
 #ifdef _USE_MPI
+
+        !Begin-----------------------------------------------------------------
 
         call UpdateTimeStepsByMPI()
 
@@ -1632,7 +1692,14 @@ do1:        do i=2,StringLength
         DTmax = maxval(ModelDTs)
         
 #else _USE_MPI
-        
+
+        !Local-----------------------------------------------------------------
+        real                                        :: DT
+        type (T_MohidWater), pointer                :: CurrentModel
+        integer                                     :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------        
+                
         CurrentModel => FirstModel
         do while (associated(CurrentModel))
         
@@ -1844,6 +1911,8 @@ do1:        do i=2,StringLength
                           AuxTime(4), AuxTime(5), AuxTime(6))
 
         do iSub = 1, CurrentModel%nSubModels
+        
+            write(*,*) 'Run mpi', AuxTime
 
             call MPI_Send (AuxTime, 6, Precision, CurrentModel%SubMPIID(iSub), 999,       &
                            MPI_COMM_WORLD, STAT_CALL)

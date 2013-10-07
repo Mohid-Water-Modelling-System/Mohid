@@ -2044,6 +2044,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         write(*,*) 'Construct DD ', Me%DomainDecomposition%MPI_ID
 
         Me%DomainDecomposition%ON = .true.
+        
+        !Master_MPI_ID by default is assumed to be MPI_ID = 0
+        Me%DomainDecomposition%Master_MPI_ID = 0        
 
         if (Me%DomainDecomposition%MPI_ID == 0) then
             Me%DomainDecomposition%Master = .true.
@@ -2068,7 +2071,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write(*,*) 'Allocate DD ', Me%DomainDecomposition%MPI_ID        
         
             JImin = min (GILB, GJLB)
-            JImax = min (GIUB, GJUB)
+            JImax = max (GIUB, GJUB)
             
             write(*,*) 'Allocate DD a', Me%DomainDecomposition%MPI_ID
 
@@ -2229,15 +2232,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif            
         
         
-        write(*,*) 'Domains DD ', Me%DomainDecomposition%HaloMap%IUB, Me%DomainDecomposition%HaloMap%JUB, Me%DomainDecomposition%MPI_ID        
-        
+        write(*,*) 'Domains DD ', Me%DomainDecomposition%HaloMap%IUB, &
+                    Me%DomainDecomposition%HaloMap%JUB, Me%DomainDecomposition%MPI_ID        
+
         
         if (Me%DomainDecomposition%Master) then
         
             Me%DomainDecomposition%Nslaves = 3
             
-            Me%DomainDecomposition%Master_MPI_ID = 0     
-        
             allocate(Me%DomainDecomposition%Slaves_MPI_ID (Me%DomainDecomposition%Nslaves))
             allocate(Me%DomainDecomposition%Slaves_Inner  (Me%DomainDecomposition%Nslaves))
             allocate(Me%DomainDecomposition%Slaves_Size   (Me%DomainDecomposition%Nslaves))
@@ -7580,13 +7582,13 @@ cd1:    if (Me%ComputeOptions%Residual) then
             allocate (Me%Residual%WaterFlux_Y       (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
             allocate (Me%Residual%DWZ               (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
 
-            Me%Residual%WaterLevel(:,:) = FillValueReal
-            Me%Residual%Velocity_U(:,:,:) = FillValueReal
-            Me%Residual%Velocity_V(:,:,:) = FillValueReal
-            Me%Residual%Vertical_Velocity(:,:,:) = FillValueReal
-            Me%Residual%WaterFlux_X(:,:,:) = FillValueReal
-            Me%Residual%WaterFlux_Y(:,:,:) = FillValueReal
-            Me%Residual%DWZ(:,:,:) = FillValueReal
+            Me%Residual%WaterLevel          (:,:)   = FillValueReal
+            Me%Residual%Velocity_U        (:,:,:)   = FillValueReal
+            Me%Residual%Velocity_V        (:,:,:)   = FillValueReal
+            Me%Residual%Vertical_Velocity (:,:,:)   = FillValueReal
+            Me%Residual%WaterFlux_X       (:,:,:)   = FillValueReal
+            Me%Residual%WaterFlux_Y       (:,:,:)   = FillValueReal
+            Me%Residual%DWZ               (:,:,:)   = FillValueReal
 
         endif cd1
 
@@ -23449,10 +23451,10 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         
         
         !Begin---------------------------------------------------------------
-    
+        write(*,*) 'start THOMAS_2D_DomainDecomposition' 
         call AggregatesThomasCoefs
         
-        !write(*,*) 'End AggregatesThomasCoefs DD ', Me%DomainDecomposition%MPI_ID        
+        write(*,*) 'End AggregatesThomasCoefs DD ', Me%DomainDecomposition%MPI_ID        
 
         !Waits for all processes
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
@@ -23484,32 +23486,32 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
             JImin = ILB * di + JLB * dj
             JImax = IUB * di + JUB * dj        
             
-            !write(*,*) 'Start Thomas DD ', Me%DomainDecomposition%MPI_ID 
+            write(*,*) 'Start Thomas DD ', Me%DomainDecomposition%MPI_ID 
             !write(*,*) 'IJmin, IJmax, JImin, JImax, di,    dj', IJmin, IJmax, JImin, JImax, di,    dj
             !write(*,*) 'DCoef_2D(120,146), ECoef_2D(120,146), FCoef_2D(120,146), TiCoef_2D(120,146),                     &
             !               WaterLevel_New(120,146), VECG(1), VECW(1)', &
             !               DCoef_2D(120,146), ECoef_2D(120,146), FCoef_2D(120,146), TiCoef_2D(120,146),                     &
             !               WaterLevel_New(120,146), VECG(1), VECW(1)
             !PCL - Retirar - testes
-            !call THOMAS_2D(IJmin, IJmax, JImin, JImax, di,    dj,                       &
-            !               DCoef_2D, ECoef_2D, FCoef_2D, TiCoef_2D,                     &
-            !               WaterLevel_New, VECG, VECW)                           
+            call THOMAS_2D(IJmin, IJmax, JImin, JImax, di,    dj,                       &
+                           DCoef_2D, ECoef_2D, FCoef_2D, TiCoef_2D,                     &
+                           WaterLevel_New, VECG, VECW)                           
         
-            !write(*,*) 'End Thomas DD ', Me%DomainDecomposition%MPI_ID                    
+            write(*,*) 'End Thomas DD ', Me%DomainDecomposition%MPI_ID                    
             
         endif
         
         !Waits for all processes
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
         
-        !write(*,*) 'Start Thomas DD ', Me%DomainDecomposition%MPI_ID                            
+        write(*,*) 'Start Thomas DD ', Me%DomainDecomposition%MPI_ID                            
         
         call BroadcastThomasResult()
         
         !Waits for all processes
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
 
-        !write(*,*) 'End Thomas DD ', Me%DomainDecomposition%MPI_ID                            
+        write(*,*) 'End Thomas DD ', Me%DomainDecomposition%MPI_ID                            
         
 #endif _USE_MPI
 
@@ -23538,7 +23540,7 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         !Local---------------------------------------------------------------
         real,    dimension(:,:), pointer :: D, F, Ti
         real(8), dimension(:,:), pointer :: E
-        
+
         integer                          :: STAT_CALL, IUB, ILB, JUB, JLB
         integer                          :: di,    dj, i
         
@@ -23556,7 +23558,7 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         if (Me%FirstIteration) then
         
             !PCL - Master slave mapping
-            !write(*,*) 'Start master slave mapping', Me%DomainDecomposition%MPI_ID
+            write(*,*) 'Start master slave mapping', Me%DomainDecomposition%MPI_ID
             iSize = 16
             allocate(Aux1D(iSize))
                     
@@ -23567,12 +23569,12 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
                     Precision = MPI_INTEGER
                     Source    = i
                     
-                    !write(*,*) 'Start receive slave mapping', Me%DomainDecomposition%MPI_ID
+                    write(*,*) 'Start receive slave mapping', Me%DomainDecomposition%MPI_ID
                     
                     call MPI_Recv (Aux1D(1:iSize), iSize, Precision,   Source, 30001, MPI_COMM_WORLD, status, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
                 
-                    !write(*,*) 'End receive slave mapping', Me%DomainDecomposition%MPI_ID                
+                    write(*,*) 'End receive slave mapping', Me%DomainDecomposition%MPI_ID                
                 
                     Me%DomainDecomposition%Slaves_Inner  (i)%ILB = Aux1D(1)
                     Me%DomainDecomposition%Slaves_Inner  (i)%IUB = Aux1D(2)
@@ -23621,12 +23623,12 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
                 Precision   = MPI_INTEGER
                 Destination = Me%DomainDecomposition%Master_MPI_ID
                 
-                !write(*,*) 'Start send slave mapping', Me%DomainDecomposition%MPI_ID
+                write(*,*) 'Start send slave mapping', Me%DomainDecomposition%MPI_ID
         
                 call MPI_Send (Aux1D(1:iSize), iSize, Precision, Destination, 30001, MPI_COMM_WORLD, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
 
-                !write(*,*) 'End send slave mapping', Me%DomainDecomposition%MPI_ID
+                write(*,*) 'End send slave mapping', Me%DomainDecomposition%MPI_ID
             
             endif
             
@@ -23644,21 +23646,21 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
  
         if (Me%DomainDecomposition%Master) then
         
-            !write(*,*) 'Start copy thomas coefs', Me%DomainDecomposition%MPI_ID
+            write(*,*) 'Start copy thomas coefs', Me%DomainDecomposition%MPI_ID
 
             call CopyThomasCoefs(D = Me%Coef%D2%D, E  = Me%Coef%D2%E,                   &
                                  F = Me%Coef%D2%F, Ti = Me%Coef%D2%Ti,                  &
                                  Inner   = Me%DomainDecomposition%Inner,                &
                                  Mapping = Me%DomainDecomposition%Mapping)
                                  
-            !write(*,*) 'End copy thomas coefs', Me%DomainDecomposition%MPI_ID                                 
+            write(*,*) 'End copy thomas coefs', Me%DomainDecomposition%MPI_ID                                 
             
             do i=1, Me%DomainDecomposition%Nslaves
             
                 Inner   = Me%DomainDecomposition%Slaves_Inner  (i)
                 
                 Mapping = Me%DomainDecomposition%Slaves_Mapping(i)
-                
+
                 allocate(D (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
                 allocate(E (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
                 allocate(F (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
@@ -23670,82 +23672,107 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
                 
                 Source    =  Me%DomainDecomposition%Slaves_MPI_ID(i)
                 
-                !write(*,*) 'Start receive thomas coefs', Me%DomainDecomposition%MPI_ID                
-                
+                write(*,*) 'Start receive thomas coefs', Me%DomainDecomposition%MPI_ID                
+                write(*,*) 'Recv D'
                 call MPI_Recv (D(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
                                Source, 20001, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
-
+                
+                write(*,*) 'Recv F'
                 call MPI_Recv (F(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
                                Source, 20002, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
 
+                write(*,*) 'Recv Ti'
                 call MPI_Recv (Ti(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
                                Source, 20003, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
                 
                 Precision = MPI_DOUBLE_PRECISION
 
+                write(*,*) 'Recv E'
                 call MPI_Recv (E(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
                                Source, 20004, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
                 
-                !write(*,*) 'End receive thomas coefs', Me%DomainDecomposition%MPI_ID                
+                write(*,*) 'End receive thomas coefs', Me%DomainDecomposition%MPI_ID                
                 
-                !write(*,*) 'Start copy thomas coefs', Me%DomainDecomposition%MPI_ID                
+                write(*,*) 'Start copy thomas coefs', Me%DomainDecomposition%MPI_ID                
 
                 call CopyThomasCoefs(D = D, E  = E, F = F, Ti = Ti, Inner = Inner, Mapping = Mapping)
                 
-                !write(*,*) 'End copy thomas coefs', Me%DomainDecomposition%MPI_ID
-
+                write(*,*) 'End copy thomas coefs', Me%DomainDecomposition%MPI_ID
+                
                 deallocate(D )
                 deallocate(E )
                 deallocate(F )
                 deallocate(Ti)
 
+                nullify(D)
+                nullify(E)
+                nullify(F)
+                nullify(Ti)
 
             enddo
             
         else
-        
-            D => Me%Coef%D2%D
-            E => Me%Coef%D2%E
-            F => Me%Coef%D2%F
-            Ti=> Me%Coef%D2%Ti
+
+            Inner       = Me%DomainDecomposition%Inner   
             
-            Inner       = Me%DomainDecomposition%Inner        
+            allocate(D (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
+            allocate(E (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
+            allocate(F (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
+            allocate(Ti(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
+                 
+        
+            D   (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB) = Me%Coef%D2%D   (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB)
+            E   (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB) = Me%Coef%D2%E   (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB)
+            F   (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB) = Me%Coef%D2%F   (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB)
+            Ti  (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB) = Me%Coef%D2%Ti  (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB)
+            
             iSize       = (Inner%IUB-Inner%ILB+1) * (Inner%JUB-Inner%JLB+1)
             Precision   = MPIKind(D)
             Destination = Me%DomainDecomposition%Master_MPI_ID
             
-            !write(*,*) 'Start send thomas coefs', Me%DomainDecomposition%MPI_ID                
+            write(*,*) 'Start send thomas coefs', Me%DomainDecomposition%MPI_ID                
     
+            write(*,*) 'Send D'
             call MPI_Send (D(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
                            Destination, 20001, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
 
+            write(*,*) 'Send F'
             call MPI_Send (F(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
                            Destination, 20002, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
 
+            write(*,*) 'Send Ti'
             call MPI_Send (Ti(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
                            Destination, 20003, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
             
             Precision = MPI_DOUBLE_PRECISION
 
+            write(*,*) 'Send E'
             call MPI_Send (E(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
                            Destination, 20004, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
             
-            !write(*,*) 'End send thomas coefs', Me%DomainDecomposition%MPI_ID    
+            write(*,*) 'End send thomas coefs', Me%DomainDecomposition%MPI_ID    
+            
+            deallocate(D )
+            deallocate(E )
+            deallocate(F )
+            deallocate(Ti)
+
+            nullify(D)
+            nullify(E)
+            nullify(F)
+            nullify(Ti)
+            
         
         endif
 
-        nullify(D )
-        nullify(E )
-        nullify(F )
-        nullify(Ti)        
         
 
     end subroutine AggregatesThomasCoefs         
@@ -23809,40 +23836,44 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
                 
                 WL(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =               &
                     Me%DomainDecomposition%WaterLevel_New(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB)
-                
+                    
                 iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
                 
                 Precision   = MPIKind(WL)
                 
                 Destination =  Me%DomainDecomposition%Slaves_MPI_ID(i)
-                
+
                 call MPI_Send (WL(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
                                Destination, 20006, MPI_COMM_WORLD, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'BroadcastThomasResult - ModuleHydrodynamic - ERR10'
-                
-                deallocate(WL )
+
+                deallocate(WL)
+                nullify   (WL)
 
             enddo
             
         else
-        
-            WL => Me%WaterLevel%New
-            
             WorkSize    = Me%WorkSize2D        
+        
+            allocate(WL (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))     
+            
+       
             iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
             Precision   = MPIKind(WL)
             Source      = Me%DomainDecomposition%Master_MPI_ID
-    
+            
             call MPI_Recv (WL(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
                            Source, 20006, MPI_COMM_WORLD, status, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'BroadcastThomasResult - ModuleHydrodynamic - ERR20'
-            !PCL - Retirar - testes
-            WL(:,:) = 0.
-            
+
+            Me%WaterLevel%New(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) = &
+                WL(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB)
+
+            deallocate(WL )
+            nullify   (WL)                
+
         endif
 
-        nullify(WL)
-        
 
     end subroutine BroadcastThomasResult         
 
@@ -23872,6 +23903,11 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 
         
         !Begin---------------------------------------------------------------
+        
+        nullify(DCoef_2D )
+        nullify(ECoef_2D )
+        nullify(FCoef_2D )
+        nullify(TiCoef_2D)        
  
         DCoef_2D  => Me%DomainDecomposition%Coef%D
         ECoef_2D  => Me%DomainDecomposition%Coef%E
@@ -23890,7 +23926,12 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
                F(Inner%ILB  :Inner%IUB  , Inner%JLB  :Inner%JUB  )                
 
         Ticoef_2D(Mapping%ILB:Mapping%IUB, Mapping%JLB:Mapping%JUB) =                   &
-               Ti(Inner%ILB  :Inner%IUB  , Inner%JLB  :Inner%JUB  )    
+               Ti(Inner%ILB  :Inner%IUB  , Inner%JLB  :Inner%JUB  ) 
+               
+        nullify(DCoef_2D )
+        nullify(ECoef_2D )
+        nullify(FCoef_2D )
+        nullify(TiCoef_2D)
                
     end subroutine CopyThomasCoefs                       
 
