@@ -1350,9 +1350,9 @@ do1 :   do i = 1, 6
         integer, intent(IN)                         :: GreorgianDay
 
         !Local-----------------------------------------------------------------
-        integer                                     :: GregDay, i, GregDayLimit1, GregDayLimit2, iMonth
+        integer                                     :: GregDay, i, iMonth
 
-        real                                        :: Year, Month, Day, Y
+        real                                        :: Year, Month, Day
         integer                                     :: n400, n100, n4, nx
         integer                                     :: DaysInMonth
 
