@@ -1771,12 +1771,12 @@ Module ModuleGlobalData
         T_Module(mPOROUSMEDIAPROPERTIES_ , "PorousMediaProperties"), T_Module(mPHREEQC_                , "PhreeqC"),               &
         T_Module(mCUDA_                  , "Cuda"),                                                                                &
         T_Module(mRUNOFFPROPERTIES_      , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions"),        &
-        T_Module(mField4D_               , "Field4D"),               T_Module(mBENTHICECOLOGY_         , "BenthicEcology"),        &! isab
+        T_Module(mField4D_               , "Field4D"),               T_Module(mBENTHICECOLOGY_         , "BenthicEcology"),        &
         T_Module(mWWTPQ_                 , "WWTPQ") ,                                                                              &
         T_Module(mSEAGRASSWATERINTERAC_  , "SeagrassWaterInteraction"),                                                            &
         T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
         T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics"),     &
-        T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     ,  T_Module(mAnalytical_LDS_      , "Analytical_LDS"),     & 
+        T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     ,  T_Module(mAnalytical_LDS_      , "Analytical_LDS"),        &  
         T_Module(mPressureDifferences_   , "PressureDifferences") /)
         
 
@@ -1785,7 +1785,7 @@ Module ModuleGlobalData
     character(LEN=PathLength)                                       :: FilesName          = 'nomfich.dat'
     logical                                                         :: MonitorPerformance = .false.  !initialization: jauch
     logical                                                         :: MonitorDT          = .false.  !initialization: jauch
-    integer                                                         :: UnitDT             = null_int !initialization: jauch - or should be set to 0 (zero)?
+    integer                                                         :: UnitDT             = null_int !initialization: jauch
     character(LEN=StringLength), dimension(:), pointer              :: PropNameList          => null()
     character(LEN=StringLength), dimension(:), pointer              :: DynamicPropNameList   => null()
     integer,                     dimension(:), pointer              :: PropNumberList        => null()
