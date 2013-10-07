@@ -127,9 +127,11 @@ Module ModuleGlueHDF5Files
         integer                                     :: ClientNumber
 
         !Local-----------------------------------------------------------------
+        character(len=PathLength), dimension(:), pointer :: FileName1DAux
+        character(len=PathLength)                   :: FileNameAux
         logical                                     :: BlockFound
         integer                                     :: STAT_CALL
-        integer                                     :: iflag, FirstLine, LastLine, i
+        integer                                     :: iflag, FirstLine, LastLine, i, iaux1, iaux2
 
         !Begin-----------------------------------------------------------------
        
@@ -203,20 +205,35 @@ do1 :   do
 if1 :       if(STAT_CALL .EQ. SUCCESS_) then    
 if2 :           if (BlockFound) then
 
-                    Me%FileNameInNumber = LastLine - FirstLine - 1
+                    iAux1 = LastLine - FirstLine - 1
 
-                    allocate (Me%FileNameIn(Me%FileNameInNumber))
-                    allocate (Me%FirstInstant(Me%FileNameInNumber))
+                    allocate (FileName1DAux  (iAux1))
+                    
+                    iAux2 = 0
 
-                    do i = 1, Me%FileNameInNumber
+                    do i = 1, iAux1
 
-                        call GetData(Me%FileNameIn(i), Me%ObjEnterData,  iflag,          & 
-                                     Buffer_Line  = FirstLine + i,                       &
+                        call GetData(FileNameAux, Me%ObjEnterData,  iflag,              & 
+                                     Buffer_Line  = FirstLine + i,                      &
                                      STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR70'
+                        
+                        if (GetHDF5FileOkToRead(FileNameAux)) then
+                            iAux2                = iAux2 + 1
+                            FileName1DAux(iAux2) = FileNameAux
+                        endif
 
                     enddo
-
+                    
+                    Me%FileNameInNumber = iAux2
+                                        
+                    allocate (Me%FileNameIn  (Me%FileNameInNumber))
+                    allocate (Me%FirstInstant(Me%FileNameInNumber))
+                    
+                    Me%FileNameIn(1:Me%FileNameInNumber) = FileName1DAux(1:Me%FileNameInNumber)
+                    
+                    deallocate(FileName1DAux)
+                    
                     exit do1 
                         
                 end if if2
@@ -232,8 +249,8 @@ if2 :           if (BlockFound) then
 
     end subroutine ReadOptions
 
-
     !--------------------------------------------------------------------------
+    
 
     subroutine GlueProcess
 
