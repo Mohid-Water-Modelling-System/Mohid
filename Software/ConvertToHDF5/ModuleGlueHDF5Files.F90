@@ -73,6 +73,7 @@ Module ModuleGlueHDF5Files
         integer                                          :: FileNameInNumber
         logical                                          :: File_3D
         logical                                          :: Vert3D, Open3D
+        logical                                          :: GlueInTime
         character(len=PathLength)                        :: BaseGroup
         character(len=PathLength)                        :: TimeGroup
     end type  T_GlueHDF5Files
@@ -195,6 +196,17 @@ Module ModuleGlueHDF5Files
                      ClientModule = 'ModuleGlueHDF5Files',                              &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR60'
+        
+        !Check if the user wants to glue files in time (default)
+        !if false the time is the same in all the files and will add the files results
+        call GetData(Me%GlueInTime,                                                     &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'GLUE_IN_TIME',                                     &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleGlueHDF5Files',                              &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR60'
 
 do1 :   do
             call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                    &
@@ -256,7 +268,7 @@ if2 :           if (BlockFound) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, HDF5_READWRITE, STAT_CALL, iflag
-
+        
 !       NIX   
 #ifdef _USE_NIX     
         integer                                     :: system
@@ -265,6 +277,8 @@ if2 :           if (BlockFound) then
 
         !Begin-----------------------------------------------------------------
 
+        call InquireFile(Me%FileNameIn(1))
+        
 !         NIX
 #ifdef _USE_NIX     
         write(aux, *) 'cp ',trim(Me%FileNameIn(1)), ' ',trim(Me%FileNameOut)      
@@ -274,7 +288,7 @@ if2 :           if (BlockFound) then
         iflag = copyfile(trim(Me%FileNameIn(1))//""C,trim(Me%FileNameOut)//""C,.false.)
         if (iflag /= 1) stop 'GlueProcess - ConvertHDF5Files - ERR01'
 #endif
-
+        
         !Gets File Access Code
         call GetHDF5FileAccess  (HDF5_READWRITE = HDF5_READWRITE)
         
@@ -282,12 +296,36 @@ if2 :           if (BlockFound) then
         call ConstructHDF5 (Me%ObjHDF5_Out, Me%FileNameOut,                            &
                             Access = HDF5_READWRITE, STAT = STAT_CALL)
 
-        do i=2, Me%FileNameInNumber
-        
-            call CheckVGCompatibility(i)
+        !only verify group compatibility if glueing in time
+        !if adding results groups need to verify if time is the same
+        if (Me%GlueInTime) then
+            write (*,*)
+            write (*,*) 'Glueing HDF files...'
+            
+            do i=2, Me%FileNameInNumber
+                
+                call CheckVGCompatibility(i)
 
-        enddo
-
+            enddo
+        else
+            write (*,*)
+            write (*,*) 'Merging HDF files...'    
+            
+            do i=2, Me%FileNameInNumber
+                
+                call InquireFile(Me%FileNameIn(i))
+                
+                !check if times are the same and bathymetries have same dimension
+                call CheckTimeAndBathymetry(i)
+                
+                !add the new groups not existing in the output
+                call CheckGroupExistence(i)
+                
+                !neded for glue. first instant is always used because no glueintime occurs
+                Me%FirstInstant(i) = 1
+                
+            enddo        
+        endif
 
         do i=2, Me%FileNameInNumber
         
@@ -295,12 +333,35 @@ if2 :           if (BlockFound) then
 
         enddo
 
-
-
-
+        if (Me%GlueInTime) then 
+            write (*,*)  
+            write (*,*) 'Finished Glueing HDF files!'      
+        else
+            write (*,*)
+            write (*,*) 'Finished Merging HDF files!'
+        endif
 
     end subroutine GlueProcess
 
+    !--------------------------------------------------------------------------
+    
+    subroutine InquireFile(FileName)
+    
+        !Argument--------------------------------------------------------------
+        character (StringLength)                    :: Filename
+        !Local-----------------------------------------------------------------
+        logical                                     :: exist
+        !Begin-----------------------------------------------------------------
+    
+        inquire(file = FileName, exist = exist)
+        if (.not. exist) then
+            write(*,*)
+            write(*,*)'HDF file in list does not exist'
+            write(*,*)trim(FileName)
+            stop 'InquireFile - ModuleGlueHDF5Files - ERR01'
+        endif
+    
+    end subroutine InquireFile
 
     !--------------------------------------------------------------------------
     subroutine CheckVGCompatibility(i)
@@ -338,6 +399,375 @@ if2 :           if (BlockFound) then
 
     end subroutine CheckVGCompatibility
 
+    !--------------------------------------------------------------------------
+    
+    subroutine CheckTimeAndBathymetry(i)
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, HDF5_READ, STAT_CALL, IDIn, IDOut
+        logical                                     :: CheckOK, OutTimeExist, InTimeExist
+        logical                                     :: OutBathExist, InBathExist
+
+        !Begin-----------------------------------------------------------------
+       
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+        call ConstructHDF5 (Me%ObjHDF5_In, Me%FileNameIn(i),                             &
+                            Access = HDF5_READ, STAT = STAT_CALL)
+       
+        call GetHDF5FileID (Me%ObjHDF5_In, IDIn, STAT = STAT_CALL)
+
+        call GetHDF5FileID (Me%ObjHDF5_Out, IDOut, STAT = STAT_CALL)
+        
+        
+        !Verify if time groups exist
+        call GetHDF5GroupExist(Me%ObjHDF5_Out, "/Time", OutTimeExist, STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CheckTimeAndBathymetry - ModuleGlueHDF5Files - ERR10'
+
+        call GetHDF5GroupExist(Me%ObjHDF5_In, "/Time", InTimeExist, STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CheckTimeAndBathymetry - ModuleGlueHDF5Files - ERR20'
+
+        if (.not. OutTimeExist .or. .not. InTimeExist) then
+            write(*,*) "Time group is not available in one of the files"
+            stop 'CheckTimeAndBathymetry - ModuleGlueHDF5Files - ERR030'
+        endif
+
+        CheckOK = .true.
+        
+        call CompareTime (IDOut, IDIn, "/Time", "/Time", CheckOK)
+
+        if (.not.CheckOK) then
+            write(*,*)
+            write(*,*) trim(Me%FileNameIn(i))//" is not a compatible file"
+            write(*,*) 'for merging HDFs because time instants do not match'
+            stop 'CheckTimeAndBathymetry - ModuleGlueHDF5Files - ERR040'
+        endif
+
+        write (*,*)
+        write (*,*) 'Checked time compatibility for file ', trim(Me%FileNameIn(i))
+
+
+        !Verify if bathymetry exist
+        call GetHDF5DataSetExist(Me%ObjHDF5_Out, "/Grid/Bathymetry", OutBathExist, STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CheckTimeAndBathymetry - ModuleGlueHDF5Files - ERR50'
+
+        call GetHDF5DataSetExist(Me%ObjHDF5_In, "/Grid/Bathymetry", InBathExist, STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CheckTimeAndBathymetry - ModuleGlueHDF5Files - ERR60'
+
+        if (.not. OutBathExist .or. .not. InBathExist) then
+            write(*,*) "Bathymetry group is not available in one of the files"
+            stop 'CheckTimeAndBathymetry - ModuleGlueHDF5Files - ERR070'
+        endif
+
+        CheckOK = .true.
+        
+        call CompareBathymetry (IDOut, IDIn, "/Grid/Bathymetry", "/Grid/Bathymetry", CheckOK)
+
+        if (.not.CheckOK) then
+            write(*,*)
+            write(*,*) trim(Me%FileNameIn(i))//" is not a compatible file"
+            write(*,*) 'for merging HDFs because bathymetries do not match'
+            stop 'CheckTimeAndBathymetry - ModuleGlueHDF5Files - ERR080'
+        endif
+
+        write (*,*)
+        write (*,*) 'Checked grid compatibility for file ', trim(Me%FileNameIn(i))
+
+
+        call KillHDF5(Me%ObjHDF5_In, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckTimeAndBathymetry - ModuleGlueHDF5Files - ERR090'
+
+
+    end subroutine CheckTimeAndBathymetry
+
+    !-------------------------------------------------------------------------
+
+
+    subroutine CompareTime (IDOut, IDIn, GroupNameOut, GroupNameIn, Check)
+
+        !Arguments-------------------------------------------------------------
+        integer(HID_T)                              :: IDOut, IDIn
+        character(len=*)                            :: GroupNameOut, GroupNameIn
+        logical                                     :: Check
+
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: nmembersOut, nmembersIn
+        character(StringLength)                     :: obj_nameIn, obj_nameOut
+        integer                                     :: obj_type, idx
+        integer(HID_T)                              :: dset_id, gr_id
+        integer(HSIZE_T), dimension(7)              :: dimsOut
+        integer                                     :: STAT_CALL
+        real, allocatable, dimension(:)             :: DataVal
+        integer(HSIZE_T), dimension(7)              :: dims
+        type (T_Time)                               :: InputTime, OutputTime
+
+
+        !Get the number of members in the Group
+        call h5gn_members_f(IDOut, GroupNameOut, nmembersOut, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR01'
+    
+        call h5gn_members_f(IDIn, GroupNameIn, nmembersIn, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR02'
+
+        !if the number of time instants is different than file is not compatible
+        if (nmembersOut /= nmembersIn) then
+            Check = .false.
+            return
+        endif
+
+        allocate(DataVal(6))
+
+        
+        do idx = 1, nmembersIn
+            
+            !Output
+            !Gets information about the group
+            call h5gget_obj_info_idx_f(IDOut, GroupNameOut, idx-1, obj_nameOut, obj_type, STAT_CALL)
+            if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR03'
+
+            !Opens the Group
+            call h5gopen_f (IDOut, GroupNameOut, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CompareTime - ModuleHDF5Files - ERR04'
+
+            !Opens data set
+            call h5dopen_f (gr_id, trim(adjustl(obj_nameOut)), dset_id,  STAT_CALL)
+            if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR05'
+
+            call ReadInterface (dset_id, DataVal, dimsOut,  STAT_CALL)
+            if (STAT_CALL/=0) stop 'CompareTime - ModuleHDF5Files - ERR06'
+
+            call SetDate  (OutputTime, DataVal(1), DataVal(2), DataVal(3), DataVal(4), DataVal(5), DataVal(6))
+
+            !Closes data set
+            call h5dclose_f     (dset_id, STAT_CALL)
+            if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR07'
+
+            !Closes group
+            call h5gclose_f     (gr_id, STAT_CALL)
+            if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR08'
+            
+            
+            
+            !INPUT
+            !Gets information about the group
+            call h5gget_obj_info_idx_f(IDIn, GroupNameIn, idx-1, obj_nameIn, obj_type,  STAT_CALL)
+            if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR09'
+
+            !Opens the Group
+            call h5gopen_f (IDIn, GroupNameIn, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CompareTime - ModuleHDF5Files - ERR10'
+
+            !Opens data set
+            call h5dopen_f      (gr_id, trim(adjustl(obj_nameIn)), dset_id, STAT_CALL)
+            if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR11'
+            
+            call ReadInterface (dset_id, DataVal, dims,  STAT_CALL)            
+            if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR12'
+            
+            call SetDate  (InputTime, DataVal(1), DataVal(2), DataVal(3), DataVal(4), DataVal(5), DataVal(6))
+
+            !Closes data set
+            call h5dclose_f     (dset_id, STAT_CALL)
+            if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR13'
+
+            !Closes group
+            call h5gclose_f     (gr_id, STAT_CALL)
+            if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR14'
+
+            !files do not have similar time instants
+            if (InputTime /=  OutputTime) then
+            
+                Check = .false.
+                return
+
+            endif
+
+        enddo
+
+        deallocate(DataVal)
+
+    end subroutine CompareTime
+
+    !--------------------------------------------------------------------------
+
+    subroutine CompareBathymetry (IDOut, IDIn, GroupNameOut, GroupNameIn, Check)
+
+        !Arguments-------------------------------------------------------------
+        integer(HID_T)                              :: IDOut, IDIn
+        character(len=*)                            :: GroupNameOut, GroupNameIn
+        logical                                     :: Check
+
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id, gr_id, space_id
+        integer(HSIZE_T), dimension(7)              :: dimsOut, dimsIn, maxdims
+        integer                                     :: STAT_CALL
+        character(StringLength)                     :: ParentGroupName
+
+
+        !Output
+        ParentGroupName = GroupNameOut(1:index(GroupNameOut, "/", .true.)-1)
+        
+        !Opens the Group
+        call h5gopen_f (IDOut, ParentGroupName, gr_id, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CompareTime - ModuleHDF5Files - ERR04'
+
+        !Opens data set
+        call h5dopen_f (gr_id, GroupNameOut, dset_id,  STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR05'
+
+        !Opens data space
+        call h5dget_space_f (dset_id, space_id, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR06'
+        
+        !Gets dims
+        call h5sget_simple_extent_dims_f  (space_id, dimsOut, maxdims, STAT_CALL) 
+        !if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR06.5'
+        
+        !Closes data set
+        call h5dclose_f     (dset_id, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR07'
+
+        !Closes group
+        call h5gclose_f     (gr_id, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR08'
+        
+        
+        
+        !INPUT
+        ParentGroupName = GroupNameOut(1:index(GroupNameIn, "/", .true.)-1)
+        
+        !Opens the Group
+        call h5gopen_f (IDIn, ParentGroupName, gr_id, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CompareTime - ModuleHDF5Files - ERR10'
+
+        !Opens data set
+        call h5dopen_f      (gr_id, GroupNameIn, dset_id, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR11'
+        
+        !Opens data space
+        call h5dget_space_f (dset_id, space_id, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR012'
+        
+        !Gets dims
+        call h5sget_simple_extent_dims_f  (space_id, dimsIn, maxdims, STAT_CALL) 
+        !if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR012.5'
+
+        !Closes data set
+        call h5dclose_f     (dset_id, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR13'
+
+        !Closes group
+        call h5gclose_f     (gr_id, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CompareTime - ModuleHDF5Files - ERR14'
+
+        !files do not have similar dimension so are not compatible
+        if (dimsIn(1) /= dimsOut(1)) then 
+            Check = .false.
+            return
+        endif
+        if (dimsIn(2) /= dimsOut(2)) then 
+            Check = .false.
+            return
+        endif
+
+
+    end subroutine CompareBathymetry
+
+    !--------------------------------------------------------------------------
+
+    subroutine CheckGroupExistence(i)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                     :: i
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: HDF5_READ, IDIn
+        !Begin-----------------------------------------------------------------
+        
+        !check if groups exist. if not add
+        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+        call ConstructHDF5 (Me%ObjHDF5_In, Me%FileNameIn(i),                             &
+                            Access = HDF5_READ, STAT = STAT_CALL)
+       
+        call GetHDF5FileID (Me%ObjHDF5_In, IDIn, STAT = STAT_CALL)
+
+        call AddNewGroupsToOutput(IDIn, '/'//trim(Me%BaseGroup))
+        
+        write (*,*) 
+        write (*,*) 'Checked if new groups exist in file ', trim(Me%FileNameIn(i))
+
+        
+        call KillHDF5(Me%ObjHDF5_In, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckGroupExistence - ModuleGlueHDF5Files - ERR02'
+
+    end subroutine CheckGroupExistence
+    
+    !--------------------------------------------------------------------------
+
+    recursive subroutine AddNewGroupsToOutput(IDin, GroupName)
+        
+        !Arguments
+        integer                                     :: IDIn
+        character(len=*)                            :: GroupName
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL, STAT
+        integer                                     :: nmembersIn
+        integer                                     :: idx, obj_type
+        character(StringLength)                     :: obj_name, NewGroupName, NewGroupNameIn
+        integer(HID_T)                              :: gr_idIn
+        logical                                     :: Exist
+        !Begin-----------------------------------------------------------------
+       
+        
+        call h5gn_members_f(IDIn, GroupName, nmembersIn, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'AddNewGroupsToOutput - ModuleHDF5Files - ERR20'
+        
+
+        do idx = 1, nmembersIn
+
+            !Gets information about the group
+            call h5gget_obj_info_idx_f(IDIn, GroupName, idx-1, obj_name, obj_type,  STAT_CALL)
+            if (STAT_CALL /= 0) stop 'AddNewGroupsToOutput - ModuleHDF5Files - ERR30'
+            
+            !if is a group verify if exists and if there are sub-groups
+            if (obj_type ==H5G_GROUP_F) then
+            
+                !NewGroupName = GroupName//trim(adjustl(obj_name))//"/"
+                NewGroupName = GroupName//"/"//trim(adjustl(obj_name))
+                
+                !check if the group exists in output. if not create it
+                call GetHDF5GroupExist(Me%ObjHDF5_Out, NewGroupName, Exist, STAT = STAT_CALL)
+                if (STAT_CALL /= 0) stop 'AddNewGroupsToOutput - ModuleGlueHDF5Files - ERR50'
+                
+                !Create group
+                if (.not. Exist) then
+                    call HDF5CreateGroup (Me%ObjHDF5_Out, NewGroupName, STAT = STAT_CALL)
+                    if (STAT_CALL /= 0) stop 'AddNewGroupsToOutput - ModuleGlueHDF5Files - ERR60'
+                    
+                    
+                endif
+                
+                !verify if new sub-groups exist
+                !if (GroupName == "/") then
+                !    NewGroupNameIn = GroupName//trim(adjustl(obj_name))
+                !else
+                    NewGroupNameIn = GroupName//"/"//trim(adjustl(obj_name))
+                !endif                
+                call h5gopen_f        (IDIn, trim(adjustl(NewGroupNameIn)), gr_idIn, STAT)
+                call AddNewGroupsToOutput (gr_idIn, trim(adjustl(NewGroupNameIn)))
+                call h5gclose_f       (gr_idIn, STAT)
+
+            endif
+            
+        enddo
+
+
+    end subroutine AddNewGroupsToOutput
+
 
     !--------------------------------------------------------------------------
 
@@ -362,27 +792,52 @@ if2 :           if (BlockFound) then
 
         call GetHDF5FileID (Me%ObjHDF5_Out, IDOut, STAT = STAT_CALL)
         if (STAT_CALL /= 0) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR30'
-
+        
         CheckOK = .true.
-
-        call GlueInTime (IDOut, IDIn, '/'//trim(Me%TimeGroup)//'/', '/'//trim(Me%TimeGroup)//'/', Me%FirstInstant(i), CheckOK)
-
-        if (.not.CheckOK) then
-            write(*,*) trim(Me%FileNameIn(i))//" is not a compatible file"
-            stop 'GlueFileIn - ModuleGlueHDF5Files - ERR40'
+        
+        !Only glue time if glueing in time. if not time between files are the same
+        if (Me%GlueInTime) then
+            
+            call GlueInTime (IDOut, IDIn, '/'//trim(Me%TimeGroup)//'/', '/'//trim(Me%TimeGroup)//'/', Me%FirstInstant(i), CheckOK)
+            
+            if (.not.CheckOK) then
+                write(*,*) trim(Me%FileNameIn(i))//" is not a compatible file"
+                stop 'GlueFileIn - ModuleGlueHDF5Files - ERR40'
+            endif        
         endif
-
+        
         if(Me%Vert3D)then
-            call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Grid/VerticalZ", Me%FirstInstant(i))
+            if (Me%GlueInTime) then
+                call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Grid/VerticalZ", Me%FirstInstant(i))
+            else
+                !only do this once if it does not exist in output (time instants are the same between files)
+                !this will work for complete 3D files or mix of 2D and 3D
+                call GetHDF5GroupExist(Me%ObjHDF5_Out, "/Grid/VerticalZ", Exist, STAT = STAT_CALL)
+                if (STAT_CALL /= 0) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR50'
+                
+                if (.not. Exist) call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Grid/VerticalZ", Me%FirstInstant(i))
+
+            endif
         endif
-        if (Me%Open3D) then           
-            call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Grid/OpenPoints", Me%FirstInstant(i), 2)
+        
+        if (Me%Open3D) then 
+            if (Me%GlueInTime) then          
+                call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Grid/OpenPoints", Me%FirstInstant(i), 2)
+            else
+                !only do this once if it does not exist in output (time instants are the same between files)
+                !this will work for complete 3D files or mix of 2D and 3D
+                call GetHDF5GroupExist(Me%ObjHDF5_Out, "/Grid/OpenPoints", Exist, STAT = STAT_CALL)
+                if (STAT_CALL /= 0) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR60'
+                
+                if (.not. Exist) call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Grid/OpenPoints", Me%FirstInstant(i))            
+            
+            endif
         endif
 
         call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, '/'//trim(Me%BaseGroup)//'/', Me%FirstInstant(i))
 
         call GetHDF5GroupExist(Me%ObjHDF5_Out, "/Generic4D/", Exist, STAT = STAT_CALL)
-        if (STAT_CALL /= 0) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR50'
+        if (STAT_CALL /= 0) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR70'
 
         if (Exist) then
             call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Generic4D/", Me%FirstInstant(i))
@@ -390,12 +845,12 @@ if2 :           if (BlockFound) then
 
         if (.not.CheckOK) then
             write(*,*) trim(Me%FileNameIn(i))//" is not a compatible file"
-            stop 'GlueFileIn - ModuleGlueHDF5Files - ERR60'
+            stop 'GlueFileIn - ModuleGlueHDF5Files - ERR80'
         endif
 
 
         call KillHDF5(Me%ObjHDF5_In, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR90'
        
 
     end subroutine GlueFileIn
