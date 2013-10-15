@@ -404,8 +404,7 @@ program MohidWater
                                                 CurrentModel%FatherLink%PropertyIDNumbers,   &
                                                 STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR150'
-                    write(*,*) "ConstructMohidWater - line 407", CurrentModel%ModelName
-                    read(*,*) 
+
 
                     do iProp = 1, CurrentModel%FatherLink%nProp
 
