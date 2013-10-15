@@ -30980,12 +30980,13 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
         call SetMatrixValue( Me%Aux3DFlux, Me%Size, dble(0.))        
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
-
+        
+        !It was lacking Vel_UV_South and Vel_UV_North in private what created OpenMP errors
         !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
         !$OMP                   iSouth, jWest, i_North, j_East, &
         !$OMP                   ComputeFlux, &
         !$OMP                   ViscAux,FaceFlux_WestSouth1,FaceFlux_WestSouth2, &
-        !$OMP                   Aux)        
+        !$OMP                   Aux,Vel_UV_South,Vel_UV_North)        
 
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doi: do j=JLB, JUB
