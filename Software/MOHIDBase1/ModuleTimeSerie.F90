@@ -82,7 +82,9 @@ Module ModuleTimeSerie
     public  :: GetTimeSerieTimeFrameIndexes
     public  :: GetTimeSerieCycle
     public  :: GetTimeSerieCheckDate
-
+    public  :: GetTimeSerieTimeOfDataset
+    public  :: GetTimeSerieTimeOfNextDataset
+    public  :: GetTimeSerieValueForIndex
 
     !Destructor
     public  ::  KillTimeSerie
@@ -122,6 +124,7 @@ Module ModuleTimeSerie
 
     type       T_TimeSerie
         real                                        :: DT                 = null_real
+        real                                        :: FirstDT = 0
         integer                                     :: TotalOutPutsNumber = null_int
         integer                                     :: BufferSize         = null_int      !Number of instantes which can kept
         integer                                     :: BufferCount        = null_int      !Current number of instantes
@@ -182,8 +185,17 @@ Module ModuleTimeSerie
         character(len=StringLength)                 :: CharTimeUnits        = null_str
         character(len=line_length)                  :: Header               = null_str
         type (T_Time)                               :: InitialData
-        integer                                     :: CurrentIndex         = 2    
-        integer                                     :: StartIndex = 1, EndIndex  = 1
+        type (T_Time)                               :: PreviousTime
+        type (T_Time)                               :: NextTime
+        type (T_Time)                               :: TimeOfNextDataset
+        real                                        :: DTForNextEvent
+        real                                        :: DTForNextDataset
+        integer                                     :: NextInstant
+        integer                                     :: PreviousInstant
+        integer                                     :: InstantOfNextDataset
+        integer                                     :: CurrentIndex = 2    
+        integer                                     :: StartIndex   = 1 
+        integer                                     :: EndIndex     = 1
 
         !TimeSerieOutput
         type(T_TimeSerie), dimension(:), pointer    :: TimeSerie
@@ -711,6 +723,7 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
         integer                             :: ClientNumber
         integer                             :: iTimeSerie, iflag
         integer                             :: FromBlock, FromFile
+        real                                :: FirstDT
 
         !Gets parameter from the module EnterData
         call GetExtractType(FromBlock = FromBlock, FromFile = FromFile)
@@ -724,6 +737,18 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
                 ReadTimeSeriesTimes = -1
                 return
             endif
+
+            !Searches for the first output DT
+            call GetData(Me%TimeSerie(iTimeSerie)%FirstDT,                          &
+                         Me%ObjEnterData,                                           &
+                         iflag,                                                     &
+                         SearchType   = FromFile,                                   &
+                         keyword      ='FIRST_OUTPUT_DT',                           &
+                         default      = 0.,                                         &
+                         ClientModule ='ModuleTimeSerie',                           &
+                         STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                            & 
+                stop 'ReadTimeSeriesTimes - ModuleTimeSerie - ERR10'
 
             !Searches for the first output time
             call GetData(AuxTime,                                                   &
@@ -791,7 +816,7 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
 
             !Inits NextOutput
             Me%TimeSerie(iTimeSerie)%NextOutPut =                                   &
-                Me%TimeSerie(iTimeSerie)%BeginOutPut
+                Me%TimeSerie(iTimeSerie)%BeginOutPut + Me%TimeSerie(iTimeSerie)%FirstDT
 
             !Unlocks the block
             call Block_Unlock(Me%ObjEnterData, ClientNumber)
@@ -3318,8 +3343,147 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         
     end subroutine GetTimeSerieTimeFrameIndexes
 
+    !--------------------------------------------------------------------------
+    
+    subroutine GetTimeSerieValueForIndex (TimeSerieID, Index, DataColumn, Value, STAT) 
 
-    !-------------------------------------------------------------------------    
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                 :: TimeSerieID
+        integer, intent(IN)                 :: Index 
+        integer, intent(IN)                 :: DataColumn
+        real, intent(OUT)                   :: Value        
+        integer, optional, intent(OUT)      :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: STAT_        
+
+        !----------------------------------------------------------------------
+        
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeSerieID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if ((Index < 1) .or. (Index > Me%DataValues)) then
+            
+                STAT_ = OUT_OF_BOUNDS_ERR_
+            
+            else
+                        
+                Value = Me%DataMatrix(index, Me%FileColumns(DataColumn))
+                STAT_ = SUCCESS_
+            
+            endif
+            
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+        
+    end subroutine GetTimeSerieValueForIndex
+
+    !--------------------------------------------------------------------------    
+    
+    subroutine GetTimeSerieTimeOfDataset (TimeSerieID, Index, Time, STAT)
+    
+        !Arguments------------------------------------------------------------- 
+        integer, intent(IN)             :: TimeSerieID       
+        integer, intent(IN)             :: Index
+        type (T_Time), intent(OUT)      :: Time
+        integer, optional, intent(OUT)  :: STAT        
+        
+        !Local-----------------------------------------------------------------
+        integer :: STAT_
+        integer :: ready_
+        
+        !----------------------------------------------------------------------
+               
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeSerieID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then               
+                                       
+            if ((Index < 1) .OR. (Index > Me%DataValues)) then
+            
+                STAT_ = OUT_OF_BOUNDS_ERR_
+            
+            else
+            
+                Time = Me%InitialData + Me%DataMatrix(index, 1)
+                STAT_ = SUCCESS_
+            
+            endif
+           
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+                    
+        !----------------------------------------------------------------------
+            
+    end subroutine GetTimeSerieTimeOfDataset 
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetTimeSerieTimeOfNextDataset (TimeSerieID, ActualTime, NextTime, STAT)        
+    
+        !Arguments------------------------------------------------------------- 
+        integer, intent(IN)             :: TimeSerieID       
+        Type (T_Time), intent(IN)       :: ActualTime
+        type (T_Time), intent(OUT)      :: NextTime
+        integer, optional, intent(OUT)  :: STAT        
+        
+        !Local-----------------------------------------------------------------
+        integer :: index
+        integer :: STAT_
+        integer :: ready_         
+        
+        !----------------------------------------------------------------------
+               
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeSerieID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then               
+                                       
+            NextTime = Me%InitialData + Me%DataMatrix(Me%CurrentIndex, 1)
+            index = Me%CurrentIndex
+                                               
+do1:        do while (NextTime <= ActualTime)              
+                if (index < Me%DataValues) then
+                    index = index + 1
+                    NextTime = Me%InitialData + Me%DataMatrix(index, 1)
+                else
+                    exit do1
+                endif
+            enddo do1
+            
+            STAT_ = SUCCESS_
+            
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+                    
+        !----------------------------------------------------------------------
+    
+    end subroutine GetTimeSerieTimeOfNextDataset
+        
 
     !--------------------------------------------------------------------------
 
@@ -3400,7 +3564,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
                 PE  = (PEi * (dt2-dt1) + PEi1 * dt1) / dt2
 
-    i1:         if (StartIndex == EndIndex) then
+i1:         	if (StartIndex == EndIndex) then
 
                     IntegAux = (PS + PE) / 2. * (EndTime - StartTime)
 

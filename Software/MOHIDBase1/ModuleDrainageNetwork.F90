@@ -296,7 +296,7 @@ Module ModuleDrainageNetwork
     private ::              ModifyNode  
     private ::                  ComputeNodeInFlow
     private ::                  ComputeNodeOutFlow 
-    private ::              VerifyMinimumVolume
+    private ::              CheckStability
     private ::              Cascade    
     private ::          ResetToInitialValues 
     private ::          TransportProperties
@@ -798,6 +798,27 @@ Module ModuleDrainageNetwork
         real, dimension(:), allocatable             :: Inflow               
     end type T_StormWaterModelLink
 
+    type T_Converge
+        integer                                     :: MinIterations                = 1               
+        integer                                     :: MaxIterations                = 1024
+        logical                                     :: Stabilize                    = .false.
+        real                                        :: StabilizeFactor              = 0.01        
+        real                                        :: DTFactorUp                   = 1.25
+        real                                        :: DTFactorDown                 = 1.25
+        real                                        :: StabilizeHardCutLimit        = 128
+        real                                        :: DTSplitFactor                = 2.0               
+        real                                        :: CurrentDT                    = null_real  
+        real                                        :: NextDT                       = null_real
+        integer                                     :: LastGoodNiteration           = 1
+        integer                                     :: NextNiteration               = 1               
+        logical                                     :: LimitDTCourant               = .false.        
+        real                                        :: MaxCourant                   = 1.0  
+        integer                                     :: MinToRestart                 = 0  
+        real                                        :: MinimumValueToStabilize      = 0.001
+        logical                                     :: CheckDecreaseOnly            = .false.  
+        real                                        :: StabilizeCoefficient         = 0.0001
+    end type T_Converge
+
     type T_DrainageNetwork
         integer                                     :: InstanceID            = 0
         character(len=StringLength)                 :: ModelName             = null_str
@@ -846,6 +867,7 @@ Module ModuleDrainageNetwork
 
         logical                                     :: HasProperties         = .false.
         
+        type(T_Converge)                            :: CV
         
         real                                        :: GlobalManning         = null_real
         logical                                     :: AllowBackwardWater    = .false.
@@ -899,10 +921,10 @@ Module ModuleDrainageNetwork
         type (T_Downstream)                         :: Downstream
         type (T_Size2D)                             :: Size
         type (T_ExtVar)                             :: ExtVar        
-        real                                        :: NextDT               = null_real
-        integer                                     :: LastGoodNiter        = 1
-        integer                                     :: NextNiter            = 1
-        real                                        :: InternalTimeStepSplit = 1.5
+!        real                                        :: NextDT               = null_real
+!        integer                                     :: LastGoodNiter        = 1
+!        integer                                     :: NextNiter            = 1
+!        real                                        :: InternalTimeStepSplit = 1.5
         real, dimension (:), pointer                :: GlobalToxicity       => null()
         integer                                     :: nToxicProp           = 0
         character(len=StringLength)                 :: GlobalToxicityEvolution = null_str
@@ -923,20 +945,20 @@ Module ModuleDrainageNetwork
         real(8)                                     :: OutletFlowVolume             = 0.0 !Acc. Outlet Flow Vol for the Input DT.
         !type(T_Reach), pointer                      :: OutletReach                  => null()
 
-        logical                                     :: Stabilize                    = .true.
-        real                                        :: StabilizeFactor              = null_real
-        real                                        :: StabilizeCoefficient         = null_real
-        integer                                     :: MaxIterations                = null_int
-        real                                        :: DTFactor                     = null_real
-        real                                        :: DTFactorUp                   = null_real
-        real                                        :: DTFactorDown                 = null_real
-        logical                                     :: LimitDTCourant               = .false.
-        logical                                     :: LimitDTVariation             = .true.
-        real                                        :: MaxCourant                   = 1.0
-        integer                                     :: MinNodesToRestart            = 0
-        real                                        :: PercentToRestart             = 0.
-        integer                                     :: MinIterations                = 1
-        logical                                     :: CheckDecreaseOnly            = .false.
+!        logical                                     :: Stabilize                    = .true.
+!        real                                        :: StabilizeFactor              = null_real
+!        real                                        :: StabilizeCoefficient         = null_real
+!        integer                                     :: MaxIterations                = null_int
+!        real                                        :: DTFactor                     = null_real
+!        real                                        :: DTFactorUp                   = null_real
+!        real                                        :: DTFactorDown                 = null_real
+!        logical                                     :: LimitDTCourant               = .false.
+!        logical                                     :: LimitDTVariation             = .true.
+!        real                                        :: MaxCourant                   = 1.0
+!        integer                                     :: MinNodesToRestart            = 0
+!        real                                        :: PercentToRestart             = 0.
+!        integer                                     :: MinIterations                = 1
+!        logical                                     :: CheckDecreaseOnly            = .false.
         
 
         integer                                     :: nPropWithDischarges          = 0   !Performance
@@ -1066,7 +1088,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Connects nodes / reaches
             call ConstructNetwork
-            
+                        
+            call ReadConvergenceParameters
+                        
             !Finds wich reach is the outlet and associate it with Me%OutletReach
             !call FindOutlet
 
@@ -1494,184 +1518,184 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         end if
 
-        call GetData(Me%Stabilize,                                              &
-                     Me%ObjEnterData, flag,                                     &  
-                     keyword      = 'STABILIZE',                                &
-                     ClientModule = 'DrainageNetwork',                          &
-                     SearchType   = FromFile,                                   &
-                     Default      = .true.,                                     &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR22'        
-
-        if (Me%Stabilize) then
-
-            call GetData(Me%StabilizeFactor,                                    &
-                         Me%ObjEnterData, flag,                                 &  
-                         keyword      = 'STABILIZE_FACTOR',                     &
-                         ClientModule = 'DrainageNetwork',                      &
-                         SearchType   = FromFile,                               &
-                         Default      = 0.1,                                    &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR23'        
-
-            call GetData(Me%StabilizeCoefficient,                               &
-                         Me%ObjEnterData, flag,                                 &  
-                         keyword      = 'STABILIZE_COEFFICIENT',                &
-                         ClientModule = 'DrainageNetwork',                      &
-                         SearchType   = FromFile,                               &
-                         Default      = 0.05,                                   &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR24'        
-
-            call GetData(Me%MaxIterations,                                      &
-                         Me%ObjEnterData, flag,                                 &  
-                         keyword      = 'MAX_ITERATIONS',                       &
-                         ClientModule = 'DrainageNetwork',                      &
-                         SearchType   = FromFile,                               &
-                         Default      = 100,                                    &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25'        
-
-            call GetData(Me%PercentToRestart,                                   &
-                         Me%ObjEnterData, flag,                                 &  
-                         keyword      = 'PERCENT_TO_RESTART',                   &
-                         ClientModule = 'DrainageNetwork',                      &
-                         SearchType   = FromFile,                               &
-                         Default      = 0.,                                     &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'                
-            if (Me%PercentToRestart <= 0.) then
-                Me%PercentToRestart = 0
-            endif              
-            
-            call GetData(Me%MinIterations,                                      &
-                         Me%ObjEnterData, flag,                                 &  
-                         keyword      = 'MIN_ITERATIONS',                       &
-                         ClientModule = 'DrainageNetwork',                      &
-                         SearchType   = FromFile,                               &
-                         Default      = 1,                                      &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR27'
-            if (Me%MinIterations < 1) then
-                write (*,*) 'MIN_ITERATIONS must be greater or equal to 1'
-                stop 'ReadDataFile - ModuleRunOff - ERR27a'
-            endif                      
-            
-            call GetData(Me%CheckDecreaseOnly,                                  &
-                         Me%ObjEnterData, flag,                                 &  
-                         keyword      = 'CHECK_DEC_ONLY',                       &
-                         ClientModule = 'DrainageNetwork',                      &
-                         SearchType   = FromFile,                               &
-                         Default      = .false.,                                &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR28'               
-
-            !Me%LastGoodNIter = Me%MinIterations
-            !Me%NextNIter = Me%MinIterations
-            
-            
-        end if
-
-        !Factor for DT Prediction
-        call GetData(Me%DTFactor,                                           &
-                     Me%ObjEnterData, flag,                                 &  
-                     keyword      = 'DT_FACTOR',                            &
-                     ClientModule = 'DrainageNetwork',                      &
-                     SearchType   = FromFile,                               &
-                     Default      = 1.05,                                   &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR29'        
-
-        if (Me%DTFactor <= 1.0) then
-            write (*,*)'Invalid DT Factor [DT_FACTOR]'
-            write (*,*)'Value must be greater then 1.0'
-            stop 'ModuleDrainageNetwork - ReadDataFile - ERR29a'              
-        endif
-
-        call GetData(Me%DTFactorUp,                                         &
-                     Me%ObjEnterData, flag,                                 &  
-                     keyword      = 'DT_FACTOR_UP',                         &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = Me%DTFactor,                            &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR29b'
-        if (flag /= 1) then
-            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for DrainageNetwork DT_FACTOR_UP' 
-        endif
-        if (Me%DTFactorUp <= 1.0) then
-            write (*,*)'Invalid DT Factor Up [DT_FACTOR_UP]'
-            write (*,*)'Value must be greater then 1.0'
-            stop 'ReadDataFile - ModuleDrainageNetwork - ERR29c'              
-        endif
-                
-        call GetData(Me%DTFactorDown,                                       &
-                     Me%ObjEnterData, flag,                                 &  
-                     keyword      = 'DT_FACTOR_DOWN',                       &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = Me%DTFactor,                            &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR29d'
-        if (flag /= 1) then
-            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for DrainageNetwork DT_FACTOR_DOWN'
-        endif
-        if (Me%DTFactorDown <= 1.0) then
-            write (*,*)'Invalid DT Factor Down [DT_FACTOR_DOWN]'
-            write (*,*)'Value must be greater then 1.0'
-            stop 'ReadDataFile - ModuleDrainageNetwork - ERR29e'              
-        endif   
-        
-        !Internal Time Step Split
-        call GetData(Me%InternalTimeStepSplit,                              &
-                     Me%ObjEnterData, flag,                                 &  
-                     keyword      = 'DT_SPLIT_FACTOR',                      &
-                     ClientModule = 'DrainageNetwork',                      &
-                     SearchType   = FromFile,                               &
-                     Default      = 1.5,                                    &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR30'        
-        if (Me%InternalTimeStepSplit <= 1.0) then
-            write (*,*)'Invalid DT Factor [DT_SPLIT_FACTOR]'
-            write (*,*)'Value must be greater then 1.0'
-            stop 'ModuleDrainageNetwork - ReadDataFile - ERR31'              
-        endif
-        
-        
-        !Gets flag of DT is limited by the courant number
-        call GetData(Me%LimitDTCourant,                                     &
-                     Me%ObjEnterData, flag,                                 &  
-                     keyword      = 'LIMIT_DT_COURANT',                     &
-                     ClientModule = 'DrainageNetwork',                      &
-                     SearchType   = FromFile,                               &
-                     Default      = .false.,                                &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR32'        
-
-        if (Me%LimitDTCourant) then
-
-            !Gets Maximum allowed Courant Number
-            call GetData(Me%MaxCourant,                                         &
-                         Me%ObjEnterData, flag,                                 &  
-                         keyword      = 'MAX_COURANT',                          &
-                         ClientModule = 'DrainageNetwork',                      &
-                         SearchType   = FromFile,                               &
-                         Default      = 1.0,                                    &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR33'        
-
-        endif
-
-        !Gets flag of DT is limited by the volume variation
-        call GetData(Me%LimitDTVariation,                                   &
-                     Me%ObjEnterData, flag,                                 &  
-                     keyword      = 'LIMIT_DT_VARIATION',                   &
-                     ClientModule = 'DrainageNetwork',                      &
-                     SearchType   = FromFile,                               &
-                     Default      = .true.,                                 &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR34'        
-
+!        call GetData(Me%Stabilize,                                              &
+!                     Me%ObjEnterData, flag,                                     &  
+!                     keyword      = 'STABILIZE',                                &
+!                     ClientModule = 'DrainageNetwork',                          &
+!                     SearchType   = FromFile,                                   &
+!                     Default      = .true.,                                     &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR22'        
+!
+!        if (Me%Stabilize) then
+!
+!            call GetData(Me%StabilizeFactor,                                    &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'STABILIZE_FACTOR',                     &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 0.1,                                    &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR23'        
+!
+!            call GetData(Me%StabilizeCoefficient,                               &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'STABILIZE_COEFFICIENT',                &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 0.05,                                   &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR24'        
+!
+!            call GetData(Me%MaxIterations,                                      &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'MAX_ITERATIONS',                       &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 100,                                    &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25'        
+!
+!            call GetData(Me%PercentToRestart,                                   &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'PERCENT_TO_RESTART',                   &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 0.,                                     &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'                
+!            if (Me%PercentToRestart <= 0.) then
+!                Me%PercentToRestart = 0
+!            endif              
+!            
+!            call GetData(Me%MinIterations,                                      &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'MIN_ITERATIONS',                       &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 1,                                      &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR27'
+!            if (Me%MinIterations < 1) then
+!                write (*,*) 'MIN_ITERATIONS must be greater or equal to 1'
+!                stop 'ReadDataFile - ModuleDrainageNetwork - ERR27a'
+!            endif                      
+!            
+!            call GetData(Me%CheckDecreaseOnly,                                  &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'CHECK_DEC_ONLY',                       &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = .false.,                                &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR28'               
+!
+!            !Me%LastGoodNIter = Me%MinIterations
+!            !Me%NextNIter = Me%MinIterations
+!            
+!            
+!        end if
+!
+!        !Factor for DT Prediction
+!        call GetData(Me%DTFactor,                                           &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'DT_FACTOR',                            &
+!                     ClientModule = 'DrainageNetwork',                      &
+!                     SearchType   = FromFile,                               &
+!                     Default      = 1.05,                                   &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR29'        
+!
+!        if (Me%DTFactor <= 1.0) then
+!            write (*,*)'Invalid DT Factor [DT_FACTOR]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ModuleDrainageNetwork - ReadDataFile - ERR29a'              
+!        endif
+!
+!        call GetData(Me%DTFactorUp,                                         &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'DT_FACTOR_UP',                         &
+!                     ClientModule = 'ModuleDrainageNetwork',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = Me%DTFactor,                            &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR29b'
+!        if (flag /= 1) then
+!            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for DrainageNetwork DT_FACTOR_UP' 
+!        endif
+!        if (Me%DTFactorUp <= 1.0) then
+!            write (*,*)'Invalid DT Factor Up [DT_FACTOR_UP]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ReadDataFile - ModuleDrainageNetwork - ERR29c'              
+!        endif
+!                
+!        call GetData(Me%DTFactorDown,                                       &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'DT_FACTOR_DOWN',                       &
+!                     ClientModule = 'ModuleDrainageNetwork',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = Me%DTFactor,                            &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR29d'
+!        if (flag /= 1) then
+!            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for DrainageNetwork DT_FACTOR_DOWN'
+!        endif
+!        if (Me%DTFactorDown <= 1.0) then
+!            write (*,*)'Invalid DT Factor Down [DT_FACTOR_DOWN]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ReadDataFile - ModuleDrainageNetwork - ERR29e'              
+!        endif   
+!        
+!        !Internal Time Step Split
+!        call GetData(Me%InternalTimeStepSplit,                              &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'DT_SPLIT_FACTOR',                      &
+!                     ClientModule = 'DrainageNetwork',                      &
+!                     SearchType   = FromFile,                               &
+!                     Default      = 1.5,                                    &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR30'        
+!        if (Me%InternalTimeStepSplit <= 1.0) then
+!            write (*,*)'Invalid DT Factor [DT_SPLIT_FACTOR]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ModuleDrainageNetwork - ReadDataFile - ERR31'              
+!        endif
+!        
+!        
+!        !Gets flag of DT is limited by the courant number
+!        call GetData(Me%LimitDTCourant,                                     &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'LIMIT_DT_COURANT',                     &
+!                     ClientModule = 'DrainageNetwork',                      &
+!                     SearchType   = FromFile,                               &
+!                     Default      = .false.,                                &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR32'        
+!
+!        if (Me%LimitDTCourant) then
+!
+!            !Gets Maximum allowed Courant Number
+!            call GetData(Me%MaxCourant,                                         &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'MAX_COURANT',                          &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 1.0,                                    &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR33'        
+!
+!        endif
+!
+!        !Gets flag of DT is limited by the volume variation
+!        call GetData(Me%LimitDTVariation,                                   &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'LIMIT_DT_VARIATION',                   &
+!                     ClientModule = 'DrainageNetwork',                      &
+!                     SearchType   = FromFile,                               &
+!                     Default      = .true.,                                 &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR34'        
+!
 
         call GetData(Me%AerationEquation,                                   &
                      Me%ObjEnterData, flag,                                 &
@@ -1977,11 +2001,237 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR110'
 
-
-
     end subroutine ReadDataFile
     
     !---------------------------------------------------------------------------
+    
+    subroutine ReadConvergenceParameters
+    
+        !Local-----------------------------------------------------------------        
+        integer                                     :: STAT_CALL,               &
+                                                       iflag,                   &
+                                                       STABILIZE_COEFFICIENT_flag    
+                                                            
+        real                                        :: dummy_real
+        
+        !----------------------------------------------------------------------    
+        
+        !----------------------------------------------------------------------
+        !Find deprecated keywords in data file
+        !----------------------------------------------------------------------
+        call GetData(dummy_real,                                                &
+                     Me%ObjEnterData, STABILIZE_COEFFICIENT_flag,               &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='STABILIZE_COEFFICIENT',                   &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR010")
+
+        if (STABILIZE_COEFFICIENT_flag > 0) then
+            
+            write (*,*) '======================================================================='
+            write (*,*) 'The following deprecated keywords were found in DrainageNetwork data file:'
+            write (*,*) ''
+            
+            if (STABILIZE_COEFFICIENT_flag > 0) &
+                write(*,*) 'STABILIZE_COEFFICIENT: Use STABILIZE_MIN_FACTOR instead.'
+                
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR070")                              
+        endif
+
+        !----------------------------------------------------------------------
+        !Read convergence options
+        !----------------------------------------------------------------------        
+        !Maximun change of water content (in %) allowed in one time step.
+        call GetData(Me%CV%StabilizeFactor,                                     &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'STABILIZE_FACTOR',                         &
+                     ClientModule = 'ModuleDrainageNetwork',                    &
+                     SearchType   = FromFile,                                   &
+                     Default      = 0.1,                                        &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) & 
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR080")
+        if (iflag > 0) then 
+            Me%CV%Stabilize = .true.
+            if (Me%CV%StabilizeFactor < 0.0 .or. Me%CV%StabilizeFactor > 1.0) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR081")
+                
+            call GetData(Me%CV%MinimumValueToStabilize,                     &
+                         Me%ObjEnterData, iflag,                            &
+                         SearchType   = FromFile,                           &
+                         keyword      = 'STABILIZE_MIN_FACTOR',             &
+                         default      = 0.05,                               &
+                         ClientModule = 'ModuleDrainageNetwork',            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR082")
+            if (Me%CV%MinimumValueToStabilize < 0.0) then
+                write (*,*)'Invalid Minimun Water Column to Stabilize value [STABILIZE_MIN]'
+                write (*,*)'Value must be greater than 0.0'            
+                call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleDrainageNetwork - ERR083")
+            endif      
+            
+            call GetData(dummy_real,                                            &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'STABILIZE_RESTART_FACTOR',             &
+                         ClientModule = 'ModuleDrainageNetwork',                &
+                         SearchType   = FromFile,                               &
+                         Default      = 0.,                                     &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR084")
+            if (dummy_real <= 0.) then
+                Me%CV%MinToRestart = 0
+            else
+                Me%CV%MinToRestart = max(int(dummy_real * Me%TotalNodes), 0)
+            endif    
+                         
+        else
+            Me%CV%Stabilize = .false.
+        endif        
+
+       !Number of iterations threshold for starting to ask for a lower DT 
+        call GetData(Me%CV%MinIterations,                                       &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='MIN_ITERATIONS',                          &
+                     Default        = 1,                                        &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR090")
+        if (Me%CV%MinIterations < 1) then
+            write (*,*)'Invalid Minimun Iterations value [MIN_ITERATIONS]'
+            write (*,*)'Value must be greater than 0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR091")
+        endif                                 
+
+        !Number of iterations threshold that causes the model to stop
+        call GetData(Me%CV%MaxIterations,                                       &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='MAX_ITERATIONS',                          &
+                     Default        = 1024,                                     &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR100")
+        if (Me%CV%MaxIterations < Me%CV%MinIterations) then
+            write (*,*)'Invalid Maximun Iterations value [MAX_ITERATIONS]'
+            write (*,*)'Value must be greater than the value of MIN_ITERATIONS'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR101")              
+        endif
+                            
+        !% of the maximun iterations that causes the DT to be cut to the value of one internal time step
+        call GetData(dummy_real,                                        &
+                     Me%ObjEnterData, iflag,                            &
+                     SearchType   = FromFile,                           &
+                     keyword      = 'DT_CUT_FACTOR',                    &
+                     default      = 0.1,                                &
+                     ClientModule = 'ModuleDrainageNetwork',            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR110") 
+        if (dummy_real <= 0.0 .or. dummy_real > 1.0) then
+            write (*,*)'Invalid DT Cut Factor [DT_CUT_FACTOR]'
+            write (*,*)'Value must be >= 0.0 and < 1.0'        
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR111") 
+        endif
+        Me%CV%StabilizeHardCutLimit = dummy_real * Me%CV%MaxIterations
+        
+       !Internal Time Step Split
+        call GetData(Me%CV%DTSplitFactor,                                   &
+                     Me%ObjEnterData, iflag,                                &
+                     keyword      = 'DT_SPLIT_FACTOR',                      &
+                     ClientModule = 'ModuleDrainageNetwork',                &
+                     SearchType   = FromFile,                               &
+                     Default      = 2.0,                                    &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadConvergenceParameters - ModuleDrainageNetwork - ERR120'        
+        if (Me%CV%DTSplitFactor <= 1.0) then
+            write (*,*)'Invalid DT Split Factor [DT_SPLIT_FACTOR]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR121")              
+        endif            
+
+        call GetData(dummy_real,                                                &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DT_FACTOR',                               &
+                     Default        = 1.25,                                     &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR130")             
+        if (dummy_real <= 1.0) then
+            write (*,*)'Invalid DT Factor [DT_FACTOR]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR131")              
+        endif            
+        
+        call GetData(Me%CV%DTFactorUp,                                          &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DT_FACTOR_UP',                            &
+                     Default        = dummy_real,                               &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR140")  
+        if (Me%CV%DTFactorUp <= 1.0) then
+            write (*,*)'Invalid DT Factor Up [DT_FACTOR_UP]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR141")              
+        endif                  
+                
+        call GetData(Me%CV%DTFactorDown,                                        &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DT_FACTOR_DOWN',                          &
+                     Default        = dummy_real,                               &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR150")  
+        if (Me%CV%DTFactorDown <= 1.0) then
+            write (*,*)'Invalid DT Factor Down [DT_FACTOR_DOWN]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR151")
+        endif                                           
+        
+        call GetData(Me%CV%CheckDecreaseOnly,                               &
+                     Me%ObjEnterData, iflag,                                &  
+                     keyword      = 'CHECK_DEC_ONLY',                       &
+                     ClientModule = 'ModuleDrainageNetwork',                &
+                     SearchType   = FromFile,                               &
+                     Default      = .false.,                                &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR170")  
+ 
+        !Gets Maximum allowed Courant Number
+        call GetData(Me%CV%MaxCourant,                                      &
+                     Me%ObjEnterData, iflag,                                &  
+                     keyword      = 'MAX_COURANT',                          &
+                     ClientModule = 'ModuleDrainageNetwork',                &
+                     SearchType   = FromFile,                               &
+                     Default      = 1.0,                                    &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR180")        
+        if (iflag > 0) then
+            Me%CV%LimitDTCourant = .true.
+        else
+            Me%CV%LimitDTCourant = .false.
+        endif
+        
+        !----------------------------------------------------------------------
+    
+    end subroutine ReadConvergenceParameters
+    
+    !--------------------------------------------------------------------------        
 
     subroutine ConstructDownstreamBoundary
         
@@ -2140,11 +2390,6 @@ if2:        if (Me%Downstream%Evolution == ReadTimeSerie) then
         !Checks consistency and finds outlet Node / Reach Position
         call CountOutlets ()
 
-                        
-                        
-        call KillEnterData (Me%Files%ObjEnterDataNetwork, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNetwork - ERR04'
-
     end subroutine ConstructNetwork
 
     !---------------------------------------------------------------------------
@@ -2166,8 +2411,6 @@ if2:        if (Me%Downstream%Evolution == ReadTimeSerie) then
  
         nullify  (Me%Nodes)
         allocate (Me%Nodes (1:Me%TotalNodes))
-        
-        Me%MinNodesToRestart = max(int(Me%PercentToRestart * Me%TotalNodes), 0)
         
         NodePos = 0
 
@@ -5289,7 +5532,7 @@ if1:    if (Me%HasGrid) then
             end do
         endif
 
-        read(InitialFile)Me%LastGoodNiter
+        read(InitialFile)Me%CV%LastGoodNiteration
 
         if (Me%PropertyContinuous) then
             Property => Me%FirstProperty
@@ -7794,7 +8037,7 @@ if0:    if (Me%HasProperties) then
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            DT        = Me%NextDT
+            DT        = Me%CV%NextDT
 
             STAT_CALL = SUCCESS_
         else 
@@ -7922,7 +8165,7 @@ if0:    if (Me%HasProperties) then
 !                if (present (TotalOverTopMass     )) TotalOverTopMass     = Property%MB%TotalOverTopMass
                 STAT_CALL = SUCCESS_
             else
-                stop 'GetDNMassBalance - ModuleRunoffProperties - ERR01'            
+                stop 'GetDNMassBalance - ModuleDrainageNetworkProperties - ERR01'            
             endif
         else 
             STAT_CALL = ready_
@@ -8487,7 +8730,7 @@ do2 :   do while (associated(PropertyX))
         !Arguments--------------------------------------------------------------
 
         !Local------------------------------------------------------------------
-        real                                        :: SumDT, LocalDT, gA
+        real                                        :: SumDT, gA
         integer                                     :: iter, Niter, NodeID, ReachID
         integer                                     :: STAT_CALL
         logical                                     :: Restart       
@@ -8552,10 +8795,14 @@ do2 :   do while (associated(PropertyX))
             enddo
         endif
 
+        if (Me%CV%NextNiteration > 1 .and. Me%ExtVar%DT < (Me%CV%CurrentDT * Me%CV%NextNiteration)) then
+            Me%CV%NextNiteration = max(aint(Me%ExtVar%DT / Me%CV%CurrentDT), 1.0)
+        endif
+         
         SumDT       = 0.0
         Restart     = .false.
-        Niter       = Me%NextNiter
-        LocalDT     = Me%ExtVar%DT / Niter
+        Niter       = Me%CV%NextNiteration
+        Me%CV%CurrentDT = Me%ExtVar%DT / Niter
         iter        = 1
         
         Me%OutletFlowVolume = 0.0
@@ -8566,41 +8813,45 @@ do2 :   do while (associated(PropertyX))
             !Warning ModifyWaterExchange has to be the first exchange in order to use ConcOld
             !(the same conc that RP and PMP used to compute the mass flux between runoff and river)
             if (Me%HasGrid) then
-                call ModifyWaterExchange    (LocalDT)
+                call ModifyWaterExchange    (Me%CV%CurrentDT)
             endif
 
             !Transmission Losses - Should be used when running MOHID River Network only
             if (.not. Me%HasGrid .and. Me%ComputeOptions%TransmissionLosses) then
-                call ModifyTransmissionLosses   (LocalDT)
+                call ModifyTransmissionLosses   (Me%CV%CurrentDT)
             endif
 
             !Inputs Water from discharges
             if (Me%ComputeOptions%Discharges) then
-                call ModifyWaterDischarges  (LocalDT, iter)                
+                call ModifyWaterDischarges  (Me%CV%CurrentDT, iter)                
             endif
             
             !Inputs Water from StormWaterModel
             if (Me%ComputeOptions%StormWaterModelLink) then
-                call FlowFromStormWater     (LocalDT)
+                call FlowFromStormWater     (Me%CV%CurrentDT)
             endif
             
             call UpdateAreasAndMappings
          
             !Runs Hydrodynamic
-            call ModifyHydrodynamics        (LocalDT, Restart, Niter)
-
+            call ModifyHydrodynamics        (Me%CV%CurrentDT)
+            
+            call CheckStability (Restart)
+                               
             !If Hydrodynamic return Restart as true, Restart with initial Solution
             if (Restart) then
                 
-                Niter = max(int(Niter * Me%InternalTimeStepSplit), Niter + 1)                
-                LocalDT = Me%ExtVar%DT / Niter                
+                Niter = Me%CV%NextNiteration                
+                Me%CV%CurrentDT = Me%ExtVar%DT / Niter                
                 
-                call WriteDTLog_ML ('ModuleDrainageNetwork', Niter, LocalDT)
-                if (Niter > Me%MaxIterations) then
-                    write(*,*)'Number of iterations above maximum: ', Niter
-                    write(*,*)'Check DT configurations'
-                    stop 'ModifyDrainageNetLocal - ModuleDrainageNetwork - ERR03'
-                endif
+                call WriteDTLog_ML ('ModuleDrainageNetwork', Niter, Me%CV%CurrentDT)
+                
+!                if (Niter > Me%MaxIterations) then
+!                    write(*,*)'Number of iterations above maximum: ', Niter
+!                    write(*,*)'Check DT configurations'
+!                    stop 'ModifyDrainageNetLocal - ModuleDrainageNetwork - ERR03'
+!                endif
+
                 call ResetToInitialValues ()
                 call UpdateCrossSections  
                 SumDT   = 0.0
@@ -8611,27 +8862,27 @@ do2 :   do while (associated(PropertyX))
             else
                 
                 !Runs Advection / Diffusion
-                if (Me%ComputeOptions%AdvectionDiffusion) call TransportProperties      (LocalDT)
+                if (Me%ComputeOptions%AdvectionDiffusion) call TransportProperties      (Me%CV%CurrentDT)
 
-                SumDT = SumDT + LocalDT
+                SumDT = SumDT + Me%CV%CurrentDT
                 iter  = iter  + 1
 
                 if (Me%Output%ComputeFlowFrequency) then
-                    call ComputeFlowFrequency (LocalDT, SumDT)
+                    call ComputeFlowFrequency (Me%CV%CurrentDT, SumDT)
                 endif                
 
                 if (Me%Output%ComputeIntegratedFlow) then
-                    call OutputIntFlow (LocalDT)
+                    call OutputIntFlow (Me%CV%CurrentDT)
                 endif  
 
                 if (Me%Output%ComputeIntegratedMass) then
-                    call OutputIntMass (LocalDT)
+                    call OutputIntMass (Me%CV%CurrentDT)
                 endif
 
                 do OutletPos = 1, Me%TotalOutlets 
                     CurrReach => Me%Reaches (Me%OutletReachPos(OutletPos))
                     !       m3            =          m3         +          m3/s     *    s
-                    Me%OutletFlowVolume   = Me%OutletFlowVolume + CurrReach%FlowNew * LocalDT
+                    Me%OutletFlowVolume   = Me%OutletFlowVolume + CurrReach%FlowNew * Me%CV%CurrentDT
                 end do
                 !Me%OutletFlowVolume = Me%OutletFlowVolume + Me%OutletReach%FlowNew * LocalDT
             endif
@@ -8639,14 +8890,7 @@ do2 :   do while (associated(PropertyX))
         enddo
         
         !needs update after all computation (so that modules get the last level)
-        call UpdateCrossSections
-                
-        !DB       
-        if (Niter <= Me%LastGoodNiter) then            
-            Me%NextNiter = max (min(int(Niter / Me%InternalTimeStepSplit), Niter - 1), 1)
-        else
-            Me%NextNiter = Niter
-        endif        
+        call UpdateCrossSections                   
 
         !So far, total removed volume is the flow volume
         Me%TotalOutputVolume = Me%TotalFlowVolume
@@ -8740,9 +8984,6 @@ do2 :   do while (associated(PropertyX))
             enddo
         endif                
         
-        !Computes next DT
-        call ComputeNextDT (NIter)
-
         Property => Me%FirstProperty
         do while (associated (Property))
             if (Property%ID%IDNumber == VSS_) then
@@ -8755,7 +8996,7 @@ do2 :   do while (associated(PropertyX))
             Property => Property%Next    
         end do
 
-        if (Me%TimeSerie%nNodes .GT.0) call WriteTimeSeries (LocalDT)
+        if (Me%TimeSerie%nNodes .GT.0) call WriteTimeSeries (Me%CV%CurrentDT)
         
         if (Me%Output%Yes) call HDF5Output
         
@@ -8769,7 +9010,9 @@ do2 :   do while (associated(PropertyX))
             endif
         endif
 
-
+        !Computes next DT
+        call ComputeNextDT (NIter)
+        
         if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ModifyDrainageNet")
 
 
@@ -9234,10 +9477,10 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ComputeNextDT (iter)
+    subroutine ComputeNextDT (Niter)
 
         !Arguments--------------------------------------------------------------
-        integer                                     :: iter
+        integer                                     :: Niter
 
         !Local------------------------------------------------------------------
         integer                                     :: NodeID
@@ -9245,7 +9488,7 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
         integer                                     :: STAT_CALL
         logical                                     :: VariableDT
         real                                        :: nextDTCourant, aux
-        real                                        :: nextDTVariation, MaxDT
+        real                                        :: nextDTVariation, MaxDT, CurrentDT
 
         !-----------------------------------------------------------------------
         
@@ -9259,10 +9502,8 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
         nextDTVariation = -null_real        
         
         if (VariableDT) then
-
-            nextDTCourant = -null_real
-            
-            if (Me%LimitDTCourant) then
+           
+            if (Me%CV%LimitDTCourant) then
             
                 do NodeID = 1, Me%TotalNodes
 
@@ -9270,7 +9511,7 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
 
                     if (CurrNode%WaterDepth > Me%MinimumWaterDepth) then
 
-                        aux = CurrNode%Length / sqrt(Gravity * CurrNode%WaterDepth) * Me%MaxCourant
+                        aux = CurrNode%Length / sqrt(Gravity * CurrNode%WaterDepth) * Me%CV%MaxCourant
                         
                         nextDTCourant = min(nextDTCourant, aux)
                         
@@ -9280,32 +9521,91 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
 
             endif
                        
-            if (Me%NextNiter == 1) then
-                nextDTVariation = Me%ExtVar%DT * Me%DTFactorUp
-            elseif (Me%NextNIter <= Me%MinIterations) then
-                if (Me%NextNiter <= Me%LastGoodNiter) then
-                    nextDTVariation = Me%ExtVar%DT * &
-                                      LinearInterpolation(1.0, 1.0, real(Me%MinIterations), Me%DTFactorUp, real(Me%NextNIter))
-                else
+            if (Niter == 1) then
+            
+                nextDTVariation = Me%ExtVar%DT * Me%CV%DTFactorUp
+                Me%CV%NextNiteration = Niter
+                
+            elseif (Niter <= Me%CV%MinIterations) then                            
+            
+                if (Niter > Me%CV%LastGoodNiteration) then
+
                     nextDTVariation = Me%ExtVar%DT
+                    Me%CV%NextNiteration = Niter
+
+                else
+                
+                    nextDTVariation = Me%ExtVar%DT * Me%CV%DTFactorUp
+                    Me%CV%NextNiteration = Niter
+
                 endif
+                
             else
-                if (Me%NextNiter <= Me%LastGoodNiter) then
-                    nextDTVariation = Me%ExtVar%DT
+            
+                if (Niter >= Me%CV%StabilizeHardCutLimit) then
+                
+                    nextDTVariation = (Me%ExtVar%DT / Niter) * Me%CV%MinIterations
+                    Me%CV%NextNiteration = Me%CV%MinIterations
+                    
+                elseif (Niter > Me%CV%LastGoodNiteration) then
+                
+                    nextDTVariation = Me%ExtVar%DT / Me%CV%DTFactorDown
+                    Me%CV%NextNiteration = max(int(nextDTVariation / Me%CV%CurrentDT), 1)
+                    
                 else
-                    nextDTVariation = Me%ExtVar%DT / Me%DTFactorDown
-                endif                
+                
+                    nextDTVariation = Me%ExtVar%DT
+                    Me%CV%NextNiteration = max(min(int(Niter / Me%CV%DTSplitFactor), Niter - 1), 1)
+                    
+                endif 
+                               
             endif
             
-            Me%NextDT = min(min(nextDTVariation, nextDTCourant), MaxDT)            
-
+            CurrentDT = nextDTVariation / Me%CV%NextNiteration                                     
+                      
+            Me%CV%NextDT = min(min(nextDTVariation, nextDTCourant), MaxDT)
+            
+            if (Me%CV%NextDT < nextDTVariation) then                
+                Me%CV%NextNiteration = max(int(Me%CV%NextDT/CurrentDT), 1)
+            endif
+                       
         else
         
-            Me%NextDT = Me%ExtVar%DT
+            Me%CV%NextDT = Me%ExtVar%DT
+            Me%CV%NextNiteration = Niter            
         
         endif
         
-        Me%LastGoodNiter = iter
+        Me%CV%LastGoodNiteration = Niter
+        Me%CV%CurrentDT          = Me%CV%NextDT / Me%CV%NextNiteration
+                           
+                       
+!            if (Niter == 1) then
+!                nextDTVariation = Me%ExtVar%DT * Me%DTFactorUp
+!            elseif (Me%NextNIter <= Me%MinIterations) then
+!                if (Me%NextNiter <= Me%LastGoodNiter) then
+!                    nextDTVariation = Me%ExtVar%DT * &
+!                                      LinearInterpolation(1.0, 1.0, real(Me%MinIterations), Me%DTFactorUp, real(Me%NextNIter))
+!                else
+!                    nextDTVariation = Me%ExtVar%DT
+!                endif
+!            else
+!                if (Me%NextNiter <= Me%LastGoodNiter) then
+!                    nextDTVariation = Me%ExtVar%DT
+!                else
+!                    nextDTVariation = Me%ExtVar%DT / Me%DTFactorDown
+!                endif                
+!            endif
+!            
+!            Me%NextDT = min(min(nextDTVariation, nextDTCourant), MaxDT)            
+!
+!        else
+!        
+!            Me%NextDT = Me%ExtVar%DT
+!        
+!        endif
+!        
+!        Me%LastGoodNiter = iter
 
     end subroutine ComputeNextDT
 
@@ -9797,19 +10097,15 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
 
     !---------------------------------------------------------------------------
 
-    subroutine ModifyHydrodynamics (LocalDT, Restart, Niter)
+    subroutine ModifyHydrodynamics (LocalDT)
 
         !Arguments--------------------------------------------------------------
         real                                        :: LocalDT
-        logical                                     :: Restart
-        integer                                     :: Niter
 
         !Local------------------------------------------------------------------
         integer                                     :: NodeID, ReachID, OutletPos
         type (T_Reach), pointer                     :: CurrReach
         integer                                     :: CHUNK
-        integer                                     :: n_restart
-        logical                                     :: ForceRestart
 
 
         CHUNK = Me%TotalNodes / 8 !8 Cores ?
@@ -9842,25 +10138,11 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
             end do
 
             !Updates Volumes
-            n_restart = 0
-            ForceRestart = .false.
             do NodeID = 1, Me%TotalNodes
-                call ModifyNode          (NodeID, LocalDT)
-                call VerifyMinimumVolume (NodeID, Restart, ForceRestart, Niter)
-                
-                !if negative volume found (ForceRestart is true) restart without evaluating more nodes                
-                if (ForceRestart) exit
-                
-                if (Restart) then
-                    n_restart = n_restart + 1
-                    if (n_restart > Me%MinNodesToRestart) then
-                        exit
-                    endif
-                    Restart = .false.
-                endif
+                call ModifyNode (NodeID, LocalDT)
             end do
                   
-            if (Me%CheckMass .and. .not. Restart) then               
+            if (Me%CheckMass) then               
                 do OutletPos = 1, Me%TotalOutlets 
                     CurrReach => Me%Reaches (Me%OutletReachPos(OutletPos))
                     Me%TotalFlowVolume   = Me%TotalFlowVolume + CurrReach%FlowNew * LocalDT
@@ -9869,14 +10151,14 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
 
         else if (Me%NumericalScheme == ImplicitScheme) then
 
-            call Cascade (LocalDT, Restart, Niter)
-
-            if (Me%CheckMass .and. .not. Restart) then    
-                do OutletPos = 1, Me%TotalOutlets            
-                    CurrReach => Me%Reaches (Me%OutletReachPos(OutletPos))                    
-                    Me%TotalFlowVolume = Me%TotalFlowVolume + (CurrReach%FlowNew + CurrReach%FlowOld) / 2. * LocalDT
-                end do
-            end if
+!            call Cascade (LocalDT, Restart, Niter)
+!
+!            if (Me%CheckMass .and. .not. Restart) then    
+!                do OutletPos = 1, Me%TotalOutlets            
+!                    CurrReach => Me%Reaches (Me%OutletReachPos(OutletPos))                    
+!                    Me%TotalFlowVolume = Me%TotalFlowVolume + (CurrReach%FlowNew + CurrReach%FlowOld) / 2. * LocalDT
+!                end do
+!            end if
                
         end if
                
@@ -10691,69 +10973,70 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
     !---------------------------------------------------------------------------            
 
-    subroutine VerifyMinimumVolume (NodeID, Restart, ForceRestart, Niter)
+    subroutine CheckStability (Restart)
 
         !Arguments--------------------------------------------------------------
-        integer                                     :: NodeID
-        logical                                     :: Restart, ForceRestart
-        integer                                     :: Niter
+        logical                                     :: Restart
 
-        !Local-----------------------------------------------------------------
+        !Local------------------------------------------------------------------
         type (T_Node), pointer                      :: CurrNode
+        real                                        :: variation
+        integer                                     :: n_restart, NodeID
 
+        !-----------------------------------------------------------------------
 
-        !This code was put here because if Niter was greater then MaxIterations, "restart" would never be set.
-         if (Me%Stabilize .and. Niter >= Me%MaxIterations) then
-             write(*,*)'Number of iterations above maximum: ', Niter
-             write(*,*)'Check DT configurations'
-             stop 'VerifyMinimumVolume - ModuleDrainageNetwork - ERR01'
-         endif
-
+        n_restart = 0
+        Restart   = .false.     
        
-        CurrNode => Me%Nodes (NodeID)
-
-        if (CurrNode%nDownstreamReaches /= 0 .and. CurrNode%VolumeNew < 0.0) then
-        
-            !Feed back to user -> model will stop
-            if (Niter * Me%InternalTimeStepSplit > Me%MaxIterations) then
-                write(*,*)'Negative Volume!'
-                write(*,*)'Node ID        : ', CurrNode%ID
-                write(*,*)'New Volume     : ', CurrNode%VolumeNew
-                write(*,*)'Old Volume     : ', CurrNode%VolumeOld
-            endif
+        do NodeID = 1, Me%TotalNodes
+            CurrNode => Me%Nodes (NodeID)
             
-            Restart = .true.
-            !always restart on minimum volume. Minimum nodes to restart only used in Stabilize
-            ForceRestart = .true.
-            return
-        endif
+            if (CurrNode%nDownstreamReaches /= 0) then
+                if (CurrNode%VolumeNew < -1.0 * AllmostZero) then
+                    Restart = .true.
+                elseif (CurrNode%VolumeNew < 0.0) then
+                    CurrNode%VolumeNew = 0.0                
+                endif
+            endif
+        enddo
+       
+        if ((.not. Restart) .and. Me%CV%Stabilize) then
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
 
-        if (Me%Stabilize .and. Niter < Me%MaxIterations) then
+                if (CurrNode%nDownstreamReaches /= 0) then
 
-            if (CurrNode%nDownstreamReaches /= 0) then 
-                if ((.not. Me%CheckDecreaseOnly) .or. (CurrNode%VolumeNew < CurrNode%VolumeOld)) then            
-                    if (CurrNode%VolumeOld > Me%StabilizeCoefficient * CurrNode%VolumeMax) then
-                        !if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld) > Me%StabilizeFactor * CurrNode%VolumeMax) then
-                        if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld)/CurrNode%VolumeOld > Me%StabilizeFactor) then
-
-                            !Feed back to user -> model will stop
-                            if (Niter * Me%InternalTimeStepSplit > Me%MaxIterations) then
-                                write(*,*)'High Volume Variation!'
-                                write(*,*)'Node ID        : ', CurrNode%ID
-                                write(*,*)'New Volume     : ', CurrNode%VolumeNew
-                                write(*,*)'Old Volume     : ', CurrNode%VolumeOld
+                    if ((.not. Me%CV%CheckDecreaseOnly) .or. (CurrNode%VolumeNew < CurrNode%VolumeOld)) then            
+                        if (CurrNode%VolumeOld > Me%CV%MinimumValueToStabilize * CurrNode%VolumeMax) then                        
+                        
+                            variation = abs(CurrNode%VolumeNew - CurrNode%VolumeOld) / CurrNode%VolumeOld
+                        
+                            if (variation > Me%CV%StabilizeFactor) then
+                                n_restart = n_restart + 1
                             endif
-
-                            Restart = .true.
-                            return
                         endif
                     endif
                 endif
-            endif
+            enddo
+
+            if (n_restart > Me%CV%MinToRestart) then
+                Restart = .true.
+            endif   
 
         end if
 
-    end subroutine VerifyMinimumVolume
+        if (Restart) then        
+            Me%CV%NextNiteration = max(int(Me%CV%NextNiteration * Me%CV%DTSplitFactor), Me%CV%NextNiteration + 1)
+                 
+            if (Me%CV%NextNiteration >= Me%CV%MaxIterations) then
+                 write(*,*)'Number of iterations above maximum: ', Me%CV%NextNiteration
+                 stop 'CheckStability - ModuleDrainageNetwork - ERR010'
+            endif                          
+        endif   
+
+        !-----------------------------------------------------------------------
+
+    end subroutine CheckStability
 
     !---------------------------------------------------------------------------            
 
@@ -10764,91 +11047,91 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         logical                                     :: Restart
         integer                                     :: Niter
 
-        !Local-----------------------------------------------------------------
-        integer                                     :: NodeID, ReachID
-        type (T_Node ), pointer                     :: CurrNode !, DownNode
-        type (T_Reach), pointer                     :: CurrReach
-        real(8)                                     :: InFlow, OutFlow
-        real(8)                                     :: OutFlowNew, OutFlowOld, Vol
-        integer                                     :: iter, MaxIter
-        logical                                     :: Iterate, ForceRestart
-        real                                        :: Error, Tolerance        
-
-        Tolerance = 0.001
-        MaxIter   = 100
-
-        
-do1:    do NodeID = 1, Me%TotalNodes
-            CurrNode => Me%Nodes (NodeID)
-        
-if1:        if (Me%OpenPointsFlow (NodeID) == OpenPoint) then
-
-                ReachID = CurrNode%DownstreamReaches (1)
-                CurrReach => Me%Reaches (ReachID)
-                             
-                call ComputeNodeInFlow  (CurrNode, InFlow)                                    
-                call ComputeNodeOutFlow (CurrNode, OutFlowOld)
-               
-                Iterate = .true.
-                iter = 0            
-do2:            do while (Iterate)
-
-                    iter = iter + 1 
-                    
-                    call ComputeCrossSection     (CurrNode)
-                    call UpdateReachCrossSection (CurrReach)
-                    call ModifyReach             (ReachID, DT)
-
-                    call ComputeNodeOutFlow (CurrNode, OutFlowNew)
-
-                    OutFlow = (OutFlowOld + OutFlowNew) / 2.
-                    
-                    Vol = CurrNode%VolumeOld + DT * (InFlow - OutFlow)
-
-                    Error = abs(Vol - CurrNode%VolumeNew)
-                    
-                    CurrNode%VolumeNew = Vol
-                    
-                    if (Error > Tolerance) then
-                    
-                        Iterate = .true.
-                        CurrNode%VolumeNew = Vol    
-
-                        if (iter >= MaxIter) then
-                            write(*,*) 'Max number of iterations exceeded in Cascade'
-                            stop 'ModuleDrainageNetwrok - Cascade - ERR01'
-                        end if
-                
-                    else
-
-                        Iterate = .false.      
-                        call VerifyMinimumVolume (NodeID, Restart, ForceRestart, Niter)
-                        if (restart) exit                    
-
-                    end if
-
-                end do do2
-                
-                if (Restart) exit
-
-            else !if1
-
-                
-
-                if (CurrNode%nDownstreamReaches /= 0) then
-                    
-                    CurrNode%VolumeNew = CurrNode%VolumeOld
-                    ReachID = CurrNode%DownstreamReaches (1)
-                    CurrReach => Me%Reaches (ReachID)
-                    CurrReach%FlowNew  = 0.0
-                    CurrReach%Velocity = 0.0
-
-                 end if
-
-                    
-            end if if1             
-
-        end do do1
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: NodeID, ReachID
+!        type (T_Node ), pointer                     :: CurrNode !, DownNode
+!        type (T_Reach), pointer                     :: CurrReach
+!        real(8)                                     :: InFlow, OutFlow
+!        real(8)                                     :: OutFlowNew, OutFlowOld, Vol
+!        integer                                     :: iter, MaxIter
+!        logical                                     :: Iterate, ForceRestart
+!        real                                        :: Error, Tolerance        
+!
+!        Tolerance = 0.001
+!        MaxIter   = 100
+!
+!        
+!do1:    do NodeID = 1, Me%TotalNodes
+!            CurrNode => Me%Nodes (NodeID)
+!        
+!if1:        if (Me%OpenPointsFlow (NodeID) == OpenPoint) then
+!
+!                ReachID = CurrNode%DownstreamReaches (1)
+!                CurrReach => Me%Reaches (ReachID)
+!                             
+!                call ComputeNodeInFlow  (CurrNode, InFlow)                                    
+!                call ComputeNodeOutFlow (CurrNode, OutFlowOld)
+!               
+!                Iterate = .true.
+!                iter = 0            
+!do2:            do while (Iterate)
+!
+!                    iter = iter + 1 
+!                    
+!                    call ComputeCrossSection     (CurrNode)
+!                    call UpdateReachCrossSection (CurrReach)
+!                    call ModifyReach             (ReachID, DT)
+!
+!                    call ComputeNodeOutFlow (CurrNode, OutFlowNew)
+!
+!                    OutFlow = (OutFlowOld + OutFlowNew) / 2.
+!                    
+!                    Vol = CurrNode%VolumeOld + DT * (InFlow - OutFlow)
+!
+!                    Error = abs(Vol - CurrNode%VolumeNew)
+!                    
+!                    CurrNode%VolumeNew = Vol
+!                    
+!                    if (Error > Tolerance) then
+!                    
+!                        Iterate = .true.
+!                        CurrNode%VolumeNew = Vol    
+!
+!                        if (iter >= MaxIter) then
+!                            write(*,*) 'Max number of iterations exceeded in Cascade'
+!                            stop 'ModuleDrainageNetwrok - Cascade - ERR01'
+!                        end if
+!                
+!                    else
+!
+!                        Iterate = .false.      
+!                        call VerifyMinimumVolume (NodeID, Restart, ForceRestart, Niter)
+!                        if (restart) exit                    
+!
+!                    end if
+!
+!                end do do2
+!                
+!                if (Restart) exit
+!
+!            else !if1
+!
+!                
+!
+!                if (CurrNode%nDownstreamReaches /= 0) then
+!                    
+!                    CurrNode%VolumeNew = CurrNode%VolumeOld
+!                    ReachID = CurrNode%DownstreamReaches (1)
+!                    CurrReach => Me%Reaches (ReachID)
+!                    CurrReach%FlowNew  = 0.0
+!                    CurrReach%Velocity = 0.0
+!
+!                 end if
+!
+!                    
+!            end if if1             
+!
+!        end do do1
 
     end subroutine Cascade
 
@@ -14556,7 +14839,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             Property => Property%Next
         end do
 
-        write(FinalFile)Me%LastGoodNiter
+        write(FinalFile)Me%CV%LastGoodNiteration
 
         Property => Me%FirstProperty
         do while (associated(Property))

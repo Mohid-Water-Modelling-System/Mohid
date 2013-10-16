@@ -727,6 +727,7 @@ Module ModuleVegetation
         integer                                         :: WaterUptakeStressMethod = null_int
         integer                                         :: SalinityStressMethod = null_int
         logical                                         :: ModelNitrogen        = .false.
+        logical                                         :: ModelNitrogenStress  = .false.
         logical                                         :: ModelPhosphorus      = .false.
         logical                                         :: ModelRootBiomass     = .false.
         logical                                         :: ModelPlantBiomass    = .false.
@@ -1014,11 +1015,15 @@ Module ModuleVegetation
         real, dimension(:,:), pointer                           :: NitrogenYeldEstimate => null()
         real, dimension(:,:), pointer                           :: NitrogenYeldTarget   => null()
         
-        real, dimension(:,:,:), pointer                         :: ECw                  => null()      
+        real, dimension(:,:,:), pointer                         :: ECw                  => null()
+        real                                                    :: VegetationDT = 0. !REAL accumulated DT used for vegetation computations.
+        real                                                    :: LastVegetationDT = 0. 
         
         logical                                                 :: AllowNegativeLAI   = .false.
         logical                                                 :: CorrectNegativeLAI = .false.
         real                                                    :: ValueInsteadNegativeLAI = null_real
+        
+        logical                                                 :: TestForHUAcc = .false.
 
     end type  T_Vegetation
 
@@ -1095,6 +1100,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%CorrectNegativeLAI = .false.
             
             Me%ValueInsteadNegativeLAI = 0.0
+            Me%VegetationDT = 0.0
+            Me%LastVegetationDT = 0.0
             
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
@@ -1349,15 +1356,34 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadOptions - ModuleVegetation - ERR050'
 
-        call GetData(Me%ComputeOptions%ModelNitrogen,     &
-                     Me%ObjEnterData, iflag,              &
-                     Keyword        = 'NITROGEN_STRESS',  &
-                     Default        = .false.,            &
-                     SearchType     = FromFile,           &
-                     ClientModule   = 'ModuleVegetation', &
+        call GetData(Me%ComputeOptions%ModelNitrogenStress,     &
+                     Me%ObjEnterData, iflag,                    &
+                     Keyword        = 'NITROGEN_STRESS',        &
+                     Default        = .false.,                  &
+                     SearchType     = FromFile,                 &
+                     ClientModule   = 'ModuleVegetation',       &
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadOptions - ModuleVegetation - ERR060'
+
+        if (.not. Me%ComputeOptions%ModelNitrogenStress) then
+            
+            call GetData(Me%ComputeOptions%ModelNitrogen,     &
+                         Me%ObjEnterData, iflag,              &
+                         Keyword        = 'MODEL_NITROGEN',   &
+                         Default        = .false.,            &
+                         SearchType     = FromFile,           &
+                         ClientModule   = 'ModuleVegetation', &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR060'  
+              
+        else
+               
+            Me%ComputeOptions%ModelNitrogen = .true.
+                      
+        endif
+        
 
         call GetData(Me%ComputeOptions%ModelPhosphorus,    &
                      Me%ObjEnterData, iflag,               &
@@ -1762,6 +1788,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) &
                 stop 'ReadOptions - ModuleVegetation - ERR380'
+                
+            call GetData(Me%TestForHUAcc,                   &
+                         Me%ObjEnterData, iflag,            &
+                         keyword      = 'TEST_HUACC',       &
+                         Default      = .false.,            &
+                         SearchType   = FromFile,           &
+                         ClientModule = 'ModuleVegetation', &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) &
+                stop 'ReadOptions - ModuleVegetation - ERR381'                
 
             if (Me%ComputeOptions%VegetationDT .lt. Me%ComputeOptions%IntegrationDT) then
                 write(*,*) 
@@ -5707,7 +5743,7 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                  STAT           = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR190'
                                         
-                    if (.not. Me%VegetationTypes(ivt)%GrowthDatabase%Evergreen) then
+                    !if (.not. Me%VegetationTypes(ivt)%GrowthDatabase%Evergreen) then
                         call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrowLAIDecline, GrowthObjEnterData,  iflag,        &
                                      SearchType     = FromBlock,                                                                 &
                                      keyword        = 'GROWFRACTION_LAIDECLINE',                                                 &
@@ -5733,7 +5769,7 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                 stop 'ReadGrowthDatabase - ModuleVegetation - ERR195'
                             endif
                         endif                        
-                    endif
+                    !endif
 
                     call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%LAIMax, GrowthObjEnterData,  iflag,                  &
                                  SearchType     = FromBlock,                                                                 &
@@ -7250,7 +7286,8 @@ cd0:    if (Exist) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            Scalar  = Me%ComputeOptions%VegetationDT
+!            Scalar  = Me%ComputeOptions%VegetationDT
+            Scalar  = Me%LastVegetationDT
 
             STAT_ = SUCCESS_
         else 
@@ -8402,20 +8439,27 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyVegetation - ModuleVegetation - ERR01'
 
+            call GetComputeTimeStep(Me%ObjTime, Me%ExternalVar%DT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyVegetation - ModuleVegetation - ERR10'            
+
+            !Me%VegetationDT accumulates DT's to use on calculations that require the interval since last computation
+            Me%VegetationDT = Me%VegetationDT + Me%ExternalVar%DT
+
             !Sets External Variable
             Me%ExternalVar%MappingPoints => MappingPoints                        
             Me%Externalvar%PotentialTranspiration => PotentialTranspiration
             
             !if no growth model, vegetation runs every model timestep and time to run is now
-            if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
-                
-                call GetComputeTimeStep(Me%ObjTime, Me%ExternalVar%DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyVegetation - ModuleVegetation - ERR10'            
+            if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then                
+!                call GetComputeTimeStep(Me%ObjTime, Me%ExternalVar%DT, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'ModifyVegetation - ModuleVegetation - ERR10'            
                 
                 Me%NextIntegration              = Me%ExternalVar%Now
                 Me%NextCompute                  = Me%ExternalVar%Now
                 Me%ComputeOptions%VegetationDT  = Me%ExternalVar%DT
                 Me%ComputeOptions%IntegrationDT = Me%ExternalVar%DT
+                Me%VegetationDT                 = Me%ExternalVar%DT
+                Me%LastVegetationDT             = Me%ExternalVar%DT
             endif
             
             ! Transpiration is averaged during Integration DT until vegetation processes are called
@@ -8487,8 +8531,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 
                 call ReadUnLockExternalVar(ReadAtmosphere = .false.)
 
-                Me%NextCompute =  Me%NextCompute + Me%ComputeOptions%VegetationDT
-
+                Me%NextCompute      = Me%NextCompute + Me%ComputeOptions%VegetationDT
+                Me%LastVegetationDT = Me%VegetationDT
+                Me%VegetationDT     = 0.0
             
             endif
 
@@ -9346,8 +9391,8 @@ do4:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !! update accumulated heat units for the plant
         PlantHUVariation = 0.
-        if (PlantHUatMaturity .gt. 0.1) then
-            AccumulatedTemperature = AverageTempDuringDT * (Me%ComputeOptions%VegetationDT/86400.)
+        if (PlantHUatMaturity .gt. 0.1) then            
+            AccumulatedTemperature = AverageTempDuringDT * (Me%VegetationDT/86400.)
             PlantHUVariation = (AccumulatedTemperature - PlantBaseTemperature) / PlantHUatMaturity
         end if
         if (PlantHUVariation .lt. 0.) then
@@ -9546,9 +9591,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     endif
                 endif
                
-!                Me%ExternalVar%PotentialTranspiration(i,j) = 1e-8 !m/s - 1 mm/dia
-                ! mm         = m/s * s * 1000mm/m
-                PotTP        = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%ComputeOptions%VegetationDT * 1000.0 
+                ! mm         = m/s * s * 1000mm/m                
+                PotTP        = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%VegetationDT * 1000.0 
         
 cd1:            if (.not. UptakeAllowed .or. PotTP .le. 0.01) then
 
@@ -9560,13 +9604,8 @@ cd1:            if (.not. UptakeAllowed .or. PotTP .le. 0.01) then
                     BottomDepth  = 0.
                     FoundRoot = .false.
                     
-!                    if (Me%StateVariables%RootDepth%Field(i,j) .lt. 0.01) then
-!                        Me%StateVariables%RootDepth%Field(i,j) = 0.01
-!                    endif
-                    
                     !                               m
                     RootDepth    = Me%StateVariables%RootDepth(i,j)
-!                    RootDepth     = PropRootDepth%Field(i,j)
 
                     GridCellArea = Me%ExternalVar%GridCellArea(i,j)
                     SumDemand    = 0.
@@ -9596,9 +9635,6 @@ do3 :               do k = KUB, KLB, -1
                         if (RootDepth .eq. 0.0) then
                             !    mm
                             PotentialWaterUptake = 0.0
-!                        elseif (RootDepth .le. 1e-5) then
-!                            !       mm
-!                            PotentialWaterUptake = PotTP/NormalizationParameter
                         else
                             !      mm
                             BottomUptake = PotTP *(1.0 - exp(-10.0 * BottomDepth/RootDepth))/NormalizationParameter
@@ -9655,12 +9691,12 @@ do3 :               do k = KUB, KLB, -1
                         SumUptake = SumUptake + EffectiveWaterUptake
                         !    m3/s                         =          mm          *    m/mm *   m2   *     1/DT
                         Me%Fluxes%WaterUptakeLayer(i,j,k) = EffectiveWaterUptake *  (1./1000.) * GridCellArea    &
-                                                             * (1./Me%ComputeOptions%VegetationDT)
+                                                             * (1./Me%VegetationDT)                        
 
                     enddo do3
         
                     !    m3/s
-                    Me%Fluxes%WaterUptake(i,j) = SumUptake *  (1./1000.) * GridCellArea * (1./Me%ComputeOptions%VegetationDT)
+                    Me%Fluxes%WaterUptake(i,j) = SumUptake *  (1./1000.) * GridCellArea * (1./Me%VegetationDT)
 
             !       strsw(j) = strsa (j) * xx / ep_max
                     Me%Growth%WaterStress(i,j) = SumUptake/PotTP
@@ -9740,7 +9776,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 !Total Water Column to Remove (Potentialy) 
                 !m = m/s * s
-                TotalCol    = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%ComputeOptions%VegetationDT    
+                TotalCol    = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%VegetationDT        
                 !  m
                 RootDepth    = Me%StateVariables%RootDepth(i,j)
                 BottomDepth = 0.0                   
@@ -9754,10 +9790,6 @@ cd1:            if (.not. UptakeAllowed .or. TotalCol .eq. 0.0 .or. RootDepth .e
              
                     SumUptake = 0.0
                     FoundRoot = .false.
-
-!                    if (Me%StateVariables%RootDepth%Field(i,j) .lt. 0.01) then
-!                        Me%StateVariables%RootDepth%Field(i,j) = 0.01
-!                    endif
 
                     KUB = Me%WorkSize%KUB
                     KLB = Me%WorkSize%KLB
@@ -9956,7 +9988,7 @@ do3 :               do k = KUB, KLB, -1
                         
                             !Velocity Volume
                             if (Me%ComputeOptions%LimitTPVel) then
-                                VelocityVolume = UnSatK (i,j,k) * Me%ComputeOptions%VegetationDT * Me%ExternalVar%GridCellArea(i,j)
+                                VelocityVolume = UnSatK (i,j,k) * Me%VegetationDT * Me%ExternalVar%GridCellArea(i,j)
                                 TranspVolume    = min(WaterVolume, VelocityVolume)
                             else
                                 TranspVolume    = WaterVolume
@@ -9988,18 +10020,17 @@ do3 :               do k = KUB, KLB, -1
                         SumUptake = SumUptake + TranspVolume
     
                         !m3/s = m3  / s
-                        Me%Fluxes%WaterUptakeLayer(i,j,k) = TranspVolume / Me%ComputeOptions%VegetationDT
+                        Me%Fluxes%WaterUptakeLayer(i,j,k) = TranspVolume / Me%VegetationDT
 
                     enddo do3
 
                     !    m3/s
-                    Me%Fluxes%WaterUptake(i,j) = SumUptake / Me%ComputeOptions%VegetationDT
-!                    Me%Fluxes%FromSoil%WaterUptakeFromSoil => Me%Fluxes%WaterUptake
+                    Me%Fluxes%WaterUptake(i,j) = SumUptake / Me%VegetationDT
 
                     ! m  = m3/m2
                     ActualTranspiration = SumUptake / Me%ExternalVar%GridCellArea(i,j)
                     !m  = m/s * s
-                    PotentialTranspiration = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%ComputeOptions%VegetationDT
+                    PotentialTranspiration = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%VegetationDT
                     Me%Growth%WaterStress(i,j) = ActualTranspiration/PotentialTranspiration
         
                 endif cd1
@@ -10120,9 +10151,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     endif
                 endif
 
-                               
-                if (Me%IsPlantGrowing(i,j) .and. .not. Dormant             &
-                    .and. Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) then  
+                if ((Me%IsPlantGrowing(i,j)) .and. (.not. Dormant)  .and.   &
+                    (Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) .and.   &
+                    ((.not. Me%TestForHUacc) .or. (Me%HeatUnits%PlantHUAccumulated (i,j) > Me%HeatUnits%PlantHUAccumulated_old (i,j)))) then  
                 
                     VegetationID    = Me%VegetationID(i,j)
 !                    PlantFractionN1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN1
@@ -10249,43 +10280,51 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         Me%Fluxes%NitrogenUptake(i,j) = SumUptake
                         
                         !Compute Nitrogen Stress
-                        PlantType = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantType
-                        select case (PlantType)
-                            !Legumes
-                            case (1,2,3)
-                                Me%Growth%NitrogenStress(i,j) = 1.
-                            case default
-                                
-                                if (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressSWAT) then
+                        if (Me%ComputeOptions%ModelNitrogenStress) then
+                        
+                            PlantType = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantType
+                            select case (PlantType)
+                                !Legumes
+                                case (1,2,3)
+                                    Me%Growth%NitrogenStress(i,j) = 1.
+                                case default
                                     
-                                    PredictedNitrogenBiomass = TotalPlantNitrogen + SumUptake
-                                    call ComputeNutrientStress(PredictedNitrogenBiomass,OptimalNContent,Stress)
-                            
+                                    if (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressSWAT) then
+                                        
+                                        PredictedNitrogenBiomass = TotalPlantNitrogen + SumUptake
+                                        call ComputeNutrientStress(PredictedNitrogenBiomass,OptimalNContent,Stress)
                                 
-                                elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then
                                     
-                                    !stress update
-                                    if (NitrogenDemand .gt. 1e-5) then
-                                        Stress = SumUptake / NitrogenDemand
+                                    elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then
+                                        
+                                        !stress update
+                                        if (NitrogenDemand .gt. 1e-5) then
+                                            Stress = SumUptake / NitrogenDemand
+                                        else
+                                            Stress = 1.0
+                                        endif
+                                        
+                                        Stress = min (Stress, 1.0)
+                                        
+    !                                   Stress = amax1(Stress, NewStress)
+    !                                   Stress = amin1(Stress, 1.0)
                                     else
-                                        Stress = 1.0
+
+                                        write(*,*) 'Error in NutrientUptake method. Check vegetation options.'
+                                        stop 'NitrogenUptakeSWAT - Module Vegetation ERR01'
+
                                     endif
-                                    
-                                    Stress = min (Stress, 1.0)
-                                    
-!                                   Stress = amax1(Stress, NewStress)
-!                                   Stress = amin1(Stress, 1.0)
-                                else
+        
+                            end select
 
-                                    write(*,*) 'Error in NutrientUptake method. Check vegetation options.'
-                                    stop 'NitrogenUptakeSWAT - Module Vegetation ERR01'
-
-                                endif
-    
-                        end select
-
-                        Me%Growth%NitrogenStress(i,j) = Stress
-
+                            Me%Growth%NitrogenStress(i,j) = Stress
+                            
+                        else
+                        
+                            Me%Growth%NitrogenStress(i,j) = 1.0
+                        
+                        endif
+                        
                     endif cd1
 
                 endif
@@ -10436,8 +10475,12 @@ do3:                do k = KUB, KLB, -1
                         !    KgN/ha             =  gN/m3H20 * 1E-3kg/g *  m3/s * s / (m2) * 10000m2/ha 
                         PotentialNitrogenUptake = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                    &
                                                   * Me%Fluxes%WaterUptakeLayer(i,j,k)                         &
-                                                  * Me%ComputeOptions%VegetationDT                            &
-                                                  / (GridCellArea) * 10000
+                                                  * Me%VegetationDT                                           &
+                                                  / (GridCellArea) * 10000                        
+!                        PotentialNitrogenUptake = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                    &
+!                                                  * Me%Fluxes%WaterUptakeLayer(i,j,k)                         &
+!                                                  * Me%ComputeOptions%VegetationDT                            &
+!                                                  / (GridCellArea) * 10000
     
                         !      kgN/ha        =  gN/m3H20 * 1E-3kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
                         LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
@@ -10620,8 +10663,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 endif
 
                
-                if (Me%IsPlantGrowing(i,j) .and. .not. Dormant                         &
-                    .and. Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) then    
+                if ((Me%IsPlantGrowing(i,j)) .and. (.not. Dormant)  .and.   &
+                    (Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) .and.   &
+                    ((.not. Me%TestForHUacc) .or. (Me%HeatUnits%PlantHUAccumulated (i,j) > Me%HeatUnits%PlantHUAccumulated_old (i,j)))) then    
 
                     VegetationID    = Me%VegetationID(i,j)
 !                    PlantFractionP1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP1
@@ -10940,8 +10984,12 @@ do3 :               do k = KUB, KLB, -1
                         !    KgP/ha               =   gN/m3H20 * 1E-3kg/g * m3/s * s / (m2) * 10000m2/ha 
                         PotentialPhosphorusUptake = Me%ExternalVar%SoilPhosphorus(i,j,k) * 1E-3                    &
                                                     * Me%Fluxes%WaterUptakeLayer(i,j,k)                            &
-                                                    * Me%ComputeOptions%VegetationDT                               &
-                                                    / (GridCellArea) * 10000
+                                                    * Me%VegetationDT                                              &
+                                                    / (GridCellArea) * 10000                        
+!                        PotentialPhosphorusUptake = Me%ExternalVar%SoilPhosphorus(i,j,k) * 1E-3                    &
+!                                                    * Me%Fluxes%WaterUptakeLayer(i,j,k)                            &
+!                                                    * Me%ComputeOptions%VegetationDT                               &
+!                                                    / (GridCellArea) * 10000
         
                         !      kgP/ha          =  gP/m3H20 * 1E-3kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
                         LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                                &
@@ -11147,10 +11195,14 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     endif
                 endif
 
-                if (Me%IsPlantGrowing(i,j) .and. .not. Dormant .and. Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) then     
+                !1. There is no biomass accumulation if plant reached maturity (HUAccumulated >= 1)
+                !2. There is no biomass accumulation if there is no accumulated heat units (HUacc == HUAcc.old) 
+                !              (2) is optional and used only if Me%TestForHUacc is set to .true.
+                if ((Me%IsPlantGrowing(i,j)) .and. (.not. Dormant) .and. (Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) .and. &
+                    ((.not. Me%TestForHUacc) .or. (Me%HeatUnits%PlantHUAccumulated (i,j) > Me%HeatUnits%PlantHUAccumulated_old (i,j)))) then     
         
                     VegetationID           =   Me%VegetationID(i,j)
-                    gdb                    => Me%VegetationTypes(VegetationID)%GrowthDatabase
+                    gdb                    =>  Me%VegetationTypes(VegetationID)%GrowthDatabase
                     ExtinctCoef            =   gdb%ExtinctCoef
                     BiomassEnergyRatio     =   gdb%BiomassEnergyRatio
                     CO2ConcHigh            =   gdb%CO2ConcHigh
@@ -11158,10 +11210,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     RUEDeclineRate         =   gdb%RUEDeclineRate
                     !  m2/m2
                     LAI                    =   Me%StateVariables%LeafAreaIndex(i,j)
-    !                LAI                    =   PropLeafAreaIndex%Field(i,j)
                     !  MJ/m2               =   W/m2 * s * 1e-6MJ/J
                     SolarRadiation         =   Me%ExternalVar%Integration%AverageRadiationDuringDT(i,j)  &
-                                               * Me%ComputeOptions%VegetationDT * 1e-6
+                                               * Me%VegetationDT * 1e-6                    
                     PlantType              =   Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantType
        
                     !! calculate optimal biomass
@@ -11569,24 +11620,32 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then                                         
                 
                 !if BoundaryLAI exists than use it and go to next cell
-                if (Me%UseBoundaryLAI .and. BoundaryLAI%Field(i,j) >= 0) then
-                    !If boundary LAI is negative than it does not exist for this DT.
-                    !In this case, the LAI must be computed and methos continues.
-                    !otherwise the change is the difference between LAI's so that 
-                    !the update routine gives the boundary value. And goes directly to next cell
-                    Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j) 
-                    cycle
+                if (Me%UseBoundaryLAI) then 
+                    if (BoundaryLAI%Field(i,j) >= 0) then
+                        !If boundary LAI is negative than it does not exist for this DT.
+                        !In this case, the LAI must be computed and methos continues.
+                        !otherwise the change is the difference between LAI's so that 
+                        !the update routine gives the boundary value. And goes directly to next cell
+                        Me%Fluxes%LAIChange(i,j) = BoundaryLAI%Field(i,j) - Me%StateVariables%LeafAreaIndex(i,j) 
+                        cycle
+                    endif
                 endif
             
                 veg_id = Me%VegetationID(i,j)
                 
                 gdb => Me%VegetationTypes(veg_id)%GrowthDatabase
 
-                !if Plant type 0 is NO PLANT or is plant but has no leaves or not growing or reached maturity, go to next cell
+!                !if Plant type 0 is NO PLANT or is plant but has no leaves or not growing or reached maturity, go to next cell
+!                if ((gdb%PlantType == NotAPlant)                        &
+!                    .or. (.not. Me%VegetationTypes(veg_id)%HasLeaves)   &
+!                    .or. (.not. Me%IsPlantGrowing(i,j))                 &
+!                    .or. (Me%HeatUnits%PlantHUAccumulated (i,j) .gt. 1.0)) cycle 
+       
+                !if Plant type 0 is NO PLANT or is plant but has no leaves, go to next cell
                 if ((gdb%PlantType == NotAPlant)                        &
                     .or. (.not. Me%VegetationTypes(veg_id)%HasLeaves)   &
-                    .or. (.not. Me%IsPlantGrowing(i,j))                 &
-                    .or. (Me%HeatUnits%PlantHUAccumulated (i,j) .gt. 1.0)) cycle                                            
+                    .or. (.not. Me%IsPlantGrowing(i,j))) cycle      
+                                    
 
                 !If plant is dormant, go to next cell
                 if (Me%ComputeOptions%Dormancy) then
@@ -11616,28 +11675,36 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                     Me%LAISenescence(i,j) = .false.
                 
-                    !Gets the stress calculated before. Only temperature stress is computed at this routine.
-                    call ComputeGlobalStress(i,j)
-                    GlobalStress = Me%Growth%GlobalStress(i,j)
-                    
-                    if (gdb%PlantType .eq. 7) then
-                        LAIMax = gdb%LAIMax * Me%Growth%TreeFractionToMaturity(i,j)
-                    else
-                        LAIMax = gdb%LAIMax
-                    endif
-        
-                    DeltaFractionLAIMax = Me%PlantLAIMaxFraction(i,j) - FractionLAIMax_Old                                
-                    Me%Fluxes%LAIChange(i,j) = (DeltaFractionLAIMax * LAIMax * (1.0 - exp(5.0 * (LAI - LAIMax))))   &
-                                                * sqrt(GlobalStress)
+                    if ((.not. Me%TestForHUacc) .or. (HUAcc > HUAcc_Old)) then
+                
+                        !Gets the stress calculated before. Only temperature stress is computed at this routine.
+                        call ComputeGlobalStress(i,j)
+                        GlobalStress = Me%Growth%GlobalStress(i,j)
+                        
+                        if (gdb%PlantType .eq. 7) then
+                            LAIMax = gdb%LAIMax * Me%Growth%TreeFractionToMaturity(i,j)
+                        else
+                            LAIMax = gdb%LAIMax
+                        endif
+            
+                        DeltaFractionLAIMax = Me%PlantLAIMaxFraction(i,j) - FractionLAIMax_Old                                
+                        Me%Fluxes%LAIChange(i,j) = (DeltaFractionLAIMax * LAIMax * (1.0 - exp(5.0 * (LAI - LAIMax))))   &
+                                                    * sqrt(GlobalStress)
 
-                    !When coming from dormancy or grazing or harvest LAI changr turns negative because of HU decline
-                    !However, LAI decline due to HUAccumulated decline is already computed explicitly 
-                    !for grazing and harvesting in leaf area index state variable. In order to avoid double account here
-                    !flux can only be positive.
-                    if (Me%Fluxes%LAIChange(i,j) .lt. 0.0) then
-                        Me%Fluxes%LAIChange(i,j) = 0.00
-                    elseif ((LAI + Me%Fluxes%LAIChange(i,j)) > LAIMax) then
-                        Me%Fluxes%LAIChange(i,j) = LAIMax - LAI
+                        !When coming from dormancy or grazing or harvest LAI changr turns negative because of HU decline
+                        !However, LAI decline due to HUAccumulated decline is already computed explicitly 
+                        !for grazing and harvesting in leaf area index state variable. In order to avoid double account here
+                        !flux can only be positive.
+                        if (Me%Fluxes%LAIChange(i,j) .lt. 0.0) then
+                            Me%Fluxes%LAIChange(i,j) = 0.00
+                        elseif ((LAI + Me%Fluxes%LAIChange(i,j)) > LAIMax) then
+                            Me%Fluxes%LAIChange(i,j) = LAIMax - LAI
+                        endif
+
+                    else
+                    
+                        Me%Fluxes%LAIChange(i,j) = 0.0
+
                     endif
 
                 else if (.not. gdb%Evergreen) then 
@@ -11871,9 +11938,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         HarvestIndex         = OptimalHarvestIndex * 100. * HUAcc / (100. * HUAcc + exp(11.1 - 10. * HUAcc))
         
         ! mm       =   m/s * mm/m * s
-        PotTP      = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%ComputeOptions%VegetationDT * 1000.0
+        PotTP      = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%VegetationDT * 1000.0
+
         !  mm      =   m/s * mm/m * s
-        ActualTP   = Me%Fluxes%WaterUptake(i,j) * Me%ComputeOptions%VegetationDT * 1000. 
+        ActualTP   = Me%Fluxes%WaterUptake(i,j) * Me%VegetationDT * 1000. 
 
         !!Actualize Harvest Index according to water stress.
         if (PotTP .lt. 10.) then
@@ -12022,9 +12090,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         HarvestIndex         = OptimalHarvestIndex * 100. * HUAcc / (100. * HUAcc + exp(11.1 - 10. * HUAcc))
         
         ! mm       =   m/s * mm/m * s
-        PotTP      = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%ComputeOptions%VegetationDT * 1000.0
+        PotTP      = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%VegetationDT * 1000.0
+
         !  mm      =   m/s * mm/m * s
-        ActualTP   = Me%Fluxes%WaterUptake(i,j) * Me%ComputeOptions%VegetationDT * 1000. 
+        ActualTP   = Me%Fluxes%WaterUptake(i,j) * Me%VegetationDT * 1000. 
 
         !!Actualize Harvest Index according to water stress.
         if (PotTP .lt. 10.) then
@@ -12470,7 +12539,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 GrazingStartJulianDate = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingStartJulianDay 
                 GrazingStartPlantHU    = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingStartPlantHU
-                DT_day                 = Me%ComputeOptions%VegetationDT / (60 * 60 * 24)
+                DT_day                 = Me%VegetationDT / (60 * 60 * 24)
                 HUAcc                  = Me%HeatUnits%PlantHUAccumulated(i,j)
                 HUAcc_Old              = Me%HeatUnits%PlantHUAccumulated_Old(i,j)
 
@@ -12500,7 +12569,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             else
 
                 !! if not first day of grazing increment total days of grazing by one
-                DT_day                 = Me%ComputeOptions%VegetationDT / (60 * 60 * 24)
+                DT_day                 = Me%VegetationDT / (60 * 60 * 24)
                 Me%DaysOfGrazing(i,j)  = Me%DaysOfGrazing(i,j) + DT_day
                 GrazingDays            = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingDays 
                 !! check to set if grazing period is over
@@ -12811,7 +12880,7 @@ do3:        do PestApp = 1, PesticideApps
 
                     AccPesticideDays      = &
                     Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideAccDays
-                    DT_day                = Me%ComputeOptions%VegetationDT / (60 * 60 * 24)
+                    DT_day                = Me%VegetationDT / (60 * 60 * 24)
                     AccPesticideDays      = AccPesticideDays + DT_day
                     TotalPesticideDays    = &
                     Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideDays 
@@ -12918,7 +12987,7 @@ if6:                    if(PotentialHU .ge. FertilizerAppHU .and. PotentialHU_Ol
                 else
                     AccFertilizationDays      = &
                     Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationAccDays
-                    DT_day                    = Me%ComputeOptions%VegetationDT / (60 * 60 * 24)
+                    DT_day                    = Me%VegetationDT / (60 * 60 * 24)
                     AccFertilizationDays      = AccFertilizationDays + DT_day
                     TotalFertilizationDays    = &
                     Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationDays 
@@ -13509,24 +13578,31 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
             if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
                 
+                LAIChange = Me%Fluxes%LAIChange(i,j)
+                LAI       = Me%StateVariables%LeafAreaIndex(i,j)
+                
                 !if boundaryvalue active there is no need to check growth processes
-                if (Me%UseBoundaryLAI .and. BoundaryLAI%Field(i,j) >= 0) then
-                    Me%StateVariables%LeafAreaIndex(i,j) = LAI + LAIChange 
-                    cycle 
+                if (Me%UseBoundaryLAI) then 
+                    if (BoundaryLAI%Field(i,j) >= 0) then
+                        Me%StateVariables%LeafAreaIndex(i,j) = LAI + LAIChange                     
+                        cycle 
+                    endif
                 endif
                 
                 vegID = Me%VegetationID(i,j)
                 veg   = Me%VegetationTypes(vegID)
                 
-                !if Plant type 0 is NO PLANT or is plant but not growing or reached maturity, go to next cell
-                if ((veg%GrowthDatabase%PlantType == NotAPlant)    &
-                    .or. (.not. Me%IsPlantGrowing(i,j))            &
-                    .or. (Me%HeatUnits%PlantHUAccumulated (i,j) .gt. 1.0)) cycle
+!                !if Plant type 0 is NO PLANT or is plant but not growing or reached maturity, go to next cell
+!                if ((veg%GrowthDatabase%PlantType == NotAPlant)    &
+!                    .or. (.not. Me%IsPlantGrowing(i,j))            &
+!                    .or. (Me%HeatUnits%PlantHUAccumulated (i,j) .gt. 1.0)) cycle
+
+                !if Plant type 0 is NO PLANT, go to next cell
+                if ((veg%GrowthDatabase%PlantType == NotAPlant)  &
+                    .or. (.not. Me%IsPlantGrowing(i,j))) cycle
                 
-                PlantType = veg%GrowthDatabase%PlantType
-                LAI       = Me%StateVariables%LeafAreaIndex(i,j)
-                LAIMax    = veg%GrowthDatabase%LAIMax 
-                LAIChange = Me%Fluxes%LAIChange(i,j)
+                PlantType = veg%GrowthDatabase%PlantType                
+                LAIMax    = veg%GrowthDatabase%LAIMax                 
 
                 if (veg%HasLeaves) then
                     

@@ -105,6 +105,7 @@ Module ModuleRunOff
     public  ::  ModifyRunOff
     private ::      LocalWaterColumn
     private ::      IntegrateFlow
+    private ::      ComputeNextDT
     private ::      RunOffOutput
     private ::  AdjustSlope
 
@@ -176,7 +177,25 @@ Module ModuleRunOff
         real                                        :: DT                       = null_real
     end type T_ExtVar
 
-
+    type T_Converge
+        integer                                     :: MinIterations                = 1               
+        integer                                     :: MaxIterations                = 1024
+        logical                                     :: Stabilize                    = .false.
+        real                                        :: StabilizeFactor              = 0.01        
+        real                                        :: DTFactorUp                   = 1.25
+        real                                        :: DTFactorDown                 = 1.25
+        real                                        :: StabilizeHardCutLimit        = 128
+        real                                        :: DTSplitFactor                = 2.0               
+        real                                        :: CurrentDT                    = null_real  
+        real                                        :: NextDT                       = null_real
+        integer                                     :: LastGoodNiteration           = 1
+        integer                                     :: NextNiteration               = 1               
+        logical                                     :: LimitDTCourant               = .false.        
+        real                                        :: MaxCourant                   = 1.0  
+        integer                                     :: MinToRestart                 = 0  
+        real                                        :: MinimumValueToStabilize      = 0.001
+        logical                                     :: CheckDecreaseOnly            = .false.        
+    end type T_Converge
   
     type  T_RunOff
         integer                                     :: InstanceID               = 0
@@ -189,6 +208,7 @@ Module ModuleRunOff
         integer                                     :: ObjHDF5                  = 0
         integer                                     :: ObjDrainageNetwork       = 0
         integer                                     :: ObjDischarges            = 0
+        integer                                     :: ObjEnterData             = 0
         type (T_OutPut   )                          :: OutPut
         type (T_ExtVar)                             :: ExtVar
         type (T_Files)                              :: Files
@@ -260,39 +280,43 @@ Module ModuleRunOff
         real                                        :: StormWaterInfiltrationVelocity  = 1.4e-5  !~50mm/h
         real                                        :: StormWaterFlowVelocity          = 0.2     !velocity in pipes
         logical                                     :: Buildings             = .false.
-        real                                        :: StabilizeFactor       = null_real
+!        real                                        :: StabilizeFactor       = null_real
+!        real                                        :: StabilizeHardCutLimit = 0.1
         integer                                     :: HydrodynamicApproximation = DiffusionWave_
         logical                                     :: CalculateAdvection    = .true.
         logical                                     :: CalculateCellMargins  = .true.
         logical                                     :: ImposeMaxVelocity     = .false.
         real                                        :: ImposedMaxVelocity    = 0.1
-        integer                                     :: LastGoodNiter         = 1
-        integer                                     :: NextNiter             = 1
-        real                                        :: InternalTimeStepSplit = 1.5
-        integer                                     :: MinIterations         = 1
-        integer                                     :: MinCellsToRestart     = 0
+!        integer                                     :: LastGoodNiter         = 1
+!        integer                                     :: NextNiter             = 1
+!        real                                        :: InternalTimeStepSplit = 1.5
+!        integer                                     :: MinIterations         = 1
+!        integer                                     :: MinToRestart     = 0
         real                                        :: MinimumWaterColumn    = null_real
         real                                        :: MinimumWaterColumnAdvection = null_real
-        real                                        :: MinimumWaterColumnStabilize = null_real
-        real                                        :: NextDT               = null_real
-        real                                        :: DTFactor             = null_real
-        real                                        :: DTFactorUp           = null_real
-        real                                        :: DTFactorDown         = null_real
-        logical                                     :: LimitDTCourant       = .false.
-        logical                                     :: LimitDTVariation     = .true.
-        real                                        :: MaxCourant           = 1.0        
+!        real                                        :: MinimumWaterColumnStabilize = null_real
+!        real                                        :: NextDT               = null_real
+!        real                                        :: DTFactor             = null_real
+!        real                                        :: DTFactorUp           = null_real
+!        real                                        :: DTFactorDown         = null_real
+!        real                                        :: CurrentDT            = null_real
+!        logical                                     :: LimitDTCourant       = .false.
+!        logical                                     :: LimitDTVariation     = .true.
+!        real                                        :: MaxCourant           = 1.0        
         logical                                     :: ImposeBoundaryValue  = .false.
         real                                        :: BoundaryValue        = null_real
         real                                        :: MaxDtmForBoundary    = null_real
         integer                                     :: BoundaryMethod       = null_int
         integer, dimension(:,:), pointer            :: BoundaryCells        => null()
-        integer                                     :: MaxIterations        = 5
+!        integer                                     :: MaxIterations        = 5
         logical                                     :: SimpleChannelInteraction = .false.
         logical                                     :: LimitToCriticalFlow  = .true.
         integer                                     :: FaceWaterColumn      = WCMaxBottom_
-        real                                        :: MaxVariation         = null_real
+!        real                                        :: MaxVariation         = null_real
         integer                                     :: OverlandChannelInteractionMethod = null_int
-        logical                                     :: CheckDecreaseOnly    = .false.
+!        logical                                     :: CheckDecreaseOnly    = .false.
+
+        type(T_Converge)                            :: CV !Convergence options
         
         real(8)                                     :: BoundaryFlowVolume        = 0.0 !m3 => positive if flow is towards boundary.          
         real(8)                                     :: VolumeStoredInSurface     = 0.0
@@ -381,7 +405,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call AllocateInstance
             
             Me%ModelName = ModelName
-
+            
             !Associates External Instances
             Me%ObjTime            = AssociateInstance (mTIME_           , ComputeTimeID     )
             Me%ObjHorizontalGrid  = AssociateInstance (mHORIZONTALGRID_ , HorizontalGridID  )
@@ -396,7 +420,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Time Stuff
             call GetComputeTimeLimits   (Me%ObjTime, BeginTime = Me%BeginTime,           &
                                          EndTime = Me%EndTime, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructRunOff - ModuleRunOff - ERR00'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructRunOff - ModuleRunOff - ERR010'
+
+            call GetComputeTimeStep     (Me%ObjTime, Me%ExtVar%DT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructRunOff - ModuleRunOff - ERR011'
+        
+            Me%CV%NextNiteration = 1
+            Me%CV%CurrentDT = Me%ExtVar%DT
 
             call ReadLockExternalVar (StaticOnly = .false.)
 
@@ -406,7 +436,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                         Size     = Me%Size,                              &
                                         WorkSize = Me%WorkSize,                          &
                                         STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructRunOff - ModuleRunOff - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructRunOff - ModuleRunOff - ERR020'
             
             call AllocateVariables
             
@@ -463,7 +493,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         else cd0
             
-            stop 'ModuleRunOff - ConstructRunOff - ERR99' 
+            stop 'ModuleRunOff - ConstructRunOff - ERR030' 
 
         end if cd0
 
@@ -514,8 +544,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Arguments-------------------------------------------------------------
 
-        !Local-----------------------------------------------------------------
-        integer                                     :: ObjEnterData = 0
+        !Local-----------------------------------------------------------------        
         integer                                     :: STAT_CALL
         type(T_PropertyID)                          :: InitialWaterColumnID
         type(T_PropertyID)                          :: OverLandCoefficientDeltaID
@@ -542,12 +571,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR030'
 
         !Constructs the DataFile
-        call ConstructEnterData (ObjEnterData, Me%Files%DataFile, STAT = STAT_CALL)
+        call ConstructEnterData (Me%ObjEnterData, Me%Files%DataFile, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR040'
 
         !Initial Water Column
         call GetData(dummy,                                                              &
-                     ObjEnterData, iflag,                                                &
+                     Me%ObjEnterData, iflag,                                                &
                      SearchType   = FromFile,                                            &
                      keyword      = 'INITIAL_WATER_COLUMN',                              &
                      default      = 0.0,                                                 & 
@@ -562,7 +591,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif        
 
         !Gets Block 
-        call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                          &
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
                                     '<BeginInitialWaterColumn>',                      &
                                     '<EndInitialWaterColumn>', BlockFound,            &
                                     STAT = STAT_CALL)
@@ -570,7 +599,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (BlockFound) then
             call ConstructFillMatrix  ( PropertyID       = InitialWaterColumnID,      &
-                                        EnterDataID      = ObjEnterData,                 &
+                                        EnterDataID      = Me%ObjEnterData,                 &
                                         TimeID           = Me%ObjTime,                   &
                                         HorizontalGridID = Me%ObjHorizontalGrid,         &
                                         ExtractType      = FromBlock,                    &
@@ -590,7 +619,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
          !Gets Minimum Slope 
         call GetData(Me%MinSlope,                                               &
-                     ObjEnterData, iflag,                                       &
+                     Me%ObjEnterData, iflag,                                       &
                      SearchType   = FromFile,                                   &
                      keyword      = 'MIN_SLOPE',                                &
                      default      = 0.0,                                        &
@@ -606,7 +635,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Adjusts Slope according to
         !http://www.hkh-friend.net.np/rhdc/training/lectures/HEGGEN/Tc_3.pdf
         call GetData(Me%AdjustSlope,                                            &
-                     ObjEnterData, iflag,                                       &
+                     Me%ObjEnterData, iflag,                                       &
                      SearchType   = FromFile,                                   &
                      keyword      = 'ADJUST_SLOPE',                             &
                      default      = .true.,                                     &
@@ -617,7 +646,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Gets Routing method
         call GetData(Me%HydrodynamicApproximation,                              &
-                     ObjEnterData, iflag,                                       &
+                     Me%ObjEnterData, iflag,                                       &
                      SearchType   = FromFile,                                   &
                      keyword      = 'HYDRODYNAMIC_APROX',                       &
                      default      = DiffusionWave_,                             &
@@ -636,7 +665,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Gets if advection is to be calculated
             call GetData(Me%CalculateAdvection,                                 &
-                         ObjEnterData, iflag,                                   &
+                         Me%ObjEnterData, iflag,                                   &
                          SearchType   = FromFile,                               &
                          keyword      = 'ADVECTION',                            &
                          default      = .true.,                                 &
@@ -649,7 +678,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 !Minimum Water Column for advection computation
                 call GetData(Me%MinimumWaterColumnAdvection,                                     &
-                             ObjEnterData, iflag,                                                &
+                             Me%ObjEnterData, iflag,                                                &
                              SearchType   = FromFile,                                            &
                              keyword      = 'MIN_WATER_COLUMN_ADVECTION',                        &
                              default      = 0.0,                                                 &
@@ -662,7 +691,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Method for computing water column in the face (1 - Using max level and max bottom; 
         !2- using max level and average of bottom)
         call GetData(Me%FaceWaterColumn,                                    &
-                     ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                   &  
                      keyword      = 'WATER_COLUMN_FACE',                    &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -678,7 +707,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%FaceWaterColumn == WCMaxBottom_) then
             !Gets if compute "margins" aside of adjacent cells that produce friction
             call GetData(Me%CalculateCellMargins,                               &
-                         ObjEnterData, iflag,                                   &
+                         Me%ObjEnterData, iflag,                                   &
                          SearchType   = FromFile,                               &
                          keyword      = 'HYDRAULIC_RADIUS_MARGINS',             &
                          default      = .true.,                                 &
@@ -689,7 +718,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !Gets if solution is limited by an maximum velocity
         call GetData(Me%ImposeMaxVelocity,                                      &
-                     ObjEnterData, iflag,                                       &
+                     Me%ObjEnterData, iflag,                                       &
                      SearchType   = FromFile,                                   &
                      keyword      = 'IMPOSE_MAX_VELOCITY',                      &
                      default      = .false.,                                    &
@@ -701,7 +730,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
             !Gets if solution is limited by an maximum velocity
             call GetData(Me%ImposedMaxVelocity,                                     &
-                         ObjEnterData, iflag,                                       &
+                         Me%ObjEnterData, iflag,                                       &
                          SearchType   = FromFile,                                   &
                          keyword      = 'MAX_VELOCITY',                             &
                          default      = 0.1,                                        &
@@ -714,7 +743,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Gets if Manning Coeficient is increased with water depth
         call GetData(DynamicAdjustManning,                                      &
-                     ObjEnterData, iflag,                                       &
+                     Me%ObjEnterData, iflag,                                       &
                      SearchType   = FromFile,                                   &
                      keyword      = 'DYNAMIC_ADJUST_MANNING',                   &
                      default      = .false.,                                    &
@@ -735,7 +764,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Minimum Water Column for overland flow
         call GetData(Me%MinimumWaterColumn,                                              &
-                     ObjEnterData, iflag,                                                &
+                     Me%ObjEnterData, iflag,                                                &
                      SearchType   = FromFile,                                            &
                      keyword      = 'MIN_WATER_COLUMN',                                  &
 !                     default      = 0.001,                                              &
@@ -749,7 +778,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Continuous Computation
         call GetData(Me%Continuous,                                                      &
-                     ObjEnterData, iflag,                                                &
+                     Me%ObjEnterData, iflag,                                                &
                      SearchType   = FromFile,                                            &
                      keyword      = 'CONTINUOUS',                                        &
                      default      = .false.,                                             &
@@ -764,193 +793,205 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
 
         call GetData(Me%StopOnWrongDate,                                    &
-                     ObjEnterData, iflag,                                   &
+                     Me%ObjEnterData, iflag,                                   &
                      SearchType   = FromFile,                               &
                      keyword      = 'STOP_ON_WRONG_DATE',                   &
                      default      = .true.,                                 &
                      ClientModule = 'ModuleBasin',                          &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR260'
+!
+!        !Factor for DT Prediction
+!        call GetData(Me%DTFactor,                                           &
+!                     Me%ObjEnterData, iflag,                                   &  
+!                     keyword      = 'DT_FACTOR',                            &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = 1.05,                                   &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR270'        
+!
+!        if (Me%DTFactor <= 1.0) then
+!            write (*,*)'Invalid DT Factor [DT_FACTOR]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ReadDataFile - ModuleRunOff - ERR275'              
+!        endif
+!        
+!        call GetData(Me%CV%DTFactorUp,                                         &
+!                     Me%ObjEnterData, iflag,                                   &  
+!                     keyword      = 'DT_FACTOR_UP',                         &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = Me%DTFactor,                            &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR280'
+!        if (iflag /= 1) then
+!            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for RunOff DT_FACTOR_UP' 
+!        endif
+!        if (Me%DTFactorUp <= 1.0) then
+!            write (*,*)'Invalid DT Factor Up [DT_FACTOR_UP]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ReadDataFile - ModuleRunOff - ERR281'              
+!        endif
+!                
+!        call GetData(Me%CV%DTFactorDown,                                       &
+!                     Me%ObjEnterData, iflag,                                   &  
+!                     keyword      = 'DT_FACTOR_DOWN',                       &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = Me%DTFactor,                            &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR285'
+!        if (iflag /= 1) then
+!            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for RunOff DT_FACTOR_DOWN'
+!        endif
+!        if (Me%DTFactorDown <= 1.0) then
+!            write (*,*)'Invalid DT Factor Down [DT_FACTOR_DOWN]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ReadDataFile - ModuleRunOff - ERR286'              
+!        endif      
+!
+!        call GetData(Me%CV%MaxIterations,                                      &
+!                     Me%ObjEnterData, iflag,                                   &  
+!                     keyword      = 'MAX_ITERATIONS',                       &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = 5,                                      &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR310'
 
-        !Factor for DT Prediction
-        call GetData(Me%DTFactor,                                           &
-                     ObjEnterData, iflag,                                   &  
-                     keyword      = 'DT_FACTOR',                            &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = 1.05,                                   &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR270'        
-
-        if (Me%DTFactor <= 1.0) then
-            write (*,*)'Invalid DT Factor [DT_FACTOR]'
-            write (*,*)'Value must be greater then 1.0'
-            stop 'ReadDataFile - ModuleRunOff - ERR275'              
-        endif
+!        !Stabilize Solution
+!        call GetData(Me%CV%Stabilize,                                          &
+!                     Me%ObjEnterData, iflag,                                   &  
+!                     keyword      = 'STABILIZE',                            &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = .true.,                                 &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR290'        
         
-        call GetData(Me%DTFactorUp,                                         &
-                     ObjEnterData, iflag,                                   &  
-                     keyword      = 'DT_FACTOR_UP',                         &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = Me%DTFactor,                            &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR280'
-        if (iflag /= 1) then
-            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for RunOff DT_FACTOR_UP' 
-        endif
-        if (Me%DTFactorUp <= 1.0) then
-            write (*,*)'Invalid DT Factor Up [DT_FACTOR_UP]'
-            write (*,*)'Value must be greater then 1.0'
-            stop 'ReadDataFile - ModuleRunOff - ERR281'              
-        endif
-                
-        call GetData(Me%DTFactorDown,                                       &
-                     ObjEnterData, iflag,                                   &  
-                     keyword      = 'DT_FACTOR_DOWN',                       &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = Me%DTFactor,                            &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR285'
-        if (iflag /= 1) then
-            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for RunOff DT_FACTOR_DOWN'
-        endif
-        if (Me%DTFactorDown <= 1.0) then
-            write (*,*)'Invalid DT Factor Down [DT_FACTOR_DOWN]'
-            write (*,*)'Value must be greater then 1.0'
-            stop 'ReadDataFile - ModuleRunOff - ERR286'              
-        endif      
-
-        !Stabilize Solution
-        call GetData(Me%Stabilize,                                          &
-                     ObjEnterData, iflag,                                   &  
-                     keyword      = 'STABILIZE',                            &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = .true.,                                 &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR290'        
-        
-        if (Me%Stabilize) then
-            call GetData(Me%StabilizeFactor,                                &
-                         ObjEnterData, iflag,                               &  
-                         keyword      = 'STABILIZE_FACTOR',                 &
-                         ClientModule = 'ModuleRunOff',                     &
-                         SearchType   = FromFile,                           &
-                         Default      = 0.1,                                &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR300' 
-            
-            !Minimum Water Column for checking stabilize
-            call GetData(Me%MinimumWaterColumnStabilize,                    &
-                         ObjEnterData, iflag,                               &
-                         SearchType   = FromFile,                           &
-                         keyword      = 'MIN_WATER_COLUMN_STABILIZE',       &
-                         default      = Me%MinimumWaterColumn,              &
-                         ClientModule = 'ModuleRunOff',                     &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR301'
-        endif
-
-        call GetData(Me%MaxIterations,                                      &
-                     ObjEnterData, iflag,                                   &  
-                     keyword      = 'MAX_ITERATIONS',                       &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = 5,                                      &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR310'
-
-        !Internal Time Step Split
-        call GetData(Me%InternalTimeStepSplit,                              &
-                     ObjEnterData, iflag,                                   &  
-                     keyword      = 'DT_SPLIT_FACTOR',                      &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = 1.25,                                   &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR311'        
-        if (Me%InternalTimeStepSplit <= 1.0) then
-            write (*,*)'Invalid DT Factor [DT_RESTART_FACTOR]'
-            write (*,*)'Value must be greater then 1.0'
-            stop 'ReadDataFile - ModuleRunOff - ERR312'              
-        endif        
-        
-        call GetData(Me%MinIterations,                                      &
-                     ObjEnterData, iflag,                                   &  
-                     keyword      = 'MIN_ITERATIONS',                       &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = 1,                                      &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR313'     
-        if (Me%MinIterations < 1) then
-            write (*,*) 'MIN_ITERATIONS must be greater or equal to 1'
-            stop 'ReadDataFile - ModuleRunOff - ERR313a'
-        endif
-        
-       call GetData(dummy,                                                  &
-                     ObjEnterData, iflag,                                   &  
-                     keyword      = 'PERCENT_TO_RESTART',                   &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = 0.,                                     &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR313b'
-        if (dummy <= 0.) then
-            Me%MinCellsToRestart = 0
-        else
-            call CountBasinPoints(dummy)
-        endif          
-        
-        call GetData(Me%CheckDecreaseOnly,                                  &
-                     ObjEnterData, iflag,                                   &  
-                     keyword      = 'CHECK_DEC_ONLY',                       &
-                     ClientModule = 'DrainageNetwork',                      &
-                     SearchType   = FromFile,                               &
-                     Default      = .false.,                                &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR314'                 
-        
-        !Gets flag of DT is limited by the courant number
-        call GetData(Me%LimitDTCourant,                                     &
-                     ObjEnterData, iflag,                                   &  
-                     keyword      = 'LIMIT_DT_COURANT',                     &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = .false.,                                &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR320'        
-
-        if (Me%LimitDTCourant) then
-
-            !Gets Maximum allowed Courant Number
-            call GetData(Me%MaxCourant,                                         &
-                         ObjEnterData, iflag,                                   &  
-                         keyword      = 'MAX_COURANT',                          &
-                         ClientModule = 'ModuleRunOff',                         &
-                         SearchType   = FromFile,                               &
-                         Default      = 1.0,                                    &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR330'        
-
-        endif
-
-        !Gets flag of DT is limited by the volume variation
-        call GetData(Me%LimitDTVariation,                                   &
-                     ObjEnterData, iflag,                                   &  
-                     keyword      = 'LIMIT_DT_VARIATION',                   &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = .true.,                                 &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR340'        
-        
+!        if (Me%Stabilize) then
+!            call GetData(Me%CV%StabilizeFactor,                                &
+!                         Me%ObjEnterData, iflag,                               &  
+!                         keyword      = 'STABILIZE_FACTOR',                 &
+!                         ClientModule = 'ModuleRunOff',                     &
+!                         SearchType   = FromFile,                           &
+!                         Default      = 0.1,                                &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR300' 
+!            
+!            !Minimum Water Column for checking stabilize
+!            call GetData(Me%MinimumWaterColumnStabilize,                    &
+!                         Me%ObjEnterData, iflag,                               &
+!                         SearchType   = FromFile,                           &
+!                         keyword      = 'MIN_WATER_COLUMN_STABILIZE',       &
+!                         default      = Me%MinimumWaterColumn,              &
+!                         ClientModule = 'ModuleRunOff',                     &
+!                         STAT         = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR301'
+!            
+!            !Minimum Water Column for checking stabilize
+!            call GetData(dummy,                                             &
+!                         Me%ObjEnterData, iflag,                               &
+!                         SearchType   = FromFile,                           &
+!                         keyword      = 'STABILIZE_HARD_CUT_FACTOR',        &
+!                         default      = 0.1,                                &
+!                         ClientModule = 'ModuleRunOff',                     &
+!                         STAT         = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR302' 
+!            if (dummy <= 0.0 .or. dummy > 1.0) stop 'ReadDataFile - ModuleRunOff - ERR303'                         
+!            Me%CV%StabilizeHardCutLimit = dummy * Me%MaxIterations
+!        endif
+!
+!        !Internal Time Step Split
+!        call GetData(Me%InternalTimeStepSplit,                              &
+!                     Me%ObjEnterData, iflag,                                   &  
+!                     keyword      = 'DT_SPLIT_FACTOR',                      &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = 1.25,                                   &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR311'        
+!        if (Me%InternalTimeStepSplit <= 1.0) then
+!            write (*,*)'Invalid DT Factor [DT_SPLIT_FACTOR]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ReadDataFile - ModuleRunOff - ERR312'              
+!        endif        
+!        
+!        call GetData(Me%MinIterations,                                      &
+!                     Me%ObjEnterData, iflag,                                   &  
+!                     keyword      = 'MIN_ITERATIONS',                       &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = 1,                                      &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR313'     
+!        if (Me%MinIterations < 1) then
+!            write (*,*) 'MIN_ITERATIONS must be greater or equal to 1'
+!            stop 'ReadDataFile - ModuleRunOff - ERR313a'
+!        endif
+!        
+!       call GetData(dummy,                                                  &
+!                     Me%ObjEnterData, iflag,                                   &  
+!                     keyword      = 'PERCENT_TO_RESTART',                   &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = 0.,                                     &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR313b'
+!        if (dummy <= 0.) then
+!            Me%MinToRestart = 0
+!        else
+!            call CountBasinPoints(dummy)
+!        endif          
+!        
+!        call GetData(Me%CheckDecreaseOnly,                                  &
+!                     Me%ObjEnterData, iflag,                                   &  
+!                     keyword      = 'CHECK_DEC_ONLY',                       &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = .false.,                                &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR314'                 
+!        
+!        !Gets flag of DT is limited by the courant number
+!        call GetData(Me%CV%LimitDTCourant,                                  &
+!                     Me%ObjEnterData, iflag,                                &  
+!                     keyword      = 'LIMIT_DT_COURANT',                     &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = .false.,                                &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR320'        
+!
+!        if (Me%LimitDTCourant) then
+!
+!            !Gets Maximum allowed Courant Number
+!            call GetData(Me%MaxCourant,                                         &
+!                         Me%ObjEnterData, iflag,                                   &  
+!                         keyword      = 'MAX_COURANT',                          &
+!                         ClientModule = 'ModuleRunOff',                         &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 1.0,                                    &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR330'        
+!
+!        endif
+!
+!        !Gets flag of DT is limited by the volume variation
+!        call GetData(Me%LimitDTVariation,                                   &
+!                     Me%ObjEnterData, iflag,                                   &  
+!                     keyword      = 'LIMIT_DT_VARIATION',                   &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = .true.,                                 &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR340'        
+!        
         
         !Impose Boundary Value
         call GetData(Me%ImposeBoundaryValue,                                    &
-                     ObjEnterData, iflag,                                       &  
+                     Me%ObjEnterData, iflag,                                       &  
                      keyword      = 'IMPOSE_BOUNDARY_VALUE',                    &
                      ClientModule = 'ModuleRunOff',                             &
                      SearchType   = FromFile,                                   &
@@ -960,7 +1001,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (Me%ImposeBoundaryValue) then
             call GetData(Me%BoundaryValue,                                      &
-                         ObjEnterData, iflag,                                   &  
+                         Me%ObjEnterData, iflag,                                   &  
                          keyword      = 'BOUNDARY_VALUE',                       &
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
@@ -974,7 +1015,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
             call GetData(Me%MaxDtmForBoundary,                                  &
-                         ObjEnterData, iflag,                                   &  
+                         Me%ObjEnterData, iflag,                                   &  
                          keyword      = 'MAX_DTM_FOR_BOUNDARY',                 &
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
@@ -987,7 +1028,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
 
             call GetData(Me%BoundaryMethod,                                     &
-                         ObjEnterData, iflag,                                   &  
+                         Me%ObjEnterData, iflag,                                   &  
                          keyword      = 'BOUNDARY_METHOD',                      &
                          Default      = InstantaneousFlow_,                     &
                          ClientModule = 'ModuleRunOff',                         &
@@ -1004,7 +1045,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         
         call GetData(Me%OverlandChannelInteractionMethod,                   &
-                     ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                   &  
                      keyword      = 'OVERLAND_CHANNEL_INTERACTION_METHOD',  &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1013,7 +1054,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR364'          
         if (iflag == 0) then               
             call GetData(Me%OverlandChannelInteractionMethod,                   &
-                         ObjEnterData, iflag,                                   &  
+                         Me%ObjEnterData, iflag,                                   &  
                          keyword      = 'CHANNEL_LINK_METHOD',                  &
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
@@ -1028,7 +1069,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !Discharges
         call GetData(Me%Discharges,                                         &
-                     ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                   &  
                      keyword      = 'DISCHARGES',                           &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1038,7 +1079,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Discharges
         call GetData(Me%SimpleChannelInteraction,                           &
-                     ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                   &  
                      keyword      = 'SIMPLE_CHANNEL_FLOW',                  &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1050,7 +1091,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Routes D4 Points
         call GetData(Me%RouteDFourPoints,                                   &
-                     ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                   &  
                      keyword      = 'ROUTE_D4',                             &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1061,7 +1102,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%RouteDFourPoints) then
             !Routes D4 Points
             call GetData(Me%RouteDFourPointsOnDN,                               &
-                         ObjEnterData, iflag,                                   &  
+                         Me%ObjEnterData, iflag,                                   &  
                          keyword      = 'ROUTE_D4_ON_DN',                       &
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
@@ -1072,7 +1113,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Limits Flow to critical
         call GetData(Me%LimitToCriticalFlow,                                &
-                     ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                   &  
                      keyword      = 'LIMIT_TO_CRITICAL_FLOW',               &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1084,7 +1125,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Storm Water Drainage
         call GetData(Me%StormWaterDrainage,                                 &
-                     ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                   &  
                      keyword      = 'STORM_WATER',                          &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1096,7 +1137,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
             !Storm Water Infiltration Velocity
             call GetData(Me%StormWaterInfiltrationVelocity,                     &
-                         ObjEnterData, iflag,                                   &  
+                         Me%ObjEnterData, iflag,                                   &  
                          keyword      = 'STORM_WATER_INF_VEL',                  &
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
@@ -1106,7 +1147,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Storm Water Transfer Coeficient
             call GetData(Me%StormWaterFlowVelocity,                             &
-                         ObjEnterData, iflag,                                   &  
+                         Me%ObjEnterData, iflag,                                   &  
                          keyword      = 'STORM_WATER_FLOW_VEL',                 &
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
@@ -1118,7 +1159,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !If Buildings are to be simulated (flow ocuation in urban areas)
         call GetData(Me%Buildings,                                          &
-                     ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                   &  
                      keyword      = 'BUILDINGS',                            &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1128,7 +1169,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !If Connected to a StormWater model
         call GetData(Me%StormWaterModel,                                    &
-                     ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                   &  
                      keyword      = 'STORM_WATER_MODEL_LINK',               &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1139,7 +1180,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                    
 
         !Gets Output Time 
-        call GetOutPutTime(ObjEnterData,                                                 &
+        call GetOutPutTime(Me%ObjEnterData,                                                 &
                            CurrentTime = Me%ExtVar%Now,                                  &
                            EndTime     = Me%EndTime,                                     &
                            keyword     = 'OUTPUT_TIME',                                  &
@@ -1151,7 +1192,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
         !Output for restart
-        call GetOutPutTime(ObjEnterData,                                                &
+        call GetOutPutTime(Me%ObjEnterData,                                                &
                            CurrentTime  = Me%ExtVar%Now,                                &
                            EndTime      = Me%EndTime,                                   &
                            keyword      = 'RESTART_FILE_OUTPUT_TIME',                   &
@@ -1162,7 +1203,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoff - ERR450'
 
         call GetData(Me%OutPut%RestartOverwrite,                                        &
-                     ObjEnterData,                                                      &
+                     Me%ObjEnterData,                                                      &
                      iflag,                                                             &
                      SearchType   = FromFile,                                           &
                      keyword      = 'RESTART_FILE_OVERWRITE',                           &
@@ -1173,18 +1214,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
 
-        call RewindBuffer (ObjEnterData, STAT = STAT_CALL)
+        call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0470'
 
         !Gets Block for OverLand Coef
-        call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                 &
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                 &
                                     '<BeginOverLandCoefficient>',               &
                                     '<EndOverLandCoefficient>', BlockFound,     &
                                     STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0480'
         if (BlockFound) then
             call ConstructFillMatrix  ( PropertyID       = Me%OverLandCoefficientID,     &
-                                        EnterDataID      = ObjEnterData,                 &
+                                        EnterDataID      = Me%ObjEnterData,                 &
                                         TimeID           = Me%ObjTime,                   &
                                         HorizontalGridID = Me%ObjHorizontalGrid,         &
                                         ExtractType      = FromBlock,                    &
@@ -1230,14 +1271,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !a manning increase (e.g. forestation) in one cell increases water depth (and reduces velocity)
         !but may increase shear stress (because water height increase is transformed in bottom resistance 
         !using manning - chezy see module runoff properties)
-        call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                  &
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                  &
                                     '<BeginOverLandCoefficientDelta>',           &
                                     '<EndOverLandCoefficientDelta>', BlockFound, &
                                     STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0530'
         if (BlockFound) then
             call ConstructFillMatrix  ( PropertyID       = OverLandCoefficientDeltaID,   &
-                                        EnterDataID      = ObjEnterData,                 &
+                                        EnterDataID      = Me%ObjEnterData,                 &
                                         TimeID           = Me%ObjTime,                   &
                                         HorizontalGridID = Me%ObjHorizontalGrid,         &
                                         ExtractType      = FromBlock,                    &
@@ -1281,11 +1322,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%StormWaterDrainageCoef  = null_real
             
 
-            call RewindBuffer (ObjEnterData, STAT = STAT_CALL)
+            call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR570'
 
             !Gets Flag with Sewer Points
-            call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                          &
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
                                         '<BeginStormWaterDrainage>',                         &
                                         '<EndStormWaterDrainage>', BlockFound,               &
                                         STAT = STAT_CALL)
@@ -1293,7 +1334,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (BlockFound) then
                 call ConstructFillMatrix  ( PropertyID       = StormWaterDrainageID,      &
-                                            EnterDataID      = ObjEnterData,                 &
+                                            EnterDataID      = Me%ObjEnterData,                 &
                                             TimeID           = Me%ObjTime,                   &
                                             HorizontalGridID = Me%ObjHorizontalGrid,         &
                                             ExtractType      = FromBlock,                    &
@@ -1318,11 +1359,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%Buildings) then
         
-            call RewindBuffer (ObjEnterData, STAT = STAT_CALL)
+            call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR620'
 
             !Gets Flag with Sewer Points
-            call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                          &
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
                                         '<BeginBuildingsHeight>',                          &
                                         '<EndBuildingsHeight>', BlockFound,                &
                                         STAT = STAT_CALL)
@@ -1330,7 +1371,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (BlockFound) then
                 call ConstructFillMatrix  ( PropertyID       = BuildingsHeightID,          &
-                                            EnterDataID      = ObjEnterData,                 &
+                                            EnterDataID      = Me%ObjEnterData,                 &
                                             TimeID           = Me%ObjTime,                   &
                                             HorizontalGridID = Me%ObjHorizontalGrid,         &
                                             ExtractType      = FromBlock,                    &
@@ -1356,11 +1397,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             allocate(Me%StormWaterInteraction(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%StreetGutterLength   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
-            call RewindBuffer (ObjEnterData, STAT = STAT_CALL)
+            call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR680'
 
             !Gets Flag with Sewer Points
-            call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                          &
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
                                         '<BeginStormWaterInteraction>',                      &
                                         '<EndStormWaterInteraction>', BlockFound,            &
                                         STAT = STAT_CALL)
@@ -1368,7 +1409,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (BlockFound) then
                 call ConstructFillMatrix  ( PropertyID       = StormWaterInteractionID,      &
-                                            EnterDataID      = ObjEnterData,                 &
+                                            EnterDataID      = Me%ObjEnterData,                 &
                                             TimeID           = Me%ObjTime,                   &
                                             HorizontalGridID = Me%ObjHorizontalGrid,         &
                                             ExtractType      = FromBlock,                    &
@@ -1387,7 +1428,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             !Gets Street Gutter Length in each grid cell
-            call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                          &
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
                                         '<BeginStreetGutterLength>',                         &
                                         '<EndStreetGutterLength>', BlockFound,               &
                                         STAT = STAT_CALL)
@@ -1395,7 +1436,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (BlockFound) then
                 call ConstructFillMatrix  ( PropertyID       = StreetGutterLengthID,         &
-                                            EnterDataID      = ObjEnterData,                 &
+                                            EnterDataID      = Me%ObjEnterData,                 &
                                             TimeID           = Me%ObjTime,                   &
                                             HorizontalGridID = Me%ObjHorizontalGrid,         &
                                             ExtractType      = FromBlock,                    &
@@ -1419,7 +1460,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Write Max Flow Modulus File 
         call GetData(Me%WriteMaxFlowModulus,                                    &
-                     ObjEnterData, iflag,                                       &
+                     Me%ObjEnterData, iflag,                                       &
                      SearchType   = FromFile,                                   &
                      keyword      = 'WRITE_MAX_FLOW_FILE',                      &
                      default      = .false.,                                    &
@@ -1436,7 +1477,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Write Max Channels Level  
         call GetData(Me%WriteMaxWaterColumn,                                    &
-                     ObjEnterData, iflag,                                       &
+                     Me%ObjEnterData, iflag,                                       &
                      SearchType   = FromFile,                                   &
                      keyword      = 'WRITE_MAX_WATER_COLUMN',                   &
                      default      = .true.,                                     &
@@ -1451,15 +1492,243 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%MaxWaterColumnFile = trim(adjustl(Me%MaxWaterColumnFile))//"MaxWaterColumn.dat"
         end if
 
+        call ReadConvergenceParameters
 
         !Closes Data File
-        call KillEnterData      (ObjEnterData, STAT = STAT_CALL)
+        call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR760'
 
 
     end subroutine ReadDataFile
 
     !--------------------------------------------------------------------------
+    
+    subroutine ReadConvergenceParameters
+    
+        !Local-----------------------------------------------------------------        
+        integer                                     :: STAT_CALL,               &
+                                                       iflag,                   &
+                                                       MIN_WATER_COLUMN_STABILIZE_flag    
+                                                            
+        real                                        :: dummy_real
+        
+        !----------------------------------------------------------------------    
+        
+        !----------------------------------------------------------------------
+        !Find deprecated keywords in data file
+        !----------------------------------------------------------------------
+        call GetData(dummy_real,                                                &
+                     Me%ObjEnterData, MIN_WATER_COLUMN_STABILIZE_flag,          &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='MIN_WATER_COLUMN_STABILIZE',              &
+                     ClientModule   ='ModuleRunOff',                            &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR010")
+
+        if (MIN_WATER_COLUMN_STABILIZE_flag > 0) then
+            
+            write (*,*) '======================================================================='
+            write (*,*) 'The following deprecated keywords were found in RunOff data file:'
+            write (*,*) ''
+            
+            if (MIN_WATER_COLUMN_STABILIZE_flag > 0) &
+                write(*,*) 'MIN_WATER_COLUMN_STABILIZE: Use STABILIZE_MIN_WATER_COLUMN instead.'
+                
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR070")                              
+        endif
+
+        !----------------------------------------------------------------------
+        !Read convergence options
+        !----------------------------------------------------------------------        
+        !Maximun change of water content (in %) allowed in one time step.
+        call GetData(Me%CV%StabilizeFactor,                                     &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'STABILIZE_FACTOR',                         &
+                     ClientModule = 'ModuleRunOff',                             &
+                     SearchType   = FromFile,                                   &
+                     Default      = 0.1,                                        &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) & 
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR080")
+        if (iflag > 0) then 
+            Me%CV%Stabilize = .true.
+            if (Me%CV%StabilizeFactor < 0.0 .or. Me%CV%StabilizeFactor > 1.0) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR081")
+                
+            call GetData(Me%CV%MinimumValueToStabilize,                     &
+                         Me%ObjEnterData, iflag,                            &
+                         SearchType   = FromFile,                           &
+                         keyword      = 'STABILIZE_MIN_WATER_COLUMN',       &
+                         default      = Me%MinimumWaterColumn,              &
+                         ClientModule = 'ModuleRunOff',                     &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleRunOff - ERR082")
+            if (Me%CV%MinimumValueToStabilize < Me%MinimumWaterColumn) then
+                write (*,*)'Invalid Minimun Water Column to Stabilize value [STABILIZE_MIN_WATER_COLUMN]'
+                write (*,*)'Value must be greater than MIN_WATER_COLUMN'            
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR083")
+            endif      
+            
+            call GetData(dummy_real,                                            &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'STABILIZE_RESTART_FACTOR',             &
+                         ClientModule = 'ModuleRunOff',                         &
+                         SearchType   = FromFile,                               &
+                         Default      = 0.,                                     &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR084")
+            if (dummy_real <= 0.) then
+                Me%CV%MinToRestart = 0
+            else
+                call CountDomainPoints(dummy_real)
+            endif                               
+        else
+            Me%CV%Stabilize = .false.
+        endif        
+
+       !Number of iterations threshold for starting to ask for a lower DT 
+        call GetData(Me%CV%MinIterations,                                       &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='MIN_ITERATIONS',                          &
+                     Default        = 1,                                        &
+                     ClientModule   ='ModuleRunOff',                            &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR090")
+        if (Me%CV%MinIterations < 1) then
+            write (*,*)'Invalid Minimun Iterations value [MIN_ITERATIONS]'
+            write (*,*)'Value must be greater than 0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR091")
+        endif                                 
+
+        !Number of iterations threshold that causes the model to stop
+        call GetData(Me%CV%MaxIterations,                                       &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='MAX_ITERATIONS',                          &
+                     Default        = 1024,                                     &
+                     ClientModule   ='ModuleRunOff',                            &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR100")
+        if (Me%CV%MaxIterations < Me%CV%MinIterations) then
+            write (*,*)'Invalid Maximun Iterations value [MAX_ITERATIONS]'
+            write (*,*)'Value must be greater than the value of MIN_ITERATIONS'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR101")              
+        endif
+                            
+        !% of the maximun iterations that causes the DT to be cut to the value of one internal time step
+        call GetData(dummy_real,                                        &
+                     Me%ObjEnterData, iflag,                            &
+                     SearchType   = FromFile,                           &
+                     keyword      = 'DT_CUT_FACTOR',                    &
+                     default      = 0.1,                                &
+                     ClientModule = 'ModuleRunOff',                     &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR110") 
+        if (dummy_real <= 0.0 .or. dummy_real > 1.0) then
+            write (*,*)'Invalid DT Cut Factor [DT_CUT_FACTOR]'
+            write (*,*)'Value must be >= 0.0 and < 1.0'        
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR111") 
+        endif
+        Me%CV%StabilizeHardCutLimit = dummy_real * Me%CV%MaxIterations
+        
+       !Internal Time Step Split
+        call GetData(Me%CV%DTSplitFactor,                                   &
+                     Me%ObjEnterData, iflag,                                &
+                     keyword      = 'DT_SPLIT_FACTOR',                      &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     Default      = 2.0,                                    &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadConvergenceParameters - ModuleRunOff - ERR120'        
+        if (Me%CV%DTSplitFactor <= 1.0) then
+            write (*,*)'Invalid DT Split Factor [DT_SPLIT_FACTOR]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR121")              
+        endif            
+
+        call GetData(dummy_real,                                                &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DT_FACTOR',                               &
+                     Default        = 1.25,                                     &
+                     ClientModule   ='ModuleRunOff',                            &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR130")             
+        if (dummy_real <= 1.0) then
+            write (*,*)'Invalid DT Factor [DT_FACTOR]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR131")              
+        endif            
+        
+        call GetData(Me%CV%DTFactorUp,                                          &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DT_FACTOR_UP',                            &
+                     Default        = dummy_real,                               &
+                     ClientModule   ='ModuleRunOff',                            &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR140")  
+        if (Me%CV%DTFactorUp <= 1.0) then
+            write (*,*)'Invalid DT Factor Up [DT_FACTOR_UP]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR141")              
+        endif                  
+                
+        call GetData(Me%CV%DTFactorDown,                                        &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DT_FACTOR_DOWN',                          &
+                     Default        = dummy_real,                               &
+                     ClientModule   ='ModuleRunOff',                            &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR150")  
+        if (Me%CV%DTFactorDown <= 1.0) then
+            write (*,*)'Invalid DT Factor Down [DT_FACTOR_DOWN]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR151")
+        endif                                           
+        
+        call GetData(Me%CV%CheckDecreaseOnly,                               &
+                     Me%ObjEnterData, iflag,                                &  
+                     keyword      = 'CHECK_DEC_ONLY',                       &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     Default      = .false.,                                &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR170")  
+ 
+        !Gets Maximum allowed Courant Number
+        call GetData(Me%CV%MaxCourant,                                      &
+                     Me%ObjEnterData, iflag,                                &  
+                     keyword      = 'MAX_COURANT',                          &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     Default      = 1.0,                                    &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR180")        
+        if (iflag > 0) then
+            Me%CV%LimitDTCourant = .true.
+        else
+            Me%CV%LimitDTCourant = .false.
+        endif
+        
+        !----------------------------------------------------------------------
+    
+    end subroutine ReadConvergenceParameters
+    
+    !--------------------------------------------------------------------------    
 
     subroutine CheckBoundaryCells
         
@@ -1499,7 +1768,7 @@ do4:            do di = -1, 1
     
     !--------------------------------------------------------------------------   
     
-    subroutine CountBasinPoints (percent)
+    subroutine CountDomainPoints (percent)
     
         !Arguments-------------------------------------------------------------
         real                                        :: percent
@@ -1523,9 +1792,9 @@ do4:            do di = -1, 1
         enddo
         enddo
         
-        Me%MinCellsToRestart = max(int(count * percent), 0)
+        Me%CV%MinToRestart = max(int(count * percent), 0)
     
-    end subroutine CountBasinPoints
+    end subroutine CountDomainPoints
     
     !-------------------------------------------------------------------------
 
@@ -2981,7 +3250,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            DT        = Me%NextDT
+            DT        = Me%CV%NextDT
 
             STAT_CALL = SUCCESS_
         else 
@@ -3153,7 +3422,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
         integer                                     :: STAT_CALL
-        real                                        :: LocalDT, SumDT
+        real                                        :: SumDT
         logical                                     :: Restart, ForceRestart
         integer                                     :: Niter, iter
         integer                                     :: n_restart
@@ -3186,23 +3455,26 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             
             Restart = .true.
             n_restart = 0
+            
+            if (Me%CV%NextNiteration > 1 .and. Me%ExtVar%DT < (Me%CV%CurrentDT * Me%CV%NextNiteration)) then
+                Me%CV%NextNiteration = max(aint(Me%ExtVar%DT / Me%CV%CurrentDT), 1.0)
+            endif            
+            
             do while (Restart)
-
-                Me%MaxVariation = 0.0
             
                 !Calculates local Watercolumn
                 call ReadLockExternalVar   (StaticOnly = .true.)
                 call LocalWaterColumn      (Me%myWaterColumnOld)
                 call ReadUnLockExternalVar (StaticOnly = .true.)
 
-                SumDT       = 0.0
-                Restart     = .false.                
-                Niter       = Me%NextNiter    !DB
-                iter        = 1
-                LocalDT     = Me%ExtVar%DT / Niter
+                SumDT        = 0.0
+                Restart      = .false.                                 
+                iter         = 1
+                Niter        = Me%CV%NextNiteration    !DB
+                Me%CV%CurrentDT = Me%ExtVar%DT / Niter
 
                 if (Niter > 1) then                
-                    call WriteDTLog_ML ('ModuleRunOff', Niter, LocalDT)
+                    call WriteDTLog_ML ('ModuleRunOff', Niter, Me%CV%CurrentDT)
                 endif
                 
                 call SetMatrixValue(Me%iFlowX, Me%Size, dble(0.0))
@@ -3225,7 +3497,7 @@ doIter:         do while (iter <= Niter)
 
                     !Inputs Water from discharges
                     if (Me%Discharges) then
-                        call ModifyWaterDischarges  (LocalDT)                
+                        call ModifyWaterDischarges  (Me%CV%CurrentDT)                
                     endif
 
                     !Updates Geometry
@@ -3243,54 +3515,48 @@ doIter:         do while (iter <= Niter)
                         case (DiffusionWave_)
                             call KinematicWave  ()            !Slope based on surface
                         case (DynamicWave_)
-                            call DynamicWaveXX    (LocalDT)   !Consider Advection, Friction and Pressure
-                            call DynamicWaveYY    (LocalDT)
+                            call DynamicWaveXX    (Me%CV%CurrentDT)   !Consider Advection, Friction and Pressure
+                            call DynamicWaveYY    (Me%CV%CurrentDT)
                     end select
 
                     
                     !Updates waterlevels, based on fluxes
-                    call UpdateWaterLevels(LocalDT)
+                    call UpdateWaterLevels(Me%CV%CurrentDT)
                     
                     !Interaction with channels
                     if (Me%ObjDrainageNetwork /= 0 .and. .not. Me%SimpleChannelInteraction) then
-                        call FlowIntoChannels       (LocalDT)
+                        call FlowIntoChannels       (Me%CV%CurrentDT)
                     endif
 
                     !Boundary Condition
 !                    if (Me%ImposeBoundaryValue) then
-!                        call ImposeBoundaryValue    (LocalDT)
+!                        call ImposeBoundaryValue    (Me%CV%CurrentDT)
 !                    endif
 
                     
-                    call CheckStability(Restart, Niter, ForceRestart) 
+                    call CheckStability(Restart) 
                     
                     call ReadUnLockExternalVar (StaticOnly = .false.)
                     
-                    if (ForceRestart) exit doIter
-                    
                     if (Restart) then
-                        n_restart = n_restart + 1
-                        if (n_restart > Me%MinCellsToRestart) then
-                            exit doIter
-                        endif
-                        Restart = .false.
+                        exit doIter
                     endif
 
-                    call IntegrateFlow     (LocalDT, SumDT)  
+                    call IntegrateFlow     (Me%CV%CurrentDT, SumDT)  
                         
-                    SumDT = SumDT + LocalDT
+                    SumDT = SumDT + Me%CV%CurrentDT
                     iter  = iter  + 1                                        
                     
                 enddo doIter
                                             
             enddo
             
-            !DB
-            if (Niter <= Me%LastGoodNiter) then
-                Me%NextNiter = max (min(int(Niter / Me%InternalTimeStepSplit), NIter - 1), 1)
-            else
-                Me%NextNiter = Niter
-            endif     
+!            !DB
+!            if (Niter <= Me%LastGoodNiter) then
+!                Me%CV%NextNiteration = max (min(int(Niter / Me%InternalTimeStepSplit), NIter - 1), 1)
+!            else
+!                Me%CV%NextNiteration = Niter
+!            endif     
             
             !save water column before removes from next processes
             !important for property transport if river cells get out of water, conc has to be computed
@@ -6315,31 +6581,30 @@ doIter:         do while (iter <= Niter)
     
     !--------------------------------------------------------------------------
 
-    subroutine CheckStability (Restart, Niter, ForceRestart)
+    subroutine CheckStability (Restart)
 
         !Arguments-------------------------------------------------------------
-        logical                                     :: Restart, ForceRestart
-        integer                                     :: Niter
+        logical                                     :: Restart
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j
-        real                                        :: variation
-        logical                                     :: negativeVolumeFound
+        integer                                     :: i, j, n_restart
+        real                                        :: variation        
 
         !Begin-----------------------------------------------------------------
 
-        Restart             = .false.
-        ForceRestart        = .false.
-        negativeVolumeFound = .false.
+        n_restart = 0
+        Restart = .false.
         
         !Verifies negative volumes
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-                if (Me%myWaterVolume (i, j) < -1.0 * AllmostZero) then   
-                    Restart             = .true.
-                    negativeVolumeFound = .true. 
-                    ForceRestart        = .true.                   
+                if (Me%myWaterVolume(i, j) < -AllmostZero) then
+!                    write(*,*) '-----'
+!                    write(*,*) 'OldVolume ', Me%myWaterVolumeOld(i, j)
+!                    write(*,*) 'Negative Volume - Me%myWaterVolume (', i, ', ', j, ') =', Me%myWaterVolume (i, j)
+!                    write(*,*) '-----'
+                    Restart = .true.                 
                     exit do1
                 else if (Me%myWaterVolume (i, j) < 0.0) then  
                     Me%myWaterVolume (i, j) = 0.0                 
@@ -6348,50 +6613,42 @@ do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         enddo
         enddo do1
         
-        if (.not. Restart) then
-            !Verifies stabilize criteria
-            if (Me%Stabilize) then
-do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                
-                    if (Me%StabilityPoints(i, j) == BasinPoint) then
-                
-                        if ((.not. Me%CheckDecreaseOnly) .or. (Me%myWaterVolumeOld(i, j) > Me%myWaterVolume(i, j))) then
-                            if (Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j) > Me%MinimumWaterColumnStabilize) then
-                                
-                                variation = abs(Me%myWaterVolume(i, j) - Me%myWaterVolumeOld(i, j)) / Me%myWaterVolumeOld(i, j)
-                                
-                                if (variation > Me%MaxVariation) Me%MaxVariation = variation
-                                
-                                if (variation > Me%StabilizeFactor) then
+        if ((.not. Restart) .and. Me%CV%Stabilize) then
+do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                if (Me%StabilityPoints(i, j) == BasinPoint) then
+            
+                    if ((.not. Me%CV%CheckDecreaseOnly) .or. (Me%myWaterVolumeOld(i, j) > Me%myWaterVolume(i, j))) then
+                        if (Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j) >= Me%CV%MinimumValueToStabilize) then
+                            
+                            variation = abs(Me%myWaterVolume(i, j) - Me%myWaterVolumeOld(i, j)) / Me%myWaterVolumeOld(i, j)
+                            
+                            if (variation > Me%CV%StabilizeFactor) then
+                                !write(*,*) 'Variation (', variation, ') > Me%CV%StabilizeFactor (', Me%CV%StabilizeFactor, ') - Me%myWaterVolume (', i, ', ', j, ') = ', Me%myWaterVolume (i, j)
+                                n_restart = n_restart + 1
+                                if (n_restart > Me%CV%MinToRestart) then
+                                    !write(*,*) 'n_restart (', n_restart, ') > Me%CV%MinToRestart (', Me%CV%MinToRestart, ')' 
                                     Restart = .true.
                                     exit do2
-                                endif
+                                endif                                 
                             endif
                         endif
                     endif
-                enddo
-                enddo do2
-            endif
-         endif
+                endif
+            enddo
+            enddo do2              
+                        
+        endif
         
         if (Restart) then        
-            Me%NextNiter = max(int(Me%NextNiter * Me%InternalTimeStepSplit), Me%NextNiter + 1)
+            Me%CV%NextNiteration = max(int(Me%CV%NextNiteration * Me%CV%DTSplitFactor), Me%CV%NextNiteration + 1)
                  
-            if (Me%NextNiter >= Me%MaxIterations) then
-                 write(*,*)'Number of iterations above maximum: ', Me%NextNiter
-                 if (negativeVolumeFound) then
-                    write(*,*)'Negative volume found.'
-                 endif
-                 write(*,*)'Cell(', i, ',', j, ')'
-                 write(*,*)'Old Volume: ', Me%myWaterVolumeOld(i, j)
-                 write(*,*)'New Volume: ', Me%myWaterVolume(i, j)
-                 write(*,*)'Check configurations [MAX_ITERATIONS]'
-                 stop 'CheckStability - ModuleRunoff - ERR01'
-            endif 
-                         
-        endif   
-        
+            if (Me%CV%NextNiteration >= Me%CV%MaxIterations) then
+                 write(*,*)'Number of iterations above maximum: ', Me%CV%NextNiteration
+                 stop 'CheckStability - ModuleRunoff - ERR010'
+            endif                          
+        endif           
         
     end subroutine CheckStability
  
@@ -6781,10 +7038,10 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
     
     !--------------------------------------------------------------------------
     
-    subroutine ComputeNextDT (iter)
+    subroutine ComputeNextDT (Niter)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: iter
+        integer                                     :: Niter        
         
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, STAT_CALL
@@ -6792,15 +7049,16 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         real                                        :: nextDTCourant, aux
         real                                        :: nextDTVariation, MaxDT
         logical                                     :: VariableDT
-        real                                        :: vel, dist
+        real                                        :: vel, dist, currentDT
+        
 
         !----------------------------------------------------------------------
 
         call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleRunOff -  ERR00'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleRunOff -  ERR010'
 
         call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleRunOff -  ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleRunOff -  ERR020'
 
         nextDTCourant   = -null_real
         nextDTVariation = -null_real
@@ -6812,7 +7070,7 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             JLB = Me%WorkSize%JLB
             JUB = Me%WorkSize%JUB
             
-            if (Me%LimitDTCourant) then
+            if (Me%CV%LimitDTCourant) then
                         
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -6825,7 +7083,7 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                         
                             !spatial step, in case of dx = dy, dist = sqrt(2) * dx
                             dist = sqrt ((Me%ExtVar%DZX(i, j)**2) + (Me%ExtVar%DZY(i, j)**2))
-                            aux = dist * Me%MaxCourant / vel 
+                            aux = dist * Me%CV%MaxCourant / vel 
                         
                             nextDTCourant = min(nextDTCourant, aux)
                             
@@ -6838,32 +7096,63 @@ do2:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 
             endif
             
-            if (Me%NextNiter == 1) then
-                nextDTVariation = Me%ExtVar%DT * Me%DTFactorUp
-            elseif (Me%NextNIter <= Me%MinIterations) then
-                if (Me%NextNiter <= Me%LastGoodNiter) then
-                    nextDTVariation = Me%ExtVar%DT * &
-                                      LinearInterpolation(1.0, 1.0, real(Me%MinIterations), Me%DTFactorUp, real(Me%NextNIter))
-                else
+            if (Niter == 1) then
+            
+                nextDTVariation = Me%ExtVar%DT * Me%CV%DTFactorUp
+                Me%CV%NextNiteration = Niter
+                
+            elseif (Niter <= Me%CV%MinIterations) then                            
+            
+                if (Niter > Me%CV%LastGoodNiteration) then
+
                     nextDTVariation = Me%ExtVar%DT
+                    Me%CV%NextNiteration = Niter
+
+                else
+                
+                    nextDTVariation = Me%ExtVar%DT * Me%CV%DTFactorUp
+                    Me%CV%NextNiteration = Niter
+
                 endif
+                
             else
-                if (Me%NextNiter <= Me%LastGoodNiter) then
-                    nextDTVariation = Me%ExtVar%DT
+            
+                if (Niter >= Me%CV%StabilizeHardCutLimit) then
+                
+                    nextDTVariation = (Me%ExtVar%DT / Niter) * Me%CV%MinIterations
+                    Me%CV%NextNiteration = Me%CV%MinIterations
+                    
+                elseif (Niter > Me%CV%LastGoodNiteration) then
+                
+                    nextDTVariation = Me%ExtVar%DT / Me%CV%DTFactorDown
+                    Me%CV%NextNiteration = max(int(nextDTVariation / Me%CV%CurrentDT), 1)
+                    
                 else
-                    nextDTVariation = Me%ExtVar%DT / Me%DTFactorDown
-                endif                
-            endif             
+                
+                    nextDTVariation = Me%ExtVar%DT
+                    Me%CV%NextNiteration = max(min(int(Niter / Me%CV%DTSplitFactor), Niter - 1), 1)
+                    
+                endif 
+                               
+            endif
+            
+            CurrentDT = nextDTVariation / Me%CV%NextNiteration                                     
                       
-            Me%NextDT = min(min(nextDTVariation, nextDTCourant), MaxDT)
+            Me%CV%NextDT = min(min(nextDTVariation, nextDTCourant), MaxDT)
+            
+            if (Me%CV%NextDT < nextDTVariation) then                
+                Me%CV%NextNiteration = max(int(Me%CV%NextDT/CurrentDT), 1)
+            endif
                        
         else
         
-            Me%NextDT = Me%ExtVar%DT            
+            Me%CV%NextDT = Me%ExtVar%DT
+            Me%CV%NextNiteration = Niter            
         
         endif
         
-        Me%LastGoodNiter = iter
+        Me%CV%LastGoodNiteration = Niter
+        Me%CV%CurrentDT          = Me%CV%NextDT / Me%CV%NextNiteration
     
     end subroutine ComputeNextDT
 

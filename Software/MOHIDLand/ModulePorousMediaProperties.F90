@@ -8818,6 +8818,9 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         if (Me%ExtVar%BoundaryImposedBottom) then
 
+            call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyBoundaryCoefs - ModulePorousMediaProperties - ERR005'
+
             call GetGeometryKFloor(Me%ObjGeometry,                                          &
                                    Z    = Me%ExtVar%KFloor,                                 &
                                    STAT = STAT_CALL)
@@ -8832,19 +8835,23 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-                K = Me%ExtVar%KFloor(i,j)
+                if (Me%ExtVar%BasinPoints (i,j) == 1) then
                 
-                if ((Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint)) then
+                    K = Me%ExtVar%KFloor(i,j)
                     
-                    !Auxuliar value for transport - units of flow^-1
-                    !s/m3
-                    aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
-                    
-                    ! Is always negative flow -> losses mass
-                    Me%COEFExpl%CoefInterfBoundaryBottom(i,j,k) = aux * Me%ExtVar%BoundaryFluxBottom(i,j)
-                    
-                    !it does not need concentration definiton. it is always negative so removes what is in soil
-                                      
+                    if ((Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint)) then
+                        
+                        !Auxuliar value for transport - units of flow^-1
+                        !s/m3
+                        aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
+                        
+                        ! Is always negative flow -> losses mass
+                        Me%COEFExpl%CoefInterfBoundaryBottom(i,j,k) = aux * Me%ExtVar%BoundaryFluxBottom(i,j)
+                        
+                        !it does not need concentration definiton. it is always negative so removes what is in soil
+                                          
+                    endif
+                
                 endif
                 
             enddo
@@ -8855,6 +8862,9 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             call UnGetGeometry( Me%ObjGeometry, Me%ExtVar%KFloor,       STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
                 call SetError(FATAL_, INTERNAL_, "ModifyBoundaryCoefs; ModulePorousMediaProperties. ERR20")
+        
+            call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyBoundaryCoefs - ModulePorousMediaProperties - ERR030'         
         
         endif
 

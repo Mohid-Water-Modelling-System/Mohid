@@ -651,7 +651,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ExtVar%CoupledVegetation      = CoupledVegetation
             Me%ExtVar%VegParticFertilization = VegParticFertilization
             Me%ExtVar%Pesticide              = Pesticide
-            
+
             call CheckBoundary
 
             call ReadFileNames
@@ -831,7 +831,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine VerifyOptions
     
     !--------------------------------------------------------------------------
-
     subroutine CheckBoundary
 
         !Arguments-------------------------------------------------------------

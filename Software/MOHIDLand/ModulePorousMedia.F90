@@ -182,7 +182,8 @@ Module ModulePorousMedia
     private ::          SoilWaterVelocity
     private ::          SoilParameters
     private ::          VerticalContinuity
-    private ::          variation_test
+    private ::          CheckStability
+    private ::          ComputeNextDT
 !    private ::      ExchangeWithDrainageNetwork
     private ::      PorousMediaOutput
     private ::          OutPutTimeSeries
@@ -431,25 +432,30 @@ Module ModulePorousMedia
     end type T_Retention
 
     type T_Converge
-        integer      :: MinIter             = null_int
-        integer      :: MaxIter             = null_int
-        integer      :: IterStep            = null_int
-        integer      :: LimitIter           = null_int
-        real         :: ThetaTolerance      = null_real
-        real         :: IncreaseDT          = null_real
-        real         :: DecreaseDT          = null_real
-        real         :: PredictedDT         = null_real 
-        real         :: CurrentDT           = null_real 
-        real         :: MinDT               = null_real
-        real         :: LimitThetaLo        = null_real
-        real         :: LimitThetaHi        = null_real
-        real         :: LimitThetaHiGWTable = null_real
-        real         :: ThetaHydroCoef      = null_real
-        real         :: VelHydroCoef        = null_real
-
-        real,    allocatable, dimension(:,:,:) :: ThetaOld   
-        real,    allocatable, dimension(:,:,:) :: ThetaIni   
-        real,    allocatable, dimension(:,:,:) :: HeadIni    
+        integer                                     :: MinIterations           = 1               
+        integer                                     :: MaxIterations           = 1024
+        logical                                     :: Stabilize               = .true.
+        real                                        :: StabilizeFactor         = 0.01        
+        real                                        :: DTFactorUp              = 1.25
+        real                                        :: DTFactorDown            = 1.25
+        real                                        :: StabilizeHardCutLimit   = 128
+        real                                        :: DTSplitFactor           = 2.0               
+        real                                        :: CurrentDT               = null_real  
+        real                                        :: NextDT                  = null_real
+        integer                                     :: LastGoodNiteration      = 1
+        integer                                     :: NextNiteration          = 1               
+        real                                        :: LimitThetaLo            = 1.0e-15
+        real                                        :: LimitThetaHi            = 1.0e-15
+        real                                        :: LimitThetaHiGWTable     = 0.9995
+        real                                        :: ThetaHydroCoef          = 0.98
+        real                                        :: VelHydroCoef            = 1.0
+        logical                                     :: CheckDecreaseOnly       = .false.
+        real                                        :: MinimumValueToStabilize = 0.1  
+        integer                                     :: MinToRestart            = 0
+        
+        real,    allocatable, dimension(:,:,:)      :: ThetaOld   
+        real,    allocatable, dimension(:,:,:)      :: ThetaIni   
+        real,    allocatable, dimension(:,:,:)      :: HeadIni    
     end type T_Converge
     
     type       T_PorousMedia        
@@ -550,10 +556,6 @@ Module ModulePorousMedia
         type (T_Retention       )               :: RC           !retention curve
         type (T_Converge        )               :: CV           !Converge data 
 
-        !Options
-        real                                    :: NextDT                  = null_real
-        integer                                 :: LastGoodNiteration      = 1
-        integer                                 :: NextNiteration          = 1
         !Unsaturated Options
         type (T_SoilOptions )                   :: SoilOpt
 
@@ -692,6 +694,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Build 3D domain
             call VerticalDiscretization
             
+            call ReadConvergenceParameters
+            
             !After 3D build send to ModuleBasin IDs to be associated with ModulePorousMediaProperties and 
             !ModuleVegetation
             GeometryID = Me%ObjGeometry
@@ -740,7 +744,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Set initial time steps
             Me%CV%CurrentDT   = Me%ExtVar%DT
-            Me%CV%PredictedDT = Me%ExtVar%DT
 
             !Calculate initial heads
             call SoilParameters
@@ -933,7 +936,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Constructs the DataFile
         call ConstructEnterData (Me%ObjEnterData, Me%Files%DataFile, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR050'
-
+        
         call GetData(Me%SoilOpt%WriteLog,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
@@ -1067,7 +1070,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default      = .true.,                                             &
                      ClientModule = 'ModulePorousMedia',                                &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleBasin - ERR180'
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModulePorousMedia - ERR180'
 
         !Output for surface output
         call GetOutPutTime(Me%ObjEnterData,                                             &
@@ -1078,13 +1081,13 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                            OutPutsTime  = Me%OutPut%SurfaceOutTime,                     &
                            OutPutsOn    = Me%OutPut%SurfaceOutput,                      &
                            STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR190'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR190'
 
         !Checks consistency
         if (Me%OutPut%Yes .and. Me%OutPut%SurfaceOutput) then
             write(*,*)'Only normal output or 2D output can be active'
             write(*,*)'OUTPUT_TIME or SURFACE_OUTPUT_TIME'
-            stop 'ReadDataFile - ModuleBasin - ERR200'
+            stop 'ReadDataFile - ModulePorousMedia - ERR200'
         endif
 
         !Directional Options---------------------------------------------------        
@@ -1096,7 +1099,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default        =.TRUE.,                                    &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR210'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR210'
 
 
         call GetData(Me%SoilOpt%CalcDrainageNetworkFlux,                        &
@@ -1106,7 +1109,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default        =.TRUE.,                                    &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR220'
        
         ! 1 - AVERAGE of the conductivity in the cells
         ! 2 - MAXIMUM of the conductivity in the cells
@@ -1121,7 +1124,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default        = 1    ,                                    &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR220'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR230'
 
 
         call GetData(Me%SoilOpt%HCondFactor,                                    &
@@ -1131,7 +1134,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default        = 1.0,                                      &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR230'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR240'
 
         call GetData(Me%SoilOpt%FCHCondFactor,                                  &
                      Me%ObjEnterData, iflag,                                    &
@@ -1140,7 +1143,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default        = Me%SoilOpt%HCondFactor,                   &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR231'                
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR250'                
         
         call GetData(Me%SoilOpt%LimitEVAPWaterVelocity,                         &
                      Me%ObjEnterData, iflag,                                    &
@@ -1149,7 +1152,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = .false.,                                      &                                           
                      ClientModule ='ModulePorousMedia',                         &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR240'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR260'
 
         call GetData(Me%SoilOpt%DNLink,                                         &
                      Me%ObjEnterData, iflag,                                    &
@@ -1158,12 +1161,12 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = GWFlowToChanByCell_,                          &                                           
                      ClientModule ='ModulePorousMedia',                         &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'GetSoilOptions - ModulePorousMedia - ERR250'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR270'
         
         if ((Me%SoilOpt%DNLink /= GWFlowToChanByLayer_) .and. (Me%SoilOpt%DNLink /= GWFlowToChanByCell_)) then
             write(*,*)' DN_LINK uncorrectly defined - 2 for GW flow to drainage network by layers '
             write(*,*)' and 1 for GW flow for each cell'
-            stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR260'
+            stop 'ReadDataFile - ModulePorousMedia - ERR271'
         endif
         
         call GetData(Me%SoilOpt%ComputeHydroPressure,                           &
@@ -1173,7 +1176,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = .true.,                                       &                                           
                      ClientModule ='ModulePorousMedia',                         &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR270'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR280'
         
         !Impose boundary saturated levels in walls
         call GetData(Me%SoilOpt%ImposeBoundaryWalls,                            &
@@ -1183,7 +1186,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = .false.,                                      & 
                      ClientModule ='ModulePorousMedia',                         &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR271'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR290'
         
         if (Me%SoilOpt%ImposeBoundaryWalls) then
             
@@ -1195,11 +1198,11 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                          ClientModule = 'ModulePorousMedia',                    &
                          SearchType   = FromFile,                               &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR272'        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR291'        
 
             if (iflag == 0) then
                 write(*,*)'MAX_DTM_FOR_BOUNDARY must be defined in module PorousMedia'
-                stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR0273'
+                stop 'ReadDataFile - ModulePorousMedia - ERR0292'
             endif
             
             !Moved to after checking if piezometers exist
@@ -1226,7 +1229,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = .false.,                                      & 
                      ClientModule ='ModulePorousMedia',                         &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR274'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR293'
         
         if (Me%SoilOpt%ImposeBoundaryBottom) then
             
@@ -1239,7 +1242,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                          ClientModule = 'ModulePorousMedia',                    &
                          SearchType   = FromFile,                               &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR275'        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR294'        
 
             call GetData(Me%Boundary%ImposeBoundaryBottomCondition,             &
                          Me%ObjEnterData, iflag,                                &  
@@ -1248,11 +1251,11 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                          ClientModule = 'ModulePorousMedia',                    &
                          SearchType   = FromFile,                               &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR276'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR295'
             
             if (Me%Boundary%ImposeBoundaryBottomCondition /= NullGradient_) then
                 write(*,*)'IMPOSE_BOUNDARY_BOTTOM_CONDITION for now can only be 1 (NullGradient)'
-                stop 'ReadDataFile - ModulePorousMedia - ERR0277'
+                stop 'ReadDataFile - ModulePorousMedia - ERR0296'
             endif
             
         endif
@@ -1265,75 +1268,129 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      SearchType   = FromFile,                               &
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR277'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR300'
 
-        !Number of iterations below which the DT is increased
-        call GetData(Me%CV%MinIter,                                             &
+        !Conductivity used for infiltration - for tests only - by default nothing changes
+        call GetData(Me%SoilOpt%InfiltrationConductivity,                       &
                      Me%ObjEnterData, iflag,                                    &
+                     SearchType = FromFile,                                     &
+                     keyword    = 'INFIL_CONDUCTIVITY',                         &
+                     Default    = SatCond_,                                     &                                           
+                     ClientModule ='ModulePorousMedia',                         &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR310'
+        
+        if ((Me%SoilOpt%InfiltrationConductivity .ne. SatCond_) .and.            &
+            (Me%SoilOpt%InfiltrationConductivity .ne. UnSatCond_)) then
+
+            write(*,*)
+            write(*,*)'Method not known for infiltration conductivity'
+            write(*,*)'Please check INFIL_CONDUCTIVITY keyword'
+            stop 'ReadDataFile - ModulePorousMedia - ERR3210'
+        
+        endif
+    
+    end subroutine ReadDataFile
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine ReadConvergenceParameters
+    
+        !Local-----------------------------------------------------------------        
+        integer                                     :: STAT_CALL,               &
+                                                       iflag,                   &
+                                                       MIN_ITER_flag,           &
+                                                       MAX_ITER_flag,           &
+                                                       LIMIT_ITER_flag,         &
+                                                       THETA_TOLERANCE_flag,    &
+                                                       INCREASE_DT_flag,        &
+                                                       DECREASE_DT_flag    
+                                                            
+        real                                        :: dummy_real
+        integer                                     :: dummy_int
+        
+        !----------------------------------------------------------------------    
+        
+        !----------------------------------------------------------------------
+        !Find deprecated keywords in data file
+        !----------------------------------------------------------------------
+        call GetData(dummy_int,                                                 &
+                     Me%ObjEnterData, MIN_ITER_flag,                            &
                      SearchType     = FromFile,                                 &
                      keyword        ='MIN_ITER',                                &
-                     Default        = 2,                                        &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR280")
-        if (Me%CV%MinIter < 1)                                                  &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR281")             
-
-        !Number of iterations above which the DT is decreased
-        call GetData(Me%CV%MaxIter,                                             &
-                     Me%ObjEnterData, iflag,                                    &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR010")
+        call GetData(dummy_int,                                                 &
+                     Me%ObjEnterData, MAX_ITER_flag,                            &
                      SearchType     = FromFile,                                 &
                      keyword        ='MAX_ITER',                                &
-                     Default        = 5,                                        &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR290") 
-
-        !Limit number of iteractions (when it is reached current dt is devided 
-        !by 3 and the iteration starts from the begining
-!        call GetData(Me%CV%IterStep,                                            &
-!                     Me%ObjEnterData, iflag,                                    &
-!                     SearchType     = FromFile,                                 &
-!                     keyword        ='ITER_STEP',                               &
-!                     Default        = 1,                                        &
-!                     ClientModule   ='ModulePorousMedia',                       &
-!                     STAT           = STAT_CALL)             
-!        if (STAT_CALL /= SUCCESS_)                                              &
-!            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR300") 
-
-        call GetData(Me%CV%LimitIter,                                           &
-                     Me%ObjEnterData, iflag,                                    &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR020")
+        call GetData(dummy_int,                                                 &
+                     Me%ObjEnterData, LIMIT_ITER_flag,                          &
                      SearchType     = FromFile,                                 &
                      keyword        ='LIMIT_ITER',                              &
-                     Default        = 50,                                       &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR310") 
-
-
-
-        !Maximum diference allowed between THETA of each iteration
-        call GetData(Me%CV%ThetaTolerance,                                      &
-                     Me%ObjEnterData, iflag,                                    &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR030")
+        call GetData(dummy_real,                                                &
+                     Me%ObjEnterData, THETA_TOLERANCE_flag,                     &
                      SearchType     = FromFile,                                 &
                      keyword        ='THETA_TOLERANCE',                         &
-                     !Default        = 0.001,                                    &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR320")         
-        if (iflag > 0) then
-            write(*,*) 'THETA_TOLERANCE is deprecated. Use STABILIZE_FACTOR instead.'
-            write(*,*) 'The value should be between 0.0 and 1.0.'
-            write(*,*) 'Default value is 0.1'
-            write(*,*) "It's the alowed % of volume change to converge"
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR321") 
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR040")
+        call GetData(dummy_real,                                                &
+                     Me%ObjEnterData, INCREASE_DT_flag,                         &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='INCREASE_DT',                             &
+                     ClientModule   ='ModulePorousMedia',                       &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR050")
+        call GetData(dummy_real,                                                &
+                     Me%ObjEnterData, DECREASE_DT_flag,                         &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DECREASE_DT',                             &
+                     ClientModule   ='ModulePorousMedia',                       &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR060")
+
+        if (MIN_ITER_flag > 0 .or. MAX_ITER_flag > 0 .or. LIMIT_ITER_flag > 0 .or. &
+            THETA_TOLERANCE_flag > 0 .or. INCREASE_DT_flag > 0 .or. DECREASE_DT_flag > 0) then
+            
+            write (*,*) '======================================================================='
+            write (*,*) 'The following deprecated keywords were found in Porous Media data file:'
+            write (*,*) ''
+            
+            if (MIN_ITER_flag > 0) &
+                write(*,*) 'MIN_ITER       : Use MIN_ITERATIONS instead.'
+            if (MAX_ITER_flag > 0) &
+                write(*,*) 'MAX_ITER'
+            if (LIMIT_ITER_flag > 0) &
+                write(*,*) 'LIMIT_ITER     : Use MAX_ITERATIONS instead.'            
+            if (THETA_TOLERANCE_flag > 0) &
+                write(*,*) 'THETA_TOLERANCE: Use STABILIZE_FACTOR instead.'
+            if (INCREASE_DT_flag > 0) &
+                write(*,*) 'INCREASE_DT    : Use DT_FACTOR_UP instead.'
+            if (DECREASE_DT_flag > 0) &
+                write(*,*) 'DECREASE_DT    : Use DT_FACTOR_DOWN instead.'  
+                
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR070")                              
         endif
-         
-        call GetData(Me%CV%ThetaTolerance,                                      &
+
+        !----------------------------------------------------------------------
+        !Read convergence options
+        !----------------------------------------------------------------------        
+        !Maximun change of water content (in %) allowed in one time step.
+        call GetData(Me%CV%StabilizeFactor,                                     &
                      Me%ObjEnterData, iflag,                                    &  
                      keyword      = 'STABILIZE_FACTOR',                         &
                      ClientModule = 'ModulePorousMedia',                        &
@@ -1341,35 +1398,139 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default      = 0.1,                                        &
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) & 
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR322") 
-        if (Me%CV%ThetaTolerance < 0 .or. Me%CV%ThetaTolerance > 1.0) &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR323") 
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR080")
+        if (iflag > 0) then 
+            Me%CV%Stabilize = .true.
+            if (Me%CV%StabilizeFactor < 0.0 .or. Me%CV%StabilizeFactor > 1.0) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR081")
+                
+            call GetData(Me%CV%MinimumValueToStabilize,                     &
+                         Me%ObjEnterData, iflag,                            &
+                         SearchType   = FromFile,                           &
+                         keyword      = 'STABILIZE_MIN_FACTOR',             &
+                         default      = 0.0,                                &
+                         ClientModule = 'ModulePorousMedia',                &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModulePorousMedia - ERR082")
+            if (Me%CV%MinimumValueToStabilize < 0.0) then
+                write (*,*)'Invalid Minimun to Stabilize value [STABILIZE_MIN_FACTOR]'
+                write (*,*)'Value must be >= 0'            
+                call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModulePorousMedia - ERR083")
+            endif                 
+        else
+            Me%CV%Stabilize = .false.
+        endif        
 
-
-        !Increase factor of currentDT when the number of iterations is smaller
-        !then MinIter (lower time step multiplication factor)
-        call GetData(Me%CV%IncreaseDT,                                          &
+       !Number of iterations threshold for starting to ask for a lower DT 
+        call GetData(Me%CV%MinIterations,                                       &
                      Me%ObjEnterData, iflag,                                    &
                      SearchType     = FromFile,                                 &
-                     keyword        ='INCREASE_DT',                             &
-                     Default        = 1.20,                                     &
+                     keyword        ='MIN_ITERATIONS',                          &
+                     Default        = 1,                                        &
+                     ClientModule   ='ModulePorousMedia',                       &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR090")
+        if (Me%CV%MinIterations < 1) then
+            write (*,*)'Invalid Minimun Iterations value [MIN_ITERATIONS]'
+            write (*,*)'Value must be greater than 0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR091")
+        endif                                 
+
+        !Number of iterations threshold that causes the model to stop
+        call GetData(Me%CV%MaxIterations,                                       &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='MAX_ITERATIONS',                          &
+                     Default        = 1024,                                     &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR330") 
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR100")
+        if (Me%CV%MaxIterations < Me%CV%MinIterations) then
+            write (*,*)'Invalid Maximun Iterations value [MAX_ITERATIONS]'
+            write (*,*)'Value must be greater than the value of MIN_ITERATIONS'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR101")              
+        endif
+                            
+        !% of the maximun iterations that causes the DT to be cut to the value of one internal time step
+        call GetData(dummy_real,                                        &
+                     Me%ObjEnterData, iflag,                            &
+                     SearchType   = FromFile,                           &
+                     keyword      = 'DT_CUT_FACTOR',                    &
+                     default      = 0.1,                                &
+                     ClientModule = 'ModulePorousMedia',                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR110") 
+        if (dummy_real <= 0.0 .or. dummy_real > 1.0) then
+            write (*,*)'Invalid DT Cut Factor [DT_CUT_FACTOR]'
+            write (*,*)'Value must be >= 0.0 and < 1.0'        
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR111") 
+        endif
+        Me%CV%StabilizeHardCutLimit = dummy_real * Me%CV%MaxIterations
+        
+       !Internal Time Step Split
+        call GetData(Me%CV%DTSplitFactor,                                   &
+                     Me%ObjEnterData, iflag,                                &
+                     keyword      = 'DT_SPLIT_FACTOR',                      &
+                     ClientModule = 'ModulePorousMedia',                    &
+                     SearchType   = FromFile,                               &
+                     Default      = 2.0,                                    &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadConvergenceParameters - ModulePorousMedia - ERR120'        
+        if (Me%CV%DTSplitFactor <= 1.0) then
+            write (*,*)'Invalid DT Split Factor [DT_SPLIT_FACTOR]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR121")              
+        endif            
 
-        !Increase factor of currentDT when the number of iterations is smaller
-        !then MinIter (upper time step multiplication factor)
-        call GetData(Me%CV%DecreaseDT,                                          &
+        call GetData(dummy_real,                                                &
                      Me%ObjEnterData, iflag,                                    &
                      SearchType     = FromFile,                                 &
-                     keyword        ='DECREASE_DT',                             &
-                     Default        = 0.7,                                      &
+                     keyword        ='DT_FACTOR',                               &
+                     Default        = 1.25,                                     &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR340") 
-
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR130")             
+        if (dummy_real <= 1.0) then
+            write (*,*)'Invalid DT Factor [DT_FACTOR]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR131")              
+        endif            
+        
+        call GetData(Me%CV%DTFactorUp,                                          &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DT_FACTOR_UP',                            &
+                     Default        = dummy_real,                               &
+                     ClientModule   ='ModulePorousMedia',                       &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR140")  
+        if (Me%CV%DTFactorUp <= 1.0) then
+            write (*,*)'Invalid DT Factor Up [DT_FACTOR_UP]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR141")              
+        endif                  
+                
+        call GetData(Me%CV%DTFactorDown,                                        &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DT_FACTOR_DOWN',                          &
+                     Default        = dummy_real,                               &
+                     ClientModule   ='ModulePorousMedia',                       &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR150")  
+        if (Me%CV%DTFactorDown <= 1.0) then
+            write (*,*)'Invalid DT Factor Down [DT_FACTOR_DOWN]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR151")
+        endif                     
+                
         ! This value says how near the ThetaR the calculation is disconected. 
         ! Disables calculation when Theta is near ThetaR
         call GetData(Me%CV%LimitThetaLo,                                        &
@@ -1380,7 +1541,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR350") 
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR160") 
       
         ! This value says when Theta is converted to ThetaS
         ! Set Theta = ThetaS
@@ -1392,7 +1553,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR360") 
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR170") 
         
         !avoid instabilities in searching for saturated water table. using low values as 1e-15 
         !usually causes variations in water table depth of order of meters from iteration to another
@@ -1405,7 +1566,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR370") 
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR180") 
             
         ! This value says from which thetaS hydrostatic pressure is to be consider
         ! Set Theta = ThetaS
@@ -1417,9 +1578,9 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR380") 
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR190") 
 
-        call GetData(Me%CV%VelHydroCoef,                                      &
+        call GetData(Me%CV%VelHydroCoef,                                        &
                      Me%ObjEnterData, iflag,                                    &
                      SearchType     = FromFile,                                 &
                      keyword        ='VEL_HYDRO_COEF',                          &
@@ -1427,31 +1588,72 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR390") 
-
-        !Conductivity used for infiltration - for tests only - by default nothing changes
-        call GetData(Me%SoilOpt%InfiltrationConductivity,                       &
-                     Me%ObjEnterData, iflag,                                    &
-                     SearchType = FromFile,                                     &
-                     keyword    = 'INFIL_CONDUCTIVITY',                         &
-                     Default    = SatCond_,                                     &                                           
-                     ClientModule ='ModulePorousMedia',                         &
-                     STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'GetSoilOptions - ModulePorousMedia - ERR400'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR200")  
+            
+        call GetData(Me%CV%CheckDecreaseOnly,                                   &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'CHECK_DEC_ONLY',                           &
+                     ClientModule = 'ModulePorousMedia',                        &
+                     SearchType   = FromFile,                                   &
+                     Default      = .false.,                                    &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR210")   
+            
+        call GetData(dummy_real,                                            &
+                     Me%ObjEnterData, iflag,                                &  
+                     keyword      = 'STABILIZE_RESTART_FACTOR',             &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     Default      = 0.,                                     &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR220")
+        if (dummy_real <= 0.) then
+            Me%CV%MinToRestart = 0
+        else
+            call CountDomainPoints(dummy_real)
+        endif                                                           
         
-        if ((Me%SoilOpt%InfiltrationConductivity .ne. SatCond_) .and.            &
-            (Me%SoilOpt%InfiltrationConductivity .ne. UnSatCond_)) then
-
-            write(*,*)
-            write(*,*)'Method not known for infiltration conductivity'
-            write(*,*)'Please check INFIL_CONDUCTIVITY keyword'
-            stop 'ReadDataFile - ModulePorousMedia - ERR410'
-        
-        endif
+        !----------------------------------------------------------------------
     
-    end subroutine ReadDataFile
+    end subroutine ReadConvergenceParameters
     
     !--------------------------------------------------------------------------
+    
+    subroutine CountDomainPoints (percent)
+    
+        !Arguments-------------------------------------------------------------
+        real                                        :: percent
+        
+        !Local----------------------------------------------------------------- 
+        integer                                     :: i, j, k
+        integer                                     :: count
+        
+        !Begin-----------------------------------------------------------------       
+                
+        count = 0
+        
+        !Initializes Water Column
+        do j = Me%Size%JLB, Me%Size%JUB
+        do i = Me%Size%ILB, Me%Size%IUB
+
+            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+            
+                do k = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB - 1            
+                    count = count + 1
+                enddo 
+                
+            endif
+
+        enddo
+        enddo
+        
+        Me%CV%MinToRestart = max(int(count * percent), 0)
+    
+    end subroutine CountDomainPoints
+    
+    !-------------------------------------------------------------------------    
 
     subroutine ReadInitialSoilFile
 
@@ -3617,7 +3819,7 @@ i1:         if (CoordON) then
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            DT        = Me%NextDT
+            DT        = Me%CV%NextDT
 
             STAT_CALL = SUCCESS_
         else 
@@ -5234,7 +5436,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real(8), dimension(:,:), pointer            :: InfiltrationColumn
         
         !Local-----------------------------------------------------------------
-        logical                                     :: StrongVariation
+        logical                                     :: Restart
         integer                                     :: Niteration, iteration
         real                                        :: SumDT
         real                                        :: Zero = 0.0
@@ -5247,20 +5449,24 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         call SetMatrixValue (Me%WaterColumn,      Me%Size2D, InfiltrationColumn,Me%ExtVar%BasinPoints)
 
         !Time Integrated Values
-        call SetMatrixValue (Me%Infiltration,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
-        call SetMatrixValue (Me%EfectiveEVTP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
-        call SetMatrixValueAllocatable (Me%iFlowToChannels,  Me%Size2D, Zero,              Me%ExtVar%BasinPoints)
-        call SetMatrixValueAllocatable (Me%iFlowToChannelsLayer,  Me%Size, Zero,         Me%ExtVar%WaterPoints3D)
-        call SetMatrixValueAllocatable (Me%iFlowDischarge,Me%Size, Zero,           Me%ExtVar%WaterPoints3D)
+        call SetMatrixValue (Me%Infiltration, Me%Size2D, dble(0.0), Me%ExtVar%BasinPoints)
+        call SetMatrixValue (Me%EfectiveEVTP, Me%Size2D, dble(0.0), Me%ExtVar%BasinPoints)
+        call SetMatrixValueAllocatable (Me%iFlowToChannels,  Me%Size2D, Zero, Me%ExtVar%BasinPoints)
+        call SetMatrixValueAllocatable (Me%iFlowToChannelsLayer,  Me%Size, Zero, Me%ExtVar%WaterPoints3D)
+        call SetMatrixValueAllocatable (Me%iFlowDischarge,Me%Size, Zero, Me%ExtVar%WaterPoints3D)
         if (Me%EvaporationExists) then
-            call SetMatrixValue (Me%EfectiveEVAP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
-        endif        
-        iteration         = 1
-        !Niteration        = 1
-        Niteration        = Me%NextNIteration
+            call SetMatrixValue (Me%EfectiveEVAP, Me%Size2D, dble(0.0), Me%ExtVar%BasinPoints)
+        endif  
+       
+        if (Me%CV%NextNIteration > 1 .and. Me%ExtVar%DT < (Me%CV%CurrentDT * Me%CV%NextNIteration)) then
+            Niteration = max(aint(Me%ExtVar%DT / Me%CV%CurrentDT), 1.0)
+        else          
+            Niteration = Me%CV%NextNIteration    !DB
+        endif
+        
+        iteration         = 1     
         Me%CV%CurrentDT   = Me%ExtVar%DT / Niteration
-        SumDT             = 0.0
-        StrongVariation   = .false.
+        SumDT             = 0.0        
 
         Me%FluxWAcc = 0.
         Me%FluxVAcc = 0.
@@ -5274,7 +5480,6 @@ dConv:  do while (iteration <= Niteration)
         
             !Convergence Test
             call SetMatrixValueAllocatable (Me%CV%ThetaOld, Me%Size, Me%Theta, Me%ExtVar%WaterPoints3D)
-
 
             !Calculates Face Conductivities
             call Condutivity_Face
@@ -5305,17 +5510,16 @@ dConv:  do while (iteration <= Niteration)
             call CalculateNewTheta  ()
 
             !Checks for variation of theta values
-            call variation_test     (StrongVariation)
+            call CheckStability (Restart)
 
             !Vertical Continuty            
-            if (StrongVariation) then
+            if (Restart) then
                             
-                Niteration        = Niteration * 2.0
+                Niteration        = Me%CV%NextNIteration
                 Me%CV%CurrentDT   = Me%ExtVar%DT / Niteration
                 call WriteDTLog_ML ('ModulePorousMedia', Niteration, Me%CV%CurrentDT)                    
                 iteration         = 1
                 SumDT             = 0.0
-                StrongVariation   = .false.
                 
                 !Restores Initial Values
                 call SetMatrixValueAllocatable (Me%Theta,          Me%Size,   Me%CV%ThetaIni,      Me%ExtVar%WaterPoints3D)
@@ -5358,34 +5562,16 @@ dConv:  do while (iteration <= Niteration)
                 SumDT       = SumDT + Me%CV%CurrentDT
                 iteration   = iteration + 1
                 
-            endif
-            
-            if (Niteration > Me%CV%LimitIter) then
-                    !call SetError(WARNING_, INTERNAL_, "Strong Variation after LIMIT ITER", OFF)                     
-                 write(*,*)'Number of iterations above maximum: ', Niteration
-                 write(*,*)'Check DT configurations'
-                 stop 'VariableSaturatedFlow - ModulePorousMedia - ERR01'                    
-            endif
+            endif            
             
         enddo dConv
-
-
-        !DB
-        if (Niteration <= Me%LastGoodNiteration) then
-            Me%NextNiteration = max (int(Niteration / 2.0), 1)
-            !Me%NextNiter = max (int(Niter / Me%DTFactor), 1)
-        else
-            Me%NextNiteration = Niteration
-        endif
-        
-        Me%LastGoodNiteration = Niteration
         
         call CalculateMeanFlows (Niteration)
         call InsertInfiltrationOnFluxMatrix
         
         if (Me%SoilOpt%WriteLog) call LogDT (Niteration)
         
-        call PredictDT(Niteration)
+        call ComputeNextDT(Niteration)
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "VariableSaturatedFlow")   
 
@@ -5586,22 +5772,104 @@ dConv:  do while (iteration <= Niteration)
 
     !--------------------------------------------------------------------------
 
-    subroutine PredictDT(Niter)
+    subroutine ComputeNextDT(Niter)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: Niter
 
         !Local-----------------------------------------------------------------
+        real                                        :: CurrentDT, MaxDT
+        integer                                     :: STAT_CALL
+        logical                                     :: VariableDT
 
-        Me%NextDT = Me%ExtVar%DT
+!        Me%NextDT = Me%ExtVar%DT
+!        
+!        if (Niter <= Me%CV%MinIterations) then
+!            Me%NextDT = Me%NextDT * Me%CV%DTFactorUp
+!        else if (Niter > Me%CV%MaxIter) then
+!            if (Me%CV%Stabilize .and. (Me%NextNIteration >= Me%CV%StabilizeHardCutLimit)) then
+!                Me%NextDT = Me%CV%CurrentDT
+!                Me%NextNIteration = 1
+!            elseif (Me%NextNIteration > Me%LastGoodNiteration) then            
+!                Me%NextDT = Me%NextDT * Me%CV%DTFactorDown
+!            else
+!                Me%NextDT = Me%NextDT * (Me%CV%DTFactorUp * 0.5)
+!            endif
+!        endif
+!        
+!        if (Me%CV%CurrentDT > Me%NextDT) then
+!            Me%NextDT = Me%CV%CurrentDT
+!            Me%NextNIteration = Niter
+!        endif
+!        
+!        Me%LastGoodNiteration = Niter
+
+        call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModulePorousMedia -  ERR010'
+
+        call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModulePorousMedia -  ERR020'
         
-        if (Niter <= Me%CV%MinIter) then
-            Me%NextDT = Me%NextDT * Me%CV%IncreaseDT
-        else if (Niter > Me%CV%MaxIter) then
-            Me%NextDT = Me%NextDT * Me%CV%DecreaseDT
+        if (VariableDT) then
+
+            if (Niter == 1) then
+            
+                Me%CV%NextDT         = Me%ExtVar%DT * Me%CV%DTFactorUp
+                Me%CV%NextNIteration = Niter
+                
+            elseif (Niter <= Me%CV%MinIterations) then                            
+            
+                if (Niter > Me%CV%LastGoodNiteration) then
+
+                    Me%CV%NextDT         = Me%ExtVar%DT
+                    Me%CV%NextNIteration = Niter
+
+                else
+                
+                    Me%CV%NextDT         = Me%ExtVar%DT * Me%CV%DTFactorUp
+                    Me%CV%NextNIteration = Niter
+
+                endif
+                
+            else
+            
+                if (Niter >= Me%CV%StabilizeHardCutLimit) then
+                
+                    Me%CV%NextDT         = (Me%ExtVar%DT / Niter) * Me%CV%MinIterations
+                    Me%CV%NextNIteration = Me%CV%MinIterations
+                    
+                elseif (Niter > Me%CV%LastGoodNiteration) then
+                
+                    Me%CV%NextDT = Me%ExtVar%DT / Me%CV%DTFactorDown
+                    Me%CV%NextNIteration = max(int(Me%CV%NextDT / Me%CV%CurrentDT), 1)
+                    
+                else
+                
+                    Me%CV%NextDT = Me%ExtVar%DT
+                    Me%CV%NextNIteration = max(min(int(Niter / Me%CV%DTSplitFactor), Niter - 1), 1)
+                    
+                endif 
+                               
+            endif
+            
+            CurrentDT = Me%CV%NextDT / Me%CV%NextNIteration                                                                       
+            
+            if (MaxDT < Me%CV%NextDT) then 
+                Me%CV%NextDT         = MaxDT
+                Me%CV%NextNIteration = max(int(Me%CV%NextDT/CurrentDT), 1)
+            endif
+                       
+        else
+        
+            Me%CV%NextDT         = Me%ExtVar%DT
+            Me%CV%NextNIteration = Niter            
+        
         endif
+        
+        Me%CV%LastGoodNiteration = Niter
+        Me%CV%CurrentDT          = Me%CV%NextDT / Me%CV%NextNIteration
    
-    end subroutine PredictDT 
+    end subroutine ComputeNextDT 
 
     !----------------------------------------------------------------------------
 
@@ -6907,61 +7175,92 @@ cd2 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
 
     !--------------------------------------------------------------------------    
 
-    subroutine variation_test(StrongVariation)
+    subroutine CheckStability(Restart)
         
         !Arguments-------------------------------------------------------------
-        logical, intent(OUT)                        :: StrongVariation        
+        logical                                     :: Restart        
 
         !Local-----------------------------------------------------------------        
         integer                                     :: I, J, K
         real                                        :: variation
-        !integer                                     :: nStrongs
+        integer                                     :: n_restart
 
         !----------------------------------------------------------------------               
 
-        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "variation_test")
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "CheckStability")
+        
+        Restart   = .false.
+        n_restart = 0
 
-        !nStrongs = 0
-        StrongVariation = .false.
-
-        !Tests variations
-do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExtVar%BasinPoints(I,J) == 1) then
+        !Verifies negative volumes
+do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
+            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
             
-                !In the upper layer the module can't check the convergence criteria because it is imposing
-                !a boundary value... 
-                !If the water column isn't suficient, DT for infiltration velocity and DT to converge are cutted
-                !in the same way.... 
                 do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB - 1
-                
-                    if (Me%Theta(I,J,K) < 0.) then
-                        StrongVariation = .true.
+            
+                    if (Me%Theta(I,J,K) < -1.0 * AllmostZero) then
+                        Restart = .true.
                         exit do1
+                    elseif (Me%Theta(I,J,K) < 0.0) then
+                        Me%Theta(I,J,K) = 0.0
                     endif
-                    
-                    variation = abs(Me%Theta(I,J,K) - Me%CV%ThetaOld(I,J,K)) / Me%CV%ThetaOld(I,J,K)
                 
-                    !if (abs(Me%CV%ThetaOld(I,J,K)-Me%Theta(I,J,K)) > Me%CV%ThetaTolerance) then
-                    if (variation > Me%CV%ThetaTolerance) then                        
-                        !nStrongs = nStrongs + 1
-                        StrongVariation = .true.
-                        exit do1                                                                                            
-                    endif
                 enddo
+                
             endif
+            
         enddo
-        enddo do1    
-        
-!        if (nStrongs > 0) then
-!            StrongVariation = .true.
-!        else
-!            StrongVariation = .false.
-!        endif
-        
-        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "variation_test")
+        enddo do1
 
-    end subroutine variation_test
+        if ((.not. Restart) .and. Me%CV%Stabilize) then
+
+            !Tests variations
+do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
+                if (Me%ExtVar%BasinPoints(I,J) == 1) then
+                
+                    !In the upper layer the module can't check the convergence criteria because it is imposing
+                    !a boundary value... 
+                    !If the water column isn't suficient, DT for infiltration velocity and DT to converge are cutted
+                    !in the same way.... 
+                    do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB - 1
+                        if ((.not. Me%CV%CheckDecreaseOnly) .or. (Me%CV%ThetaOld(I,J,K) > Me%Theta(I,J,K))) then
+                            if (Me%CV%ThetaOld(I,J,K) >= Me%CV%MinimumValueToStabilize * Me%RC%ThetaS(I,J,K)) then
+
+                                variation = abs(Me%Theta(I,J,K) - Me%CV%ThetaOld(I,J,K)) / Me%CV%ThetaOld(I,J,K)                 
+                    
+                                if (variation > Me%CV%StabilizeFactor) then                        
+                                    n_restart = n_restart + 1
+                                endif
+                            endif
+                        endif
+                    enddo
+                endif
+                
+            enddo
+            enddo do2    
+        
+            if (n_restart > Me%CV%MinToRestart) then
+                Restart = .true.
+            endif        
+        
+        endif
+        
+        if (Restart) then        
+            Me%CV%NextNiteration = max(int(Me%CV%NextNiteration * Me%CV%DTSplitFactor), Me%CV%NextNiteration + 1)
+                 
+            if (Me%CV%NextNiteration >= Me%CV%MaxIterations) then
+                 write(*,*)'Number of iterations above maximum: ', Me%CV%NextNiteration
+                 stop 'CheckStability - ModulePosourMedia - ERR010'
+            endif                          
+        endif              
+        
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "CheckStability")
+
+    end subroutine CheckStability
     
     !--------------------------------------------------------------------------
 
@@ -7131,7 +7430,7 @@ do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         !logical                                     :: NearBoundary
         !real                                        :: AverageArea, AverageDist
         real                                        :: OldVolume, AreaZX, AreaZY, BoundaryFinalHead
-        real                                        :: NewTheta, ConductivityFace
+        real                                        :: NewTheta, ConductivityFace, sum
         !Begin-----------------------------------------------------------------
 
         
@@ -7145,7 +7444,7 @@ do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-            !$OMP PARALLEL PRIVATE(I,J,K,di,dj,BoundaryFinalHead,ConductivityFace,AreaZX,AreaZY,OldVolume,NewTheta)
+            !$OMP PARALLEL PRIVATE(I,J,K,di,dj,BoundaryFinalHead,ConductivityFace,AreaZX,AreaZY,OldVolume,NewTheta) REDUCTION(+:sum)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7218,14 +7517,11 @@ do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                         !m3/s = m3 / s - if new > old positive flow
                         Me%iFlowBoundaryWalls(i,j,k)  = ((Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k))  &
                                                     - OldVolume) / Me%ExtVar%DT
-                        Me%AccBoundaryFlowVolume = Me%AccBoundaryFlowVolume                          &
-                                                   + (Me%iFlowBoundaryWalls(i,j,k) * Me%ExtVar%DT)
+                        sum = sum + (Me%iFlowBoundaryWalls(i,j,k) * Me%ExtVar%DT)
                         
                         Me%RC%ThetaF  (i, j, k)   = ThetaF_ (Me%Theta (i, j, k), Me%SoilID(i, j, k))
                         Me%Head       (i, j, k)   = Head_   (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))
-                        Me%UnSatK     (i, j, k)   = UnsatK_ (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))
-                        
-
+                        Me%UnSatK     (i, j, k)   = UnsatK_ (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))                        
                         
                     enddo do1
 
@@ -7236,6 +7532,8 @@ do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         
+            Me%AccBoundaryFlowVolume = sum
+        
         endif
         
         !Impose bottom flux - exterior theta = interior theta -> flux = conductivity * Area
@@ -7245,58 +7543,65 @@ do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-            !$OMP PARALLEL PRIVATE(I,J,K,di,dj,BoundaryFinalHead,ConductivityFace,AreaZX,AreaZY,OldVolume,NewTheta)
+            sum = Me%AccBoundaryFlowVolume
+
+            !$OMP PARALLEL PRIVATE(I,J,K,di,dj,BoundaryFinalHead,ConductivityFace,AreaZX,AreaZY,OldVolume,NewTheta) REDUCTION(+:sum)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-                k = Me%ExtVar%KFloor(i,j)
+                if (Me%ExtVar%BasinPoints (i, j) == 1) then
                 
-                !Process cells that are bottom and that have ThetaF higher than minimum
-                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint     &
-                     .and. Me%RC%ThetaF(i, j, k) > Me%Boundary%MinThetaFForBoundary) then
-                 
-                    !Conductivity is the maximum (saturation front entering or exiting domain)
-                    ConductivityFace  = Me%UnSatK(i,j,k)
+                    k = Me%ExtVar%KFloor(i,j)
                     
-                    !flow negative (exiting soil)
-                    !Assuming that exterior and interior theta are the same (null_gradient)
-                    !than Final Head gradient is dz/dz = 1 and BuckingamDarcy velocity is 
-                    !interior conductivity and water exists soil (gravity). 
-                    !Assuming also no hydrostatic pressure (since water is moving through bottom)
-                    !m3/s = m2 * m/s
-                    Me%iFlowBoundaryBottom(i,j) =  - Me%ExtVar%Area(i,j) * Me%UnSatK(i,j,k)
+                    !Process cells that are bottom and that have ThetaF higher than minimum
+                    if (Me%RC%ThetaF(i, j, k) > Me%Boundary%MinThetaFForBoundary) then
+                     
+                        !Conductivity is the maximum (saturation front entering or exiting domain)
+                        ConductivityFace  = Me%UnSatK(i,j,k)
+                        
+                        !flow negative (exiting soil)
+                        !Assuming that exterior and interior theta are the same (null_gradient)
+                        !than Final Head gradient is dz/dz = 1 and BuckingamDarcy velocity is 
+                        !interior conductivity and water exists soil (gravity). 
+                        !Assuming also no hydrostatic pressure (since water is moving through bottom)
+                        !m3/s = m2 * m/s
+                        Me%iFlowBoundaryBottom(i,j) =  - Me%ExtVar%Area(i,j) * Me%UnSatK(i,j,k)
 
-                    !m3H2O = m3H20/m3cell * m3cell
-                    OldVolume = Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k)
-                    
-                    !m3H20/m3cell = (m3H20 + m3/s * s) / m3cell
-                    NewTheta = (OldVolume + Me%iFlowBoundaryBottom(i,j) * Me%ExtVar%DT) / &
-                                Me%ExtVar%CellVolume(i,j,k)
-                    
-                    if (Me%Theta(i,j,k) .lt. (Me%RC%ThetaR(i,j,k) + Me%CV%LimitThetaLo)) then
-                        NewTheta = Me%RC%ThetaR(i,j,k)
-                    endif
-                    
-                    Me%Theta(i,j,k) = NewTheta
-                    
-                    !m3/s = m3 / s - if new > old positive flow
-                    Me%iFlowBoundaryBottom(i,j)  = ((Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k))  &
-                                                - OldVolume) / Me%ExtVar%DT
-                    Me%AccBoundaryFlowVolume = Me%AccBoundaryFlowVolume                               &
-                                               + (Me%iFlowBoundaryBottom(i,j) * Me%ExtVar%DT)
-                    
-                    Me%RC%ThetaF  (i, j, k)   = ThetaF_ (Me%Theta (i, j, k), Me%SoilID(i, j, k))
-                    Me%Head       (i, j, k)   = Head_   (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))
-                    Me%UnSatK     (i, j, k)   = UnsatK_ (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))
+                        !m3H2O = m3H20/m3cell * m3cell
+                        OldVolume = Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k)
+                        
+                        !m3H20/m3cell = (m3H20 + m3/s * s) / m3cell
+                        NewTheta = (OldVolume + Me%iFlowBoundaryBottom(i,j) * Me%ExtVar%DT) / &
+                                    Me%ExtVar%CellVolume(i,j,k)
+                        
+                        if (Me%Theta(i,j,k) .lt. (Me%RC%ThetaR(i,j,k) + Me%CV%LimitThetaLo)) then
+                            NewTheta = Me%RC%ThetaR(i,j,k)
+                            
+                            !m3/s = m3 / s - if new > old positive flow
+                            Me%iFlowBoundaryBottom(i,j)  = ((NewTheta * Me%ExtVar%CellVolume(i,j,k))  &
+                                                           - OldVolume) / Me%ExtVar%DT                            
+                        endif
+                        
+                        Me%Theta(i,j,k) = NewTheta
                         
 
+                        sum = sum + (Me%iFlowBoundaryBottom(i,j) * Me%ExtVar%DT)
+                        
+                        Me%RC%ThetaF  (i, j, k)   = ThetaF_ (Me%Theta (i, j, k), Me%SoilID(i, j, k))
+                        Me%Head       (i, j, k)   = Head_   (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))
+                        Me%UnSatK     (i, j, k)   = UnsatK_ (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))                            
+
+                    endif
+                
                 endif
                
             enddo
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
+        
+            Me%AccBoundaryFlowVolume = sum
         
         endif
     

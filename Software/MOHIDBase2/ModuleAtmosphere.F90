@@ -35,7 +35,8 @@ Module ModuleAtmosphere
     use ModuleHDF5
     use ModuleFunctions,      only : ConstructPropertyID, CHUNK_J
     use ModuleFillMatrix,     only : ConstructFillMatrix, ModifyFillMatrix, KillFillMatrix,  &
-                                     GetIfMatrixRemainsConstant, GetFillMatrixDTPrediction
+                                     GetIfMatrixRemainsConstant, GetFillMatrixDTPrediction,  &
+                                     GetNextValueForDTPred, GetValuesProcessingOptions
     use ModuleTimeSerie,      only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,     &
                                      GetTimeSerieLocation, CorrectsCellsTimeSerie,      &
                                      GetNumberOfTimeSeries, TryIgnoreTimeSerie
@@ -49,7 +50,7 @@ Module ModuleAtmosphere
                                      GetGridCellArea, GetXYCellZ
     use ModuleStatistic,      only : ConstructStatistic, GetStatisticMethod,                 &
                                      GetStatisticParameters, ModifyStatistic, KillStatistic
-    use ModuleStopWatch,      only: StartWatch, StopWatch
+    use ModuleStopWatch,      only : StartWatch, StopWatch
 
     implicit none
 
@@ -80,7 +81,7 @@ Module ModuleAtmosphere
     public  :: AtmospherePropertyExists
     public  :: GetAtmospherenProperties
     public  :: GetAtmospherePropertiesIDByIdx
-    public  :: GetAtmosphereDTPrediction
+    public  :: GetNextAtmosphereDTPrediction
 
     public  :: UngetAtmosphere
 
@@ -187,6 +188,9 @@ Module ModuleAtmosphere
         logical                                     :: PropAddedByRain      = .false.
         logical                                     :: FirstActualization   = .true.
         real                                        :: RandomComponent      = FillValueReal
+        logical                                     :: UseToPredictDT       = .true.
+        real                                        :: PredictedDT          = -null_real
+        real                                        :: DTForNextEvent       = -null_real
         logical                                     :: TimeSerie            = .false.
         logical                                     :: BoxTimeSerie         = .false.
         logical                                     :: OutputHDF            = .false.
@@ -202,6 +206,19 @@ Module ModuleAtmosphere
          character(len=Pathlength)                  :: ConstructData    = null_str !initialization: Jauch
          character(len=Pathlength)                  :: Results          = null_str !initialization: Jauch
     end type T_Files
+
+    type      T_DTLimits
+        real                                        :: Limit = 0
+        real                                        :: DT    = 0 
+    end type  T_DTLimits
+    
+    type      T_Limits
+        logical                                     :: UseLimits = .false.
+        type(T_DTLimits)                            :: Light
+        type(T_DTLimits)                            :: Medium
+        type(T_DTLimits)                            :: Heavy
+        real                                        :: MaxValue = 0.0
+    end type  T_Limits
 
     type      T_Atmosphere
         integer                                     :: InstanceID   = null_int !initialization: Jauch
@@ -219,16 +236,21 @@ Module ModuleAtmosphere
         type(T_Time     )                           :: NextCompute
         type(T_Time     )                           :: LastOutPutHDF5
 
+        logical                                     :: PredictDT = .true.
+        integer                                     :: PredictDTMethod = 1
+
 !        real                                        :: PredictedDT              = -null_real
 !        real                                        :: DTForNextEvent           = -null_real
 
-        real                                        :: IrriPredictedDT              = -null_real
-        real                                        :: IrriDTForNextEvent           = -null_real
-        real                                        :: PrecPredictedDT              = -null_real
-        real                                        :: PrecDTForNextEvent           = -null_real
-        logical                                     :: UsePrecipitationForDTPred    = .false.
-        logical                                     :: UseIrrigationForDTPred       = .false.
+!        real                                        :: IrriPredictedDT              = -null_real
+!        real                                        :: IrriDTForNextEvent           = -null_real
+!        real                                        :: PrecPredictedDT              = -null_real
+!        real                                        :: PrecDTForNextEvent           = -null_real    
+!        logical                                     :: UsePrecipitationForDTPred    = .false.
+!        logical                                     :: UseIrrigationForDTPred       = .false.
 
+        type(T_Limits)                              :: Rain
+        type(T_Limits)                              :: Irrigation
         
         integer                                     :: RadiationMethod          = 1
         integer                                     :: CloudCoverMethod         = null_int !initialization: Jauch
@@ -241,6 +263,13 @@ Module ModuleAtmosphere
         logical                                     :: PropsAddedByIrri         = .false.
         
         logical                                     :: CheckPropertyValues      = .false. !initialization: Jauch
+        
+        real                                        :: ConversionFactorPrec     = null_real
+        logical                                     :: PrecReqConv              = .false.
+        integer, dimension(2)                       :: PrecMaxCoord
+        real                                        :: ConversionFactorIrri     = null_real
+        logical                                     :: IrriReqConv              = .false.
+        integer, dimension(2)                       :: IrriMaxCoord
         
         !Instance of Module HDF5
         integer                                     :: ObjHDF5 = 0
@@ -447,6 +476,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL, iflag
+        real, dimension(6)                      :: limits
 
         !Begin------------------------------------------------------------------
 
@@ -490,6 +520,66 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = CloudFromRandom,                                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR50'
+        
+        call GetData(Me%PredictDT,                                                      &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'PREDICT_DT',                                       &
+                     ClientModule = 'ModuleAtmosphere',                                 &
+                     Default      = .true.,                                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR60'        
+
+        call GetData(Me%PredictDTMethod,                                                &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'PREDICT_DT_METHOD',                                &
+                     ClientModule = 'ModuleAtmosphere',                                 &
+                     Default      = 1,                                                  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR60'    
+        
+        call GetData(limits,                                                            &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RAIN_LIMITS',                                      &
+                     ClientModule = 'ModuleAtmosphere',                                 &                     
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR70'
+        if (iflag <= 0) then
+            Me%Rain%UseLimits = .false.
+        elseif (iflag < 6) then
+            stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR71'
+        else
+            Me%Rain%UseLimits    = .true.
+            Me%Rain%Light%Limit  = limits(1)
+            Me%Rain%Light%DT     = limits(2)
+            Me%Rain%Medium%Limit = limits(3)
+            Me%Rain%Medium%DT    = limits(4)
+            Me%Rain%Heavy%Limit  = limits(5)
+            Me%Rain%Heavy%DT     = limits(6)
+        endif
+        
+        call GetData(limits,                                                            &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'IRRI_LIMITS',                                      &
+                     ClientModule = 'ModuleAtmosphere',                                 &                     
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR80'
+        if (iflag <= 0) then
+            Me%Irrigation%UseLimits = .false.
+        elseif (iflag < 6) then
+            stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR81'
+        else
+            Me%Irrigation%UseLimits    = .true.
+            Me%Irrigation%Light%Limit  = limits(1)
+            Me%Irrigation%Light%DT     = limits(2)
+            Me%Irrigation%Medium%Limit = limits(3)
+            Me%Irrigation%Medium%DT    = limits(4)
+            Me%Irrigation%Heavy%Limit  = limits(5)
+            Me%Irrigation%Heavy%DT     = limits(6)
+        endif        
 
     end subroutine ConstructGlobalVariables
 
@@ -997,15 +1087,7 @@ cd2 :           if (BlockFound) then
 
         !Constructs Statistics
         call ConstructSurfStatistics    (NewProperty) 
-        
-        if (NewProperty%ID%SolutionFromFile) then
-            if (NewProperty%ID%IDNumber == Irrigation_) then
-                Me%UseIrrigationForDTPred = .true.
-            elseif (NewProperty%ID%IDNumber == Precipitation_) then
-                Me%UsePrecipitationForDTPred = .true.
-            endif        
-        endif
-        
+           
         !----------------------------------------------------------------------
 
     end subroutine ConstructProperty
@@ -1028,6 +1110,8 @@ cd2 :           if (BlockFound) then
         integer                                     :: SizeILB, SizeIUB
         integer                                     :: SizeJLB, SizeJUB 
         integer                                     :: i, j
+        real                                        :: MinForDTDecrease
+        logical                                     :: UseForDTPred
         
         !----------------------------------------------------------------------
 
@@ -1038,7 +1122,7 @@ cd2 :           if (BlockFound) then
 
         !Fills Matrix
         allocate (NewProperty%Field (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR00'
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR010'
 
         NewProperty%Field(:,:) = null_real
 
@@ -1056,7 +1140,7 @@ cd2 :           if (BlockFound) then
                      keyword      ='NO_INTERPOLATION',                                  &
                      ClientModule = 'ModuleAtmosphere',                                 &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR00'
+        if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR020'
         if (iflag .NE. 0) then
             write(*,*) 
             write(*,*) 'ModuleAtmosphere WARNING:'
@@ -1080,9 +1164,23 @@ cd2 :           if (BlockFound) then
                          keyword      ='ACCUMULATE_VALUES',                                 &
                          ClientModule = 'ModuleAtmosphere',                                 &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR01'
+            if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR030'
         
         endif          
+
+        if ((NewProperty%ID%IDNumber==Temperature_) .or. &
+            (NewProperty%ID%IDNumber==WindAngle_)   .or. &
+            (NewProperty%ID%IDNumber==WindDirection_)) then
+            MinForDTDecrease = null_real
+        else
+            MinForDTDecrease = 0.0
+        endif
+
+        if (NewProperty%ID%IDNumber == Irrigation_ .or. NewProperty%ID%IDNumber == Precipitation_) then
+            UseForDTPred = .true.
+        else
+            UseForDTPred = .false.
+        endif        
 
         call ConstructFillMatrix(PropertyID         = NewProperty%ID,                   &
                                  EnterDataID        = Me%ObjEnterData,                  &
@@ -1093,8 +1191,11 @@ cd2 :           if (BlockFound) then
                                  Matrix2D           = NewProperty%Field,                &
                                  TypeZUV            = TypeZ_,                           &
                                  ClientID           = ClientID,                         &
+                                 PredictDTMethod    = Me%PredictDTMethod,               &
+                                 MinForDTDecrease   = MinForDTDecrease,                 &
+                                 ValueIsUsedForDTPrediction = UseForDTPred,             &
                                  STAT               = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR040'
 
         call GetIfMatrixRemainsConstant(FillMatrixID    = NewProperty%ID%ObjFillMatrix,     &
                                         RemainsConstant = NewProperty%Constant,             &
@@ -1104,7 +1205,7 @@ cd2 :           if (BlockFound) then
 
         if (.not. NewProperty%ID%SolutionFromFile) then
             call KillFillMatrix (NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR050'
         endif
 
         !By default property don't have random component
@@ -1116,7 +1217,7 @@ cd2 :           if (BlockFound) then
                      keyword      = 'RANDOM_COMPONENT',         &
                      ClientModule = 'ModuleAtmosphere',         &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR11'
+        if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR060'
         if (iflag == 1) then
             NewProperty%HasRandomComponent = .true.
             NewProperty%RandomValue        = 0.
@@ -1131,34 +1232,49 @@ cd2 :           if (BlockFound) then
 
 
         !By default property aren't added by irrigation
-        NewProperty%PropAddedByIrri = .false.
         call GetData(NewProperty%PropAddedByIrri,                               &
                      Me%ObjEnterData, iflag,                                    &
                      SearchType   = FromBlock,                                  &
                      keyword      ='IRRIGATION',                                &
                      ClientModule = 'ModuleAtmosphere',                         &
+                     default      = .false.,                                    &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR12'
+        if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR070'
         if (NewProperty%PropAddedByIrri) then
             Me%PropsAddedByIrri = .true.
         endif
 
         !By default property aren't added by precipitation
-        NewProperty%PropAddedByRain = .false.
         call GetData(NewProperty%PropAddedByRain,                               &
                      Me%ObjEnterData, iflag,                                    &
                      SearchType   = FromBlock,                                  &
                      keyword      ='PRECIPITATION',                             &
+                     default      = .false.,                                    &
                      ClientModule = 'ModuleAtmosphere',                         &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR13'
+        if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR080'
         if (NewProperty%PropAddedByRain) then
             Me%PropsAddedByRain = .true.
         endif
         
+        call GetData(NewProperty%UseToPredictDT,                                &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType   = FromBlock,                                  &
+                     keyword      = 'USE_TO_PREDICT_DT',                        &
+                     default      = .false.,                                    &
+                     ClientModule = 'ModuleAtmosphere',                         &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR090'                        
+
+        if (NewProperty%ID%SolutionFromFile) then
+            if (NewProperty%ID%IDNumber == Irrigation_) then
+                NewProperty%UseToPredictDT = .true.                
+            elseif (NewProperty%ID%IDNumber == Precipitation_) then
+                NewProperty%UseToPredictDT = .true.
+            endif        
+        endif
+
         if (NewProperty%ID%IDNumber == WindDirection_) then
-
-
             !A rotation of the wind direction is done, so that
             !  0 - Wind from the North
             ! 90 - Wind from the West
@@ -1553,7 +1669,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
 
     !---------------------------------------------------------------------------
 
-    subroutine GetAtmosphereDTPrediction (AtmosphereID, PredictedDT, DTForNextEvent, STAT)
+    subroutine GetNextAtmosphereDTPrediction (AtmosphereID, PredictedDT, DTForNextEvent, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: AtmosphereID
@@ -1562,6 +1678,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
 
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_, ready_
+        type(T_Property), pointer                       :: PropertyX
+        real                                            :: max_value
 
         !----------------------------------------------------------------------
 
@@ -1569,19 +1687,116 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
 
         call Ready(AtmosphereID, ready_)
 
-        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            if (Me%UsePrecipitationForDTPred .and. Me%UseIrrigationForDTPred) then
-                PredictedDT     = min(Me%IrriPredictedDT, Me%PrecPredictedDT)
-                DTForNextEvent  = min(Me%IrriDTForNextEvent, Me%PrecDTForNextEvent)
-            elseif (Me%UseIrrigationForDTPred) then
-                PredictedDT     = Me%IrriPredictedDT
-                DTForNextEvent  = Me%IrriDTForNextEvent
-            else
-                PredictedDT     = Me%PrecPredictedDT
-                DTForNextEvent  = Me%PrecDTForNextEvent
-            endif
+            PredictedDT    = -null_real
+            DTForNextEvent = -null_real
+            
+!            call GetComputeTimeStep     (Me%ObjTime, DT, STAT = STAT_)
+!            if (STAT_ /= SUCCESS_) stop 'GetNextAtmosphereDTPrediction - ModuleAtmosphere - ERR010'
+            
+!            call GetGridCellArea (Me%ObjHorizontalGrid, Me%ExternalVar%GridCellArea, STAT_)
+!            if (STAT_ /= SUCCESS_) stop 'GetNextAtmosphereDTPrediction - ModuleAtmosphere - ERR020'            
+            
+!            write (*,*) '======================================'
+!            write (*,*) 'Irrigation%UseLimits    : ', Me%Irrigation%UseLimits
+!            write (*,*) 'Rain%USeLimits          : ', Me%Rain%UseLimits
+!            write (*,*) '======================================'              
+            
+            PropertyX => Me%FirstAtmosphereProp
+            do while (associated(PropertyX)) 
+!                if (PropertyX%ID%IDNumber == Irrigation_ .or. PropertyX%ID%IDNumber == Precipitation_) then
+!                    write (*,*) '======================================'
+!                    write (*,*) 'Property                : ', trim(PropertyX%ID%Name)
+!                    write (*,*) 'UseToPredictDT          : ', PropertyX%UseToPredictDT
+!                    write (*,*) 'DTForNextEvent:         : ', PropertyX%DTForNextEvent
+!                    write (*,*) '======================================' 
+!                endif
+                             
+                if (PropertyX%UseToPredictDT) then
+                    if (PropertyX%DTForNextEvent == 0.0) then                                            
+                        if (PropertyX%ID%IDNumber == Irrigation_ .and. Me%Irrigation%UseLimits) then
+                            
+!                            write (*,*) '======================================'
+!                            write (*,*) 'Me%Irrigation%MaxValue    : ', Me%Irrigation%MaxValue
+!                            write (*,*) 'Me%Irrigation%Heavy%DT    : ', Me%Irrigation%Heavy%DT
+!                            write (*,*) 'Me%Irrigation%Heavy%Limit : ', Me%Irrigation%Heavy%Limit
+!                            write (*,*) 'Me%Irrigation%Medium%DT   : ', Me%Irrigation%Medium%DT
+!                            write (*,*) 'Me%Irrigation%Medium%Limit: ', Me%Irrigation%Medium%Limit
+!                            write (*,*) 'Me%Irrigation%Light%DT    : ', Me%Irrigation%Light%DT
+!                            write (*,*) 'Me%Irrigation%Light%Limit : ', Me%Irrigation%Light%Limit  
+!                            write (*,*) 'PropertyX%PredictedDT     : ', PropertyX%PredictedDT
+!                            write (*,*) '======================================'                                   
+                            if (Me%IrriReqConv) then
+                                !mm/hour  = (                    m/s                       ) * mm/m * s/hour
+                                max_value = Me%Irrigation%MaxValue * Me%ConversionFactorIrri * 1000 * 3600
+                            else
+                                !In this case, the Irrigation Limits also need to be in m3/s
+                                max_value = Me%Irrigation%MaxValue
+                            endif
+!                            write (*,*) '======================================'
+!                            write (*,*) 'Irrigation%PredictedDT    : ', PropertyX%PredictedDT
+!                            write (*,*) 'max_value                 : ', max_value
+!                            write (*,*) 'MaxValue :', Me%Irrigation%MaxValue
+!                            write (*,*) 'DT       :', DT
+!                            write (*,*) 'Factor   :', Me%ConversionFactorIrri
+!                            write (*,*) 'Area     :', Me%ExternalVar%GridCellArea(Me%IrriMaxCoord(1),Me%IrriMaxCoord(2))
+!                            write (*,*) '======================================'                   
+                            if (max_value >= Me%Irrigation%Heavy%Limit) then
+                                PredictedDT = min (PredictedDT, Me%Irrigation%Heavy%DT)
+                            elseif (max_value >= Me%Irrigation%Medium%Limit) then
+                                PredictedDT = min (PredictedDT, Me%Irrigation%Medium%DT)
+                            elseif (max_value >= Me%Irrigation%Light%Limit) then
+                                PredictedDT = min (PredictedDT, Me%Irrigation%Light%DT)
+                            endif
+                        elseif (PropertyX%ID%IDNumber == Precipitation_ .and. Me%Rain%UseLimits) then
+                            
+                            if (Me%PrecReqConv) then
+                                ! mm/hour = (                  m/s                     ) * mm/m * s/hour 
+                                max_value = (Me%Rain%MaxValue * Me%ConversionFactorPrec) * 1000 * 3600
+                            else
+                                !In this case, the Rain Limits also need to be in m3/s
+                                max_value = Me%Rain%MaxValue
+                            endif                        
+!                            write (*,*) '======================================'
+!                            write (*,*) 'Precipitation%PredictedDT : ', PropertyX%PredictedDT
+!                            write (*,*) 'max_value : ', max_value
+!                            write (*,*) 'MaxValue  :', Me%Rain%MaxValue
+!                            write (*,*) 'DT       :', DT
+!                            write (*,*) 'Factor   :', Me%ConversionFactorPrec
+!                            write (*,*) 'Area     :', Me%ExternalVar%GridCellArea(Me%IrriMaxCoord(1),Me%IrriMaxCoord(2))
+!                            write (*,*) '======================================' 
+!                            stop                                          
+                            if (max_value >= Me%Rain%Heavy%Limit) then
+                                PredictedDT = min (PredictedDT, Me%Rain%Heavy%DT)
+                            elseif (max_value >= Me%Rain%Medium%Limit) then
+                                PredictedDT = min (PredictedDT, Me%Rain%Medium%DT)
+                            elseif (max_value >= Me%Rain%Light%Limit) then
+                                PredictedDT = min (PredictedDT, Me%Rain%Light%DT)
+                            endif                    
+                        endif
+                    endif
+                    
+                    PredictedDT    = min (PredictedDT, PropertyX%PredictedDT)                        
+                    DTForNextEvent = min (DTForNextEvent, PropertyX%DTForNextEvent)
+                endif
+                PropertyX => PropertyX%Next                 
+            end do            
+
+!            if (Me%UsePrecipitationForDTPred .and. Me%UseIrrigationForDTPred) then
+!                PredictedDT     = min(Me%IrriPredictedDT, Me%PrecPredictedDT)
+!                DTForNextEvent  = min(Me%IrriDTForNextEvent, Me%PrecDTForNextEvent)
+!            elseif (Me%UseIrrigationForDTPred) then
+!                PredictedDT     = Me%IrriPredictedDT
+!                DTForNextEvent  = Me%IrriDTForNextEvent
+!            else
+!                PredictedDT     = Me%PrecPredictedDT
+!                DTForNextEvent  = Me%PrecDTForNextEvent
+!            endif
+!
+!            call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%GridCellArea, STAT = STAT_)
+!            if (STAT_ /= SUCCESS_) stop 'ReadUnlockExternalVar - ModuleAtmosphere - ERR030'
 
             STAT_ = SUCCESS_
 
@@ -1591,7 +1806,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
 
         if (present(STAT)) STAT = STAT_
 
-    end subroutine GetAtmosphereDTPrediction
+    end subroutine GetNextAtmosphereDTPrediction
 
     !--------------------------------------------------------------------------
 
@@ -2024,6 +2239,12 @@ do2 :   do while (associated(PropertyX))
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifySolarRadiation - ModuleAtmosphere - ERR01'
 
+            if (PropSolarRadiation%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropSolarRadiation%ID%ObjFillMatrix, PropSolarRadiation%PredictedDT,    &
+                                                PropSolarRadiation%DTForNextEvent, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifySolarRadiation - ModuleAtmosphere - ERR02'            
+            endif   
+
              !call ClimatologicSolarRadiation (PropSolarRadiation%Field)
 
             !Save the last radiation of the day
@@ -2095,6 +2316,12 @@ do2 :   do while (associated(PropertyX))
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyAtmosphericPressure - ModuleAtmosphere - ERR01'
 
+            if (PropAtmosphericPressure%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropAtmosphericPressure%ID%ObjFillMatrix, PropAtmosphericPressure%PredictedDT,    &
+                                                PropAtmosphericPressure%DTForNextEvent, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyAtmosphericPressure - ModuleAtmosphere - ERR02'            
+            endif 
+
         endif
 
     end subroutine ModifyAtmosphericPressure
@@ -2122,6 +2349,12 @@ do2 :   do while (associated(PropertyX))
                                    PointsToFill2D = Me%ExternalVar%MappingPoints2D,           &
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMeanSeaLevelPressure - ModuleAtmosphere - ERR10'
+
+            if (PropMeanSeaLevelPressure%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropMeanSeaLevelPressure%ID%ObjFillMatrix, PropMeanSeaLevelPressure%PredictedDT,    &
+                                                PropMeanSeaLevelPressure%DTForNextEvent, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMeanSeaLevelPressure - ModuleAtmosphere - ERR02'            
+            endif  
 
         endif
 
@@ -2151,6 +2384,12 @@ do2 :   do while (associated(PropertyX))
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyCO2AtmosphericPressure - ModuleAtmosphere - ERR01'
 
+            if (PropCO2AtmosphericPressure%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropCO2AtmosphericPressure%ID%ObjFillMatrix, PropCO2AtmosphericPressure%PredictedDT,    &
+                                                PropCO2AtmosphericPressure%DTForNextEvent, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyCO2AtmosphericPressure - ModuleAtmosphere - ERR02'            
+            endif 
+
         endif
 
     end subroutine ModifyCO2AtmosphericPressure
@@ -2178,6 +2417,12 @@ do2 :   do while (associated(PropertyX))
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyO2AtmosphericPressure - ModuleAtmosphere - ERR01'
 
+            if (PropO2AtmosphericPressure%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropO2AtmosphericPressure%ID%ObjFillMatrix, PropO2AtmosphericPressure%PredictedDT,    &
+                                                PropO2AtmosphericPressure%DTForNextEvent, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyO2AtmosphericPressure - ModuleAtmosphere - ERR02'            
+            endif  
+
         endif
 
     end subroutine ModifyO2AtmosphericPressure
@@ -2200,7 +2445,13 @@ do2 :   do while (associated(PropertyX))
                                    Matrix2D       = PropWindVelocityX%Field,             &
                                    PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
                                    STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifySolarRadiation - ModuleAtmosphere - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR01'
+
+            if (PropWindVelocityX%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropWindVelocityX%ID%ObjFillMatrix, PropWindVelocityX%PredictedDT,    &
+                                                PropWindVelocityX%DTForNextEvent, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR02'
+            endif
 
         end if
 
@@ -2210,7 +2461,13 @@ do2 :   do while (associated(PropertyX))
                                    Matrix2D       = PropWindVelocityY%Field,             &
                                    PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
                                    STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifySolarRadiation - ModuleAtmosphere - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR03'
+
+            if (PropWindVelocityY%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropWindVelocityY%ID%ObjFillMatrix, PropWindVelocityY%PredictedDT,    &
+                                                PropWindVelocityY%DTForNextEvent, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR04'
+            endif
 
         end if
 
@@ -2263,12 +2520,17 @@ do2 :   do while (associated(PropertyX))
         !Arguments-------------------------------------------------------------
         type(T_Property), pointer                   :: PropPrecipitation
 
-        !Local-----------------------------------------------------------------
-        real                                        :: ConversionFactor
+        !Local-----------------------------------------------------------------        
         integer                                     :: i, j, STAT_CALL
-        integer                                        :: CHUNK
+        integer                                     :: CHUNK
+        real                                        :: max_value
+        logical                                     :: Accumulate, Interpolate, UseOriginal
 
         !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleAtmosphere", "ModifyPrecipitation")
+        endif
 
         if (PropPrecipitation%ID%SolutionFromFile) then
 
@@ -2276,60 +2538,108 @@ do2 :   do while (associated(PropertyX))
                                    Matrix2D       = PropPrecipitation%Field,             &
                                    PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
                                    STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR010'
 
-!            call GetFillMatrixDTPrediction (PropPrecipitation%ID%ObjFillMatrix, Me%PredictedDT,    &
-!                                            Me%DTForNextEvent, STAT = STAT_CALL)
-            call GetFillMatrixDTPrediction (PropPrecipitation%ID%ObjFillMatrix, Me%PrecPredictedDT,    &
-                                            Me%PrecDTForNextEvent, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR02'
+            if (PropPrecipitation%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropPrecipitation%ID%ObjFillMatrix, PropPrecipitation%PredictedDT,    &
+                                                PropPrecipitation%DTForNextEvent, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR020' 
+                
+                call GetNextValueForDTPred (PropPrecipitation%ID%ObjFillMatrix, Me%Rain%MaxValue, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR030' 
+            endif
 
         endif
 
-        if (PropPrecipitation%FirstActualization .or. .not. PropPrecipitation%Constant) then
-
-            if(PropPrecipitation%AccumulateValueInTime) then
+        if (PropPrecipitation%FirstActualization) then
+        
+            call GetValuesProcessingOptions (PropPrecipitation%ID%ObjFillMatrix,    &
+                                             Accumulate = Accumulate,               &
+                                             Interpolate = Interpolate,             &
+                                             UseOriginal = UseOriginal,             &
+                                             STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR040' 
+        
+        
+            if (Interpolate) then
+            
+                write(*,*) "Rain can't be INTERPOLATED. Check precipitation property options."
+                stop 'ModifyPrecipitation - ModuleAtmosphere - ERR050'
+                
+            elseif (Accumulate) then
+            
                 if (trim(PropPrecipitation%ID%Units) /= 'mm') then
-                    write(*,*)'Invalid Precipitation Units for accumulated rain'
-                    write(*,*)'Use mm'
-                    stop 'ModifyPrecipitation - ModuleAtmosphere - ERR01b'
+                
+                    write(*,*)'Invalid Precipitation Units for accumulated values'
+                    write(*,*)'Use mm with ACCUMULATE_VALUES = 1 or '
+                    write(*,*)'use a FLUX (ex. mm/hour) with ORIGINAL_VALUES = 1'
+                    stop 'ModifyPrecipitation - ModuleAtmosphere - ERR060'
+                    
                 endif
+                
+                if (PropPrecipitation%Constant) then
+                
+                    write(*,*)'Invalid Precipitation Units for constant value'
+                    write(*,*)'Use a FLUX (ex. mm/hour) when using constant value for rain'
+                    stop 'ModifyPrecipitation - ModuleAtmosphere - ERR061'                
+                
+                endif
+                
+            else
+                
+                if (trim(PropPrecipitation%ID%Units) == 'mm') then
+                
+                    write(*,*)'Invalid Precipitation Units for original values'
+                    write(*,*)'Use mm with ACCUMULATE_VALUES = 1 or '
+                    write(*,*)'use a FLUX (ex. mm/hour) with ORIGINAL_VALUES = 1'
+                    stop 'ModifyPrecipitation - ModuleAtmosphere - ERR060'
+                    
+                endif                
+                
             endif
 
             if (trim(adjustl(PropPrecipitation%ID%Units)) /= 'm3/s') then
+            
+                Me%PrecReqConv = .true.
 
                 select case (PropPrecipitation%ID%Units)
 
                 case ('mm/day')
 
-                    ConversionFactor = 1. / 86400.        !In mm/s
+                    Me%ConversionFactorPrec = 1. / 86400000.        !In m/s
 
                 case ('mm/hour')
 
-                    ConversionFactor = 1. / 3600.         !In mm/s
+                    Me%ConversionFactorPrec = 1. / 3600000.         !In m/s
                 
                 case ('mm')
                 
                     if(.not. PropPrecipitation%AccumulateValueInTime) then
                         write(*,*)'when using "mm" as units for precipitation'
                         write(*,*)'you must use ACCUMULATE_VALUES = 1'
-                        stop 'ModifyPrecipitation - ModuleAtmosphere - ERR01c'
+                        stop 'ModifyPrecipitation - ModuleAtmosphere - ERR050'
                     endif
                     
-                    ConversionFactor = 1.                 !In mm/s => Fillmatrix converted from mm to mm/s
+                    Me%ConversionFactorPrec = 1. / 1000.            !In m/s => Fillmatrix converted from mm to mm/s
 
                 case default
 
                     write(*,*)'Invalid Precipitation Units'
-                    write(*,*)'Use m3/s, mm/day, mm/hour or mm'
-                    stop 'ModifyPrecipitation - ModuleAtmosphere - ERR02'
+                    write(*,*)'Use mm, m3/s, mm/day or mm/hour'
+                    stop 'ModifyPrecipitation - ModuleAtmosphere - ERR060'
 
+                end select 
+                
+            else
+            
+                Me%PrecReqConv = .false.
+                
+            endif       
+        endif
 
-                end select
+        if (PropPrecipitation%FirstActualization .or. .not. PropPrecipitation%Constant) then
 
-                   if (MonitorPerformance) then
-                    call StartWatch ("ModuleAtmosphere", "ModifyPrecipitation")
-                endif
+            if (Me%PrecReqConv) then
 
                 CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
                 !$OMP PARALLEL PRIVATE(i,j)
@@ -2340,19 +2650,19 @@ do2 :   do while (associated(PropertyX))
                     if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
                         PropPrecipitation%Field(i, j) = PropPrecipitation%Field(i, j)      * &
                                                         (Me%ExternalVar%GridCellArea(i, j) * &
-                                                         ConversionFactor) / 1000. !In m3/s
+                                                        Me%ConversionFactorPrec)  !In m3/s                            
                     endif
                 enddo
                 enddo
                 !$OMP END DO
-                !$OMP END PARALLEL
-        
-                if (MonitorPerformance) then
-                    call StopWatch ("ModuleAtmosphere", "ModifyPrecipitation")
-                endif
-        
-            endif
+                !$OMP END PARALLEL             
 
+            endif                  
+
+        endif
+        
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleAtmosphere", "ModifyPrecipitation")
         endif
 
     end subroutine ModifyPrecipitation
@@ -2383,6 +2693,12 @@ do1 :   do while (associated(PropertyX))
                                            STAT           = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyPropByRain - ModuleAtmosphere - ERR01'
 
+                    if (PropertyX%UseToPredictDT) then
+                        call GetFillMatrixDTPrediction (PropertyX%ID%ObjFillMatrix, PropertyX%PredictedDT,    &
+                                                        PropertyX%DTForNextEvent, STAT = STAT_CALL)                
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyPropByRain - ModuleAtmosphere - ERR02'            
+                    endif 
+                    
                 endif
                 
             endif
@@ -2411,6 +2727,12 @@ do1 :   do while (associated(PropertyX))
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifySunHours - ModuleAtmosphere - ERR01'
 
+            if (PropSunHours%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropSunHours%ID%ObjFillMatrix, PropSunHours%PredictedDT,    &
+                                                PropSunHours%DTForNextEvent, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifySunHours - ModuleAtmosphere - ERR02'            
+            endif
+
         endif
 
     end subroutine ModifySunHours
@@ -2434,6 +2756,12 @@ do1 :   do while (associated(PropertyX))
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyAirTemperature - ModuleAtmosphere - ERR01'
 
+            if (PropAirTemperature%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropAirTemperature%ID%ObjFillMatrix, PropAirTemperature%PredictedDT,    &
+                                                PropAirTemperature%DTForNextEvent, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyAirTemperature - ModuleAtmosphere - ERR02'
+            endif
+
         endif
 
     end subroutine ModifyAirTemperature
@@ -2454,8 +2782,13 @@ do1 :   do while (associated(PropertyX))
                                    Matrix2D       = PropRelativeHumidity%Field,           &
                                    PointsToFill2D = Me%ExternalVar%MappingPoints2D,       &
                                    STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyAirTemperature - ModuleAtmosphere - ERR01'
-
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyRelativeHumidity - ModuleAtmosphere - ERR01'
+            
+            if (PropRelativeHumidity%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropRelativeHumidity%ID%ObjFillMatrix, PropRelativeHumidity%PredictedDT,    &
+                                                PropRelativeHumidity%DTForNextEvent, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyRelativeHumidity - ModuleAtmosphere - ERR02'            
+            endif
         endif
 
     end subroutine ModifyRelativeHumidity
@@ -2480,6 +2813,12 @@ do1 :   do while (associated(PropertyX))
                                    PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWindModulus - ModuleAtmosphere - ERR01'
+
+            if (PropWindModulus%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropWindModulus%ID%ObjFillMatrix, PropWindModulus%PredictedDT,    &
+                                                PropWindModulus%DTForNextEvent, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyWindModulus - ModuleAtmosphere - ERR02'
+            endif
 
         elseif (.not. PropWindModulus%Constant) then
 
@@ -2521,6 +2860,11 @@ do1 :   do while (associated(PropertyX))
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWindDirection - ModuleAtmosphere - ERR01'
 
+            if (PropWindDirection%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropWindDirection%ID%ObjFillMatrix, PropWindDirection%PredictedDT,    &
+                                                PropWindDirection%DTForNextEvent, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyWindDirection - ModuleAtmosphere - ERR02'
+            endif
         endif
 
     end subroutine ModifyWindDirection
@@ -2551,6 +2895,12 @@ do1 :   do while (associated(PropertyX))
                                    PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyCloudCover - ModuleAtmosphere - ERR02'
+            
+            if (PropCloudCover%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropCloudCover%ID%ObjFillMatrix, PropCloudCover%PredictedDT,    &
+                                                PropCloudCover%DTForNextEvent, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyCloudCover - ModuleAtmosphere - ERR03'            
+            endif          
 
         else
 
@@ -2780,11 +3130,17 @@ do1 :   do while (associated(PropertyX))
         !Arguments-------------------------------------------------------------
         type(T_Property), pointer                   :: PropIrrigation
 
-        !Local-----------------------------------------------------------------
-        real                                        :: ConversionFactor
+        !Local-----------------------------------------------------------------        
         integer                                     :: ILB, IUB, JLB, JUB, i, j, STAT_CALL
+        real                                        :: max_value
+        integer                                     :: CHUNK
+        logical                                     :: Accumulate, Interpolate, UseOriginal
 
         !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleAtmosphere", "ModifyIrrigation")
+        endif
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -2797,58 +3153,137 @@ do1 :   do while (associated(PropertyX))
                                    Matrix2D       = PropIrrigation%Field,                &
                                    PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
                                    STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR010'
 
-            call GetFillMatrixDTPrediction (PropIrrigation%ID%ObjFillMatrix, Me%IrriPredictedDT,    &
-                                            Me%IrriDTForNextEvent, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR02'
+            if (PropIrrigation%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropIrrigation%ID%ObjFillMatrix, PropIrrigation%PredictedDT,    &
+                                                PropIrrigation%DTForNextEvent, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR020' 
+                
+                call GetNextValueForDTPred (PropIrrigation%ID%ObjFillMatrix, Me%Irrigation%MaxValue, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR030'                            
+                
+!                write (*,*) 'Irrigation Max Value: ', Me%Irrigation%MaxValue
+!                stop
+            endif   
         endif
 
-
-
-        if (trim(adjustl(PropIrrigation%ID%Units)) /= 'm3/s') then
-
-            select case (PropIrrigation%ID%Units)
-
-            case ('mm/day')
-
-                ConversionFactor = 1. / 86400.        !In mm/s
-
-            case ('mm/month')
-
-                ConversionFactor = 12. / 86400 / 365. !In mm/s
-
-            case ('mm')
-
-                if(.not.PropIrrigation%AccumulateValueInTime) then
-                    write(*,*)'Invalid Irrigation Units'
-                    write(*,*)'Use m3/s, mm/day or mm/month'
-                    stop 'ModifyIrrigation - ModuleAtmosphere - ERR01b'
-                endif
-
-                ConversionFactor = 1.                 !In mm
-
-            case default
-
-                write(*,*)'Invalid Irrigation Units'
-                write(*,*)'Use m3/s, mm/day or mm/month'
-                stop 'ModifyIrrigation - ModuleAtmosphere - ERR02'
-
-            end select
-
-            do j = JLB, JUB
-            do i = ILB, IUB
-                            
-                PropIrrigation%Field(i, j) = PropIrrigation%Field(i, j)         * &
-                                            (Me%ExternalVar%GridCellArea(i, j)  * & 
-                                             ConversionFactor) / 1000. !In m3/s
-
-            enddo
-            enddo
+        if (PropIrrigation%FirstActualization) then
         
+            call GetValuesProcessingOptions (PropIrrigation%ID%ObjFillMatrix,       &
+                                             Accumulate = Accumulate,               &
+                                             Interpolate = Interpolate,             &
+                                             UseOriginal = UseOriginal,             &
+                                             STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR040' 
+        
+        
+            if (Interpolate) then
+            
+                write(*,*) "Irrigation can't be INTERPOLATED. Check irrigation property options."
+                stop 'ModifyIrrigation - ModuleAtmosphere - ERR050'
+                
+            elseif (Accumulate) then
+            
+                if (trim(PropIrrigation%ID%Units) /= 'mm') then
+                
+                    write(*,*)'Invalid Irrigation Units for accumulated values'
+                    write(*,*)'Use mm with ACCUMULATE_VALUES = 1 or '
+                    write(*,*)'use a FLUX (ex. mm/hour) with ORIGINAL_VALUES = 1'
+                    stop 'ModifyIrrigation - ModuleAtmosphere - ERR060'
+                    
+                endif
+                
+                if (PropIrrigation%Constant) then
+                
+                    write(*,*)'Invalid Irrigation Units for constant value'
+                    write(*,*)'Use a FLUX (ex. mm/hour) when using constant value for irrigation'
+                    stop 'ModifyIrrigation - ModuleAtmosphere - ERR061'                
+                
+                endif                
+                
+            else
+                
+                if (trim(PropIrrigation%ID%Units) == 'mm') then
+                
+                    write(*,*)'Invalid Irrigation Units for original values'
+                    write(*,*)'Use mm with ACCUMULATE_VALUES = 1 or '
+                    write(*,*)'use a FLUX (ex. mm/hour) with ORIGINAL_VALUES = 1'
+                    stop 'ModifyIrrigation - ModuleAtmosphere - ERR060'
+                    
+                endif                
+                
+            endif
+
+            if (trim(adjustl(PropIrrigation%ID%Units)) /= 'm3/s') then
+
+                Me%IrriReqConv = .true.
+
+                select case (PropIrrigation%ID%Units)
+
+                case ('mm/day')
+
+                    Me%ConversionFactorIrri = 1. / 86400000.        !In mm/s
+
+                case ('mm/hour')
+
+                    Me%ConversionFactorIrri = 1. / 3600000.          !In mm/s
+
+                case ('mm')
+
+                    if(.not.PropIrrigation%AccumulateValueInTime) then
+                        write(*,*)'Invalid Irrigation Units'
+                        write(*,*)'Use m3/s, mm/day or mm/month'
+                        stop 'ModifyIrrigation - ModuleAtmosphere - ERR070'
+                    endif
+
+                    Me%ConversionFactorIrri = 1. / 1000.                  !In mm
+
+                case default
+
+                    write(*,*)'Invalid Irrigation Units'
+                    write(*,*)'Use mm, m3/s, mm/day or mm/hour'
+                    stop 'ModifyIrrigation - ModuleAtmosphere - ERR080'
+
+                end select
+                
+            else
+            
+                Me%IrriReqConv = .false.
+            
+            endif
+
         endif
 
+        if (PropIrrigation%FirstActualization .or. .not. PropIrrigation%Constant) then
 
+            if (Me%IrriReqConv) then
+
+                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                !$OMP PARALLEL PRIVATE(i,j)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do j = JLB, JUB
+                do i = ILB, IUB
+                         
+                    if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then       
+                        PropIrrigation%Field(i, j) = PropIrrigation%Field(i, j)         * &
+                                                     (Me%ExternalVar%GridCellArea(i, j) * & 
+                                                     Me%ConversionFactorIrri) !In m3/s                                                        
+                    endif
+                    
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+                
+            endif
+                                                        
+        endif
+        
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleAtmosphere", "ModifyIrrigation")
+        endif                          
+        
     end subroutine ModifyIrrigation
     
     !------------------------------------------------------------------------------
@@ -2877,6 +3312,12 @@ do1 :   do while (associated(PropertyX))
                                            STAT           = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyPropByIrri - ModuleAtmosphere - ERR01'
 
+                    if (PropertyX%UseToPredictDT) then
+                        call GetFillMatrixDTPrediction (PropertyX%ID%ObjFillMatrix, PropertyX%PredictedDT,    &
+                                                        PropertyX%DTForNextEvent, STAT = STAT_CALL)                
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyPropByIrri - ModuleAtmosphere - ERR02'            
+                    endif 
+            
                 endif
                 
             endif

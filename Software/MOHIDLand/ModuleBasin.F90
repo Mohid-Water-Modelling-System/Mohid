@@ -66,7 +66,8 @@ Module ModuleBasin
                                      GetBasinPoints, GetRiverPoints, UngetBasin
                                      
     use ModuleAtmosphere,     only : StartAtmosphere, ModifyAtmosphere,                  &
-                                     GetAtmosphereProperty, GetAtmosphereDTPrediction,   &
+                                     GetAtmosphereProperty,                              &
+                                     GetNextAtmosphereDTPrediction,                      &
                                      GetAtmospherePropertiesIDByIdx,                     &
                                      GetAtmospherenProperties, AtmospherePropertyExists, &
                                      UnGetAtmosphere, KillAtmosphere
@@ -182,6 +183,7 @@ Module ModuleBasin
     private ::      EVTPHDFOutput
     private ::      TimeSerieOutput
     private ::      GlobalMassBalance
+    private ::      ComputeNextDT
 
     !Destructor
     public  :: KillBasin                                                     
@@ -416,8 +418,8 @@ Module ModuleBasin
         real(8)  :: ErrorInPercentage       = 0.0 !% of error from the actual stored (variation from initial to final) water content 
                                                   !to the expected due the inputs/outputs/discharges
         logical  :: StoreInitial            = .true.
-        !real(8)  :: BasinArea               = 0.0 !m2 -> this should be a line in the TS header. 
-        !integer  :: NumberOfCells           = 0
+        real(8)  :: BasinArea               = 0.0 !m2 -> this should be a line in the TS header. 
+        integer  :: NumberOfCells           = 0
     end type T_BasinWaterBalance
 
     type       T_Basin
@@ -597,7 +599,8 @@ Module ModuleBasin
         integer, optional, intent(OUT)                  :: STAT     
 
         !Local-------------------------------------------------------------------
-        integer                                         :: ready_      
+        integer                                         :: ready_ 
+        integer                                         :: i, j     
         integer                                         :: STAT_, STAT_CALL
         logical                                         :: VariableDT
         character (Len = StringLength)                  :: WarningString
@@ -690,17 +693,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call GetGridCellArea(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR09b'            
-            
-            !Me%BWB%BasinArea     = 0.0
-            !Me%BWB%NumberOfCells = 0
-            !do j = Me%Size%JLB, Me%Size%JUB
-            !do i = Me%Size%ILB, Me%Size%IUB
-            !    if (Me%ExtVar%BasinPoints(i, j) == 1) then
-            !        Me%BWB%BasinArea     = Me%BWB%BasinArea + Me%ExtVar%GridCellArea(i, j)
-            !        Me%BWB%NumberOfCells = Me%BWB%NumberOfCells + 1
-            !    endif
-            !enddo
-            !enddo                        
+                                               
+            Me%BWB%BasinArea     = 0.0
+            Me%BWB%NumberOfCells = 0
+            do j = Me%Size%JLB, Me%Size%JUB
+            do i = Me%Size%ILB, Me%Size%IUB
+                if (Me%ExtVar%BasinPoints(i, j) == 1) then
+                    Me%BWB%BasinArea     = Me%BWB%BasinArea + Me%ExtVar%GridCellArea(i, j)
+                    Me%BWB%NumberOfCells = Me%BWB%NumberOfCells + 1
+                endif
+            enddo
+            enddo                        
             
             call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR09c'
@@ -1830,8 +1833,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%ComputeBasinWaterBalance) then
         
             !Time Serie for BASIN WATER BALANCE (BWB)
-            allocate(PropertyList(36))
-            allocate(Me%BWBBuffer(36))
+            allocate(PropertyList(38))
+            allocate(Me%BWBBuffer(38))
             
             PropertyList(1)     = "Rain_m3"
             PropertyList(2)     = "Irrigation_m3"
@@ -1868,8 +1871,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             PropertyList(33)    = "Boundary_m3"            
             PropertyList(34)    = "Error_m3"
             PropertyList(35)    = "AccumulatedError_m3"
-            PropertyList(36)    = "Error_%"
-            !PropertyList(37)    = "NumberOfBasinCells"
+            PropertyList(36)    = "Error_%"                        
+            PropertyList(37)    = "NumberOfBasinCells"
+            PropertyList(38)    = "BasinArea_m2"
             !PropertyList(38)    = "HDFAccEVTP_m3"
             
             call StartTimeSerie(Me%ObjBWB, Me%ObjTime,                                      &
@@ -3305,10 +3309,6 @@ cd2 :           if (BlockFound) then
             
             !Verifies Global Mass
             if (Me%VerifyGlobalMass) then
-!                call CalculateMass(Me%MB%IniVolumeBasin,                           &
-!                                   Me%MB%IniVolumeVegetation,                      &
-!                                   Me%MB%IniVolumePorousMedia,                     &
-!                                   Me%MB%IniVolumeChannels)
                 MassEvaluationTime = "Initial"
                 call CalculateMass (MassEvaluationTime)
                 
@@ -3475,7 +3475,7 @@ cd2 :           if (BlockFound) then
             UnLockToWhichModules = 'AllModules'
             OptionsType = 'ModifyBasin'
             call ReadUnLockExternalVar (UnLockToWhichModules, OptionsType)
-            call PredictNewDT(NewDT)
+            call ComputeNextDT(NewDT)
 
             STAT_ = SUCCESS_
         else               
@@ -4808,7 +4808,7 @@ cd2 :           if (BlockFound) then
         logical                                     :: Pesticide
         logical                                     :: Decay
         character (Len = StringLength)              :: WarningString
-        real, dimension(:,:,:), pointer             :: ECw
+        real, dimension(:,:,:), pointer             :: ECw        
 
         !Begin-----------------------------------------------------------------
 
@@ -4943,7 +4943,7 @@ cd2 :           if (BlockFound) then
         endif
         
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "VegetationProcesses")
-    
+        
     end subroutine VegetationProcesses
 
     !--------------------------------------------------------------------------
@@ -8289,21 +8289,11 @@ cd2 :           if (BlockFound) then
                      Me%BWB%FinStoredInSurface + Me%BWB%FinStoredInStormWater
         
         Me%BWB%ErrorInVolume     = (InitialVol + Me%BWB%Input + Me%BWB%Discharges) -                    &
-                                   (FinalVol + Me%BWB%Output + Me%BWB%Boundary)
+                                   (FinalVol + Me%BWB%Output - Me%BWB%Boundary)
         OldValue                 = Me%BWB%AccErrorInVolume
         Me%BWB%AccErrorInVolume  = Me%BWB%AccErrorInVolume + Me%BWB%ErrorInVolume
         Me%BWB%ErrorInPercentage = (Me%BWB%ErrorInVolume / FinalVol) * 100.0
-        
-        !sum = 0
-        !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-        !    if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then 
-        !        !m3 = m3 + mm * m/mm * m2
-        !        sum = sum + Me%PartialAccEVTP(i,j) * 0.001 * Me%ExtVar%GridCellArea(i, j)
-        !    endif
-        !enddo
-        !enddo
-        
+              
         !Writes to Timeseries
         
         Me%BWBBuffer(1)  = Me%BWB%Rain
@@ -8342,9 +8332,8 @@ cd2 :           if (BlockFound) then
         Me%BWBBuffer(34) = Me%BWB%ErrorInVolume 
         Me%BWBBuffer(35) = Me%BWB%AccErrorInVolume
         Me%BWBBuffer(36) = Me%BWB%ErrorInPercentage
-        !Me%BWBBuffer(36) = Me%BWB%BasinArea
-        !Me%BWBBuffer(37) = Me%BWB%NumberOfCells
-        !Me%BWBBuffer(38) = sum
+        Me%BWBBuffer(37) = Me%BWB%NumberOfCells
+        Me%BWBBuffer(38) = Me%BWB%BasinArea
         
         call WriteTimeSerieLine (Me%ObjBWB, Me%BWBBuffer, LineStored = LineStored, STAT = stat)
         if (stat /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR40'         
@@ -8452,7 +8441,7 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
 
-    subroutine PredictNewDT (NewDT)
+    subroutine ComputeNextDT (NewDT)
 
         !Arguments---------------------------------------------------------------
         real                                        :: NewDT
@@ -8463,104 +8452,115 @@ cd2 :           if (BlockFound) then
         real                                        :: DNetDT, RunOffDT
         real                                        :: PorousMediaDT, MaxDT
         integer                                     :: ID_DT
-        character(len=132)                          :: AuxString   
-
+        character(len=132)                          :: AuxString
+        character(len=30)                           :: time_string 
+        type(T_Time)                                :: NextTime  
+        
+        !------------------------------------------------------------------------
+        
         if (Me%Coupled%Atmosphere) then
-            call GetAtmosphereDTPrediction(Me%ObjAtmosphere, AtmosfereDT, DTForNextEvent, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PredictNewDT - ModuleBasin - ERR00'
+            call GetNextAtmosphereDTPrediction (Me%ObjAtmosphere, AtmosfereDT, DTForNextEvent, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleBasin - ERR010'
         else
             AtmosfereDT     = -null_real
             DTForNextEvent  = -null_real
         endif
 
         if (Me%Coupled%DrainageNetwork) then
-            call GetNextDrainageNetDT   (Me%ObjDrainageNetwork, DNetDT, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PredictNewDT - ModuleBasin - ERR01'
+            call GetNextDrainageNetDT (Me%ObjDrainageNetwork, DNetDT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleBasin - ERR020'
         else
             DNetDT = -null_real
         endif
 
         if (Me%Coupled%RunOff) then
-            call GetNextRunOffDT        (Me%ObjRunOff, RunOffDT, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PredictNewDT - ModuleBasin - ERR02'
+            call GetNextRunOffDT (Me%ObjRunOff, RunOffDT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleBasin - ERR030'
         else
             RunOffDT = -null_real
         end if
 
         if (Me%Coupled%PorousMedia) then
-!            call GetNextPorousMediapropDT   (Me%ObjPorousMediaProperties, PorousMediaDT, STAT = STAT_CALL)
-!            if (STAT_CALL /= SUCCESS_) stop 'PredictNewDT - ModuleBasin - ERR03'
-            call GetNextPorousMediaDT   (Me%ObjPorousMedia, PorousMediaDT, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PredictNewDT - ModuleBasin - ERR03'
 
-            if (Me%Coupled%PorousMediaProperties) then
-!                call GetNextPorousMediaPropDT   (Me%ObjPorousMediaProperties, PorousMediaPropDT, STAT = STAT_CALL)
-!                if (STAT_CALL /= SUCCESS_) stop 'PredictNewDT - ModuleBasin - ERR04'
-            endif
+            call GetNextPorousMediaDT (Me%ObjPorousMedia, PorousMediaDT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleBasin - ERR040'
 
         else
             PorousMediaDT = -null_real
         end if
 
-        ID_DT = 0
-!        if (AtmosfereDT < NewDT) then
-!            NewDT = AtmosfereDT
-!            ID_DT = 1
-!        endif
+        ID_DT = 0       
         
-        if (DNetDT      < NewDT) then
-            NewDT = DNetDT
-            ID_DT = 2
-        endif
+        if (DTForNextEvent <= 0.0) then
+        
+            if (AtmosfereDT < NewDT) then
+            
+                NewDT = AtmosfereDT
+                ID_DT = 1
+                
+            endif
+            
+            if (Me%DTDuringRain < NewDT) then
+            
+                NewDT = Me%DTDuringRain
+                ID_DT = 2
+                
+            endif
 
-        if (RunOffDT    < NewDT) then
-            NewDT = RunOffDT
+        endif        
+        
+        if (DNetDT < NewDT) then
+        
+            NewDT = DNetDT
             ID_DT = 3
+            
+        endif
+        
+        if (RunOffDT < NewDT) then
+        
+            NewDT = RunOffDT
+            ID_DT = 4
+            
         endif
 
         if (PorousMediaDT < NewDT) then
+        
             NewDT = PorousMediaDT 
-            ID_DT = 4
+            ID_DT = 5
+            
+        endif
+            
+        !Rounds new DT
+        if (NewDT * 1000.0 > AINT(NewDT*1000.0)) then
+           NewDT = AINT(NewDT*1000.0) + 1.0
+        else
+           NewDT = max(AINT(NewDT*1000.0), 1.0)
         endif
 
-        if (DTForNextEvent == 0.0) then
-            if (Me%DTDuringRain < NewDT) then
-                NewDT = Me%DTDuringRain
-                ID_DT = 5
-            endif
-        else
-            if (DTForNextEvent < NewDT) then
-                NewDT = DTForNextEvent
-                ID_DT = 6
-            endif
-            
-            if (Me%AdjustDTForRainEvent) then
-                if (NewDT > (Me%AdjustDTForRainEventFactor * Me%DTDuringRain)) then
-                    NewDT = NewDT - Me%DTDuringRain
-                    ID_DT = 7
-                endif
-            endif
+        NewDT = NewDT / 1000.0
+
+        if ((DTForNextEvent > 0.0) .and. &
+            (DTForNextEvent < NewDT)) then
+        
+            NewDT = DTForNextEvent
+            ID_DT = 8
         endif
         
-        !if (ID_DT == 0) then
-        !    NewDT = MaxDT
-        !endif
-        
-!        if (NewDT < 1.0) then
-!            call WriteDTLog ('ModuleBasin < 1', ID_DT, NewDT)
-!            NewDT = 1.0
-!            ID_DT = 7
-!        endif
+        if (NewDT > AtmosfereDT) NewDT = AtmosfereDT
+
+        NextTime = Me%CurrentTime + NewDT
+        time_string = ConvertTimeToString (NextTime)
 
         call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
-        write(AuxString, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT)
-        10 format(f12.4, 1x, f12.4, 1x, f12.4)
+        write(AuxString, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT), min(AtmosfereDT, MaxDT), DTForNextEvent, time_string                                
+        !write(*, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT), min(AtmosfereDT, MaxDT)
+        10 format(f12.4, 1x, f12.4, 1x, f12.4, 1x, f12.4, 1x, f12.4, 1x, A26)
 
         call WriteDTLog_ML ('ModuleBasin', ID_DT, NewDT, AuxString)
 
+        !------------------------------------------------------------------------
 
-
-    end subroutine PredictNewDT 
+    end subroutine ComputeNextDT 
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
