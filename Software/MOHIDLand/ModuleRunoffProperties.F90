@@ -81,7 +81,8 @@ Module ModuleRunoffProperties
                                          GetRunoffWaterColumnOld, GetRunoffWaterColumn,       &
                                          GetManning, GetManningDelta, GetRunoffCenterVelocity, &
                                          GetRunoffWaterColumnAT, GetBoundaryImposed,          &
-                                         GetBoundaryCells, GetBoundaryFlux, GetFlowDischarge
+                                         GetBoundaryCells, GetBoundaryFlux, GetFlowDischarge, &
+                                         GetRouteD4
                                            
 !    use ModuleInterface,          only : ConstructInterface, Modify_Interface
     use ModuleAdvectionDiffusion, only : StartAdvectionDiffusion, AdvectionDiffusion,      &
@@ -650,7 +651,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ExtVar%CoupledVegetation      = CoupledVegetation
             Me%ExtVar%VegParticFertilization = VegParticFertilization
             Me%ExtVar%Pesticide              = Pesticide
-
+            
             call CheckBoundary
 
             call ReadFileNames
@@ -663,7 +664,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ReadGlobalOptions
 
             call Construct_PropertyList
-            
+
+            call VerifyOptions
+                        
             if (Me%Coupled%Partition) then
                 call ConstructPartition
             end if            
@@ -805,6 +808,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
     !--------------------------------------------------------------------------
 
+    subroutine VerifyOptions
+        !Arguments-------------------------------------------------------------
+                                                    
+        !Local-----------------------------------------------------------------
+        logical                                        :: RouteD4
+        integer                                        :: STAT_CALL
+        !Begin-----------------------------------------------------------------
+        
+        call GetRouteD4 (Me%ObjRunoff, RouteD4, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleRunoffProperties - ERR01'
+        
+        !RouteD4 is not yet accounted in runoff properties computation 
+        if (RouteD4) then
+            write(*,*)
+            write(*,*) 'Using ROUTE_D4 in ModuleRunoff'
+            write(*,*) 'This process is not yet accounted in RunoffProperties'
+            write(*,*) 'Disconnect ROUTE_D4 from ModuleRunoff'
+            stop 'VerifyOptions - ModuleRunoffProperties - ERR010'
+        endif
+            
+    end subroutine VerifyOptions
+    
+    !--------------------------------------------------------------------------
+
     subroutine CheckBoundary
 
         !Arguments-------------------------------------------------------------
@@ -815,11 +842,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !check if boundary is imposed
         call GetBoundaryImposed (Me%ObjRunoff, Me%ExtVar%BoundaryImposed, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CheckBoundary - ModulePorousMedia - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'CheckBoundary - ModuleRunoffProperties - ERR01'
         
         if (Me%ExtVar%BoundaryImposed) then
             call GetBoundaryCells (Me%ObjRunoff, Me%ExtVar%BoundaryCells, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckBoundary - ModulePorousMedia - ERR010'
+            if (STAT_CALL /= SUCCESS_) stop 'CheckBoundary - ModuleRunoffProperties - ERR010'
         endif
         
     end subroutine CheckBoundary
@@ -6331,10 +6358,10 @@ doi4 :      do i = ILB, IUB
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: CurrProperty
-        integer                                     :: i, j, CHUNK, STAT_CALL
+        integer                                     :: i, j, CHUNK !, STAT_CALL
         real(8)                                     :: Prop, WaterVolumeOld, WaterVolumeNew
-        real(8)                                     :: FlowMass, WaterColumnNew
-        real(8), dimension(:,:), pointer            :: WaterColumnFinal
+        real(8)                                     :: FlowMass !, WaterColumnNew
+        !real(8), dimension(:,:), pointer            :: WaterColumnFinal
         character (Len = 5)                         :: str_i, str_j
         character (Len = 15)                        :: str_conc
         character (len = StringLength)              :: string_to_be_written        
@@ -6342,8 +6369,8 @@ doi4 :      do i = ILB, IUB
 
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkInterface")
    
-        call GetRunoffWaterColumn (Me%ObjRunoff, WaterColumnFinal, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyDrainageNetworkInterface - ModuleRunoffProperties - ERR10'
+!        call GetRunoffWaterColumn (Me%ObjRunoff, WaterColumnFinal, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ModifyDrainageNetworkInterface - ModuleRunoffProperties - ERR10'
 
         CurrProperty => Me%FirstProperty
         
@@ -6403,12 +6430,13 @@ doi4 :      do i = ILB, IUB
                         !So new is old (after transport) less flux. Positive flux removes WC
                         !WaterVolumeNew = WaterColumnFinal(i,j) * Me%ExtVar%Area(i,j)
                         WaterVolumeNew = WaterVolumeOld - Me%ExtVar%FlowToChannels(i,j) * Me%ExtVar%DT
-                        WaterColumnNew = WaterVolumeNew / Me%ExtVar%Area(i,j)
+                        !WaterColumnNew = WaterVolumeNew / Me%ExtVar%Area(i,j)
                         
                         !g = m3/s * s * g/m3
                         FlowMass       = Me%ExtVar%FlowToChannels(i,j) * Me%ExtVar%DT * Prop                    
                         
-                        if (WaterColumnFinal(i,j) .gt. AlmostZero) then
+                        !if (WaterColumnFinal(i,j) .gt. AlmostZero) then
+                        if (WaterVolumeNew .gt. AlmostZero) then
                             !Update New Concentration
                             !g/m3 = ((g/m3 * m3) + g)/ m3
                             CurrProperty%Concentration(i,j) = ((Prop * WaterVolumeOld) - FlowMass) / WaterVolumeNew
@@ -6437,8 +6465,8 @@ doi4 :      do i = ILB, IUB
         
         enddo
         
-        call UngetRunoff (Me%ObjRunoff, WaterColumnFinal, STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_)  stop 'ModifyDrainageNetworkInterface - ModuleRunoffProperties - ERR020'     
+!        call UngetRunoff (Me%ObjRunoff, WaterColumnFinal, STAT_CALL)  
+!        if (STAT_CALL /= SUCCESS_)  stop 'ModifyDrainageNetworkInterface - ModuleRunoffProperties - ERR020'     
                            
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkInterface")
 

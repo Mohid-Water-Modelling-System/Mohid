@@ -83,6 +83,7 @@ Module ModuleRunOff
     public  ::  GetFlowToChannels
     !public  ::  GetFlowAtBoundary
     public  ::  GetBoundaryImposed
+    public  ::  GetRouteD4
     public  ::  GetBoundaryFlux
     public  ::  GetBoundaryCells
     public  ::  GetFlowDischarge
@@ -2479,6 +2480,37 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(STAT)) STAT = STAT_
             
     end subroutine GetBoundaryImposed
+    
+    !--------------------------------------------------------------------------
+
+    subroutine GetRouteD4 (ObjRunOffID, RouteD4, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        logical, intent(OUT)                            :: RouteD4
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjRunOffID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            RouteD4 = Me%RouteDFourPoints
+
+            STAT_ = SUCCESS_
+            
+        else
+         
+            STAT_ = ready_
+            
+        end if
+
+        if (present(STAT)) STAT = STAT_
+            
+    end subroutine GetRouteD4
 
     !--------------------------------------------------------------------------   
 
