@@ -2042,21 +2042,33 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !----------------------------------------------------------------------
         !Read convergence options
-        !----------------------------------------------------------------------        
-        !Maximun change of water content (in %) allowed in one time step.
-        call GetData(Me%CV%StabilizeFactor,                                     &
+        !----------------------------------------------------------------------                
+        call GetData(Me%CV%Stabilize,                                           &
                      Me%ObjEnterData, iflag,                                    &  
-                     keyword      = 'STABILIZE_FACTOR',                         &
+                     keyword      = 'STABILIZE',                                &
                      ClientModule = 'ModuleDrainageNetwork',                    &
-                     SearchType   = FromFile,                                   &
-                     Default      = 0.1,                                        &
+                     SearchType   = FromFile,                                   &                     
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) & 
-            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR080")
-        if (iflag > 0) then 
-            Me%CV%Stabilize = .true.
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR080")        
+        if (iflag <= 0) then
+            write(*,*) 'WARNING: Missing STABILIZE keyword in Drainage Network input data file.'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR081")        
+        endif
+        if (Me%CV%Stabilize) then 
+            !Maximum change of water content (in %) allowed in one time step.
+            call GetData(Me%CV%StabilizeFactor,                                     &
+                         Me%ObjEnterData, iflag,                                    &  
+                         keyword      = 'STABILIZE_FACTOR',                         &
+                         ClientModule = 'ModuleDrainageNetwork',                    &
+                         SearchType   = FromFile,                                   &
+                         Default      = 0.1,                                        &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) & 
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR082")            
+            
             if (Me%CV%StabilizeFactor < 0.0 .or. Me%CV%StabilizeFactor > 1.0) &
-                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR081")
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR083")
                 
             call GetData(Me%CV%MinimumValueToStabilize,                     &
                          Me%ObjEnterData, iflag,                            &
@@ -2066,11 +2078,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule = 'ModuleDrainageNetwork',            &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR082")
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR084")
             if (Me%CV%MinimumValueToStabilize < 0.0) then
                 write (*,*)'Invalid Minimun Water Column to Stabilize value [STABILIZE_MIN]'
                 write (*,*)'Value must be greater than 0.0'            
-                call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleDrainageNetwork - ERR083")
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR085")
             endif      
             
             call GetData(dummy_real,                                            &
@@ -2081,15 +2093,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = 0.,                                     &
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) &
-                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR084")
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR086")
             if (dummy_real <= 0.) then
                 Me%CV%MinToRestart = 0
             else
                 Me%CV%MinToRestart = max(int(dummy_real * Me%TotalNodes), 0)
             endif    
-                         
-        else
-            Me%CV%Stabilize = .false.
+            
+            call GetData(Me%CV%CheckDecreaseOnly,                               &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'CHECK_DEC_ONLY',                       &
+                         ClientModule = 'ModuleDrainageNetwork',                &
+                         SearchType   = FromFile,                               &
+                         Default      = .false.,                                &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR087")             
         endif        
 
        !Number of iterations threshold for starting to ask for a lower DT 
@@ -2201,30 +2220,29 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR151")
         endif                                           
         
-        call GetData(Me%CV%CheckDecreaseOnly,                               &
-                     Me%ObjEnterData, iflag,                                &  
-                     keyword      = 'CHECK_DEC_ONLY',                       &
-                     ClientModule = 'ModuleDrainageNetwork',                &
-                     SearchType   = FromFile,                               &
-                     Default      = .false.,                                &
+        call GetData(Me%CV%LimitDTCourant,                                    &
+                     Me%ObjEnterData, iflag,                                    &    
+                     keyword      = 'LIMIT_DT_COURANT',                         &
+                     ClientModule = 'ModuleDrainageNetwork',                    &
+                     SearchType   = FromFile,                                   &
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) &
-            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR170")  
- 
-        !Gets Maximum allowed Courant Number
-        call GetData(Me%CV%MaxCourant,                                      &
-                     Me%ObjEnterData, iflag,                                &  
-                     keyword      = 'MAX_COURANT',                          &
-                     ClientModule = 'ModuleDrainageNetwork',                &
-                     SearchType   = FromFile,                               &
-                     Default      = 1.0,                                    &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) &
-            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR180")        
-        if (iflag > 0) then
-            Me%CV%LimitDTCourant = .true.
-        else
-            Me%CV%LimitDTCourant = .false.
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR180") 
+        if (iflag <= 0) then
+            write(*,*) 'WARNING: Missing LIMIT_DT_COURANT keyword in Drainage Network input data file.'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR181")         
+        endif
+        if (Me%CV%LimitDTCourant) then
+            !Gets Maximum allowed Courant Number
+            call GetData(Me%CV%MaxCourant,                                      &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'MAX_COURANT',                          &
+                         ClientModule = 'ModuleDrainageNetwork',                &
+                         SearchType   = FromFile,                               &
+                         Default      = 1.0,                                    &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR182")        
         endif
         
         !----------------------------------------------------------------------

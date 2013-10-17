@@ -251,7 +251,8 @@ program MohidLand
             call UnitsManager (UnitDT, OPEN_FILE)      
             open(UNIT   = UnitDT, FILE   = DTLogFile, STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR01'
-            write (UnitDT, '(A25, A10,A12,A12,A13,A13,A13,A13,A26)') "ModuleName", "iter", "DT", "DNet", "RunOff", "PorousMedia", "Atmosphere", "DTNextEv", "NextTime"
+            write (UnitDT, '(A25, A10,A12,A12,A13,A13,A13,A13,A26)') &
+                "ModuleName", "iter", "DT", "DNet", "RunOff", "PorousMedia", "Atmosphere", "DTNextEv", "NextTime"
         end if
 
         call ReadFileName('IN_MODEL', DataFile, "Mohid Land Data File", STAT = STAT_CALL)

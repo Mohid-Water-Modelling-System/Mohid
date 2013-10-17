@@ -197,6 +197,8 @@ Module ModuleAtmosphere
         logical                                     :: Constant             = .false.
         logical                                     :: NoInterpolateValueInTime = .false.
         logical                                     :: AccumulateValueInTime = .false.
+        logical                                     :: InterpolateValueInTime = .false.
+        logical                                     :: UseOriginalValue = .false.
         type (T_Statistics)                         :: Statistics
         type (T_Property), pointer                  :: Next                 => null()
         type (T_Property), pointer                  :: Prev                 => null()
@@ -1148,23 +1150,24 @@ cd2 :           if (BlockFound) then
             write(*,*) 'To use accumulated values use instead :'
             write(*,*) '   "ACCUMULATE_VALUES : 1" '
             write(*,*) 
+            STOP 'Construct_PropertyValues - ModuleAtmosphere - ERR030'
         
-            if (NewProperty%NoInterpolateValueInTime) then                    
-                NewProperty%AccumulateValueInTime  = .true.
-            else       
-                NewProperty%AccumulateValueInTime  = .false.
-            endif  
+!            if (NewProperty%NoInterpolateValueInTime) then                    
+!                NewProperty%AccumulateValueInTime  = .true.
+!            else       
+!                NewProperty%AccumulateValueInTime  = .false.
+!            endif  
         
-        else
+!        else
        
-            call GetData(NewProperty%AccumulateValueInTime,                                 &
-                         Me%ObjEnterData, iflag,                                            &
-                         Default      = .false.,                                            &
-                         SearchType   = FromBlock,                                          &
-                         keyword      ='ACCUMULATE_VALUES',                                 &
-                         ClientModule = 'ModuleAtmosphere',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR030'
+!            call GetData(NewProperty%AccumulateValueInTime,                                 &
+!                         Me%ObjEnterData, iflag,                                            &
+!                         Default      = .false.,                                            &
+!                         SearchType   = FromBlock,                                          &
+!                         keyword      ='ACCUMULATE_VALUES',                                 &
+!                         ClientModule = 'ModuleAtmosphere',                                 &
+!                         STAT         = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR030'
         
         endif          
 
@@ -1197,11 +1200,18 @@ cd2 :           if (BlockFound) then
                                  STAT               = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR040'
 
+        call GetValuesProcessingOptions (NewProperty%ID%ObjFillMatrix,                  &
+                                         Accumulate = NewProperty%AccumulateValueInTime,         &
+                                         Interpolate = NewProperty%InterpolateValueInTime,       &
+                                         UseOriginal = NewProperty%UseOriginalValue,             &
+                                         STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR041' 
+
         call GetIfMatrixRemainsConstant(FillMatrixID    = NewProperty%ID%ObjFillMatrix,     &
                                         RemainsConstant = NewProperty%Constant,             &
                                         STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                          &
-            stop 'Construct_PropertyValues - ModuleAtmosphere - ERR02'
+            stop 'Construct_PropertyValues - ModuleAtmosphere - ERR042'
 
         if (.not. NewProperty%ID%SolutionFromFile) then
             call KillFillMatrix (NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
@@ -2351,7 +2361,7 @@ do2 :   do while (associated(PropertyX))
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMeanSeaLevelPressure - ModuleAtmosphere - ERR10'
 
             if (PropMeanSeaLevelPressure%UseToPredictDT) then
-                call GetFillMatrixDTPrediction (PropMeanSeaLevelPressure%ID%ObjFillMatrix, PropMeanSeaLevelPressure%PredictedDT,    &
+                call GetFillMatrixDTPrediction (PropMeanSeaLevelPressure%ID%ObjFillMatrix, PropMeanSeaLevelPressure%PredictedDT, &
                                                 PropMeanSeaLevelPressure%DTForNextEvent, STAT = STAT_CALL)                
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMeanSeaLevelPressure - ModuleAtmosphere - ERR02'            
             endif  
@@ -2385,7 +2395,8 @@ do2 :   do while (associated(PropertyX))
             if (STAT_CALL /= SUCCESS_) stop 'ModifyCO2AtmosphericPressure - ModuleAtmosphere - ERR01'
 
             if (PropCO2AtmosphericPressure%UseToPredictDT) then
-                call GetFillMatrixDTPrediction (PropCO2AtmosphericPressure%ID%ObjFillMatrix, PropCO2AtmosphericPressure%PredictedDT,    &
+                call GetFillMatrixDTPrediction (PropCO2AtmosphericPressure%ID%ObjFillMatrix,    &
+                                                PropCO2AtmosphericPressure%PredictedDT,         &
                                                 PropCO2AtmosphericPressure%DTForNextEvent, STAT = STAT_CALL)                
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyCO2AtmosphericPressure - ModuleAtmosphere - ERR02'            
             endif 
@@ -2418,7 +2429,8 @@ do2 :   do while (associated(PropertyX))
             if (STAT_CALL /= SUCCESS_) stop 'ModifyO2AtmosphericPressure - ModuleAtmosphere - ERR01'
 
             if (PropO2AtmosphericPressure%UseToPredictDT) then
-                call GetFillMatrixDTPrediction (PropO2AtmosphericPressure%ID%ObjFillMatrix, PropO2AtmosphericPressure%PredictedDT,    &
+                call GetFillMatrixDTPrediction (PropO2AtmosphericPressure%ID%ObjFillMatrix,     &
+                                                PropO2AtmosphericPressure%PredictedDT,          &
                                                 PropO2AtmosphericPressure%DTForNextEvent, STAT = STAT_CALL)                
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyO2AtmosphericPressure - ModuleAtmosphere - ERR02'            
             endif  
@@ -2523,8 +2535,8 @@ do2 :   do while (associated(PropertyX))
         !Local-----------------------------------------------------------------        
         integer                                     :: i, j, STAT_CALL
         integer                                     :: CHUNK
-        real                                        :: max_value
-        logical                                     :: Accumulate, Interpolate, UseOriginal
+        !real                                        :: max_value
+        !logical                                     :: Accumulate, Interpolate, UseOriginal
 
         !Begin-----------------------------------------------------------------
 
@@ -2553,26 +2565,26 @@ do2 :   do while (associated(PropertyX))
 
         if (PropPrecipitation%FirstActualization) then
         
-            call GetValuesProcessingOptions (PropPrecipitation%ID%ObjFillMatrix,    &
-                                             Accumulate = Accumulate,               &
-                                             Interpolate = Interpolate,             &
-                                             UseOriginal = UseOriginal,             &
-                                             STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR040' 
+!            call GetValuesProcessingOptions (PropPrecipitation%ID%ObjFillMatrix,    &
+!                                             Accumulate = Accumulate,               &
+!                                             Interpolate = Interpolate,             &
+!                                             UseOriginal = UseOriginal,             &
+!                                             STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR040' 
         
         
-            if (Interpolate) then
+            if (PropPrecipitation%InterpolateValueInTime) then
             
                 write(*,*) "Rain can't be INTERPOLATED. Check precipitation property options."
                 stop 'ModifyPrecipitation - ModuleAtmosphere - ERR050'
                 
-            elseif (Accumulate) then
+            elseif (PropPrecipitation%AccumulateValueInTime) then
             
                 if (trim(PropPrecipitation%ID%Units) /= 'mm') then
                 
                     write(*,*)'Invalid Precipitation Units for accumulated values'
                     write(*,*)'Use mm with ACCUMULATE_VALUES = 1 or '
-                    write(*,*)'use a FLUX (ex. mm/hour) with ORIGINAL_VALUES = 1'
+                    write(*,*)'use a FLUX (ex. mm/hour) with USE_ORIGINAL_VALUES = 1'
                     stop 'ModifyPrecipitation - ModuleAtmosphere - ERR060'
                     
                 endif
@@ -2591,7 +2603,7 @@ do2 :   do while (associated(PropertyX))
                 
                     write(*,*)'Invalid Precipitation Units for original values'
                     write(*,*)'Use mm with ACCUMULATE_VALUES = 1 or '
-                    write(*,*)'use a FLUX (ex. mm/hour) with ORIGINAL_VALUES = 1'
+                    write(*,*)'use a FLUX (ex. mm/hour) with USE_ORIGINAL_VALUES = 1'
                     stop 'ModifyPrecipitation - ModuleAtmosphere - ERR060'
                     
                 endif                
@@ -3132,9 +3144,9 @@ do1 :   do while (associated(PropertyX))
 
         !Local-----------------------------------------------------------------        
         integer                                     :: ILB, IUB, JLB, JUB, i, j, STAT_CALL
-        real                                        :: max_value
+        !real                                        :: max_value
         integer                                     :: CHUNK
-        logical                                     :: Accumulate, Interpolate, UseOriginal
+        !logical                                     :: Accumulate, Interpolate, UseOriginal
 
         !Begin-----------------------------------------------------------------
 
@@ -3160,7 +3172,7 @@ do1 :   do while (associated(PropertyX))
                                                 PropIrrigation%DTForNextEvent, STAT = STAT_CALL)                
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR020' 
                 
-                call GetNextValueForDTPred (PropIrrigation%ID%ObjFillMatrix, Me%Irrigation%MaxValue, STAT = STAT_CALL)                
+                call GetNextValueForDTPred (PropIrrigation%ID%ObjFillMatrix, Me%Irrigation%MaxValue, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR030'                            
                 
 !                write (*,*) 'Irrigation Max Value: ', Me%Irrigation%MaxValue
@@ -3170,26 +3182,26 @@ do1 :   do while (associated(PropertyX))
 
         if (PropIrrigation%FirstActualization) then
         
-            call GetValuesProcessingOptions (PropIrrigation%ID%ObjFillMatrix,       &
-                                             Accumulate = Accumulate,               &
-                                             Interpolate = Interpolate,             &
-                                             UseOriginal = UseOriginal,             &
-                                             STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR040' 
+!            call GetValuesProcessingOptions (PropIrrigation%ID%ObjFillMatrix,       &
+!                                             Accumulate = Accumulate,               &
+!                                             Interpolate = Interpolate,             &
+!                                             UseOriginal = UseOriginal,             &
+!                                             STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR040' 
         
         
-            if (Interpolate) then
+            if (PropIrrigation%InterpolateValueInTime) then
             
                 write(*,*) "Irrigation can't be INTERPOLATED. Check irrigation property options."
                 stop 'ModifyIrrigation - ModuleAtmosphere - ERR050'
                 
-            elseif (Accumulate) then
+            elseif (PropIrrigation%AccumulateValueInTime) then
             
                 if (trim(PropIrrigation%ID%Units) /= 'mm') then
                 
                     write(*,*)'Invalid Irrigation Units for accumulated values'
                     write(*,*)'Use mm with ACCUMULATE_VALUES = 1 or '
-                    write(*,*)'use a FLUX (ex. mm/hour) with ORIGINAL_VALUES = 1'
+                    write(*,*)'use a FLUX (ex. mm/hour) with USE_ORIGINAL_VALUES = 1'
                     stop 'ModifyIrrigation - ModuleAtmosphere - ERR060'
                     
                 endif
@@ -3208,7 +3220,7 @@ do1 :   do while (associated(PropertyX))
                 
                     write(*,*)'Invalid Irrigation Units for original values'
                     write(*,*)'Use mm with ACCUMULATE_VALUES = 1 or '
-                    write(*,*)'use a FLUX (ex. mm/hour) with ORIGINAL_VALUES = 1'
+                    write(*,*)'use a FLUX (ex. mm/hour) with USE_ORIGINAL_VALUES = 1'
                     stop 'ModifyIrrigation - ModuleAtmosphere - ERR060'
                     
                 endif                

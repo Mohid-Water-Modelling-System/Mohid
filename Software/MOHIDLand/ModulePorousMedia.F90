@@ -566,6 +566,8 @@ Module ModulePorousMedia
         type (T_Size3D)                         :: Size,   WorkSize       
         type (T_Size2D)                         :: Size2D
         
+        integer                                 :: DomainCellsNumber
+        
         !Soil Types
         type (T_SoilType), dimension(:), pointer :: SoilTypes       => null()
         
@@ -1388,21 +1390,36 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !----------------------------------------------------------------------
         !Read convergence options
-        !----------------------------------------------------------------------        
-        !Maximun change of water content (in %) allowed in one time step.
-        call GetData(Me%CV%StabilizeFactor,                                     &
+        !---------------------------------------------------------------------- 
+        
+        Me%DomainCellsNumber = CountDomainPoints()
+        
+        call GetData(Me%CV%Stabilize,                                           &
                      Me%ObjEnterData, iflag,                                    &  
-                     keyword      = 'STABILIZE_FACTOR',                         &
+                     keyword      = 'STABILIZE',                                &
                      ClientModule = 'ModulePorousMedia',                        &
                      SearchType   = FromFile,                                   &
-                     Default      = 0.1,                                        &
-                     STAT         = STAT_CALL)                                  
+                     STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) & 
-            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR080")
-        if (iflag > 0) then 
-            Me%CV%Stabilize = .true.
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR080")        
+        if (iflag <= 0) then
+            write(*,*) 'WARNING: Missing STABILIZE keyword in Porous Media input data file.'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR081")
+        endif         
+        if (Me%CV%Stabilize) then                
+            !Maximun change of water content (in %) allowed in one time step.
+            call GetData(Me%CV%StabilizeFactor,                                     &
+                         Me%ObjEnterData, iflag,                                    &  
+                         keyword      = 'STABILIZE_FACTOR',                         &
+                         ClientModule = 'ModulePorousMedia',                        &
+                         SearchType   = FromFile,                                   &
+                         Default      = 0.1,                                        &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) & 
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR082")
+
             if (Me%CV%StabilizeFactor < 0.0 .or. Me%CV%StabilizeFactor > 1.0) &
-                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR081")
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR083")
                 
             call GetData(Me%CV%MinimumValueToStabilize,                     &
                          Me%ObjEnterData, iflag,                            &
@@ -1412,14 +1429,33 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                          ClientModule = 'ModulePorousMedia',                &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModulePorousMedia - ERR082")
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR084")
             if (Me%CV%MinimumValueToStabilize < 0.0) then
                 write (*,*)'Invalid Minimun to Stabilize value [STABILIZE_MIN_FACTOR]'
                 write (*,*)'Value must be >= 0'            
-                call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModulePorousMedia - ERR083")
-            endif                 
-        else
-            Me%CV%Stabilize = .false.
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR085")
+            endif 
+            
+            call GetData(dummy_real,                                            &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'STABILIZE_RESTART_FACTOR',             &
+                         ClientModule = 'ModuleRunOff',                         &
+                         SearchType   = FromFile,                               &
+                         Default      = 0.,                                     &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR086")
+            Me%CV%MinToRestart = max(int(Me%DomainCellsNumber * dummy_real), 0)
+            
+            call GetData(Me%CV%CheckDecreaseOnly,                                   &
+                         Me%ObjEnterData, iflag,                                    &  
+                         keyword      = 'CHECK_DEC_ONLY',                           &
+                         ClientModule = 'ModulePorousMedia',                        &
+                         SearchType   = FromFile,                                   &
+                         Default      = .false.,                                    &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR087")                                                        
         endif        
 
        !Number of iterations threshold for starting to ask for a lower DT 
@@ -1588,32 +1624,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR200")  
-            
-        call GetData(Me%CV%CheckDecreaseOnly,                                   &
-                     Me%ObjEnterData, iflag,                                    &  
-                     keyword      = 'CHECK_DEC_ONLY',                           &
-                     ClientModule = 'ModulePorousMedia',                        &
-                     SearchType   = FromFile,                                   &
-                     Default      = .false.,                                    &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) &
-            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR210")   
-            
-        call GetData(dummy_real,                                            &
-                     Me%ObjEnterData, iflag,                                &  
-                     keyword      = 'STABILIZE_RESTART_FACTOR',             &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = 0.,                                     &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) &
-            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR220")
-        if (dummy_real <= 0.) then
-            Me%CV%MinToRestart = 0
-        else
-            call CountDomainPoints(dummy_real)
-        endif                                                           
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR200")
         
         !----------------------------------------------------------------------
     
@@ -1621,18 +1632,26 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
     
     !--------------------------------------------------------------------------
     
-    subroutine CountDomainPoints (percent)
+    integer function CountDomainPoints ()
     
-        !Arguments-------------------------------------------------------------
-        real                                        :: percent
+        !Arguments-------------------------------------------------------------        
         
         !Local----------------------------------------------------------------- 
         integer                                     :: i, j, k
-        integer                                     :: count
+        integer                                     :: count, STAT_CALL
         
         !Begin-----------------------------------------------------------------       
                 
-        count = 0
+        CountDomainPoints = 0
+        
+        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CountDomainPoints - ModulePorousMedia - ERR010'    
+        
+        call GetGeometryKFloor(Me%ObjGeometry,                                          &
+                               Z    = Me%ExtVar%KFloor,                                 &
+                               STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, "CountDomainPoints; ModulePorousMedia. ERR011")              
         
         !Initializes Water Column
         do j = Me%Size%JLB, Me%Size%JUB
@@ -1641,7 +1660,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
             
                 do k = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB - 1            
-                    count = count + 1
+                    CountDomainPoints = CountDomainPoints + 1
                 enddo 
                 
             endif
@@ -1649,9 +1668,14 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         enddo
         enddo
         
-        Me%CV%MinToRestart = max(int(count * percent), 0)
-    
-    end subroutine CountDomainPoints
+        call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CountDomainPoints - ModulePorousMedia - ERR020'       
+        
+        call UnGetGeometry(Me%ObjGeometry, Me%ExtVar%KFloor, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, "CountDomainPoints; ModulePorousMedia. ERR021")         
+           
+    end function CountDomainPoints
     
     !-------------------------------------------------------------------------    
 
@@ -3586,6 +3610,7 @@ DoPiezometers:      do while(associated(Piezometer))
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
         character(len=StringLength)                         :: TimeSerieName
+        character(len= 20)                                  :: comment
         
         
         !Begin-----------------------------------------------------------------
@@ -3654,12 +3679,15 @@ DoPiezometers:      do while(associated(Piezometer))
             Me%OutPut%TimeSerieON = .false.
         endif
 
+        write(comment, *) Me%DomainCellsNumber
+
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
                             TimeSerieLocationFile,                                      &
                             PropertyList, "srp",                                        &
                             WaterPoints3D = Me%ExtVar%WaterPoints3D,                    &
                             ModelName = Me%ModelName,                                   &
+                            Comment = 'Number of cells in 3D domain: '//trim(comment),  &
                             STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR02' 
 

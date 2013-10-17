@@ -232,7 +232,7 @@ Module ModuleTimeSerie
                               TimeSerieDataFile, PropertyList, Extension, WaterPoints3D, &
                               WaterPoints2D, WaterPoints1D, ResultFileName, Instance,    &
                               ModelName, CoordX, CoordY, UseTabulatedData,               &
-                              HavePath, STAT)
+                              HavePath, Comment, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeSerieID
@@ -250,6 +250,7 @@ Module ModuleTimeSerie
         real, optional                              :: CoordY
         logical, optional, intent(IN )              :: UseTabulatedData
         logical, optional, intent(IN )              :: HavePath
+        character(len=*), optional, intent(IN )     :: Comment
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -426,17 +427,33 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             call AllocateTimeSerieBuffer
 
             !Constructs the time serie files
-            if (present(ResultFileName)) then
-                if (present(HavePath)) then 
-                    call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName, HavePath = HavePath)
-                else
-                    call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName)
+            if (present(Comment)) then
+                if (present(ResultFileName)) then
+                    if (present(HavePath)) then 
+                        call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName, HavePath = HavePath, Comment = Comment)
+                    else
+                        call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName, Comment = Comment)
+                    endif
+                else if (present(Instance)) then
+                    call OpenTimeSerieFiles(Extension, PropertyList, Instance = Instance, Comment = Comment)
+                else 
+                    call OpenTimeSerieFiles(Extension, PropertyList, Comment = Comment)
                 endif
-            else if (present(Instance)) then
-                call OpenTimeSerieFiles(Extension, PropertyList, Instance = Instance)
-            else 
-                call OpenTimeSerieFiles(Extension, PropertyList)
+            else
+                if (present(ResultFileName)) then
+                    if (present(HavePath)) then 
+                        call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName, HavePath = HavePath)
+                    else
+                        call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName)
+                    endif
+                else if (present(Instance)) then
+                    call OpenTimeSerieFiles(Extension, PropertyList, Instance = Instance)
+                else 
+                    call OpenTimeSerieFiles(Extension, PropertyList)
+                endif
             endif
+            
+
 
             !Inits internal counts
             Me%InternalPropertyCount = 0
@@ -722,8 +739,7 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
         logical                             :: BlockFound
         integer                             :: ClientNumber
         integer                             :: iTimeSerie, iflag
-        integer                             :: FromBlock, FromFile
-        real                                :: FirstDT
+        integer                             :: FromBlock, FromFile        
 
         !Gets parameter from the module EnterData
         call GetExtractType(FromBlock = FromBlock, FromFile = FromFile)
@@ -1129,7 +1145,7 @@ cd1:    if(present(WaterPoints3D)) then
     !--------------------------------------------------------------------------
 
     subroutine OpenTimeSerieFiles(Extension, PropertyList, ResultFileName,              &
-                                  Instance, HavePath)
+                                  Instance, HavePath, Comment)
 
         !Arguments-------------------------------------------------------------
 
@@ -1138,6 +1154,7 @@ cd1:    if(present(WaterPoints3D)) then
         character(len=*), intent(IN), optional              :: ResultFileName
         character(len=*), intent(IN), optional              :: Instance
         logical         , intent(IN), optional              :: HavePath
+        character(len=*), intent(IN), optional              :: Comment
  
         !Local-----------------------------------------------------------------
 
@@ -1254,6 +1271,10 @@ cd1 :       if (present(ResultFileName)) then
             unit  = Me%TimeSerie(iTimeSerie)%UnitNumber
             nProp = Me%NumberOfProperties
             call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
+
+            if (present(Comment)) then
+                call WriteDataLine(unit, "!"//trim(Comment))
+            endif
 
             call WriteDataLine(unit, "Time Serie Results File")
 

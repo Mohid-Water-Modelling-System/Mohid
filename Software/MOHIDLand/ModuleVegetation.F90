@@ -1016,7 +1016,9 @@ Module ModuleVegetation
         real, dimension(:,:), pointer                           :: NitrogenYeldTarget   => null()
         
         real, dimension(:,:,:), pointer                         :: ECw                  => null()
-        real                                                    :: VegetationDT = 0. !REAL accumulated DT used for vegetation computations.
+        
+        !REAL accumulated DT used for vegetation computations.
+        real                                                    :: VegetationDT = 0. 
         real                                                    :: LastVegetationDT = 0. 
         
         logical                                                 :: AllowNegativeLAI   = .false.
@@ -10153,7 +10155,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 if ((Me%IsPlantGrowing(i,j)) .and. (.not. Dormant)  .and.   &
                     (Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) .and.   &
-                    ((.not. Me%TestForHUacc) .or. (Me%HeatUnits%PlantHUAccumulated (i,j) > Me%HeatUnits%PlantHUAccumulated_old (i,j)))) then  
+                    ((.not. Me%TestForHUacc) .or. &
+                     (Me%HeatUnits%PlantHUAccumulated (i,j) > Me%HeatUnits%PlantHUAccumulated_old (i,j)))) then
                 
                     VegetationID    = Me%VegetationID(i,j)
 !                    PlantFractionN1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionN1
@@ -10665,7 +10668,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                
                 if ((Me%IsPlantGrowing(i,j)) .and. (.not. Dormant)  .and.   &
                     (Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) .and.   &
-                    ((.not. Me%TestForHUacc) .or. (Me%HeatUnits%PlantHUAccumulated (i,j) > Me%HeatUnits%PlantHUAccumulated_old (i,j)))) then    
+                    ((.not. Me%TestForHUacc) .or. &
+                     (Me%HeatUnits%PlantHUAccumulated (i,j) > Me%HeatUnits%PlantHUAccumulated_old (i,j)))) then    
 
                     VegetationID    = Me%VegetationID(i,j)
 !                    PlantFractionP1 = Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantFractionP1
@@ -11198,8 +11202,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 !1. There is no biomass accumulation if plant reached maturity (HUAccumulated >= 1)
                 !2. There is no biomass accumulation if there is no accumulated heat units (HUacc == HUAcc.old) 
                 !              (2) is optional and used only if Me%TestForHUacc is set to .true.
-                if ((Me%IsPlantGrowing(i,j)) .and. (.not. Dormant) .and. (Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) .and. &
-                    ((.not. Me%TestForHUacc) .or. (Me%HeatUnits%PlantHUAccumulated (i,j) > Me%HeatUnits%PlantHUAccumulated_old (i,j)))) then     
+                if ((Me%IsPlantGrowing(i,j)) .and. (.not. Dormant) .and. &
+                    (Me%HeatUnits%PlantHUAccumulated (i,j) .le. 1.) .and. &
+                    ((.not. Me%TestForHUacc) .or. &
+                     (Me%HeatUnits%PlantHUAccumulated (i,j) > Me%HeatUnits%PlantHUAccumulated_old (i,j)))) then     
         
                     VegetationID           =   Me%VegetationID(i,j)
                     gdb                    =>  Me%VegetationTypes(VegetationID)%GrowthDatabase

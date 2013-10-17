@@ -8552,7 +8552,8 @@ cd2 :           if (BlockFound) then
         time_string = ConvertTimeToString (NextTime)
 
         call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
-        write(AuxString, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT), min(AtmosfereDT, MaxDT), DTForNextEvent, time_string                                
+        write(AuxString, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT), &
+                                min(AtmosfereDT, MaxDT), DTForNextEvent, time_string                                
         !write(*, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT), min(AtmosfereDT, MaxDT)
         10 format(f12.4, 1x, f12.4, 1x, f12.4, 1x, f12.4, 1x, f12.4, 1x, A26)
 
