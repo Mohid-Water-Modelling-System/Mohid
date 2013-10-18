@@ -1107,7 +1107,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData,  iflag,                                       &
                      SearchType     = ExtractType,                                  &
                      keyword        = 'PREDICT_DT_METHOD',                          &
-                     default        = PredictDTMethod,                             &
+                     default        = PredictDTMethod,                              &
                      ClientModule   = 'ModuleFillMatrix',                           &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR158'
@@ -6485,10 +6485,10 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             else !Me%PredictDTMethod == 2
             
                 !This method do not works with TimeCycle
-                if (TimeCycle) then
-                    write(*,*) 'The method 2 to predict DT do not works with TimeCycle.'
-                    stop 'ModifySpaceTimeSerie - ModuleFillMatrix - ERR050'
-                endif
+!                if (TimeCycle) then
+!                    write(*,*) 'The method 2 to predict DT do not works with TimeCycle.'
+!                    stop 'ModifySpaceTimeSerie - ModuleFillMatrix - ERR050'
+!                endif
                 
                 if (Now > Me%Timeserie%NextTime) then
                     call ActualizeTimeSerieTimes (Now)
