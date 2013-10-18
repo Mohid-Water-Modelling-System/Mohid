@@ -535,6 +535,7 @@ Module ModuleBasin
         real                                        :: KcMin                    = 0.3
         logical                                     :: UseKcMin                 = .false.
         logical                                     :: UseRefEVTPIfNeeded       = .true.
+        logical                                     :: ControlDTChanges         = .false.
         
         !Instance IDs
         integer                                     :: ObjTime                  = 0
@@ -1422,14 +1423,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%UseKcMin = .true.
         endif
 
-        call GetData(Me%UseRefEVTPIfNeeded,                                              &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromFile,                                            &
-                     keyword      = 'USE_REF_EVTP_IF_NEEDED',                            &
-                     default      = .false.,                                              &
-                     ClientModule = 'ModuleBasin',                                       &
+        call GetData(Me%UseRefEVTPIfNeeded,                                             &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'USE_REF_EVTP_IF_NEEDED',                           &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleBasin',                                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR410'   
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR420' 
+        
+        call GetData(Me%ControlDTChanges,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'CONTROL_DT_CHANGES',                               &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleBasin',                                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR430'           
 
     end subroutine ReadDataFile
     !--------------------------------------------------------------------------
@@ -8530,6 +8540,21 @@ cd2 :           if (BlockFound) then
             
         endif
             
+        if (DTForNextEvent > 0.0) then
+            if (DTForNextEvent < NewDT) then
+        
+                NewDT = DTForNextEvent
+                ID_DT = 6
+                
+            elseif (Me%ControlDTChanges) then
+                                
+                if (NewDT/DTForNextEvent > 0.5) then
+                    NewDT = DTForNextEvent / 2
+                    ID_DT = 7
+                endif                                
+            endif            
+        endif
+            
         !Rounds new DT
         if (NewDT * 1000.0 > AINT(NewDT*1000.0)) then
            NewDT = AINT(NewDT*1000.0) + 1.0
@@ -8537,14 +8562,7 @@ cd2 :           if (BlockFound) then
            NewDT = max(AINT(NewDT*1000.0), 1.0)
         endif
 
-        NewDT = NewDT / 1000.0
-
-        if ((DTForNextEvent > 0.0) .and. &
-            (DTForNextEvent < NewDT)) then
-        
-            NewDT = DTForNextEvent
-            ID_DT = 8
-        endif
+        NewDT = NewDT / 1000.0                    
         
         if (NewDT > AtmosfereDT) NewDT = AtmosfereDT
 
@@ -8554,7 +8572,7 @@ cd2 :           if (BlockFound) then
         call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
         write(AuxString, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT), &
                                 min(AtmosfereDT, MaxDT), DTForNextEvent, time_string                                
-        !write(*, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT), min(AtmosfereDT, MaxDT)
+        
         10 format(f12.4, 1x, f12.4, 1x, f12.4, 1x, f12.4, 1x, f12.4, 1x, A26)
 
         call WriteDTLog_ML ('ModuleBasin', ID_DT, NewDT, AuxString)
