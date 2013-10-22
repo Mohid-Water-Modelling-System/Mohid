@@ -570,6 +570,7 @@ Module ModuleDrainageNetwork
         real                                        :: SingCoef                 = 1.0
         type(T_MaxValues)                           :: Max
         real                                        :: EVTP                     = null_real !m/s evapotranspiration in pools
+        real                                        :: MinimunToStabilize       = 0.0
     end type  T_Node
     
     type T_Reach
@@ -1122,7 +1123,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructOutput
             
             !First HDF Output
-            call HDF5Output
+            if (Me%Output%Yes) &
+                call HDF5Output
 
             !User Feed-Back
             call ConstructLog
@@ -2010,6 +2012,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------        
         integer                                     :: STAT_CALL,               &
                                                        iflag,                   &
+                                                       NodeID,                  &
                                                        STABILIZE_COEFFICIENT_flag    
                                                             
         real                                        :: dummy_real
@@ -2083,7 +2086,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write (*,*)'Invalid Minimun Water Column to Stabilize value [STABILIZE_MIN]'
                 write (*,*)'Value must be greater than 0.0'            
                 call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR085")
-            endif      
+            endif
             
             call GetData(dummy_real,                                            &
                          Me%ObjEnterData, iflag,                                &  
@@ -5693,6 +5696,8 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
                 endif
             
             end if if1
+
+                CurrNode%MinimunToStabilize = Me%CV%MinimumValueToStabilize * CurrNode%VolumeMax
 
         end do
 
@@ -11025,7 +11030,8 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 if (CurrNode%nDownstreamReaches /= 0) then
 
                     if ((.not. Me%CV%CheckDecreaseOnly) .or. (CurrNode%VolumeNew < CurrNode%VolumeOld)) then            
-                        if (CurrNode%VolumeOld > Me%CV%MinimumValueToStabilize * CurrNode%VolumeMax) then                        
+                        if ((CurrNode%VolumeOld > CurrNode%MinimunToStabilize) .and. &
+                            (CurrNode%VolumeNew > CurrNode%MinimunToStabilize)) then                        
                         
                             variation = abs(CurrNode%VolumeNew - CurrNode%VolumeOld) / CurrNode%VolumeOld
                         

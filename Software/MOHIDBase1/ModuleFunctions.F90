@@ -9494,14 +9494,22 @@ D2:     do I=imax-1,2,-1
     !
     !Centralizes way to calculate chunk size. For future optimization
     !
-    integer function Chunk_K(KLB, KUB)
+    pure integer function Chunk_K(KLB, KUB, factor)
     
         !Arguments-------------------------------------------------------
         integer, intent(IN)                         :: KLB, KUB
+        integer, optional, intent(IN)               :: factor
         
         !Locals----------------------------------------------------------
+        integer                                     :: factor_
         
-        Chunk_K = max((KUB - KLB) / 3, 1)
+        if (present(factor)) then
+            factor_ = factor
+        else
+            factor_ = 3
+        endif
+        
+        Chunk_K = max((KUB - KLB) / factor_, 1)
 
     end function Chunk_K
         
@@ -9509,14 +9517,22 @@ D2:     do I=imax-1,2,-1
     !
     !Centralizes way to calculate chunk size. For future optimization
     !
-    integer function Chunk_J(JLB, JUB)
+    integer function Chunk_J(JLB, JUB, factor)
     
         !Arguments-------------------------------------------------------
         integer, intent(IN)                         :: JLB, JUB
+        integer, optional, intent(IN)               :: factor
         
         !Locals----------------------------------------------------------
+        integer                                     :: factor_
         
-        Chunk_J = max((JUB - JLB) / 10, 1)
+        if (present(factor)) then
+            factor_ = factor
+        else
+            factor_ = 10
+        endif
+        
+        Chunk_J = max((JUB - JLB) / factor_, 1)
 
     end function Chunk_J
 
@@ -9524,14 +9540,22 @@ D2:     do I=imax-1,2,-1
     !
     !Centralizes way to calculate chunk size. For future optimization
     !
-    integer function Chunk_I(ILB, IUB)
+    integer function Chunk_I(ILB, IUB, factor)
     
         !Arguments-------------------------------------------------------
         integer, intent(IN)                         :: ILB, IUB
+        integer, optional, intent(IN)               :: factor
         
         !Locals----------------------------------------------------------
-        
-        Chunk_I = max((IUB - ILB) / 10, 1)
+        integer                                     :: factor_
+
+        if (present(factor)) then
+            factor_ = factor
+        else
+            factor_ = 10
+        endif
+
+        Chunk_I = max((IUB - ILB) / factor_, 1)
 
     end function Chunk_I
 
