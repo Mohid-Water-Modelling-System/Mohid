@@ -197,6 +197,7 @@ Module ModuleOil_0D
     !Selector
     public  :: GetOilSedimentation
     public  :: GetOilDensityOil
+    public  :: GetOilMainConfigurations
     public  :: GetOilAPI
     public  :: GetOilSpreadingVelocity
     public  :: GetOilSpreadingList
@@ -1984,6 +1985,53 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
     end subroutine GetOilDensityOil
 
+    !--------------------------------------------------------------------------
+
+    subroutine GetOilMainConfigurations(OilID, OilVolume, OilDensity, OilAPI, OilMass, OilType, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: OilID
+        real,              intent(IN)              :: OilVolume
+        real,              intent(OUT)              :: OilDensity
+        character (LEN = StringLength), intent(OUT) :: OilType
+        real,              intent(OUT)              :: OilAPI
+        real,              intent(OUT)              :: OilMass
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_, STAT_
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(OilID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                               &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            OilAPI             = Me%Var%API
+            
+            OilDensity          = FreshWaterDensity15 * 141.5                    &
+                                            / (131.5 + Me%Var%API)
+
+            OilMass            = OilDensity * OilVolume
+            
+            if (Me%Var%OilType .EQ. Crude) then
+                OilType            = "Crude"
+            
+            elseif (Me%Var%OilType .EQ. Refined) then
+                OilType            = "Refined"
+            endif
+            
+            STAT_ = SUCCESS_
+        else cd1
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetOilMainConfigurations
 
     !--------------------------------------------------------------------------
 
