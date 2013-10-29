@@ -12604,6 +12604,10 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                     if (CurrentPartic%Beached) then
                         if (InsideDomain) then
                             if (FreshlyBeached) then
+                            
+                                if(Me%EulerModel(emp)%Lag2Euler%GridBeachingTime(i, j, ig) == 0.)then
+                                    Me%EulerModel(emp)%Lag2Euler%GridBeachingTime(i, j, ig) = Me%Now - CurrentOrigin%StartEmission
+                                endif
 
                                 Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, CurrentPartic%BeachingOilType) = &
                                 Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, CurrentPartic%BeachingOilType) + &
@@ -22694,7 +22698,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                 
                 call HDF5WriteData(Me%ObjHDF5(em),                          &
                                    "/Results/"//trim(CurrentOrigin%Name)    &
-                                   //"/Data_3D/Beaching Time",              &
+                                   //"/Data_2D/Beaching Time",              &
                                    "Beaching Time",                         &
                                    "-",                                     &
                                    Array2D = Aux2D,                         &
