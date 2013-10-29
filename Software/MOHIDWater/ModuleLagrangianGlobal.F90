@@ -17329,6 +17329,8 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
 
                 !Calculates the OilConcentration3D
                 call OilGridConcentration3D (CurrentOrigin) 
+                
+                call OilGridPresence (CurrentOrigin) 
                     
                 !Calculate the dillution concentration
                 call OilGridDissolution3D   (CurrentOrigin)
@@ -19342,10 +19344,11 @@ i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTempo
                 if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR75'
 
                 if (Me%State%Oil) then
-                    call WriteOilGridThickness     (em, OutputNumber) 
-                    call WriteOilGridConcentration (em, OutputNumber)
+                    call WriteOilGridThickness       (em, OutputNumber) 
+                    call WriteOilGridConcentration   (em, OutputNumber)
                     call WriteOilGridConcentration3D (em, OutputNumber)
-                    call WriteOilGridDissolution3D (em, OutputNumber)
+                    call WriteOilGridDissolution3D   (em, OutputNumber)
+                    call WriteOilPresence            (em, OutputNumber)
                 endif
 
 i1:             if (nP>0) then
@@ -22692,7 +22695,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                 call HDF5WriteData(Me%ObjHDF5(em),                          &
                                    "/Results/"//trim(CurrentOrigin%Name)    &
                                    //"/Data_3D/Beaching Time",              &
-                                   "Beaching Arrival Time",                 &
+                                   "Beaching Time",                         &
                                    "-",                                     &
                                    Array2D = Aux2D,                         &
                                    OutputNumber = OutputNumber)
