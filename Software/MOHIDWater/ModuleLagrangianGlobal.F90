@@ -832,10 +832,9 @@ Module ModuleLagrangianGlobal
         real,    dimension(:,:,:),         pointer     :: GridVolToRemoveFraction       => null()
         real,    dimension(:,:,:),         pointer     :: GridVolRemovedDiff            => null()
         
-        
-        
-        
-        
+        !Beached oil presence
+        real,    dimension(:, :, :),       pointer     :: GridBeachingTime              => null()
+
     end type T_Lag2Euler
 
     type T_PropStatistic
@@ -862,7 +861,9 @@ Module ModuleLagrangianGlobal
         real,    dimension(:, :, :), pointer    :: OilGridDissolution3D                 => null()
 
         logical, dimension(:,:),     pointer    :: AreaFlag                             => null()
-
+        
+        real,    dimension(:,:),     pointer    :: GridOilArrivalTime                   => null()
+        
     end type T_OilSpreading
 
 
@@ -2160,8 +2161,16 @@ d2:         do ig = 1, Me%NGroups
             if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR60'
 
             Me%EulerModel(em)%OilSpreading(ig)%AreaFlag(:,:) = .true. 
+            
+            allocate (Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime(Me%EulerModel(em)%Size%ILB: &
+                                                                            Me%EulerModel(em)%Size%IUB, &
+                                                                            Me%EulerModel(em)%Size%JLB: &
+                                                                            Me%EulerModel(em)%Size%JUB),&
+                                                                            STAT = STAT_CALL)
 
+            if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR70'
 
+            Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime(:,:) = 0. 
             enddo d2
 
         enddo d1
@@ -3104,6 +3113,10 @@ d1:     do em = 1, Me%EulerModelNumber
 
                 allocate (Me%EulerModel(em)%Lag2Euler%GridVolRemovedDiff(ILB:IUB, JLB:JUB, 1:Me%NGroups))
                 Me%EulerModel(em)%Lag2Euler%GridVolRemovedDiff(:,:,:) = 0.
+                
+                allocate (Me%EulerModel(em)%Lag2Euler%GridBeachingTime(ILB:IUB, JLB:JUB, 1:Me%NGroups))
+                Me%EulerModel(em)%Lag2Euler%GridBeachingTime(:,:,:) = 0.
+                
             endif
         enddo d1
 
@@ -11760,6 +11773,53 @@ i1:                 if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint
 
     !--------------------------------------------------------------------------
 
+   subroutine OilGridPresence (CurrentOrigin)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_Origin), pointer                     :: CurrentOrigin
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ILB, IUB, JLB, JUB, KUB
+        integer                                     :: i, j, em, ig
+
+        !Begin-----------------------------------------------------------------
+                
+        if (Me%State%Oil) then
+
+            em = CurrentOrigin%Position%ModelID
+            ig = CurrentOrigin%GroupID
+
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+            KUB = Me%EulerModel(em)%WorkSize%KUB
+            
+            do j  = JLB, JUB
+            do i  = ILB, IUB
+            
+                
+                if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then
+                
+                    if(Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime(i, j) == 0.)then
+
+                        if(Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D(i, j, KUB) > 0.)then
+
+                            Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime(i, j) =  Me%Now - CurrentOrigin%StartEmission
+                            
+                        end if
+                    endif
+                endif
+
+            enddo
+            enddo
+
+        endif
+
+
+    end subroutine OilGridPresence
+
+    !--------------------------------------------------------------------------
     subroutine OilGridConcentration (CurrentOrigin, WaveHeight, WaterDensity)
 
         !Arguments-------------------------------------------------------------
@@ -22574,6 +22634,78 @@ i1:     if (Me%Statistic%OptionsStat(p)%Lag) then
 
     !--------------------------------------------------------------------------
 
+    subroutine WriteOilPresence(em, OutputNumber) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: em, OutputNumber
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: ig
+        real, dimension(:, :), pointer              :: Aux2D 
+        character(StringLength)                     :: AuxChar
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
+        integer                                     :: WS_KLB, WS_KUB
+
+            !Shorten
+        ILB    = Me%EulerModel(em)%Size%ILB
+        IUB    = Me%EulerModel(em)%Size%IUB
+        JLB    = Me%EulerModel(em)%Size%JLB
+        JUB    = Me%EulerModel(em)%Size%JUB
+
+        WS_ILB = Me%EulerModel(em)%WorkSize%ILB
+        WS_IUB = Me%EulerModel(em)%WorkSize%IUB
+        WS_JLB = Me%EulerModel(em)%WorkSize%JLB
+        WS_JUB = Me%EulerModel(em)%WorkSize%JUB
+        WS_KLB = Me%EulerModel(em)%WorkSize%KLB
+        WS_KUB = Me%EulerModel(em)%WorkSize%KUB
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (Me%ObjHDF5(em), WS_ILB, WS_IUB, WS_JLB, WS_JUB,     &
+                              WS_KLB, WS_KUB)
+
+
+Group:  do ig = 1, Me%nGroups
+
+            !Writes the Group to an auxiliar string
+            write (AuxChar, fmt='(i3)') ig
+
+            CurrentOrigin => Me%FirstOrigin
+CurrOr:     do while (associated(CurrentOrigin))
+
+                if (CurrentOrigin%GroupID /= ig) then
+                    CurrentOrigin => CurrentOrigin%Next
+                    cycle
+                endif
+                                            
+                call HDF5WriteData(Me%ObjHDF5(em),                          &
+                                   "/Results/"//trim(CurrentOrigin%Name)    &
+                                   //"/Data_2D/Oil Arrival Time",           &
+                                   "Oil Arrival Time",                      &
+                                   "-",                                     &
+                                   Array2D = Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime, &
+                                   OutputNumber = OutputNumber)
+                                   
+                Aux2D => Me%EulerModel(em)%Lag2Euler%GridBeachingTime(:,:,ig)
+                
+                call HDF5WriteData(Me%ObjHDF5(em),                          &
+                                   "/Results/"//trim(CurrentOrigin%Name)    &
+                                   //"/Data_3D/Beaching Time",              &
+                                   "Beaching Arrival Time",                 &
+                                   "-",                                     &
+                                   Array2D = Aux2D,                         &
+                                   OutputNumber = OutputNumber)
+                                   
+                nullify(Aux2D)
+
+                CurrentOrigin => CurrentOrigin%Next
+                
+            enddo CurrOr
+
+        enddo Group
+            
+    end subroutine WriteOilPresence
 
     !--------------------------------------------------------------------------
 
@@ -24405,6 +24537,7 @@ d1:     do em = 1, Me%EulerModelNumber
                 deallocate (Me%EulerModel(em)%Lag2Euler%TheoricBeachedVolAfterRemoval)
                 deallocate (Me%EulerModel(em)%Lag2Euler%GridVolToRemove)
                 deallocate (Me%EulerModel(em)%Lag2Euler%GridVolToRemoveFraction)
+                deallocate (Me%EulerModel(em)%Lag2Euler%GridBeachingTime)
             endif
 
 
@@ -24460,6 +24593,9 @@ d2:         do ig = 1, Me%NGroups
 
             if (STAT_CALL /= SUCCESS_) stop 'DeAllocateOil - ModuleLagrangianGlobal - ERR60'
 
+            deallocate (Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'DeAllocateOil - ModuleLagrangianGlobal - ERR61'
             enddo d2
 
             deallocate (Me%EulerModel(em)%OilSpreading, STAT = STAT_CALL)
