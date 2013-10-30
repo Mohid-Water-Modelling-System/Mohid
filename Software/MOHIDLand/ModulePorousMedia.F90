@@ -7337,7 +7337,10 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 
                                 variation = abs(Me%Theta(I,J,K) - Me%CV%ThetaOld(I,J,K)) / Me%CV%ThetaOld(I,J,K)                 
                     
-                                if (variation > Me%CV%StabilizeFactor) then                        
+                                if (variation > Me%CV%StabilizeFactor) then  
+                                    !Debug routine - may be usefull for using in debug situation
+                                    !call DebugStability (i,j,k,variation)
+                                                      
                                     n_restart = n_restart + 1
                                 endif
                             endif
@@ -7366,6 +7369,32 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "CheckStability")
 
     end subroutine CheckStability
+    
+    !--------------------------------------------------------------------------
+
+    subroutine DebugStability(i,j,k, variation)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                     :: I, J, K
+        real                                        :: variation
+        !Local-----------------------------------------------------------------
+        character (Len = 5)                         :: str_i, str_j, str_k
+        character (Len = 15)                        :: str_1, str_2, str_3
+        character (len = StringLength)              :: string_to_be_written 
+        
+        write(str_i, '(i3)') i 
+        write(str_j, '(i3)') j
+        write(str_k, '(i3)') k
+        write(str_1, '(ES10.3)') Me%CV%ThetaOld(I,J,K)  
+        write(str_2, '(ES10.3)') Me%Theta(I,J,K)   
+        write(str_3, '(ES10.3)') variation                            
+        
+        string_to_be_written = ' '//str_i//','//str_j//' '//str_k//' '//str_1//' '//str_2//' '//str_3
+        
+        call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)           
+    
+    
+    end subroutine DebugStability
     
     !--------------------------------------------------------------------------
 
@@ -8041,14 +8070,28 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                     !spatial step for Height Gradient (dH) [m]
                     dX    = max(ChannelsBottomWidth(i, j) / 2.0, 1.0)
-                
+                    
+                    !if flow from river put the fux on first unsaturated cell on top of saturated aquifer (UGCell)
+                    !if flow from soil remove from upper cell of saturated aquifer (UGCell - 1). 
+                    !This avoids removing water from low water content layer above aquifer 
+                    !(can cause instability if using minimum conductivity)
+!Do not test this now. Need to update Routine CalculateNewTheta and adapt 
+!PorousMediaProperties use of flux also for the right flow at the right cell                    
+!                    if (dH < 0) then
+                        k = Me%UGCell(i,j)
+!                    else
+!                        k = min (Me%UGCell(i,j) - 1, Me%ExtVar%KFloor(i,j))
+!                    endif
+                    
                     ![m3/s]                   = [m/m] * [m2] * [m/s] * [] 
                     !Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%UnSatK(i, j, Me%UGCell(i,j)) * Me%SoilOpt%HCondFactor
-                    Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%SatK(i, j, Me%UGCell(i,j))             &
-                                                 * Me%SoilOpt%FCHCondFactor !Me%SoilOpt%HCondFactor
+                    !Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%SatK(i, j, Me%UGCell(i,j))             &
+                    !                             * Me%SoilOpt%FCHCondFactor !Me%SoilOpt%HCondFactor
+                    Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%SatK(i, j, k)                  &
+                                                 * Me%SoilOpt%FCHCondFactor 
                 
                     !If the channel looses water (infiltration), then set max flux so that volume in channel does not get 
-                    !negative                
+                    !negative.                
                     if (dH < 0) then
 
 
@@ -8074,13 +8117,23 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 
                     !If soil looses water set flow so that cell stays at least with field theta
+                    !in the top cell of aquifer head at field capacity in cell center 
+                    !will be half the height
                     elseif (dH > 0) then
-                        k           = Me%UGCell(i,j)
+                        !k           = Me%UGCell(i,j)
                         MinHead     = -0.5 * Me%ExtVar%DWZ(i, j, k)
                         FieldTheta  = Theta_(MinHead, Me%SoilID(i,j,k))
+                        
+                        !Maxflow was erroneous. It has to use actual Theta and not ThetaS because content may not be
+                        !completely saturated       
                         !m3/s   = (-) * m3 / s
-                        MaxFlow   = (Me%RC%ThetaS (i,j,k) - FieldTheta) * Me%ExtVar%CellVolume(i,j,k) / Me%ExtVar%DT
-
+                        if (Me%Theta (i,j,k) <= FieldTheta) then
+                            MaxFlow = 0.
+                        else
+                            MaxFlow   = (Me%Theta (i,j,k) - FieldTheta) * Me%ExtVar%CellVolume(i,j,k) / Me%ExtVar%DT
+                            !MaxFlow   = (Me%RC%ThetaS (i,j,k) - FieldTheta) * Me%ExtVar%CellVolume(i,j,k) / Me%ExtVar%DT
+                        endif
+                        
                         if (Me%lFlowToChannels(i,j) > MaxFlow) then
                             Me%lFlowToChannels(i,j) = MaxFlow
                         endif

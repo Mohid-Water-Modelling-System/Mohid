@@ -3830,9 +3830,9 @@ i4:             if(Me%Dim == Dim2D)then
                     
                         if (abs(Me%HDF%NextField2D       (i,j)) > abs(FillValueReal))       &
                             Me%HDF%NextField2D(i,j)     = FillValueReal
-                	enddo
-                	enddo   
-                                
+                    enddo
+                    enddo
+                                                    
                 	if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
                 
                     	!Interpolates the two matrixes in time
@@ -4805,8 +4805,11 @@ i4:             if(Me%Dim == Dim2D)then
             
                     if (Now > sl(index)%NextTime) then
                         call ActualizeMultiTimeSerieTimes  (Now, sl(index))
-                        call ActualizeMultiTimeSerieValues (sl(index))
+                        call ActualizeMultiTimeSerieValues (sl(index))                    
+                    endif
                     
+                    !avoid evaluate in cosntruct phase where previous and next time are the same
+                    if (Now > sl(index)%PreviousTime) then
                         select case (Me%MultiTimeSerie%DataProcessing)                                           
                         case (Interpolate)
                             !Interpolates Value for current instant
@@ -5732,22 +5735,25 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
                 call ActualizeHDFValues (Me%HDF%NextInstant, Me%HDF%NextField2D)
             endif
             
-            if (Me%UseOriginalValues) then
-                Me%Matrix2D = Me%HDF%NextField2D                    
-            else if (Me%AccumulateValues) then
-                Me%Matrix2D = Me%HDF%NextField2D / (Me%HDF%NextTime - Me%HDF%PreviousTime)
-            else
-                !Interpolates the two matrixes in time
-                call InterpolateMatrix2DInTime(ActualTime       = Now,                         &
-                                               Size             = Me%WorkSize2D,               &
-                                               Time1            = Me%HDF%PreviousTime,         &
-                                               Matrix1          = Me%HDF%PreviousField2D,      &
-                                               Time2            = Me%HDF%NextTime,             &
-                                               Matrix2          = Me%HDF%NextField2D,          &
-                                               MatrixOut        = Me%Matrix2D,                 &
-                                               PointsToFill2D   = PointsToFill2D)                
-            endif
-                                
+            !avoid evaluate in cosntruct phase where previous and next time are the same
+            if (Now > Me%HDF%PreviousTime) then
+                if (Me%UseOriginalValues) then
+                    Me%Matrix2D = Me%HDF%NextField2D                    
+                else if (Me%AccumulateValues) then
+                    Me%Matrix2D = Me%HDF%NextField2D / (Me%HDF%NextTime - Me%HDF%PreviousTime)
+                else
+                    !Interpolates the two matrixes in time
+                    call InterpolateMatrix2DInTime(ActualTime       = Now,                         &
+                                                   Size             = Me%WorkSize2D,               &
+                                                   Time1            = Me%HDF%PreviousTime,         &
+                                                   Matrix1          = Me%HDF%PreviousField2D,      &
+                                                   Time2            = Me%HDF%NextTime,             &
+                                                   Matrix2          = Me%HDF%NextField2D,          &
+                                                   MatrixOut        = Me%Matrix2D,                 &
+                                                   PointsToFill2D   = PointsToFill2D)                
+                endif
+            endif          
+            
             if (Me%ValueIsUsedForDTPrediction) then
                 if (Now >= Me%NextEventEnd) then                             
                     call FindNextEventInHDF (Now)
@@ -6492,8 +6498,11 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                 
                 if (Now > Me%Timeserie%NextTime) then
                     call ActualizeTimeSerieTimes (Now)
-                    call ActualizeTimeSerieValues
-                    
+                    call ActualizeTimeSerieValues                   
+                endif
+                
+                !avoid evaluate in cosntruct phase where previous and next time are the same
+                if (Now > Me%Timeserie%PreviousTime) then
                     if (Me%UseOriginalValues) then
                         Me%Timeserie%CurrentValue = Me%Timeserie%NextValue
                     elseif (Me%AccumulateValues) then

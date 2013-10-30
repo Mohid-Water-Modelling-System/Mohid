@@ -297,7 +297,7 @@ Module ModuleDrainageNetwork
     private ::                  ComputeNodeInFlow
     private ::                  ComputeNodeOutFlow 
     private ::              CheckStability
-    private ::              Cascade    
+!    private ::              Cascade    
     private ::          ResetToInitialValues 
     private ::          TransportProperties
     private ::              Advection_Diffusion
@@ -2012,7 +2012,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------        
         integer                                     :: STAT_CALL,               &
                                                        iflag,                   &
-                                                       NodeID,                  &
                                                        STABILIZE_COEFFICIENT_flag    
                                                             
         real                                        :: dummy_real
@@ -2040,7 +2039,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STABILIZE_COEFFICIENT_flag > 0) &
                 write(*,*) 'STABILIZE_COEFFICIENT: Use STABILIZE_MIN_FACTOR instead.'
                 
-            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR070")                              
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR070")
         endif
 
         !----------------------------------------------------------------------
@@ -11036,6 +11035,9 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                             variation = abs(CurrNode%VolumeNew - CurrNode%VolumeOld) / CurrNode%VolumeOld
                         
                             if (variation > Me%CV%StabilizeFactor) then
+                                !Debug routine - may be usefull for using in debug situation
+                                !call DebugStability(CurrNode, Niter)
+                                
                                 n_restart = n_restart + 1
                             endif
                         endif
@@ -11064,13 +11066,96 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
     !---------------------------------------------------------------------------            
 
-    subroutine Cascade (DT, Restart, Niter)
-
-        !Arguments--------------------------------------------------------------
-        real                                        :: DT
-        logical                                     :: Restart
+    subroutine DebugStability(CurrNode, Niter)
+        
+        !Arguments-------------------------------------------------------------
         integer                                     :: Niter
+        type (T_Node), pointer                      :: CurrNode
+        !Local-----------------------------------------------------------------
+        type (T_Node), pointer                      :: UpNode, DownNode
+        type (T_Reach), pointer                     :: CurrReach
+        character(len=6)                            :: char_i
+        character(len=15)                           :: char_1, char_2, char_3, char_4, char_5, char_6       
+        character (len = StringLength)              :: StrWarning
 
+        write(char_i, '(i6)') CurrNode%ID
+        write(char_1, '(ES10.3)') Niter
+        write(char_2, '(ES10.3)') CurrNode%VolumeNew
+        write(char_3, '(ES10.3)') CurrNode%VolumeOld
+        write(char_4, '(ES10.3)') CurrNode%WaterLevel
+        write(char_5, '(ES10.3)') CurrNode%WaterDepth
+        write(char_6, '(ES10.3)') Me%RunoffVector(CurrNode%ID)
+        
+        StrWarning = ' Node Info'//char_i//','//char_1//','//char_2//' '//char_3//' '//char_4//' '//char_5//' '//char_6
+
+        call SetError(WARNING_, INTERNAL_, StrWarning, OFF) 
+                                   
+        if (CurrNode%nUpstreamReaches /= 0) then                                                                               
+            CurrReach => Me%Reaches (CurrNode%UpstreamReaches (1))
+            write(char_1, '(ES10.3)') CurrReach%FlowNew
+
+            UpNode => Me%Nodes(CurrReach%UpstreamNode)
+            write(char_i, '(i6)') UpNode%ID
+            write(char_2, '(ES10.3)') UpNode%VolumeNew
+            write(char_3, '(ES10.3)') UpNode%VolumeOld
+            write(char_4, '(ES10.3)') UpNode%WaterLevel
+            write(char_5, '(ES10.3)') UpNode%WaterDepth
+            write(char_6, '(ES10.3)') Me%RunoffVector(UpNode%ID)
+            
+            StrWarning = ' UpNode Info'//char_i//','//char_1//','//char_2//' '//char_3//' '//char_4//' '//char_5//' '//char_6
+
+            call SetError(WARNING_, INTERNAL_, StrWarning, OFF)                            
+
+        endif
+        
+        if (CurrNode%nDownstreamReaches /= 0) then
+            CurrReach => Me%Reaches (CurrNode%DownstreamReaches (1))
+            write(char_1, '(ES10.3)') CurrReach%FlowNew
+           
+            DownNode => Me%Nodes(CurrReach%DownstreamNode)
+            write(char_i, '(i6)') DownNode%ID
+            write(char_2, '(ES10.3)') DownNode%VolumeNew
+            write(char_3, '(ES10.3)') DownNode%VolumeOld
+            write(char_4, '(ES10.3)') DownNode%WaterLevel
+            write(char_5, '(ES10.3)') DownNode%WaterDepth
+            write(char_6, '(ES10.3)') Me%RunoffVector(DownNode%ID)
+            
+            StrWarning = ' DownNode Info'//char_i//','//char_1//','//char_2//' '//char_3//' '//char_4//' '//char_5//' '//char_6
+
+            call SetError(WARNING_, INTERNAL_, StrWarning, OFF)                              
+            
+        endif
+
+        if (DownNode%nDownstreamReaches /= 0) then
+            CurrReach => Me%Reaches (DownNode%DownstreamReaches (1))
+            write(char_1, '(ES10.3)') CurrReach%FlowNew
+           
+            DownNode => Me%Nodes(CurrReach%DownstreamNode)
+            write(char_i, '(i6)') DownNode%ID
+            write(char_2, '(ES10.3)') DownNode%VolumeNew
+            write(char_3, '(ES10.3)') DownNode%VolumeOld
+            write(char_4, '(ES10.3)') DownNode%WaterLevel
+            write(char_5, '(ES10.3)') DownNode%WaterDepth
+            write(char_6, '(ES10.3)') Me%RunoffVector(DownNode%ID)
+            
+            StrWarning = ' DownDownNode Info'//char_i//','//char_1//','//char_2//' '//char_3//' '//char_4//' '//char_5//' '//char_6
+
+            call SetError(WARNING_, INTERNAL_, StrWarning, OFF)                              
+            
+        endif                            
+    
+    
+    end subroutine DebugStability
+    
+    !--------------------------------------------------------------------------
+
+!    subroutine Cascade (DT, Restart, Niter)
+!
+!        !Arguments--------------------------------------------------------------
+!        real                                        :: DT
+!        logical                                     :: Restart
+!        integer                                     :: Niter
+!
 !        !Local-----------------------------------------------------------------
 !        integer                                     :: NodeID, ReachID
 !        type (T_Node ), pointer                     :: CurrNode !, DownNode
@@ -11156,8 +11241,8 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 !            end if if1             
 !
 !        end do do1
-
-    end subroutine Cascade
+!
+!    end subroutine Cascade
 
     !---------------------------------------------------------------------------            
 

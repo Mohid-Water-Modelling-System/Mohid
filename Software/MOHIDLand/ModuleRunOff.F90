@@ -1043,29 +1043,33 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
         endif
         
-        
-        call GetData(Me%OverlandChannelInteractionMethod,                   &
-                     Me%ObjEnterData, iflag,                                   &  
-                     keyword      = 'OVERLAND_CHANNEL_INTERACTION_METHOD',  &
-                     ClientModule = 'ModuleRunOff',                         &
-                     SearchType   = FromFile,                               &
-                     Default      = 1,                                      &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR364'          
-        if (iflag == 0) then               
-            call GetData(Me%OverlandChannelInteractionMethod,                   &
-                         Me%ObjEnterData, iflag,                                   &  
-                         keyword      = 'CHANNEL_LINK_METHOD',                  &
-                         ClientModule = 'ModuleRunOff',                         &
-                         SearchType   = FromFile,                               &
-                         Default      = 1,                                      &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR365'         
-        else
-            write (*,*) 'OVERLAND_CHANNEL_INTERACTION_METHOD keyword is deprecated.'
-            write (*,*) 'Use CHANNEL_LINK_METHOD instead.'
-            stop 'ReadDataFile - ModuleRunOff - ERR366'
-        endif        
+          ! this keywords were removed because two methods create instabilities and
+        ! negative volumes (instanataneous mixing method 1 and 3) and because 
+        ! method 4 is just the same as 2 just the maxflow is different (based on 
+        ! instant mixing) that is not justified (instantaneous = instabilities)
+        ! This is left just for debugging      
+!        call GetData(Me%OverlandChannelInteractionMethod,                   &
+!                     Me%ObjEnterData, iflag,                                   &  
+!                     keyword      = 'OVERLAND_CHANNEL_INTERACTION_METHOD',  &
+!                     ClientModule = 'ModuleRunOff',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = 1,                                      &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR364'          
+!        if (iflag == 0) then               
+!            call GetData(Me%OverlandChannelInteractionMethod,                   &
+!                         Me%ObjEnterData, iflag,                                   &  
+!                         keyword      = 'CHANNEL_LINK_METHOD',                  &
+!                         ClientModule = 'ModuleRunOff',                         &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 1,                                      &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR365'         
+!        else
+!            write (*,*) 'OVERLAND_CHANNEL_INTERACTION_METHOD keyword is deprecated.'
+!            write (*,*) 'Use CHANNEL_LINK_METHOD instead.'
+!            stop 'ReadDataFile - ModuleRunOff - ERR366'
+!        endif        
         
         !Discharges
         call GetData(Me%Discharges,                                         &
@@ -1608,7 +1612,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = .false.,                                &
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) &
-                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR087")                                           
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR087")
         endif        
 
        !Number of iterations threshold for starting to ask for a lower DT 
@@ -3605,19 +3609,21 @@ doIter:         do while (iter <= Niter)
 
             !Calculates flow from channels to land and the other way round. New approach
             if (Me%ObjDrainageNetwork /=0 .and. Me%SimpleChannelInteraction) then
-                !call OverLandChannelInteraction_New
-                select case (Me%OverlandChannelInteractionMethod)
-                case (1)
-                    call OverLandChannelInteraction_1
-                case (2)
-                    call OverLandChannelInteraction_2
-                case (3)
-                    call OverLandChannelInteraction_3
-                case (4)
-                    call OverLandChannelInteraction_4
-                case default
-                    stop 'ModifyRunOff - ModuleRunOff - ERR020'
-                endselect
+                call OverLandChannelInteraction_2
+                
+!                !call OverLandChannelInteraction_New
+!                select case (Me%OverlandChannelInteractionMethod)
+!                case (1)
+!                    call OverLandChannelInteraction_1
+!                case (2)
+!                    call OverLandChannelInteraction_2
+!                case (3)
+!                    call OverLandChannelInteraction_3
+!                case (4)
+!                    call OverLandChannelInteraction_4
+!                case default
+!                    stop 'ModifyRunOff - ModuleRunOff - ERR020'
+!                endselect
             endif
             
             !Routes Ponded levels which occour due to X/Y direction (Runoff does not route in D8)
@@ -5955,6 +5961,8 @@ doIter:         do while (iter <= Niter)
     end subroutine OverLandChannelInteraction
     
     !--------------------------------------------------------------------------
+    !Method to instantaneously transport water in river runoff interaction (stability problems)
+    !this method should be deleted
 
     subroutine OverLandChannelInteraction_1
     
@@ -6070,7 +6078,7 @@ doIter:         do while (iter <= Niter)
     
     !--------------------------------------------------------------------------
     
-
+    !Method to use celerity as the base for transport water in river runoff interaction
     subroutine OverLandChannelInteraction_2
     
         !Arguments-------------------------------------------------------------
@@ -6142,12 +6150,29 @@ doIter:         do while (iter <= Niter)
                     endif
                 else
                     !Implicit computation of new dh based on celerity dx transport
+!                    dh_new = (ChannelsSurfaceWidth(i,j) * dh) /                      &
+!                    (ChannelsSurfaceWidth(i,j) + 2 * min (Celerity * Me%ExtVar%DT, 0.5 * Me%ExtVar%DUX(i,j)))
+                    
+                    !Compute new water height above runoff column based on the distance that water 
+                    !will be spread in one dt (surface width + 2 celerity paths - in both ways)
+                    ![m] = [m] * [m] / [m] . this is the same as working with volumes where river lenght
+                    !would be multiplied in both num and den. dh_new is estimated based on same volume spreading on
+                    !wider area
                     dh_new = (ChannelsSurfaceWidth(i,j) * dh) /                      &
-                    (ChannelsSurfaceWidth(i,j) + 2 * min (Celerity * Me%ExtVar%DT, 0.5 * Me%ExtVar%DUX(i,j)))
+                    (ChannelsSurfaceWidth(i,j) + 2 * Celerity * Me%ExtVar%DT)
+                    
+                    !maximum spread where in one time step all the water above runoff column
+                    !will spread along all the cell (DUX)
+                    !in case that channel top width is == DUX no flow occurs so this was abandoned
+                    !dh_min = (ChannelsSurfaceWidth(i,j) * dh) /                      &
+                    !(Me%ExtVar%DUX(i,j))
                     
                     !m3/s = h * L * Length / s
                     Flow    = -1. * (dh_new - dh) * ChannelsSurfaceWidth(i,j) * ChannelsNodeLength(i,j) / Me%ExtVar%DT
-                    MaxFlow = -1. * (ChannelsVolume(i,j) - ChannelsMaxVolume(i,j)) / Me%ExtVar%DT
+                    
+                    !MaxFlow = -1. * (dh_min - dh) * ChannelsSurfaceWidth(i,j) * ChannelsNodeLength(i,j) / Me%ExtVar%DT                    
+                    !maximum is the channel water above runoff going all to runoff 
+                    MaxFlow = dh * ChannelsSurfaceWidth(i,j) * ChannelsNodeLength(i,j) / Me%ExtVar%DT    
                 endif
 
                 if (abs(Flow) > abs(MaxFlow)) then
@@ -6193,7 +6218,9 @@ doIter:         do while (iter <= Niter)
     end subroutine OverLandChannelInteraction_2
     
     !--------------------------------------------------------------------------    
-    
+    !Method uses complicated method for transport water in river runoff interaction
+    !instantaneous if space available in river and a ixture of celerity and instant
+    !equalization otherwise. this method should be deleted is unstable as 1 and complex    
     subroutine OverLandChannelInteraction_3
     
         !Arguments-------------------------------------------------------------
@@ -6374,7 +6401,8 @@ doIter:         do while (iter <= Niter)
     end subroutine OverLandChannelInteraction_3
     
     !--------------------------------------------------------------------------     
-    
+    !Method to use celerity as the base for transport water in river runoff interaction
+    !Difference to method 2 is the max flow definition in case water outside section    
     subroutine OverLandChannelInteraction_4
     
         !Arguments-------------------------------------------------------------
@@ -6454,9 +6482,11 @@ doIter:         do while (iter <= Niter)
                     !m3/s = m/s (celerity) * m2 (Area = (dh * L) * 2)
                     Flow    = Celerity * 2.0 * ChannelsNodeLength(i, j) * min(dh, WaveHeight)
                 else
-                    !Implicit computation of new dh based on celerity dx transport
+                    !This was updated
+                    !dh_new = (ChannelsSurfaceWidth(i,j) * dh) / &
+                    !         (ChannelsSurfaceWidth(i,j) + 2 * min (Celerity * Me%ExtVar%DT, 0.5 * Me%ExtVar%DUX(i,j)))
                     dh_new = (ChannelsSurfaceWidth(i,j) * dh) / &
-                             (ChannelsSurfaceWidth(i,j) + 2 * min (Celerity * Me%ExtVar%DT, 0.5 * Me%ExtVar%DUX(i,j)))
+                             (ChannelsSurfaceWidth(i,j) + 2 * Celerity * Me%ExtVar%DT)
                     
                     !m3/s = h * L * Length / s
                     Flow    = -1. * (dh_new - dh) * ChannelsTopArea(i,j) / Me%ExtVar%DT
@@ -6646,10 +6676,12 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                             variation = abs(Me%myWaterVolume(i, j) - Me%myWaterVolumeOld(i, j)) / Me%myWaterVolumeOld(i, j)
                             
                             if (variation > Me%CV%StabilizeFactor) then
-                                !write(*,*) 'Variation (', variation, ') > Me%CV%StabilizeFactor (', Me%CV%StabilizeFactor, ') - Me%myWaterVolume (', i, ', ', j, ') = ', Me%myWaterVolume (i, j)
+                                !Debug routine - may be usefull for using in debug situation
+                                !call DebugStability (i,j,variation)                                
+                                
                                 n_restart = n_restart + 1
+                                
                                 if (n_restart > Me%CV%MinToRestart) then
-                                    !write(*,*) 'n_restart (', n_restart, ') > Me%CV%MinToRestart (', Me%CV%MinToRestart, ')' 
                                     Restart = .true.
                                     exit do2
                                 endif                                 
@@ -6673,6 +6705,31 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         
     end subroutine CheckStability
  
+    !--------------------------------------------------------------------------
+
+    subroutine DebugStability(i,j, variation)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                     :: I, J
+        real                                        :: variation
+        !Local-----------------------------------------------------------------
+        character (Len = 5)                         :: str_i, str_j
+        character (Len = 15)                        :: str_1, str_2, str_3
+        character (len = StringLength)              :: string_to_be_written 
+        
+        write(str_i, '(i3)') i 
+        write(str_j, '(i3)') j
+        write(str_1, '(ES10.3)') Me%myWaterVolumeOld(I,J)  
+        write(str_2, '(ES10.3)') Me%myWaterVolume(I,J)   
+        write(str_3, '(ES10.3)') variation                            
+        
+        string_to_be_written = ' '//str_i//','//str_j//' '//str_1//' '//str_2//' '//str_3
+        
+        call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)           
+    
+    
+    end subroutine DebugStability
+    
     !--------------------------------------------------------------------------
 
     subroutine LocalWaterColumn (WaterColumn)
