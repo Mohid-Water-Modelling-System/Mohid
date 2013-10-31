@@ -1205,8 +1205,19 @@ cd2 :           if (BlockFound) then
                                          Interpolate = NewProperty%InterpolateValueInTime,       &
                                          UseOriginal = NewProperty%UseOriginalValue,             &
                                          STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR041' 
-
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR041' 
+        
+        !check if property accumulated is precipitation or irrigation
+        if (NewProperty%AccumulateValueInTime) then
+            if (NewProperty%ID%IDNumber /= Precipitation_ .and. NewProperty%ID%IDNumber /= Irrigation_) then
+                write(*,*)
+                write(*,*) 'Found Property with ACCUMULATED_VALUES but is not'
+                write(*,*) 'precipitation or irrigation', trim(NewProperty%ID%Name)
+                write(*,*) 'Remove that keyword from the property block'
+                stop 'Construct_PropertyValues - ModuleAtmosphere - ERR041.5'
+            endif
+        endif
+        
         call GetIfMatrixRemainsConstant(FillMatrixID    = NewProperty%ID%ObjFillMatrix,     &
                                         RemainsConstant = NewProperty%Constant,             &
                                         STAT            = STAT_CALL)

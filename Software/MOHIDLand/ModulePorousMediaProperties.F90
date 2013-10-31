@@ -701,7 +701,7 @@ Module ModulePorousMediaProperties
         
         real(8), pointer, dimension(:,:,:)           :: WaterVolume     => null()
         real(8), pointer, dimension(:,:,:)           :: FluxWCorr       => null()
-        real(8), pointer, dimension(:,:,:)           :: WaterContentBT  => null()  !Water Content Before Transport
+        real,    pointer, dimension(:,:,:)           :: WaterContentBT  => null()  !Water Content Before Transport
         
         logical                                      :: DTIntervalAssociated     = .false.
 
@@ -5492,7 +5492,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, dimension(:, :   ), pointer       :: DischargesConc
         type (T_Property), pointer              :: Property
         integer                                 :: iProp
-        real                                    :: VolumeOld
+        real(8)                                 :: VolumeOld
 
 
         !Get integrated flow from runoff to be sure using same values
@@ -8322,7 +8322,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         !Local--------------------------------------------------------------------
         real, pointer, dimension(:,:,:)             :: TranspirationLayer
-        real, pointer, dimension(:,:  )             :: Evaporation
+        real(8), pointer, dimension(:,:  )          :: Evaporation
         logical                                     :: TranspirationExists, EvaporationExists
         integer                                     :: i,j,k, CHUNK, STAT_CALL
         real(8)                                     :: aux

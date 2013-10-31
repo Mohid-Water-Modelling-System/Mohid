@@ -3618,7 +3618,7 @@ cd2 :           if (BlockFound) then
         real(8)                                     :: NewVolumeOnLeafs, OldVolumeOnLeafs
         real                                        :: AreaFraction
         real, dimension(:, :), pointer              :: Irri
-        logical                                     :: IsPresent
+        logical                                     :: IsPresent       
         !Begin-----------------------------------------------------------------
         
         NewVolumeOnLeafs = 0.0
@@ -3861,7 +3861,7 @@ cd2 :           if (BlockFound) then
                     
                 !mm/ hour                   m                       s         mm/m     s/h
                 Me%ThroughRate(i, j) = Me%ThroughFall(i, j) / Me%CurrentDT * 1000.0 * 3600.0
-
+              
                 if (Me%VerifyGlobalMass) then
                     if (Me%Coupled%Vegetation) then
                         AreaFraction = 1 - Me%CoveredFraction(i,j)
@@ -8465,7 +8465,7 @@ cd2 :           if (BlockFound) then
         character(len=132)                          :: AuxString
         character(len=30)                           :: time_string 
         type(T_Time)                                :: NextTime  
-        
+        logical                                     :: round_dt
         !------------------------------------------------------------------------
         
         if (Me%Coupled%Atmosphere) then
@@ -8499,72 +8499,110 @@ cd2 :           if (BlockFound) then
             PorousMediaDT = -null_real
         end if
 
-        ID_DT = 0       
-        
-        if (DTForNextEvent <= 0.0) then
-        
-            if (AtmosfereDT < NewDT) then
+        ID_DT = 0  
+        round_dt = .true.
             
-                NewDT = AtmosfereDT
-                ID_DT = 1
-                
-            endif
-            
-            if (Me%DTDuringRain < NewDT) then
-            
-                NewDT = Me%DTDuringRain
-                ID_DT = 2
-                
-            endif
-
-        endif        
-        
+        !If the DT asked by drainage network module is lower than the proposed DT (NewDT, coming from MohidLand),
+        !the NewDT will be updated with its value.        
         if (DNetDT < NewDT) then
         
             NewDT = DNetDT
-            ID_DT = 3
+            ID_DT = 1
             
         endif
         
+        !If the DT asked by runoff module is lower than the NewDT,
+        !the NewDT will be updated with its value.        
         if (RunOffDT < NewDT) then
         
             NewDT = RunOffDT
-            ID_DT = 4
+            ID_DT = 2
             
         endif
 
+        !If the DT asked by porous media module is lower than the NewDT,
+        !the NewDT will be updated with its value.         
         if (PorousMediaDT < NewDT) then
         
             NewDT = PorousMediaDT 
-            ID_DT = 5
+            ID_DT = 3
             
         endif
             
-        if (DTForNextEvent > 0.0) then
+        !If the next event is happening...     
+        if (DTForNextEvent <= 0.0) then
+                   
+            !Compare NewDT against the basin DTDuringRain value (defined by user).
+            !If The user value is lower, actualize the NewDT with its value.
+            if (Me%DTDuringRain < NewDT) then
+            
+                NewDT = Me%DTDuringRain
+                ID_DT = 4
+                
+            endif
+
+            !Verify if the AtmosphereDT is lower than the NewDT
+            !In this case, actualizes the NewDT with the value of AtmosphereDT
+            !If AtmosfereDT is zero (can happen in case of method 1 for predicting dt) 
+            !it means that now reached exactly one instant existing on HDF or timeserie
+            !and has no usefull information
+            if ((AtmosfereDT > 0.) .and. (AtmosfereDT < NewDT)) then
+            
+                NewDT = AtmosfereDT
+                ID_DT = 5
+                
+                !In the case of the DT being limited by atmosphere, 
+                !The rounding of the DT must be turned off to avoid the possibility
+                !of the NewDT creates an interval that pass over the instant of the next event
+                round_dt = .false.
+                
+            endif            
+            
+        else
+        
             if (DTForNextEvent < NewDT) then
         
                 NewDT = DTForNextEvent
                 ID_DT = 6
                 
-            elseif (Me%ControlDTChanges) then
-                                
-                if (NewDT/DTForNextEvent > 0.5) then
-                    NewDT = DTForNextEvent / 2
-                    ID_DT = 7
-                endif                                
-            endif            
-        endif
+                !In this case, the AtmosphereDT and the DTForNextEvent will be the same 
+                !The rounding of the DT must be turned off to avoid the possibility
+                !of the NewDT creates an interval that pass over the instant of the next event
+                round_dt = .false.                
+                
+            endif 
             
-        !Rounds new DT
-        if (NewDT * 1000.0 > AINT(NewDT*1000.0)) then
-           NewDT = AINT(NewDT*1000.0) + 1.0
-        else
-           NewDT = max(AINT(NewDT*1000.0), 1.0)
         endif
 
-        NewDT = NewDT / 1000.0                    
+        !ControlDTChanges, if .true., try to avoid DT's too small only because of the time to the "next event".
+        if (Me%ControlDTChanges) then
+            
+            !if the NewDT is lower than DTForNextEvent and is greater than Half the DTForNextEvent, 
+            !decrease NewDT to be the half of DTForNextEvent, avoiding a smaller DT on the next 
+            !prevision (because proximity with new event).
+            if (NewDT < DTForNextEvent) then
+            if (DTForNextEvent/NewDT < 0.5) then
+            
+                NewDT = DTForNextEvent / 2
+                ID_DT = 7
+                
+            endif
+            endif
+            
+        endif            
+
+        if (round_dt) then
         
-        if (NewDT > AtmosfereDT) NewDT = AtmosfereDT
+            !Rounds new DT
+            if (NewDT * 1000.0 > AINT(NewDT*1000.0)) then
+               NewDT = AINT(NewDT*1000.0) + 1.0
+            else
+               NewDT = max(AINT(NewDT*1000.0), 1.0)
+            endif
+            
+            NewDT = NewDT / 1000.0                    
+        
+        endif
 
         NextTime = Me%CurrentTime + NewDT
         time_string = ConvertTimeToString (NextTime)

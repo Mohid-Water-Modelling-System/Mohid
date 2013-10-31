@@ -4888,7 +4888,7 @@ cd0:    if (Exist) then
         real,    dimension(:,:), pointer        :: DischargesConc
         type (T_Property), pointer              :: Property
         integer                                 :: iProp
-        real                                    :: VolumeOld
+        real(8)                                 :: VolumeOld
 
 
         !Get integrated flow from runoff to be sure using same values
