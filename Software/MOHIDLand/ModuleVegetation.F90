@@ -876,8 +876,11 @@ Module ModuleVegetation
         real, dimension(:,:  ), pointer                 :: BiomassGrowth         => null()
         real, dimension(:,:  ), pointer                 :: LAIChange             => null()
         real, dimension(:,:  ), pointer                 :: BiomassRemovedInHarvest => null()
+        real, dimension(:,:  ), pointer                 :: BiomassYeld           => null()
         real, dimension(:,:  ), pointer                 :: NitrogenRemovedInHarvest => null()
+        real, dimension(:,:  ), pointer                 :: NitrogenYeld          => null()
         real, dimension(:,:  ), pointer                 :: PhosphorusRemovedInHarvest => null()
+        real, dimension(:,:  ), pointer                 :: PhosphorusYeld           => null()
         real, dimension(:,:  ), pointer                 :: BiomassHarvestedFraction => null()
         real, dimension(:,:  ), pointer                 :: BiomassRemovedInDormancy => null()
         real, dimension(:,:  ), pointer                 :: NitrogenRemovedInDormancy => null()
@@ -3764,13 +3767,20 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                  
                 allocate(Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil (ILB:IUB,JLB:JUB))
                 Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil (:,:) = 0.0
-            
+                
+                allocate(Me%Fluxes%BiomassYeld (ILB:IUB,JLB:JUB))
+                Me%Fluxes%BiomassYeld(:,:) = 0.0
+                
                 if (Me%ComputeOptions%ModelNitrogen) then            
                     allocate(Me%Fluxes%NitrogenRemovedInHarvest (ILB:IUB,JLB:JUB))  
                     Me%Fluxes%NitrogenRemovedInHarvest (:,:) = 0.0
                     
                     allocate(Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil (ILB:IUB,JLB:JUB)) 
                     Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil (:,:) = 0.0
+                    
+                    allocate (Me%Fluxes%NitrogenYeld(ILB:IUB,JLB:JUB))
+                    Me%Fluxes%NitrogenYeld(:,:) = 0.0
+                    
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then
@@ -3779,6 +3789,11 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                     
                     allocate(Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil (ILB:IUB,JLB:JUB))
                     Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil (:,:) = 0.0
+
+                    allocate (Me%Fluxes%PhosphorusYeld(ILB:IUB,JLB:JUB))
+                    Me%Fluxes%PhosphorusYeld(:,:) = 0.0
+
+                    
                 endif
 
             endif
@@ -4002,8 +4017,8 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         
             !Allocates PropertyList
             AddProperties = 0
-            !Always water uptake and water stress
-            AddProperties = AddProperties + 2
+            !Always water uptake and water stress and vegetation id
+            AddProperties = AddProperties + 3
             if (Me%ComputeOptions%ModelNitrogen) then
                 AddProperties = AddProperties + 1
                 if (Me%ComputeOptions%Evolution%ModelSWAT) then
@@ -4018,6 +4033,15 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             endif 
             if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
                 AddProperties = AddProperties + 3
+                if (Me%ComputeOptions%HarvestKill) then
+                    AddProperties = AddProperties + 1
+                    if (Me%ComputeOptions%ModelNitrogen) then
+                        AddProperties = AddProperties + 1
+                    endif
+                    if (Me%ComputeOptions%ModelPhosphorus) then
+                        AddProperties = AddProperties + 1
+                    endif
+                endif
             endif
                     
             !Debug average computation
@@ -4036,7 +4060,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                 endif
                 PropertyX=>PropertyX%Next
             enddo
-            
+
+            nProperties = nProperties + 1
+            PropertyList(nProperties) = "VegetationID"           
             nProperties = nProperties + 1
             PropertyList(nProperties) = "Water Uptake m3/s"
             nProperties = nProperties + 1
@@ -4071,6 +4097,19 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                 PropertyList(nProperties) = "Potential HU"
                 nProperties = nProperties + 1
                 PropertyList(nProperties) = "TemperatureStressFactor"
+
+                if (Me%ComputeOptions%HarvestKill) then
+                    nProperties = nProperties + 1 
+                    PropertyList(nProperties) = "Biomass Yield kg/ha"
+                    if (Me%ComputeOptions%ModelNitrogen) then
+                        nProperties = nProperties + 1 
+                        PropertyList(nProperties) = "Nitrogen Yield kg/ha"
+                    endif
+                    if (Me%ComputeOptions%ModelPhosphorus) then
+                        nProperties = nProperties + 1 
+                        PropertyList(nProperties) = "Phosphorus Yield kg/ha"
+                    endif
+                endif
             
             endif
  
@@ -5990,15 +6029,16 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
         integer                                     :: STAT_CALL
         logical                                     :: DatabaseFound
         integer                                     :: iflag
-
+        real                                        :: HarvestKillJD, HarvestJD, KillJD
+        real                                        :: HarvestKillHU, HarvestHU, KillHU
         !Begin-----------------------------------------------------------------
 
 
-        call ExtractBlockFromBlock(ParameterObjEnterData,                                           &
-                                    ClientNumber      = ClientNumber,                         &
+        call ExtractBlockFromBlock(ParameterObjEnterData,                                &
+                                    ClientNumber      = ClientNumber,                    &
                                     block_begin       = '<beginharvestkillparameters>',  &
                                     block_end         = '<endharvestkillparameters>',    &
-                                    BlockInBlockFound = DatabaseFound,                        &   
+                                    BlockInBlockFound = DatabaseFound,                   &   
                                     STAT              = STAT_CALL)
 HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
 
@@ -6062,6 +6102,47 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                          ClientModule   = 'ModuleVegetation',                                                         &
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadHarvestKillDatabase - ModuleVegetation - ERR160'     
+
+            !Operations can not happen at the same day because the math involved assumes that only one operation is occuring
+            HarvestKillJD = Me%VegetationTypes(ivt)%HarvestKillDatabase%HarvestKillJulianDay
+            HarvestJD     = Me%VegetationTypes(ivt)%HarvestKillDatabase%HarvestJulianDay
+            KillJD        = Me%VegetationTypes(ivt)%HarvestKillDatabase%KillJulianDay
+            if (HarvestKillJD > 0.0) then
+                if (HarvestKillJD == HarvestJD) then
+                    write (*,*) ' HarvestKill and Harvest can not happen at the same day', Me%VegetationTypes(ivt)%Name
+                    stop 'ReadHarvestKillParameters - ModuleVegetation - ERR170'
+                endif
+                if (HarvestKillJD == KillJD) then
+                    write (*,*) ' HarvestKill and Kill can not happen at the same day', Me%VegetationTypes(ivt)%Name
+                    stop 'ReadHarvestKillParameters - ModuleVegetation - ERR180'
+                endif
+            endif
+            if (HarvestJD > 0.0) then
+                if (HarvestJD == KillJD) then
+                    write (*,*) ' Harvest and Kill can not happen at the same day. Use HarvestKill', Me%VegetationTypes(ivt)%Name
+                    stop 'ReadHarvestKillParameters - ModuleVegetation - ERR190'
+                endif            
+            endif
+
+            HarvestKillHU = Me%VegetationTypes(ivt)%HarvestKillDatabase%HarvestKillPlantHU
+            HarvestHU     = Me%VegetationTypes(ivt)%HarvestKillDatabase%HarvestPlantHU
+            KillHU        = Me%VegetationTypes(ivt)%HarvestKillDatabase%KillPlantHU
+            if (HarvestKillHU > 0.0) then
+                if (HarvestKillHU == HarvestHU) then
+                    write (*,*) ' HarvestKill and Harvest can not happen at the same day', Me%VegetationTypes(ivt)%Name
+                    stop 'ReadHarvestKillParameters - ModuleVegetation - ERR200'
+                endif
+                if (HarvestKillHU == KillHU) then
+                    write (*,*) ' HarvestKill and Kill can not happen at the same day', Me%VegetationTypes(ivt)%Name
+                    stop 'ReadHarvestKillParameters - ModuleVegetation - ERR210'
+                endif
+            endif
+            if (HarvestHU > 0.0) then
+                if (HarvestHU == KillHU) then
+                    write (*,*) ' Harvest and Kill can not happen at the same day. Use HarvestKill', Me%VegetationTypes(ivt)%Name
+                    stop 'ReadHarvestKillParameters - ModuleVegetation - ERR220'
+                endif            
+            endif
            
         endif HF
 
@@ -8704,16 +8785,19 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         
         if (Me%ComputeOptions%HarvestKill) then
 
-            Me%Fluxes%BiomassRemovedInHarvest                             (:,:) = 0.0  
+            Me%Fluxes%BiomassRemovedInHarvest                             (:,:) = 0.0
+            Me%Fluxes%BiomassYeld                                         (:,:) = 0.0  
             Me%Fluxes%BiomassHarvestedFraction                            (:,:) = 0.0
             Me%Fluxes%ToSoil%HarvestKillBiomassToSoil                     (:,:) = 0.0 
             Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil                    (:,:) = 0.0
             if (Me%ComputeOptions%ModelNitrogen) then
-                Me%Fluxes%NitrogenRemovedInHarvest                        (:,:) = 0.0 
+                Me%Fluxes%NitrogenRemovedInHarvest                        (:,:) = 0.0
+                Me%Fluxes%NitrogenYeld                                    (:,:) = 0.0 
                 Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil                (:,:) = 0.0 
             endif
             if (Me%ComputeOptions%ModelPhosphorus) then
                 Me%Fluxes%PhosphorusRemovedInHarvest                      (:,:) = 0.0
+                Me%Fluxes%PhosphorusYeld                                  (:,:) = 0.0
                 Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil              (:,:) = 0.0 
             endif
         endif
@@ -12005,13 +12089,13 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !StateVariables Fluxes
         Me%Fluxes%BiomassRemovedInHarvest(i,j)    = Yeld + Clip
         
+        Me%Fluxes%BiomassYeld(i,j)                = Yeld
+        
         TotalPlantBiomass        = Me%StateVariables%TotalPlantBiomass(i,j)
         
         !For HU update
         BiomassHarvestedFraction = (Yeld + Clip) / TotalPlantBiomass
         Me%Fluxes%BiomassHarvestedFraction = BiomassHarvestedFraction
-
-        
 
         if (Me%ComputeOptions%ModelNitrogen) then
 
@@ -12035,7 +12119,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
  
             !StateVariables Fluxes
             Me%Fluxes%NitrogenRemovedInHarvest(i,j)   = NitrogenYeld + NitrogenClipping
-        
+            
+            Me%Fluxes%NitrogenYeld(i,j)               = NitrogenYeld
+            
         endif
 
         if (Me%ComputeOptions%ModelPhosphorus) then
@@ -12060,7 +12146,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             !StateVariables Fluxes
             Me%Fluxes%PhosphorusRemovedInHarvest(i,j) = PhosphorusYeld + PhosphorusClipping
-        
+            
+            Me%Fluxes%PhosphorusYeld(i,j) = PhosphorusYeld
+            
         endif
 
     end subroutine HarvestOperation
@@ -12137,6 +12225,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (Residue .lt. 0.0) then
             Residue = 0.0
         endif
+
+        Me%Fluxes%BiomassRemovedInHarvest(i,j) = Yeld
+        Me%Fluxes%BiomassYeld            (i,j) = Yeld
         
         !!Biomass to soil. The fraction not removed by yeld because plant will die
         Me%Fluxes%ToSoil%HarvestKillBiomassToSoil(i,j) = Residue
@@ -12159,6 +12250,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 NitrogenToSoil = 0.0
             endif
 
+            Me%Fluxes%NitrogenRemovedInHarvest(i,j) = NitrogenYeld
+            Me%Fluxes%NitrogenYeld            (i,j) = NitrogenYeld
+
             Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil(i,j) = NitrogenToSoil
 
         endif
@@ -12178,6 +12272,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             else
                 PhosphorusToSoil = 0.0
             endif
+
+            Me%Fluxes%PhosphorusRemovedInHarvest(i,j) = PhosphorusYeld
+            Me%Fluxes%PhosphorusYeld            (i,j) = PhosphorusYeld
             
             Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil(i,j) = PhosphorusToSoil
 
@@ -12448,8 +12545,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             BiomassRemovedInDormancy    = TotalPlantBiomass * BiomassFracRemovedInDormancy
 
                             BiomassRemovedInHarvest = 0.0
-                            if (Me%ComputeOptions%HarvestKill .and. Me%HarvestOnlyOccurred(i,j)) then
-                                BiomassRemovedInHarvest = Me%Fluxes%BiomassRemovedInHarvest(i,j)
+                            if (Me%ComputeOptions%HarvestKill) then
+                                if(Me%HarvestOnlyOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
+                                    BiomassRemovedInHarvest = Me%Fluxes%BiomassRemovedInHarvest(i,j)
+                                endif
                             endif
                         
                             !Test biomass to adapt biomass removed
@@ -12659,7 +12758,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     endif
                     BiomassRemovedInHarvest = 0.0
                     if (Me%ComputeOptions%HarvestKill) then
-                        if(Me%HarvestOnlyOccurred(i,j)) then
+                        if(Me%HarvestOnlyOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
                             BiomassRemovedInHarvest = Me%Fluxes%BiomassRemovedInHarvest(i,j)
                         endif
                     endif
@@ -12708,8 +12807,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                 NitrogenRemovedInDormancy = Me%Fluxes%NitrogenRemovedInDormancy(i,j)
                             endif
                             BiomassRemovedInHarvest = 0.0
-                            if (Me%ComputeOptions%HarvestKill .and. Me%HarvestOnlyOccurred(i,j)) then
-                                NitrogenRemovedInHarvest = Me%Fluxes%NitrogenRemovedInHarvest(i,j)
+                            if (Me%ComputeOptions%HarvestKill) then
+                                if (Me%HarvestOnlyOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
+                                    NitrogenRemovedInHarvest = Me%Fluxes%NitrogenRemovedInHarvest(i,j)
+                                endif
                             endif
                         
                             PredictedNitrogen = TotalPlantNitrogen - NitrogenRemovedInDormancy - NitrogenRemovedInHarvest
@@ -12742,7 +12843,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             endif
                             PhosphorusRemovedInHarvest = 0.0
                             if (Me%ComputeOptions%HarvestKill) then
-                                if(Me%HarvestOnlyOccurred(i,j)) then
+                                if(Me%HarvestOnlyOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
                                     PhosphorusRemovedInHarvest = Me%Fluxes%PhosphorusRemovedInHarvest(i,j)
                                 endif
                             endif
@@ -13128,9 +13229,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     PhosphorusGrazed = 0.0   
                 endif
 
-                !Harvesting only fluxes
+                !Harvesting fluxes
                 if (Me%ComputeOptions%HarvestKill) then
-                    if (Me%HarvestOnlyOccurred(i,j)) then                    
+                    if (Me%HarvestOnlyOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then                    
                         BiomassRemovedInHarvest = Me%Fluxes%BiomassRemovedInHarvest(i,j)                
                         if (Me%ComputeOptions%ModelNitrogen) then
                             NitrogenRemovedInHarvest = Me%Fluxes%NitrogenRemovedInHarvest(i,j)
@@ -14384,16 +14485,6 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
 
             enddo
 
-            if (Me%ComputeOptions%Evolution%ModelSWAT) then
-                call HDF5WriteData  (Me%ObjHDF5, "//Results/HUAccumulated",          &
-                                     "HUAccumulated", "-",                              &
-                                     Array2D      = Me%HeatUnits%PlantHUAccumulated,    &
-                                     OutputNumber = OutPutNumber,                       &
-                                     STAT         = STAT_CALL)                      
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'OutPutHDF - ModuleVegetation - ERR05'                 
-            endif
-
             call HDF5WriteData  (Me%ObjHDF5, "/Results/WaterUptake",&
                                  "WaterUptake", "m3/s",                                  &
                                  Array2D      = Me%Fluxes%WaterUptake,                   &
@@ -14409,10 +14500,122 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
                                  STAT         = STAT_CALL)                      
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'OutPutHDF - ModuleVegetation - ERR07'                 
+
             
+            if (Me%ComputeOptions%ModelNitrogen) then
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/NitrogenUptake",&
+                                     "NitrogenUptake", "kg/ha",                              &
+                                     Array2D      = Me%Fluxes%NitrogenUptake,                &
+                                     OutputNumber = OutPutNumber,                            &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'OutPutHDF - ModuleVegetation - ERR08' 
+            
+                if (Me%ComputeOptions%Evolution%ModelSWAT) then
+                
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/NitrogenOptimum",            &
+                                         "NitrogenOptimum", "kg/ha",                        &
+                                         Array2D      = Me%OptimalTotalPlantNitrogen,       &
+                                         OutputNumber = OutPutNumber,                       &
+                                         STAT         = STAT_CALL)                      
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                        stop 'OutPutHDF - ModuleVegetation - ERR09'                 
+
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/NitrogenStress",             &
+                                         "NitrogenStress", "-",                             &
+                                         Array2D      = Me%Growth%NitrogenStress,           &
+                                         OutputNumber = OutPutNumber,                       &
+                                         STAT         = STAT_CALL)                      
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                        stop 'OutPutHDF - ModuleVegetation - ERR010' 
+                endif
+            endif
+            if (Me%ComputeOptions%ModelPhosphorus) then
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/PhosphorusUptake",&
+                                     "PhosphorusUptake", "kg/ha",                            &
+                                     Array2D      = Me%Fluxes%PhosphorusUptake,              &
+                                     OutputNumber = OutPutNumber,                            &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'OutPutHDF - ModuleVegetation - ERR011' 
+            
+                if (Me%ComputeOptions%Evolution%ModelSWAT) then
+                
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/PhosphorusOptimum",          &
+                                         "PhosphorusOptimum", "kg/ha",                      &
+                                         Array2D      = Me%OptimalTotalPlantPhosphorus,     &
+                                         OutputNumber = OutPutNumber,                       &
+                                         STAT         = STAT_CALL)                      
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                        stop 'OutPutHDF - ModuleVegetation - ERR12'                 
+
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/PhosphorusStress",           &
+                                         "PhosphorusStress", "-",                           &
+                                         Array2D      = Me%Growth%PhosphorusStress,         &
+                                         OutputNumber = OutPutNumber,                       &
+                                         STAT         = STAT_CALL)                      
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                        stop 'OutPutHDF - ModuleVegetation - ERR013' 
+                endif            
+            endif
+
+            if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/PlantHUAccumulated",&
+                                     "PlantHUAccumulated", "HU",                             &
+                                     Array2D      = Me%HeatUnits%PlantHUAccumulated,         &
+                                     OutputNumber = OutPutNumber,                            &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'OutPutHDF - ModuleVegetation - ERR014'   
+                
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/PotentialHUBase",&
+                                     "PotentialHUBase", "HU",                                &
+                                     Array2D      = Me%HeatUnits%PotentialHUBase,            &
+                                     OutputNumber = OutPutNumber,                            &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'OutPutHDF - ModuleVegetation - ERR015'                                
+                    
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/TemperatureStress",&
+                                     "TemperatureStress", "-",                               &
+                                     Array2D      = Me%Growth%TemperatureStress,             &
+                                     OutputNumber = OutPutNumber,                            &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'OutPutHDF - ModuleVegetation - ERR016'   
+                    
+                if (Me%ComputeOptions%HarvestKill) then
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/BiomassYield",&
+                                         "BiomassYield", "kg/ha",                            &
+                                         Array2D      = Me%Fluxes%BiomassYeld,               &
+                                         OutputNumber = OutPutNumber,                        &
+                                         STAT         = STAT_CALL)                      
+                    if (STAT_CALL /= SUCCESS_)                                               &
+                        stop 'OutPutHDF - ModuleVegetation - ERR017'                 
+                    if (Me%ComputeOptions%ModelNitrogen) then
+                        call HDF5WriteData  (Me%ObjHDF5, "/Results/NitrogenYield",&
+                                             "NitrogenYield", "kg/ha",                           &
+                                             Array2D      = Me%Fluxes%NitrogenYeld,              &
+                                             OutputNumber = OutPutNumber,                        &
+                                             STAT         = STAT_CALL)                      
+                        if (STAT_CALL /= SUCCESS_)                                               &
+                            stop 'OutPutHDF - ModuleVegetation - ERR018'                     
+                    endif
+                    if (Me%ComputeOptions%Modelphosphorus) then
+                        call HDF5WriteData  (Me%ObjHDF5, "/Results/PhosphorusYield",&
+                                             "PhosphorusYield", "kg/ha",                         &
+                                             Array2D      = Me%Fluxes%PhosphorusYeld,            &
+                                             OutputNumber = OutPutNumber,                        &
+                                             STAT         = STAT_CALL)                      
+                        if (STAT_CALL /= SUCCESS_)                                               &
+                            stop 'OutPutHDF - ModuleVegetation - ERR019'                                         
+                    endif
+                endif                   
+            endif
+                
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR08'
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR20'
 
             Me%OutPut%NextOutput = OutPutNumber + 1
 
@@ -14429,6 +14632,8 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
         type (T_Property), pointer                  :: PropertyX
         integer                                     :: STAT_CALL
         integer                                     :: Pest
+        real, dimension(:,:), pointer               :: VegetationIDReal
+        integer                                     :: j, i
         !Begin-----------------------------------------------------------------
         
         PropertyX => Me%FirstProperty
@@ -14444,6 +14649,22 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
             PropertyX => PropertyX%Next
 
         enddo
+        
+        allocate (VegetationIDReal(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        VegetationIDReal (:,:) = 0.0
+        
+        do j = Me%Size%JLB, Me%Size%JUB
+        do i = Me%Size%ILB, Me%Size%IUB
+            if (Me%ExternalVar%MappingPoints(i,j) == 1) then
+                VegetationIDReal(i,j) = REAL(Me%VegetationID(i,j))
+            endif
+        end do
+        end do
+                
+        call WriteTimeSerie(Me%ObjTimeSerie, Data2D = VegetationIDReal, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR02'
+        
+        deallocate (VegetationIDReal)
         
         call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%Fluxes%WaterUptake, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR02'
@@ -14490,6 +14711,21 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
             call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%Growth%TemperatureStress, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR012'
 
+            if (Me%ComputeOptions%HarvestKill) then
+                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%Fluxes%BiomassYeld, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR013'
+                
+                if (Me%ComputeOptions%ModelNitrogen) then
+                    call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%Fluxes%NitrogenYeld, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR014'
+                endif
+                
+                if (Me%ComputeOptions%ModelPhosphorus) then
+                    call WriteTimeSerie(Me%ObjTimeSerie, Data2D = Me%Fluxes%PhosphorusYeld, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR015'                
+                endif
+            endif
+            
             !Atmosphere output file
             !Averaged Atmosphere properties 
             if (Me%ComputeOptions%AtmospherePropertiesOutput) then
@@ -15305,15 +15541,18 @@ do1 :   do while(associated(PropertyX))
                 deallocate(Me%Fluxes%BiomassHarvestedFraction                   ) 
                 deallocate(Me%Fluxes%ToSoil%HarvestKillBiomassToSoil            ) 
                 deallocate(Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil           )
+                deallocate(Me%Fluxes%BiomassYeld                                )
 
                 if (Me%ComputeOptions%ModelNitrogen) then            
                     deallocate(Me%Fluxes%NitrogenRemovedInHarvest               )  
                     deallocate(Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil       ) 
+                    deallocate(Me%Fluxes%NitrogenYeld                           )
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then
                     deallocate(Me%Fluxes%PhosphorusRemovedInHarvest             ) 
                     deallocate(Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil     )
+                    deallocate(Me%Fluxes%PhosphorusYeld                         )
                 endif
 
             endif
