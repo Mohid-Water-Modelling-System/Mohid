@@ -113,6 +113,7 @@ Module ModuleSeagrassSedimInteraction
         integer,    pointer, dimension(:  )         :: OpenPoints
         real,       pointer, dimension(:)           :: Temperature
         real,       pointer, dimension(:)           :: NintFactorR
+        real,       pointer, dimension(:)           :: PintFactorR
         real,       pointer, dimension(:)           :: RootsMort
         real(8),       pointer, dimension(:)           :: SedimCellVol
     end type T_External
@@ -1027,7 +1028,12 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
              
              Me%ExternalVar%NintFactorR         => NintFactorR
             if (.not. associated(Me%ExternalVar%NintFactorR))                      &
-                stop 'ModifySeagrassSedimInteraction - ModuleSeagrassSedimInteraction - ERR05'
+                stop 'ModifySeagrassSedimInteraction - ModuleSeagrassSedimInteraction - ERR03'
+                
+                
+           Me%ExternalVar%PintFactorR         => PintFactorR
+            if (.not. associated(Me%ExternalVar%PintFactorR))                      &
+                stop 'ModifySeagrassSedimInteraction - ModuleSeagrassSedimInteraction - ERR04'
            
            
            Me%ExternalVar%RootsMort         => RootsMort
@@ -1110,6 +1116,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         ! uptake limitation due to internal nitrogen content
         ! (dimensionless)   
         NintFactorR=Me%ExternalVar%NintFactorR(index) 
+        
+        PintFactorR=Me%ExternalVar%PintFactorR(index) 
         !  gN/m3/day =        KgDW/day             * gN/kgDW                   / m3
         MortalityN=Me%ExternalVar%RootsMort(index) * (Me%Parameters%gNKgdw) /Me%ExternalVar%SedimCellVol(index) 
         
