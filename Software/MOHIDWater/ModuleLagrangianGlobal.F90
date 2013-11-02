@@ -4271,7 +4271,7 @@ AC:     if (NewOrigin%EmissionSpatial == Accident_) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR680'
 
-            if (flag>0) NewOrigin%StartEmission = NewOrigin%AccidentTime
+            NewOrigin%StartEmission = NewOrigin%AccidentTime
         endif AC
 
         !Particle Thickness                
@@ -11675,10 +11675,12 @@ iON:        if (CurrentOrigin%EmissionON) then
 
                         case (Point_)
 
+                            CurrentOrigin%StartEmission = Me%Now
                             call EmissionPoint      (CurrentOrigin)
 
                         case (Box_)
 
+                            CurrentOrigin%StartEmission = Me%Now
                             call EmissionBox        (CurrentOrigin)
 
                         end select
@@ -19357,7 +19359,7 @@ i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTempo
                     call WriteOilGridConcentration   (em, OutputNumber)
                     call WriteOilGridConcentration3D (em, OutputNumber)
                     call WriteOilGridDissolution3D   (em, OutputNumber)
-                    call WriteOilPresence            (em, OutputNumber)
+                    if (Me%State%AssociateBeachProb) call WriteOilPresence(em, OutputNumber)
                 endif
 
 i1:             if (nP>0) then
