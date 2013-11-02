@@ -142,26 +142,27 @@ Module ModuleStatistic
 
         integer                                     :: Number = null_int !inicialization: Carina
 
-        integer, dimension(:), pointer              :: Definition  => null() !inicialization: Carina  !1 - Matrix of layer numbers 
-                                                                                                     !2 - Matrix of depths 
+        integer, dimension(:), pointer              :: Definition  => null() !inicialization: Carina !1 - Matrix of layer numbers
+                                                                                                     !2 - Matrix of depths
 
-        real,    dimension(:,:,: ), pointer         :: UpperDepth  => null() !inicialization: Carina   ! This two matrixes are depths 
-        real,    dimension(:,:,: ), pointer         :: LowerDepth  => null() !inicialization: Carina   ! This two matrixes are only allocate 
-                                                                                                      ! when Methodology = 2 (Values 3D and Statistic 2D) 
+        ! These two matrixes are depths and are allocated only when Methodology = 2 (Values 3D and Statistic 2D)
+        real,    dimension(:,:,: ), pointer         :: UpperDepth  => null() !inicialization: Carina   
+        real,    dimension(:,:,: ), pointer         :: LowerDepth  => null() !inicialization: Carina   
+                                                                                                      
+        !These two matrixes are layers number and are allocated only when Methodology = 2 (Values 3D and Statistic 2D)
+        real,    dimension(:,:,: ), pointer         :: UpperLayer  => null() !inicialization: Carina 
+        real,    dimension(:,:,: ), pointer         :: LowerLayer  => null() !inicialization: Carina
 
-        real,    dimension(:,:,: ), pointer         :: UpperLayer  => null() !inicialization: Carina   ! This two matrixes are layers number
-        real,    dimension(:,:,: ), pointer         :: LowerLayer  => null() !inicialization: Carina   ! This two matrixes are only allocate 
-                                                                                                      ! when Methodology = 2 (Values 3D and Statistic 2D) 
+        !The average value in the layer
+        real,    dimension(:,:,: ), pointer         :: Value  => null() !inicialization: Carina
 
-        real,    dimension(:,:,: ), pointer         :: Value  => null() !inicialization: Carina        !The average value in the layer
-
-        integer, dimension(:,:,: ), pointer         :: WaterPoints  => null() !inicialization: Carina   ! if exist one water point between the layer limits
-                                                                                                       ! in this case WaterPoints2D (i, j) = 1
+        !if exist one water point between the layer limits than WaterPoints2D (i, j) = 1
+        integer, dimension(:,:,: ), pointer         :: WaterPoints  => null() !inicialization: Carina
 
         integer, dimension(:), pointer              :: MinLayer  => null() !inicialization: Carina
-		integer, dimension(:), pointer              :: MaxLayer  => null() !inicialization: Carina
+        integer, dimension(:), pointer              :: MaxLayer  => null() !inicialization: Carina
         real,    dimension(:), pointer              :: MinDepth  => null() !inicialization: Carina
-		real,    dimension(:), pointer              :: MaxDepth  => null() !inicialization: Carina
+        real,    dimension(:), pointer              :: MaxDepth  => null() !inicialization: Carina
 
     end type T_Layers
 
@@ -177,9 +178,10 @@ Module ModuleStatistic
     type T_Statistic
         integer                                     :: InstanceID = null_int !inicialization: Carina
         type (T_ExternalVar    )                    :: ExternalVar
-        integer                                     :: Methodology = null_int !inicialization: Carina !1 - Values 3D and Statistic 3D
-                                                                                                      !2 - Values 3D and Statistic 2D (2D layer)
-                                                                                                      !3 - Values 2D and Statistic 2D
+        integer                                     :: Methodology = null_int !inicialization: Carina 
+                                                                              !1 - Values 3D and Statistic 3D
+                                                                              !2 - Values 3D and Statistic 2D (2D layer)
+                                                                              !3 - Values 2D and Statistic 2D
         type (T_Layers )                            :: Layers 
         type (T_SimpleStatistic)                    :: Global
         type (T_SimpleStatistic)                    :: Daily

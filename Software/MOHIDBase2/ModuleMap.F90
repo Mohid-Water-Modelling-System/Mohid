@@ -901,7 +901,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
         real                                        :: MinWaterColumn
         integer                                     :: CHUNK
-        type (T_Time)                               :: AuxTime
 
         !----------------------------------------------------------------------
 

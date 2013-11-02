@@ -1462,7 +1462,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer, parameter                          :: NoCompute    = 3
         integer, parameter                          :: Beached      = 4
         real                                        :: MacroAlgaeMassOld
-        real                                        :: DeadMass,DistanceFromTop
+        real                                        :: DeadMass
         real, parameter                             :: minthickness = 0.001
         real                                        :: DZ1, DZ2, radiation_at_top_canopy
         
@@ -1563,7 +1563,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 ! (minthickness is used to avoid division by 0 if DZ1 is 0)
                 DZ1= max(minthickness, (1. - Me%ExternalVar%Occupation(index))*Me%ExternalVar%Thickness(index)) 
                 ! (minthickness is used to avoid division by 0 if DZ2 is 0)
-                DZ2= max(minthickness,Me%ExternalVar%Occupation(index)*Me%ExternalVar%Thickness(index) )  ! DZ2 is macroalgae height in the cell
+                ! DZ2 is macroalgae height in the cell
+                DZ2= max(minthickness,Me%ExternalVar%Occupation(index)*Me%ExternalVar%Thickness(index))
         
                 if (DZ1 == minthickness) then
                 ! the height of canopy reaches the top of the cell, so the radiation at top of cell is used

@@ -322,7 +322,7 @@ Module ModulePorousMedia
         real, dimension(:,:,:), pointer         :: TranspirationFlux   => null()     
         real, dimension(:,:  ), pointer         :: PotentialEvaporationFlux  => null()       
         logical                                 :: ConstructEvaporation      = .false.
-        logical                                 :: ConstructTranspiration    => .false.
+        logical                                 :: ConstructTranspiration    = .false.
 
         !Time
         type (T_Time)                           :: Now

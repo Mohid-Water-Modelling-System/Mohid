@@ -1106,7 +1106,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !Begin-----------------------------------------------------------------
 
         NH4     = Me%PropIndex%Ammonia  ! Index of the property Ammonia
-        PO4      = Me%PropIndex%Phosphate  ! Index of the property Phosphate
+        PO4     = Me%PropIndex%Phosphate  ! Index of the property Phosphate
         PON     = Me%PropIndex%PON      ! Index of the property Particulate Organic Nitrogen
         POP     = Me%PropIndex%POP      ! Index of the property Particulate Organic Phosphorus
         R       = Me%PropIndex%Roots    ! Index of the property Roots

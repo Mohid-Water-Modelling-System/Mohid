@@ -430,7 +430,11 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(Comment)) then
                 if (present(ResultFileName)) then
                     if (present(HavePath)) then 
-                        call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName, HavePath = HavePath, Comment = Comment)
+                        call OpenTimeSerieFiles(Extension, &
+                                                PropertyList, &
+                                                ResultFileName = ResultFileName, &
+                                                HavePath = HavePath, &
+                                                Comment = Comment)
                     else
                         call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName, Comment = Comment)
                     endif
@@ -3585,7 +3589,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
                 PE  = (PEi * (dt2-dt1) + PEi1 * dt1) / dt2
 
-i1:         	if (StartIndex == EndIndex) then
+i1:             if (StartIndex == EndIndex) then
 
                     IntegAux = (PS + PE) / 2. * (EndTime - StartTime)
 

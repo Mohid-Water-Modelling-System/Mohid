@@ -652,7 +652,9 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
         !Arguments-------------------------------------------------------------
                                                     
         !Local-----------------------------------------------------------------
+#ifndef _NO_NETCDF
         real(8),   pointer, dimension(:,:)      :: LatR8, LonR8, LatStagR8, LonStagR8
+#endif
         real,      pointer, dimension(:,:)      :: Lat, Lon, LatStag, LonStag        
         real,      pointer, dimension(:,:)      :: LatStagW, LonStagW
         real,   pointer, dimension(:  )         :: XXDummy, YYDummy
@@ -1523,10 +1525,13 @@ wwd1:        if (Me%WindowWithData) then
         integer,                intent(IN )             :: ExtractType        
         
         !Local-----------------------------------------------------------------
+#ifndef _NO_NETCDF
         type (T_Time)                                   :: AuxTime
         real,    dimension(6)                           :: InitialDate
         real(8), dimension(:), pointer                  :: Instants
-        integer                                         :: STAT_CALL, i, NCDF_READ, HDF5_READ, iflag
+        integer                                         :: NCDF_READ
+#endif        
+        integer                                         :: STAT_CALL, i, HDF5_READ, iflag
         logical                                         :: exist, exist3D, exist2D
 
 

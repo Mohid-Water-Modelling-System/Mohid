@@ -1093,8 +1093,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real                                        :: NintFactor
         real                                        :: PintFactor
         real, parameter                             :: minthickness = 0.001
-        real                                        :: LightLimitingFactor
-        real                                        :: DistanceFromTop
+        real                                        :: LightLimitingFactor        
         real                                        :: DZ1, DZ2, radiation_at_top_canopy
 
         !Description-------------------------------------------------------------
@@ -1114,29 +1113,31 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         L       = Me%PropIndex%Leaves    ! Index of the property Seagrasses Leaves
         O2      = Me%PropIndex%Oxygen    ! Index of the property Oxygen
 
-         !Light Limitation Factor (dimensionless)
+        !Light Limitation Factor (dimensionless)
          
-         ! Thickness is the thickness of the water layer k 
-         ! TopRadiation is the solar radiation on the top of the water layer k
-         ! Thickness(i,j,k) = DWZ(i,j,k)= SZZ(i,j,k-1)-SZZ(i,j,k) (see module geometry)
-         ! 
+        ! Thickness is the thickness of the water layer k 
+        ! TopRadiation is the solar radiation on the top of the water layer k
+        ! Thickness(i,j,k) = DWZ(i,j,k)= SZZ(i,j,k-1)-SZZ(i,j,k) (see module geometry)
+        ! 
          
-         ! DZ1 is the distance (m) between the top of the cell and the top of the canopy
-         ! (minthickness is used to avoid division by 0 if DZ1 is 0)
-           DZ1= max(minthickness, (1. - Me%ExternalVar%Occupation(index))*Me%ExternalVar%Thickness(index)) 
-         ! (minthickness is used to avoid division by 0 if DZ2 is 0)
-           DZ2= max(minthickness,Me%ExternalVar%Occupation(index)*Me%ExternalVar%Thickness(index) )  ! DZ2 is seagrass height in the cell
+        ! DZ1 is the distance (m) between the top of the cell and the top of the canopy
+        ! (minthickness is used to avoid division by 0 if DZ1 is 0)
+        DZ1= max(minthickness, (1. - Me%ExternalVar%Occupation(index))*Me%ExternalVar%Thickness(index)) 
+           
+        ! (minthickness is used to avoid division by 0 if DZ2 is 0)
+        ! DZ2 is seagrass height in the cell
+        DZ2= max(minthickness,Me%ExternalVar%Occupation(index)*Me%ExternalVar%Thickness(index))
         
-           if (DZ1 == minthickness) then
-         ! the height of canopy reaches the top of the cell, so the radiation at top of cell is used
+        if (DZ1 == minthickness) then
+        ! the height of canopy reaches the top of the cell, so the radiation at top of cell is used
             radiation_at_top_canopy = Me%ExternalVar%SWRadiation(index)  
-           else
+        else
             radiation_at_top_canopy = Me%ExternalVar%SWRadiation(index)*exp(-DZ1*Me%ExternalVar%SWLightExctintionCoef(index))
-           end if
+        end if
          
-               !It is assumed that the light extinction coefficient is uniform in the cell (it is rough approximation)
+        !It is assumed that the light extinction coefficient is uniform in the cell (it is rough approximation)
          
-                LightLimitingFactor =                                                                                      &
+        LightLimitingFactor =                                                                                      &
                           PhytoLightLimitationFactor(Thickness       = DZ2,                                         &
                                                      TopRadiation    = radiation_at_top_canopy,                     &
                                                      PExt            = Me%ExternalVar%SWLightExctintionCoef(index), &

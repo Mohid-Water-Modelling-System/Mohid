@@ -3833,10 +3833,10 @@ i4:             if(Me%Dim == Dim2D)then
                     enddo
                     enddo
                                                     
-                	if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
+                    if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
                 
                     	!Interpolates the two matrixes in time
-	                    call InterpolateMatrix2DInTime(ActualTime       = Now,                         &
+                    call InterpolateMatrix2DInTime(ActualTime       = Now,                         &
 	                                                   Size             = Me%WorkSize2D,               &
 	                                                   Time1            = Me%HDF%PreviousTime,         &
 	                                                   Matrix1          = Me%HDF%PreviousField2D,      &

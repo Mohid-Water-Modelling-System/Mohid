@@ -174,42 +174,44 @@
 ! T Dabrowski algorithm (EASYCO) for bivalves
 !(values and description provided by the author)
 !
-!NINDM2         100.                              ! Number of individuals per m2
-!MAXEQUE        2190000000.0                      ! Max. equilibrium energy density in J m-3
-!EGCC           1900000000.0                      ! Energetic growth cost per unit growth in structural body volume in J m-3
-!MAXSAING       22.7778                           ! Max. surface-area-specific ingestion rate in J m-2 s -1
-!ASSEFFIC       0.75                              ! Assimilation efficiency (= Pam/Pxm)
-!SOMACOST       277.7778                          ! Somatic maintenance cost in J m -3 s -1
-!FLUXRESFRAC    0.70                              ! Fraction of flux from reserve spent on somaticmaintenance
-!SATCOEF        1.77                              ! Saturation coefficient - food density at which ingestion rate is half the maximum in mg (chl-a) m -3
-!REPOREFFIC     0.9                               ! Reproduction efficiency
-!ENERCONT       17550.0                           ! Energy content of 1g of reserve
-!WWTODW         0.20                              ! WW to DW converter
-!SPAWEFFIC      0.90                              ! proportion of the reproductive buffer emptied at each spawning
-!TSPAWN         2.0                               ! temperature threshold trigeering spawning in degC
-!GSOMINDEX      0.4                               ! Gonado-somatic index triggering spawning (fraction)                          
-!JDAYSPAWN      180                               ! Julian day for spawning, NOTE it is an array, so follow namelist formats
-!NSPAWND        1                                 ! Number of spawning days in a year (MUST be same as SpawnDay array dimension)
-!VOLADULT       0.00000006                        ! volume specifying a change from juvenile to adult in m 3 
-!SHAPEPARAM     0.287                             ! shape parameter
-!REFTEMP        293.0                             ! Ref. temp for rate constants in K
-!TEMPARRH       5800.0                            ! Arrhenius temperature in K
-!TEMPLOW        275.0                             ! Lower boundary of tolerance range in K
-!THRESP         296.0                             ! Upper boundary of tolerance range for respiration in K
-!THING          296.0                             ! Upper boundary of tolerance range for ingestion in K
-!TAL            45430.0                           ! Arrhenius temp. for rate of decrease at lower boundary in K
-!TAHRESP        31376.0                           ! Arrhenius temp. for rate of decrease at upper boundary for respiration in K
-!TAHING         31376.0                           ! Arrhenius temp. for rate of decrease at upper boundary for ingestion in K
-!FECALDECAY     2.1222e-4                         ! Corresponds to T90 of 3hrs assumed after document 'MOHID modules', in s-1
-!ENERGPHY       47.7546                           ! energetic value of phyt C in J mg-1 C (Platt and Irwin, 1973)
-!ENERGO2        14.3                              ! energetic value of oxygen (=14.3 J mg-1 O2)
+!NINDM2         100.         ! Number of individuals per m2
+!MAXEQUE        2190000000.0 ! Max. equilibrium energy density in J m-3
+!EGCC           1900000000.0 ! Energetic growth cost per unit growth in structural body volume in J m-3
+!MAXSAING       22.7778      ! Max. surface-area-specific ingestion rate in J m-2 s -1
+!ASSEFFIC       0.75         ! Assimilation efficiency (= Pam/Pxm)
+!SOMACOST       277.7778     ! Somatic maintenance cost in J m -3 s -1
+!FLUXRESFRAC    0.70         ! Fraction of flux from reserve spent on somaticmaintenance
+!SATCOEF        1.77         ! Saturation coefficient - food density at which ingestion rate is 
+                             ! half the maximum in mg (chl-a) m -3
+!REPOREFFIC     0.9          ! Reproduction efficiency
+!ENERCONT       17550.0      ! Energy content of 1g of reserve
+!WWTODW         0.20         ! WW to DW converter
+!SPAWEFFIC      0.90         ! proportion of the reproductive buffer emptied at each spawning
+!TSPAWN         2.0          ! temperature threshold trigeering spawning in degC
+!GSOMINDEX      0.4          ! Gonado-somatic index triggering spawning (fraction)                          
+!JDAYSPAWN      180          ! Julian day for spawning, NOTE it is an array, so follow namelist formats
+!NSPAWND        1            ! Number of spawning days in a year (MUST be same as SpawnDay array dimension)
+!VOLADULT       0.00000006   ! volume specifying a change from juvenile to adult in m 3 
+!SHAPEPARAM     0.287        ! shape parameter
+!REFTEMP        293.0        ! Ref. temp for rate constants in K
+!TEMPARRH       5800.0       ! Arrhenius temperature in K
+!TEMPLOW        275.0        ! Lower boundary of tolerance range in K
+!THRESP         296.0        ! Upper boundary of tolerance range for respiration in K
+!THING          296.0        ! Upper boundary of tolerance range for ingestion in K
+!TAL            45430.0      ! Arrhenius temp. for rate of decrease at lower boundary in K
+!TAHRESP        31376.0      ! Arrhenius temp. for rate of decrease at upper boundary for respiration in K
+!TAHING         31376.0      ! Arrhenius temp. for rate of decrease at upper boundary for ingestion in K
+!FECALDECAY     2.1222e-4    ! Corresponds to T90 of 3hrs assumed after document 'MOHID modules', in s-1
+!ENERGPHY       47.7546      ! energetic value of phyt C in J mg-1 C (Platt and Irwin, 1973)
+!ENERGO2        14.3         ! energetic value of oxygen (=14.3 J mg-1 O2)
 
 ! Accessory keywords (not in the original algorithm)
 ! These Keywords are used for enabling teh original code to comply with the MOHID code architecture
 
-!CCHLABIV       60.0                              ! C to Chla ratio used in the bivalve DEB model to converto Phyto to Chla
-!NH4EXCFRAC     0                                 ! To define NH4 excretion as a fraction of N ingested (defiend by the name of the bivalve in the original)
-!BILENINIC      0.05                              ! Initial bivalve lenght in m
+!CCHLABIV       60.0         ! C to Chla ratio used in the bivalve DEB model to converto Phyto to Chla
+!NH4EXCFRAC     0            ! To define NH4 excretion as a fraction of N ingested 
+                             ! (defiend by the name of the bivalve in the original)
+!BILENINIC      0.05         ! Initial bivalve lenght in m
 
 
 
@@ -2440,7 +2442,7 @@ cd2 :           if (BlockFound) then
                     
                     call AddBivalveDEB                  (NewBivalveDEB)
 
-                    call ConstructBivalveDEBParameters  (NewBivalveDEB, ClientNumber)
+                    call ConstructBivalveDEBParameters  (NewBivalveDEB)
 
                     nullify(NewBivalveDEB)
 
@@ -2511,11 +2513,10 @@ cd2 :           if (BlockFound) then
     !--------------------------------------------------------------------------
 
 
-subroutine ConstructBivalveDEBParameters (NewBivalveDEB, ClientNumber)
+subroutine ConstructBivalveDEBParameters (NewBivalveDEB)
 
         !Arguments-------------------------------------------------------------
-        type (T_BivalveDEB),      pointer           :: NewBivalveDEB
-        integer                                     :: ClientNumber
+        type (T_BivalveDEB),      pointer           :: NewBivalveDEB        
         !External--------------------------------------------------------------
         integer                                     :: iflag, STAT_CALL
         

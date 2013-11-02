@@ -47,14 +47,14 @@ Module ModuleCuda
     public  :: SaveThomas
     
     interface ConstructCudaBinding_C
-        subroutine ConstructCudaBinding_C bind(c, name="ConstructCudaBinding_C")
+        subroutine ConstructCudaBinding_C() bind(c, name="ConstructCudaBinding_C")
             use, intrinsic  :: Iso_C_Binding
             implicit none
         end subroutine ConstructCudaBinding_C
     end interface ConstructCudaBinding_C
     
     interface KillCudaBinding_C
-        subroutine KillCudaBinding_C bind(c, name="KillCudaBinding_C")
+        subroutine KillCudaBinding_C() bind(c, name="KillCudaBinding_C")
             use, intrinsic  :: Iso_C_Binding
             implicit none
         end subroutine KillCudaBinding_C
