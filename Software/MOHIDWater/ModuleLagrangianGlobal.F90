@@ -7689,6 +7689,7 @@ d1:     do em = 1, Me%EulerModelNumber
         integer                                                 :: STAT_CALL
         real                                                    :: OilDensity, OilAPI, OilMass
         character   (StringLength)                              :: OilType, Name
+        real                                                    :: Year, Month, Day, Hour, Minute, Second
 
         if (Me%nGroups > 1) then
             write(*,*)'Cannot write Time Series for simulation with more then one Group'
@@ -7706,25 +7707,29 @@ CurrOr: do while (associated(CurrentOrigin))
 
                  Name = trim(CurrentOrigin%Name)
 
+                call ExtractDate(Me%ExternalVar%BeginTime, Year, Month, Day, Hour, Minute, Second)            
+                10 format(A15, f5.0, 1x, f3.0, 1x, f3.0, 1x, f3.0, 1x, f3.0, 1x, f4.0)
+
                 Write(CurrentOrigin%troUnit,*) "MOHID Individual Particle Output Time Serie"
                 Write(CurrentOrigin%troUnit,"(A15, 2X, A30)") "Name         : ", Name
                 Write(CurrentOrigin%troUnit,"(A15, F11.6)") "Latitude     : ", CurrentOrigin%Position%CoordY               
                 Write(CurrentOrigin%troUnit,"(A15, F11.6)") "Longitude    : ", CurrentOrigin%Position%CoordX               
                 Write(CurrentOrigin%troUnit,"(A15, F11.3)") "Volume       : ", CurrentOrigin%PointVolume
-                    if (Me%State%Oil) then
-                        call GetOilMainConfigurations(OilID      = CurrentOrigin%ObjOil,        &
-                                                      OilVolume  = CurrentOrigin%PointVolume,   &
-                                                      OilDensity = OilDensity,                  &
-                                                      OilAPI     = OilAPI,                      &
-                                                      OilMass    = OilMass,                     &
-                                                      OilType    = OilType,                     &
-                                                      STAT       = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOutputTracerTimeSeries - ModuleLagrangianGlobal - ERR977'
-                        Write(CurrentOrigin%troUnit,"(A15, F11.3)") "Density      : ", OilDensity
-                        Write(CurrentOrigin%troUnit,"(A15, 2X, A30)") "Oil Type     : ", OilType
-                        Write(CurrentOrigin%troUnit,"(A15, F11.3)") "API          : ", OilAPI
-                        Write(CurrentOrigin%troUnit,"(A15, F11.3)") "Mass         : ", OilMass
-                    endif
+                Write(CurrentOrigin%troUnit,10) "Begin Time   : ", Year, Month, Day, Hour, Minute, Second
+                if (Me%State%Oil) then
+                    call GetOilMainConfigurations(OilID      = CurrentOrigin%ObjOil,        &
+                                                  OilVolume  = CurrentOrigin%PointVolume,   &
+                                                  OilDensity = OilDensity,                  &
+                                                  OilAPI     = OilAPI,                      &
+                                                  OilMass    = OilMass,                     &
+                                                  OilType    = OilType,                     &
+                                                  STAT       = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOutputTracerTimeSeries - ModuleLagrangianGlobal - ERR977'
+                    Write(CurrentOrigin%troUnit,"(A15, F11.3)") "Density      : ", OilDensity
+                    Write(CurrentOrigin%troUnit,"(A15, 2X, A30)") "Oil Type     : ", OilType
+                    Write(CurrentOrigin%troUnit,"(A15, F11.3)") "API          : ", OilAPI
+                    Write(CurrentOrigin%troUnit,"(A15, F11.3)") "Mass         : ", OilMass
+                endif
                 Write(CurrentOrigin%troUnit,*)
             If (CurrentOrigin%State%Oil) then
             151 format(4X, A6,4X,A12, 4X, A12, 4X, A12, 4X, A3, 4X, A6, 4X, A7, 4X,  &
