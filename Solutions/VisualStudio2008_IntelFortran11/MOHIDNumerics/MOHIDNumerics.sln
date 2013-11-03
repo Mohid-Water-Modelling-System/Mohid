@@ -8,6 +8,9 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}"
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MOHIDBase1", "MOHIDBase1\MOHIDBase1.vfproj", "{0056F7D7-347A-40DE-98B8-843CF05B5488}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96} = {5AEB2DAA-81F0-439A-8EE0-2148D7045B96}
+	EndProjectSection
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MOHIDBase2", "MOHIDBase2\MOHIDBase2.vfproj", "{98ABA093-7927-4BCD-B011-BF409B5BBB78}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -313,7 +316,6 @@ Global
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP|x64
-		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|x64.Build.0 = Release Double OpenMP|x64
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP|Win32.ActiveCfg = Release Double OpenMP|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP|Win32.Build.0 = Release Double OpenMP|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP|x64.ActiveCfg = Release Double OpenMP|x64
@@ -589,7 +591,8 @@ Global
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug|x64.ActiveCfg = Debug Double Openmp|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double|Win32
-		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|Win32
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|x64
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|x64.Build.0 = Release Double|x64
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP|Win32.ActiveCfg = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP|x64.ActiveCfg = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double|Win32.ActiveCfg = Release Double|Win32
