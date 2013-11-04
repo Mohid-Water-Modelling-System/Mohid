@@ -96,7 +96,7 @@ program MohidTidePreview
         call ReadTimeKeyWords   (ObjEnterData, FromFile, BeginTime, EndTime, DT,        &
                                  VariableDT, "MohidTidePreview")
         
-        call StartComputeTime(ObjTime, BeginTime, EndTime, DT = DT,                     &
+        call StartComputeTime(ObjTime, InitialSystemTime, BeginTime, EndTime, DT = DT,  &
                               VariableDT = VariableDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR02'
 
