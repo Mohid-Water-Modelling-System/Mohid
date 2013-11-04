@@ -2937,6 +2937,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Local-----------------------------------------------------------------
         real   , dimension(:, :, :), pointer    :: DWZ, DZZ, DUZ, DVZ, SZZ, DZI, DZE, DWZ_Xgrad, DWZ_Ygrad 
         real   , dimension(:, :   ), pointer    :: DUX, DVY
+        real                                    :: aux
         integer                                 :: FacesOption
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                 :: i, j, k, STAT_CALL
@@ -3161,7 +3162,7 @@ cd1:    if (FacesOption == MinTickness) then
         !$OMP END PARALLEL
 
 !Computes DWZ_Xgrad
-        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP PARALLEL PRIVATE(i,j,k,aux)
         do k = KLB  , KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB  , JUB
@@ -3169,9 +3170,11 @@ cd1:    if (FacesOption == MinTickness) then
 
             if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
                 WaterPoints3D(i, j    , k) == WaterPoint) then
+                
+                aux=(DWZ(i, j-1, k) + DWZ(i, j, k))
 
-                if (DUZ(i, j, k) > 0.) then
-                    DWZ_Xgrad(i, j, k) = DWZ(i, j, k) / (DWZ(i, j-1, k) + DWZ(i, j, k))
+                if (DUZ(i, j, k) > 0. .and. aux > 0.) then
+                    DWZ_Xgrad(i, j, k) = DWZ(i, j, k) / aux
                 else
                     DWZ_Xgrad(i, j, k) = 0.5
                 endif
@@ -3193,7 +3196,7 @@ cd1:    if (FacesOption == MinTickness) then
         !$OMP END PARALLEL
 
 !Computes DWZ_Ygrad
-        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP PARALLEL PRIVATE(i,j,k,aux)
         do k = KLB  , KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB  , JUB
@@ -3202,8 +3205,10 @@ cd1:    if (FacesOption == MinTickness) then
             if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
                 WaterPoints3D(i    , j, k) == WaterPoint) then
                 
-                if (DVZ(i, j, k) > 0.) then
-                    DWZ_Ygrad(i, j, k) =  DWZ(i, j, k)/(DWZ(i, j, k) + DWZ(i-1, j, k))
+                aux= (DWZ(i, j, k) + DWZ(i-1, j, k))
+                
+                if (DVZ(i, j, k) > 0. .and. aux > 0.) then
+                    DWZ_Ygrad(i, j, k) =  DWZ(i, j, k)/aux
                 else
                     DWZ_Ygrad(i, j, k) = 0.5
                 endif
