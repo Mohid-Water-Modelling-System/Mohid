@@ -2492,7 +2492,7 @@ cd2 :       if (present(HydrodynamicTime)) then
                                            Me%ExternalVar%Now, &
                                            STAT = STAT_CALL)                    
                 if (STAT_CALL /= SUCCESS_)                                      &
-                    stop 'Subroutine ModifyHydrodynamicFileInput; Module ModuleHydrodynamicFile. ERR01' 
+                    stop 'Subroutine ModifyHydrodynamicFileInput - ModuleHydrodynamicFile. ERR01' 
             end if cd2
 
 
@@ -2831,7 +2831,7 @@ cd2 :       if (present(HydrodynamicTime)) then
                                            Me%ExternalVar%Now,                          &
                                            STAT = STAT_CALL)                    
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR01' 
+                    stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR01' 
             end if cd2
 
             
@@ -2857,12 +2857,12 @@ cd4  :      if (Me%State%TimeIntegration) then
                                         VolumeZOld = VolumeZOld,                        &
                                         STAT       = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR10' 
+                    stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR10' 
 
                 call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
                 
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR20' 
+                    stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR20' 
 
 
                 !Do one integration step
@@ -2873,24 +2873,24 @@ cd4  :      if (Me%State%TimeIntegration) then
                                             Me%ExternalVar%Now,                         &
                                             STAT = STAT_CALL)                    
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR30' 
+                    stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR30' 
 
                 !Unget VolumeZ
                 call UnGetGeometry(Me%ObjGeometry, VolumeZ,                             &
                                    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR40' 
+                    stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR40' 
 
                 !Unget VolumeZOld
                 call UnGetGeometry(Me%ObjGeometry, VolumeZOld,                          &
                                    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR50' 
+                    stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR50' 
 
                 call UnGetMap     (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
                 
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR55' 
+                    stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR55' 
 
 
 
@@ -2910,7 +2910,7 @@ cd3 :       if (Me%ExternalVar%Now .GE. Me%TimeIntegration%NextOutput) then
                             Me%TimeIntegration%Integrate3DTime%WaterFluxY,              &
                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
-                        stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR60' 
+                        stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR60' 
 
 
                     !Get integrated Mapping
@@ -2923,7 +2923,7 @@ cd3 :       if (Me%ExternalVar%Now .GE. Me%TimeIntegration%NextOutput) then
 
                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
-                        stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR70' 
+                        stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR70' 
 
 
                     !Get integrated Discharges
@@ -2934,7 +2934,7 @@ cd3 :       if (Me%ExternalVar%Now .GE. Me%TimeIntegration%NextOutput) then
                             Me%TimeIntegration%Integrate3DTime%Discharges,              &
                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
-                        stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR80' 
+                        stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR80' 
 
 
                 endif
@@ -2972,14 +2972,14 @@ cd3 :       if (Me%ExternalVar%Now .GE. Me%TimeIntegration%NextOutput) then
                             Me%TimeIntegration%Integrate3DTime%WaterFluxX,              &
                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
-                        stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR90' 
+                        stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR90' 
                     
                     call UnGetHydroIntegration(                                         &
                             Me%ObjHydroIntegration,                                     &
                             Me%TimeIntegration%Integrate3DTime%WaterFluxY,              &
                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
-                        stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR100' 
+                        stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR100' 
 
                     !Mapping
                     call UnGetHydroIntegration(                                         &
@@ -2987,14 +2987,14 @@ cd3 :       if (Me%ExternalVar%Now .GE. Me%TimeIntegration%NextOutput) then
                             Me%TimeIntegration%Integrate3DTime%ComputeFacesU3D,         &
                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
-                        stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR110' 
+                        stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR110' 
 
                     call UnGetHydroIntegration(                                         &
                             Me%ObjHydroIntegration,                                     &
                             Me%TimeIntegration%Integrate3DTime%ComputeFacesV3D,         &
                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
-                        stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR120' 
+                        stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR120' 
 
                     !Discharges
                     call UnGetHydroIntegration(                                         &
@@ -3002,7 +3002,7 @@ cd3 :       if (Me%ExternalVar%Now .GE. Me%TimeIntegration%NextOutput) then
                             Me%TimeIntegration%Integrate3DTime%Discharges,              &
                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
-                        stop 'Subroutine ModifyHydrodynamicFileOutput; Module ModuleHydrodynamicFile. ERR130' 
+                        stop 'Subroutine ModifyHydrodynamicFileOutput - ModuleHydrodynamicFile. ERR130' 
 
 
                 endif
@@ -3126,7 +3126,7 @@ cd3 :       if (Me%ExternalVar%Now .GE. Me%TimeIntegration%NextOutput) then
         !Get Horizontal Areas-------------------------------------------------------
         call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = DUX, DVY = DVY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine IntegrateInSpace; module ModuleHydrodynamicFile. ERR01.'
+            stop 'Subroutine IntegrateInSpace - ModuleHydrodynamicFile. ERR01.'
                  
         !Get OpenPoints-----------------------------------------------------------
         if (Me%State%TimeIntegration .and. (.not. present(InitialFields))) then
@@ -3138,14 +3138,14 @@ cd3 :       if (Me%ExternalVar%Now .GE. Me%TimeIntegration%NextOutput) then
                                OpenPoints3D = OpenPoints,                                              &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine IntegrateInSpace; Module ModuleHydrodynamicFile. ERR02'
+            stop 'Subroutine IntegrateInSpace - ModuleHydrodynamicFile. ERR02'
         
         else
         
             call GetOpenPoints3D(Me%ObjMap,                                           &
                                  OpenPoints, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                                 &
-            stop 'Subroutine IntegrateInSpace; Module ModuleHydrodynamicFile. ERR03'
+            stop 'Subroutine IntegrateInSpace - ModuleHydrodynamicFile. ERR03'
 
         endif
 
@@ -3153,7 +3153,7 @@ cd3 :       if (Me%ExternalVar%Now .GE. Me%TimeIntegration%NextOutput) then
         call GetWaterPoints3D(Me%ObjMap, WaterPoints3D,          &
                               STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            Stop 'Subroutine IntegrateInSpace; module ModuleHydrodynamicFile. ERR00a.'
+            Stop 'Subroutine IntegrateInSpace - ModuleHydrodynamicFile. ERR00a.'
 
         !WaterFluxX---------------------------------------------------------------
         do J = NewJLB, NewJUB
@@ -3310,12 +3310,12 @@ cd3 :       if (Me%ExternalVar%Now .GE. Me%TimeIntegration%NextOutput) then
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid,               &
                                  DUX, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                           &
-                stop 'Subroutine IntegrateInSpace; Module ModuleHydrodynamicFile. ERR04' 
+                stop 'Subroutine IntegrateInSpace - ModuleHydrodynamicFile. ERR04' 
 
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid,               &
                                  DVY, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                           &
-                stop 'Subroutine IntegrateInSpace; Module ModuleHydrodynamicFile. ERR05' 
+                stop 'Subroutine IntegrateInSpace - ModuleHydrodynamicFile. ERR05' 
 
         !Unget OpenPoints---------------------------------------------------------
         if (Me%State%TimeIntegration .and. (.not. present(InitialFields))) then
@@ -3325,21 +3325,21 @@ cd3 :       if (Me%ExternalVar%Now .GE. Me%TimeIntegration%NextOutput) then
                         OpenPoints,                                                  &
                         STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                           &
-                    stop 'Subroutine IntegrateInSpace; Module ModuleHydrodynamicFile. ERR06'
+                    stop 'Subroutine IntegrateInSpace - ModuleHydrodynamicFile. ERR06'
 
         else
 
             call UnGetMap(Me%ObjMap,                                 &
                           OpenPoints, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                &
-                stop 'Subroutine IntegrateInSpace; Module ModuleHydrodynamicFile. ERR07'
+                stop 'Subroutine IntegrateInSpace - ModuleHydrodynamicFile. ERR07'
 
         endif
 
         !Unget WaterPoints---------------------------------------------------------
         call UnGetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            Stop 'Subroutine IntegrateInSpace; Module ModuleHydrodynamicFile. ERR08'
+            Stop 'Subroutine IntegrateInSpace - ModuleHydrodynamicFile. ERR08'
 
 
         !Nullify auxiliar pointers------------------------------------------------

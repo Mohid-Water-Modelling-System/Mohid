@@ -689,9 +689,9 @@ i3:     if (NewDischarge%Localization%CoordinatesON) then
                          STAT         = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR120.'
+                stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR120.'
             if (flag==0)                                                            &
-                stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR130.'
+                stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR130.'
 
         endif i3
         
@@ -725,9 +725,9 @@ i8:         if (NewDischarge%Localization%Location2D) then
                              STAT         = STAT_CALL)
 
                 if (STAT_CALL .NE. SUCCESS_)                                                &
-                    stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR20.'
+                    stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR20.'
                 if (flag==0)                                                                &
-                    stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR30.'
+                    stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR30.'
         
             endif i8
 
@@ -745,7 +745,7 @@ i1:     if (NewDischarge%Localization%Location2D) then
                          default      = DischLayer_,                                    &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR40.'
+                stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR40.'
 
             call GetData(AuxLog,                                                        &
                          Me%ObjEnterData,                                               &
@@ -756,7 +756,7 @@ i1:     if (NewDischarge%Localization%Location2D) then
                          default      = .false.,                                        &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR50.'
+                stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR50.'
 
             if (AuxLog) NewDischarge%Localization%DischVertical = DischUniform_
 
@@ -769,11 +769,11 @@ i1:     if (NewDischarge%Localization%Location2D) then
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)                                      
             if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR60.'
+                stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR60.'
             
             if (NewDischarge%Localization%DischVertical .eq. DischLayer_ .and. flag .eq. 0)then
                 write(*,*)"You must define the K_CELL in the discharge: "//trim(NewDischarge%ID%Name)
-                stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR61.'
+                stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR61.'
             endif
 
             select case (NewDischarge%Localization%DischVertical)
@@ -790,7 +790,7 @@ i1:     if (NewDischarge%Localization%Location2D) then
                                  ClientModule = 'ModuleDischarges',                     &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                        &
-                        stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR70.'
+                        stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR70.'
 
                 case (DischUniform_)
 
@@ -804,7 +804,7 @@ i1:     if (NewDischarge%Localization%Location2D) then
                                  ClientModule = 'ModuleDischarges',                     &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                        &
-                        stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR74.'
+                        stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR74.'
 
 
                     call GetData(NewDischarge%Localization%kmax,                        &
@@ -816,7 +816,7 @@ i1:     if (NewDischarge%Localization%Location2D) then
                                  ClientModule = 'ModuleDischarges',                     &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                        &
-                        stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR76.'
+                        stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR76.'
 
                 case (DischBottom_, DischSurf_)
                     !do not do nothing 
@@ -826,7 +826,7 @@ i1:     if (NewDischarge%Localization%Location2D) then
                     write(*,*) "The known options are : "," Bottom=",DischBottom_," Surface=",DischSurf_,&
                                                           " Layer =",DischLayer_, " Depth  =",DischDepth_,&
                                                           " Uniform=",DischUniform_
-                    stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR80'
+                    stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR80'
 
             end select
 
@@ -844,7 +844,7 @@ i1:     if (NewDischarge%Localization%Location2D) then
                          default      = .false.,                                        &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR90.'
+                stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR90.'
 
 i2:         if (NewDischarge%Localization%AlternativeLocations) then
                 call GetData(NewDischarge%Localization%MinimumDischargeDepth,           &
@@ -856,7 +856,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                              Default      = 1.0,                                        &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR100'
+                    stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR100'
 
 
                  call GetData(NewDischarge%Localization%StartFromLastDischargeLocation, &
@@ -868,7 +868,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                              Default      = .false.,                                    &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR110'
+                    stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR110'
                                     
                 
                 call GetData(NewDischarge%Localization%TrackLocation,                   &
@@ -880,7 +880,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                              Default      = .false.,                                    &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR120'
+                    stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR120'
                 
                 if (NewDischarge%Localization%TrackLocation) then
                     
@@ -891,7 +891,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                         if (STAT_CALL /= SUCCESS_) then
                             call ReadFileName("RAIZ", RootPath, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_)                                              &
-                                stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR130'
+                                stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR130'
                         endif
                     endif
 
@@ -913,7 +913,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                     if (STAT_CALL /= SUCCESS_) then
                         write(*,*) 'Error opening diacharge location track file ',                  &
                                 trim(   NewDischarge%Localization%TrackLocationFile)
-                        stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR140'
+                        stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR140'
                     endif
 
                 endif
@@ -929,7 +929,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                      Default      = "Point",                                            &
                      STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR150'
+                stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR150'
 
             select case (AuxName)
 
@@ -942,7 +942,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                 case default
                     write(*,*) "SPATIAL EMISSION option not known ",trim(AuxName)," ????"
                     write(*,*) "The known options are : ","Point ", "Line ", "Polygon"
-                    stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR160'
+                    stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR160'
 
             end select
 
@@ -957,10 +957,10 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                          Default      = "Point",                                        &
                          STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR170'
+                    stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR170'
 
                 if (flag == 0)                                                          &
-                    stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR180'
+                    stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR180'
 
                 if (NewDischarge%Localization%SpatialEmission == DischLine_)            &
                     call New(NewDischarge%Localization%Line, NewDischarge%Localization%SpatialFile)
@@ -977,7 +977,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                          Default      = "by cell",                                      &
                          STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR190'
+                    stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR190'
 
                 select case (AuxName)
 
@@ -990,7 +990,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                     case default
                         write(*,*) "FLOW_DISTRIBUTION option not known ",trim(AuxName)," ????"
                         write(*,*) "The known options are : ","by cell ", "by water column ", "by volume"
-                        stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR200'
+                        stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR200'
 
                 end select
 
@@ -1753,7 +1753,7 @@ ifvar:  if (NewProperty%Variable) then
                 call Search_Discharge_ByName(Intake, STAT_CALL, trim(adjustl(CurrentDischarge%FromIntake%IntakeName)))
                 if (STAT_CALL/=SUCCESS_) then 
                     write(*,*)'Can not find discharge with name ', trim(adjustl(CurrentDischarge%FromIntake%IntakeName)), '.'
-                    stop      'Subroutine ConstructIntakeDischarges; Module ModuleDischarges. ERR01.'
+                    stop      'Subroutine ConstructIntakeDischarges - ModuleDischarges. ERR01.'
                 else
                     CurrentDischarge%FromIntake%IntakeID = Intake%ID%IDNumber
                 endif
@@ -1885,7 +1885,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeIDNumber, '.'
-                stop       'Subroutine GetDischargesGridLocalization; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine GetDischargesGridLocalization - ModuleDischarges. ERR01.'
             endif
 
             if (.not. DischargeX%Localization%Location2D) then
@@ -2009,7 +2009,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeIDNumber, '.'
-                stop       'Subroutine GetDischargesGridLocalization; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine GetDischargesGridLocalization - ModuleDischarges. ERR01.'
             endif
 
             ByPassON = DischargeX%ByPass%ON
@@ -2053,7 +2053,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeIDNumber, '.'
-                stop       'Subroutine GetDischargesGridLocalization; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine GetDischargesGridLocalization - ModuleDischarges. ERR01.'
             endif
 
             DischargeFromIntakeON = DischargeX%FromIntake%ON
@@ -2540,7 +2540,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
 cd3 :       if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
-                stop       'Subroutine GetDischargeSpatialEmission; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine GetDischargeSpatialEmission - ModuleDischarges. ERR01.'
             end if cd3
 
             SpatialEmission = DischargeX%Localization%SpatialEmission
@@ -2604,7 +2604,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
 cd3 :       if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
-                    stop       'Subroutine GetDischargeFlowDistribution; Module ModuleDischarges. ERR01.'
+                    stop       'Subroutine GetDischargeFlowDistribution - ModuleDischarges. ERR01.'
             end if cd3
 
             nCells = DischargeX%Localization%nCells
@@ -2945,14 +2945,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             if (.not. present(VelocityU) .and. .not. present(VelocityV) .and. .not. present(VelocityW))   &
-                stop 'Subroutine GetDischargeFlowVelocity; Module ModuleDischarges. ERR01.'
+                stop 'Subroutine GetDischargeFlowVelocity - ModuleDischarges. ERR01.'
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber = DischargeIDNumber)
                 
 
 cd3 :       if (STAT_CALL /= SUCCESS_) then 
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
-                    stop 'Subroutine GetDischargeFlowVelocity; Module ModuleDischarges. ERR02.'
+                    stop 'Subroutine GetDischargeFlowVelocity - ModuleDischarges. ERR02.'
             end if cd3
 
 
@@ -3047,7 +3047,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
 cd3 :       if (STAT_CALL /= SUCCESS_) then 
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
-                    stop 'Subroutine GetDischargeON; Module ModuleDischarges. ERR10.'
+                    stop 'Subroutine GetDischargeON - ModuleDischarges. ERR10.'
             end if cd3
 
             IgnoreON = DischargeX%IgnoreON
@@ -3998,7 +3998,7 @@ cd1:    if (DischargesID > 0) then
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
-                stop       'Subroutine GetDischargeType; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine GetDischargeType - ModuleDischarges. ERR01.'
             endif
 
             DischargeName =  trim(DischargeX%ID%Name)
@@ -4037,7 +4037,7 @@ cd1:    if (DischargesID > 0) then
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
-                stop       'Subroutine GetDischargeType; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine GetDischargeType - ModuleDischarges. ERR01.'
             endif
 
             GetDischargeType = DischargeX%DischargeType
@@ -4074,7 +4074,7 @@ cd1:    if (DischargesID > 0) then
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
-                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine GetDischargeXCoordinate - ModuleDischarges. ERR01.'
             endif
 
             GetDischargeXCoordinate = DischargeX%Localization%CoordinateX
@@ -4111,7 +4111,7 @@ cd1:    if (DischargesID > 0) then
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
-                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine GetDischargeYCoordinate - ModuleDischarges. ERR01.'
             endif
 
             GetDischargeYCoordinate = DischargeX%Localization%CoordinateY
@@ -4149,7 +4149,7 @@ cd1:    if (DischargesID > 0) then
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
-                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine SetDischargeFlow - ModuleDischarges. ERR01.'
             endif
             
             DischargeX%WaterFlow%Scalar = Flow
@@ -4192,7 +4192,7 @@ cd1:    if (DischargesID > 0) then
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
-                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine GetNumberOfDischargeProperties - ModuleDischarges. ERR01.'
             endif
             GetNumberOfDischargeProperties = DischargeX%PropertiesNumber
         else 
@@ -4229,7 +4229,7 @@ cd1:    if (DischargesID > 0) then
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
-                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine GetDischargePropertyID - ModuleDischarges. ERR01.'
             endif
 
             Property => DischargeX%FirstProperty
@@ -4283,7 +4283,7 @@ cd1:    if (DischargesID > 0) then
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
-                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+                stop       'Subroutine SetDischargeConcentration - ModuleDischarges. ERR01.'
             endif
             
             call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)

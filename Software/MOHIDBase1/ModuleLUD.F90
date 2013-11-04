@@ -280,12 +280,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             Me%ExternalVar%Coefficients  => Coefficients
             if (.NOT. associated(Me%ExternalVar%Coefficients))                      &
-                stop 'Subroutine LUD; Module ModuleLUD. ERR01' 
+                stop 'Subroutine LUD - ModuleLUD. ERR01' 
 
             
             Me%ExternalVar%IndTerm => IndTerm
             if (.NOT. associated(Me%ExternalVar%IndTerm))                           &
-                stop 'Subroutine LUD; Module ModuleLUD. ERR02' 
+                stop 'Subroutine LUD - ModuleLUD. ERR02' 
            
             call order 
             call decomp
@@ -293,7 +293,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             x => Me%x       
             if (.NOT. associated(x))                                                &
-                stop 'Subroutine LUD; Module ModuleLUD. ERR03' 
+                stop 'Subroutine LUD - ModuleLUD. ERR03' 
 
             nullify(Me%ExternalVar%Coefficients)
             nullify(Me%ExternalVar%IndTerm     )
@@ -519,19 +519,19 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 deallocate(Me%o, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                  &
-                    stop 'Subroutine KillLUD; module ModuleLUD. ERR03.'
+                    stop 'Subroutine KillLUD - ModuleLUD. ERR03.'
 
 
 
                 deallocate(Me%s, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                  &
-                    stop 'Subroutine KillLUD; module ModuleLUD. ERR04.'
+                    stop 'Subroutine KillLUD - ModuleLUD. ERR04.'
 
 
 
                 deallocate(Me%x, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                  &
-                    stop 'Subroutine KillLUD; module ModuleLUD. ERR01.'
+                    stop 'Subroutine KillLUD - ModuleLUD. ERR01.'
 
                 !Deallocates Instance
                 call DeallocateInstance

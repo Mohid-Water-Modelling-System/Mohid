@@ -1948,7 +1948,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                 STAT = STAT_CALL) 
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine Construct_Hydrodynamic; Module ModuleHydrodynamic. ERR02.'
+            stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR02.'
 
         call Construct_Numerical_Options
 
@@ -2005,7 +2005,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine Construct_Hydrodynamic; Module ModuleHydrodynamic. ERR03.'
+            stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR03.'
 
         !To let the model take access to the Mapping and geometry variables
         call ReadLock_External_Modules  
@@ -2339,7 +2339,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                         STAT = STAT_CALL)            
 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine InitialHydrodynamicField; Module ModuleHydrodynamic. ERR01' 
+                stop 'Subroutine InitialHydrodynamicField - ModuleHydrodynamic. ERR01' 
 
         endif cd11
 
@@ -3481,16 +3481,16 @@ cd1:    if (Evolution == Solve_Equations_) then
                            Message = Message, STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine Read_Hydrodynamic_Files_Name; Module ModuleHydrodynamic. ERR02.' 
+            stop 'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. ERR02.' 
 
 
         inquire(FILE   = Me%Files%ConstructData,                   &
                 EXIST  = exist,                                                 &
                 IOSTAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Subroutine Read_Hydrodynamic_Files_Name; Module ModuleHydrodynamic. ERR02a.' 
+            stop 'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. ERR02a.' 
         if (.NOT. exist)                                                        &
-            stop 'Subroutine Read_Hydrodynamic_Files_Name; Module ModuleHydrodynamic. ERR02b.' 
+            stop 'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. ERR02b.' 
 
 
 
@@ -3503,7 +3503,7 @@ cd1:    if (Evolution == Solve_Equations_) then
                            Extension = 'hyt', STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                  &
-            stop 'Subroutine Read_Hydrodynamic_Files_Name; Module ModuleHydrodynamic. ERR03.' 
+            stop 'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. ERR03.' 
 
 
 
@@ -3515,7 +3515,7 @@ cd1:    if (Evolution == Solve_Equations_) then
                            Message = Message, TIME_END = Me%EndTime, &
                            Extension = 'hyf', STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                &
-            stop 'Subroutine Read_Hydrodynamic_Files_Name; Module ModuleHydrodynamic. ERR04.' 
+            stop 'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. ERR04.' 
 
 
 
@@ -3528,7 +3528,7 @@ cd1:    if (Evolution == Solve_Equations_) then
                            STAT = STAT_CALL)
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
-            stop 'Subroutine Read_Hydrodynamic_Files_Name; Module ModuleHydrodynamic. ERR06'
+            stop 'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. ERR06'
 
         else if (STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
 
@@ -3537,7 +3537,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 !
 !            write(*,*)  
 !            write(*,*) 'Keyword for the inicial file not found in nomfich.dat. '
-!            write(*,*) 'Subroutine Read_Hydrodynamic_Files_Name; Module ModuleHydrodynamic. WRN01'
+!            write(*,*) 'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. WRN01'
 !            write(*,*) 
  
             call SetError(WARNING_, KEYWORD_, 'Keyword IN_CNDI not found - ModuleHydrodynamic', &
@@ -3551,7 +3551,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
             write(*,*) 
             write(*,*) 'Error calling ReadFileName. '
-            stop       'Subroutine Read_Hydrodynamic_Files_Name; Module ModuleHydrodynamic. ERR05.' 
+            stop       'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. ERR05.' 
         end if cd1  
                                                                              
         ! ---> File where to store the energy evolution of the system
@@ -3565,7 +3565,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             call ReadFileName("ROOT", RootPath, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
                 call ReadFileName("RAIZ", RootPath, STAT = STAT_CALL)
-                stop 'Subroutine Read_Hydrodynamic_Files_Name; Module ModuleHydrodynamic. ERR06.' 
+                stop 'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. ERR06.' 
             endif
         endif
 
@@ -8044,7 +8044,7 @@ c1:                 select case (DischVertical)
                                                    STAT = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'Subroutine ReadLock_ModuleGeometry; module ModuleHydrodynamic. ERR180.'
+                                stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR180.'
 
 n1:                         do nC =1, nCells
 
@@ -8057,7 +8057,7 @@ n1:                         do nC =1, nCells
                                                    STAT = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'Subroutine ReadLock_ModuleGeometry; module ModuleHydrodynamic. ERR190.'
+                                stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR190.'
 
 
                         case (DischSurf_)
@@ -8072,7 +8072,7 @@ n1:                         do nC =1, nCells
                             write(*,*) "The known options are : "," Bottom=",DischBottom_," Surface=",DischSurf_,&
                                                                   " Layer =",DischLayer_, " Depth  =",DischDepth_,&
                                                                   " Uniform=",DischUniform_
-                            stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR200'
+                            stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR200'
 
                     end select c1
 
@@ -8459,7 +8459,7 @@ i7:             if (.not. ContinuousGOTM)  then
                      STAT           = STAT_CALL)                                      
 
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Subroutine StartOutputBoxFluxes; Module ModuleHydrodynamic. ERR02.'
+            stop 'Subroutine StartOutputBoxFluxes - ModuleHydrodynamic. ERR02.'
 
 cd6 :   if (iflag .EQ. 1) then
             inquire(FILE = Me%Files%BoxFluxesFileName, EXIST = exist)
@@ -8471,7 +8471,7 @@ cd5 :           if (opened) then
                     write(*,*    ) 
                     write(*,'(A)') 'BoxFluxesFileName = ', Me%Files%BoxFluxesFileName
                     write(*,*    ) 'Already opened.'
-                    stop           'Subroutine StartOutputBoxFluxes; Module Hydrodynamic. ERR04'    
+                    stop           'Subroutine StartOutputBoxFluxes; ModuleHydrodynamic. ERR04'    
                 end if cd5
 
                 allocate(FluxesOutputList(1), ScalarOutputList(1)) 
@@ -8490,7 +8490,7 @@ cd5 :           if (opened) then
                                  WorkSize3D       = Me%WorkSize,                     &
                                  STAT             = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                         &
-                    stop 'Subroutine StartOutputBoxFluxes; module ModuleWaterProperties. ERR15.'
+                    stop 'Subroutine StartOutputBoxFluxes - ModuleWaterProperties. ERR15.'
 
                 deallocate(FluxesOutputList, ScalarOutputList) 
                 nullify   (FluxesOutputList, ScalarOutputList)
@@ -8499,7 +8499,7 @@ cd5 :           if (opened) then
                 write(*,*) 
                 write(*,*)     'Error dont have the file box.'
                 write(*,'(A)') 'BoxFileName = ', Me%Files%BoxFluxesFileName
-                stop           'Subroutine StartOutputBoxFluxes; Module Hydrodynamic. ERR03'    
+                stop           'Subroutine StartOutputBoxFluxes; ModuleHydrodynamic. ERR03'    
             end if cd4
 
         else
@@ -9045,7 +9045,7 @@ cd10:   if (Evolution == Read_File_) then
                                         STAT = STAT_CALL)            
 
              if (STAT_CALL /= SUCCESS_)                                                 &
-                stop 'Subroutine ConstructHydrodynamicProperties; Module ModuleHydrodynamic. ERR90.' 
+                stop 'Subroutine ConstructHydrodynamicProperties - ModuleHydrodynamic. ERR90.' 
 
              call SetComputesFaces3D(Me%ObjMap,                                         &
                                 InitialComputeFacesU3D,                                 &
@@ -9053,7 +9053,7 @@ cd10:   if (Evolution == Read_File_) then
                                 Me%CurrentTime,                                         &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ConstructHydrodynamicProperties; Module ModuleHydrodynamic. ERR100.' 
+                stop 'Subroutine ConstructHydrodynamicProperties - ModuleHydrodynamic. ERR100.' 
  
             nullify(InitialComputeFacesU3D, InitialComputeFacesV3D)
 
@@ -9536,7 +9536,7 @@ cd1:    if (Residual .and. .not. Me%ComputeOptions%Residual) then
             write(*,*) 'In the run before this one you have compute residual currents, '                   
             write(*,*) 'In this run you dont want to compute residual currents ? '                   
             write(*,*) '                        '
-            write(*,*) 'SUBROUTINE Read_Final_Hydrodynamic_File; Module ModuleHydrodynamic. WRN01.'
+            write(*,*) 'SUBROUTINE Read_Final_Hydrodynamic_File - ModuleHydrodynamic. WRN01.'
             write(*,*)  
             write(*,*)  
             write(*,*)  
@@ -9884,7 +9884,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         call UpdateComputeFaces3D(Me%ObjMap, SurfaceElevation,                          &
                                   CurrentTime, STAT = STAT_CALL)      
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine Initial_Geometry; module ModuleHydrodynamic. ERR70.'
+            stop 'Subroutine Initial_Geometry - ModuleHydrodynamic. ERR70.'
 
         nullify(SurfaceElevation)
                     
@@ -13566,7 +13566,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !Time Properties - Actualises CurrentTime
             call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'Subroutine Modify_Hydrodynamic; module ModuleHydrodynamic. ERR01.'
+                stop 'Subroutine Modify_Hydrodynamic - ModuleHydrodynamic. ERR01.'
 
             !Read density values
             Me%External_Var%SigmaDens   => SigmaDens
@@ -13621,7 +13621,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                             HydrodynamicTime = Me%CurrentTime,                   &
                                             STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
-                    stop 'Subroutine Modify_Hydrodynamic; module ModuleHydrodynamic. ERR02.'
+                    stop 'Subroutine Modify_Hydrodynamic - ModuleHydrodynamic. ERR02.'
             
             endif
 
@@ -21987,13 +21987,13 @@ X1:         if (Me%External_Var%OpenPoints3D(i, j,KUB) == OpenPoint) then
                                       STAT            = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                  &
-                 stop 'Subroutine New_Geometry; Module ModuleHydrodynamic. ERR10' 
+                 stop 'Subroutine New_Geometry - ModuleHydrodynamic. ERR10' 
 
 
             DT_RunPeriod = Me%CurrentTime - Me%BeginTime
 
             if (ColdPeriod > (Me%EndTime - Me%BeginTime))                               &
-                stop 'Subroutine New_Geometry; Module ModuleHydrodynamic. ERR20' 
+                stop 'Subroutine New_Geometry - ModuleHydrodynamic. ERR20' 
 
 cd4:        if (ColdPeriod <= DT_RunPeriod) then
                 CoefCold = 1
@@ -22054,7 +22054,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
                                          DecayTime = DecayTime, STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                      &
-                 stop 'Subroutine New_Geometry; Module ModuleHydrodynamic. ERR30' 
+                 stop 'Subroutine New_Geometry - ModuleHydrodynamic. ERR30' 
         else
         
             call ComputeVerticalGeometry(Me%ObjGeometry, WaterPoints3D,                     &
@@ -22063,7 +22063,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
                                          STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                      &
-                 stop 'Subroutine New_Geometry; Module ModuleHydrodynamic. ERR40' 
+                 stop 'Subroutine New_Geometry - ModuleHydrodynamic. ERR40' 
         
         endif
 
@@ -22079,7 +22079,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 !             Me%CurrentTime, STAT = STAT_CALL)      
 
 !        if (STAT_CALL /= SUCCESS_)                                           &
-!            stop 'Subroutine New_Geometry; module ModuleHydrodynamic. ERR02.'
+!            stop 'Subroutine New_Geometry - ModuleHydrodynamic. ERR02.'
 
 
         call ReadLock_External_Modules 
@@ -22091,7 +22091,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
                                       STAT        = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine New_Geometry; Module ModuleHydrodynamic. ERR50' 
+                stop 'Subroutine New_Geometry - ModuleHydrodynamic. ERR50' 
 
 
         endif
@@ -36578,7 +36578,7 @@ dok:     do k=KUB,kbottom,-1
 
         else 
 
-            stop 'Subroutine Modify_VerticalWaterFlow; Module ModuleHydrodynamic. ERR01'
+            stop 'Subroutine Modify_VerticalWaterFlow - ModuleHydrodynamic. ERR01'
 
         endif
 
@@ -41349,7 +41349,7 @@ cd1:    if (Me%State%BOXFLUXES) then
                         STAT = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                                 &
-               stop 'Subroutine ComputeBoxesWaterFluxes; Module ModuleHydrodynamic. ERR01'
+               stop 'Subroutine ComputeBoxesWaterFluxes - ModuleHydrodynamic. ERR01'
 
             call BoxDif(Me%ObjBoxDif,                                                    &
                         Me%External_Var%Volume_Z_New,                                    &
@@ -41358,7 +41358,7 @@ cd1:    if (Me%State%BOXFLUXES) then
                         STAT = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                                 &
-               stop 'Subroutine ComputeBoxesWaterFluxes; Module ModuleHydrodynamic. ERR02'
+               stop 'Subroutine ComputeBoxesWaterFluxes - ModuleHydrodynamic. ERR02'
 
         endif cd1
 
@@ -43947,7 +43947,7 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                 call Kill_Discharges(Me%ObjDischarges, STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_)                                               &
-                    stop 'Subroutine Kill_Sub_Modules; Module ModuleHydrodynamic. ERR01.'  
+                    stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR01.'  
                     
        
                 if (Me%OutPut%TimeSerieDischON) then
@@ -43971,7 +43971,7 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                
             else
             
-                stop 'Subroutine Kill_Sub_Modules; Module ModuleHydrodynamic. ERR03.'  
+                stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR03.'  
 
             endif
 
@@ -43987,7 +43987,7 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                 call KillAssimilation(Me%ObjAssimilation, STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_)                                               &
-                    stop 'Subroutine Kill_Sub_Modules; Module ModuleHydrodynamic. ERR04.'  
+                    stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR04.'  
 
             else if (nUsers > 1) then
 
@@ -43996,7 +43996,7 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                
             else
             
-                stop 'Subroutine Kill_Sub_Modules; Module ModuleHydrodynamic. ERR06.'  
+                stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR06.'  
 
             endif
 
@@ -44005,19 +44005,19 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
         call KillOpenBoundary(Me%ObjOpenBoundary, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine Kill_Sub_Modules; Module ModuleHydrodynamic. ERR07.'  
+            stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR07.'  
 
 
         if (Me%ComputeOptions%Evolution == Read_File_) then
             call KillHydrodynamicFile(Me%ObjHydrodynamicFileIn, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine Kill_Sub_Modules; Module ModuleHydrodynamic. ERR08.'  
+                stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR08.'  
         endif
 
         if (Me%ComputeOptions%Recording) then
             call KillHydrodynamicFile(Me%ObjHydrodynamicFileOut, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                            &
-                stop 'Subroutine Kill_Sub_Modules; Module ModuleHydrodynamic. ERR09.'  
+                stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR09.'  
         endif
 
         !Kill boxes
@@ -44025,7 +44025,7 @@ cd1:    if (Me%State%BOXFLUXES) then
 
             call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine Kill_Sub_Modules; Module ModuleHydrodynamic. ERR10.'  
+                stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR10.'  
 
         endif cd1
 
@@ -44041,7 +44041,7 @@ cd1:    if (Me%State%BOXFLUXES) then
 
         if (Me%Generic4D%ON) call KillTimeSerie(Me%Generic4D%ObjTimeSerie, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine Kill_Sub_Modules; Module ModuleHydrodynamic. ERR11.'  
+            stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR11.'  
 
 
     end subroutine Kill_Sub_Modules   
@@ -44486,7 +44486,7 @@ cd2:    if (Me%SubModel%DeadZone) then
         !Water level variables allocation
         deallocate (Me%WaterLevel%New, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR01.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR01.' 
 
         nullify (Me%WaterLevel%New) 
 
@@ -44494,25 +44494,25 @@ cd2:    if (Me%SubModel%DeadZone) then
 
         deallocate (Me%WaterLevel%Old, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR02.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR02.' 
 
         nullify (Me%WaterLevel%Old) 
              
         deallocate (Me%WaterLevel%VolumeCreated, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR02a.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR02a.' 
 
         nullify (Me%WaterLevel%VolumeCreated) 
 
         deallocate (Me%WaterLevel%Maxi, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR02b.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR02b.' 
 
         nullify (Me%WaterLevel%Maxi) 
 
         deallocate (Me%WaterLevel%Mini, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR02c.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR02c.' 
 
         nullify (Me%WaterLevel%Mini) 
 
@@ -44526,7 +44526,7 @@ cd2:    if (Me%SubModel%DeadZone) then
         !Horizontal velocity
         deallocate (Me%Velocity%Horizontal%U%New, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR04.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR04.' 
 
         nullify (Me%Velocity%Horizontal%U%New) 
 
@@ -44534,7 +44534,7 @@ cd2:    if (Me%SubModel%DeadZone) then
 
         deallocate (Me%Velocity%Horizontal%U%Old, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR05.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR05.' 
 
         nullify (Me%Velocity%Horizontal%U%Old)            
 
@@ -44542,7 +44542,7 @@ cd2:    if (Me%SubModel%DeadZone) then
 
         deallocate (Me%Velocity%Horizontal%V%New, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR07.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR07.' 
 
         nullify (Me%Velocity%Horizontal%V%New) 
 
@@ -44550,7 +44550,7 @@ cd2:    if (Me%SubModel%DeadZone) then
              
         deallocate (Me%Velocity%Horizontal%V%Old, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR08.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR08.' 
 
         nullify (Me%Velocity%Horizontal%V%Old) 
 #endif _USE_PAGELOCKED
@@ -44588,14 +44588,14 @@ cd2:    if (Me%SubModel%DeadZone) then
 #else
         deallocate (Me%Velocity%Vertical%Cartesian, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11.' 
 
         nullify (Me%Velocity%Vertical%Cartesian) 
 #endif _USE_PAGELOCKED        
         
         deallocate (Me%Velocity%Vertical%Across, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR10.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR10.' 
         
         nullify (Me%Velocity%Vertical%Across)         
 
@@ -44603,31 +44603,31 @@ cd2:    if (Me%SubModel%DeadZone) then
 
             deallocate (Me%Velocity%Vertical%CartesianOld, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11a.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11a.' 
 
             nullify (Me%Velocity%Vertical%CartesianOld) 
 
             deallocate (Me%NonHydrostatic%PressureCorrect, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11b.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11b.' 
 
             nullify (Me%NonHydrostatic%PressureCorrect) 
 
             deallocate (Me%NonHydrostatic%PrevisionalQ, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11b.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11b.' 
 
             nullify (Me%NonHydrostatic%PrevisionalQ) 
 
             deallocate (Me%NonHydrostatic%CCoef, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11b.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11b.' 
 
             nullify (Me%NonHydrostatic%CCoef) 
 
             deallocate (Me%NonHydrostatic%GCoef, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11b.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11b.' 
 
             nullify (Me%NonHydrostatic%GCoef) 
 
@@ -44637,25 +44637,25 @@ cd2:    if (Me%SubModel%DeadZone) then
 
             deallocate (Me%VelBaroclinic%W_New, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11a.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11a.' 
 
             nullify (Me%VelBaroclinic%W_New) 
 
             deallocate (Me%VelBaroclinic%W_Old, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11b.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11b.' 
 
             nullify (Me%VelBaroclinic%W_Old) 
 
             deallocate (Me%VelBaroclinic%U%New, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11c.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11c.' 
 
             nullify(Me%VelBaroclinic%U%New)
 
             deallocate (Me%VelBaroclinic%U%Old, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11d.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11d.' 
 
             nullify(Me%VelBaroclinic%U%Old)
 
@@ -44663,26 +44663,26 @@ cd2:    if (Me%SubModel%DeadZone) then
 
             deallocate (Me%VelBaroclinic%V%New, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11e.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11e.' 
 
             nullify(Me%VelBaroclinic%V%New)
 
             deallocate (Me%VelBaroclinic%V%Old, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11f.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11f.' 
 
             nullify(Me%VelBaroclinic%V%Old)
 
             deallocate (Me%VelBaroclinic%U2D, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11g.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11g.' 
       
             nullify(Me%VelBaroclinic%U2D)
 
 
             deallocate (Me%VelBaroclinic%V2D, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11h.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11h.' 
       
             nullify(Me%VelBaroclinic%V2D)
 
@@ -44703,27 +44703,27 @@ cd2:    if (Me%SubModel%DeadZone) then
         !Water fluxes        
         deallocate (Me%WaterFluxes%X, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DellocateVariables; Module ModuleHydrodynamic. ERR13.' 
+            stop 'Subroutine DellocateVariables - ModuleHydrodynamic. ERR13.' 
 
         nullify (Me%WaterFluxes%X) 
              
         deallocate (Me%WaterFluxes%Y, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR14.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR14.' 
              
         nullify (Me%WaterFluxes%Y) 
 
 
         deallocate (Me%WaterFluxes%Z, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR15.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR15.' 
 
         nullify (Me%WaterFluxes%Z) 
 
         deallocate (Me%WaterFluxes%Discharges, STAT = STAT_CALL) 
 
         if (STAT_CALL /= SUCCESS_)                                                   &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR15a.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR15a.' 
 
         nullify (Me%WaterFluxes%Discharges) 
         
@@ -44751,14 +44751,14 @@ cd1:    if (Me%ComputeOptions%Residual) then
             !Can be interesting to compute the average water level
             deallocate (Me%Residual%WaterLevel, STAT = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR03.'  
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR03.'  
 
             nullify (Me%Residual%WaterLevel) 
 
 
             deallocate (Me%Residual%Velocity_U, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR06.'  
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR06.'  
 
             nullify (Me%Residual%Velocity_U)
 
@@ -44766,21 +44766,21 @@ cd1:    if (Me%ComputeOptions%Residual) then
 
             deallocate (Me%Residual%Velocity_V, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR09.'  
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR09.'  
 
             nullify (Me%Residual%Velocity_V) 
 
 
             deallocate (Me%Residual%Vertical_Velocity, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR12.'  
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR12.'  
 
             nullify (Me%Residual%Vertical_Velocity)
 
 
             deallocate (Me%Residual%WaterFlux_X, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR13a.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR13a.' 
 
             nullify (Me%Residual%WaterFlux_X) 
 
@@ -44788,13 +44788,13 @@ cd1:    if (Me%ComputeOptions%Residual) then
              
             deallocate (Me%Residual%WaterFlux_Y, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR14a.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR14a.' 
           
             nullify (Me%Residual%WaterFlux_Y) 
 
             deallocate (Me%Residual%DWZ, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR13b.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR13b.' 
 
             nullify (Me%Residual%DWZ) 
 
@@ -44805,33 +44805,33 @@ cd1:    if (Me%ComputeOptions%Residual) then
         !Forces 
         deallocate (Me%Forces%Rox3X, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR16.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR16.' 
         
         nullify (Me%Forces%Rox3X) 
 
         deallocate (Me%Forces%Rox3Y, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR16a.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR16a.' 
 
         nullify (Me%Forces%Rox3Y) 
                 
              
         deallocate (Me%Forces%Horizontal_Transport, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR17.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR17.' 
 
         nullify (Me%Forces%Horizontal_Transport) 
              
         deallocate (Me%Forces%Inertial_Aceleration, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR18.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR18.' 
 
         nullify (Me%Forces%Inertial_Aceleration) 
 
 
         deallocate (Me%Forces%TidePotentialLevel,   STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR18a.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR18a.' 
 
         nullify (Me%Forces%TidePotentialLevel) 
 
@@ -44840,7 +44840,7 @@ cd1:    if (Me%ComputeOptions%Residual) then
     
             deallocate (Me%Forces%Altim_Relax_Aceleration,   STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                  &
-               stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR18b.' 
+               stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR18b.' 
     
             nullify (Me%Forces%Altim_Relax_Aceleration) 
     
@@ -44849,7 +44849,7 @@ cd1:    if (Me%ComputeOptions%Residual) then
         if (Me%Relaxation%Force) then
             deallocate (Me%Forces%Relax_Aceleration, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR18d.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR18d.' 
 
             nullify (Me%Forces%Relax_Aceleration) 
 
@@ -44859,7 +44859,7 @@ cd1:    if (Me%ComputeOptions%Residual) then
         if (Me%Relaxation%Geometry) then
             deallocate (Me%Relaxation%DecayTimeGeo, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR18e.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR18e.' 
 
             nullify (Me%Relaxation%DecayTimeGeo) 
 
@@ -44870,7 +44870,7 @@ cd1:    if (Me%ComputeOptions%Residual) then
         !Coefficients
         deallocate (Me%Coef%D2%D, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR20.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR20.' 
 
         nullify (Me%Coef%D2%D) 
                     
@@ -44878,20 +44878,20 @@ cd1:    if (Me%ComputeOptions%Residual) then
 
         deallocate (Me%Coef%D2%E, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR21.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR21.' 
 
         nullify (Me%Coef%D2%E) 
                      
         deallocate (Me%Coef%D2%EAux, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR21a.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR21a.' 
 
         nullify (Me%Coef%D2%EAux) 
                      
 
         deallocate (Me%Coef%D2%F, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR22.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR22.' 
 
         nullify (Me%Coef%D2%F) 
 
@@ -44899,14 +44899,14 @@ cd1:    if (Me%ComputeOptions%Residual) then
              
         deallocate (Me%Coef%D2%Ti, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR23.'  
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR23.'  
 
         nullify (Me%Coef%D2%Ti) 
 
              
         deallocate (Me%Coef%D2%TiAux, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR23d.'  
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR23d.'  
 
         nullify (Me%Coef%D2%TiAux) 
 
@@ -44916,14 +44916,14 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 
             deallocate (Me%Coef%D2%Rad, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR23a.'  
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR23a.'  
 
             nullify(Me%Coef%D2%Rad)
 
 
             deallocate (Me%Coef%D2%TiRad, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR23b.'  
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR23b.'  
 
             nullify(Me%Coef%D2%TiRad)
 
@@ -44938,19 +44938,19 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 #else
         deallocate (Me%Coef%D3%D, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR24.'  
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR24.'  
         
         deallocate (Me%Coef%D3%E, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR25.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR25.' 
         
         deallocate (Me%Coef%D3%F, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR26.' 
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR26.' 
         
         deallocate (Me%Coef%D3%Ti, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR27.'  
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR27.'  
         
         nullify (Me%Coef%D3%D) 
         nullify (Me%Coef%D3%E) 
@@ -44963,13 +44963,13 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         !Bottom boundary: this variable in the future must migrate to the module ModuleBottom
         deallocate (Me%External_Var%ChezyZ, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR28.'  
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR28.'  
 
         nullify (Me%External_Var%ChezyZ)
 
         deallocate (Me%External_Var%ChezyVelUV, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR28.'  
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR28.'  
 
         nullify (Me%External_Var%ChezyVelUV)
 
@@ -45015,52 +45015,52 @@ cd4:    if (Me%ComputeOptions%Baroclinic) then
                 
                 deallocate (LocalBaroc%Kleft,       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &            
-                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR35.'  
+                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR35.'  
                 nullify (LocalBaroc%Kleft)
         
                 deallocate (LocalBaroc%Kright,      STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &            
-                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR36'
+                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR36'
                 nullify (LocalBaroc%Kright)
 
                 deallocate (LocalBaroc%Depth_integ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &            
-                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR37'
+                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR37'
                 nullify (LocalBaroc%Depth_integ)
 
                 deallocate (LocalBaroc%Hcenter,     STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &            
-                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR38'
+                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR38'
                 nullify (LocalBaroc%Hcenter)
                
                 deallocate (LocalBaroc%Hleft,       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &            
-                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR39'
+                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR39'
                 nullify (LocalBaroc%Hleft)        
                  
                 deallocate (LocalBaroc%Hright,      STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &            
-                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR40'        
+                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR40'        
                 nullify (LocalBaroc%Hright)            
               
                 deallocate (LocalBaroc%HroLeft,     STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &            
-                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR41'
+                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR41'
                 nullify (LocalBaroc%HroLeft)
         
                 deallocate (LocalBaroc%HroRight,    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &            
-                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR42'
+                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR42'
                 nullify (LocalBaroc%HroRight)
             
                 deallocate (LocalBaroc%DensRight,    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &            
-                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR420'
+                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR420'
                 nullify (LocalBaroc%DensRight)
     
                 deallocate (LocalBaroc%DensLeft,    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &            
-                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR430'
+                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR430'
                 nullify (LocalBaroc%DensLeft)
 
             enddo
@@ -45088,32 +45088,32 @@ cd4:    if (Me%ComputeOptions%Baroclinic) then
         
         deallocate (Me%VECG_3D,    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &            
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR43'
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR43'
         nullify (Me%VECG_3D)
 
         
         deallocate (Me%VECW_3D,    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &            
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR44'
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR44'
         nullify (Me%VECW_3D)
 
         
         deallocate (Me%VECG_2D,    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &            
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR45'
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR45'
         nullify (Me%VECG_2D)
 
         
         deallocate (Me%VECW_2D,    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &            
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR46'
+            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR46'
         nullify (Me%VECW_2D)
 
         if (Me%ComputeOptions%BarotropicRadia == BlumbergKantha_)  then
 
             deallocate (Me%ComputeOptions%Tlag, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR47'
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR47'
             nullify (Me%ComputeOptions%Tlag)
 
         endif
@@ -45122,11 +45122,11 @@ cd4:    if (Me%ComputeOptions%Baroclinic) then
 
             deallocate (Me%ComputeOptions%BiHarmonicUX_VY,    STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR48'
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR48'
             
             deallocate (Me%ComputeOptions%BiHarmonicUY_VX,    STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR49'
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR49'
 
         endif
 
@@ -45522,7 +45522,7 @@ cd1:    if (HydrodynamicID > 0) then
                                     STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleTurbulence; module ModuleHydrodynamic. ERR01.'
+            stop 'Subroutine ReadLock_ModuleTurbulence - ModuleHydrodynamic. ERR01.'
 
 
 
@@ -45532,7 +45532,7 @@ cd1:    if (HydrodynamicID > 0) then
                                   Me%External_Var%Vertical_Viscosity,       &
                                   STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleTurbulence; module ModuleHydrodynamic. ERR02.'
+            stop 'Subroutine ReadLock_ModuleTurbulence - ModuleHydrodynamic. ERR02.'
 
 
 
@@ -45563,7 +45563,7 @@ cd1:    if (HydrodynamicID > 0) then
         call UnGetTurbulence(Me%ObjTurbulence,                   &
                              Me%External_Var%Visc_H_Center, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleTurbulence; module ModuleHydrodynamic. ERR01.'
+            stop 'Subroutine ReadUnLock_ModuleTurbulence - ModuleHydrodynamic. ERR01.'
 
 
 
@@ -45571,7 +45571,7 @@ cd1:    if (HydrodynamicID > 0) then
         call UnGetTurbulence(Me%ObjTurbulence,                   &
                              Me%External_Var%Visc_H_Corner, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleTurbulence; module ModuleHydrodynamic. ERR02.'
+            stop 'Subroutine ReadUnLock_ModuleTurbulence - ModuleHydrodynamic. ERR02.'
 
 
 
@@ -45579,7 +45579,7 @@ cd1:    if (HydrodynamicID > 0) then
         call UnGetTurbulence(Me%ObjTurbulence,                   &
                              Me%External_Var%Vertical_Viscosity, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleTurbulence; module ModuleHydrodynamic. ERR03.'
+            stop 'Subroutine ReadUnLock_ModuleTurbulence - ModuleHydrodynamic. ERR03.'
 
         !----------------------------------------------------------------------
 
@@ -45597,7 +45597,7 @@ cd1:    if (HydrodynamicID > 0) then
         call SetGeneric4DValues(Me%ObjWaves, Me%Generic4D%CurrentValue, STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR10.'
+            stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR10.'
 
 
         call GetWavesStress    (Me%ObjWaves,                                            &
@@ -45606,7 +45606,7 @@ cd1:    if (HydrodynamicID > 0) then
                                 STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR20.'
+            stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR20.'
 
 
     End Subroutine ReadLock_ModuleWaves
@@ -45659,12 +45659,12 @@ cd1:    if (HydrodynamicID > 0) then
         call UnGetWaves(Me%ObjWaves,                                                     &
                              Me%External_Var%TauWavesU, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR01.'
+            stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR01.'
 
         call UnGetWaves(Me%ObjWaves,                                                     &
                              Me%External_Var%TauWavesV, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02.'
+            stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR02.'
 
         !----------------------------------------------------------------------
 
@@ -45700,7 +45700,7 @@ cd1:    if (HydrodynamicID > 0) then
                                 STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR01.'
+            stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR01.'
 
 
 
@@ -45709,14 +45709,14 @@ cd1:    if (HydrodynamicID > 0) then
                                   STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR02.'
+            stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR02.'
 
         call GetCheckDistortion (Me%ObjHorizontalGrid,                                  &
                                  Me%External_Var%Distortion,                            &
                                  STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR03.'
+            stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR03.'
 
         if (Me%External_Var%Distortion) then
 
@@ -45726,7 +45726,7 @@ cd1:    if (HydrodynamicID > 0) then
                                  STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR04.'
+                stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR04.'
 
         else
 
@@ -45735,7 +45735,7 @@ cd1:    if (HydrodynamicID > 0) then
                               STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR40.'
+                stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR40.'
 
             !Convert from degrees in to radians 
             Me%External_Var%GridRotation = Me%External_Var%GridRotation * Pi / 180.
@@ -45775,62 +45775,62 @@ cd1:    if (HydrodynamicID > 0) then
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
                                  Me%External_Var%DXX, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR01.'
+            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR01.'
 
         
         !DYY
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
                                  Me%External_Var%DYY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR02.'
+            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR02.'
 
 
         !DZX
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
                                  Me%External_Var%DZX, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR03.'
+            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR03.'
 
 
         !DZY
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
                                  Me%External_Var%DZY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR04.'
+            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR04.'
 
 
         !DUX
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
                                  Me%External_Var%DUX, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR05.'
+            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR05.'
 
 
         !DVY
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
                                  Me%External_Var%DVY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR06.'
+            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR06.'
 
          
         !Coriolis frequency
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
                                  Me%External_Var%Coriolis_Freq, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR07.'
+            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR07.'
 
         if (Me%External_Var%Distortion) then
 
             call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
                                      Me%External_Var%RotationX, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                            &
-                stop 'Subroutine ReadUnLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR08.'
+                stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR08.'
 
          
             call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
                                      Me%External_Var%RotationY, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                            &
-                stop 'Subroutine ReadUnLock_ModuleHorizontalGrid; module ModuleHydrodynamic. ERR09.'
+                stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR09.'
 
         endif
 
@@ -45864,7 +45864,7 @@ cd1:    if (HydrodynamicID > 0) then
                               STAT = STAT_CALL)      
 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleHorizontalMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
 
 
         call GetBoundaries(Me%ObjHorizontalMap,                             &
@@ -45872,13 +45872,13 @@ cd1:    if (HydrodynamicID > 0) then
                               STAT = STAT_CALL)      
 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleHorizontalMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
 
         !Gets WaterPoints2D
         call GetWaterPoints2D(Me%ObjHorizontalMap, &
                               Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleHorizontalMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
 
 
     End Subroutine ReadLock_ModuleHorizontalMap
@@ -45912,7 +45912,7 @@ cd1:    if (HydrodynamicID > 0) then
                                 STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
 
 
         !Boundary faces along the Y direction
@@ -45920,21 +45920,21 @@ cd1:    if (HydrodynamicID > 0) then
                                 STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
 
        !Boundary points
         call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints,  &
                                 STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
 
         !UnGets WaterPoints2D
         call UnGetHorizontalMap(Me%ObjHorizontalMap, &
                                 Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
         
         if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
 
 
 
@@ -45972,7 +45972,7 @@ cd1:    if (HydrodynamicID > 0) then
                                STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleGeometry; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
 
 
 
@@ -45985,7 +45985,7 @@ cd1:    if (HydrodynamicID > 0) then
                                 STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleGeometry; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
 
 
 
@@ -45995,7 +45995,7 @@ cd1:    if (HydrodynamicID > 0) then
                               STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleGeometry; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
 
 
 
@@ -46008,7 +46008,7 @@ cd1:    if (HydrodynamicID > 0) then
                                   STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleGeometry; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
 
 
 
@@ -46019,7 +46019,7 @@ cd1:    if (HydrodynamicID > 0) then
                                     STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleGeometry; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
 
 
 
@@ -46054,21 +46054,21 @@ cd1:    if (HydrodynamicID > 0) then
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%KFloor_Z, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR01.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR01.'
 
 
         !First non land layer of the U cell (velocity U compute point)
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%KFloor_U, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR02.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR02.'
 
 
         !First non land layer of the V cell (velocity V compute point)
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%KFloor_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR03.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR03.'
 
 
 
@@ -46076,7 +46076,7 @@ cd1:    if (HydrodynamicID > 0) then
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%Volume_Z_New, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR04.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR04.'
 
 
 
@@ -46084,92 +46084,92 @@ cd1:    if (HydrodynamicID > 0) then
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%Volume_Z_Old, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR05.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR05.'
 
 
         !New volume of the U cell (Velocity U compute point)
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%Volume_U, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR06.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR06.'
 
 
         !New volume of the V cell (Velocity V compute point)
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%Volume_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR07.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR07.'
 
         !New volume of the V cell (Velocity W compute point)
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%Volume_W, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR07a.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR07a.'
 
         !New Area of the U cell (Velocity U compute point)
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%Area_U, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR08.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR08.'
 
 
         !New Area of the V cell (Velocity V compute point)
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%Area_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR09.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR09.'
 
 
         !Tickness of the Z cell 
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%DWZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR10.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR10.'
 
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%DZZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR10a.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR10a.'
 
 
         !Top face position
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%SZZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR11.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR11.'
 
 
         !Tickness of the total water column in the Z cell center
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%WaterColumn, STAT = STAT_CALL)
        if (STAT_CALL /= SUCCESS_)                                             &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR12.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR12.'
 
         !Tickness of the total water column in the U cell center
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%WaterColumnU, STAT = STAT_CALL)
        if (STAT_CALL /= SUCCESS_)                                             &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR13.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR13.'
 
 
         !Tickness of the total water column in the V cell center
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%WaterColumnV, STAT = STAT_CALL)
        if (STAT_CALL /= SUCCESS_)                                             &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR14.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR14.'
 
         !Tickness of the U cell center
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%DUZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR15.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR15.'
 
 
         !Tickness of the V cell center
         call UnGetGeometry(Me%ObjGeometry,                       &
                            Me%External_Var%DVZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry; module ModuleHydrodynamic. ERR16.'
+            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR16.'
 
 
     End Subroutine ReadUnLock_ModuleGeometry 
@@ -46211,7 +46211,7 @@ cd1:    if (HydrodynamicID > 0) then
                                STAT= STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadLock_ModuleMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
 
 !        call GetUnCoveredFaces3D(Me%ObjMap,                        &
@@ -46222,7 +46222,7 @@ cd1:    if (HydrodynamicID > 0) then
 !                               STAT= STAT_CALL)
 
 !        if (STAT_CALL /= SUCCESS_)                                          &
-!            stop 'Subroutine ReadLock_ModuleMap; module ModuleHydrodynamic. ERR**.'
+!            stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
 
         call GetLandBoundaryFaces3D(Me%ObjMap,                     &
@@ -46233,7 +46233,7 @@ cd1:    if (HydrodynamicID > 0) then
                                STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
 
         call GetWaterPoints3D(Me%ObjMap,                     &
@@ -46257,7 +46257,7 @@ cd1:    if (HydrodynamicID > 0) then
                               STAT = STAT_CALL)      
 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
 
         call GetImposedNormalFaces(Me%ObjMap,                               &
@@ -46266,7 +46266,7 @@ cd1:    if (HydrodynamicID > 0) then
                               STAT = STAT_CALL)      
 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
 
 
@@ -46301,60 +46301,60 @@ cd1:    if (HydrodynamicID > 0) then
         call UnGetMap(Me%ObjMap,                                 &
                       Me%External_Var%LandBoundaryFacesU, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR01.'
+            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR01.'
 
 
         !3D Boundary land faces along the Y direction
         call UnGetMap(Me%ObjMap,                                 &
                       Me%External_Var%LandBoundaryFacesV, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR02.'
+            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR02.'
 
 
         !3D water points
         call UnGetMap(Me%ObjMap,                                 &
                       Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR03.'
+            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR03.'
 
 
         !3D Compute faces along the X direction
         call UnGetMap(Me%ObjMap,                                 &
                       Me%External_Var%ComputeFaces3D_U, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR04.'
+            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR04.'
 
 
         !3D Compute faces along the Y direction
         call UnGetMap(Me%ObjMap,                                 &
                       Me%External_Var%ComputeFaces3D_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR05.'
+            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR05.'
 
         !3D Compute faces along the Z direction  !flavio
         call UnGetMap(Me%ObjMap,                                 &
                       Me%External_Var%ComputeFaces3D_W, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR05a.'
+            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR05a.'
         
         !3D UnCovered faces along the X direction
 !        call UnGetMap(Me%ObjMap,                                 &
 !                      Me%External_Var%UnCoveredFaces3D_U, STAT = STAT_CALL)
 !        if (STAT_CALL /= SUCCESS_)                                            &
-!            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR06.'
+!            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR06.'
 
 
         !3D UnCovered faces along the Y direction
 !        call UnGetMap(Me%ObjMap,                                 &
 !                      Me%External_Var%UnCoveredFaces3D_V, STAT = STAT_CALL)
 !        if (STAT_CALL /= SUCCESS_)                                            &
-!            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR07.'
+!            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR07.'
 
         !3D OpenPoints
         call UnGetMap(Me%ObjMap,                                 &
                       Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR07.'
+            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR07.'
 
 
 
@@ -46363,7 +46363,7 @@ cd1:    if (HydrodynamicID > 0) then
                                 STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
 
         !Imposed Tangential  faces along the Y direction
@@ -46371,7 +46371,7 @@ cd1:    if (HydrodynamicID > 0) then
                                 STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
 
         !Imposed Normal faces along the X direction
@@ -46379,7 +46379,7 @@ cd1:    if (HydrodynamicID > 0) then
                                 STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
 
         !Imposed Normal  faces along the Y direction
@@ -46387,7 +46387,7 @@ cd1:    if (HydrodynamicID > 0) then
                                 STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleMap; module ModuleHydrodynamic. ERR**.'
+            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
  
         !----------------------------------------------------------------------

@@ -874,7 +874,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                 allocate (Me%GrossProduction, STAT = STAT_CALL)            
                 
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR01.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR01.'
 
                 CheckName = CheckPropertyName('grossprod', number = Me%GrossProduction%ID)
 
@@ -888,7 +888,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                 !TempLimitation
                 allocate (Me%TempLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR02.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR02.'
 
                 CheckName = CheckPropertyName('temperaturelim', number = Me%TempLimitation%ID)
 
@@ -902,7 +902,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                 !NutLimitation
                 allocate (Me%NutLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR03.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR03.'
 
                 CheckName = CheckPropertyName('nutrientlim', number = Me%NutLimitation%ID)  
 
@@ -913,7 +913,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                 !NLimitation
                 allocate (Me%NLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR03.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR03.'
 
                 CheckName = CheckPropertyName('nitrogenlim', number = Me%NLimitation%ID)  
 
@@ -924,7 +924,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                 !PLimitation
                 allocate (Me%PLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR03.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR03.'
 
                 CheckName = CheckPropertyName('phosphoruslim', number = Me%PLimitation%ID)  
 
@@ -935,7 +935,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                 !LightLimitation
                 allocate (Me%LightLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR04.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR04.'
 
                 CheckName = CheckPropertyName('lightlim', number = Me%LightLimitation%ID)
 
@@ -954,7 +954,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                 allocate (Me%Diatoms%DiaGrossProduction, STAT = STAT_CALL)            
                 
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR11.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR11.'
 
                 CheckName = CheckPropertyName('diagrossprod', number = Me%Diatoms%DiaGrossProduction%ID)
 
@@ -965,7 +965,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             !TempLimitation
                 allocate (Me%Diatoms%DiaTempLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR12.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR12.'
 
                 CheckName = CheckPropertyName('diatemperaturelim', number = Me%Diatoms%DiaTempLimitation%ID)
 
@@ -976,7 +976,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             !NutLimitation
                 allocate (Me%Diatoms%DiaNutLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR13.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR13.'
 
                 CheckName = CheckPropertyName('dianutrientlim', number = Me%Diatoms%DiaNutLimitation%ID)  
 
@@ -987,7 +987,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             !DiaNLimitation
                 allocate (Me%Diatoms%DiaNLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR13.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR13.'
 
                 CheckName = CheckPropertyName('dianitrogenlim', number = Me%Diatoms%DiaNLimitation%ID)  
 
@@ -998,7 +998,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             !DiaSiLimitation
                 allocate (Me%Diatoms%DiaSiLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR13.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR13.'
 
                 CheckName = CheckPropertyName('diasilicalim', number = Me%Diatoms%DiaSiLimitation%ID)  
 
@@ -1009,7 +1009,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             !DiaPLimitation
                 allocate (Me%Diatoms%DiaPLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR13.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR13.'
 
                 CheckName = CheckPropertyName('diaphosphoruslim', number = Me%Diatoms%DiaPLimitation%ID)  
 
@@ -1020,7 +1020,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             !LightLimitation
                 allocate (Me%Diatoms%DiaLightLimitation, STAT = STAT_CALL)            
                 if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR14.'
+                    stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR14.'
 
                 CheckName = CheckPropertyName('dialightlim', number = Me%Diatoms%DiaLightLimitation%ID)
 
@@ -1031,7 +1031,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             endif
 
             if (countequa.ne.PropUB)                                                                & 
-                stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR20.'
+                stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR20.'
 
             do equa = PropLB,PropUB
 
@@ -1039,7 +1039,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                     allocate (NewEquaRateFlux, STAT = STAT_CALL)            
                     if (STAT_CALL .NE. SUCCESS_)                                                    &
-                        stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR30.'
+                        stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR30.'
 
                     nullify(NewEquaRateFlux%Prev,NewEquaRateFlux%Next)
                     nullify(NewEquaRateFlux%FirstPropRateFlux,NewEquaRateFlux%LastPropRateFlux)
@@ -1050,7 +1050,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                     NewEquaRateFlux%ID = equa
 
                     if (STAT_CALL .NE. SUCCESS_)                                                    &
-                        stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR40.' 
+                        stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR40.' 
 
                 endif
             enddo
@@ -1067,7 +1067,7 @@ do1:        do while (associated(EquaRateFluxX))
 
                         allocate (NewPropRateFlux, STAT = STAT_CALL)            
                         if (STAT_CALL .NE. SUCCESS_)                                                 &
-                            stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR50.'
+                            stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR50.'
 
                         nullify(NewPropRateFlux%field)
                         nullify(NewPropRateFlux%Prev,NewPropRateFlux%Next)
@@ -1080,7 +1080,7 @@ do1:        do while (associated(EquaRateFluxX))
                         NewPropRateFlux%Field      = 0.
 
                         if (STAT_CALL .NE. SUCCESS_)                                                &
-                            stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR60.' 
+                            stop 'Subroutine Construct_WQRateFlux - ModuleWaterQuality. ERR60.' 
                     endif
                 enddo
         
@@ -1167,7 +1167,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR01.' 
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR01.' 
 
 
         call GetData(Me%PropCalc%Phosphorus,                                                        &
@@ -1177,7 +1177,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR02.' 
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR02.' 
 
 
         call GetData(Me%PropCalc%Phyto,                                                             &
@@ -1187,7 +1187,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR03.' 
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR03.' 
 
         call GetData(Me%PropCalc%Zoo,                                                               &
                      Me%ObjEnterData, flag,                                                         &
@@ -1196,7 +1196,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR04.' 
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR04.' 
 
 
         call GetData(Me%PropCalc%Larvae,                                                            &
@@ -1206,7 +1206,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR07.' 
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR07.' 
 
 
         call GetData(Me%PropCalc%Age,                                                               &
@@ -1216,7 +1216,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR08.'
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR08.'
 
         call GetData(Me%PropCalc%Oxygen,                                                            &
                      Me%ObjEnterData, flag,                                                         &
@@ -1225,7 +1225,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR09.' 
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR09.' 
 
 
         if (Me%PropCalc%Oxygen) then 
@@ -1242,7 +1242,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR10.' 
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR10.' 
 
         call GetData(Me%PropCalc%Bacteria,                                                          &
                      Me%ObjEnterData, flag,                                                         &
@@ -1251,7 +1251,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR11.' 
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR11.' 
 
 
         call GetData(Me%PropCalc%Ciliate,                                                           &
@@ -1261,7 +1261,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                & 
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR12.'
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR12.'
             
         
         call GetData(Me%PropCalc%Diatoms,                                                           &
@@ -1271,7 +1271,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                & 
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR13.' 
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR13.' 
         
 
         
@@ -1282,7 +1282,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                & 
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR14.' 
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR14.' 
             
             
         call GetData(Me%PropCalc%Pompools,                                                          &
@@ -1292,7 +1292,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                & 
-            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR15.'   
+            stop 'Subroutine WaterQualityOptions - ModuleWaterQuality. ERR15.'   
         
 
     end subroutine WaterQualityOptions         
@@ -1495,7 +1495,7 @@ do1:        do while (associated(EquaRateFluxX))
         else
             write(*,*) 
             write(*,*) 'The Water Quality Options were not consistent, verify file data.'
-            stop       'SUBROUTINE WQReadData; Module ModuleWaterQuality. ERR01'
+            stop       'SUBROUTINE WQReadData - ModuleWaterQuality. ERR01'
         endif   !Consistent
 
         !----------------------------------------------------------------------
@@ -1524,7 +1524,7 @@ do1:        do while (associated(EquaRateFluxX))
                                  ClientModule = 'ModuleWaterQuality',                               &
                                  STAT       = STAT_CALL)                                            
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WQReadCalcOptions; Module ModuleWaterQuality. ERR01.' 
+            stop 'Subroutine WQReadCalcOptions - ModuleWaterQuality. ERR01.' 
 
 
         !Verifica se se pretende calcular usando um metodo IMPLICITO
@@ -1535,7 +1535,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WQReadCalcOptions; Module ModuleWaterQuality. ERR02.' 
+            stop 'Subroutine WQReadCalcOptions - ModuleWaterQuality. ERR02.' 
 
             !Verifica se se pretende calcular usando um metodo IMPLICITO/EXPLICITO        
         call GetData(Me%CalcMethod%SemiimpMethod,                                                   & 
@@ -1545,7 +1545,7 @@ do1:        do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleWaterQuality',                                           &
                      STAT       = STAT_CALL)                         
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WQReadCalcOptions; Module ModuleWaterQuality. ERR03.'         
+            stop 'Subroutine WQReadCalcOptions - ModuleWaterQuality. ERR03.'         
 
     end subroutine WQReadCalcOptions
 
@@ -1570,7 +1570,7 @@ cd5 :           if (Me%PropCalc%Zoo) then
                     write(*,*) 
                     write(*,*) 'It is not possible to simulate the Water Quality with zooplankton '
                     write(*,*) 'and without phytoplankton or diatoms.                                        '
-                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN01.'
+                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif - ModuleWaterQuality. WARN01.'
                     write(*,*) 
                     WQOptionsConsistencyVerif = .FALSE.
 
@@ -1589,7 +1589,7 @@ cd5 :           if (Me%PropCalc%Zoo) then
             write(*,*) 
             write(*,*) 'It is just possible to simulate the Water Quality with nutrients.'
             write(*,*) 'Or simple AGE or LARVAE'
-            write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN02.'
+            write(*,*) 'FUNCTION WQOptionsConsistencyVerif - ModuleWaterQuality. WARN02.'
             write(*,*) 
             WQOptionsConsistencyVerif = .FALSE.
         end if cd3       
@@ -1608,7 +1608,7 @@ cd10 :          if (Me%PropCalc%Ciliate) then
                 else
                     write(*,*) 
                     write(*,*) 'It is not possible to simulate Bacteria without Ciliate. '
-                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN04.'
+                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif - ModuleWaterQuality. WARN04.'
                     write(*,*) 
                     WQOptionsConsistencyVerif = .FALSE.
                 end if cd10
@@ -1623,7 +1623,7 @@ cd11 :          if (Me%PropCalc%Ciliate) then
 
                     write(*,*) 
                     write(*,*) 'It is not possible to simulate Ciliate without Bacteria or Phytoplankton. '
-                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN05.'
+                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif - ModuleWaterQuality. WARN05.'
                     write(*,*) 
                     WQOptionsConsistencyVerif = .FALSE.
                     endif
@@ -1638,7 +1638,7 @@ cd11 :          if (Me%PropCalc%Ciliate) then
 cd12 :      if (Me%PropCalc%Bacteria.OR.Me%PropCalc%Ciliate) then
                     write(*,*) 
                     write(*,*) 'It is not possible to simulate Ciliate and Bacteria without Phytoplankton and Zooplankton. '
-                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN05.'
+                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif - ModuleWaterQuality. WARN05.'
                     write(*,*) 
                     WQOptionsConsistencyVerif = .FALSE.
             else
@@ -1653,7 +1653,7 @@ cd7 :   if (WQOptionsConsistencyVerif) then
 cd2 :   if (Me%PropCalc%BOD .AND. (.NOT. Me%PropCalc%Oxygen)) then
             write(*,*) 
             write(*,*) 'It is not possible to simulate the Water Quality with BOD and without Oxygen.'
-            write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN03.'
+            write(*,*) 'FUNCTION WQOptionsConsistencyVerif - ModuleWaterQuality. WARN03.'
             write(*,*) 
             WQOptionsConsistencyVerif = .FALSE.
         end if cd2
@@ -1665,7 +1665,7 @@ cd2 :   if (Me%PropCalc%BOD .AND. (.NOT. Me%PropCalc%Oxygen)) then
             if (Me%PropCalc%Diatoms .AND. (.NOT. Me%PropCalc%Silica)) then
                 write(*,*) 
                 write(*,*) 'It is not possible to simulate the Water Quality with Diatoms and without Silica.'
-                write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN04.'
+                write(*,*) 'FUNCTION WQOptionsConsistencyVerif - ModuleWaterQuality. WARN04.'
                 write(*,*) 
                 WQOptionsConsistencyVerif = .FALSE.
             end if 
@@ -1696,7 +1696,7 @@ cd91 :       if (Me%PropCalc%Pompools) then
                     write(*,*) 
                     write(*,*) 'Impossible to simulate the Water Quality with POM pools without'
                     write(*,*) 'at least one nutrient cycle (N or P).'
-                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN06a.'
+                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif - ModuleWaterQuality. WARN06a.'
                     write(*,*) 
                     WQOptionsConsistencyVerif = .FALSE.
                 end if
@@ -1704,7 +1704,7 @@ cd91 :       if (Me%PropCalc%Pompools) then
                 if (WQOptionsConsistencyVerif .AND. (.NOT. Me%PropCalc%Oxygen)) then
                     write(*,*) 
                     write(*,*) 'Impossible to simulate the Water Quality with POM pools without oxygen.'
-                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN06b.'
+                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif - ModuleWaterQuality. WARN06b.'
                     write(*,*) 
                     WQOptionsConsistencyVerif = .FALSE.
                 end if 
@@ -1820,12 +1820,12 @@ cd1 :   if (Me%DTSecond .LE. 0.0) then
                                     ClientModule = 'ModuleWaterQuality',            &
                                     STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR00.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR00.' 
 
 cd22 :      if (flag .EQ. 0) then
                 write(*,*) 
                 write(*,*) 'Keyword DTSECONDS not found in Water quality data file.'
-                write(*,*) 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. WRN01.'
+                write(*,*) 'Subroutine WQReadFileConstants - ModuleWaterQuality. WRN01.'
                 write(*,*) 'Assumed ', Me%DTSecond, &
                             'seconds (',  Me%DTSecond / 3600.0, 'hour).'
                 write(*,*) 
@@ -1846,7 +1846,7 @@ cd22 :      if (flag .EQ. 0) then
                                 ClientModule = 'ModuleWaterQuality',                &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR01.' 
+            stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR01.' 
 
 
         !Photoinhibition, phytoinhibition, W/m2                                                                                   
@@ -1857,7 +1857,7 @@ cd22 :      if (flag .EQ. 0) then
                                 ClientModule = 'ModuleWaterQuality',                &
                                 STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR02.' 
+            stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR02.' 
 
         !PhytoNutRegenerationSatConst, phytoplankton nutrient regeneration half saturation rate, 
         !mgC/l
@@ -1868,7 +1868,7 @@ cd22 :      if (flag .EQ. 0) then
                                  ClientModule = 'ModuleWaterQuality',               &
                                  STAT       = STAT_CALL)
         if (               STAT_CALL .NE. SUCCESS_)                                 &
-            stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR03.' 
+            stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR03.' 
 
 
         !AlfaPhytoNC, phytoplankton ratio between Nitrogen and Carbon, mgN/mgC
@@ -1879,7 +1879,7 @@ cd22 :      if (flag .EQ. 0) then
                                  ClientModule = 'ModuleWaterQuality',               &
                                  STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR04.' 
+            stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR04.' 
 
         !Reads rates & constants to the Nitrogen simulation------------------------
 
@@ -1892,7 +1892,7 @@ cd22 :      if (flag .EQ. 0) then
                                  ClientModule = 'ModuleWaterQuality',               &
                                  STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR04a.' 
+            stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR04a.' 
 
         !BactAlfaOC, organic matter ratio between Oxygen and Carbon, mgO/mgC
         call GetData(            Me%BactAlfaOC,                                     &
@@ -1902,7 +1902,7 @@ cd22 :      if (flag .EQ. 0) then
                                  ClientModule = 'ModuleWaterQuality',               &
                                  STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR04a.' 
+            stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR04a.' 
 
         
         
@@ -1914,7 +1914,7 @@ cd22 :      if (flag .EQ. 0) then
                                  ClientModule = 'ModuleWaterQuality',               &
                                  STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR04b.' 
+            stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR04b.' 
 
 
 
@@ -1926,7 +1926,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR07.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR07.' 
 
             !KRefrAmmoniaMinRate, reference ammonia mineralization rate of the
             !   refractory DON, 1/T
@@ -1937,7 +1937,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR08.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR08.' 
 
             !KPartDecompRate, reference particulate organic Nitrogen decomposition rate, 1/T
             call GetData(          Me%KPartDecompRate,                              &
@@ -1947,7 +1947,7 @@ cd22 :      if (flag .EQ. 0) then
                                    ClientModule = 'ModuleWaterQuality',             &
                                    STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR10.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR10.' 
 
             !PhytoAvaibleDecomp: Fraction of PON available for mineralization
             call GetData(            Me%PhytoAvaibleDecomp,                         &
@@ -1957,7 +1957,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR11.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR11.' 
 
 
             !KDenitrificationRate, reference denitirfication rate, 1/T
@@ -1968,7 +1968,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR12.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR12.' 
 
             !KNitrificationRateK1, reference nitrification rate, 1/T
             call GetData(            Me%KNitrificationRateK1,                       &
@@ -1978,7 +1978,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR13.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR13.' 
                 
             !KNitrificationRateK2, reference nitrification rate, 1/T
             call GetData(            Me%KNitrificationRateK2,                       &
@@ -1988,7 +1988,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR14.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR14.' 
 
 
 
@@ -2001,7 +2001,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR15.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR15.' 
 
 
             !TPartDecomposition, particulate organic Nitrogen decomposition temperature 
@@ -2013,7 +2013,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR16.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR16.' 
 
 
 
@@ -2025,7 +2025,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR17.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR17.' 
 
             !TNitrification, nitrification temperature coefficient
             call GetData(            Me%TNitrification,                             &
@@ -2035,7 +2035,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR18.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR18.' 
 
             !NitrificationSatConst, nitrification semi-saturation constant, mgO2/l
             call GetData(            Me%NitrificationSatConst,                      &
@@ -2046,7 +2046,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR19.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR19.' 
 
             !DenitrificationSatConst, denitrification semi-saturation constant, mgO2/l
             call GetData(            Me%DenitrificationSatConst,                    &
@@ -2057,7 +2057,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR20.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR20.' 
 
             !PhytoSolublInorgExcreFraction, soluble inorganic fraction of the plankton excretions
             call GetData(            Me%PhytoSolublInorgExcreFraction,              &
@@ -2068,7 +2068,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR21.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR21.' 
 
 
             !ExcreDissOrgFraction, dissolved organic fraction of the plankton excretions
@@ -2079,7 +2079,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR22.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR22.' 
 
             ! ------- M&M -------
             !   Pergunta para determinar se o programa vai ler as taxas e constantes referentes à opção
@@ -2093,7 +2093,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR23.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR23.' 
 
                 !ZooSolublInorgExcreFraction, soluble inorganic fraction of the zooplankton excretions
                 call GetData(            Me%ZooSolublInorgExcreFraction,                &
@@ -2103,7 +2103,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR24.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR24.' 
 
 
                 !ZooExcreDissOrgFraction, dissolved organic fraction of the zooplankton excretions
@@ -2114,7 +2114,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR25.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR25.' 
 
 
                 !KNonRefrAmmoniaMinRate, reference ammonia mineralization rate of the
@@ -2127,7 +2127,7 @@ cd22 :      if (flag .EQ. 0) then
                                          STAT       = STAT_CALL)
 
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR26.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR26.' 
 
                 !TNonRefrAmmoniaMin, Nitrogen mineralization temperature coefficient 
                 !   of the non refractory DON
@@ -2138,7 +2138,7 @@ cd22 :      if (flag .EQ. 0) then
                                        ClientModule = 'ModuleWaterQuality',             &
                                        STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR27.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR27.' 
 
 
 
@@ -2156,7 +2156,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR28.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR28.' 
 
             !TDOPnrMin, Phosphorus mineralization temperature coefficient
             call GetData(            Me%TDOPnrMin,                                  &
@@ -2166,7 +2166,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR29.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR29.' 
 
 
             
@@ -2178,7 +2178,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR30.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR30.' 
 
 
 
@@ -2190,7 +2190,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR31.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR31.' 
 
 
    
@@ -2202,7 +2202,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR32.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR32.' 
 
 
 
@@ -2215,7 +2215,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR33.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR33.' 
 
 
             !AlfaPhytoPC, phytoplankton ratio between Phosphorus and Carbon, mgP/mgC
@@ -2226,7 +2226,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR34.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR34.' 
 
 
             !AlfaZooPC, zooplankton ratio between Phosphorus and Carbon, mgP/mgC
@@ -2237,7 +2237,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR35.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR35.' 
 
 
 
@@ -2253,7 +2253,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR36.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR36.' 
 
 
 
@@ -2265,7 +2265,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR37.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR37.' 
 
 
             !PhytoMortMaxRate, phytoplankton maximum mortality, carbon, M/(L^3.T)
@@ -2276,7 +2276,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR38.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR38.' 
 
 
 
@@ -2290,7 +2290,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR39.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR39.' 
 
 
             !TOptPhytoMax, maximum temperature of the optimal interval for the phytoplankton 
@@ -2303,7 +2303,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR40.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR40.' 
 
 
             !TPhytoMin, minimum tolerable temperature of the  interval for the phytoplankton 
@@ -2316,7 +2316,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR41.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR41.' 
 
 
             !TPhytoMax, maximum tolerable temperature of the  interval for the phytoplankton 
@@ -2329,7 +2329,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR42.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR42.' 
 
 
 
@@ -2342,7 +2342,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR43.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR43.' 
 
 
 
@@ -2355,7 +2355,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR44.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR44.' 
 
 
             !FK3, constant to control temperature response curve shape
@@ -2367,7 +2367,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR45.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR45.' 
 
 
             !FK4, constant to control temperature response curve shape
@@ -2379,7 +2379,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR46.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR46.' 
 
 
 
@@ -2392,7 +2392,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR47.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR47.' 
 
 
 
@@ -2406,7 +2406,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR48.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR48.' 
 
 
 
@@ -2421,7 +2421,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR49.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR49.' 
 
         
         
@@ -2434,7 +2434,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR50.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR50.' 
 
 
             ! ------- M&M -------
@@ -2449,7 +2449,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR51.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR51.' 
 
         !Reads the rates & constants to the Zooplankton simulation-----------------
 
@@ -2462,7 +2462,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR52.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR52.' 
 
 
             !TOptZooMax, maximum temperature of the optimal interval for the zooplankton growth, 
@@ -2475,7 +2475,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR53.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR53.' 
 
             !TZooMin, minimum tolerable temperature of the  interval for the zooplankton growth, 
             !oC
@@ -2486,7 +2486,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR54.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR54.' 
 
 
             !TZooMax, maximum tolerable temperature of the  interval for the zooplankton growth, 
@@ -2498,7 +2498,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR55.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR55.' 
 
 
             !ZK1, constant to control temperature response curve shape
@@ -2509,7 +2509,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR56.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR56.' 
 
             !ZK2, constant to control temperature response curve shape
             call GetData(            Me%ZK2,                                        &
@@ -2519,7 +2519,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                             &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR57.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR57.' 
 
 
 
@@ -2532,7 +2532,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR58.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR58.' 
 
 
             !ZK4, constant to control temperature response curve shape
@@ -2544,7 +2544,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR59.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR59.' 
 
             !ZooReferenceRespirationRate, rate of consumption of Carbon by respiration and 
             !non-predatory mortality at the reference temperature, 1/T
@@ -2555,7 +2555,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR60.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR60.' 
 
             !GrazPhytoMin, minimum phytoplankton concentration for the existence of grazing, mgC/l
             call GetData(            Me%GrazPhytoMin,                               &
@@ -2565,7 +2565,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR50.'
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR50.'
            
             !GrazPreyMin, minimum phytoplankton concentration for the existence of grazing, mgC/l
             call GetData(            Me%GrazPreyMin,                               &
@@ -2575,7 +2575,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR50.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR50.' 
  
         !Reads the rates & constants to the Ciliates and Bacteria simulation-----------------
 
@@ -2587,7 +2587,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR61.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR61.' 
 
         
 
@@ -2599,7 +2599,7 @@ cd22 :      if (flag .EQ. 0) then
                                         ClientModule = 'ModuleWaterQuality',            &
                                         STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR62.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR62.' 
 
                 !ZooExcretionConstant, excretion constant
                 call GetData(            Me%ZooExcretionConst,                          &
@@ -2609,7 +2609,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR63.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR63.' 
 
 
                 !ZooMortalityCoef  
@@ -2620,7 +2620,7 @@ cd22 :      if (flag .EQ. 0) then
                                         ClientModule = 'ModuleWaterQuality',            &
                                         STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR64.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR64.' 
 
 
 
@@ -2632,7 +2632,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR65.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR65.' 
 
 
                 !ZooMaxMortalityRate
@@ -2643,7 +2643,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR66.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR66.' 
     
             
                 !ZooIngestionConst, Half-Saturation Constant for Grazing
@@ -2654,7 +2654,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR67.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR67.' 
 
                                             
                 !ZooEfficiencyCapturePhyto  
@@ -2666,7 +2666,7 @@ cd22 :      if (flag .EQ. 0) then
                                          STAT       = STAT_CALL)
 
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR68.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR68.' 
 
                         
                 !ZooEfficiencyCaptureCiliate
@@ -2677,7 +2677,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR69.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR69.' 
 
                                 
                 !ZooIngestionMax    
@@ -2688,7 +2688,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR70.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR70.' 
                                     
                 !ZooAssimilationPhytoRate       
                 call GetData(            Me%ZooAssimilationPhytoRate,                   &
@@ -2699,7 +2699,7 @@ cd22 :      if (flag .EQ. 0) then
                                          STAT       = STAT_CALL)
 
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR71.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR71.' 
 
 
 
@@ -2711,7 +2711,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR72.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR72.' 
 
                 !PhytoRatioIngestionZoo 
                 call GetData(            Me%PhytoRatioIngestionZoo,                     &
@@ -2721,7 +2721,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR673.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR673.' 
         
                 !PhytoRatioIngestionZoo 
                 call GetData(            Me%CiliatesRatioIngestionZoo,                  &
@@ -2731,7 +2731,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR673.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR673.' 
 
 
 
@@ -2744,7 +2744,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR74.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR74.' 
 
             
                 !IvlevGrazConst, Ivlev grazing constant
@@ -2755,7 +2755,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR75.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR75.' 
 
 
             
@@ -2767,7 +2767,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR76.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR76.' 
 
 
 
@@ -2783,7 +2783,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR77.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR77.' 
 
 
             !RatioOxygenCarbonZooRespiration, Zooplankton respiration Oxygen:Carbon ratio, 
@@ -2795,7 +2795,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR78.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR78.' 
 
 
             !NConsOxyNitRatio, secondary Oxygen production due to Nitrate 
@@ -2808,7 +2808,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR79a.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR79a.' 
                 
             
             call GetData(            Me%NitrificationK1_ON_ratio,                   &
@@ -2819,7 +2819,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR79b.'
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR79b.'
                 
             call GetData(            Me%NitrificationK2_ON_ratio,                   &
                                      Me%ObjEnterData, flag,                         &
@@ -2829,7 +2829,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR79c.'    
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR79c.'    
                 
                 
                 
@@ -2850,7 +2850,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR80.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR80.' 
     
             call GetData(            Me%MinOxygen,                                  &
                                      Me%ObjEnterData, flag,                         &
@@ -2859,7 +2859,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR83.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR83.' 
 
 
             !O:C Ratio in CO2
@@ -2870,7 +2870,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR84a.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR84a.' 
 
 
 
@@ -2887,7 +2887,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR85.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR85.' 
 
 
             !BODOxidationReferenceRate, reference BOD oxidation, 1/T
@@ -2899,7 +2899,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR86.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR86.' 
 
 
             !BODOxygenSSatConstant, Oxygen limitation half-saturation constant, 1/T
@@ -2910,7 +2910,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR87.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR87.' 
 
 
             !AlfaCilNC, ciliate ratio between Nitrogen and Carbon, mgN/mgC
@@ -2921,7 +2921,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR88a.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR88a.' 
 
 
             !AlfaCilPC, ciliate ratio between Phosp and Carbon, mgP/mgC
@@ -2932,7 +2932,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR88b.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR88b.' 
 
 
 !Bacteria-----------------------------------------------------------------------------------------
@@ -2945,7 +2945,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR89.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR89.' 
 
 
            !Reads the rates & constants to the Bacteria simulation---------------------- 
@@ -2957,7 +2957,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR91.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR91.' 
 
 
             !BacteriaExcretionRate   day-1
@@ -2968,7 +2968,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR92.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR92.' 
 
             !BacteriaMaxUptake
             call GetData(            Me%BacteriaMaxUptake,                          &
@@ -2978,7 +2978,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR93.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR93.' 
 
 
             !BacteriaMinSubstrate
@@ -2989,7 +2989,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR95.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR95.' 
 
 
             !NitrogenSaturationConstBacteria
@@ -3001,7 +3001,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR96.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR96.' 
 
 
             !TOptBacteriaMin, minimum temperature of the optimal interval for the Bacteria growth, 
@@ -3013,7 +3013,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR97.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR97.' 
 
             !TOptBacteriaMax, maximum temperature of the optimal interval for the Bacteria growth, 
             !oC
@@ -3024,7 +3024,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR98.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR98.' 
 
 
             !TBacteriaMin, minimum tolerable temperature of the  interval for the Bacteria growth, 
@@ -3036,7 +3036,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR99.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR99.' 
 
 
             !TBacteriaMax, maximum tolerable temperature of the  interval for the Bacteria growth, 
@@ -3048,7 +3048,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR100.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR100.' 
 
 
             !BK1, constant to control temperature response curve shape
@@ -3059,7 +3059,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR101.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR101.' 
 
 
 
@@ -3073,7 +3073,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR102.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR102.' 
 
 
             !BK3, constant to control temperature response curve shape
@@ -3084,7 +3084,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR103.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR103.' 
 
 
             !BK4, constant to control temperature response curve shape
@@ -3095,7 +3095,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR104.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR104.' 
 
 
             !Reads the rates & constants to the Ciliate simulation-----------------
@@ -3108,7 +3108,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR105.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR105.' 
 
             !CiliateGrazPhytoMin, minimum phytoplankton concentration for the existence of grazing, mgC/l
             call GetData(            Me%CiliateGrazPhytoMin,                        &
@@ -3118,7 +3118,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR105.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR105.' 
 
             !CiliateGrazPreyMin, minimum phytoplankton concentration for the existence of grazing, mgC/l
             call GetData(            Me%CiliateGrazPreyMin,                        &
@@ -3128,7 +3128,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR105.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR105.' 
 
 
             !CiliateReferenceRespirationRate, rate of consumption of Carbon by respiration and 
@@ -3139,7 +3139,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR106.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR106.' 
 
 
             !CiliateExcretionFactor, excretion constant
@@ -3150,7 +3150,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR107.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR107.' 
 
 
             !CiliateExcretionConstant, excretion constant
@@ -3161,7 +3161,7 @@ cd22 :      if (flag .EQ. 0) then
                                     ClientModule = 'ModuleWaterQuality',            &
                                     STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR108.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR108.' 
 
 
             !CiliateMortalityCoef    
@@ -3172,7 +3172,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR109.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR109.' 
 
 
             !CiliateMinMortalityRate  
@@ -3184,7 +3184,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR110.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR110.' 
 
 
             !CiliateMaxMortalityRate
@@ -3195,7 +3195,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR111.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR111.' 
             
             !CiliateIngestionConst, 1/2 sat
            call GetData(             Me%CiliateIngestionConst,                      &
@@ -3205,7 +3205,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR112.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR112.' 
 
 
             !CiliateEfficiencyCaptureBacteria   
@@ -3216,7 +3216,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR113.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR113.' 
                                 
             
             !CiliateEfficiencyCapturePhyto  
@@ -3227,7 +3227,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR113.'
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR113.'
 
             !CiliateIngestionMax    
             call GetData(            Me%CiliateIngestionMax,                        &
@@ -3237,7 +3237,7 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR114.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR114.' 
                                     
             
             !CiliateAssimilationBacteriaRate    
@@ -3249,7 +3249,7 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR115.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR115.' 
 
             !CiliateAssimilationPhytoRate    
             call GetData(            Me%CiliateAssimilationPhytoRate,               &
@@ -3270,12 +3270,12 @@ cd22 :      if (flag .EQ. 0) then
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR78.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR78.' 
 
 
             !
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR115.' 
+                stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR115.' 
 
                 !PhytoRatioIngestionZoo 
                 call GetData(            Me%BactRatioIngestionCiliates,                  &
@@ -3285,7 +3285,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR673.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR673.' 
 
 
                 !PhytoRatioIngestionZoo 
@@ -3296,7 +3296,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR673.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR673.' 
 
         !Reads the rates & constants to the Larvae simulation-------------------------
 
@@ -3309,7 +3309,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR674.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR674.' 
 
                 ! Bwg Growth coefficient dependent of larvae weight 
                 call GetData(            Me%Bwg,                                        &
@@ -3320,7 +3320,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR674.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR674.' 
 
                 ! Awz Death coefficient dependent of larvae weight 
                 call GetData(            Me%Awz,                                        &
@@ -3331,7 +3331,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR675.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR675.' 
 
                 ! Bwz Death coefficient dependent of larvae weight 
                 call GetData(            Me%Bwz,                                        &
@@ -3342,7 +3342,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR675.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR675.' 
 
                 ! Atg Growth coefficient dependent of temperature 
                 call GetData(            Me%Atg,                                        &
@@ -3353,7 +3353,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR676.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR676.' 
 
                 ! Btg Growth coefficient dependent of temperature
                 call GetData(            Me%Btg,                                        &
@@ -3364,7 +3364,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR676.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR676.' 
 
                 ! Atz Death coefficient dependent of temperature 
                 call GetData(            Me%Atz,                                        &
@@ -3375,7 +3375,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR677.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR677.' 
 
                 ! Btz Death coefficient dependent of temperature
                 call GetData(            Me%Btz,                                        &
@@ -3386,7 +3386,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR677.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR677.' 
 
                 ! Larvae shape factor 
                 call GetData(            Me%Lshape,                                     &
@@ -3397,7 +3397,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR678.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR678.' 
 
                 ! Larvae density factor
                 call GetData(            Me%Ldensity,                                   &
@@ -3408,7 +3408,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR678.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR678.' 
 
                 ! Number of larvae phases (valid values are 1 and 2) 
                 call GetData(            Me%NPhases,                                    &
@@ -3419,7 +3419,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR679.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR679.' 
 
                 ! Larvae Inital Age (days) 
                 call GetData(            Me%Init_age,                                   &
@@ -3430,7 +3430,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR679.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR679.' 
 
                 ! Larvae Intermediate Age (days) 
                 call GetData(            Me%Inter_age,                                  &
@@ -3441,7 +3441,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR679.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR679.' 
 
                 ! Larvae Final Age (days) 
                 call GetData(            Me%Final_age,                                  &
@@ -3452,7 +3452,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR679.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR679.' 
 
                 ! Larvae Inital Length (mm)
                 call GetData(            Me%Init_length,                                &
@@ -3463,7 +3463,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR680.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR680.' 
 
                 ! Larvae Intermediate Length (mm)
                 call GetData(            Me%Inter_length,                               &
@@ -3474,7 +3474,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR680.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR680.' 
 
                 ! Larvae Final Length (mm)
                 call GetData(            Me%Final_length,                               &
@@ -3485,7 +3485,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR680.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR680.' 
 
                 ! Reference food availability (mg/m3)
                 call GetData(            Me%FishFood_ref,                               &
@@ -3496,7 +3496,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR681.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR681.' 
 
                 ! Reference temperature (ºC)
                 call GetData(            Me%Temperature_ref,                            &
@@ -3507,7 +3507,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR682.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR682.' 
 
                 ! Afg Growth coefficient dependent of fishfood availability (mg/m3) HalfSaturationConstant
                 call GetData(            Me%Afg,                                        &
@@ -3518,7 +3518,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR682.' 
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR682.' 
                     
         
         
@@ -3532,7 +3532,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR700.'
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR700.'
                 
                 call GetData(            Me%PONIngestKs,                                &
                                          Me%ObjEnterData, flag,                         &
@@ -3542,7 +3542,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR701.'
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR701.'
                 
                 call GetData(            Me%POPIngestKs,                                &
                                          Me%ObjEnterData, flag,                         &
@@ -3552,7 +3552,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR702.'
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR702.'
                 
                 call GetData(            Me%PON_CNratio,                                &
                                          Me%ObjEnterData, flag,                         &
@@ -3562,7 +3562,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR703.'    
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR703.'    
         
                 call GetData(            Me%PON_CPratio,                                &
                                          Me%ObjEnterData, flag,                         &
@@ -3572,7 +3572,7 @@ cd22 :      if (flag .EQ. 0) then
                                          ClientModule = 'ModuleWaterQuality',           &
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR704.'
+                    stop 'Subroutine WQReadFileConstants - ModuleWaterQuality. ERR704.'
         
 
         !aqui
@@ -4017,7 +4017,7 @@ cd22 :      if (flag .EQ. 0) then
 cd1 :   if (Me%CalcMethod%ExplicitMethod) then
             allocate(Me%NewMass(PropLB:PropUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Subroutine AllocateVariables; module ModuleWaterQuality. ERR01.'
+                stop 'Subroutine AllocateVariables - ModuleWaterQuality. ERR01.'
         end if cd1
 
         !------------------------------------------------------------------------
@@ -4636,34 +4636,34 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             Me%ExternalVar%Salinity                   => Salinity
             if (.NOT. associated(Me%ExternalVar%Salinity))         &
-                stop 'Subroutine WaterQuality; Module ModuleWaterQuality. ERR01' 
+                stop 'Subroutine WaterQuality - ModuleWaterQuality. ERR01' 
 
 
             Me%ExternalVar%Temperature                => Temperature
             if (.NOT. associated(Me%ExternalVar%Temperature))        &
-                stop 'Subroutine WaterQuality; Module ModuleWaterQuality. ERR02'
+                stop 'Subroutine WaterQuality - ModuleWaterQuality. ERR02'
                 
             Me%ExternalVar%ShortWaveRadiation         => ShortWaveRadiation
             if (.NOT. associated(Me%ExternalVar%ShortWaveRadiation)) &
-                stop 'Subroutine WaterQuality; Module ModuleWaterQuality. ERR02' 
+                stop 'Subroutine WaterQuality - ModuleWaterQuality. ERR02' 
             
             Me%ExternalVar%LightExtCoefField          => LightExtCoefField
             if (.NOT. associated(Me%ExternalVar%LightExtCoefField))  &
-                stop 'Subroutine WaterQuality; Module ModuleWaterQuality. ERR02' 
+                stop 'Subroutine WaterQuality - ModuleWaterQuality. ERR02' 
             
             Me%ExternalVar%Thickness                  => Thickness
             if (.NOT. associated(Me%ExternalVar%Thickness))          &
-                stop 'Subroutine WaterQuality; Module ModuleWaterQuality. ERR02'  
+                stop 'Subroutine WaterQuality - ModuleWaterQuality. ERR02'  
              
 
             Me%ExternalVar%Mass                       => Mass
             if (.NOT. associated(Me%ExternalVar%Mass))               &
-                stop 'Subroutine WaterQuality; Module ModuleWaterQuality. ERR03.'
+                stop 'Subroutine WaterQuality - ModuleWaterQuality. ERR03.'
 
 cd6 :       if (present(FishFood)) then
                 Me%ExternalVar%FishFood               => FishFood
                 if (.NOT. associated(Me%ExternalVar%FishFood))       &
-                    stop 'Subroutine WaterQuality; Module ModuleWaterQuality. ERR4.'
+                    stop 'Subroutine WaterQuality - ModuleWaterQuality. ERR4.'
             else cd6
                 nullify(Me%ExternalVar%FishFood)
             end if cd6
@@ -5092,7 +5092,7 @@ do4 :       do equa = PropLB, PropUB           !Percorre as equacoes
                      x,                                                       &
                      STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                      &
-                stop 'Subroutine WQSystemResolution; module ModuleWaterQuality. ERR03.'
+                stop 'Subroutine WQSystemResolution - ModuleWaterQuality. ERR03.'
 
 
 
@@ -5137,7 +5137,7 @@ cd33 :               if (equa .EQ. prop) then
                      STAT = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                      &
-                stop 'Subroutine WQSystemResolution; module ModuleWaterQuality. ERR04.'
+                stop 'Subroutine WQSystemResolution - ModuleWaterQuality. ERR04.'
 
 
 do33 :      do prop = PropLB, PropUB
@@ -7276,7 +7276,7 @@ cd21 :  if     (Me%PhytoGrossGrowRate .LT. 0.0) then
             
             !this does not makes sense, crashing the rates. David
 !            Me%PhytoGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-!            !stop 'Subroutine WQPhytoplankton; module ModuleWaterQuality. ERR01.'
+!            !stop 'Subroutine WQPhytoplankton - ModuleWaterQuality. ERR01.'
             Me%PhytoGrossGrowRate = 0.0
             
         !this does not makes sense, crashing the rates if one limiting factor is zero
@@ -9050,25 +9050,25 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if(Me%ObjLUD /= 0) then
                     call KillLUD(Me%ObjLUD, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                        stop 'Subroutine KillWaterQuality; module ModuleWaterQuality. ERR01.'
+                        stop 'Subroutine KillWaterQuality - ModuleWaterQuality. ERR01.'
                 end if
 
                 deallocate(Me%IndTerm, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'Subroutine Kill_WaterQuality; module ModuleWaterQuality. ERR02.'
+                    stop 'Subroutine Kill_WaterQuality - ModuleWaterQuality. ERR02.'
                 nullify(Me%IndTerm)
 
 
                 deallocate(Me%Matrix, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'Subroutine Kill_WaterQuality; module ModuleWaterQuality. ERR03.'
+                    stop 'Subroutine Kill_WaterQuality - ModuleWaterQuality. ERR03.'
                 nullify(Me%Matrix)
 
 
 cd4 :           if (associated(Me%NewMass)) then
                     deallocate(Me%NewMass, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                        stop 'Subroutine Kill_WaterQuality; module ModuleWaterQuality. ERR04.'
+                        stop 'Subroutine Kill_WaterQuality - ModuleWaterQuality. ERR04.'
                     nullify(Me%NewMass)
                 end if cd4
 

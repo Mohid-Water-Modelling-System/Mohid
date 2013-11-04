@@ -76,7 +76,7 @@ program MohidBatimFilter
     call ConstructDomain
 
     call AllocateVariables
-	
+    
     if (SigmaSmooth) then
         call ApplyPersistentFilter
     else

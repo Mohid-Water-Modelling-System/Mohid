@@ -6200,17 +6200,17 @@ OP:         if ((Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                 write(*,*) 'Number of box values is incorrect:'
                 write(*,*) '    NumberOfBoxes =', NumberOfBoxes
                 write(*,*) '    BoxesData   =', flag
-                stop       'Subroutine VerifyBeachingProbabilities; Module ModuleLagrangian. ERR04.'
+                stop       'Subroutine VerifyBeachingProbabilities - ModuleLagrangian. ERR04.'
 
             else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                      &
                      (STAT_CALL .NE. SUCCESS_)) then                                                                        
-                stop 'Subroutine VerifyBeachingProbabilities; Module ModuleLagrangian. ERR05.'
+                stop 'Subroutine VerifyBeachingProbabilities - ModuleLagrangian. ERR05.'
             end if               
 
             if (flag==0) then
                 write(*,*) 
                 write(*,*) 'Error do not have the box beaching probability.'           
-                stop       'Subroutine VerifyBeachingProbabilities; Module ModuleLagrangian. ERR06.'
+                stop       'Subroutine VerifyBeachingProbabilities - ModuleLagrangian. ERR06.'
             end if
 
 
@@ -7324,8 +7324,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 if (Me%State%Oil) then                
                     call FillGridThickness      ()             
                 endif
-				
-				if ( Me%State%Larvae ) then
+                
+                if ( Me%State%Larvae ) then
                     call LightEvolution      ()
                 endif   
 
@@ -7356,10 +7356,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 call Dilution                ()
 
                 if ( .not. Me%State%Larvae ) then
-					if (Me%State%WQM .or. Me%State%T90Variable) then
-						call LightEvolution      ()
-					endif
-				endif	
+                    if (Me%State%WQM .or. Me%State%T90Variable) then
+                        call LightEvolution      ()
+                    endif
+                endif    
 
                 !Calculates Sinks and Sources due WQM
                 if (Me%State%WQM) then
@@ -9260,7 +9260,7 @@ end if
         integer                                     :: STAT_CALL, Light_Index 
         real                                        :: BottomDepth, SurfaceDepth
         real                                        :: BreakingWaveHeight
-        type(T_Larvae), pointer                     :: LarvaePtr		
+        type(T_Larvae), pointer                     :: LarvaePtr        
         !------------------------------------------------------------------------
 
         i       = CurrentPartic%Position%I
@@ -9502,7 +9502,7 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
 
                 endif
-				
+                
                 if (CurrentOrigin%State%Oil) then    
                
                     !correction number of particle submerged

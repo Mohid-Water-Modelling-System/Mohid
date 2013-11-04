@@ -2720,35 +2720,35 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
             Me%ExternalVar%Salinity                   => Salinity
             if (.NOT. associated(Me%ExternalVar%Salinity))         &
-                stop 'Subroutine ModifyLife; Module ModuleLife. ERR10' 
+                stop 'Subroutine ModifyLife - ModuleLife. ERR10' 
 
             Me%ExternalVar%Temperature                => Temperature
             if (.NOT. associated(Me%ExternalVar%Temperature))        &
-                stop 'Subroutine ModifyLife; Module ModuleLife. ERR20'
+                stop 'Subroutine ModifyLife - ModuleLife. ERR20'
 
             Me%ExternalVar%ShortWaveAverage           => ShortWaveAverage
             if (.NOT. associated(Me%ExternalVar%ShortWaveAverage)) &
-                stop 'Subroutine ModifyLife; Module ModuleLife. ERR30'                 
+                stop 'Subroutine ModifyLife - ModuleLife. ERR30'                 
 
             Me%ExternalVar%ShortWaveTop              => ShortWaveTop
             if (.NOT. associated(Me%ExternalVar%ShortWaveTop)) &
-                stop 'Subroutine ModifyLife; Module ModuleLife. ERR40' 
+                stop 'Subroutine ModifyLife - ModuleLife. ERR40' 
             
             Me%ExternalVar%LightExtCoefField          => LightExtCoefField
             if (.NOT. associated(Me%ExternalVar%LightExtCoefField))  &
-                stop 'Subroutine ModifyLife; Module ModuleLife. ERR50' 
+                stop 'Subroutine ModifyLife - ModuleLife. ERR50' 
             
             Me%ExternalVar%Thickness                  => Thickness
             if (.NOT. associated(Me%ExternalVar%Thickness))          &
-                stop 'Subroutine ModifyLife; Module ModuleLife. ERR60'  
+                stop 'Subroutine ModifyLife - ModuleLife. ERR60'  
 
             Me%ExternalVar%Mass                       => Mass
             if (.NOT. associated(Me%ExternalVar%Mass))               &
-                stop 'Subroutine ModifyLife; Module ModuleLife. ERR70'
+                stop 'Subroutine ModifyLife - ModuleLife. ERR70'
 
             Me%ExternalVar%OpenPoints                 => OpenPoints
             if (.NOT. associated(Me%ExternalVar%OpenPoints))         &
-               stop 'Subroutine ModifyLife; Module ModuleLife. ERR80'
+               stop 'Subroutine ModifyLife - ModuleLife. ERR80'
 
             Me%Array%ILB = ArraySize%ILB
             Me%Array%IUB = ArraySize%IUB

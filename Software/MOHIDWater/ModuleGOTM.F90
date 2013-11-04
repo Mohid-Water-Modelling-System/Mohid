@@ -424,7 +424,7 @@
      
      allocate (ObjGOTMparameters, STAT = STAT_CALL)
      if (STAT_CALL .NE. SUCCESS_)                                       &
-                stop 'Subroutine init_turbulence_parameters; Module ModuleGOTM. Allocation of OBJGOTMParameters.'
+                stop 'Subroutine init_turbulence_parameters - ModuleGOTM. Allocation of OBJGOTMParameters.'
      
      write(0,*) '   ', 'init_turbulence'
 

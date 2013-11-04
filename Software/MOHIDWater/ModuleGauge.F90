@@ -1184,7 +1184,7 @@ do2 :       do J = 1, WaveNameLength
                           STAT = STAT_CALL)
      
             if (STAT_CALL /= 0) &
-                stop 'Error calling GetData, SUBROUTINE ReadHarmonics; Module ModuleGauge. ERR01.'
+                stop 'Error calling GetData, SUBROUTINE ReadHarmonics - ModuleGauge. ERR01.'
 
 if2 :       if (flag .EQ. 2) then
 
@@ -1223,7 +1223,7 @@ if3 :   if (.NOT. associated(PresentGauge%FirstWave)) then
             write(*,*) 'Gauge Name: '
             write(*,'(A)') PresentGauge%Name
     
-            stop 'Subroutine ReadHarmonics; Module ModuleGauge. ERR02'
+            stop 'Subroutine ReadHarmonics - ModuleGauge. ERR02'
         end if if3
 
         !----------------------------------------------------------------------
@@ -1259,7 +1259,7 @@ if3 :   if (.NOT. associated(PresentGauge%FirstWave)) then
 
         allocate(PresentWave     , STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'SUBROUTINE NewWave; Module ModuleGauge. ERR10' 
+            stop 'SUBROUTINE NewWave - ModuleGauge. ERR10' 
 
         nullify (PresentWave%Prev)
         nullify (PresentWave%Next)
@@ -1327,12 +1327,12 @@ if2 :   if (.NOT. associated(PresentGauge%FirstWave)) then      !If list is not 
         call UnitsManager(Me%UnitGauge, OPEN_FILE, STAT = STAT_CALL) 
 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'SUBROUTINE ReadOldForm; Module ModuleGauge. ERR01' 
+            stop 'SUBROUTINE ReadOldForm - ModuleGauge. ERR01' 
 
         open(Unit = Me%UnitGauge, File = Me%FileName, form = 'FORMATTED', status = 'OLD',         &
              IOSTAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'SUBROUTINE ReadOldForm; Module ModuleGauge. ERR02' 
+            stop 'SUBROUTINE ReadOldForm - ModuleGauge. ERR02' 
 
        
 
@@ -1352,7 +1352,7 @@ if2 :   if (.NOT. associated(PresentGauge%FirstWave)) then      !If list is not 
 
         allocate(PresentGauge          , STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'SUBROUTINE ReadOldForm; Module ModuleGauge. ERR03' 
+            stop 'SUBROUTINE ReadOldForm - ModuleGauge. ERR03' 
 
         nullify (PresentGauge%Prev     )
         nullify (PresentGauge%Next     )
@@ -1390,7 +1390,7 @@ do1 :   do
         call UnitsManager(Me%UnitGauge, CLOSE_FILE, STAT = STAT_CALL) 
 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'SUBROUTINE ReadOldForm; Module ModuleGauge. ERR04' 
+            stop 'SUBROUTINE ReadOldForm - ModuleGauge. ERR04' 
 
 
 

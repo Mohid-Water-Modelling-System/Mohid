@@ -1646,7 +1646,7 @@ do1:    do i=1, 12
 cd1 :   if ((J .LT. 1) .OR. (J .GT. 12)) then
             write(*,*) 
             write(*,*) 'Date out of bounds. Month = ', J,'.'
-            stop       'Subroutine Calendario; Module Time. ERR01.'
+            stop       'Subroutine Calendario - ModuleTime. ERR01.'
         end if cd1
         IF (int(Time1%Time_(3)).GT.NDay(J)) Then
            Time1%Time_(3)=Time1%Time_(3)-real(NDay(J))

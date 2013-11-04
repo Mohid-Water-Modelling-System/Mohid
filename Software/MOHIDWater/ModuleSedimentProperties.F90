@@ -438,10 +438,10 @@ Module ModuleSedimentProperties
         real(8), pointer, dimension(:,:,:)      :: MassFluxesZ          => null() !inicialization: Carina
         real(8), pointer, dimension(:,:,:)      :: CellMass             => null() !inicialization: Carina
         real(8), pointer, dimension(:    )      :: Ti_Coef              => null() !inicialization: Carina
-		real(8), pointer, dimension(:    )      :: D_Coef               => null() !inicialization: Carina
-		real(8), pointer, dimension(:    )      :: E_Coef               => null() !inicialization: Carina
-		real(8), pointer, dimension(:    )      :: F_Coef               => null() !inicialization: Carina
-		real(8), pointer, dimension(:    )      :: VolZOld, VolZ        => null() !inicialization: Carina
+        real(8), pointer, dimension(:    )      :: D_Coef               => null() !inicialization: Carina
+        real(8), pointer, dimension(:    )      :: E_Coef               => null() !inicialization: Carina
+        real(8), pointer, dimension(:    )      :: F_Coef               => null() !inicialization: Carina
+        real(8), pointer, dimension(:    )      :: VolZOld, VolZ        => null() !inicialization: Carina
         real,    pointer, dimension(:    )      :: DZZ, DiffCoef, Concentration, DWZ  => null() !inicialization: Carina
 
         !Instance of ModuleHDF5        

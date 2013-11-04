@@ -10252,7 +10252,7 @@ D2:     do I=imax-1,2,-1
     end function WindBeaufortScale     
     !-----------------------------------------------------------------------    
     
-    !Beaufort scale for wave height see http://en.wikipedia.org/wiki/Beaufort_scale		        
+    !Beaufort scale for wave height see http://en.wikipedia.org/wiki/Beaufort_scale                
     real function WaveBeaufortScale (Wave)        
     !Arguments-------------------------------------------------------------            
     real                :: Wave        

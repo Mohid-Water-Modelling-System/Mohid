@@ -426,7 +426,7 @@ Module ModuleChainReactions
         !Associate EnterData
         call ConstructEnterData(Me%ObjEnterData, FileName, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) &
-            stop 'Subroutine ReadInputFile; module ModuleChainReactions. ERR010.'      
+            stop 'Subroutine ReadInputFile - ModuleChainReactions. ERR010.'      
                 
         call ReadChainReactionsOptions                
         
@@ -460,7 +460,7 @@ Module ModuleChainReactions
 !                     STAT         = STAT_CALL)
 !                     
 !        if (STAT_CALL .NE. SUCCESS_) &
-!            stop 'Subroutine ReadChainReactionsOptions; Module ModuleChainReactions. ERR010.'                
+!            stop 'Subroutine ReadChainReactionsOptions - ModuleChainReactions. ERR010.'                
 !
 !        if (Me%Options%RateOrder .NE. NoReaction) then
 !            if (Me%Options%RateOrder .EQ. ZeroOrder) then
@@ -484,7 +484,7 @@ Module ModuleChainReactions
 !                         STAT         = STAT_CALL)
 !                         
 !            if (STAT_CALL .NE. SUCCESS_) &
-!                stop 'Subroutine ReadChainReactionsOptions; Module ModuleChainReactions. ERR010.'                
+!                stop 'Subroutine ReadChainReactionsOptions - ModuleChainReactions. ERR010.'                
 !                
 !            if (Me%Options%RateMethod .NE. RateUnknown) then
 !                if (Me%Options%RateMethod .EQ. RateDefault) then
@@ -2778,7 +2778,7 @@ cd1:    if (ChainReactionsID > 0) then
         enddo
 
         if (.not. associated(Me))   &
-            stop 'Subroutine LocateObjChainReactions; Module ModuleChainReactions. ERR001.'
+            stop 'Subroutine LocateObjChainReactions - ModuleChainReactions. ERR001.'
     !--------------------------------------------------------------------------
     
     end subroutine LocateObjChainReactions

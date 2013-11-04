@@ -1120,7 +1120,7 @@ case1 : select case  (Me%TurbOptions%MODVISH)
                 call InicSmagorinskyModel
         
             case default
-                stop 'Subroutine InicHorizontalModels; module ModuleTurbulence. ERR07.'
+                stop 'Subroutine InicHorizontalModels - ModuleTurbulence. ERR07.'
 
         end select case1
 
@@ -1183,7 +1183,7 @@ case1 : select case  (Me%TurbOptions%MODTURB)
                                     STAT = STAT_CALL    )
                 
                 if (STAT_CALL .NE. SUCCESS_)                            &
-                   stop 'Subroutine InicVerticalModels; module ModuleTurbulence. ERR03'
+                   stop 'Subroutine InicVerticalModels - ModuleTurbulence. ERR03'
         
 
             case (nihoul_               )
@@ -1197,7 +1197,7 @@ case1 : select case  (Me%TurbOptions%MODTURB)
         
             case default
 
-                stop 'Subroutine InicVerticalModels; module ModuleTurbulence. ERR05'
+                stop 'Subroutine InicVerticalModels - ModuleTurbulence. ERR05'
 
             end select case1
 
@@ -1256,14 +1256,14 @@ case1 : select case  (Me%TurbOptions%MODTURB)
                         STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                          &
-            stop 'Subroutine InicNihoulLeendertseeModel; module ModuleTurbulence - ERR01'
+            stop 'Subroutine InicNihoulLeendertseeModel - ModuleTurbulence - ERR01'
 
 cd1 :   if (flag .EQ. 0) then           
             write(*,*) 
             write(*,*) 'Maximum alowed mixing length not defined.'
             write(*,*) 'Keyword - MIXLENGTH_MAX'
             write(*,*) 'value set to : ', Me%TurbVar%MAXMixingLength
-            write(*,*) 'Subroutine InicNihoulLeendertseeModel; module ModuleTurbulence - WRN01'
+            write(*,*) 'Subroutine InicNihoulLeendertseeModel - ModuleTurbulence - WRN01'
             write(*,*) 
         end if cd1
         
@@ -2702,7 +2702,7 @@ cd5 :           if (Me%TurbOptions%MODTURB == TurbulenceEquation_) then
 
                     call GetMixingLenghTurbGOTM(Me%ObjTurbGOTM, Lupward = Aux, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                              &
-                        stop 'Subroutine GetMixingLengthVertical; module ModuleTurbulence. ERR01.'
+                        stop 'Subroutine GetMixingLengthVertical - ModuleTurbulence. ERR01.'
 
                     Me%TurbVar%MixingLengthZ = Aux
 
@@ -2710,7 +2710,7 @@ cd5 :           if (Me%TurbOptions%MODTURB == TurbulenceEquation_) then
 
                     call UngetTurbGOTM(Me%ObjTurbGOTM, Aux, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                              &
-                        stop 'Subroutine GetMixingLengthVertical; module ModuleTurbulence. ERR02.'
+                        stop 'Subroutine GetMixingLengthVertical - ModuleTurbulence. ERR02.'
      
                 else cd5
                     call Read_Lock(mTURBULENCE_, Me%InstanceID)
@@ -2727,7 +2727,7 @@ cd6 :           if (Me%TurbOptions%MODTURB == TurbulenceEquation_) then
 
                     call GetMixingLenghTurbGOTM(Me%ObjTurbGOTM, Ldownward = Aux, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                              &
-                        stop 'Subroutine GetMixingLengthVertical; module ModuleTurbulence. ERR03.'
+                        stop 'Subroutine GetMixingLengthVertical - ModuleTurbulence. ERR03.'
 
                     Me%TurbVar%Ldownward = Aux
    
@@ -2735,7 +2735,7 @@ cd6 :           if (Me%TurbOptions%MODTURB == TurbulenceEquation_) then
 
                     call UngetTurbGOTM(Me%ObjTurbGOTM, Aux, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                              &
-                        stop 'Subroutine GetMixingLengthVertical; module ModuleTurbulence. ERR04.'
+                        stop 'Subroutine GetMixingLengthVertical - ModuleTurbulence. ERR04.'
      
                 else cd6
                     call Read_Lock(mTURBULENCE_, Me%InstanceID)
@@ -3696,7 +3696,7 @@ do1 :           do K = kbottom, KUB+1
 !                    write(*,*           ) 'instable vertical gradient.'
 !                    write(*,*           ) 'Richardson number is ', Me%TurbVar%Richardson(I,J,K)
 !                    write(*,*           ) 'AT point (I,J,K) ', I, J, K
-!                    stop                  'Subroutine BackhausModel; module ModuleTurbulence. ERR01.'
+!                    stop                  'Subroutine BackhausModel - ModuleTurbulence. ERR01.'
 !                end if cd2
                  
                     rich = max (0., Me%TurbVar%Richardson(I,J,K))

@@ -61,7 +61,7 @@ Module ModuleOil_0D
 !       <<BeginOil>>
 !       OIL_TIMESERIE         : char                                    [-]         !Name of the Output results file
 !       DT_OUTPUT_TIME        : real                                    [-]         !Time between output results
-!	    DT_OIL_INTPROCESSES!  : real					                [DT_PARTIC] ! Time step for oil internal processes
+!        DT_OIL_INTPROCESSES!  : real                                    [DT_PARTIC] ! Time step for oil internal processes
 !       
 !       OILTYPE               : Crude/Refined                           [Crude]     !Oil Type
 !       API                   : real                                    [-]         !American Petroleum Institute (API) Gravity
@@ -89,10 +89,10 @@ Module ModuleOil_0D
 !       (the following 5 keywords are only necessary when Evaporation Method = Fingas)
 !       FINGAS_EVAP_EQTYPE    : Logarithmic / SquareRoot                []          !Evaporation Equation Type
 !       FINGAS_EVAP_EMP_DATA  : 0/1                                     [0]         !Knowledge of Empirical Data for Evaporation 
-!	    following 2 kewords are necessary if FINGAS_EVAP_EMP_DATA = 1
+!        following 2 kewords are necessary if FINGAS_EVAP_EMP_DATA = 1
 !       FINGAS_EVAP_CONST1    : real                                    [-]         !Empirical Constant 1 
 !       FINGAS_EVAP_CONST2    : real                                    [-]         !Empirical Constant 2 
-!	    following keword is needed if FINGAS_EVAP_EMP_DATA = 0
+!        following keword is needed if FINGAS_EVAP_EMP_DATA = 0
 !       PERC_MASSDIST180      : real (%)                                [-]         !%(Wheight) of Oil Evaporated until 180ºC 
 !
 !       OIL_DISPERSION        : 0/1                                     [0]         !Oil Dispersion Process
@@ -972,7 +972,7 @@ ifevap: if (Me%Var%OilEvaporation) then
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR60") 
+                             "Subroutine OilOptions - ModuleOil_0D. ERR60") 
 
 case2 :         select case(trim(adjustl(String)))
                 case(Char_PseudoComponents)
@@ -990,7 +990,7 @@ case2 :         select case(trim(adjustl(String)))
                 case default
 
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR70") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR70") 
             end select case2
 
 
@@ -1006,20 +1006,20 @@ cd5:        if (Me%Var%EvaporationMethod  .EQ. PseudoComponents) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                   "Subroutine OilOptions; Module ModuleOil_0D. ERR80") 
+                                   "Subroutine OilOptions - ModuleOil_0D. ERR80") 
 
 
 
                allocate(Me%Var%TDistExp(1:Me%Var%NbrDistCuts), STAT = STAT_CALL)
                if (STAT_CALL .NE. SUCCESS_)                                             &
                    call SetError(FATAL_, INTERNAL_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR90") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR90") 
 
 
                allocate(Me%Var%CPDistExp(1:Me%Var%NbrDistCuts), STAT = STAT_CALL)
                if (STAT_CALL .NE. SUCCESS_)                                             &
                    call SetError(FATAL_, INTERNAL_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR100") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR100") 
 
 
                call GetData(Me%Var%CPDistExp,                                           &
@@ -1035,11 +1035,11 @@ cd6 :          if   (STAT_CALL .EQ. SIZE_ERR_)  then
                      write(*,*) 'Number of distillation cuts is incorrect:'
                      write(*,*) '    NbrDistCuts  =', Me%Var%NbrDistCuts
                      write(*,*) '   CPDistExpData =', flag
-                     stop       'Subroutine OilOptions; Module ModuleOil_0D. ERR110.'           
+                     stop       'Subroutine OilOptions - ModuleOil_0D. ERR110.'           
 
                else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                                &
                         (STAT_CALL .NE. SUCCESS_)) then cd6                                                                    
-                    stop 'Subroutine OilOptions; Module ModuleOil_0D. ERR120.'           
+                    stop 'Subroutine OilOptions - ModuleOil_0D. ERR120.'           
                end if cd6           
 
                call GetData(Me%Var%TDistExp,                                            &
@@ -1055,11 +1055,11 @@ cd7 :           if   (STAT_CALL .EQ. SIZE_ERR_)  then
                      write(*,*) 'Number of distillation cuts is incorrect:'
                      write(*,*) '    NbrDistCuts  =', Me%Var%NbrDistCuts
                      write(*,*) '    TDistExpData =', flag
-                     stop       'Subroutine OilOptions; Module ModuleOil_0D. ERR130.'           
+                     stop       'Subroutine OilOptions - ModuleOil_0D. ERR130.'           
 
                 else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                               &
                                  (STAT_CALL .NE. SUCCESS_)) then cd7            
-                    stop 'Subroutine OilOptions; Module ModuleOil_0D. ERR140.'           
+                    stop 'Subroutine OilOptions - ModuleOil_0D. ERR140.'           
                 end if cd7           
 
             else if (Me%Var%EvaporationMethod  .EQ. Fingas) then cd5
@@ -1074,7 +1074,7 @@ cd7 :           if   (STAT_CALL .EQ. SIZE_ERR_)  then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                   "Subroutine OilOptions; Module ModuleOil_0D. ERR140") 
+                                   "Subroutine OilOptions - ModuleOil_0D. ERR140") 
               
                 
 cd76:           if (Me%Var%Fingas_Evap_Emp_Data) then
@@ -1088,10 +1088,10 @@ cd76:           if (Me%Var%Fingas_Evap_Emp_Data) then
                                  STAT         = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
                         call SetError(FATAL_, KEYWORD_,                                 &
-                                       "Subroutine OilOptions; Module ModuleOil_0D. ERR150") 
+                                       "Subroutine OilOptions - ModuleOil_0D. ERR150") 
                                        
                     if (flag == 0) then
-                        stop "Subroutine OilOptions; Module ModuleOil_0D. ERR160"
+                        stop "Subroutine OilOptions - ModuleOil_0D. ERR160"
                     endif                                       
 
                     call GetData(Me%Var%Fingas_Evap_Const2,                             &
@@ -1103,7 +1103,7 @@ cd76:           if (Me%Var%Fingas_Evap_Emp_Data) then
                                  STAT         = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
                         call SetError(FATAL_, KEYWORD_,                                 &
-                                       "Subroutine OilOptions; Module ModuleOil_0D. ERR160") 
+                                       "Subroutine OilOptions - ModuleOil_0D. ERR160") 
 
                 else if (.NOT. Me%Var%Fingas_Evap_Emp_Data) then    cd76
 
@@ -1116,7 +1116,7 @@ cd76:           if (Me%Var%Fingas_Evap_Emp_Data) then
                                  STAT         = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
                         call SetError(FATAL_, KEYWORD_,                                 &
-                                       "Subroutine OilOptions; Module ModuleOil_0D. ERR170") 
+                                       "Subroutine OilOptions - ModuleOil_0D. ERR170") 
                 end if  cd76
 
 
@@ -1129,7 +1129,7 @@ cd76:           if (Me%Var%Fingas_Evap_Emp_Data) then
                              STAT         = STAT_CALL)        
                 if (STAT_CALL .NE. SUCCESS_)                                             &
                     call SetError(FATAL_, KEYWORD_,                                      &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR180") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR180") 
 
 cd77 :          if (flag .EQ. 1) then
 case77 :            select case(trim(adjustl(String)))
@@ -1144,13 +1144,13 @@ case77 :            select case(trim(adjustl(String)))
                         case default
 
                             call SetError(FATAL_, KEYWORD_,                             &
-                                         "Subroutine OilOptions; Module ModuleOil_0D. ERR190") 
+                                         "Subroutine OilOptions - ModuleOil_0D. ERR190") 
                     end select case77
 
                 else cd77
 
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR200") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR200") 
                 end if cd77
 
 
@@ -1167,7 +1167,7 @@ case77 :            select case(trim(adjustl(String)))
                      ClientModule   = 'ModuleOil_0D',                                   &
                      STAT           = STAT_CALL) 
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR210")
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions - ModuleOil_0D. ERR210")
 
         call GetData(Me%Var%OWInterfacialTension,                               &
                      Me%ObjEnterData,                                           &
@@ -1179,16 +1179,16 @@ case77 :            select case(trim(adjustl(String)))
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
             call SetError(FATAL_, KEYWORD_,                                     &
-                         "Subroutine OilOptions; Module ModuleOil_0D. ERR240") 
+                         "Subroutine OilOptions - ModuleOil_0D. ERR240") 
                          
         if ((Me%Var%OWInterfacialTension < 0.) .AND. (Me%Var%OWInterfacialTension /= -9999.)) then
             write(*,*) "Oil-Water Interfacial Tension below zero"
-            stop "Subroutine OilOptions; Module ModuleOil_0D. ERR243" 
+            stop "Subroutine OilOptions - ModuleOil_0D. ERR243" 
         endif
 
         if (Me%Var%OWInterfacialTension > 1e6) then
             write(*,*) "Oil-Water Interfacial Tension above 1e6 Dyne/cm"
-            stop "Subroutine OilOptions; Module ModuleOil_0D. ERR244" 
+            stop "Subroutine OilOptions - ModuleOil_0D. ERR244" 
         endif
 
 ifdisp: if  (Me%Var%OilDispersion) then
@@ -1203,7 +1203,7 @@ ifdisp: if  (Me%Var%OilDispersion) then
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                                 &
                 call SetError(FATAL_, KEYWORD_,                                          &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR220") 
+                             "Subroutine OilOptions - ModuleOil_0D. ERR220") 
 
 case3 :         select case(trim(adjustl(String)))
                 case(Char_Delvigne)
@@ -1217,7 +1217,7 @@ case3 :         select case(trim(adjustl(String)))
                 case default
 
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR230") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR230") 
             end select case3
 
 
@@ -1250,7 +1250,7 @@ case3 :         select case(trim(adjustl(String)))
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_,                                             &
-                         "Subroutine OilOptions; Module ModuleOil_0D. ERR250") 
+                         "Subroutine OilOptions - ModuleOil_0D. ERR250") 
 
         
         call GetData(Me%Var%OilEmulsification,                                          &
@@ -1262,7 +1262,7 @@ case3 :         select case(trim(adjustl(String)))
                      ClientModule   ='ModuleOil_0D',                                    &
                      STAT           = STAT_CALL) 
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR260")
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions - ModuleOil_0D. ERR260")
 
 ifemul: if (Me%Var%OilEmulsification) then
 
@@ -1276,7 +1276,7 @@ ifemul: if (Me%Var%OilEmulsification) then
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR270") 
+                             "Subroutine OilOptions - ModuleOil_0D. ERR270") 
 
 case4 :         select case(trim(adjustl(String)))
                 case(Char_Rasmussen)
@@ -1294,7 +1294,7 @@ case4 :         select case(trim(adjustl(String)))
                 case default
 
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR280") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR280") 
             end select case4
 
         
@@ -1308,7 +1308,7 @@ case4 :         select case(trim(adjustl(String)))
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR290") 
+                             "Subroutine OilOptions - ModuleOil_0D. ERR290") 
 
 
             call GetData(Me%Var%MaxVWaterContent,                                       &
@@ -1321,16 +1321,16 @@ case4 :         select case(trim(adjustl(String)))
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR300") 
+                             "Subroutine OilOptions - ModuleOil_0D. ERR300") 
 
              if ((Me%Var%EmulsificationMethod .NE. Fingas).AND. (Me%Var%MaxVWaterContent < 0)) then
                 write(*,*) "Max water content below 0%"
-                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR302"
+                stop "Subroutine OilOptions - ModuleOil_0D. ERR302"
              endif
              
              if (Me%Var%MaxVWaterContent > 100) then
                 write(*,*) "Max water content above 100%"
-                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR303"
+                stop "Subroutine OilOptions - ModuleOil_0D. ERR303"
              endif
              
 
@@ -1345,7 +1345,7 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR320") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR320") 
         
             else if (Me%Var%EmulsificationMethod .EQ. Mackay) then cd11
             
@@ -1359,7 +1359,7 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR330") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR330") 
 
             else if (Me%Var%EmulsificationMethod .EQ. Fingas) then cd11
             
@@ -1372,7 +1372,7 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR331") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR331") 
 
                 call GetData(Me%Var%SaturateContent,                                    &
                              Me%ObjEnterData,                                           &
@@ -1383,7 +1383,7 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR332") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR332") 
 
             end if cd11
 
@@ -1398,7 +1398,7 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR333") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR333") 
 
             end if
             
@@ -1413,7 +1413,7 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_,                                             &
-                         "Subroutine OilOptions; Module ModuleOil_0D. ERR340") 
+                         "Subroutine OilOptions - ModuleOil_0D. ERR340") 
 
 
         call GetData(Me%Var%ViscRef,                                                    &
@@ -1425,7 +1425,7 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_,                                             &
-                         "Subroutine OilOptions; Module ModuleOil_0D. ERR350") 
+                         "Subroutine OilOptions - ModuleOil_0D. ERR350") 
 
 
         call GetData(Me%Var%ViscCinRef,                                                 &
@@ -1437,7 +1437,7 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_,                                             &
-                         "Subroutine OilOptions; Module ModuleOil_0D. ERR360") 
+                         "Subroutine OilOptions - ModuleOil_0D. ERR360") 
 
 
 
@@ -1453,7 +1453,7 @@ cd11:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                      ClientModule   ='ModuleOil_0D',                                    &
                      STAT           = STAT_CALL) 
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR370")
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions - ModuleOil_0D. ERR370")
 
 
 ifspr:  if (Me%Var%OilSpreading) then
@@ -1468,7 +1468,7 @@ ifspr:  if (Me%Var%OilSpreading) then
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR380") 
+                             "Subroutine OilOptions - ModuleOil_0D. ERR380") 
 
 case5 :         select case(trim(adjustl(String)))
                 case(Char_Fay)
@@ -1482,7 +1482,7 @@ case5 :         select case(trim(adjustl(String)))
                 case default
 
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                 "Subroutine OilOptions; Module ModuleOil_0D. ERR390") 
+                                 "Subroutine OilOptions - ModuleOil_0D. ERR390") 
             end select case5
 
 
@@ -1499,7 +1499,7 @@ cd13:       if (Me%Var%SpreadingMethod  .EQ. ThicknessGradient_) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
                     call SetError(FATAL_, KEYWORD_,                                     &
-                                   "Subroutine OilOptions; Module ModuleOil_0D. ERR400") 
+                                   "Subroutine OilOptions - ModuleOil_0D. ERR400") 
 
             end if cd13
 
@@ -1514,7 +1514,7 @@ cd13:       if (Me%Var%SpreadingMethod  .EQ. ThicknessGradient_) then
                      ClientModule   = 'ModuleOil_0D',                                   &
                      STAT           = STAT_CALL) 
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR410")
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions - ModuleOil_0D. ERR410")
 
 
         call GetData(Me%Var%OilDissolution,                                             &
@@ -1526,7 +1526,7 @@ cd13:       if (Me%Var%SpreadingMethod  .EQ. ThicknessGradient_) then
                      ClientModule   = 'ModuleOil_0D',                                   &
                      STAT           = STAT_CALL) 
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR420")
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions - ModuleOil_0D. ERR420")
 
 
 
@@ -1542,7 +1542,7 @@ cd13:       if (Me%Var%SpreadingMethod  .EQ. ThicknessGradient_) then
                      ClientModule   = 'ModuleOil_0D',                                   &
                      STAT           = STAT_CALL) 
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR430")
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions - ModuleOil_0D. ERR430")
 
 
 ifcdis: if (Me%Var%OilChemDispersion) then
@@ -1557,11 +1557,11 @@ ifcdis: if (Me%Var%OilChemDispersion) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR440") 
+                               "Subroutine OilOptions - ModuleOil_0D. ERR440") 
 
             if (Me%Var%Start_ChemDispersion < Me%ExternalVar%BeginTime) then
                 write(*,*) 'Starting Time of Dispersant Application below run starting time'
-                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR445"
+                stop "Subroutine OilOptions - ModuleOil_0D. ERR445"
             endif
 
 
@@ -1576,11 +1576,11 @@ ifcdis: if (Me%Var%OilChemDispersion) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR450") 
+                               "Subroutine OilOptions - ModuleOil_0D. ERR450") 
 
             if (Me%Var%End_ChemDispersion > Me%ExternalVar%EndTime) then
                 write(*,*) 'Ending Time of Dispersant Application above run ending time'
-                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR455"
+                stop "Subroutine OilOptions - ModuleOil_0D. ERR455"
             endif
 
 
@@ -1593,17 +1593,17 @@ ifcdis: if (Me%Var%OilChemDispersion) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR460") 
+                               "Subroutine OilOptions - ModuleOil_0D. ERR460") 
                                
 
              if (Me%Var%P_AreaSprayed < 0) then
                 write(*,*) "Percentage of area sprayed below 0%"
-                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR462"
+                stop "Subroutine OilOptions - ModuleOil_0D. ERR462"
              endif
              
              if (Me%Var%P_AreaSprayed > 100) then
                 write(*,*) "Percentage of area sprayed above 100%"
-                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR463"
+                stop "Subroutine OilOptions - ModuleOil_0D. ERR463"
              endif                               
 
             call GetData(Me%Var%Efficiency,                                             &
@@ -1615,18 +1615,18 @@ ifcdis: if (Me%Var%OilChemDispersion) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR470") 
+                               "Subroutine OilOptions - ModuleOil_0D. ERR470") 
 
 
 
              if (Me%Var%Efficiency < 0) then
                 write(*,*) "Percentage of Area sprayed effectively dispersed below 0%"
-                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR472"
+                stop "Subroutine OilOptions - ModuleOil_0D. ERR472"
              endif
              
              if (Me%Var%Efficiency > 100) then
                 write(*,*) "Percentage of Area sprayed effectively dispersed above 100%"
-                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR473"
+                stop "Subroutine OilOptions - ModuleOil_0D. ERR473"
              endif
 
         end if ifcdis
@@ -1640,7 +1640,7 @@ ifcdis: if (Me%Var%OilChemDispersion) then
                      ClientModule   = 'ModuleOil_0D',                                   &
                      STAT           = STAT_CALL) 
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions; Module ModuleOil_0D. ERR480")
+            call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions - ModuleOil_0D. ERR480")
 
 
 ifmcle: if (Me%Var%OilMecCleanup) then
@@ -1655,11 +1655,11 @@ ifmcle: if (Me%Var%OilMecCleanup) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR490") 
+                               "Subroutine OilOptions - ModuleOil_0D. ERR490") 
 
             if (Me%Var%Start_Mec_Cleanup < Me%ExternalVar%BeginTime) then
                 write(*,*) 'Starting Time of Mechanical cleanup below run starting time'
-                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR495"
+                stop "Subroutine OilOptions - ModuleOil_0D. ERR495"
             endif
 
             call GetData(Me%Var%End_Mec_Cleanup,                                        &
@@ -1672,11 +1672,11 @@ ifmcle: if (Me%Var%OilMecCleanup) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR500") 
+                               "Subroutine OilOptions - ModuleOil_0D. ERR500") 
 
             if (Me%Var%End_Mec_Cleanup > Me%ExternalVar%EndTime) then
                 write(*,*) 'Ending Time of Mechanical cleanup above run ending time'
-                stop "Subroutine OilOptions; Module ModuleOil_0D. ERR505"
+                stop "Subroutine OilOptions - ModuleOil_0D. ERR505"
             endif
 
 
@@ -1690,7 +1690,7 @@ ifmcle: if (Me%Var%OilMecCleanup) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                               "Subroutine OilOptions; Module ModuleOil_0D. ERR510") 
+                               "Subroutine OilOptions - ModuleOil_0D. ERR510") 
 
             call GetData(String,                                                        &
                          Me%ObjEnterData,                                               &
@@ -1701,7 +1701,7 @@ ifmcle: if (Me%Var%OilMecCleanup) then
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR520") 
+                             "Subroutine OilOptions - ModuleOil_0D. ERR520") 
 
 cd14 :       if (flag .EQ. 1) then
 
@@ -1717,13 +1717,13 @@ case6 :         select case(trim(adjustl(String)))
                     case default
 
                         call SetError(FATAL_, KEYWORD_,                                  &
-                                     "Subroutine OilOptions; Module ModuleOil_0D. ERR530") 
+                                     "Subroutine OilOptions - ModuleOil_0D. ERR530") 
                 end select case6
 
             else cd14
 
                 call SetError(FATAL_, KEYWORD_,                                          &
-                             "Subroutine OilOptions; Module ModuleOil_0D. ERR540") 
+                             "Subroutine OilOptions - ModuleOil_0D. ERR540") 
             end if cd14
 
         end if ifmcle
@@ -1741,7 +1741,7 @@ case6 :         select case(trim(adjustl(String)))
             Me%Var%OilMecCleanup            = .false.
             
             write(*,*) "Backtracking option is ON all oil processes were disconnected"
-            write(*,*) "Subroutine OilOptions; Module ModuleOil_0D. WRN010"  
+            write(*,*) "Subroutine OilOptions - ModuleOil_0D. WRN010"  
         endif
     !------------------------------------------------------------------------
 
@@ -1769,7 +1769,7 @@ case6 :         select case(trim(adjustl(String)))
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                          &
             call SetError(FATAL_, KEYWORD_,                                                 &
-                         "Subroutine OilOptionsAPI; Module ModuleOil_0D. ERR01") 
+                         "Subroutine OilOptionsAPI - ModuleOil_0D. ERR01") 
                          
         if (API < 10) then
             write(*,*) "This oil tends to be more dense than water because the API is below 10."
@@ -1812,7 +1812,7 @@ case6 :         select case(trim(adjustl(String)))
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                          &
             call SetError(FATAL_, KEYWORD_,                                                   &
-                         "Subroutine ReadTimeSerieFile; Module ModuleOil_0D. ERR01") 
+                         "Subroutine ReadTimeSerieFile - ModuleOil_0D. ERR01") 
 
 
 cd1 :   if (flag == 1) then
@@ -1880,7 +1880,7 @@ do1 :       do Prop = (ColNbr+1), aux
                      STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
                 call SetError(FATAL_, KEYWORD_,                                               &
-                             "Subroutine ReadTimeSerieFile; Module ModuleOil_0D. ERR03") 
+                             "Subroutine ReadTimeSerieFile - ModuleOil_0D. ERR03") 
             
             Me%TimeSerie%DataLine(:) = null_real
 
@@ -1891,7 +1891,7 @@ do1 :       do Prop = (ColNbr+1), aux
                              STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
                 call SetError(FATAL_, KEYWORD_,                                               &
-                             "Subroutine ReadTimeSerieFile; Module ModuleOil_0D. ERR04") 
+                             "Subroutine ReadTimeSerieFile - ModuleOil_0D. ERR04") 
 
             call StartTimeSerie(Me%ObjTimeSerie,                                        &
                                 Me%ObjTime,                                             &
@@ -1902,7 +1902,7 @@ do1 :       do Prop = (ColNbr+1), aux
                                 STAT               = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, KEYWORD_,                                         &
-                             "Subroutine ReadTimeSerieFile; Module ModuleOil_0D. ERR05") 
+                             "Subroutine ReadTimeSerieFile - ModuleOil_0D. ERR05") 
         end if cd2
 
         !------------------------------------------------------------------------
@@ -3850,12 +3850,12 @@ cd1:    if (Me%Var%NbrDistCuts .LT. 2) then
             allocate(BPPC(1:Me%Var%NbrPC), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                            &
                 call SetError(FATAL_, INTERNAL_,                                                      &
-                             "Subroutine EvapPropINI; Module ModuleOil_0D. ERR01") 
+                             "Subroutine EvapPropINI - ModuleOil_0D. ERR01") 
 
             allocate(Me%Var%VolInicPC(1:Me%Var%NbrPC), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                            &
                 call SetError(FATAL_, INTERNAL_,                                                      &
-                             "Subroutine EvapPropINI; Module ModuleOil_0D. ERR02") 
+                             "Subroutine EvapPropINI - ModuleOil_0D. ERR02") 
 
             do n=1,Me%Var%NbrPC
         
@@ -3871,12 +3871,12 @@ cd1:    if (Me%Var%NbrDistCuts .LT. 2) then
             allocate(TDist(1:NbrPoints), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                            &
                 call SetError(FATAL_, INTERNAL_,                                                      &
-                             "Subroutine EvapPropINI; Module ModuleOil_0D. ERR03") 
+                             "Subroutine EvapPropINI - ModuleOil_0D. ERR03") 
 
             allocate(CFDist(1:NbrPoints), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                            &
                 call SetError(FATAL_, INTERNAL_,                                                      &
-                             "Subroutine EvapPropINI; Module ModuleOil_0D. ERR04") 
+                             "Subroutine EvapPropINI - ModuleOil_0D. ERR04") 
 
 
             TDist(1)   = Me%Var%TDistExp(1) - Me%Var%CPDistExp(1)                     &
@@ -3906,12 +3906,12 @@ cd1:    if (Me%Var%NbrDistCuts .LT. 2) then
             allocate(BPPC(1:Me%Var%NbrPC), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                            &
                 call SetError(FATAL_, INTERNAL_,                                                      &
-                             "Subroutine EvapPropINI; Module ModuleOil_0D. ERR05") 
+                             "Subroutine EvapPropINI - ModuleOil_0D. ERR05") 
 
             allocate(Me%Var%VolInicPC(1:Me%Var%NbrPC), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                            &
                 call SetError(FATAL_, INTERNAL_,                                                      &
-                             "Subroutine EvapPropINI; Module ModuleOil_0D. ERR06") 
+                             "Subroutine EvapPropINI - ModuleOil_0D. ERR06") 
 
             do n=1,Me%Var%NbrPC
 
@@ -3925,32 +3925,32 @@ cd1:    if (Me%Var%NbrDistCuts .LT. 2) then
        allocate(CPC(1:Me%Var%NbrPC), STAT = STAT_CALL)
        if (STAT_CALL .NE. SUCCESS_)                                                                 &
           call SetError(FATAL_, INTERNAL_,                                                            &
-                       "Subroutine EvapPropINI; Module ModuleOil_0D. ERR07") 
+                       "Subroutine EvapPropINI - ModuleOil_0D. ERR07") 
 
        allocate(DeltaSPC(1:Me%Var%NbrPC), STAT = STAT_CALL)
        if (STAT_CALL .NE. SUCCESS_)                                                                 &
            call SetError(FATAL_, INTERNAL_,                                                           &
-                        "Subroutine EvapPropINI; Module ModuleOil_0D. ERR08") 
+                        "Subroutine EvapPropINI - ModuleOil_0D. ERR08") 
 
        allocate(Me%Var%VmrelPC(1:Me%Var%NbrPC), STAT = STAT_CALL)
        if (STAT_CALL .NE. SUCCESS_)                                                                 &
            call SetError(FATAL_, INTERNAL_,                                                           &
-                             "Subroutine EvapPropINI; Module ModuleOil_0D. ERR09") 
+                             "Subroutine EvapPropINI - ModuleOil_0D. ERR09") 
 
        allocate(Me%Var%MWPC(1:Me%Var%NbrPC), STAT = STAT_CALL)
        if (STAT_CALL .NE. SUCCESS_)                                                                 &
            call SetError(FATAL_, INTERNAL_,                                                           &
-                             "Subroutine EvapPropINI; Module ModuleOil_0D. ERR09a") 
+                             "Subroutine EvapPropINI - ModuleOil_0D. ERR09a") 
 
        allocate(Me%Var%PvapPC(1:Me%Var%NbrPC), STAT = STAT_CALL)
        if (STAT_CALL .NE. SUCCESS_)                                                                 &    
            call SetError(FATAL_, INTERNAL_,                                                           &
-                         "Subroutine EvapPropINI; Module ModuleOil_0D. ERR10") 
+                         "Subroutine EvapPropINI - ModuleOil_0D. ERR10") 
 
        allocate(Me%Var%VolPC(1:Me%Var%NbrPC), STAT = STAT_CALL)
        if (STAT_CALL .NE. SUCCESS_)                                                                 &
            call SetError(FATAL_, INTERNAL_,                                                           &
-                         "Subroutine EvapPropINI; Module ModuleOil_0D. ERR11") 
+                         "Subroutine EvapPropINI - ModuleOil_0D. ERR11") 
 
         do n=1,Me%Var%NbrPC
         
@@ -3972,37 +3972,37 @@ cd1:    if (Me%Var%NbrDistCuts .LT. 2) then
        allocate(Me%Var%VEvaporatedPCDT(1:Me%Var%NbrPC), STAT = STAT_CALL)
        if (STAT_CALL .NE. SUCCESS_)                                                                 &
            call SetError(FATAL_, INTERNAL_,                                                           &
-                         "Subroutine EvapPropINI; Module ModuleOil_0D. ERR12") 
+                         "Subroutine EvapPropINI - ModuleOil_0D. ERR12") 
 
 
         deallocate(BPPC, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                                  &
             call SetError(FATAL_, INTERNAL_,                                                          &
-                          "Subroutine EvapPropINI; Module ModuleOil_0D. ERR13") 
+                          "Subroutine EvapPropINI - ModuleOil_0D. ERR13") 
         nullify   (BPPC)
 
         deallocate(TDist, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                                  &
             call SetError(FATAL_, INTERNAL_,                                                          &
-                          "Subroutine EvapPropINI; Module ModuleOil_0D. ERR14") 
+                          "Subroutine EvapPropINI - ModuleOil_0D. ERR14") 
         nullify   (TDist)
 
         deallocate(CFDist, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                                  &
             call SetError(FATAL_, INTERNAL_,                                                          &
-                          "Subroutine EvapPropINI; Module ModuleOil_0D. ERR15") 
+                          "Subroutine EvapPropINI - ModuleOil_0D. ERR15") 
         nullify   (CFDist)
 
         deallocate(CPC, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                                  &
             call SetError(FATAL_, INTERNAL_,                                                          &
-                          "Subroutine EvapPropINI; Module ModuleOil_0D. ERR16") 
+                          "Subroutine EvapPropINI - ModuleOil_0D. ERR16") 
         nullify   (CPC)
 
         deallocate(DeltaSPC, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                                  &
             call SetError(FATAL_, INTERNAL_,                                                          &
-                          "Subroutine EvapPropINI; Module ModuleOil_0D. ERR17") 
+                          "Subroutine EvapPropINI - ModuleOil_0D. ERR17") 
         nullify   (DeltaSPC)
 
     end subroutine EvapPropINI
@@ -4078,7 +4078,7 @@ do1 :       do Prop = (ColNbr+1), aux
                                 STAT                = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
                 call SetError(FATAL_, INTERNAL_,                                        &
-                             "Subroutine TimeSerieOutput; Module ModuleOil_0D. ERR01") 
+                             "Subroutine TimeSerieOutput - ModuleOil_0D. ERR01") 
 
         !------------------------------------------------------------------------
 
@@ -4449,7 +4449,7 @@ cd2:        if (Me%State%FirstStepAP) then
 
             call OilOptionsAPI(ObjEnterData, ExtractType = ExtractType, API = lAPI)
         else
-            call SetError(FATAL_, INTERNAL_, "Function  F_FayArea; Module ModuleOil_0D. ERR00") 
+            call SetError(FATAL_, INTERNAL_, "Function  F_FayArea - ModuleOil_0D. ERR00") 
         endif    
 
 
@@ -4461,7 +4461,7 @@ cd2:        if (Me%State%FirstStepAP) then
         !oil is denser than an aproximation of surrounding water density
         if (Density .GT. WaterDensity) then
             call SetError(FATAL_, INTERNAL_,                                                          &
-                          "Function  F_FayArea; Module ModuleOil_0D. ERR01 ") 
+                          "Function  F_FayArea - ModuleOil_0D. ERR01 ") 
         endif
         Delta     = (WaterDensity - Density) / WaterDensity
 

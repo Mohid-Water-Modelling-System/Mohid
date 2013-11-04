@@ -146,7 +146,7 @@ Module ModuleASCII
                      ClientModule = 'ModuleASCII',                  &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR030'
-		
+        
     end subroutine ReadOptions
 
 

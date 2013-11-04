@@ -737,7 +737,7 @@ do1 :               do I = 1, line_length
 cd5 :               if (flag .EQ. 0) then
                         write(*,*) 
                         write(*,*) "Keyword ROOT not found in nomfich.dat"
-                        stop       "SUBROUTINE ReadFileName; Module ModuleEnterData. ERR01"
+                        stop       "SUBROUTINE ReadFileName - ModuleEnterData. ERR01"
                     end if cd5
 
 
@@ -832,7 +832,7 @@ do2 :   do I = 9, len(FILE_NAME)
 cd3 :   if (len(FILE_NAME) .LT. (length1 + length2 + length3)) then
             write(*,*)  
             write(*,*) "Root too long. "
-            stop       "SUBROUTINE CreateName; Module ModuleEnterData. ERR01."
+            stop       "SUBROUTINE CreateName - ModuleEnterData. ERR01."
         end if cd3
 
      
@@ -1007,7 +1007,7 @@ cd3 :           if (ClientNumber .NE. Me%BlockClientIDnumber) then
 
                     write(*,*) 
                     write(*,*) "Client ID mismatch."
-                    stop       "Subroutine GetBlockSize; module ModuleEnterData. ERR01."
+                    stop       "Subroutine GetBlockSize - ModuleEnterData. ERR01."
 
                 else
 
@@ -1161,7 +1161,7 @@ cd1 :   if      (SearchType_ .EQ. FromBlock_       ) then
         else
             write(*,*)  
             write(*,*) "Error SearchType_ = 0. "
-            stop       "Subroutine LookForLineInBlock; Module ModuleEnterData. ERR01."
+            stop       "Subroutine LookForLineInBlock - ModuleEnterData. ERR01."
         end if cd1
 
 
@@ -1194,7 +1194,7 @@ do1 :   do I = StartSearch, EndSearch
                     write(*,*)'Line         = ', trim(string%full_line)
                     write(*,*)'Line Number  = ', i
                     write(*,*)'File         = ', trim(Me%FileName)
-                    stop      'Subroutine LookForLineInBlock; Module ModuleEnterData. ERR02.'
+                    stop      'Subroutine LookForLineInBlock - ModuleEnterData. ERR02.'
                 end if
             end if 
         end do do1
@@ -1294,7 +1294,7 @@ cd1 :   if       (delimiter_pos .EQ. 0) then
                 write(*,*)  
                 write(*,*) "Found : at the end of line." 
                 write(*,*) "Line: "//trim(string%full_line) 
-                stop       "Subroutine ScanLine; Module ModuleEnterData. ERR01." 
+                stop       "Subroutine ScanLine - ModuleEnterData. ERR01." 
 #else
         else if ((delimiter_pos .GT. 0) .AND. (delimiter_pos .LE. IUB)) then
             if ((string%full_line(delimiter_pos+1:delimiter_pos+1) .EQ. slash    ) .OR. &   
@@ -1810,7 +1810,7 @@ cd6 :           if (present(Default)) then
 cd4 :               if (present(text)) then
                         call WriteErrorMessage(keyword, text, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                              &
-                            stop "Subroutine ReadDbleVector_New; module ModuleEnterData. ERR01."
+                            stop "Subroutine ReadDbleVector_New - ModuleEnterData. ERR01."
                     end if cd4
 
                     STAT_ = KEYWORD_NOT_FOUND_ERR_
@@ -1987,7 +1987,7 @@ cd2 :           if      (aux_int .EQ. 1) then
                     write(*,*    ) 
                     write(*,*    ) "Value in front of a logical keyword must be 0 or 1."
                     write(*,"(A)") "Keyword: ", keyword
-                    stop           "Subroutine GetData (ReadLogical_New); module ModuleEnterData. ERR03."
+                    stop           "Subroutine GetData (ReadLogical_New) - ModuleEnterData. ERR03."
                 end if cd2
 
                 STAT_ = SUCCESS_
@@ -2004,7 +2004,7 @@ cd6 :           if (present(Default)) then
 cd3 :               if (present(text)) then
                         call WriteErrorMessage(keyword, text, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                              &
-                            stop "Subroutine GetData (ReadLogical_New); module ModuleEnterData. ERR04."
+                            stop "Subroutine GetData (ReadLogical_New) - ModuleEnterData. ERR04."
                     end if cd3
 
                     STAT_ = SUCCESS_
@@ -2356,7 +2356,7 @@ cd6 :           if (present(Default)) then
 cd4 :               if (present(text)) then
                         call WriteErrorMessage(keyword, text, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                              &
-                            stop "Subroutine ReadIntegerVector_New; module ModuleEnterData. ERR01."
+                            stop "Subroutine ReadIntegerVector_New - ModuleEnterData. ERR01."
                     end if cd4
 
                     STAT_ = KEYWORD_NOT_FOUND_ERR_
@@ -2541,7 +2541,7 @@ cd6 :           if (present(Default)) then
 cd4 :               if (present(text)) then
                         call WriteErrorMessage(keyword, text, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                              &
-                            stop "Subroutine ReadRealVector_New; module ModuleEnterData. ERR01."
+                            stop "Subroutine ReadRealVector_New - ModuleEnterData. ERR01."
                     end if cd4
 
                     STAT_ = KEYWORD_NOT_FOUND_ERR_
@@ -2906,7 +2906,7 @@ cd6 :           if (present(Default)) then
 cd4 :               if (present(text)) then
                         call WriteErrorMessage(keyword, text, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                              &
-                            stop "Subroutine ReadDbleVector_New; module ModuleEnterData. ERR01."
+                            stop "Subroutine ReadDbleVector_New - ModuleEnterData. ERR01."
                     end if cd4
 
                     STAT_ = KEYWORD_NOT_FOUND_ERR_
@@ -3040,10 +3040,10 @@ if9 :       if (present(SearchType)) then
 
 
             if (.not.present(keyword).and..not.present(Buffer_Line))          &
-                stop "Subroutine GetData (ReadTime); module ModuleEnterData. ERR01."
+                stop "Subroutine GetData (ReadTime) - ModuleEnterData. ERR01."
             
             if (present(keyword).and.present(Buffer_Line))                    &
-                stop "Subroutine GetData (ReadTime); module ModuleEnterData. ERR02."
+                stop "Subroutine GetData (ReadTime) - ModuleEnterData. ERR02."
 
             if (present(keyword)) then
 
@@ -3089,7 +3089,7 @@ cd6 :           if (present(Default)) then
 cd4 :               if (present(text)) then
                         call WriteErrorMessage(keyword, text, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                              &
-                            stop "Subroutine GetData (ReadTime); module ModuleEnterData. ERR03."
+                            stop "Subroutine GetData (ReadTime) - ModuleEnterData. ERR03."
                     end if cd4
 
                     STAT_ = SUCCESS_
@@ -4320,7 +4320,7 @@ cd1 :   if (.NOT. Me%BLOCK_LOCK) then
 
             Me%BlockClientIDnumber = number
         else
-            stop "Subroutine Block_Lock; module ModuleEnterData. ERR01."
+            stop "Subroutine Block_Lock - ModuleEnterData. ERR01."
         end if cd1
 
         !----------------------------------------------------------------------
@@ -4353,7 +4353,7 @@ cd3 :           if (ClientNumber .NE. Me%BlockClientIDnumber) then
 
                     write(*,*) 
                     write(*,*) "Client ID mismatch."
-                    stop       "Subroutine Block_Unlock; module ModuleEnterData. ERR01."
+                    stop       "Subroutine Block_Unlock - ModuleEnterData. ERR01."
 
                 else
 

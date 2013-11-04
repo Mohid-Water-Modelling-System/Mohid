@@ -39,8 +39,8 @@
 !microorganisms population - #org/kgsoil
 !wind                      - km/day
 !
-!OXYGEN   	                :  [0/1]       0      !Connect/Disconnect Oxygen computation 
-!SOL_BACTERIA 	            :  [0/1]       0	  !Connect/Disconnect Solubilizing bacteria computation 
+!OXYGEN                     :  [0/1]       0      !Connect/Disconnect Oxygen computation 
+!SOL_BACTERIA               :  [0/1]       0      !Connect/Disconnect Solubilizing bacteria computation 
 !
 !DTSECONDS                  :  [s]       86400.   !dt to evaluate
 !NO3_LIMIT                  :  [mg/L]      0.     !Minimum value for denitrification or maximum value for 
@@ -410,7 +410,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Associate EnterData
             call ConstructEnterData(Me%ObjEnterData, FileName, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine StartSedimentQuality; module ModuleSedimentQuality. ERR02.'
+                stop 'Subroutine StartSedimentQuality - ModuleSedimentQuality. ERR02.'
             
             if (Me%WriteLog) call ConstructAsciiOutPut
 
@@ -726,7 +726,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                       if (Logicalequa(equa)) then
                          allocate (NewEquaRateFlux, STAT = STAT_CALL)            
                          if (STAT_CALL .NE. SUCCESS_)                                                       &
-                         stop 'Subroutine Construct_SQRateFlux; Module ModuleSedimentQuality. ERR02.'
+                         stop 'Subroutine Construct_SQRateFlux - ModuleSedimentQuality. ERR02.'
                     
                          nullify(NewEquaRateFlux%Prev,NewEquaRateFlux%Next)
                          nullify(NewEquaRateFlux%FirstPropRateFlux,NewEquaRateFlux%LastPropRateFlux)
@@ -737,7 +737,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                          NewEquaRateFlux%ID         = equa
                      
                          if (STAT_CALL .NE. SUCCESS_)                                                       &
-                         stop 'Subroutine Construct_SQRateFlux; Module ModuleSedimentQuality. ERR03.' 
+                         stop 'Subroutine Construct_SQRateFlux - ModuleSedimentQuality. ERR03.' 
 
                                       
                       endif
@@ -754,7 +754,7 @@ do1:         do while (associated(EquaRateFluxX))
                       if (LogicalEqua(equa)) then
                          allocate (NewPropRateFlux, STAT = STAT_CALL)            
                          if (STAT_CALL .NE. SUCCESS_)       &
-                         stop 'Subroutine Construct_SQRateFlux; Module ModuleSedimentQuality. ERR04.'
+                         stop 'Subroutine Construct_SQRateFlux - ModuleSedimentQuality. ERR04.'
                     
                          nullify(NewPropRateFlux%field)
                          nullify(NewPropRateFlux%Prev,NewPropRateFlux%Next)
@@ -767,7 +767,7 @@ do1:         do while (associated(EquaRateFluxX))
                          NewPropRateFlux%Field      = 0.
                      
                          if (STAT_CALL .NE. SUCCESS_)       &
-                         stop 'Subroutine Construct_SQRateFlux; Module ModuleSedimentQuality. ERR05.' 
+                         stop 'Subroutine Construct_SQRateFlux - ModuleSedimentQuality. ERR05.' 
 
                                       
                       endif
@@ -885,7 +885,7 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR01.' 
+            stop 'Subroutine SedimentQualityOptions - ModuleSedimentQuality. ERR01.' 
 
 
         call GetData(Me%PropCalc%Carbon                     ,           &
@@ -897,7 +897,7 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR02.'
+            stop 'Subroutine SedimentQualityOptions - ModuleSedimentQuality. ERR02.'
 
 !!!!Opção válida para o fosforo tb!!!
         call GetData(Me%PropCalc%Phosphorus                 ,           &    !!!Lúcia
@@ -909,7 +909,7 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR03.'
+            stop 'Subroutine SedimentQualityOptions - ModuleSedimentQuality. ERR03.'
 
 !!!!Opção válida para as bacterias solubilizadoras tb!!!
         call GetData(Me%PropCalc%Sol_Bacteria               ,           &    !!!Lúcia
@@ -921,7 +921,7 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR04.'
+            stop 'Subroutine SedimentQualityOptions - ModuleSedimentQuality. ERR04.'
 
 
         call GetData(Me%NO3limit                            ,           &    
@@ -933,7 +933,7 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR05.'
+            stop 'Subroutine SedimentQualityOptions - ModuleSedimentQuality. ERR05.'
 
 
         call GetData(Me%ChangeRates                         ,           &    
@@ -945,7 +945,7 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR06.'
+            stop 'Subroutine SedimentQualityOptions - ModuleSedimentQuality. ERR06.'
 
         call GetData(Me%NewRates                            ,           &    
                      Me%ObjEnterData, flag                  ,           &    
@@ -956,7 +956,7 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR07.'
+            stop 'Subroutine SedimentQualityOptions - ModuleSedimentQuality. ERR07.'
 
         call GetData(Me%WriteLog                            ,           &    
                      Me%ObjEnterData, flag                  ,           &    
@@ -967,7 +967,7 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR07.5'
+            stop 'Subroutine SedimentQualityOptions - ModuleSedimentQuality. ERR07.5'
 
         call GetData(Me%ComputeImobilization                ,           &    
                      Me%ObjEnterData, flag                  ,           &    
@@ -978,7 +978,7 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR08.'
+            stop 'Subroutine SedimentQualityOptions - ModuleSedimentQuality. ERR08.'
 
         !----------------------------------------------------------------------
 
@@ -1190,7 +1190,7 @@ do1:         do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleSedimentQuality'         ,   &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SQReadCalcOptions; Module ModuleSedimentQuality. ERR01.'
+            stop 'Subroutine SQReadCalcOptions - ModuleSedimentQuality. ERR01.'
         
         !Verifica se se pretende calcular usando um metodo IMPLICITO/EXPLICITO        
         call GetData(Me%CalcMethod%SemiImpMethod                    ,   &
@@ -1200,7 +1200,7 @@ do1:         do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleSedimentQuality'         ,   &
                      STAT         = STAT_CALL)  
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SQReadCalcOptions; Module ModuleSedimentQuality. ERR02.' 
+            stop 'Subroutine SQReadCalcOptions - ModuleSedimentQuality. ERR02.' 
         
         !It has to be inspected why implicit and semi implicit methods are giving
         !different results from explicit. Check the hipotesis that Matrix in Water quality has the 
@@ -1208,7 +1208,7 @@ do1:         do while (associated(EquaRateFluxX))
         if (Me%CalcMethod%SemiImpMethod) then
             write (*,*) 'For now only explicit computation is possible'
             write (*,*) 'Use EXPLICIT : 1'
-            stop 'Subroutine SQReadCalcOptions; Module ModuleSedimentQuality. ERR020.' 
+            stop 'Subroutine SQReadCalcOptions - ModuleSedimentQuality. ERR020.' 
         endif
         
         !Verifica se se pretende calcular usando um metodo IMPLICITO
@@ -1219,7 +1219,7 @@ do1:         do while (associated(EquaRateFluxX))
                      ClientModule = 'ModuleSedimentQuality'         ,   &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SQReadCalcOptions; Module ModuleSedimentQuality. ERR03.' 
+            stop 'Subroutine SQReadCalcOptions - ModuleSedimentQuality. ERR03.' 
 
         !It has to be inspected why implicit and semi implicit methods are giving
         !different results from explicit. Check the hipotesis that Matrix in Water quality has the 
@@ -1227,7 +1227,7 @@ do1:         do while (associated(EquaRateFluxX))
         if (Me%CalcMethod%ImplicitMethod) then
             write (*,*) 'For now only explicit computation is possible'
             write (*,*) 'Use EXPLICIT : 1'
-            stop 'Subroutine SQReadCalcOptions; Module ModuleSedimentQuality. ERR030.' 
+            stop 'Subroutine SQReadCalcOptions - ModuleSedimentQuality. ERR030.' 
         endif
 
         !----------------------------------------------------------------------
@@ -1304,12 +1304,12 @@ cd1 :       if (aux .EQ. 1.) then
                      ClientModule = 'ModuleSedimentQuality'  ,   &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                             &
-            stop 'Subroutine SQReadFileConstants; Module ModuleSedimentQuality. ERR01.' 
+            stop 'Subroutine SQReadFileConstants - ModuleSedimentQuality. ERR01.' 
 
 cd1:   if (flag .EQ. 0) then
             write(*,*) 
             write(*,*) 'Keyword DTSECONDS not found in Water quality data file.'
-            write(*,*) 'Subroutine SQReadFileConstants; Module ModuleSedimentQuality. WRN01.'
+            write(*,*) 'Subroutine SQReadFileConstants - ModuleSedimentQuality. WRN01.'
             write(*,*) 'Assumed ', Me%DTSecond, 'seconds (',  Me%DTSecond / 60.0, 'hour).'
             write(*,*) 
         end if cd1
@@ -1876,7 +1876,7 @@ cd5 :           if (BlockFound) then
 cd1 :   if (Me%CalcMethod%ExplicitMethod) then
             allocate(Me%NewMass(PropLB:PropUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Subroutine AllocateVariables; module ModuleSedimentQuality. ERR01.'
+                stop 'Subroutine AllocateVariables - ModuleSedimentQuality. ERR01.'
         end if cd1
 
         !------------------------------------------------------------------------
@@ -2379,50 +2379,50 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             Me%ExternalVar%Temperature => Temperature
             if (.NOT. associated(Me%ExternalVar%Temperature) )                  &
-                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR01' 
+                stop 'Subroutine SedimentQuality - ModuleSedimentQuality. ERR01' 
 
             Me%ExternalVar%Mass => Mass
             if (.NOT. associated(Me%ExternalVar%Mass) )                         &
-                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR02.'
+                stop 'Subroutine SedimentQuality - ModuleSedimentQuality. ERR02.'
 
             Me%ExternalVar%ThetaF => ThetaF !to_change
             if (.NOT. associated(Me%ExternalVar%ThetaF) )                       &
-                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR03.'
+                stop 'Subroutine SedimentQuality - ModuleSedimentQuality. ERR03.'
 
             Me%ExternalVar%DissolvedToParticulate => DissolvedToParticulate 
             if (.NOT. associated(Me%ExternalVar%DissolvedToParticulate) )       &
-                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR04.'
+                stop 'Subroutine SedimentQuality - ModuleSedimentQuality. ERR04.'
             
             if (present(SoilDryDensity)) Me%ExternalVar%SoilDryDensity => SoilDryDensity
             if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
-                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR05.'
+                stop 'Subroutine SedimentQuality - ModuleSedimentQuality. ERR05.'
             
             if (Me%PropCalc%Phosphorus) then
 
                 if (present(Pai))            Me%ExternalVar%Pai            => Pai
                 if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
-                    stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR06.'
+                    stop 'Subroutine SedimentQuality - ModuleSedimentQuality. ERR06.'
             endif
 
 
             if (Me%PropCalc%Nitrogen) then
                 if (present(Wind))           Me%ExternalVar%Wind           => Wind
                 if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
-                    stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR07.'
+                    stop 'Subroutine SedimentQuality - ModuleSedimentQuality. ERR07.'
             endif
 
             !Salinity fo oxygen computation
             Me%ExternalVar%Salinity       => Salinity
             if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
-                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR08.'
+                stop 'Subroutine SedimentQuality - ModuleSedimentQuality. ERR08.'
             
             Me%ExternalVar%pH             => pH
             if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
-                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR09.'
+                stop 'Subroutine SedimentQuality - ModuleSedimentQuality. ERR09.'
             
             Me%ExternalVar%Ionic          => Ionic
             if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
-                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR010.'
+                stop 'Subroutine SedimentQuality - ModuleSedimentQuality. ERR010.'
 
             
             if (present(Oxygen)) then
@@ -4055,7 +4055,7 @@ do4 :       do equa = PropLB, PropUB           !Percorre as equacoes
             
             call LUD(Me%ObjLUD, Me%Matrix, Me%IndTerm, x, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine SystemResolution; module ModuleSedimentQuality. ERR03.'
+                stop 'Subroutine SystemResolution - ModuleSedimentQuality. ERR03.'
 
 do3 :       do prop = PropLB, PropUB
                 Me%ExternalVar%Mass(prop, index) = x(prop)
@@ -4096,7 +4096,7 @@ cd33 :               if (equa .EQ. prop) then
             call LUD(Me%ObjLUD, Me%Matrix, Me%IndTerm, x, STAT = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine SystemResolution; module ModuleSedimentQuality. ERR04.'
+                stop 'Subroutine SystemResolution - ModuleSedimentQuality. ERR04.'
 
 
 do33 :      do prop = PropLB, PropUB
@@ -9045,26 +9045,26 @@ cd2 :       if (nUsers == 0) then
 cd3 :           if(Me%ObjLUD /= 0) then
                     call KillLUD(Me%ObjLUD, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                        stop 'Subroutine KillSedimentQuality; module ModuleSedimentQuality. ERR01.'
+                        stop 'Subroutine KillSedimentQuality - ModuleSedimentQuality. ERR01.'
                 end if cd3
 
 
                 deallocate(Me%IndTerm, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'Subroutine Kill_SedimentQuality; module ModuleSedimentQuality. ERR02.'
+                    stop 'Subroutine Kill_SedimentQuality - ModuleSedimentQuality. ERR02.'
                 nullify(Me%IndTerm)
 
 
                 deallocate(Me%Matrix, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'Subroutine Kill_SedimentQuality; module ModuleSedimentQuality. ERR03.'
+                    stop 'Subroutine Kill_SedimentQuality - ModuleSedimentQuality. ERR03.'
                 nullify(Me%Matrix)
 
 
 cd4 :           if (associated(Me%NewMass)) then
                     deallocate(Me%NewMass, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                        stop 'Subroutine Kill_SedimentQuality; module ModuleSedimentQuality. ERR04.'
+                        stop 'Subroutine Kill_SedimentQuality - ModuleSedimentQuality. ERR04.'
                     nullify(Me%NewMass)
                 end if cd4
 

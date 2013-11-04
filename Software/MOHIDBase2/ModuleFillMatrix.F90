@@ -3835,80 +3835,80 @@ i4:             if(Me%Dim == Dim2D)then
                                                     
                     if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
                 
-                    	!Interpolates the two matrixes in time
+                        !Interpolates the two matrixes in time
                     call InterpolateMatrix2DInTime(ActualTime       = Now,                         &
-	                                                   Size             = Me%WorkSize2D,               &
-	                                                   Time1            = Me%HDF%PreviousTime,         &
-	                                                   Matrix1          = Me%HDF%PreviousField2D,      &
-	                                                   Time2            = Me%HDF%NextTime,             &
-	                                                   Matrix2          = Me%HDF%NextField2D,          &
-	                                                   MatrixOut        = Me%Matrix2D,                 &
-	                                                   PointsToFill2D   = PointsToFill2D)
+                                                       Size             = Me%WorkSize2D,               &
+                                                       Time1            = Me%HDF%PreviousTime,         &
+                                                       Matrix1          = Me%HDF%PreviousField2D,      &
+                                                       Time2            = Me%HDF%NextTime,             &
+                                                       Matrix2          = Me%HDF%NextField2D,          &
+                                                       MatrixOut        = Me%Matrix2D,                 &
+                                                       PointsToFill2D   = PointsToFill2D)
                                                                               
-	                else
+                    else
 
-	                    Me%Matrix2D(:,:)  = Me%HDF%PreviousField2D(:,:)
+                        Me%Matrix2D(:,:)  = Me%HDF%PreviousField2D(:,:)
 
-	                endif
+                    endif
 
-	            else i4
+                else i4
 
-	                call ReadHDF5Values3D(Me%HDF%PreviousInstant, Me%HDF%PreviousField3D)
-	
-	                call ReadHDF5Values3D(Me%HDF%NextInstant,     Me%HDF%NextField3D    )
-	
-	                !limit maximum values
-	                do k=Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-	                do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-	                do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
-
-#ifndef _NOT_IEEE_ARITHMETIC
-	                    if (ieee_is_nan (Me%HDF%PreviousField3D(i,j,k)))                    &
-	                        Me%HDF%PreviousField3D(i,j,k) = FillValueReal 
-#endif
-	                
-	                    if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))        &
-	                        Me%HDF%PreviousField3D(i,j,k) = FillValueReal
+                    call ReadHDF5Values3D(Me%HDF%PreviousInstant, Me%HDF%PreviousField3D)
+    
+                    call ReadHDF5Values3D(Me%HDF%NextInstant,     Me%HDF%NextField3D    )
+    
+                    !limit maximum values
+                    do k=Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                    do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                    do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
 #ifndef _NOT_IEEE_ARITHMETIC
-	                    if (ieee_is_nan (Me%HDF%NextField3D    (i,j,k)))                    &
-	                        Me%HDF%NextField3D(i,j,k) = FillValueReal 
+                        if (ieee_is_nan (Me%HDF%PreviousField3D(i,j,k)))                    &
+                            Me%HDF%PreviousField3D(i,j,k) = FillValueReal 
 #endif
                     
-	                    if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))        &
-	                        Me%HDF%NextField3D        (i,j,k) = FillValueReal
-	                enddo
-	                enddo
-	                enddo                
+                        if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))        &
+                            Me%HDF%PreviousField3D(i,j,k) = FillValueReal
+
+#ifndef _NOT_IEEE_ARITHMETIC
+                        if (ieee_is_nan (Me%HDF%NextField3D    (i,j,k)))                    &
+                            Me%HDF%NextField3D(i,j,k) = FillValueReal 
+#endif
+                    
+                        if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))        &
+                            Me%HDF%NextField3D        (i,j,k) = FillValueReal
+                    enddo
+                    enddo
+                    enddo                
 
 
-                	if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
+                    if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
                 
-                   		if (Me%PreviousInstantValues) then
+                           if (Me%PreviousInstantValues) then
                     
-                        	Me%Matrix3D = Me%HDF%PreviousField3D
+                            Me%Matrix3D = Me%HDF%PreviousField3D
   
-                    	else                
+                        else                
 
-	                        call InterpolateMatrix3DInTime(ActualTime       = Now,                         &
-	                                                       Size             = Me%WorkSize3D,               &
-	                                                       Time1            = Me%HDF%PreviousTime,         &
-	                                                       Matrix1          = Me%HDF%PreviousField3D,      &
-	                                                       Time2            = Me%HDF%NextTime,             &
-	                                                       Matrix2          = Me%HDF%NextField3D,          &
-	                                                       MatrixOut        = Me%Matrix3D,                 &
-	                                                       PointsToFill3D   = PointsToFill3D)
-                    	endif
+                            call InterpolateMatrix3DInTime(ActualTime       = Now,                         &
+                                                           Size             = Me%WorkSize3D,               &
+                                                           Time1            = Me%HDF%PreviousTime,         &
+                                                           Matrix1          = Me%HDF%PreviousField3D,      &
+                                                           Time2            = Me%HDF%NextTime,             &
+                                                           Matrix2          = Me%HDF%NextField3D,          &
+                                                           MatrixOut        = Me%Matrix3D,                 &
+                                                           PointsToFill3D   = PointsToFill3D)
+                        endif
                     
-                	else
+                    else
 
-                    	!Prev and next are equal (last instant?)
-                    	Me%Matrix3D(:,:,:)  = Me%HDF%NextField3D(:,:,:)
+                        !Prev and next are equal (last instant?)
+                        Me%Matrix3D(:,:,:)  = Me%HDF%NextField3D(:,:,:)
 
-                	endif
+                    endif
 
-            	end if i4
-			endif
+                end if i4
+            endif
 
         endif i1
 

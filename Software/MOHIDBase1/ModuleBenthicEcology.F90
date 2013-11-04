@@ -25,7 +25,7 @@
 !              the Interreg IVB Atlantic Area Programme.
 !
 !              References:
-!	           Dabrowski, T., Lyons, K., Curé, M., Berry, A., Nolan, G., (Accepted)
+!               Dabrowski, T., Lyons, K., Curé, M., Berry, A., Nolan, G., (Accepted)
 !              Numerical modelling of spatio-temporal variability of growth of Mytilus edulis (L.)
 !              and influence of its cultivation on ecosystem functioning. Journal of Sea Research.
 !

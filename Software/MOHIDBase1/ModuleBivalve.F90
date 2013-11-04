@@ -1454,7 +1454,7 @@ do1:        do while (associated(ObjCohort%Next))
 
         101 format(A800)
 
-        OuputHeader =  "!Seconds_1 YY_2	MM_3 DD_4 hh_5 mm_6	ss_7 "                    // &
+        OuputHeader =  "!Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "                    // &
                        "#/m2_8 mol_9 mol_10 mol_11 mol_12 cm_13y_14 m3/d.ind_15 "     // &
                        "g/d.ind_16 mol/d.ind_17 g/d.ind_18 mol/d.ind_19 g/d.ind_20 "  // &
                        "mol/d.ind_21 mol/d.ind_22 g/d.ind_23 mol/d_24 mol/d_25 "      // &

@@ -67,12 +67,12 @@ Module ModuleLagrangianGlobal
 !   next keyword is read if MONITOR_BOX is defined
 !   MONITOR_BOX_PROP_MASS   : char                      []                      !Name of property to monitor Mass in a box
 !   following 3 keywords are read if MONITOR_BOX_PROP_MASS is defined
-! MONITOR_BOX_MASS_FRACTION : 1/2 			            [1]			            !Output Concentration Type of mass monitored in box
-!										                                        1 - Arithmetic; 2 - geometric
-!   MONITOR_BOX_MIN_CONC    : real			            [1]			            !Min. tracer concentration to be included in 
+! MONITOR_BOX_MASS_FRACTION : 1/2                       [1]                     !Output Concentration Type of mass monitored in box
+!                                                                                  1 - Arithmetic; 2 - geometric
+!   MONITOR_BOX_MIN_CONC    : real                      [1]                     !Min. tracer concentration to be included in 
 !                                                                               !average concentration
-!										                                        !and contamination probability in each box
-!   MONITOR_BOX_CONT_DEPTH  : real			            []			            !Depth considered to contamination probability
+!                                                                               !and contamination probability in each box
+!   MONITOR_BOX_CONT_DEPTH  : real                      []                      !Depth considered to contamination probability
 !   EULERIAN_MONITOR_BOX    : char                      []                      !Eulerian results monitoring box
 !   ASSOCIATE_BEACH_PROB    : 0/1                       [0]                     !Associates Beaching Probabilities
 !   DEFAULT_BEACHING_PROB   : real                      [0.5]                   !Outbox Beaching Probability
@@ -80,53 +80,53 @@ Module ModuleLagrangianGlobal
                                                                                 !for particle beaching
 !   BEACHING_BOX_FILENAME   : char                      []                      !Beaching Probability Box definition file
 !   BOXES_BEACHING_PROB     : real(Boxes Number)        []                      !List of Inbox Beaching Probability
-!   DEFAULT_SHORE_TYPE      : 1-11			            [5]			            !Default shoreline type
-!   SHORE_TYPE_BOX_FILENAME : char			            []			            !Shoreline types Boxes data file
-!   REMOVAL_RATE_COEF	    : real			            [0]			            !default removal rate coefficient (in 1/days)
-!   BEACHING_LIMIT_SPATIAL  : 1/2			            [1]			            !Spatial definition for Beaching  Limit
+!   DEFAULT_SHORE_TYPE      : 1-11                      [5]                     !Default shoreline type
+!   SHORE_TYPE_BOX_FILENAME : char                      []                      Shoreline types Boxes data file
+!   REMOVAL_RATE_COEF        : real                     [0]                     !default removal rate coefficient (in 1/days)
+!   BEACHING_LIMIT_SPATIAL  : 1/2                       [1]                     !Spatial definition for Beaching  Limit
                                                                                 !1-Constant 2-Shore Type based
 !   (next keyword is read if BEACHING_LIMIT_SPATIAL = 2)
 !   BEACHING_LIMIT_LIST     : real (Shore types number)                         !List of Beaching Limits for each shore type
-!   REMOVAL_RATE_COEF_SPATIAL: 1/2			            [1]			            !Spatial definition for removal rate coef.
+!   REMOVAL_RATE_COEF_SPATIAL: 1/2                      [1]                        !Spatial definition for removal rate coef.
                                                                                 !1-Constant 2-Shore Type based
 !   (next keyword is read if REMOVAL_RATE_COEF_SPATIAL = 2)
 !   REMOVAL_RATE_COEF_LIST  : real (Shore types number)                         !List of Removal rates for each shore type
 !   OUTPUT_CONC             : 1/2                       [1]                     !OutPut Integration Type
-!                                                                                1 - Maximum 2 - Mean
+!                                                                               1 - Maximum 2 - Mean
 !   OUTPUT_MAX_TRACER       : 0/1                       [0]                     !Checks if the users wants to output the maximum 
-                                                                                 ! tracer concentration in each cell
+                                                                                ! tracer concentration in each cell
 !   OVERLAY_VELOCITY        : 0/1                       [0]                     !If a adicional velocity field is to be added
-!   OUTPUT_TRACER_INFO      : 0/1	                    [0]                     !Output a file with detailed information for 
+!   OUTPUT_TRACER_INFO      : 0/1                       [0]                     !Output a file with detailed information for 
 !                                                                               !each tracer (extension .tro)
 !
 !
-!   OUTPUT_MASS_TRACER      : 0/1			            [0]			            !Checks if the users wants to output the mass per cell
-!   OUTPUT_ORIGIN_ENVELOPE  : 0/1			            [0]			            !output origin envelope
-!   WRITE_DUMMY_PART        : 0/1			            [0]			            !Write dummy particle in the start date if 
+!   OUTPUT_MASS_TRACER      : 0/1                       [0]                     !Checks if the users wants to output the mass per cell
+!   OUTPUT_ORIGIN_ENVELOPE  : 0/1                       [0]                     !output origin envelope
+!   WRITE_DUMMY_PART        : 0/1                       [0]                     !Write dummy particle in the start date if 
 !                                                                               !start emission > start date
-!   COASTLINE_FILE	        : char			            []			            !Coastline file
-!   THINWALLS_FILE          : char			            []			            !Thin walls file
-!   NEW_GRID_CENTER         : Xcoord Ycoord 		    []			            !Recenter the model grid
-!   RUN_ONLINE	            : 0/1			            [0]			            !Run module lagrangian online
-!   IGNORE_ON		        : 0/1		                [0]			            !ignore discharges in land points
-!   COMPUTE_AVERAGE_POSITION: 0/1                       [0]                     !This logical option allows to compute the 		
-!                                                                                average position and the radius of influence of 	
-!                                                                                of the tracers of each origin				
+!   COASTLINE_FILE            : char                    []                      !Coastline file
+!   THINWALLS_FILE          : char                      []                      !Thin walls file
+!   NEW_GRID_CENTER         : Xcoord Ycoord             []                      !Recenter the model grid
+!   RUN_ONLINE                : 0/1                     [0]                     !Run module lagrangian online
+!   IGNORE_ON                : 0/1                      [0]                     !ignore discharges in land points
+!   COMPUTE_AVERAGE_POSITION: 0/1                       [0]                     !This logical option allows to compute the         
+!                                                                                average position and the radius of influence of     
+!                                                                                of the tracers of each origin                
 !   (next keyword is read if COMPUTE_AVERAGE_POSITION = 1)
-!   COEF_RADIUS		        : real			            [1.645]			        ! multiplying factor of particles radius of influence 
-!   STOP_WITH_NO_PART       : 0/1			            [0]			            ! stop model if particles number is zero
+!   COEF_RADIUS                : real                    [1.645]                ! multiplying factor of particles radius of influence 
+!   STOP_WITH_NO_PART       : 0/1                        [0]                    ! stop model if particles number is zero
 !
 !
 !<BeginOrigin>
-!   DEFAULT	                : 0/1                       [0]             	    !????
+!   DEFAULT                    : 0/1                    [0]                     !????
 !   ORIGIN_NAME             : char                      [Origin_xx]             !Name of the origin
 !   OLD                     : 0/1                       [0]                     !Old Origin
 !   GROUP_ID                : integer                   [1]                     !Group to which belong Origin
 !   EMISSION_SPATIAL        : Point/Accident/Box        [-]                     !Spatial emission type
 !   EMISSION_TEMPORAL       : Continuous/Instantaneous  [-]                     !Temporal emission type
-!   EMISSION_ON	            : 0/1  			            [1] 	                !Turn on/off emission
+!   EMISSION_ON                : 0/1                    [1]                     !Turn on/off emission
 !   (next keyword is read if EMISSION_TEMPORAL = Instantaneous)
-!   INSTANT_PARTIC_EMIT	    : YYYY MM DD HH MM SS       [BeginModel]            !instantaneous emission
+!   INSTANT_PARTIC_EMIT        : YYYY MM DD HH MM SS    [BeginModel]            !instantaneous emission
 
 !   (following 3 keywords are read if EMISSION_TEMPORAL = Continuous)
 !   DT_EMIT                 : sec                       [DT_PARTIC]             !Interval between continuous emissions
@@ -140,22 +140,22 @@ Module ModuleLagrangianGlobal
                                                                                 !the variable flow
 !   FLOW_COLUMN             : int                       [ ]                     !Column of the time serie input where is defined
                                                                                 !a variable flow
-!                                                                                (continous emission)
-!   ESTIMATE_MIN_VOL        : 0/1			            [0]			            ! ?????
+!                                                                               (continous emission)
+!   ESTIMATE_MIN_VOL        : 0/1                       [0]                     ! ?????
 !   (next keyword is read if ESTIMATE_MIN_VOL = 1)
-!   MAX_PART                : real			            [10000]			        ! ?????
-!   MAX_VOLUME		        : real 			            []			            ! ?????
+!   MAX_PART                : real                      [10000]                 ! ?????
+!   MAX_VOLUME                : real                    []                      ! ?????
 
 !   (next keyword is read if FLOW_VARIABLE = 0)
 !   FLOW                    : real                      [-]                     !Flow associated to point origin 
 
-!   MOVING_ORIGIN	        : 0/1			            [0]			            !Moving Origin
+!   MOVING_ORIGIN            : 0/1                      [0]                     !Moving Origin
 !   (following 5 keywords are read if MOVING_ORIGIN = 1)
-!   MOVING_ORIGIN_FILE	    : char			            []			            !FileName with Trajectory of origin
-!   MOVING_ORIGIN_UNITS	    : char			            [Cells]			        !Time Serie given in meters or in cells
-!   MOVING_ORIGIN_COLUMN_X  : int			            []			            !Column to read X coordinate values in Moving Origin file
-!   MOVING_ORIGIN_COLUMN_Y  : int			            []			            !Column to read Y coordinate values in Moving Origin file
-!MOVING_ORIGIN_CLOUD_EMISSION:0/1			            [0]			            !Moving Origin Cloud Emission
+!   MOVING_ORIGIN_FILE        : char                    []                      !FileName with Trajectory of origin
+!   MOVING_ORIGIN_UNITS        : char                   [Cells]                 !Time Serie given in meters or in cells
+!   MOVING_ORIGIN_COLUMN_X  : int                       []                      !Column to read X coordinate values in Moving Origin file
+!   MOVING_ORIGIN_COLUMN_Y  : int                       []                      !Column to read Y coordinate values in Moving Origin file
+!MOVING_ORIGIN_CLOUD_EMISSION:0/1                       [0]                     !Moving Origin Cloud Emission
 !   POINT_VOLUME            : real                      [-]                     !Volume of instantanous emission
 !                                                                                (point or accident)
 !   TVOL200                 : real                      [-]                     !Time to double volume
@@ -163,7 +163,7 @@ Module ModuleLagrangianGlobal
 !   VOLFAC                  : real                      [10]                    !Factor of how many times a particle can grow
 !   VOLUME_INCREASE         : Double/Velocity                                   !Type of function to calculate volume increase
 !   FLOAT                   : 0/1                       [0]                     !Floating particle
-!   ACCIDENT_METHOD         : Fay/Thickness             [Fay]                   !Way to calculate initial area of accident		
+!   ACCIDENT_METHOD         : Fay/Thickness             [Fay]                   !Way to calculate initial area of accident        
 !   ACCIDENT_TIME           : YYYY MM DD HH MM SS       [BeginModel]            !Accident time
 !   (next keyword is only read if EMISSION_SPATIAL = Accident and ACCIDENT_METHOD = Thickness)
 !   THICKNESS_METERS        : meters                    []                      !Thickness of floating particles
@@ -191,7 +191,7 @@ Module ModuleLagrangianGlobal
                                                                                 !the wind velocity defined in the atmosphere 
                                                                                 !module is override nad the wind use by the 
                                                                                 !tracers is this one 
-!   SLIP_CONDITION          : 0/1			            [1]			            !avoid particles to be kept stuck in the shoreline
+!   SLIP_CONDITION          : 0/1                       [1]                     !avoid particles to be kept stuck in the shoreline
                                                                                 !due to low velocities
 !   SEDIMENTATION  : Stokes/Imposed/Density Dynamic/Secondary Clarifier   []    !Sedimentation type
 !   (next keyword is read if SEDIMENTATION = Stokes or Density Dynamic)
@@ -203,7 +203,7 @@ Module ModuleLagrangianGlobal
 !   MIN_SED_VELOCITY        : real (m/s)                [0.0]                   !Minimum Sedimention velocity
 !   DEPOSITION              : 0/1                       [0]                     !Checks if the tracers can deposited
 !   (following 6 keywords are read if DEPOSITION = 1)
-!   TAU_ERO                 : real (Pa)                 [0.2]	                !Critical shear stress of erosion
+!   TAU_ERO                 : real (Pa)                 [0.2]                   !Critical shear stress of erosion
 !   TAU_DEP                 : real (Pa)                 [0.1]                   !Critical shear stress of deposition
 !   BOTTOM_DISTANCE         : real (m)                  [0.1]                   !Distance from bottom below which the tracer can 
 !                                                                               !sediment
@@ -222,13 +222,13 @@ Module ModuleLagrangianGlobal
                                                                                 !coordinates
 !   SURFACE_EMISSION        : 0/1                       [0]                     !Checks if the tracers are emited at the surface
 !   (following 3 keywords are read if SURFACE_EMISSION = 0)
-!   DEPTH_FROM_FREE_SURFACE : real (m)			        []			            ! Depth from free surface (including water level)
+!   DEPTH_FROM_FREE_SURFACE : real (m)                  []                      ! Depth from free surface (including water level)
 !   (following keywords are read if DEPTH_FROM_FREE_SURFACE is not defined)
 !   DEPTH_METERS            : meters (from surface)     []                      !Depth of emission relativ to surface
 !   (next keyword is read if DEPTH_METERS is not defined)
 !   DEPTH_CELLS             : Cell                      []                      !Depth in Cells (from bottom)
-!   MAINTAIN_DEPTH          : 0/1			            [0]			            !Depth is kept constant in the whole simulation
-! MAINTAIN_RELATIVE_POSITION: 0/1			            [0]			            !Depth in relation to free surface is kept constant 
+!   MAINTAIN_DEPTH          : 0/1                       [0]                     !Depth is kept constant in the whole simulation
+! MAINTAIN_RELATIVE_POSITION: 0/1                       [0]                     !Depth in relation to free surface is kept constant 
 
 !   (following 3 keywords are read if EMISSION_SPATIAL = Box)
 !   INCRP                   : int                       [1]                     !Increment of grid cells to fill Boxes
@@ -237,125 +237,125 @@ Module ModuleLagrangianGlobal
 !   (next keyword is read if EMISSION_TEMPORAL = Instantaneous)
 !   KILL_PART_INSIDE_BOX    : logical                   [0]                     !Kill all particles inside the emission boxes.   
 
-!   COMPUTE_PLUME           : 0/1                       [0]                     !Computes Particle Plume due density gradients		
+!   COMPUTE_PLUME           : 0/1                       [0]                     !Computes Particle Plume due density gradients        
 !   (following 4 keywords are read if COMPUTE_PLUME = 1)
-!   PLUME_SHEAR             : 0/1			            [1]			            ! Momentum balance in horizontal direction
+!   PLUME_SHEAR             : 0/1                       [1]                     ! Momentum balance in horizontal direction
                                                                                 !Increase of volume tracer due to shear effect
 !   COEF_INITIAL_MIXING     : real                      []                      !Coefficient used to control volume increase due to 
 !                                                                               !velocities gradients between the tracer and the 
 !                                                                               !average flow
-!   JET_DATA_FILE           : char                      [] 		                !Data file where the jet properties are defined
+!   JET_DATA_FILE           : char                      []                      !Data file where the jet properties are defined
 !   JET_DT                  : real  (s)                 [600]                   !Time interval between actualizations of the jet 
 !                                                                               !properties
-!   COMPUTE_BUOYANCY        : 0/1	                    [0]                     !Computes Particle vertical velocity evolution
+!   COMPUTE_BUOYANCY        : 0/1                       [0]                     !Computes Particle vertical velocity evolution
                                                                                 !due to density gradients
 !   DENSITY_METHOD          : int                       [2]                     !Way to calculate particle density 
                                                                                 !(1-LeendertseState_, 
                                                                                 ! 2-UNESCOState_)
-!   PRESSURE_CORRECTION     : 0/1                       [1]			            ! Change density due to pressure correction
+!   PRESSURE_CORRECTION     : 0/1                       [1]                     ! Change density due to pressure correction
                                                                                 ! (works only when DENSITY_METHOD = 2)
 !   (following keyword is read when simulating water Quality)
-!   WQM_DATA_FILE              : character              []                      !Data File of the WQM module				
+!   WQM_DATA_FILE              : character              []                      !Data File of the WQM module                
 
 !   (following 5 keywords are read when simulating Oil Spills)
-!   AREA_METHOD             : int			            [1]			            !Method to compute volume in oil spills
+!   AREA_METHOD             : int                       [1]                     !Method to compute volume in oil spills
                                                                                 ! 1 - GridCells_, 2-VoronoiArea_, 3-FayMethod_
-!   CDISP_OIL_OFF           : real 			            [1.]			        ! maximum fraction of submerged oil where oil 
+!   CDISP_OIL_OFF           : real                      [1.]                    ! maximum fraction of submerged oil where oil 
                                                                                 ! internal processes are computed
-!   OIL_DROPLETS_D50        : real (m) 			        [50e-6]			        ! default median oil droplet diameter
-!   METHOD_BW_DROPLETS_DIAMETER: int			        [1]			            ! method to obtain oil droplets diameter
+!   OIL_DROPLETS_D50        : real (m)                  [50e-6]                 ! default median oil droplet diameter
+!   METHOD_BW_DROPLETS_DIAMETER: int                    [1]                     ! method to obtain oil droplets diameter
                                                                                 ! 1-UserDefined_; 2-Computed_Half_D50_; 
                                                                                 ! 3-Computed_Classes_Random_
-!   METHOD_FLOAT_VEL	    : int			            [1]			            ! method to compute rising velocity of submerged droplets
+!   METHOD_FLOAT_VEL        : int                       [1]                        ! method to compute rising velocity of submerged droplets
                                                                                 ! 1-SoaresDosSantos_; 2-PADM_; 3-Zheng_
-!   COMPUTE_AGE             : 0/1                       [0]                     ! compute the age of particles		
-!   AGE_LIMIT               : real (days)		        []			            ! particle age limit before killing particle
+!   COMPUTE_AGE             : 0/1                       [0]                     ! compute the age of particles        
+!   AGE_LIMIT               : real (days)               []                      ! particle age limit before killing particle
 
-!   ACCIDENT_PROBABILITY    : 0/1			            [0]			            ! Compute Accident Probability
+!   ACCIDENT_PROBABILITY    : 0/1                       [0]                     ! Compute Accident Probability
 !   (following 3 keywords are read if ACCIDENT_PROBABILITY = 1)
-!   DEFAULT_ACCIDENT_PROBABILITY: real 			        [4.45238E-05]		    ! Default accident probability
-!   COMPUTE_RISK	        : 0/1			            [0]			            ! Compute Risk
-!   AREA_VTS		        : 0/1			            [1]			            ! Include VTS area correction factor
-!   BEACHING                : 0/1                       [0]                     !Beaching Process 				
-!   BEACH_REMOVAL	        : 0/1                       [0]                     !include the process of "unbeach" oil
+!   DEFAULT_ACCIDENT_PROBABILITY: real                     [4.45238E-05]        ! Default accident probability
+!   COMPUTE_RISK            : 0/1                       [0]                     ! Compute Risk
+!   AREA_VTS                : 0/1                       [1]                     ! Include VTS area correction factor
+!   BEACHING                : 0/1                       [0]                     !Beaching Process                 
+!   BEACH_REMOVAL            : 0/1                      [0]                     !include the process of "unbeach" oil
 
-!   FLOATING_OBJECT         : 0/1                       [0]			            ! model the tracers as if they were solid floating objects
+!   FLOATING_OBJECT         : 0/1                       [0]                     ! model the tracers as if they were solid floating objects
                                                                                 ! e.g. containers, etc.
 !   (following 3 keywords are read when simulating floating objects mif FLOATING_OBJECT = 1)
-!   AIR_DRAG_COEF           : real			            [1.0]			        !Air drag coefficient
-!   WATER_DRAG_COEF         : real 			            [1.0]			        !Water drag coefficient
-!   IMMERSION_RATIO         : real (in %)		        [50.0]			        !Percentage immersed
+!   AIR_DRAG_COEF           : real                      [1.0]                   !Air drag coefficient
+!   WATER_DRAG_COEF         : real                      [1.0]                   !Water drag coefficient
+!   IMMERSION_RATIO         : real (in %)               [50.0]                  !Percentage immersed
 
 !   (following keyword is read when simulating Human Body trajectories)
-!   DROWNED		    : 0/1			                    []			            ! To model sinking drowned human bodies
+!   DROWNED            : 0/1                            []                      ! To model sinking drowned human bodies
 
 !<<BeginProperty>>
 !   NAME                    : char                      []                      !Name of the property
 !   UNITS                   : char                      []                      !Units of the property
-!   EQUAL_TO_AMBIENT        : 0/1			            [0]			            !Concentration equal to the ambient concentration
+!   EQUAL_TO_AMBIENT        : 0/1                       [0]                     !Concentration equal to the ambient concentration
 !   CONC_VARIABLE           : 0/1                       [0]                     !Check if the user wants a variable concentration
 !   (next 2 keywords are read if CONC_VARIABLE = 1)
-!   DISCHARGE_FILE          : char			            []			            !Filename with information about concentration
+!   DISCHARGE_FILE          : char                      []                      !Filename with information about concentration
 !   CONC_COLUMN             : int                       [ ]                     !Column of the time serie input where is defined 
                                                                                 !a variable concentration
 !   (next keyword is read if CONC_VARIABLE = 0)
 !   CONCENTRATION           : real                      []                      !Concentration of the property
 !   NOWQM                   : 0/1                       [0]                     ! To compute age without running moduleWQM
-!   MIN_CONCENTRATION       : real                      [0.0]			        ! Minimum Concentration
+!   MIN_CONCENTRATION       : real                      [0.0]                   ! Minimum Concentration
 !   AMBIENT_CONC            : real                      [0.0]                   !Ambient concentration
-!   TIME_SERIE              : 0/1                       [0]			            ! Write Property Concentration to Time Serie Output
-!   OUTPUT_HDF		    : 0/1                           [0]			            ! Write Property Concentration to HDF output
+!   TIME_SERIE              : 0/1                       [0]                     ! Write Property Concentration to Time Serie Output
+!   OUTPUT_HDF            : 0/1                         [0]                     ! Write Property Concentration to HDF output
 
 !   (Following 9 keywords are read if NAME = larvae)
-!   VERTICAL_MIGRATION      : 0/1			            [0]			            !include vertical migration in larvae modelling 
-!   LARVAE_MAX_DEPTH        : real (m)			        [100]			        !maximum depth of larvae
-!   LARVAE_MIN_DEPTH        : real (m)			        [10]			        !minimum depth of larvae
-!   LARVAE_VELOCITY         : real (m/s)		        [0.001]			        !constant larvae velocity
-!   RADIATION_LIMIT	    : real			                [0.00]			        !set the radiation limit from where larvae move down
-!   LIGHT_RELATION          : 0/1			            [1]			            !????????
-!   COMPUTE_LARVAE_VELOCITY : 0/1			            [1]			            ! compute larvae velocity 
+!   VERTICAL_MIGRATION      : 0/1                       [0]                     !include vertical migration in larvae modelling 
+!   LARVAE_MAX_DEPTH        : real (m)                  [100]                   !maximum depth of larvae
+!   LARVAE_MIN_DEPTH        : real (m)                  [10]                    !minimum depth of larvae
+!   LARVAE_VELOCITY         : real (m/s)                [0.001]                 !constant larvae velocity
+!   RADIATION_LIMIT        : real                       [0.00]                  !set the radiation limit from where larvae move down
+!   LIGHT_RELATION          : 0/1                       [1]                     !????????
+!   COMPUTE_LARVAE_VELOCITY : 0/1                       [1]                     ! compute larvae velocity 
 !   (next keyword is read if COMPUTE_LARVAE_VELOCITY = 1)
-!   MIGRATION_TIME	    : real (s)			            [18000]			        ! time spent by larvae in one migration process
+!   MIGRATION_TIME        : real (s)                    [18000]                 ! time spent by larvae in one migration process
 
-!   T90                     : real (s)                  [7200]                  !Coliform Decay rate				
+!   T90                     : real (s)                  [7200]                  !Coliform Decay rate                
 !   T90_NAME                : char                      [T90]
 
 !   (Following 9 keywords are read if NAME = fecal coliforms or escherichia coli)
-!   T90_VARIABLE            : 0/1                       [0]                     !Check if the user wants to compute T90 function 	
-!                                                                                of ambient properties: salinity,temperature,light	
+!   T90_VARIABLE            : 0/1                       [0]                     !Check if the user wants to compute T90 function     
+!                                                                                of ambient properties: salinity,temperature,light    
 !   (next keyword is read if T90_VARIABLE = 1)
-!   T90_VAR_METHOD          : int                   	[1]                     !1 - Fecal decay according to Canteras et al. (1995)	
-!   						                                                    !2 - Fecal decay according to Chapra (1997)
-                                                                                !3 - T90 decay from a timeserie			
+!   T90_VAR_METHOD          : int                       [1]                     !1 - Fecal decay according to Canteras et al. (1995)    
+!                                                                               !2 - Fecal decay according to Chapra (1997)
+                                                                                !3 - T90 decay from a timeserie            
 !   (Following 2 keywords are read if T90_VAR_METHOD = 3)
-!   T90_FILE                : char                      []			            !filename with timeserie of T90 values
-!   T90_COLUMN              : int                       []			            !number of with T90 values in timeserie
+!   T90_FILE                : char                      []                        !filename with timeserie of T90 values
+!   T90_COLUMN              : int                       []                        !number of with T90 values in timeserie
 
-!   PARTITION_WATER         : 0/1	                    [0]                     !Checks if the tracers has two phases 			
-!                                                                               !(adsorbe and dissolved) in the water column.		
+!   PARTITION_WATER         : 0/1                        [0]                     !Checks if the tracers has two phases             
+!                                                                               !(adsorbe and dissolved) in the water column.        
 !   (Following 3 keywords are read if PARTITION_WATER = 1)
-!   PARTITION_COEF_WATER    : real                      [0.9]                   ! partition coefficent in the water column		
-!   PARTITION_RATE_WATER    : real  (s-1)               [1e-3]                  !Rate of transfer between the two phases.		
-!   PARTITION_COUPLE_WATER  : real  (M/L^3)             [0.0]                   !Concentration of the dissolved phase. 			
-!                                                                               !The dissolved phase is admitted with a constant 	
-!                                                                               !concentration						
-!   PARTITION_SED           : 0/1                       [0]                     !Checks if the tracers has two phases 			
-!                                                                               !(adsorbe and dissolved) in the sediment		
+!   PARTITION_COEF_WATER    : real                      [0.9]                   ! partition coefficent in the water column        
+!   PARTITION_RATE_WATER    : real  (s-1)               [1e-3]                  !Rate of transfer between the two phases.        
+!   PARTITION_COUPLE_WATER  : real  (M/L^3)             [0.0]                   !Concentration of the dissolved phase.             
+!                                                                               !The dissolved phase is admitted with a constant     
+!                                                                               !concentration                        
+!   PARTITION_SED           : 0/1                       [0]                     !Checks if the tracers has two phases             
+!                                                                               !(adsorbe and dissolved) in the sediment        
 !   (Following 3 keywords are read if PARTITION_SED = 1)
-!   PARTITION_COEF_SED     : real                   	[0.98]                  ! partition coefficent in the sediment			
-!   PARTITION_RATE_SED     : real   (s-1)               [1e-4]                  !Rate of transfer between the two phases.		
-!   PARTITION_COUPLE_SED   : real   (M/L^3)             [0]                 	!Concentration of the dissolved phase in the 		
-!                                                                               !intersticial water. The dissolved phase is 		
-!                                                                               !admitted with a constant concentration.		
-!   EXTINCTION_PARAMETER   : real			            [1.]			        !parameter to compute effect of the property in
+!   PARTITION_COEF_SED     : real                       [0.98]                  ! partition coefficent in the sediment            
+!   PARTITION_RATE_SED     : real   (s-1)               [1e-4]                  !Rate of transfer between the two phases.        
+!   PARTITION_COUPLE_SED   : real   (M/L^3)             [0]                     !Concentration of the dissolved phase in the         
+!                                                                               !intersticial water. The dissolved phase is         
+!                                                                               !admitted with a constant concentration.        
+!   EXTINCTION_PARAMETER   : real                        [1.]                    !parameter to compute effect of the property in
                                                                                 ! light extinction
 !   FILTRATION             : 0/1                        [0]                     !property being filtered from the water column
-!   MIN_VALUE		   : real                           []			            !set a minimum value for the property
-!   MAX_VALUE              : real			            []			            !set a maximum value for the property
-!   HAS_ODOUR              : 0/1			            [0]			            !compute odour taking this property into account
+!   MIN_VALUE           : real                           []                        !set a minimum value for the property
+!   MAX_VALUE              : real                        []                        !set a maximum value for the property
+!   HAS_ODOUR              : 0/1                        [0]                        !compute odour taking this property into account
 !   (next keyword is read if HAS_ODOUR = 1)
-!   ODOUR_CONC_THRESHOLD   : real  (mg/m3)		        [*]			            !*: Methane = 25.16; HydrogenSulfide = 6.58e-4
-!									                                            !   MethylMercaptan_ = 2e-3
+!   ODOUR_CONC_THRESHOLD   : real  (mg/m3)                [*]                        !*: Methane = 25.16; HydrogenSulfide = 6.58e-4
+!                                                                                !   MethylMercaptan_ = 2e-3
 !<<EndProperty>>
 
 !  parameters from the Module Oil
@@ -366,11 +366,11 @@ Module ModuleLagrangianGlobal
 
 !<BeginBooms>
 !<<BeginIndividualBoom>>
-!   NAME			    	: char			            [BOOM X]
-!   DESCRIPTION			    : char			            [Boom to contain a oil spill]			
-!   VEL_THRESHOLD			: m/s			            [0.4]
-!   WAVE_THRESHOLD			: m			                [0.6]
-!   FILENAME			    : char			            []
+!   NAME                    : char                        [BOOM X]
+!   DESCRIPTION                : char                        [Boom to contain a oil spill]            
+!   VEL_THRESHOLD            : m/s                        [0.4]
+!   WAVE_THRESHOLD            : m                            [0.6]
+!   FILENAME                : char                        []
 !<<EndIndividualBoom>>
 !<EndBooms>
 
@@ -9157,17 +9157,17 @@ i1:     if (OilSectionFound .and. .not. NewOrigin%Old) then
                 write(*,*) 'Number of box values is incorrect:'
                 write(*,*) '    NumberOfBoxes =', NumberOfBoxes
                 write(*,*) '    BoxesData   =', flag
-                stop       'Subroutine VerifyBeachingProbabilities; Module ModuleLagrangianGlobal. ERR04.'
+                stop       'Subroutine VerifyBeachingProbabilities - ModuleLagrangianGlobal. ERR04.'
 
             else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                               &
                      (STAT_CALL .NE. SUCCESS_)) then                                                                        
-                stop 'Subroutine VerifyBeachingProbabilities; Module ModuleLagrangianGlobal. ERR05.'
+                stop 'Subroutine VerifyBeachingProbabilities - ModuleLagrangianGlobal. ERR05.'
             end if               
 
             if (flag==0) then
                 write(*,*) 
                 write(*,*) 'Error do not have the box beaching probability.'           
-                stop       'Subroutine VerifyBeachingProbabilities; Module ModuleLagrangianGlobal. ERR06.'
+                stop       'Subroutine VerifyBeachingProbabilities - ModuleLagrangianGlobal. ERR06.'
             end if
 
         endif
@@ -9271,17 +9271,17 @@ d1:     do em = 1, Me%EulerModelNumber
                 write(*,*) 'Number of box values is incorrect:'
                 write(*,*) '    NumberOfBoxes =', NumberOfBoxes
                 write(*,*) '    BoxesData   =', flag
-                stop       'Subroutine VerifyShoreTypes; Module ModuleLagrangianGlobal. ERR04.'
+                stop       'Subroutine VerifyShoreTypes - ModuleLagrangianGlobal. ERR04.'
 
             else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                               &
                      (STAT_CALL .NE. SUCCESS_)) then                                                                        
-                stop 'Subroutine VerifyShoreTypes; Module ModuleLagrangianGlobal. ERR05.'
+                stop 'Subroutine VerifyShoreTypes - ModuleLagrangianGlobal. ERR05.'
             end if               
 
             if (flag==0) then
                 write(*,*) 
                 write(*,*) 'Error do not have the box beaching probability.'           
-                stop       'Subroutine VerifyShoreTypes; Module ModuleLagrangianGlobal. ERR06.'
+                stop       'Subroutine VerifyShoreTypes - ModuleLagrangianGlobal. ERR06.'
             end if
 
         endif
@@ -9303,17 +9303,17 @@ d1:     do em = 1, Me%EulerModelNumber
                 write(*,*) 'Number of values defined is incorrect:'
                 write(*,*) '    Number of Shore Types =', ShoreTypesNbr
                 write(*,*) '    Number of Values defined   =', flag
-                stop       'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR04.'
+                stop       'Subroutine BoxTypeVariablesDefiniton - ModuleLagrangianGlobal. ERR04.'
 
             else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                               &
                      (STAT_CALL .NE. SUCCESS_)) then                                                                        
-                stop 'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR05.'
+                stop 'Subroutine BoxTypeVariablesDefiniton - ModuleLagrangianGlobal. ERR05.'
             end if               
 
             if (flag==0) then
                 write(*,*) 
                 write(*,*) 'Error do not have the beaching limit list.'           
-                stop       'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR06.'
+                stop       'Subroutine BoxTypeVariablesDefiniton - ModuleLagrangianGlobal. ERR06.'
             end if
 
         endif
@@ -9335,17 +9335,17 @@ d1:     do em = 1, Me%EulerModelNumber
                 write(*,*) 'Number of values defined is incorrect:'
                 write(*,*) '    Number of Shore Types =', ShoreTypesNbr
                 write(*,*) '    Number of Values defined   =', flag
-                stop       'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR07.'
+                stop       'Subroutine BoxTypeVariablesDefiniton - ModuleLagrangianGlobal. ERR07.'
 
             else if ((STAT_CALL .NE. SIZE_ERR_) .AND.                               &
                      (STAT_CALL .NE. SUCCESS_)) then                                                                        
-                stop 'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR08.'
+                stop 'Subroutine BoxTypeVariablesDefiniton - ModuleLagrangianGlobal. ERR08.'
             end if               
 
             if (flag==0) then
                 write(*,*) 
                 write(*,*) 'Error do not have the removal rate coef list.'           
-                stop       'Subroutine BoxTypeVariablesDefiniton; Module ModuleLagrangianGlobal. ERR09.'
+                stop       'Subroutine BoxTypeVariablesDefiniton - ModuleLagrangianGlobal. ERR09.'
             end if
 
         endif

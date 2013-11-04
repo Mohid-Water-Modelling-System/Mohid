@@ -6175,7 +6175,7 @@ dConv:  do while (iteration <= Niteration)
                 !the same time increasing Final Head in top cell and decreasing infil. vel.
                 hinf_aux = Me%FinalHead(i, j, KUB) - Me%HydroPressure(i,j,KUB)
                 
-				!for tests only - by default nothing changes - saturation conduct
+                !for tests only - by default nothing changes - saturation conduct
                 if (Me%SoilOpt%InfiltrationConductivity == UnSatCond_) then
                     Conductivity = Me%UnSatK (i, j, KUB)
                 elseif (Me%SoilOpt%InfiltrationConductivity == SatCond_) then

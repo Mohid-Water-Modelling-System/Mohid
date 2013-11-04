@@ -427,7 +427,7 @@ if1 :           if (validwave) then
                 else
                     write (*,90) WaveName(I)
 90                  format(//////T25,'W A R N I N G !!!',//T25, 'Routine ASTRO cannot find constituent ',A5 /////)
-                    stop 'Subroutine ConstructToga; Module ModuleToga. ERR02'
+                    stop 'Subroutine ConstructToga - ModuleToga. ERR02'
                 end if if1
             end do do2
 
@@ -717,7 +717,7 @@ if1 :               if (KonTB(L) .EQ. KONCO(J)) Then
                     end do do2
 
                     Write (*,241) KONCO(J)
-                    STOP 'Subroutine ASTRO; Module ModuleToga. ERR01' 
+                    STOP 'Subroutine ASTRO - ModuleToga. ERR01' 
                 end do do3
                 JBASE = JL
             end do do1

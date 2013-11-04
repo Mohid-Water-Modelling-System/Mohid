@@ -5941,29 +5941,29 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                     deallocate(Algae%NLim, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'subroutine Kill_CEQUALW2; module ModuleCEQUALW2. ERR05.'
+                    stop 'subroutine Kill_CEQUALW2 - ModuleCEQUALW2. ERR05.'
                     nullify(Algae%NLim)
 
                     deallocate(Algae%PLim, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'subroutine Kill_CEQUALW2; module ModuleCEQUALW2. ERR05.'
+                    stop 'subroutine Kill_CEQUALW2 - ModuleCEQUALW2. ERR05.'
                     nullify(Algae%PLim)
 
                     deallocate(Algae%SLim, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'subroutine Kill_CEQUALW2; module ModuleCEQUALW2. ERR05.'
+                    stop 'subroutine Kill_CEQUALW2 - ModuleCEQUALW2. ERR05.'
                     nullify(Algae%SLim)
 
 
                     deallocate(Algae%LightLim, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'subroutine Kill_CEQUALW2; module ModuleCEQUALW2. ERR06.'
+                    stop 'subroutine Kill_CEQUALW2 - ModuleCEQUALW2. ERR06.'
                     nullify(Algae%LightLim)
 
 
                     deallocate(Algae%OverallLim, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'subroutine Kill_CEQUALW2; module ModuleCEQUALW2. ERR08.'
+                    stop 'subroutine Kill_CEQUALW2 - ModuleCEQUALW2. ERR08.'
                     nullify(Algae%OverallLim)
 
                     Algae => Algae%Next
@@ -5977,24 +5977,24 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                     deallocate(Epiphyton%NLim, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'subroutine Kill_CEQUALW2; module ModuleCEQUALW2. ERR012.'
+                    stop 'subroutine Kill_CEQUALW2 - ModuleCEQUALW2. ERR012.'
                     nullify(Epiphyton%NLim)
 
                     deallocate(Epiphyton%LightLim, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'subroutine Kill_CEQUALW2; module ModuleCEQUALW2. ERR013.'
+                    stop 'subroutine Kill_CEQUALW2 - ModuleCEQUALW2. ERR013.'
                     nullify(Epiphyton%LightLim)
 
 
                     deallocate(Epiphyton%SLim, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'subroutine Kill_CEQUALW2; module ModuleCEQUALW2. ERR014a.'
+                    stop 'subroutine Kill_CEQUALW2 - ModuleCEQUALW2. ERR014a.'
                     nullify(Epiphyton%SLim)
 
 
                     deallocate(Epiphyton%OverallLim, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'subroutine Kill_CEQUALW2; module ModuleCEQUALW2. ERR015.'
+                    stop 'subroutine Kill_CEQUALW2 - ModuleCEQUALW2. ERR015.'
                     nullify(Epiphyton%OverallLim)
 
                     Epiphyton => Epiphyton%Next
@@ -6005,12 +6005,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                     deallocate(Me%Rate%Value, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
-                        stop 'subroutine Kill_CEQUALW2; module ModuleCEQUALW2. ERR016.'
+                        stop 'subroutine Kill_CEQUALW2 - ModuleCEQUALW2. ERR016.'
                     nullify(Me%Rate%Value)
 
                     deallocate(Me%Rate%Match, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
-                        stop 'subroutine Kill_CEQUALW2; module ModuleCEQUALW2. ERR017.'
+                        stop 'subroutine Kill_CEQUALW2 - ModuleCEQUALW2. ERR017.'
                     nullify(Me%Rate%Match)
 
                  endif

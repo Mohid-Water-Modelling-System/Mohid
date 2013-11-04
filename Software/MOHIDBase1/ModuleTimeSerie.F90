@@ -311,7 +311,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule ='ModuleTimeSerie',                       &
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                        &
-                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie; Module ModuleTimeSerie. ERR20") 
+                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie - ModuleTimeSerie. ERR20") 
 
             call GetData(Me%ComputeResidual,                                    &
                          Me%ObjEnterData,                                       &
@@ -322,7 +322,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule ='ModuleTimeSerie',                       &
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                        &
-                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie; Module ModuleTimeSerie. ERR30") 
+                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie - ModuleTimeSerie. ERR30") 
 
             call GetData(Me%ReplacePath,                                        &
                          Me%ObjEnterData,                                       &
@@ -333,7 +333,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule ='ModuleTimeSerie',                       &
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                        &
-                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie; Module ModuleTimeSerie. ERR40") 
+                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie - ModuleTimeSerie. ERR40") 
 
             if (flag > 0) Me%ReplacePathON = .true. 
 
@@ -346,7 +346,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule ='ModuleTimeSerie',                       &
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                        &
-                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie; Module ModuleTimeSerie. ERR50") 
+                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie - ModuleTimeSerie. ERR50") 
 
             !Stores the number of properties
             Me%NumberOfProperties = size(PropertyList)
