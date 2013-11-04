@@ -3116,7 +3116,6 @@ d1:     do em = 1, Me%EulerModelNumber
                 
                 allocate (Me%EulerModel(em)%Lag2Euler%GridBeachingTime(ILB:IUB, JLB:JUB, 1:Me%NGroups))
                 Me%EulerModel(em)%Lag2Euler%GridBeachingTime(:,:,:) = 0.
-                
             endif
         enddo d1
 
@@ -19359,7 +19358,7 @@ i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTempo
                     call WriteOilGridConcentration   (em, OutputNumber)
                     call WriteOilGridConcentration3D (em, OutputNumber)
                     call WriteOilGridDissolution3D   (em, OutputNumber)
-                    if (Me%State%AssociateBeachProb) call WriteOilPresence(em, OutputNumber)
+                    call WriteOilPresence            (em, OutputNumber)
                 endif
 
 i1:             if (nP>0) then
@@ -22662,7 +22661,7 @@ i1:     if (Me%Statistic%OptionsStat(p)%Lag) then
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                     :: WS_KLB, WS_KUB
 
-            !Shorten
+        !Shorten
         ILB    = Me%EulerModel(em)%Size%ILB
         IUB    = Me%EulerModel(em)%Size%IUB
         JLB    = Me%EulerModel(em)%Size%JLB
@@ -22701,17 +22700,22 @@ CurrOr:     do while (associated(CurrentOrigin))
                                    Array2D = Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime, &
                                    OutputNumber = OutputNumber)
                                    
-                Aux2D => Me%EulerModel(em)%Lag2Euler%GridBeachingTime(:,:,ig)
-                
-                call HDF5WriteData(Me%ObjHDF5(em),                          &
-                                   "/Results/"//trim(CurrentOrigin%Name)    &
-                                   //"/Data_2D/Beaching Time",              &
-                                   "Beaching Time",                         &
-                                   "-",                                     &
-                                   Array2D = Aux2D,                         &
-                                   OutputNumber = OutputNumber)
                                    
-                nullify(Aux2D)
+                if(Me%State%AssociateBeachProb)then                     
+                                   
+                    Aux2D => Me%EulerModel(em)%Lag2Euler%GridBeachingTime(:,:,ig)
+                    
+                    call HDF5WriteData(Me%ObjHDF5(em),                          &
+                                       "/Results/"//trim(CurrentOrigin%Name)    &
+                                       //"/Data_2D/Beaching Time",              &
+                                       "Beaching Time",                         &
+                                       "-",                                     &
+                                       Array2D = Aux2D,                         &
+                                       OutputNumber = OutputNumber)
+                                   
+                    nullify(Aux2D)
+                    
+                endif
 
                 CurrentOrigin => CurrentOrigin%Next
                 
