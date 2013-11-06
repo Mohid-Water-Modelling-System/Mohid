@@ -6289,9 +6289,11 @@ doF:    do
 
             call ReadHDF5Values2D(Me%HDF%PreviousInstant, Me%HDF%PreviousField2D)
             do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
-            do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
+            do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+#ifndef _NOT_IEEE_ARITHMETIC                    
                 if (ieee_is_nan (Me%HDF%PreviousField2D(i,j))) &
                     Me%HDF%PreviousField2D(i,j) = FillValueReal
+#endif                    
                 if (abs(Me%HDF%PreviousField2D(i,j)) > abs(FillValueReal)) &
                     Me%HDF%PreviousField2D(i,j) = FillValueReal            
             enddo
@@ -6300,8 +6302,10 @@ doF:    do
             call ReadHDF5Values2D(Me%HDF%NextInstant, Me%HDF%NextField2D)
             do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+#ifndef _NOT_IEEE_ARITHMETIC            
                 if (ieee_is_nan (Me%HDF%NextField2D(i,j))) &
                     Me%HDF%NextField2D (i,j) = FillValueReal                      
+#endif                    
                 if (abs(Me%HDF%NextField2D(i,j)) > abs(FillValueReal)) &
                     Me%HDF%NextField2D (i,j) = FillValueReal
             enddo
