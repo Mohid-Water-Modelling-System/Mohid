@@ -1106,7 +1106,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             Me%ValueInsteadNegativeLAI = 0.0
             Me%VegetationDT = 0.0
-            Me%LastVegetationDT = 0.0
             
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
@@ -1783,6 +1782,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) &
                 stop 'ReadOptions - ModuleVegetation - ERR370'
+            Me%LastVegetationDT = Me%ComputeOptions%VegetationDT
                                        
             call GetData(Me%ComputeOptions%IntegrationDT,   &
                          Me%ObjEnterData, iflag,            &
@@ -1855,9 +1855,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ComputeOptions%IntegrationDT = Me%ExternalVar%DT
         endif
         
-        Me%NextCompute     = Me%ExternalVar%Now !+ Me%ComputeOptions%VegetationDT
+        Me%NextCompute     = Me%ExternalVar%Now + Me%ComputeOptions%VegetationDT
 
-        Me%NextIntegration = Me%ExternalVar%Now !+ Me%ComputeOptions%IntegrationDT
+        Me%NextIntegration = Me%ExternalVar%Now + Me%ComputeOptions%IntegrationDT
         
         call GetData(Me%AllowNegativeLAI,                 &
                      Me%ObjEnterData, iflag,              &
@@ -3563,7 +3563,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             Me%Fluxes%NitrogenUptake (:,:) = 0.0 
             
             allocate(Me%Fluxes%NitrogenUptakeLayer (ILB:IUB,JLB:JUB,KLB:KUB))              
-            Me%Fluxes%NitrogenUptakeLayer (:,:,:) = 0.0 
+            Me%Fluxes%NitrogenUptakeLayer (:,:,:) = 0.0
+            
+            Me%Fluxes%FromSoil%NitrogenUptakeFromSoil => Me%Fluxes%NitrogenUptakeLayer
         endif
 
         if (Me%ComputeOptions%ModelPhosphorus) then
