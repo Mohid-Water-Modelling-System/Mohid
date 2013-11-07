@@ -18,15 +18,15 @@
     !DataFile example
     !
     !DT                   : 1800.
-    !DENSITY_UNITS        : 1 !0:m2, 1:m3
+    !DENSITY_UNITS        : 0 !0:m2, 1:m3
     !BIVALVE_OUTPUT_TIME  : 0 1800.
     !PELAGIC_MODEL        : WaterQuality
     !NITROGEN             : 1
     !PHOSPHOR             : 1
     !SIMPLE_FILTRATION    : 0
     !CORRECT_FILTRATION   : 1
-    !INDEX_OUTPUT         : 411 ! cell for tim eserie results
-    !MASS_BALANCE         : 1 ! only works with no predation + the same NC ratio for food and bivalve (or with life) + complex filtrat
+    !INDEX_OUTPUT         : 411 ! cell for time serie results
+    !MASS_BALANCE         : 1 ! only works with no predation + the same NC ratio food/bivalve (or with life) + complex filtrat
     !MIN_NUMBER           : 1 ! minimum number of organism in a cohort
     !TESTING_PARAMETERS   : 0 ! 0/1, the name of the output file will incude the parameters
     !
@@ -90,6 +90,8 @@
     !MAX_VELOCITY         : 0.5      !m/s, maximum  water velocity tolerable for this species
     !M_NATURAL            : 0.50000E-02
     !M_SPAT               : 0.9
+    !DENSITYLIMIT         : 1        ! density limitation?
+    !DENSITY_MAXVALUE     : 3000     !3000 #/m2, maxium density found in field observations       
     !V_COND               : 0.056    !0.056, cm/d, energy conductance (Saraiva etal., in press)
     !KAPPA                : 0.67     !0.67, adim, allocation fraction to growth/somatic maintenace (Saraiva etal., in press)
     !KAP_R                : 0.95     !0.95, adim, fraction of flux allocated to reproduction (Kooijman, 2010)
@@ -397,50 +399,52 @@
     end type T_StateIndex 
 
     type    T_IndividualParameters
-        real                             :: Tref           = null_real !K, Rate Temperature reference
-        real                             :: TA             = null_real !K, Arrhenius Temp
-        real                             :: TL             = null_real !K, Lower Boundary tolerance range
-        real                             :: TH             = null_real !K, Upper Boundary tolerance range
-        real                             :: TAL            = null_real !K, Arrhenius lower boundary
-        real                             :: TAH            = null_real !K, Arrhenius upper boundary
-        real                             :: F_FIX          = null_real !adim, constant food density parameter
-        real                             :: PAM_FIX        = null_real !Jd-1cm-2, bivalve sur-spec assimilation rate
-        real                             :: delta_M        = null_real !cm(volumetric)/cm(real), shape coefficient
-        real                             :: Em             = null_real !cm(volumetric)/cm(real), shape coefficient        
-        real                             :: LifeSpan       = null_real !years, max life span
-        real                             :: m_wrongSettle  = null_real !/d, fraction of the ones that settle in the wrong place
-        real                             :: m_velocity     = null_real !/d, fraction of individuals that die from high velocity
-        real                             :: MAX_velocity   = null_real !m/s, maximum  water velocity tolerable for this species
-        real                             :: m_natural      = null_real !/d, constant natural mortality rate
-        real                             :: m_spat         = null_real !/d, constant natural mortality rate
-        real                             :: v_cond         = null_real !cm/d, energy conductance
-        real                             :: kappa          = null_real !adim, allocation fraction to growth/SomMaintenace
-        real                             :: kap_R          = null_real !adim, reproduction efficiency
-        real                             :: pM             = null_real !J/(d.cm3), volume specific somatic maintenace
-        real                             :: EG             = null_real !J/cm3(volumetric), energy costs for structure
-        real                             :: EHb            = null_real !J, maturity threshold for birth
-        real                             :: EHp            = null_real !J, maturity threshold for puberty
-        real                             :: Crm            = null_real !m3/d.cm2, maximum clearance rate
-        real                             :: JX1Fm          = null_real !molC/(d.cm2),max surf area-specific filt algae
-        real                             :: JX0Fm          = null_real !g/(d.cm2),max surf area-specific filt for inorgmat
-        real                             :: ro_X1          = null_real !adim, binding  probability for algae
-        real                             :: ro_X0          = null_real !adim, binding  probability for inorganic material        
-        real                             :: JX1Im          = null_real !molC/d, max surf area-spec ing rate for algae
-        real                             :: JX0Im          = null_real !molC/d, max surf area-spec ing rate for inorg mat
-        real                             :: YEX            = null_real !molCE/molCX, yield coef of reser in algae struc       
-        real                             :: GSR_MIN        = null_real !molCE/molCV, min GSR in the organism
-        real                             :: GSR_SPAWN      = null_real !molCE/molCV, gonado-somatic ratio to spawn
-        real                             :: T_SPAWN        = null_real !oC, minimum temperature for spawning
-        real                             :: MIN_SPAWN_TIME = null_real !d, minimum time interval between spawning events
-        real                             :: ME_0           = null_real !molC, reserves in an embryo at optimal food
-        real                             :: MEb            = null_real !molC, reserves in a new born at optimal food
-        real                             :: MVb            = null_real !molC, structure in a new born at optimal food
-        real                             :: MHb            = null_real !molC, maturity in a new born at optimal food
-        real                             :: Lb             = null_real !molC, length in a new born at optimal food
-        real                             :: d_V            = null_real !g(dw)/cm3, density of  structure
-        real                             :: mu_E           = null_real !J/molC(reser), chemical potential of reserves          
-        integer                          :: SIMPLE_ASSI    = null_int  !1/0,Compute simple assimilation? 
-        integer                          :: SIMPLE_TEMP    = null_int  !1/0,Compute simple temperature correction factor?
+        real                             :: Tref               = null_real !K, Rate Temperature reference
+        real                             :: TA                 = null_real !K, Arrhenius Temp
+        real                             :: TL                 = null_real !K, Lower Boundary tolerance range
+        real                             :: TH                 = null_real !K, Upper Boundary tolerance range
+        real                             :: TAL                = null_real !K, Arrhenius lower boundary
+        real                             :: TAH                = null_real !K, Arrhenius upper boundary
+        real                             :: F_FIX              = null_real !adim, constant food density parameter
+        real                             :: PAM_FIX            = null_real !Jd-1cm-2, bivalve sur-spec assimilation rate
+        real                             :: delta_M            = null_real !cm(volumetric)/cm(real), shape coefficient
+        real                             :: Em                 = null_real !cm(volumetric)/cm(real), shape coefficient        
+        real                             :: LifeSpan           = null_real !years, max life span
+        real                             :: m_wrongSettle      = null_real !/d, fraction of the ones that settle in the wrong place
+        real                             :: m_velocity         = null_real !/d, fraction of individuals that die from high velocity
+        real                             :: MAX_velocity       = null_real !m/s, maximum  water velocity tolerable for this species
+        real                             :: m_natural          = null_real !/d, constant natural mortality rate
+        real                             :: m_spat             = null_real !/d, constant natural mortality rate
+        logical                          :: DensityLimOption   = .false.   !density limitation?
+        real                             :: MAX_density        = null_real !3000 #/m2, maxium density found in field observations       
+        real                             :: v_cond             = null_real !cm/d, energy conductance
+        real                             :: kappa              = null_real !adim, allocation fraction to growth/SomMaintenace
+        real                             :: kap_R              = null_real !adim, reproduction efficiency
+        real                             :: pM                 = null_real !J/(d.cm3), volume specific somatic maintenace
+        real                             :: EG                 = null_real !J/cm3(volumetric), energy costs for structure
+        real                             :: EHb                = null_real !J, maturity threshold for birth
+        real                             :: EHp                = null_real !J, maturity threshold for puberty
+        real                             :: Crm                = null_real !m3/d.cm2, maximum clearance rate
+        real                             :: JX1Fm              = null_real !molC/(d.cm2),max surf area-specific filt algae
+        real                             :: JX0Fm              = null_real !g/(d.cm2),max surf area-specific filt for inorgmat
+        real                             :: ro_X1              = null_real !adim, binding  probability for algae
+        real                             :: ro_X0              = null_real !adim, binding  probability for inorganic material        
+        real                             :: JX1Im              = null_real !molC/d, max surf area-spec ing rate for algae
+        real                             :: JX0Im              = null_real !molC/d, max surf area-spec ing rate for inorg mat
+        real                             :: YEX                = null_real !molCE/molCX, yield coef of reser in algae struc       
+        real                             :: GSR_MIN            = null_real !molCE/molCV, min GSR in the organism
+        real                             :: GSR_SPAWN          = null_real !molCE/molCV, gonado-somatic ratio to spawn
+        real                             :: T_SPAWN            = null_real !oC, minimum temperature for spawning
+        real                             :: MIN_SPAWN_TIME     = null_real !d, minimum time interval between spawning events
+        real                             :: ME_0               = null_real !molC, reserves in an embryo at optimal food
+        real                             :: MEb                = null_real !molC, reserves in a new born at optimal food
+        real                             :: MVb                = null_real !molC, structure in a new born at optimal food
+        real                             :: MHb                = null_real !molC, maturity in a new born at optimal food
+        real                             :: Lb                 = null_real !molC, length in a new born at optimal food
+        real                             :: d_V                = null_real !g(dw)/cm3, density of  structure
+        real                             :: mu_E               = null_real !J/molC(reser), chemical potential of reserves          
+        integer                          :: SIMPLE_ASSI        = null_int  !1/0,Compute simple assimilation? 
+        integer                          :: SIMPLE_TEMP        = null_int  !1/0,Compute simple temperature correction factor?
     end type T_IndividualParameters          
 
     type     T_AuxiliarParameters       
@@ -1454,7 +1458,7 @@ do1:        do while (associated(ObjCohort%Next))
 
         101 format(A800)
 
-        OuputHeader =  "!Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "                    // &
+        OuputHeader =  "!Seconds_1 YY_2	MM_3 DD_4 hh_5 mm_6	ss_7 "                    // &
                        "#/m2_8 mol_9 mol_10 mol_11 mol_12 cm_13y_14 m3/d.ind_15 "     // &
                        "g/d.ind_16 mol/d.ind_17 g/d.ind_18 mol/d.ind_19 g/d.ind_20 "  // &
                        "mol/d.ind_21 mol/d.ind_22 g/d.ind_23 mol/d_24 mol/d_25 "      // &
@@ -2425,6 +2429,30 @@ do1:        do while (associated(ObjCohort%Next))
 
                     if (STAT_CALL .NE. SUCCESS_)              &
                     stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR43'
+                    
+        !logical, assume dnesity limitation? 
+        call GetData(IndividualParameters%DensityLimOption  , &
+                    Me%ObjEnterData, flag                   , &
+                    SearchType   = FromBlock                , &
+                    keyword      = 'DENSITYLIMIT'           , &
+                    default      = .false.                  , &
+                    ClientModule = 'ModuleBivalve'          , & 
+                    STAT         = STAT_CALL)
+
+                    if (STAT_CALL .NE. SUCCESS_)              &
+                    stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR44'
+
+        !#/m2, maximum density found in the observations 
+        call GetData(IndividualParameters%MAX_density       , &
+                    Me%ObjEnterData, flag                   , &
+                    SearchType   = FromBlock                , &
+                    keyword      = 'DENSITY_MAXVALUE'       , &
+                    default      = 3000.0                   , &
+                    ClientModule = 'ModuleBivalve'          , & 
+                    STAT         = STAT_CALL)
+
+                    if (STAT_CALL .NE. SUCCESS_)              &
+                    stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR45'
 
     end subroutine ConstructIndividualParameters
 
@@ -4671,8 +4699,8 @@ d2:         do while (associated(Cohort))
                     Number  = Cohort%StateIndex%Number
 
                     !Mortality by velocity, #/d.m3
-                    Cohort%Processes%DeathByVelocity = Me%ExternalVar%Mass(Number,Index)             * &
-                                                      Species%IndividualParameters%m_velocity
+                    Cohort%Processes%DeathByVelocity = (Me%ExternalVar%Mass(Number,Index)             * &
+                                                      Species%IndividualParameters%m_velocity) / Me%DTDay
                                                       
 
                     !update the number of organisms in mass matrix
@@ -4752,6 +4780,7 @@ d2:         do while (associated(Cohort))
         type(T_Cohort)     , pointer :: Cohort
         integer                      :: Number, M_V, M_E, M_R
         integer                      :: POC, PON, POP
+        real                         :: NumberToSettle, NumberToDieFromDensityLimit
 
         !Begin-----------------------------------------------------------------
         
@@ -4772,11 +4801,28 @@ d2:         do while (associated(Cohort))
                     Cohort%Processes%DeathByWrongSettlement = Me%ExternalVar%Mass(Number,Index)          * &
                                                               (1 - Species%SettlementProbability(Index)) / &
                                                               Me%DTDay
+
+
+
+                    !Mortality by DensityLimitations, #/d.m3
+                    if(Species%IndividualParameters%DensityLimOption) then
+                    
+                        !#/m2
+                        NumberToSettle = Species%IndividualParameters%MAX_density - Species%PopulationProcesses%TNStartTimeStep
+
+                        !#/m2
+                        NumberToDieFromDensityLimit = Me%ExternalVar%Mass(Number,Index) - NumberToSettle
+                        
+                    
+                        Cohort%Processes%DeathByWrongSettlement = Cohort%Processes%DeathByWrongSettlement + &
+                                                                  NumberToDieFromDensityLimit             / &
+                                                                  Me%DTDay
+                    end if
                                                       
 
                     !update the number of organisms in mass matrix
                     Me%ExternalVar%Mass(Number,Index) = Me%ExternalVar%Mass(Number,Index)           - &
-                                                        (Cohort%Processes%DeathByVelocity * Me%DTDay)
+                                                        (Cohort%Processes%DeathByWrongSettlement * Me%DTDay)
                                          
                     if (Me%ExternalVar%Mass(Number,Index) .eq. 0.0) then 
                     !they all died
@@ -4796,7 +4842,7 @@ d2:         do while (associated(Cohort))
                                                         (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
                                                         Species%SpeciesComposition%ReservesComposition%nN )               * &
                                                         Species%AuxiliarParameters%N_AtomicMass                           * &
-                                                        Cohort%Processes%DeathByVelocity * Me%DTDay           
+                                                        Cohort%Processes%DeathByWrongSettlement * Me%DTDay           
 
                         if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
 
@@ -4809,7 +4855,7 @@ d2:         do while (associated(Cohort))
                                                         (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
                                                         Species%SpeciesComposition%ReservesComposition%nP )               * &
                                                         Species%AuxiliarParameters%P_AtomicMass                           * &
-                                                        Cohort%Processes%DeathByVelocity * Me%DTDay           
+                                                        Cohort%Processes%DeathByWrongSettlement * Me%DTDay           
 
                             end if
 
@@ -4820,7 +4866,7 @@ d2:         do while (associated(Cohort))
                                                             ( Me%ExternalVar%Mass(M_V,Index)             + &
                                                             Me%ExternalVar%Mass(M_E,Index)               + &
                                                             Me%ExternalVar%Mass(M_R,Index) )             * &
-                                                            Cohort%Processes%DeathByVelocity * Me%DTDay
+                                                            Cohort%Processes%DeathByWrongSettlement * Me%DTDay
 
                         end if !pelagic model
                         
@@ -7674,13 +7720,8 @@ d1:     do while(associated(Species))
             Cohort => Species%FirstCohort
 d2:         do while(associated(Cohort))
 
-!                    if ((Species%FeedOnLarvae) .and. Cohort%Larvae) then
-!
-!                        call CheckSelfPredation (Cohort, Index)
-!                        
-!                    end if 
-                  
-                    if (Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) .lt. Me%MinNumber) then
+                    if ((.not. Cohort%Larvae ) .and. & 
+                       (Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) .lt. Me%MinNumber)) then
 
                     if (Cohort%Dead .eq. 0 ) then 
                     
