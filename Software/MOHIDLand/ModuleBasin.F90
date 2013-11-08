@@ -7347,7 +7347,7 @@ cd2 :           if (BlockFound) then
 
             !Writes the Acc. Rain
             call HDF5WriteData   (Me%ObjHDF5, "//Results/AccRainFall",          &
-                                  "Acc. Rainfall", "m",                         &
+                                  "AccRainFall", "m",                         &
                                   Array2D      = Me%AccRainFall,                &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
@@ -7355,7 +7355,7 @@ cd2 :           if (BlockFound) then
 
             !Writes the Acc Infil
             call HDF5WriteData   (Me%ObjHDF5, "//Results/AccInfiltration",      &
-                                  "Acc. Infiltration", "m",                     &
+                                  "AccInfiltration", "m",                     &
                                   Array2D      = Me%AccInfiltration,            &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
@@ -7363,7 +7363,7 @@ cd2 :           if (BlockFound) then
 
             !Writes the Acc Flow Production
             call HDF5WriteData   (Me%ObjHDF5, "//Results/AccFlowProduction",    &
-                                  "Acc. Flow Production", "m",                  &
+                                  "AccFlowProduction", "m",                  &
                                   Array2D      = Me%AccFlowProduction,          &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
@@ -7371,7 +7371,7 @@ cd2 :           if (BlockFound) then
 
             !Writes the Acc EVTP
             call HDF5WriteData   (Me%ObjHDF5, "//Results/AccEVTP",              &
-                                  "Acc. Evapotrans", "m",                       &
+                                  "AccEVTP", "m",                       &
                                   Array2D      = Me%AccEVTP,                    &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
