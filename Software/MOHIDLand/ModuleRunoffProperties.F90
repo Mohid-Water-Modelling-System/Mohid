@@ -82,7 +82,8 @@ Module ModuleRunoffProperties
                                          GetManning, GetManningDelta, GetRunoffCenterVelocity, &
                                          GetRunoffWaterColumnAT, GetBoundaryImposed,          &
                                          GetBoundaryCells, GetBoundaryFlux, GetFlowDischarge, &
-                                         GetRouteD4
+                                         GetRouteDFour, GetRouteDFourCells, GetRouteDFourNeighbours, &
+                                         GetRouteDFourFlux
                                            
 !    use ModuleInterface,          only : ConstructInterface, Modify_Interface
     use ModuleAdvectionDiffusion, only : StartAdvectionDiffusion, AdvectionDiffusion,      &
@@ -269,6 +270,13 @@ Module ModuleRunoffProperties
         logical                                     :: BoundaryImposed     = .false.
         integer, pointer, dimension(:,:)            :: BoundaryCells       => null()
         real   , pointer, dimension(:,:)            :: BoundaryFlux        => null()
+
+        !From Runoff DFour
+        logical                                     :: RouteDFour          = .false.
+        integer, pointer, dimension(:,:)            :: RouteDFourCells     => null()
+        integer, pointer, dimension(:,:)            :: RouteDFourLowerI    => null()
+        integer, pointer, dimension(:,:)            :: RouteDFourLowerJ    => null()
+        real   , pointer, dimension(:,:)            :: RouteDFourFlux      => null()
         
      end type T_ExtVar
 
@@ -653,7 +661,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ExtVar%Pesticide              = Pesticide
 
             call CheckBoundary
-
+            
+            call CheckRouteDFour
+            
             call ReadFileNames
 
 
@@ -665,7 +675,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call Construct_PropertyList
 
-            call VerifyOptions
+            !call VerifyOptions
                         
             if (Me%Coupled%Partition) then
                 call ConstructPartition
@@ -809,24 +819,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !--------------------------------------------------------------------------
 
     subroutine VerifyOptions
-        !Arguments-------------------------------------------------------------
-                                                    
-        !Local-----------------------------------------------------------------
-        logical                                        :: RouteD4
-        integer                                        :: STAT_CALL
-        !Begin-----------------------------------------------------------------
-        
-        call GetRouteD4 (Me%ObjRunoff, RouteD4, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleRunoffProperties - ERR01'
-        
-        !RouteD4 is not yet accounted in runoff properties computation 
-        if (RouteD4) then
-            write(*,*)
-            write(*,*) 'Using ROUTE_D4 in ModuleRunoff'
-            write(*,*) 'This process is not yet accounted in RunoffProperties'
-            write(*,*) 'Disconnect ROUTE_D4 from ModuleRunoff'
-            stop 'VerifyOptions - ModuleRunoffProperties - ERR010'
-        endif
+!        !Arguments-------------------------------------------------------------
+!                                                    
+!        !Local-----------------------------------------------------------------
+!        logical                                        :: RouteD4
+!        integer                                        :: STAT_CALL
+!        !Begin-----------------------------------------------------------------
+!        
+!        call GetRouteD4 (Me%ObjRunoff, RouteD4, STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleRunoffProperties - ERR01'
+!        
+!        !RouteD4 is not yet accounted in runoff properties computation 
+!        if (RouteD4) then
+!            write(*,*)
+!            write(*,*) 'Using ROUTE_D4 in ModuleRunoff'
+!            write(*,*) 'This process is not yet accounted in RunoffProperties'
+!            write(*,*) 'Disconnect ROUTE_D4 from ModuleRunoff'
+!            stop 'VerifyOptions - ModuleRunoffProperties - ERR010'
+!        endif
             
     end subroutine VerifyOptions
     
@@ -849,6 +859,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
         
     end subroutine CheckBoundary
+
+    !--------------------------------------------------------------------------
+
+    subroutine CheckRouteDFour
+
+        !Arguments-------------------------------------------------------------
+                                                    
+        !Local-----------------------------------------------------------------
+        integer                                        :: STAT_CALL
+        !Begin-----------------------------------------------------------------
+        
+        !check if RouteDFour is used
+        call GetRouteDFour (Me%ObjRunoff, Me%ExtVar%RouteDFour, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckRouteDFour - ModuleRunoffProperties - ERR01'
+        
+        if (Me%ExtVar%RouteDFour) then
+            call GetRouteDFourCells (Me%ObjRunoff, Me%ExtVar%RouteDFourCells, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CheckRouteDFour - ModuleRunoffProperties - ERR010'
+            
+            call GetRouteDFourNeighbours (Me%ObjRunoff, Me%ExtVar%RouteDFourLowerI,  &
+                                          Me%ExtVar%RouteDFourLowerJ, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CheckRouteDFour - ModuleRunoffProperties - ERR020'
+        endif
+        
+    end subroutine CheckRouteDFour
 
     !--------------------------------------------------------------------------
 
@@ -4799,19 +4834,30 @@ cd0:    if (Exist) then
 
             do while (associated(PropertyX))
                 !Concentration after transport that is the one used for DN flux, and needed in ModuleDrainageNetwork
+                !Becuase DN flux could remove all water and concentration would be zero
+                !but DN flux occurs with concentration after transport and not with conc after transport and DN flux
                 call SetMatrixValue (PropertyX%ConcentrationAT, Me%Size, PropertyX%Concentration, Me%ExtVar%BasinPoints)
                 PropertyX => PropertyX%Next
             enddo
             
-            !DN fluxes had to be separated from Advection Diffusion because these fluxes usually remove all water in one time step 
-            !that would generate conc zero to river. However flux to river took the concentration after transport
-            !Because boundary fluxes may occur the volumes had to be updated
+            !!!WARNING!!!
+            !The processes associated to Storm Water Model and Storm Water Drainage are not accounted in properties
+            !In the future need to add them
+            !!!WARNING!!!
+            
+            !DN fluxes had to be separated from Advection Diffusion (explained above)
+            !routine to compute new explicit concentration
             if (Me%ExtVar%CoupledDN) then
                 call ModifyDrainageNetworkInterface
             endif
             
-            !Boundary fluxes had to be changed for same reason as DN fluxes
-            !Because DN fluxes may occur the volumes had to be updated
+            !Route DFourPoints fluxes need to be updated
+            if (Me%ExtVar%RouteDFour) then
+                call ModifyRouteDFourInterface
+            endif
+            
+            !Boundary fluxes need to be updated (e.g. for mass balance in the future)
+            !Effectively concentration does not change because water can only exit for now (useful in the future)
             if (Me%ExtVar%BoundaryImposed) then
                 call ModifyBoundaryInterface
             endif
@@ -6346,10 +6392,9 @@ doi4 :      do i = ILB, IUB
 
     !DN fluxes had to be separated from Advection diffusion since in one time step
     !runoff could run out of water and the mixing between runoff cels and link to DN had to be
-    !separated (2 consecutive dt's with flow to river but no water in the final would produce
-    !flow with zero conc. (no water column). Not changing conc in zero water column does not conceptualy work
-    !because the cell may keep having zero WC in the end (after going to river) but before, mixing  with
-    !neighbour cells may have changed concentration
+    !separated.
+    !Concentration only changes if flow from river .or. (flow to river .and. no water column) but
+    !was left the two cases (from and to river) because of mass balance accounting (FlowMass)
     subroutine ModifyDrainageNetworkInterface
     
         !Arguments-------------------------------------------------------------
@@ -6438,7 +6483,8 @@ doi4 :      do i = ILB, IUB
                         if (WaterVolumeNew .gt. AlmostZero) then
                             !Update New Concentration
                             !g/m3 = ((g/m3 * m3) + g)/ m3
-                            CurrProperty%Concentration(i,j) = ((Prop * WaterVolumeOld) - FlowMass) / WaterVolumeNew
+                            CurrProperty%Concentration(i,j) = ((CurrProperty%Concentration(i,j) * WaterVolumeOld)  &
+                                                                - FlowMass) / WaterVolumeNew
                         else
                             CurrProperty%Concentration(i,j) = 0.0                        
                         endif
@@ -6533,11 +6579,116 @@ doi4 :      do i = ILB, IUB
 !    end subroutine ModifyBoundaryCoefs
 !
 !    !-----------------------------------------------------------------------------
+    !Concentration changes in recieving cell .or. (origin cell .and. it gets no water at the end)
+    subroutine ModifyRouteDFourInterface
+    
+        !Arguments-------------------------------------------------------------
 
-    !Boundary fluxes had to be separated from Advection diffusion since in one time step
-    !runoff could run out of water and the mixing between runoff cels happens before boundary
+
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: CurrProperty
+        integer                                     :: i, j, it, jt, CHUNK !, STAT_CALL
+        real(8)                                     :: Prop, WaterVolumeOldDFour, WaterVolumeNewDFour
+        real(8)                                     :: WaterVolumeOldLowNeighbour, WaterVolumeNewLowNeighbour
+        real(8)                                     :: FlowMass !, WaterColumnNew
+        !real(8), dimension(:,:), pointer            :: WaterColumnFinal      
+        !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyRouteDFourInterface")
+        
+        CurrProperty => Me%FirstProperty
+        
+        do while (associated(CurrProperty))
+
+            if (CurrProperty%Evolution%AdvectionDiffusion) then        
+               !Flux in routeD4 points 
+               
+                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+              
+                !!$OMP PARALLEL PRIVATE(i,j,Prop, WaterVolumeOld, WaterVolumeNew, FlowMass)
+                
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    
+                    if (Me%ExtVar%RouteDFourCells(I,J) == BasinPoint .and. Me%ExtVar%RouteDFourLowerI(i,j) /= null_int) then  
+
+                        it = Me%ExtVar%RouteDFourLowerI(i,j)
+                        jt = Me%ExtVar%RouteDFourLowerJ(i,j)
+                        
+                        ! mass from cell i,j to diagonal it, jt
+                        if (Me%ExtVar%RouteDFourFlux(i,j) .ge. 0.0) then
+                            
+                            Prop =  CurrProperty%Concentration(i,j)                            
+                       
+                        !mass coming from diagonal
+                        elseif (Me%ExtVar%RouteDFourFlux(i,j) .lt. 0.0) then
+
+                            Prop = CurrProperty%Concentration(it,jt)                            
+
+                        endif
+
+                        !Change conc in recieving cell. origin cell does not change conc.
+                        !WaterVolumeOld is after transport and after DN update in DrainageNetworkInterface
+                        WaterVolumeOldDFour        = Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i,j)          &
+                                                      - Me%ExtVar%FlowToChannels(i,j) * Me%ExtVar%DT
+                        
+                        WaterVolumeOldLowNeighbour = Me%ExtVar%WaterColumnAT(it,jt) * Me%ExtVar%Area(it,jt)      &
+                                                     - Me%ExtVar%FlowToChannels(it,jt) * Me%ExtVar%DT
+                        !New watervolume can not be the final because it may exist boundary flux (See BoundaryInterface).
+                        !So new is old less flux. Positive flux adds WC
+                        WaterVolumeNewDFour        = WaterVolumeOldDFour                                         &
+                                                     - Me%ExtVar%RouteDFourFlux(i,j) * Me%ExtVar%DT
+                        WaterVolumeNewLowNeighbour = WaterVolumeOldLowNeighbour                                  &
+                                                     + Me%ExtVar%RouteDFourFlux(i,j) * Me%ExtVar%DT
+                        
+                        !g = m3/s * s * g/m3
+                        FlowMass       = Me%ExtVar%RouteDFourFlux(i,j) * Me%ExtVar%DT * Prop                    
+
+                        if (WaterVolumeNewDFour .gt. AlmostZero) then
+                            !Update New Concentration
+                            !g/m3 = ((g/m3 * m3) + g)/ m3
+                            CurrProperty%Concentration(i,j) = ((CurrProperty%Concentration(i,j)    &
+                                                                 * WaterVolumeOldDFour)            &
+                                                                   - FlowMass) / WaterVolumeNewDFour
+                        else
+                            CurrProperty%Concentration(i,j) = 0.0                        
+                        endif                        
+                        if (WaterVolumeNewLowNeighbour .gt. AlmostZero) then
+                            !Update New Concentration
+                            !g/m3 = ((g/m3 * m3) + g)/ m3
+                            CurrProperty%Concentration(it,jt) = ((CurrProperty%Concentration(it,jt) &
+                                                                   * WaterVolumeOldLowNeighbour)    &
+                                                                   + FlowMass) / WaterVolumeNewLowNeighbour
+                        else
+                            CurrProperty%Concentration(it,jt) = 0.0                        
+                        endif
+                        
+                   endif
+                
+                enddo
+                enddo
+                !!$OMP END DO
+                
+                !!$OMP END PARALLEL
+
+            endif
+            
+            CurrProperty => CurrProperty%Next
+        
+        enddo
+        
+                           
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyRouteDFourInterface")
+
+   
+   end subroutine ModifyRouteDFourInterface
+
+    !---------------------------------------------------------------------------
+
     !If river cells exist that are boundary than river flow has to be added/removed from
     !volume after transport to get water volume old
+    !Effectively there is no flux from outside (flow can only exit) and concentration does not change
     subroutine ModifyBoundaryInterface
     
         !Arguments-------------------------------------------------------------
@@ -6603,10 +6754,11 @@ doi4 :      do i = ILB, IUB
                         !g = m3/s * s * g/m3
                         FlowMass       = Me%ExtVar%BoundaryFlux(i,j) * Me%ExtVar%DT * Prop                    
                         
-                        if (WaterColumnFinal(i,j) .gt. AlmostZero) then
+                        if (WaterVolumeNew .gt. AlmostZero) then
                             !Update New Concentration
                             !g/m3 = ((g/m3 * m3) + g)/ m3
-                            CurrProperty%Concentration(i,j) = ((Prop * WaterVolumeOld) + FlowMass) / WaterVolumeNew
+                            CurrProperty%Concentration(i,j) = ((CurrProperty%Concentration(i,j) * WaterVolumeOld)  &
+                                                                 + FlowMass) / WaterVolumeNew
                         else
                             CurrProperty%Concentration(i,j) = 0.0
                         endif
@@ -8119,7 +8271,7 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: i, j !, CHUNK
 !        character(len=5)                            :: char_i, char_j
-!        character(len=15)                           :: char_conc
+!        character(len=20)                           :: char_conc
 !        character (len = StringLength)              :: StrWarning  
                 
         !Begin----------------------------------------------------------------------
@@ -8154,7 +8306,7 @@ cd1 :       if (Property%Evolution%MinConcentration) then
 !
 !                            write(char_i, '(i4)')i
 !                            write(char_j, '(i4)')j
-!                            write(char_conc, '(ES10.3)') Property%Concentration(i,j) 
+!                            write(char_conc, '(f20.8)') Property%Concentration(i,j) 
 !                            StrWarning = trim(Property%ID%Name)//' was modified to its MinValue in cell(i,j)'// &
 !                                                               char_i//','//char_j//' '//char_conc//' '//Message
 !
@@ -8877,7 +9029,7 @@ First:          if (LastTime.LT.Actual) then
 
                 write(str_mass_created, '(f20.8)') Total_Mass_Created
       
-                string_to_be_written = 'Total mass created on property '                //&
+                string_to_be_written = 'Due to MinConcentration RP Total mass (kg) created on property ' //&
                                         trim(adjustl(adjustr(PropertyX%ID%Name)))//' = ' //&
                                         trim(adjustl(adjustr(str_mass_created))) 
             
@@ -9375,6 +9527,11 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR170'
         endif
 
+        if (Me%ExtVar%RouteDFour) then
+            call GetRouteDFourFlux (Me%ObjRunoff, Me%ExtVar%RouteDFourFlux, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR180'
+        endif
+
     end subroutine ReadLockExternalVar
 
     !-----------------------------------------------------------------------------
@@ -9447,6 +9604,10 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0190'      
         endif
 
+        if (Me%ExtVar%RouteDFour) then
+            call UnGetRunoff (Me%ObjRunoff, Me%ExtVar%RouteDFourFlux, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0200'      
+        endif
 
     endsubroutine ReadUnlockExternalVar
     

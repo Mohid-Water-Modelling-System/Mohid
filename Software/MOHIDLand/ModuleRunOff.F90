@@ -83,7 +83,10 @@ Module ModuleRunOff
     public  ::  GetFlowToChannels
     !public  ::  GetFlowAtBoundary
     public  ::  GetBoundaryImposed
-    public  ::  GetRouteD4
+    public  ::  GetRouteDFour
+    public  ::  GetRouteDFourCells
+    public  ::  GetRouteDFourNeighbours
+    public  ::  GetRouteDFourFlux
     public  ::  GetBoundaryFlux
     public  ::  GetBoundaryCells
     public  ::  GetFlowDischarge
@@ -140,7 +143,10 @@ Module ModuleRunOff
     !Boundary flux
     integer, parameter                              :: ComputeFlow_       = 1
     integer, parameter                              :: InstantaneousFlow_ = 2
-    
+
+    !Route D4 flux
+    integer, parameter                              :: Celerity_          = 1
+    integer, parameter                              :: Manning_           = 2    
     
     !Types---------------------------------------------------------------------
     type T_OutPut
@@ -224,6 +230,7 @@ Module ModuleRunOff
         real(8), dimension(:,:), pointer            :: myWaterVolumeOld         => null()
         real,    dimension(:,:), pointer            :: lFlowToChannels          => null() !Instantaneous Flow To Channels
         real,    dimension(:,:), pointer            :: iFlowToChannels          => null() !Integrated    Flow
+        real,    dimension(:,:), pointer            :: iFlowRouteDFour          => null() !Integrated Route D4 flux
         real,    dimension(:,:), pointer            :: lFlowBoundary            => null() !Instantaneous Flow to impose BC
         real,    dimension(:,:), pointer            :: iFlowBoundary            => null() !Integrated    Flow to impose BC
         real,    dimension(:,:), pointer            :: lFlowDischarge           => null() !Instantaneous Flow of discharges
@@ -276,6 +283,7 @@ Module ModuleRunOff
         logical                                     :: Discharges            = .false.
         logical                                     :: RouteDFourPoints      = .false.
         logical                                     :: RouteDFourPointsOnDN  = .false.
+        integer                                     :: RouteDFourMethod      = null_int
         logical                                     :: StormWaterDrainage    = .false.
         real                                        :: StormWaterInfiltrationVelocity  = 1.4e-5  !~50mm/h
         real                                        :: StormWaterFlowVelocity          = 0.2     !velocity in pipes
@@ -1028,9 +1036,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
 
             call GetData(Me%BoundaryMethod,                                     &
-                         Me%ObjEnterData, iflag,                                   &  
+                         Me%ObjEnterData, iflag,                                &  
                          keyword      = 'BOUNDARY_METHOD',                      &
-                         Default      = InstantaneousFlow_,                     &
+                         Default      = ComputeFlow_,                           &
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
                          STAT         = STAT_CALL)                                  
@@ -1113,6 +1121,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = .false.,                                &
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR391'
+
+            call GetData(Me%RouteDFourMethod,                                   &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'ROUTE_D4_METHOD',                      &
+ !                        Default      = Celerity_,                              &
+                         Default      = Manning_,                               &
+                         ClientModule = 'ModuleRunOff',                         &
+                         SearchType   = FromFile,                               &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR392'        
+
+            if (Me%RouteDFourMethod /= Celerity_ .and. Me%RouteDFourMethod /= Manning_) then
+                write(*,*)'ROUTE_D4_METHOD must be or 1 - Celerity based or 2 - Manning Equation'
+                stop 'ReadDataFile - ModuleRunOff - ERR0393'
+            endif
+            
         endif
 
         !Limits Flow to critical
@@ -1123,7 +1147,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                               &
                      Default      = .true.,                                 &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR392'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR394'
 
         
 
@@ -2206,6 +2230,9 @@ do4:            do di = -1, 1
         allocate(Me%iFlowDischarge    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%lFlowDischarge        = 0.0   !Sets values initially to zero, so 
         Me%iFlowDischarge        = 0.0   !model can run without Dis
+
+        allocate(Me%iFlowRouteDFour  (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%iFlowRouteDFour       = 0.0   !Sets values initially to zero, so  
         
         allocate(Me%BoundaryCells     (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%BoundaryCells = 0
@@ -2777,7 +2804,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     
     !--------------------------------------------------------------------------
 
-    subroutine GetRouteD4 (ObjRunOffID, RouteD4, STAT)
+    subroutine GetRouteDFour (ObjRunOffID, RouteD4, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjRunOffID
@@ -2804,9 +2831,104 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         if (present(STAT)) STAT = STAT_
             
-    end subroutine GetRouteD4
+    end subroutine GetRouteDFour
 
     !--------------------------------------------------------------------------   
+
+    subroutine GetRouteDFourCells (ObjRunOffID, RouteD4Cells, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        integer, pointer, dimension (:,:)               :: RouteD4Cells
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjRunOffID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            RouteD4Cells => Me%DFourSinkPoint
+
+            STAT_ = SUCCESS_
+            
+        else
+         
+            STAT_ = ready_
+            
+        end if
+
+        if (present(STAT)) STAT = STAT_
+            
+    end subroutine GetRouteDFourCells
+
+    !--------------------------------------------------------------------------   
+
+    subroutine GetRouteDFourNeighbours (ObjRunOffID, RouteD4LowerI, RouteD4LowerJ, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        integer, pointer, dimension (:,:)               :: RouteD4LowerI
+        integer, pointer, dimension (:,:)               :: RouteD4LowerJ
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjRunOffID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            RouteD4LowerI => Me%LowestNeighborI
+            RouteD4LowerJ => Me%LowestNeighborJ
+
+            STAT_ = SUCCESS_
+            
+        else
+         
+            STAT_ = ready_
+            
+        end if
+
+        if (present(STAT)) STAT = STAT_
+            
+    end subroutine GetRouteDFourNeighbours
+
+    !-------------------------------------------------------------------------- 
+
+    subroutine GetRouteDFourFlux (ObjRunOffID, DFourFlow, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        real, dimension(:, :), pointer                  :: DFourFlow
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        call Ready(ObjRunOffID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mRUNOFF_, Me%InstanceID)
+            DFourFlow => Me%iFlowRouteDFour
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetRouteDFourFlux
+    
+    !--------------------------------------------------------------------------
 
     subroutine GetBoundaryFlux (ObjRunOffID, FlowAtBoundary, STAT)
 
@@ -3508,6 +3630,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 call SetMatrixValue(Me%lFlowY, Me%Size, Me%InitialFlowY)
                 call SetMatrixValue(Me%iFlowToChannels, Me%Size, 0.0)
                 call SetMatrixValue(Me%iFlowBoundary, Me%Size, 0.0)
+                call SetMatrixValue(Me%iFlowRouteDFour, Me%Size, 0.0)
                 
 doIter:         do while (iter <= Niter)
 
@@ -3627,16 +3750,26 @@ doIter:         do while (iter <= Niter)
             endif
             
             !Routes Ponded levels which occour due to X/Y direction (Runoff does not route in D8)
+            !the defaul method was celerity (it was corrected) but it ccould create high flow changes. Manning method is stabler
+            !because of resistance. However in both methods the area used is not consistent (regular faces flow
+            !already used all the cell vertical areas and the route D4 will overlapp areas - review this in the future
             if (Me%RouteDFourPoints) then
-                call RouteDFourPoints
+                if (Me%RouteDFourMethod == Manning_) then
+                    call RouteDFourPoints
+                elseif (Me%RouteDFourMethod == Celerity_) then
+                    call RouteDFourPoints_v3
+                endif
             endif
 
             !Boundary Condition
+            !Only compute if case of waterlevel higher than boundary (overflow)
+            !the default method was instantaneous flow (instantaneous go to boundary level)
+            !but it was changed to compute flow (based on celerity) to be more consistent
+            !with a free drop to boundary level (that can be much lower than topography)
             if (Me%ImposeBoundaryValue) then
                 if (Me%BoundaryMethod == ComputeFlow_) then
                     call ImposeBoundaryValue
-                endif
-                if (Me%BoundaryMethod == InstantaneousFlow_) then
+                elseif (Me%BoundaryMethod == InstantaneousFlow_) then
                     call ImposeBoundaryValue_v2
                 endif
             endif
@@ -4907,8 +5040,10 @@ doIter:         do while (iter <= Niter)
     end subroutine UpdateWaterLevels 
 
     !--------------------------------------------------------------------------
-
-    subroutine RouteDFourPoints
+    
+    !old routine where flux is not taken into account level difference
+    !and had an error where max volume was compared to a flow and not volume (fixed)
+    subroutine RouteDFourPoints_v2
     
         !Arguments-------------------------------------------------------------
         
@@ -4934,23 +5069,22 @@ doIter:         do while (iter <= Niter)
 
                 it = Me%LowestNeighborI(i, j)
                 jt = Me%LowestNeighborJ(i, j)
-                
-                !!MaxBottom = max (Me%ExtVar%Topography(i,j), Me%ExtVar%Topography(it,jt))
-                !!WaterDepth = Me%myWaterColumn(i, j) - MaxBottom
-                !!if (WaterDepth .gt. 0.0) then
-                
+                               
                 !Critical Flow                    
                 AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
                 !FlowMax = Min(sqrt(Gravity * Me%myWaterColumn(i, j)) *  Me%myWaterColumn(i, j) * AverageCellLength, &
                 !              0.1 * Me%myWaterColumn(i, j) * AverageCellLength)
                 
-                
+                ![m3/s] = [m/s] * [m] * [m]
                 FlowMax = sqrt(Gravity * Me%myWaterColumn(i, j)) *  Me%myWaterColumn(i, j) * AverageCellLength
                 
 
                 !dVol -> max Critical Flow & Avaliable Volume
-                dVol = min(Me%myWaterVolume(i,j), FlowMax)
-
+                !there was an error in units Flowmax is m3/s and not m3
+                !dVol = min(Me%myWaterVolume(i,j), FlowMax)
+                ![m3] = [m3/s] * [s]
+                dVol = min(Me%myWaterVolume(i,j), FlowMax * Me%ExtVar%DT)
+                
                 !Updates Water Volume
                 Me%myWaterVolume (i, j)    = Me%myWaterVolume (i, j)   - dVol 
                 Me%myWaterVolume (it, jt)  = Me%myWaterVolume (it, jt) + dVol 
@@ -4964,6 +5098,220 @@ doIter:         do while (iter <= Niter)
                 Me%myWaterLevel (it, jt)   = Me%myWaterColumn (it, jt) + Me%ExtVar%Topography(it, jt)
 
             
+            endif
+            
+        enddo
+        enddo
+    
+
+    end subroutine RouteDFourPoints_v2
+
+    !--------------------------------------------------------------------------
+    
+    !new routine where dh is used and only dh may move not all water column. 
+    !and water moves in level gradient and not always doenstream
+    subroutine RouteDFourPoints_v3
+    
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, it, jt
+        integer                                     :: ILB, IUB, JLB, JUB
+        real                                        :: AverageCellLength, Flow, MaxFlow
+        real                                        :: WaveHeight, Celerity, dh
+        integer                                     :: CHUNK
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        do j = JLB, JUB
+        do i = ILB, IUB
+            
+            if (Me%DFourSinkPoint(i, j) == BasinPoint .and. Me%LowestNeighborI(i, j) /= null_int)  then         
+
+                it = Me%LowestNeighborI(i, j)
+                jt = Me%LowestNeighborJ(i, j)
+                
+                !topography of cell i,j is always higher than it, jt (is the max bottom)
+                WaveHeight =  max(Me%myWaterLevel(i, j), Me%myWaterLevel(it,jt)) - Me%ExtVar%Topography(i,j)
+                Celerity   = sqrt(Gravity * WaveHeight)
+
+                if (WaveHeight .gt. Me%MinimumWaterColumn) then
+                
+                    !Critical Flow                    
+                    AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0                
+
+                    !dh>0 flow removes water, dh<0 flow brings water
+                    dh =  Me%myWaterLevel(i, j) - Me%myWaterLevel(it,jt)
+                    
+                    !m3/s = m/s * m * m. if dh negative minimum is dh
+                    Flow = Celerity *  min(dh, WaveHeight) * AverageCellLength
+                    
+                    !Max flow is volume given by area * dh
+                    !Since it jt has always lower topography if dh negative there is not the
+                    !possibility of using an abs(dh) higher than Waveheight (more flux than exists)
+                    !if positive dh minimum is positive, if dh negative, negative flux with dh
+                    MaxFlow = min(dh, WaveHeight) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
+                    
+                    if (abs(Flow) > abs(MaxFlow)) then
+                        Flow = MaxFlow
+                    endif
+                    
+                    Me%iFlowRouteDFour(i,j)    = Flow
+
+                    !Updates Water Volume
+                    Me%myWaterVolume (i, j)    = Me%myWaterVolume (i, j)   - Flow *  Me%ExtVar%DT
+                    Me%myWaterVolume (it, jt)  = Me%myWaterVolume (it, jt) + Flow *  Me%ExtVar%DT 
+
+                    !Updates Water Column
+                    Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)   / Me%ExtVar%GridCellArea(i, j)
+                    Me%myWaterColumn  (it, jt) = Me%myWaterVolume (it, jt) / Me%ExtVar%GridCellArea(it, jt)
+
+                    !Updates Water Level
+                    Me%myWaterLevel (i, j)     = Me%myWaterColumn (i, j)   + Me%ExtVar%Topography(i, j)
+                    Me%myWaterLevel (it, jt)   = Me%myWaterColumn (it, jt) + Me%ExtVar%Topography(it, jt)
+                
+                else
+                    Me%iFlowRouteDFour(i,j)    = 0.0
+                endif
+                
+            endif
+            
+        enddo
+        enddo
+    
+
+    end subroutine RouteDFourPoints_v3
+
+    !--------------------------------------------------------------------------
+
+    !new routine where flow is computed from manning. 
+    subroutine RouteDFourPoints
+    
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, it, jt, di, dj
+        integer                                     :: ILB, IUB, JLB, JUB
+        real                                        :: Flow, MaxFlow, dx, dy
+        real                                        :: AverageCellLengthSink, AverageCellLengthLower
+        real                                        :: WaveHeight, sign !, Celerity
+        real                                        :: level_up, level_down, CenterDistance
+        real                                        :: Slope, VertArea !, WetPerimeter
+        real                                        :: HydraulicRadius, OverlandCoef
+        integer                                     :: CHUNK
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        do j = JLB, JUB
+        do i = ILB, IUB
+            
+            if (Me%DFourSinkPoint(i, j) == BasinPoint .and. Me%LowestNeighborI(i, j) /= null_int)  then         
+
+                it = Me%LowestNeighborI(i, j)
+                jt = Me%LowestNeighborJ(i, j)
+                
+                !topography of cell i,j is always higher than it, jt (is the max bottom)
+                WaveHeight =  max(Me%myWaterLevel(i, j), Me%myWaterLevel(it,jt)) - Me%ExtVar%Topography(i,j)
+
+                if (WaveHeight .gt. Me%MinimumWaterColumn) then                
+                    
+                    !applyng manning equation
+                    if (Me%Buildings) then
+                        level_up   = Me%myWaterLevel(i, j  )  + Me%BuildingsHeight(i, j)
+                        level_down = Me%myWaterLevel(it, jt)  + Me%BuildingsHeight(it, jt)
+                    else
+                        level_up   = Me%myWaterLevel(i, j)
+                        level_down = Me%myWaterLevel(it, jt)
+                    endif
+                    
+                    !diagonal is sqrt of squared distances
+
+                    di = it - i
+                    !distance to right cell
+                    if (di > 0) then
+                        dy = Me%ExtVar%DZY(i, j)
+                    else
+                       !distance to left cell
+                        dy = Me%ExtVar%DZY(i-1, j)
+                    endif
+
+                    dj = jt - j
+                    if (dj > 0) then
+                        dx = Me%ExtVar%DZX(i, j)
+                    else
+                        dx = Me%ExtVar%DZX(i, j-1)
+                    endif
+                    
+                    CenterDistance = sqrt((dx)**2 + (dy)**2)
+                    
+                    !Slope
+                    if (Me%AdjustSlope) then
+                        Slope           = AdjustSlope((level_up - level_down) / CenterDistance)
+                    else
+                        Slope           = (level_up - level_down) / CenterDistance
+                    endif
+
+                    if (Slope.LT.0.0) then
+                        sign = -1.0
+                    else
+                        sign = 1.0
+                    end if
+
+                    AverageCellLengthSink   = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0  
+                    AverageCellLengthLower  = ( Me%ExtVar%DUX (it, jt) + Me%ExtVar%DVY (it, jt) ) / 2.0              
+                    VertArea                = ((AverageCellLengthSink + AverageCellLengthLower) / 2.0) * WaveHeight
+                    
+                    !Wet perimeter approximation to bottom (no walls effect)
+                    !WetPerimeter    = (AverageCellLengthSink + AverageCellLengthLower) / 2.0
+                    
+                    !Same as wave height. short circuit
+                    !HydraulicRadius = VertArea / WetPerimeter
+                    HydraulicRadius = WaveHeight
+                                 
+                    OverlandCoef    = (AverageCellLengthSink * Me%OverlandCoefficient(i, j) +      &
+                                       AverageCellLengthLower * Me%OverlandCoefficient(it, jt)) /  &
+                                       (AverageCellLengthSink + AverageCellLengthLower)               
+                    !
+                    !MANNING'S EQUATION -  KINEMATIC WAVE
+                    !
+                    !m3.s-1 = m2 * m(2/3) / (s.m(-1/3)) = m(8/3) * m(1/3) / s = m3.s-1
+                    Flow = sign * VertArea * HydraulicRadius**(2./3.) * sqrt(sign * Slope)          &
+                           / OverlandCoef
+
+                    MaxFlow  = sign * VertArea * sqrt(Gravity * WaveHeight)
+                    
+                    if (abs(Flow) > abs(MaxFlow)) then
+                        Flow = MaxFlow
+                    endif
+                    
+                    Me%iFlowRouteDFour(i,j)    = Flow
+
+                    !Updates Water Volume
+                    Me%myWaterVolume (i, j)    = Me%myWaterVolume (i, j)   - Flow *  Me%ExtVar%DT
+                    Me%myWaterVolume (it, jt)  = Me%myWaterVolume (it, jt) + Flow *  Me%ExtVar%DT 
+
+                    !Updates Water Column
+                    Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)   / Me%ExtVar%GridCellArea(i, j)
+                    Me%myWaterColumn  (it, jt) = Me%myWaterVolume (it, jt) / Me%ExtVar%GridCellArea(it, jt)
+
+                    !Updates Water Level
+                    Me%myWaterLevel (i, j)     = Me%myWaterColumn (i, j)   + Me%ExtVar%Topography(i, j)
+                    Me%myWaterLevel (it, jt)   = Me%myWaterColumn (it, jt) + Me%ExtVar%Topography(it, jt)
+                
+                else
+                    Me%iFlowRouteDFour(i,j)    = 0.0
+                endif
+                
             endif
             
         enddo
@@ -6140,8 +6488,11 @@ doIter:         do while (iter <= Niter)
                         !flux is occuring between dh and with celerity 
                         !m3/s = m/s (celerity) * m2 (Area = (dh * L) * 2)
                         Flow    = Celerity * 2.0 * ChannelsNodeLength(i, j) * min(dh, WaveHeight)
-                        MaxFlow = Me%myWaterVolume (i, j) / Me%ExtVar%DT
                         
+                        !MaxFlow = Me%myWaterVolume (i, j) / Me%ExtVar%DT
+                        !if channel level lower than topography - limit is all volume (waveheight is water column)
+                        !if channel level higher than topography limit is dh
+                        Maxflow = min(dh, WaveHeight) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
                     else
                     
                         Flow = 0.0
@@ -6960,7 +7311,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         enddo
 
     
-    end subroutine    
+    end subroutine ImposeBoundaryValue
     
     !--------------------------------------------------------------------------
 
@@ -7816,7 +8167,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate (Me%lFlowToChannels)
                 deallocate (Me%lFlowBoundary)
                 deallocate (Me%iFlowBoundary)
-
+                deallocate (Me%iFlowRouteDFour)
 
                 nullify    (Me%iFlowX)
                 nullify    (Me%iFlowY)
@@ -7826,6 +8177,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 nullify    (Me%lFlowToChannels)
                 nullify    (Me%lFlowBoundary)
                 nullify    (Me%iFlowBoundary)
+                nullify    (Me%iFlowRouteDFour)
 
 
                 !Deallocates Instance

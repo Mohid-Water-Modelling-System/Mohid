@@ -11859,7 +11859,7 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
         integer                                 :: NodeID
 !        character(len=5)                        :: char_node
 !        character (len = StringLength)          :: StrWarning
-!        character(len=15)                       :: char_conc 
+!        character(len=20)                       :: char_conc 
         
         
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "SetLimitsConcentration")
@@ -11889,10 +11889,10 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                             Property%Concentration (NodeID) = Property%MinValue
 
 !                            write(char_node, '(i4)') NodeID
-!                            write(char_conc, '(ES10.3)') Property%Concentration(NodeID)
+!                            write(char_conc, '(f20.8)') Property%Concentration(NodeID)
 !
 !                            StrWarning = trim(Property%ID%Name)//' was modified to its MinValue in Node '// &
-!                                                               char_node//' '//char_conc//' '//Message
+!                                                               char_node//' '//char_conc
 !
 !                            call SetError(WARNING_, INTERNAL_, StrWarning, OFF)
                     
@@ -15178,7 +15178,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 write(str_mass, '(f20.8)') Total_Mass_Created
       
-                string_to_be_written = 'Total mass created on property '                //   &
+                string_to_be_written = 'Due to MinConcentration DN Total mass (kg) created on property ' //   &
                                         trim(adjustl(adjustr(Property%ID%name)))//' = ' //   &
                                         trim(adjustl(adjustr(str_mass))) 
 
@@ -15202,7 +15202,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 write(str_mass, '(f20.8)') Total_Mass
       
-                string_to_be_written = 'Total mass left of property '                   //   &
+                string_to_be_written = 'DN Total mass left of property '                //   &
                                         trim(adjustl(adjustr(Property%ID%name)))//' = ' //   &
                                         trim(adjustl(adjustr(str_mass))) 
 
@@ -15226,7 +15226,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                     write(str_mass, '(f20.8)') Total_Mass
       
-                    string_to_be_written = 'Total mass left of deposited property '         //   &
+                    string_to_be_written = 'DN Total mass left of deposited property '       //   &
                                             trim(adjustl(adjustr(Property%ID%name)))//' = ' //   &
                                             trim(adjustl(adjustr(str_mass))) 
 

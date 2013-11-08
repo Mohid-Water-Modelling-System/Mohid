@@ -3479,24 +3479,48 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
     !--------------------------------------------------------------------------
     
     subroutine CreateVariablesAlias
-    
+        
         !Duplication to compute interfaces with soil
+        
         if (Me%ComputeOptions%ModelNitrogen) then
-            Me%Fluxes%ToSoil%FertilNitrateToSoilSurface      => Me%Fluxes%FertilNitrateInSurface
-            Me%Fluxes%ToSoil%FertilNitrateToSoilSubSurface   => Me%Fluxes%FertilNitrateInSubSurface
-            Me%Fluxes%ToSoil%FertilAmmoniaToSoilSurface      => Me%Fluxes%FertilAmmoniaInSurface
-            Me%Fluxes%ToSoil%FertilAmmoniaToSoilSubSurface   => Me%Fluxes%FertilAmmoniaInSubSurface
-            Me%Fluxes%ToSoil%FertilOrganicNToSoilSurface     => Me%Fluxes%FertilOrganicNInSurface
-            Me%Fluxes%ToSoil%FertilOrganicNParticToFluff     => Me%Fluxes%FertilOrganicNParticInFluff
-            Me%Fluxes%ToSoil%FertilOrganicNToSoilSubSurface  => Me%Fluxes%FertilOrganicNInSubSurface
+            Me%Fluxes%FromSoil%NitrogenUptakeFromSoil => Me%Fluxes%NitrogenUptakeLayer
         endif
-
         if (Me%ComputeOptions%ModelPhosphorus) then
-            Me%Fluxes%ToSoil%FertilOrganicPToSoilSurface     => Me%Fluxes%FertilOrganicPInSurface
-            Me%Fluxes%ToSoil%FertilOrganicPToSoilSubSurface  => Me%Fluxes%FertilOrganicPInSubSurface
-            Me%Fluxes%ToSoil%FertilMineralPToSoilSurface     => Me%Fluxes%FertilMineralPInSurface
-            Me%Fluxes%ToSoil%FertilMineralPToSoilSubSurface  => Me%Fluxes%FertilMineralPInSubSurface   
-            Me%Fluxes%ToSoil%FertilOrganicPParticToFluff     => Me%Fluxes%FertilOrganicPParticInFluff   
+            Me%Fluxes%FromSoil%PhosphorusUptakeFromSoil => Me%Fluxes%PhosphorusUptakeLayer        
+        endif
+        
+        if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
+        
+            if (Me%ComputeOptions%Fertilization) then
+                if (Me%ComputeOptions%ModelNitrogen) then
+                    Me%Fluxes%ToSoil%FertilNitrateToSoilSurface      => Me%Fluxes%FertilNitrateInSurface
+                    Me%Fluxes%ToSoil%FertilNitrateToSoilSubSurface   => Me%Fluxes%FertilNitrateInSubSurface
+                    Me%Fluxes%ToSoil%FertilAmmoniaToSoilSurface      => Me%Fluxes%FertilAmmoniaInSurface
+                    Me%Fluxes%ToSoil%FertilAmmoniaToSoilSubSurface   => Me%Fluxes%FertilAmmoniaInSubSurface
+                    Me%Fluxes%ToSoil%FertilOrganicNToSoilSurface     => Me%Fluxes%FertilOrganicNInSurface
+                    Me%Fluxes%ToSoil%FertilOrganicNParticToFluff     => Me%Fluxes%FertilOrganicNParticInFluff
+                    Me%Fluxes%ToSoil%FertilOrganicNToSoilSubSurface  => Me%Fluxes%FertilOrganicNInSubSurface
+                endif
+
+                if (Me%ComputeOptions%ModelPhosphorus) then
+                    Me%Fluxes%ToSoil%FertilOrganicPToSoilSurface     => Me%Fluxes%FertilOrganicPInSurface
+                    Me%Fluxes%ToSoil%FertilOrganicPToSoilSubSurface  => Me%Fluxes%FertilOrganicPInSubSurface
+                    Me%Fluxes%ToSoil%FertilMineralPToSoilSurface     => Me%Fluxes%FertilMineralPInSurface
+                    Me%Fluxes%ToSoil%FertilMineralPToSoilSubSurface  => Me%Fluxes%FertilMineralPInSubSurface   
+                    Me%Fluxes%ToSoil%FertilOrganicPParticToFluff     => Me%Fluxes%FertilOrganicPParticInFluff   
+                endif
+            endif
+            
+            if (Me%ComputeOptions%Dormancy) then
+                Me%Fluxes%ToSoil%DormancyBiomassToSoil => Me%Fluxes%BiomassRemovedInDormancy
+                if (Me%ComputeOptions%ModelNitrogen) then
+                    Me%Fluxes%ToSoil%DormancyNitrogenToSoil => Me%Fluxes%NitrogenRemovedInDormancy
+                endif            
+                if (Me%ComputeOptions%ModelPhosphorus) then
+                    Me%Fluxes%ToSoil%DormancyPhosphorusToSoil => Me%Fluxes%PhosphorusRemovedInDormancy
+                endif                
+            endif
+            
         endif
         
     end subroutine CreateVariablesAlias
@@ -3565,7 +3589,6 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             allocate(Me%Fluxes%NitrogenUptakeLayer (ILB:IUB,JLB:JUB,KLB:KUB))              
             Me%Fluxes%NitrogenUptakeLayer (:,:,:) = 0.0
             
-            Me%Fluxes%FromSoil%NitrogenUptakeFromSoil => Me%Fluxes%NitrogenUptakeLayer
         endif
 
         if (Me%ComputeOptions%ModelPhosphorus) then
@@ -3574,6 +3597,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             
             allocate(Me%Fluxes%PhosphorusUptakeLayer (ILB:IUB,JLB:JUB,KLB:KUB))              
             Me%Fluxes%PhosphorusUptakeLayer (:,:,:) = 0.0 
+            
         endif   
         
         !Nutrient uptake fluxes in porous media properties
@@ -3815,10 +3839,10 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             
                 allocate(Me%Fluxes%BiomassRemovedInDormancy (ILB:IUB,JLB:JUB))
                 Me%Fluxes%BiomassRemovedInDormancy (:,:) = 0.0
-            
+                                
                 if (Me%ComputeOptions%ModelNitrogen) then
                     allocate(Me%Fluxes%NitrogenRemovedInDormancy (ILB:IUB,JLB:JUB))
-                    Me%Fluxes%NitrogenRemovedInDormancy (:,:) = 0.0  
+                    Me%Fluxes%NitrogenRemovedInDormancy (:,:) = 0.0                      
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then

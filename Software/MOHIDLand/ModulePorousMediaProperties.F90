@@ -9913,7 +9913,7 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: i, j, k!, CHUNK
 !        character(len=5)                            :: char_i, char_j, char_k
-!        character(len=15)                           :: char_conc        
+!        character(len=20)                           :: char_conc        
 !        character (len = StringLength)              :: StrWarning        
         !Begin----------------------------------------------------------------------
 
@@ -9956,10 +9956,10 @@ cd1 :       if (Property%Evolution%MinConcentration) then
 !                            write(char_i, '(i4)')i
 !                            write(char_j, '(i4)')j
 !                            write(char_k, '(i4)')k
-!                            write(char_conc, '(ES10.3)') Property%Concentration(i,j,k) 
+!                            write(char_conc, '(f20.8)') Property%Concentration(i,j,k)
 !
 !                            StrWarning = trim(Property%ID%Name)//' was modified to its MinValue in cell(i,j,k)'// &
-!                                                               char_i//','//char_j//','//char_k//' '//char_conc//' '//Message
+!                                                               char_i//','//char_j//','//char_k//' '//char_conc
 !
 !                            call SetError(WARNING_, INTERNAL_, StrWarning, OFF)
                             
@@ -10955,7 +10955,7 @@ First:          if (LastTime.LT.Actual) then
 
                 write(str_mass_created, '(f20.8)') Total_Mass_Created
       
-                string_to_be_written = 'Total mass created on property '                //&
+                string_to_be_written = 'Due to MinConcentration PMP Total mass (kg) created on property ' //&
                                         trim(adjustl(adjustr(PropertyX%ID%Name)))//' = ' //&
                                         trim(adjustl(adjustr(str_mass_created))) 
             
