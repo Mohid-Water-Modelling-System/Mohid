@@ -700,7 +700,12 @@
         real, pointer, dimension(:)      :: SettlementProbability => null()
         type(T_Species),    pointer      :: Next
     end type T_Species
-
+    
+    type     T_RestartSpecies
+        character(len = StringLength)    :: Name = " "
+        integer                          :: nCohorts
+        integer, dimension(:), pointer   :: CohortIDs     => null()
+    end type T_RestartSpecies
 
     type     T_Bivalve
         integer                              :: InstanceID
@@ -708,6 +713,7 @@
         integer                              :: ObjEnterData             = 0
         integer                              :: DensityUnits             = 0 ! 0: m2, 1:m3
         type(T_Time)                         :: InitialDate, FinalDate
+        logical                              :: Old                      = .false.
         real                                 :: DT                       = null_real
         real                                 :: DTDay                    = null_real
         type (T_Size1D)                      :: Array                    
@@ -739,7 +745,12 @@
         real                                 :: MassLoss                 = 0.0
         real                                 :: MaxTNField               = 0.0  ! #/m2
         !character(len = PathLength)         :: PathFileName = '/home/saraiva/00_Projects/Parametric/Running/' !biocluster
-        character(len = PathLength)          :: PathFileName = ''            
+        character(len = PathLength)          :: PathFileName = ''  
+        character(len = PathLength)          :: InitialFileName = ''  
+        character(len = PathLength)          :: FinalFileName = '' 
+        
+        type (T_RestartSpecies), dimension(:), pointer  :: RestartSpecies
+        integer                              :: nRestartSpecies
     end type T_Bivalve
 
 
@@ -885,7 +896,7 @@ cd1 :   if (ready_ .EQ. OFF_ERR_) then
         integer             :: flag, STAT_CALL
 
         !Begin----------------------------------------------------------------------
-
+        
         call ReadFileName("ROOT_SRT", Me%PathFileName, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
             stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR00'
@@ -1054,8 +1065,145 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
         if (STAT_CALL .NE. SUCCESS_)                                       &
         stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR120'
         
+        call GetData(Me%Old                                              , &
+                     Me%ObjEnterData, flag                               , &
+                     SearchType   = FromFile                             , &
+                     keyword      = 'OLD'                                , &       
+                     default      = .false.                              , & 
+                     ClientModule = 'ModuleBivalve'                      , &
+                     STAT         = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                       &
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR130'
+        
+        if(Me%Old)then
+            
+            call ReadFileName("BIV_INI", Me%InitialFileName, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                       &
+            stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR140'
+            
+            call ReadInitialBivalveFile
+
+        endif
+
+        call ReadFileName("BIV_FIN", Me%FinalFileName, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                       &
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR150'
         
     end subroutine ConstructGlobalVariables
+
+    !-------------------------------------------------------------------------------
+    
+    subroutine ReadInitialBivalveFile
+    
+        !Local----------------------------------------------------------------------
+        integer                                     :: ClientNumber, STAT_CALL, flag
+        logical                                     :: BlockFound, BlockCohortsFound
+        integer                                     :: iCohort, iSpecies
+        integer                                     :: iLine, FirstLine, LastLine, ID
+        integer                                     :: ObjEnterData = 0
+        
+        !Begin----------------------------------------------------------------------
+
+        call ConstructEnterData(ObjEnterData, trim(Me%InitialFileName), STAT = STAT_CALL) 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialBivalveFile - ModuleBivalve - ERR01'        
+                
+        call GetData(Me%nRestartSpecies                         , &
+                     ObjEnterData, flag                         , &
+                     SearchType   = FromFile                    , &
+                     keyword      = 'NUMBER_OF_SPECIES'         , &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialBivalveFile - ModuleBivalve - ERR10'
+        
+        allocate(Me%RestartSpecies(1:Me%nRestartSpecies))
+        
+        iSpecies = 0   
+
+do1 :   do
+            call ExtractBlockFromBuffer(ObjEnterData                       , &
+                                        ClientNumber    = ClientNumber     , &
+                                        block_begin     = '<begin_species>', &
+                                        block_end       = '<end_species>'  , &
+                                        BlockFound      = BlockFound       , &
+                                        STAT            = STAT_CALL)
+cd1 :       if(STAT_CALL .EQ. SUCCESS_)then
+cd2 :           if (BlockFound) then
+
+                    iSpecies = iSpecies + 1
+
+                    call GetData(Me%RestartSpecies(iSpecies)%Name           , &
+                                 ObjEnterData, flag                         , &
+                                 SearchType   = FromBlock                   , &
+                                 keyword      = 'NAME'                      , &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialBivalveFile - ModuleBivalve - ERR20'
+
+                    call GetData(Me%RestartSpecies(iSpecies)%nCohorts       , &
+                                 ObjEnterData, flag                         , &
+                                 SearchType   = FromBlock                   , &
+                                 keyword      = 'NUMBER_OF_COHORTS'         , &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialBivalveFile - ModuleBivalve - ERR30'
+                    
+                    allocate(Me%RestartSpecies(iSpecies)%CohortIDs(1:Me%RestartSpecies(iSpecies)%nCohorts))
+                    
+                    call ExtractBlockFromBlock(ObjEnterData, ClientNumber,      &
+                                               '<begin_cohort>', '<end_cohort>',&
+                                               BlockCohortsFound,               &
+                                               FirstLine = FirstLine,           &
+                                               LastLine  = LastLine,            &
+                                               STAT      = STAT_CALL)
+                    if (STAT_CALL .EQ. SUCCESS_) then    
+                        if (BlockCohortsFound) then                 
+                        
+                            iCohort = 0       
+
+                            do iLine = FirstLine+1, LastLine-1
+                            
+                                call GetData(ID, ObjEnterData, flag, Buffer_Line  = iLine, STAT = STAT_CALL)
+                                if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialBivalveFile - ModuleBivalve - ERR40'  
+                                
+                                iCohort = iCohort + 1 
+                                Me%RestartSpecies(iSpecies)%CohortIDs(iCohort) = ID
+                                        
+                            enddo
+                            
+                            if(iCohort .NE. Me%RestartSpecies(iSpecies)%nCohorts)then
+                                stop 'Subroutine ReadInitialBivalveFile - ModuleBivalve - ERR50'
+                            endif
+
+                        else
+                            stop 'Subroutine ReadInitialBivalveFile - ModuleBivalve - ERR60'
+                        endif      
+                    else
+                        stop 'Subroutine ReadInitialBivalveFile - ModuleBivalve - ERR70'
+                    endif
+                    
+
+                else cd2
+                
+                    call Block_Unlock(ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                    if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadInitialBivalveFile - ModuleBivalve - ERR80'
+
+                    exit do1
+                end if cd2
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then cd1
+                write(*,*)  
+                write(*,*) 'Error calling ExtractBlockFromBuffer. '
+                stop 'Subroutine ReadInitialBivalveFile - ModuleBivalve - ERR90'
+            else cd1
+                stop 'Subroutine ReadInitialBivalveFile - ModuleBivalve - ERR100'
+            end if cd1
+        end do do1
+
+
+        call KillEnterData(ObjEnterData, STAT = STAT_CALL) 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialBivalveFile - ModuleBivalve - ERR110'        
+    
+    
+    
+    end subroutine ReadInitialBivalveFile
 
     !-------------------------------------------------------------------------------
 
@@ -1067,11 +1215,12 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
         type (T_Species)           , pointer        :: NewSpecies
         integer                                     :: ClientNumber, STAT_CALL
         logical                                     :: BlockFound
-        integer                                     :: iCohort
+        integer                                     :: iCohort, iSpecies, RestartCohortID
 
         !Begin----------------------------------------------------------------------
 
-
+        iSpecies = 0
+        
 do1 :   do
             call ExtractBlockFromBuffer(Me%ObjEnterData                    , &
                                         ClientNumber    = ClientNumber     , &
@@ -1085,12 +1234,36 @@ cd2 :           if (BlockFound) then
                     call AddSpecies (NewSpecies)
 
                     call ConstructSpeciesParameters (NewSpecies, ClientNumber)
-
+                    
+                    if(.not. Me%Old)then
+                    
                         do iCohort = 1, NewSpecies%Initial_nCohorts
 
                             call ConstructCohort (NewSpecies)
 
                         end do
+                    
+                    else
+                        
+                        !continuacao de calculo
+                        iSpecies = iSpecies + 1
+                        
+                        if(trim(Me%RestartSpecies(iSpecies)%Name) .NE. trim(NewSpecies%ID%Name))then
+                            write(*,*)"Inconsistent species names between Bivalve restart file and input file"
+                            stop 'Subroutine ConstructSpecies - ModuleBivalve - ERRO1'
+                        end if
+                        
+                        do iCohort = 1, Me%RestartSpecies(iSpecies)%nCohorts
+                        
+                            RestartCohortID = Me%RestartSpecies(iSpecies)%CohortIDs(iCohort)
+                        
+                            call ConstructCohort (NewSpecies, RestartCohortID)
+                            
+                        enddo
+                        
+                    endif
+
+                        
 
                     nullify(NewSpecies)
 
@@ -1156,10 +1329,11 @@ do1:        do while (associated(ObjSpecies))
 
     !-------------------------------------------------------------------------------
 
-    subroutine ConstructCohort(NewSpecies)
+    subroutine ConstructCohort(NewSpecies, CohortID)
 
         !Arguments------------------------------------------------------------------
         type (T_Species)        , pointer             :: NewSpecies
+        integer, optional                             :: CohortID
 
         !Local----------------------------------------------------------------------
         type(T_Cohort)          , pointer             :: NewCohort
@@ -1168,8 +1342,13 @@ do1:        do while (associated(ObjSpecies))
         !Begin----------------------------------------------------------------------
 
         allocate(NewCohort)
+        
+        if(present(CohortID))then
+            call AddCohort(NewSpecies, NewCohort, CohortID)
+        else
+            call AddCohort(NewSpecies, NewCohort)
+        endif
 
-        call AddCohort(NewSpecies, NewCohort)
 
         write(CohortIDStr, ('(i5)'))NewCohort%ID%ID
 
@@ -1187,11 +1366,12 @@ do1:        do while (associated(ObjSpecies))
 
     !-------------------------------------------------------------------------------
 
-    subroutine AddCohort (Species, NewCohort)
+    subroutine AddCohort (Species, NewCohort, NewCohortID)
 
         !Arguments-------------------------------------------------------------
         type (T_Species),            pointer            :: Species
         type (T_Cohort),            pointer             :: NewCohort
+        integer, optional                               :: NewCohortID
 
         !Local-----------------------------------------------------------------
         type (T_Cohort),            pointer             :: ObjCohort
@@ -1214,7 +1394,11 @@ do1:        do while (associated(ObjCohort%Next))
         endif cd1
 
         !Attributes ID
-        NewCohort%ID%ID            = Species%LastCohortID + 1
+        if(present(NewCohortID))then
+            NewCohort%ID%ID        = NewCohortID
+        else
+            NewCohort%ID%ID        = Species%LastCohortID + 1
+        endif
 
         Species%LastCohortID       = NewCohort%ID%ID
 
@@ -9534,10 +9718,12 @@ d1:     do while (associated(Species))
 
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
-                nUsers = DeassociateInstance(mBivalve_,  Me%InstanceID)
+            nUsers = DeassociateInstance(mBivalve_,  Me%InstanceID)
 
             if (nUsers == 0) then
-
+            
+                call WriteFinalBivalveFile
+            
                 !deallocate everything inside the cohorts and species
                 Species => Me%FirstSpecies
                 do while(associated(Species))
@@ -9611,7 +9797,52 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     end subroutine KillBivalve
 
+    !-------------------------------------------------------------------------------
+    
+    subroutine WriteFinalBivalveFile 
+       
+        !Local----------------------------------------------------------------------
+        integer                                   :: STAT_CALL, FinalUnit
+        type (T_Species)         , pointer        :: Species
+        type (T_Cohort )         , pointer        :: Cohort
 
+        !Begin----------------------------------------------------------------------
+
+        call UnitsManager(FinalUnit, OPEN_FILE, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'WriteFinalBivalveFile - ModuleBivalve - ERR01'
+
+        open(Unit = FinalUnit, File = trim(Me%FinalFileName), status = 'UNKNOWN', IOSTAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'WriteFinalBivalveFile - ModuleBivalve - ERR10'
+
+        call WriteDataLine(FinalUnit, 'NUMBER_OF_SPECIES', Me%nSpecies)
+
+        Species => Me%FirstSpecies
+        do while(associated(Species))
+        
+            call WriteDataLine(FinalUnit, '<begin_species>') 
+            call WriteDataLine(FinalUnit, 'NAME', trim(Species%ID%Name))
+            call WriteDataLine(FinalUnit, 'NUMBER_OF_COHORTS', Species%nCohorts)
+
+            Cohort => Species%FirstCohort
+            do while(associated(Cohort))
+            
+                call WriteDataLine(FinalUnit, '<begin_cohort>') 
+                write(FinalUnit, *) Cohort%ID%ID
+                call WriteDataLine(FinalUnit, '<end_cohort>') 
+
+                Cohort  => Cohort%Next  
+            enddo
+
+            call WriteDataLine(FinalUnit, '<end_species>') 
+
+            Species  => Species%Next  
+        enddo
+
+        call UnitsManager(FinalUnit, CLOSE_FILE, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'WriteFinalBivalveFile - ModuleBivalve - ERR20'
+    
+    end subroutine WriteFinalBivalveFile
+    
     !-------------------------------------------------------------------------------
 
     subroutine CloseFiles (Species)

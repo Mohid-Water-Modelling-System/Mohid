@@ -2068,8 +2068,13 @@ cd2 :           if (BlockFound) then
                      STAT           = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)                                          &
             stop 'ConstructSpecies - ModuleWaterProperties - ERR220' 
+            
+        if(NewSpecies%Old)then
+            call ConstructCohortListFromRestartFile(NewSpecies)
+        else
+            call ConstructCohortList(NewSpecies, ClientNumber)
+        endif
 
-        call ConstructCohortList(NewSpecies, ClientNumber)
         
         call ConstructSpeciesSettlement(NewSpecies, ClientNumber)
         
@@ -2149,6 +2154,122 @@ cd2 :           if (BlockFound) then
     
     end subroutine ConstructSpeciesSettlement
  
+  
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructCohortListFromRestartFile(NewSpecies) 
+        
+        !Arguments-------------------------------------------------------------
+        type (T_Species),      pointer              :: NewSpecies
+
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        
+        !Local-----------------------------------------------------------------
+        type (T_Cohort),      pointer               :: NewCohort
+        logical                                     :: EXIST
+        integer(4)                                  :: HDF5_READ
+        integer                                     :: ObjHDF5 = 0, nProperties, iProp, ichar
+        character(len=StringLength)                 :: PropertyName, NewCohortName
+        integer                                     :: PropertyNameLength, SpeciesNameLength
+        character(len=10)                           :: NewCohortIDChar
+        character(len=1)                            :: one_char
+        integer                                     :: NewCohortID
+       
+        !Begin-----------------------------------------------------------------
+        
+        
+        inquire (FILE=trim(Me%Files%InitialWaterProperties)//"5", EXIST = EXIST)
+
+        if (EXIST) then
+
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+            ObjHDF5 = 0
+
+            !Opens HDF5 File
+            call ConstructHDF5 (ObjHDF5,                                                 &
+                                trim(Me%Files%InitialWaterProperties)//"5",&
+                                HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR01'
+            
+            call GetHDF5GroupNumberOfItems(ObjHDF5, "/Concentration", nProperties, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR10'
+            
+            if(nProperties == 0)stop 'ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR20'
+            
+            SpeciesNameLength = len_trim(NewSpecies%ID%Name)
+            
+            iProp = 1
+            
+            do while(iProp < nProperties)
+            
+                call GetHDF5GroupID(ObjHDF5, "/Concentration", iProp, PropertyName, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR10'
+                
+                PropertyNameLength = len_trim(PropertyName)
+                
+                if(PropertyNameLength > SpeciesNameLength)then
+                
+                    if(trim(PropertyName(1:SpeciesNameLength)) == trim(NewSpecies%ID%Name))then
+                    
+                        do ichar = SpeciesNameLength+9, PropertyNameLength
+
+                            one_char = PropertyName(ichar:ichar)
+
+                            if(one_char == space)then
+                                NewCohortIDChar = trim(PropertyName(SpeciesNameLength+9:ichar-1))
+                                
+                                read(NewCohortIDChar, ('(i)')) NewCohortID
+                                
+                                allocate(NewCohort)
+
+                                call AddCohort(NewSpecies, NewCohort, NewCohortID)
+                    
+                                call ConstructCohort (NewSpecies, NewCohort)
+                    
+                                nullify(NewCohort)
+                                
+                                iProp = iProp + 7  !each cohort has 7 properties
+                                
+                                exit
+                            end if
+
+                        end do
+                    
+                    else
+                     
+                        iProp = iProp + 1   
+                        
+                    endif
+                    
+                else
+                    
+                    iProp = iProp + 1 
+                
+                endif
+            
+            enddo
+            
+            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR100'
+
+        elseif(.not. EXIST)then
+            
+            write(*,*)
+            write(*,*)"Could not find the following hdf5 file: "
+            write(*,*)trim(Me%Files%InitialWaterProperties)//"5"
+            write(*,*)"This model is trying to access this file to" 
+            write(*,*)"continue calculation of bivalve cohorts from: "
+            write(*,*)trim(NewSpecies%ID%Name)
+            write(*,*)"Please see and correct keyword EUL_INI in nomfich.dat file."
+            stop 'ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR100'
+
+        endif
+       
+    end subroutine ConstructCohortListFromRestartFile
+     
     !--------------------------------------------------------------------------
     
     subroutine ConstructCohortList(NewSpecies, ClientNumber) 
@@ -2206,11 +2327,12 @@ cd2 :           if (BlockInBlockFound) then
      
     !-------------------------------------------------------------------------------
 
-    subroutine AddCohort (Species, NewCohort) 
+    subroutine AddCohort (Species, NewCohort, ID) 
 
         !Arguments-------------------------------------------------------------
         type (T_Species),            pointer            :: Species
         type (T_Cohort) ,            pointer            :: NewCohort
+        integer, optional                               :: ID
 
         !Local-----------------------------------------------------------------
         type (T_Cohort),            pointer             :: ObjCohort
@@ -2230,12 +2352,15 @@ do1:        do while (associated(ObjCohort%Next))
             
             ObjCohort%Next => NewCohort
         endif cd1
-
+        
         !Attributes ID
-        NewCohort%ID%ID            = Species%LastCohortID + 1
-
+        if(present(ID))then
+            NewCohort%ID%ID        = ID
+        else
+            NewCohort%ID%ID        = Species%LastCohortID + 1
+        endif
+        
         Species%LastCohortID       = NewCohort%ID%ID 
-      
         Species%nCohorts           = Species%nCohorts + 1
 
     end subroutine AddCohort

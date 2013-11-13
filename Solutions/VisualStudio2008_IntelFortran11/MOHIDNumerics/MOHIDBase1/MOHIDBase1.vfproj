@@ -334,13 +334,13 @@
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration>
 			<FileConfiguration Name="Debug OpenMI|Win32">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration></File>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleBivalve.f90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleBivalve.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleCEQUALW2.F90">
 			<FileConfiguration Name="Debug OpenMI|x64">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration>
 			<FileConfiguration Name="Debug OpenMI|Win32">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration></File>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleCuda.f90">
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleCuda.F90">
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDischarges.F90">
 			<FileConfiguration Name="Debug OpenMI|x64">
