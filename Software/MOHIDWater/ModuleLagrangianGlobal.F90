@@ -3452,8 +3452,6 @@ d2:     do em =1, Me%EulerModelNumber
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR230'        
         
         
-        call BoxTypeVariablesDefiniton
-
         !OutputTracerInfo
         call GetData(Me%State%OutputTracerInfo,                                     &
                      Me%ObjEnterData,                                               &
@@ -3465,6 +3463,8 @@ d2:     do em =1, Me%EulerModelNumber
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR235'
 
+        call BoxTypeVariablesDefiniton
+        
         !OVERLAY_VELOCITY
         call GetData(Me%Overlay,                                                        &
                      Me%ObjEnterData,                                                   &
@@ -23180,7 +23180,7 @@ CurrOr:     do while (associated(CurrentOrigin))
        
         RunPeriod = (Me%ExternalVar%Now - Me%ExternalVar%BeginTime) / 3600
 
-        nearcoastdistance = Me%NearCoastDistance        
+        NearCoastDistance = Me%NearCoastDistance        
         OutPutNumber = Me%OutPut%NextOutPut
 if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then 
 
@@ -23256,56 +23256,53 @@ if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                     !tracer status = on sea surface
                     If (CurrentPartic%Position%Surface)     TracerStatus = 5             
 
-        IfBeaching: if (CurrentOrigin%Beaching) then
-                        !tracer status = beached
-                        If (CurrentPartic%Beached)              TracerStatus = 10             
+                    !tracer status = beached
+                    If (CurrentPartic%Beached)              TracerStatus = 10             
 
-                        !check if tracer is near coastline
-                        NearCoastDistance = 200.
+                    !check if tracer is near coastline
+                    
+                    InsideDomain = .true.
+                    
+                    if (j <= WS_JLB + 1) InsideDomain = .false.
+                    if (i <= WS_ILB + 1) InsideDomain = .false.
+                    
+                    if (j >= WS_JUB - 1) InsideDomain = .false.
+                    if (i >= WS_IUB - 1) InsideDomain = .false.
+                    
+IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
+
+                            if ((Me%EulerModel(em)%OpenPoints3D(i, j+1, k).NE. OpenPoint)  .AND. &
+                                  ((1-BALX) *  (Me%EulerModel(em)%Grid%ParticXX(i, j+1) - &
+                                   Me%EulerModel(em)%Grid%ParticXX(i, j)) .LT. (NearCoastDistance + F_BLimit(em,i,j+1)))) then
+                                
+                                if (TracerStatus .EQ. 1) TracerStatus = 110
+                                if (TracerStatus .EQ. 5) TracerStatus = 510
+
+           
+                            else if ((Me%EulerModel(em)%OpenPoints3D(i, j-1, k).NE. OpenPoint)  .AND.  &
+                                       (BALX *  (Me%EulerModel(em)%Grid%ParticXX(i, j+1) - &
+                                        Me%EulerModel(em)%Grid%ParticXX(i, j)).LT. (NearCoastDistance + F_BLimit(em,i,j-1)))) then
+
+                                if (TracerStatus .EQ. 1) TracerStatus = 110
+                                if (TracerStatus .EQ. 5) TracerStatus = 510
+         
+                            else if ((Me%EulerModel(em)%OpenPoints3D(i+1, j, k).NE. OpenPoint)  .AND. &
+                                       ((1-BALY) *  (Me%EulerModel(em)%Grid%ParticYY(i+1, j) - &
+                                       Me%EulerModel(em)%Grid%ParticYY(i, j)).LT. (NearCoastDistance + F_BLimit(em,i+1,j)))) then
+
+                                if (TracerStatus .EQ. 1) TracerStatus = 110
+                                if (TracerStatus .EQ. 5) TracerStatus = 510
+           
+                            else if ((Me%EulerModel(em)%OpenPoints3D(i-1, j, k).NE. OpenPoint)  .AND. &
+                                       (BALY *  (Me%EulerModel(em)%Grid%ParticYY(i+1, j) -            &
+                                       Me%EulerModel(em)%Grid%ParticYY(i, j)) .LT. (NearCoastDistance + F_BLimit(em,i-1,j)))) then
+
+                                if (TracerStatus .EQ. 1) TracerStatus = 110
+                                if (TracerStatus .EQ. 5) TracerStatus = 510
+                    
+                            end if
                         
-                        InsideDomain = .true.
-                        
-                        if (j <= WS_JLB + 1) InsideDomain = .false.
-                        if (i <= WS_ILB + 1) InsideDomain = .false.
-                        
-                        if (j >= WS_JUB - 1) InsideDomain = .false.
-                        if (i >= WS_IUB - 1) InsideDomain = .false.
-                        
-    IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
-
-                                if ((Me%EulerModel(em)%OpenPoints3D(i, j+1, k).NE. OpenPoint)  .AND. &
-                                      ((1-BALX) *  (Me%EulerModel(em)%Grid%ParticXX(i, j+1) - &
-                                       Me%EulerModel(em)%Grid%ParticXX(i, j)) .LT. (NearCoastDistance + Me%EulerModel(em)%BeachingLimit(i,j+1)))) then
-                                    
-                                    if (TracerStatus .EQ. 1) TracerStatus = 110
-                                    if (TracerStatus .EQ. 5) TracerStatus = 510
-
-               
-                                else if ((Me%EulerModel(em)%OpenPoints3D(i, j-1, k).NE. OpenPoint)  .AND.  &
-                                           (BALX *  (Me%EulerModel(em)%Grid%ParticXX(i, j+1) - &
-                                            Me%EulerModel(em)%Grid%ParticXX(i, j)).LT. (NearCoastDistance + Me%EulerModel(em)%BeachingLimit(i,j-1)))) then
-
-                                    if (TracerStatus .EQ. 1) TracerStatus = 110
-                                    if (TracerStatus .EQ. 5) TracerStatus = 510
-             
-                                else if ((Me%EulerModel(em)%OpenPoints3D(i+1, j, k).NE. OpenPoint)  .AND. &
-                                           ((1-BALY) *  (Me%EulerModel(em)%Grid%ParticYY(i+1, j) - &
-                                           Me%EulerModel(em)%Grid%ParticYY(i, j)).LT. (NearCoastDistance + Me%EulerModel(em)%BeachingLimit(i+1,j)))) then
-
-                                    if (TracerStatus .EQ. 1) TracerStatus = 110
-                                    if (TracerStatus .EQ. 5) TracerStatus = 510
-               
-                                else if ((Me%EulerModel(em)%OpenPoints3D(i-1, j, k).NE. OpenPoint)  .AND. &
-                                           (BALY *  (Me%EulerModel(em)%Grid%ParticYY(i+1, j) -            &
-                                           Me%EulerModel(em)%Grid%ParticYY(i, j)) .LT. (NearCoastDistance + Me%EulerModel(em)%BeachingLimit(i-1,j)))) then
-
-                                    if (TracerStatus .EQ. 1) TracerStatus = 110
-                                    if (TracerStatus .EQ. 5) TracerStatus = 510
-                        
-                                end if
-                            
-                        endif IfParticNotBeached
-                    endif IfBeaching
+                    endif IfParticNotBeached
 
                     !tracer status = at the bottom
                     kbottom = Me%EulerModel(em)%KFloor(i, j)
@@ -23421,6 +23418,21 @@ if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
 
     end subroutine WriteIndividualTracerOutput
     
+    real function F_BLimit(em, i,j)
+
+        !Arguments-------------------------------------------------------------
+        integer                                        :: em, i, j
+
+        !Begin-------------------------------------------------------------
+
+        if (Me%State%AssociateBeachProb) then
+            F_BLimit = Me%EulerModel(em)%BeachingLimit(i,j)    
+        else
+            F_BLimit = 0.    
+        end if
+
+    end function F_BLimit
+
     !--------------------------------------------------------------------------
 
     subroutine WriteMonitorOutput(OutputNumber)
