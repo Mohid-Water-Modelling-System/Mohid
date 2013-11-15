@@ -3,11 +3,11 @@
 #------------------------------------------------------------------------------
 #
 # TITLE         : Mohid Model
-# PROJECT       : Mohid Water
+# PROJECT       : Mohid base 2
 # URL           : http://www.mohid.com
 # AFFILIATION   : IST/MARETEC, Marine Modelling Group
-# DATE          : September 2006
-# REVISION      : Guillaume Riflet - v1.0
+# DATE          : November 2013
+# REVISION      : Eduardo Jauch - v1.1
 # DESCRIPTION   : Makefile
 #------------------------------------------------------------------------------
 #
@@ -26,7 +26,7 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5INC) -I$(BASE1INC)
+INCS = -I$(HDF5MODINC) -I$(BASE1INC)
 LIBS =
 
 ifeq ($(IS_NETCDF), true)
@@ -64,21 +64,21 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
-ModuleGridData.${O} : ModuleHorizontalGrid.${O}
-ModuleHorizontalMap.${O} : ModuleGridData.${O}
-ModuleBoxDif.${O} : ModuleHorizontalGrid.${O}
-ModuleBasinGeometry.${O} : ModuleGridData.${O}
-ModuleGeometry.${O} : ModuleHorizontalMap.${O}
-ModuleMap.${O} : ModuleGeometry.${O}
-ModuleAdvectionDiffusion.${O} : ModuleMap.${O}
-ModuleFillMatrix.${O} : ModuleBoxDif.${O} \
-                     ModuleGeometry.${O}
-ModuleInterpolation.${O} : ModuleMap.${O}
-ModuleAtmosphere.${O} : ModuleStatistic.${O} \
-                     ModuleFillMatrix.${O}
-ModuleChainReactions.${O} : ModuleBasinGeometry.${O} \
-                     ModuleMap.${O} \
-		     ModuleFillMatrix.${O}
+ModuleGridData.${Obj} 		: ModuleHorizontalGrid.${Obj}
+ModuleHorizontalMap.${Obj} 	: ModuleGridData.${Obj}
+ModuleBoxDif.${Obj} 		: ModuleHorizontalGrid.${Obj}
+ModuleBasinGeometry.${Obj} 	: ModuleGridData.${Obj}
+ModuleGeometry.${Obj} 		: ModuleHorizontalMap.${Obj}
+ModuleMap.${Obj} 		: ModuleGeometry.${Obj}
+ModuleAdvectionDiffusion.${Obj} : ModuleMap.${Obj}
+ModuleFillMatrix.${Obj} 	: ModuleBoxDif.${Obj} \
+                     		  ModuleGeometry.${Obj}
+ModuleInterpolation.${Obj} 	: ModuleMap.${Obj}
+ModuleAtmosphere.${Obj} 	: ModuleStatistic.${Obj} \
+                     		  ModuleFillMatrix.${Obj}
+ModuleChainReactions.${Obj} 	: ModuleBasinGeometry.${Obj} \
+                    		  ModuleMap.${Obj} \
+		     		  ModuleFillMatrix.${Obj}
 
 #--------End of dependencies list---------
 

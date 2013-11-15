@@ -13,7 +13,7 @@ francisco
 
 export CP  = sudo cp
 export DEL = rm
-export O = o
+export Obj = o
 export F = F90
 export MOD = mod
 export CC= ifort

@@ -64,38 +64,38 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
-ModuleGauge.${O} : ModuleToga.${O}
-ModuleSand.${O} : ModuleWaves.${O}
-ModuleSedimentProperties.${O} : ModuleConsolidation.${O}
-ModuleOpenBoundary.${O} : ModuleGauge.${O}
-ModuleTurbGOTM.${O} : ModuleGOTM.${O}
-ModuleTurbulence.${O} : ModuleTurbGOTM.${O}
-ModuleHydrodynamic.${O} : ModuleAssimilation.${O} \
-                       ModuleHydrodynamicFile.${O} \
-                       ModuleOpenBoundary.${O} \
-                       ModuleTurbulence.${O}
-ModuleWaterProperties.${O} : ModuleFreeVerticalMovement.${O} \
-                          ModuleHydrodynamic.${O}
-ModuleLagrangian.${O} : ModuleJet.${O} \
-                     ModuleOil.${O} \
-                     ModuleOil_0D.${O} \
-                     ModuleWaves.${O} \
-                     ModuleWaterProperties.${O}
-ModuleLagrangianGlobal.${O} : ModuleJet.${O} \
-                     ModuleOil.${O} \
-                     ModuleOil_0D.${O} \
-                     ModuleWaves.${O} \
-                     ModuleWaterProperties.${O}                    	
-ModuleInterfaceWaterAir.${O} : ModuleLagrangian.${O} \
-                               ModuleLagrangianGlobal.${O} \
+ModuleGauge.${Obj} : ModuleToga.${Obj}
+ModuleSand.${Obj} : ModuleWaves.${Obj}
+ModuleSedimentProperties.${Obj} : ModuleConsolidation.${Obj}
+ModuleOpenBoundary.${Obj} : ModuleGauge.${Obj}
+ModuleTurbGOTM.${Obj} : ModuleGOTM.${Obj}
+ModuleTurbulence.${Obj} : ModuleTurbGOTM.${Obj}
+ModuleHydrodynamic.${Obj} : ModuleAssimilation.${Obj} \
+                       ModuleHydrodynamicFile.${Obj} \
+                       ModuleOpenBoundary.${Obj} \
+                       ModuleTurbulence.${Obj}
+ModuleWaterProperties.${Obj} : ModuleFreeVerticalMovement.${Obj} \
+                          ModuleHydrodynamic.${Obj}
+ModuleLagrangian.${Obj} : ModuleJet.${Obj} \
+                     ModuleOil.${Obj} \
+                     ModuleOil_0D.${Obj} \
+                     ModuleWaves.${Obj} \
+                     ModuleWaterProperties.${Obj}
+ModuleLagrangianGlobal.${Obj} : ModuleJet.${Obj} \
+                     ModuleOil.${Obj} \
+                     ModuleOil_0D.${Obj} \
+                     ModuleWaves.${Obj} \
+                     ModuleWaterProperties.${Obj}                    	
+ModuleInterfaceWaterAir.${Obj} : ModuleLagrangian.${Obj} \
+                               ModuleLagrangianGlobal.${Obj} \
 
-ModuleInterfaceSedimentWater.${O} : ModuleSand.${O} \
-                                 ModuleLagrangian.${O} \
-                                 ModuleLagrangianGlobal.${O} \
-                                 ModuleSedimentProperties.${O}
-ModuleModel.${O} : ModuleInterfaceWaterAir.${O} \
-                ModuleInterfaceSedimentWater.${O}
-ModuleMain.${O} : ModuleModel.${O}
+ModuleInterfaceSedimentWater.${Obj} : ModuleSand.${Obj} \
+                                 ModuleLagrangian.${Obj} \
+                                 ModuleLagrangianGlobal.${Obj} \
+                                 ModuleSedimentProperties.${Obj}
+ModuleModel.${Obj} : ModuleInterfaceWaterAir.${Obj} \
+                ModuleInterfaceSedimentWater.${Obj}
+ModuleMain.${Obj} : ModuleModel.${Obj}
 
 #--------End of dependencies list---------
 

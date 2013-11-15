@@ -3,11 +3,11 @@
 #------------------------------------------------------------------------------
 #
 # TITLE         : Mohid Model
-# PROJECT       : Mohid Water
+# PROJECT       : Mohid Land
 # URL           : http://www.mohid.com
 # AFFILIATION   : IST/MARETEC, Marine Modelling Group
-# DATE          : September 2006
-# REVISION      : Ana Rosa Trancoso
+# DATE          : November 2013
+# REVISION      : Eduardo Jauch - v1.1
 # DESCRIPTION   : Makefile
 #------------------------------------------------------------------------------
 #
@@ -26,7 +26,7 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5INC) -I$(BASE1INC) -I$(BASE2INC)
+INCS = -I$(HDF5MODINC) -I$(BASE1INC) -I$(BASE2INC)
 LIBS = $(BASELIBS) $(HDFLIBS)
 SRCDIR = $(SRCREP)/MOHIDLand
 FILES = \
@@ -47,11 +47,11 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
-ModulePorousMediaProperties.${O} : ModulePorousMedia.${O}
-ModuleRunoffProperties.${O} : ModuleRunOff.${O}
-ModuleBasin.${O} :  ModuleRunoffProperties.${O} \
-                    ModulePorousMediaProperties.${O} \
-                    ModuleVegetation.${O}
+ModulePorousMediaProperties.${Obj} 	: ModulePorousMedia.${Obj}
+ModuleRunoffProperties.${Obj} 		: ModuleRunOff.${Obj}
+ModuleBasin.${Obj} 			: ModuleRunoffProperties.${Obj} \
+                    			  ModulePorousMediaProperties.${Obj} \
+                    			  ModuleVegetation.${Obj}
 
 #--------End of dependencies list---------
 

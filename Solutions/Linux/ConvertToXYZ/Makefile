@@ -26,7 +26,7 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5INC) -I$(BASE1INC) -I$(BASE2INC)
+INCS = -I$(HDF5MODINC) -I$(BASE1INC) -I$(BASE2INC)
 LIBS = $(BASELIBS) $(HDFLIBS)
 
 ifeq ($(IS_NETCDF),true)
@@ -60,20 +60,20 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
-CONVERTDEPEND := ModuleASCII.$(O) \
-       		ModuleEtopo2.$(O) \
-		ModuleEtopo5.$(O) \
-		ModuleNASA.$(O) \
-		ModuleNOAAShoreLine.$(O) \
-		ModuleSRTM30.$(O)
+CONVERTDEPEND := ModuleASCII.$(Obj) \
+       		ModuleEtopo2.$(Obj) \
+		ModuleEtopo5.$(Obj) \
+		ModuleNASA.$(Obj) \
+		ModuleNOAAShoreLine.$(Obj) \
+		ModuleSRTM30.$(Obj)
 NCCONVERTDEPEND := \
-		ModuleGEBCO.$(O)
+		ModuleGEBCO.$(Obj)
 
 ifeq ($(IS_NETCDF),true)
     CONVERTDEPEND := $(CONVERTDEPEND) $(NCCONVERTDEPEND)
 endif
 
-ConvertToXYZ.$(O) : $(CONVERTDEPEND)
+ConvertToXYZ.$(Obj) : $(CONVERTDEPEND)
 
 #--------End of dependencies list---------
 

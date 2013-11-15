@@ -3,11 +3,11 @@
 #------------------------------------------------------------------------------
 #
 # TITLE         : Mohid Model
-# PROJECT       : Mohid Water
+# PROJECT       : Mohid Base 1
 # URL           : http://www.mohid.com
 # AFFILIATION   : IST/MARETEC, Marine Modelling Group
-# DATE          : September 2006
-# REVISION      : Guillaume Riflet - v1.0
+# DATE          : November 2013
+# REVISION      : Eduardo Jauch - v1.1
 # DESCRIPTION   : Makefile
 #------------------------------------------------------------------------------
 #
@@ -26,7 +26,7 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5INC)
+INCS = -I$(HDF5MODINC)
 LIBS =
 
 ifeq ($(IS_PROJ4F),true)
@@ -80,55 +80,55 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
-ModuleTime.${O} 			: ModuleGlobalData.${O}
-ModuleStopWatch.${O} 			: ModuleTime.${O}
-ModuleEnterData.${O} 			: ModuleStopWatch.${O}
-ModuleFunctions.${O} 			: ModuleEnterData.${O}
-ModuleSeagrassSedimInteraction.${O} 	: ModuleFunctions.${O} 
-ModuleSeagrassWaterInteraction.${O} 	: ModuleFunctions.${O} 
-ModuleBivalve.${O} 			: ModuleEnterData.${O}
-ModuleBenthos.${O} 			: ModuleEnterData.${O}
-ModuleCEQUALW2.${O} 			: ModuleFunctions.${O}
-ModuleMacroAlgae.${O} 			: ModuleFunctions.${O}
-ModuleTimeSerie.${O} 			: ModuleEnterData.${O}
-ModuleDischarges.${O} 			: ModuleFunctions.${O} \
-                    			  ModuleTimeSerie.${O} \
-                    			  ModuleDrawing.${O}
-ModuleDrawing.${O} 			: ModuleFunctions.${O}
-ModuleLUD.${O} 				: ModuleGlobalData.${O}
-ModuleWaterQuality.${O} 		: ModuleFunctions.${O} \
-                      			  ModuleLUD.${O}
-ModuleSedimentQuality.${O} 		: ModuleFunctions.${O} \
-                        		  ModuleLUD.${O}
-ModuleBenthicEcology.${O} 		: ModuleFunctions.${O}
-ModuleWWTPQ.${O} 			: ModuleFunctions.${O} \
-					  ModuleLUD.${O}	
-ModuleLife.${O} 			: ModuleFunctions.${O}
-ModuleInterface.${O} 			: ModuleWaterQuality.${O} \
-					  ModuleSedimentQuality.${O} \
-					  ModuleCEQUALW2.${O} \
-					  ModuleMacroAlgae.${O} \
-					  ModuleLife.${O} \
-					  ModuleBenthos.${O} \
-					  ModuleBenthicEcology.${O} \
-					  ModuleWWTPQ.${O} \
-					  ModuleSeagrassSedimInteraction.${O} \
-					  ModuleSeagrassWaterInteraction.${O} \
-					  ModuleBivalve.${O}
-ModuleHydroIntegration.${O} 		: ModuleTime.${O}
-ModuleLightExtinction.${O}		: ModuleFunctions.${O} \
-                          		  ModuleTimeSerie.${O}
-ModuleTriangulation.${O} 		: ModuleGlobalData.${O}
-ModuleHDF5.${O} 			: ModuleGlobalData.${O}
-ModuleDrainageNetwork.${O}	 	: ModuleDischarges.${O} \
-                          		  ModuleLightExtinction.${O} \
-                          		  ModuleStopWatch.${O} \
-                          		  ModuleInterface.${O}
-#ModuleCuda.${O} 			: ModuleGlobalData.${O}
-ModuleProfile.${O} 			: ModuleEnterData.${O} \
-                  			  ModuleHDF5.${O}
+ModuleTime.${Obj} 			: ModuleGlobalData.${Obj}
+ModuleStopWatch.${Obj} 			: ModuleTime.${Obj}
+ModuleEnterData.${Obj} 			: ModuleStopWatch.${Obj}
+ModuleFunctions.${Obj} 			: ModuleEnterData.${Obj}
+ModuleSeagrassSedimInteraction.${Obj} 	: ModuleFunctions.${Obj} 
+ModuleSeagrassWaterInteraction.${Obj} 	: ModuleFunctions.${Obj} 
+ModuleBivalve.${Obj} 			: ModuleEnterData.${Obj}
+ModuleBenthos.${Obj} 			: ModuleEnterData.${Obj}
+ModuleCEQUALW2.${Obj} 			: ModuleFunctions.${Obj}
+ModuleMacroAlgae.${Obj} 		: ModuleFunctions.${Obj}
+ModuleTimeSerie.${Obj} 			: ModuleEnterData.${Obj}
+ModuleDischarges.${Obj} 		: ModuleFunctions.${Obj} \
+                    			  ModuleTimeSerie.${Obj} \
+                    			  ModuleDrawing.${Obj}
+ModuleDrawing.${Obj} 			: ModuleFunctions.${Obj}
+ModuleLUD.${Obj} 			: ModuleGlobalData.${Obj}
+ModuleWaterQuality.${Obj} 		: ModuleFunctions.${Obj} \
+                      			  ModuleLUD.${Obj}
+ModuleSedimentQuality.${Obj} 		: ModuleFunctions.${Obj} \
+                        		  ModuleLUD.${Obj}
+ModuleBenthicEcology.${Obj} 		: ModuleFunctions.${Obj}
+ModuleWWTPQ.${Obj} 			: ModuleFunctions.${Obj} \
+					  ModuleLUD.${Obj}	
+ModuleLife.${Obj} 			: ModuleFunctions.${Obj}
+ModuleInterface.${Obj} 			: ModuleWaterQuality.${Obj} \
+					  ModuleSedimentQuality.${Obj} \
+					  ModuleCEQUALW2.${Obj} \
+					  ModuleMacroAlgae.${Obj} \
+					  ModuleLife.${Obj} \
+					  ModuleBenthos.${Obj} \
+					  ModuleBenthicEcology.${Obj} \
+					  ModuleWWTPQ.${Obj} \
+					  ModuleSeagrassSedimInteraction.${Obj} \
+					  ModuleSeagrassWaterInteraction.${Obj} \
+					  ModuleBivalve.${Obj}
+ModuleHydroIntegration.${Obj} 		: ModuleTime.${Obj}
+ModuleLightExtinction.${Obj}		: ModuleFunctions.${Obj} \
+                          		  ModuleTimeSerie.${Obj}
+ModuleTriangulation.${Obj} 		: ModuleGlobalData.${Obj}
+ModuleHDF5.${Obj} 			: ModuleGlobalData.${Obj}
+ModuleDrainageNetwork.${Obj}	 	: ModuleDischarges.${Obj} \
+                          		  ModuleLightExtinction.${Obj} \
+                          		  ModuleStopWatch.${Obj} \
+                          		  ModuleInterface.${Obj}
+#ModuleCuda.${Obj} 			: ModuleGlobalData.${Obj}
+ModuleProfile.${Obj} 			: ModuleEnterData.${Obj} \
+                  			  ModuleHDF5.${Obj}
 
-ModuleTask2000.${O} :
+ModuleTask2000.${Obj} :
 	@$(CC) $(CCFLAGS) $(INCS) $(SRCDIR)/ModuleTask2000.F
 	@echo $* .................. [OK]    
 

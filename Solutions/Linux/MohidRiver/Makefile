@@ -26,7 +26,7 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5INC) -I$(BASE1INC) -I$(BASE2INC)
+INCS = -I$(HDF5MODINC) -I$(BASE1INC) -I$(BASE2INC)
 LIBS = $(BASELIBS) $(HDFLIBS)
 SRCDIR = $(SRCREP)/MOHIDRiver
 FILES = \
@@ -40,7 +40,7 @@ SHELL = /bin/sh
 include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
-RiverNetwork.$(O) : 
+RiverNetwork.$(Obj) : 
 #
 #--------End of dependencies list---------
 

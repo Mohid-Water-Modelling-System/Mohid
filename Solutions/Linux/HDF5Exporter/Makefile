@@ -42,8 +42,8 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
-ModuleHDF5Exporter.${O} : 
-HDF5Exporter.${O} : ModuleHDF5Exporter.${O}
+ModuleHDF5Exporter.${Obj} : 
+HDF5Exporter.${Obj} : ModuleHDF5Exporter.${Obj}
 
 #--------End of dependencies list---------
 

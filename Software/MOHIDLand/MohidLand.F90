@@ -164,10 +164,20 @@ program MohidLand
     
     subroutine print_version ()
         print '(a)', ''
-#if defined (CODEPLEXVERSION)
-        print '(a, i0)', 'MohidLand version (codeplex): ', CODEPLEXVERSION
+#if defined (_CODEPLEX_VERSION)
+        print '(a, a)', 'MohidLand version (codeplex): ', _CODEPLEX_VERSION
 #else
         print '(a)', 'MohidLand version : PERSONAL'
+#endif
+#if defined (_COMPILED_BY)
+        print '(a, a)', 'Compiled by: ', _COMPILED_BY
+#else
+        print '(a)', 'Compiled by: Unknown'
+#endif
+#if defined (_COMPILING_DATE)
+        print '(a, a)', 'Compiled on: ', _COMPILING_DATE
+#else
+        print '(a)', 'Compiled on: Unknown'
 #endif
         print '(a)', ''
     end subroutine print_version

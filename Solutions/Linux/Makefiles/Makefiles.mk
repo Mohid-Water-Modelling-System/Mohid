@@ -1,5 +1,5 @@
-OBJS1 = $(FILES:.$(S)=.$(O))
-OBJS = $(OBJS1:.F=.$(O)) 
+OBJS1 = $(FILES:.$(S)=.$(Obj))
+OBJS = $(OBJS1:.F=.$(Obj)) 
 SRCF = $(SRCDIR)
 SUFF := $(suffix $(TARGET))
 
@@ -21,14 +21,14 @@ endif
 	@echo 
 
 #Fortran compilation rule
-%.$(O) : $(SRCF)/%.$(F)
+%.$(Obj) : $(SRCF)/%.$(F)
 	@$(CC) $(CCFLAGS) $(INCS) $<
 	@echo $* .................. [OK]
 
 #make clean
 .PHONY: clean
 clean:
-	@-$(DEL) *.$(O) *.$(MOD) $(TARGET)
+	@-$(DEL) *.$(Obj) *.$(MOD) $(TARGET)
 	@echo erased $(TARGET) files.
 
 #make install

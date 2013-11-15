@@ -41,7 +41,7 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
-BasinDelimiter.$(O) : 
+BasinDelimiter.$(Obj) : 
 #
 #--------End of dependencies list---------
 

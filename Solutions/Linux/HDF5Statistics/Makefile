@@ -42,7 +42,7 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
-HDF5Statistics.$(O) : ModuleHDF5Statistics.$(O)
+HDF5Statistics.$(Obj) : ModuleHDF5Statistics.$(Obj)
 
 #--------End of dependencies list---------
 
