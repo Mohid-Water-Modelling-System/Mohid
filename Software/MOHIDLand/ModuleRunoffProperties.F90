@@ -6630,12 +6630,16 @@ doi4 :      do i = ILB, IUB
 
                         !Change conc in recieving cell. origin cell does not change conc.
                         !WaterVolumeOld is after transport and after DN update in DrainageNetworkInterface
-                        WaterVolumeOldDFour        = Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i,j)          &
-                                                      - Me%ExtVar%FlowToChannels(i,j) * Me%ExtVar%DT
+                        WaterVolumeOldDFour        = Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i,j)
+                        WaterVolumeOldLowNeighbour = Me%ExtVar%WaterColumnAT(it,jt) * Me%ExtVar%Area(it,jt)
+                        if (Me%ExtVar%CoupledDN) then
+                            WaterVolumeOldDFour        = WaterVolumeOldDFour -                             &
+                                                         Me%ExtVar%FlowToChannels(i,j) * Me%ExtVar%DT
+                            WaterVolumeOldLowNeighbour = WaterVolumeOldLowNeighbour -                      &
+                                                          Me%ExtVar%FlowToChannels(it,jt) * Me%ExtVar%DT
+                        endif
                         
-                        WaterVolumeOldLowNeighbour = Me%ExtVar%WaterColumnAT(it,jt) * Me%ExtVar%Area(it,jt)      &
-                                                     - Me%ExtVar%FlowToChannels(it,jt) * Me%ExtVar%DT
-                        !New watervolume can not be the final because it may exist boundary flux (See BoundaryInterface).
+                        !New watervolume after routedfour flux
                         !So new is old less flux. Positive flux adds WC
                         WaterVolumeNewDFour        = WaterVolumeOldDFour                                         &
                                                      - Me%ExtVar%RouteDFourFlux(i,j) * Me%ExtVar%DT
