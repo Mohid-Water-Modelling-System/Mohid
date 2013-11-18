@@ -5713,7 +5713,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ComputeVolumes - ERR01'
         
         
-        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         !$OMP PARALLEL PRIVATE(I,J,K)
         
         !Compute volumes and correct top flux taking FluxW(KUB+1) because it would be interpreted by module advection diffusion
@@ -5748,7 +5748,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         k = Me%WorkSize%KUB
         call SetMatrixValue (Me%FluxWCorr, Me%Size, Me%ExtVar%FluxW)
          
-         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         !$OMP PARALLEL PRIVATE(I,J,K)
 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -5792,7 +5792,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, pointer, dimension(:,:,:) :: ThetaOld, Theta
         !Begin-----------------------------------------------------------------
         
-        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
         !$OMP PARALLEL PRIVATE(I,J,K)
 
@@ -5885,7 +5885,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, pointer, dimension(:,:,:) :: ThetaOld, Theta
         !Begin-----------------------------------------------------------------
         
-        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
         !$OMP PARALLEL PRIVATE(I,J,K)
 
@@ -6051,7 +6051,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Begin--------------------------------------------------------------------
 
                 
-        !!CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        !!CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
         call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR01'  
@@ -6946,7 +6946,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             call SetMatrixValue (Me%COEF3_HorAdvYY%F_flux, Me%Size, 0.0)                
             
             
-            CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
+            CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
             !$OMP PARALLEL PRIVATE(i,j,k) 
      
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -6991,7 +6991,7 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             call SetMatrixValue (Me%COEF3_VertAdv%F_flux, Me%Size, 0.0)
             
             
-            CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
+            CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
             !$OMP PARALLEL PRIVATE(i,j,k) 
      
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7066,7 +7066,7 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             DUX => Me%ExtVar%DUX
             DVY => Me%ExtVar%DVY
             
-            CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
+            CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
             !$OMP PARALLEL PRIVATE(i,j,k, Aux1, Aux2) 
      
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7112,7 +7112,7 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !Z direction can't be parallelized in the same cycle as XX and YY (K)
             DWZ => Me%ExtVar%DWZ
 
-            CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
             !$OMP PARALLEL PRIVATE(i,j,k,Aux1,Aux2) 
      
 do6 :       do k = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -7352,7 +7352,7 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         DTPropDouble = dble(Me%ExtVar%DT) 
 
-        CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
         !$OMP PARALLEL PRIVATE(i,j,k,AuxJ) 
  
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7410,7 +7410,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         DTPropDouble = dble(Me%ExtVar%DT) 
 
-        CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
         !$OMP PARALLEL PRIVATE(i,j,k,AuxI) 
 
 do3 :   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -7597,7 +7597,7 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
         
         if (.not. Me%NewFormulation) then
         
-            CHUNK = CHUNK_I(ILB, IUB)
+            CHUNK = ChunkI !CHUNK_I(ILB, IUB)
                 
 k1:         do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7627,7 +7627,7 @@ i1:         do i = ILB, IUB
         
         endif
 
-        CHUNK = CHUNK_K(KLB, KUB)
+        CHUNK = ChunkK !CHUNK_K(KLB, KUB)
 
 cd6:    if (ImpExp_AdvXX == ExplicitScheme)  then !ExplicitScheme = 0
 
@@ -7729,7 +7729,7 @@ doi4 :      do i = ILB, IUB
         
         if (.not. Me%NewFormulation) then
         
-            CHUNK = CHUNK_J(JLB, JUB)
+            CHUNK = ChunkJ !CHUNK_J(JLB, JUB)
 
 k1:         do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7760,7 +7760,7 @@ j1:         do j = JLB, JUB
         
         endif
         
-        CHUNK = CHUNK_K(KLB, KUB)
+        CHUNK = ChunkK !CHUNK_K(KLB, KUB)
         
 cd6:    if (ImpExp_AdvYY == ExplicitScheme)  then !ExplicitScheme = 0
            
@@ -7851,7 +7851,7 @@ doi4 :      do i = ILB, IUB
         
         if (DiffusionV_Imp_Exp == ExplicitScheme) then
         
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,k,AuxK,Aux1,Aux2)
 
@@ -7891,7 +7891,7 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
         elseif (DiffusionV_Imp_Exp == ImplicitScheme) then
 
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,k,AuxK,Aux1,Aux2)
 
@@ -7956,11 +7956,11 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "VerticalAdvection")
 
        
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxZ,DT1,DT2)
 
-        !CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
+        !CHUNK = ChunkJ !CHUNK_J(Me%Size%JLB, Me%Size%JUB)
     
         !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
 
@@ -8093,7 +8093,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !        logical                                     :: ComputeCoefC_W, ComputeCoefInterfRunoff
 !        !Begin-----------------------------------------------------------------
 !   
-!        !!CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+!        !!CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
 !        
 !        CurrProperty => PropertyX
 !        
@@ -8347,7 +8347,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Computation
         if (TranspirationExists) then
         
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
           
             !$OMP PARALLEL PRIVATE(i,j,k,aux)
             
@@ -8378,7 +8378,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         if (EvaporationExists) then
         
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
           
             !$OMP PARALLEL PRIVATE(i,j,k,aux)
             
@@ -8445,7 +8445,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
        
         if (GWFlowLink == Layer_) then
 
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,k,str_i,str_j,str_k,str_conc,string_to_be_written,aux)
             
@@ -8519,7 +8519,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyDrainageNetworkCoefs - ModulePorousMediaProperties - ERR010'
             
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,k,str_i,str_j,str_k,str_conc,string_to_be_written,aux)
             
@@ -8619,7 +8619,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         FluxW => Me%ExtVar%FluxW
        
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
       
         !$OMP PARALLEL PRIVATE(i,j,k,aux,TopDiffusion,DZZ)
         
@@ -8687,7 +8687,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !        call GetTranspiration(Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
 !        if (STAT_CALL /= SUCCESS_) stop ' ModifyVegetationCoefs - ModulePorousMediaProperties - ERR01'
 !
-!        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+!        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 !      
 !        !$OMP PARALLEL PRIVATE(i,j,k,aux)
 !        
@@ -8768,7 +8768,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         if (Me%ExtVar%BoundaryImposedWalls) then
         
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
           
             !$OMP PARALLEL PRIVATE(i,j,k,aux)
             
@@ -8827,7 +8827,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (STAT_CALL /= SUCCESS_)                                                      &
                 call SetError(FATAL_, INTERNAL_, "ModifyBoundaryCoefs; ModulePorousMediaProperties. ERR10")
         
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
           
             !$OMP PARALLEL PRIVATE(i,j,k,aux)
             
@@ -8894,7 +8894,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         if (Me%AdvDiff_Explicit) then
 
-            CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+            CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
           
             !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfTransp, &
             !$OMP& CoefInterfEvap,CoefInterfBoundaryW,CoefInterfBoundaryB,coefB)
@@ -8936,7 +8936,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
             FluxW => Me%ExtVar%FluxW
 
-            CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+            CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
           
             !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfTransp, &
             !$OMP& CoefInterfEvap,CoefInterfBoundaryW,CoefInterfBoundaryB,coefB)
@@ -9243,7 +9243,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "ModifyDiffusivity_New")
 
         
-        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
         !$OMP PARALLEL PRIVATE(I,J,K,DiffCoef,WaterContent_Face,Porosity_Face)
 
@@ -9592,7 +9592,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !from mg/L in PMP to mol/L in SedimentQuality
             if (Condition == "Entering") then
                 
-                CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
                 !$OMP PARALLEL PRIVATE(I,J,K)
                 
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -9617,7 +9617,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !from mol/L in SedimentQuality to mg/L in PMP
             elseif (Condition == "Exiting") then
 
-                CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
                 !$OMP PARALLEL PRIVATE(I,J,K)
                 
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -9649,7 +9649,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !from mg/L in PMP to mg/kgsoil in SedimentQuality
             if (Condition == "Entering") then
 
-                CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
                 !$OMP PARALLEL PRIVATE(I,J,K)
                 
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -9673,7 +9673,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !from mg/kgsoil in SedimentQuality to mg/L in PMP
             elseif (Condition == "Exiting") then
 
-                CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
                 !$OMP PARALLEL PRIVATE(I,J,K)
                 
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -9932,7 +9932,7 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
 do1 :   do while (associated(Property))
 cd1 :       if (Property%Evolution%MinConcentration) then
                 
-!                CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
+!                CHUNK = ChunkK !CHUNK_K(Me%Size%KLB, Me%Size%KUB)
                 
 !                !$OMP PARALLEL SHARED(CHUNK, Property) PRIVATE(I,J,K)
 !                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -10017,7 +10017,7 @@ do1 :   do while (associated(Property))
 
 cd1 :       if (Property%Evolution%WarnOnNegativeValues) then
                 
-!                CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
+!                CHUNK = ChunkK !CHUNK_K(Me%Size%KLB, Me%Size%KUB)
                 
 !                !$OMP PARALLEL SHARED(CHUNK, Property) PRIVATE(I,J,K,char_i,char_j,char_k,char_conc)
 !                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -10089,7 +10089,7 @@ cd1 :       if (Property%Evolution%WarnOnNegativeValues) then
 
         !Conversion factor to pass from dissolved concentrations (mg/LH20) to particulate (mg/kgsed) - LH20/kgsed
 
-        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         !$OMP PARALLEL PRIVATE(I,J,K, InstantValue,ResidualValue)
         
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -10712,7 +10712,7 @@ First:          if (LastTime.LT.Actual) then
                 
                 if (Check_Particulate_Property(CurrProperty%ID%IDNumber)) then
 
-                    CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                    CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
                     !$OMP PARALLEL PRIVATE(I,J,K, ConversionFactor)
                     
                     !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -10740,7 +10740,7 @@ First:          if (LastTime.LT.Actual) then
                 
                 else
 
-                    CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                    CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
                     !$OMP PARALLEL PRIVATE(I,J,K, ConversionFactor)
                     
                     !$OMP DO SCHEDULE(DYNAMIC, CHUNK)

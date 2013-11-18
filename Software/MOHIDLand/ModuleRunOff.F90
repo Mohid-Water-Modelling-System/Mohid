@@ -1788,7 +1788,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Begin-----------------------------------------------------------------
 
    
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(I,J,di,dj,Sum)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3893,7 +3893,7 @@ doIter:         do while (iter <= Niter)
         real                                        :: WCL, WCR, WCA, Bottom
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
 
         ILB = Me%WorkSize%ILB
@@ -4035,7 +4035,7 @@ doIter:         do while (iter <= Niter)
         real(8)                                     :: MaxFlow
         !character(len=StringLength)                 :: Direction
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
 
         ILB = Me%WorkSize%ILB
@@ -4310,7 +4310,7 @@ doIter:         do while (iter <= Niter)
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "DynamicWaveXX")
 
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -4624,7 +4624,7 @@ doIter:         do while (iter <= Niter)
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "DynamicWaveYY")
 
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -4981,7 +4981,7 @@ doIter:         do while (iter <= Niter)
         real                                        :: dVol
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -5053,7 +5053,7 @@ doIter:         do while (iter <= Niter)
         real                                        :: dVol, AverageCellLength, FlowMax
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -5121,7 +5121,7 @@ doIter:         do while (iter <= Niter)
         real                                        :: WaveHeight, Celerity, dh
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -5205,7 +5205,7 @@ doIter:         do while (iter <= Niter)
         real                                        :: HydraulicRadius, OverlandCoef
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -5613,7 +5613,7 @@ doIter:         do while (iter <= Niter)
         integer                                     :: targetI, targetJ
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -5700,7 +5700,7 @@ doIter:         do while (iter <= Niter)
         integer                                     :: targetI, targetJ
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(I,J, targetI, targetJ)
 
@@ -5809,7 +5809,7 @@ doIter:         do while (iter <= Niter)
         real   , dimension(:, :), pointer           :: ChannelsVolume
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
 
         call GetChannelsWaterLevel  (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
@@ -5959,7 +5959,7 @@ doIter:         do while (iter <= Niter)
         integer, dimension(:, :), pointer           :: ChannelsActiveState
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
 
         call GetChannelsWaterLevel  (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
@@ -7093,7 +7093,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -7130,7 +7130,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: i, j
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(I,J)
 
@@ -7390,7 +7390,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: CHUNK
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
        
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB

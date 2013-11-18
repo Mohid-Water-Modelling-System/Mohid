@@ -5233,7 +5233,7 @@ cd0:    if (Exist) then
         call ModifyTurbulence(PropertyX)
 
         
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
         !$OMP PARALLEL PRIVATE(I,J)
 
@@ -5283,7 +5283,7 @@ cd0:    if (Exist) then
 
         !Begin----------------------------------------------------------------------
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
         !$OMP PARALLEL PRIVATE(I,J, VelU, VelV)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -5491,7 +5491,7 @@ cd0:    if (Exist) then
         call GetFlowDischarge (Me%ObjRunoff, FlowDischarge, STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOffProperties - ComputeVolumes - ERR01'
         
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
         !$OMP PARALLEL PRIVATE(I,J)     
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -5631,7 +5631,7 @@ cd0:    if (Exist) then
             call SetMatrixValue (Me%COEF3_HorAdvYY%F_flux, Me%Size, 0.0)                
 
             
-            CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
             !$OMP PARALLEL PRIVATE(i,j) 
      
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -5712,7 +5712,7 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             DUX => Me%ExtVar%DUX
             DVY => Me%ExtVar%DVY
             
-            CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
             !$OMP PARALLEL PRIVATE(i,j, Aux1, Aux2) 
      
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -5923,7 +5923,7 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         DTPropDouble = dble(Me%ExtVar%DT) 
 
-        CHUNK = Chunk_I(Me%WorkSize%ILB,Me%WorkSize%IUB)
+        CHUNK = ChunkI !CHUNK_I(Me%WorkSize%ILB,Me%WorkSize%IUB)
         !$OMP PARALLEL PRIVATE(i,j,AuxJ,AreaU) 
  
 do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -5981,7 +5981,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         DTPropDouble = dble(Me%ExtVar%DT) 
 
-        CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
         !$OMP PARALLEL PRIVATE(i,j,AuxI,AreaV) 
 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -6087,7 +6087,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        !CHUNK = CHUNK_I(ILB, IUB)
+        !CHUNK = ChunkI !CHUNK_I(ILB, IUB)
         !! $OMP PARALLEL PRIVATE(i,j,AdvFluxX,DT2,DT1)
 
         if (.not. Me%NewFormulation) then
@@ -6120,7 +6120,7 @@ i1:         do i = ILB, IUB
 
 cd6:    if (ImpExp_AdvXX == ExplicitScheme)  then !ExplicitScheme = 0
 
-            CHUNK = CHUNK_I(ILB, IUB)
+            CHUNK = ChunkI !CHUNK_I(ILB, IUB)
             !$OMP PARALLEL PRIVATE(i,j,AdvFluxX)
 
 doj3 :      do j = JLB, JUB
@@ -6151,7 +6151,7 @@ doi3 :      do i = ILB, IUB
 
         else if (ImpExp_AdvXX == ImplicitScheme) then cd6 !ImplicitScheme = 1
 
-            CHUNK = CHUNK_I(ILB, IUB)
+            CHUNK = ChunkI !CHUNK_I(ILB, IUB)
             !$OMP PARALLEL PRIVATE(i,j, DT2, DT1)
 
 doj4 :      do j = JLB, JUB
@@ -6218,7 +6218,7 @@ doi4 :      do i = ILB, IUB
         
         if (.not. Me%NewFormulation) then
 
-            !CHUNK = CHUNK_J(JLB, JUB)
+            !CHUNK = ChunkJ !CHUNK_J(JLB, JUB)
           
             !! $OMP PARALLEL PRIVATE(i,j,AdvFluxY,DT2,DT1)       
              !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -6249,7 +6249,7 @@ j1:         do j = JLB, JUB
 
 cd6:    if (ImpExp_AdvYY == ExplicitScheme)  then !ExplicitScheme = 0
             
-            CHUNK = CHUNK_J(JLB, JUB)
+            CHUNK = ChunkJ !CHUNK_J(JLB, JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,AdvFluxY)
 
@@ -6281,7 +6281,7 @@ doi3 :      do i = ILB, IUB
 
         else if (ImpExp_AdvYY == ImplicitScheme) then cd6 !ImplicitScheme = 1
 
-            CHUNK = CHUNK_J(JLB, JUB)
+            CHUNK = ChunkJ !CHUNK_J(JLB, JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,DT2,DT1)
 
@@ -6342,7 +6342,7 @@ doi4 :      do i = ILB, IUB
 !        
 !       !Flux between river and runoff in layers
 !       
-!        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+!        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 !      
 !        !$OMP PARALLEL PRIVATE(i,j,aux)
 !        
@@ -6423,7 +6423,7 @@ doi4 :      do i = ILB, IUB
             if (CurrProperty%Evolution%AdvectionDiffusion) then        
                !Flux between river and runoff 
                
-                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
               
                 !!$OMP PARALLEL PRIVATE(i,j,Prop, WaterVolumeOld, WaterVolumeNew, FlowMass)
                 
@@ -6532,7 +6532,7 @@ doi4 :      do i = ILB, IUB
 !        !Begin--------------------------------------------------------------------
 !        
 !        
-!        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
+!        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
 !      
 !        !$OMP PARALLEL PRIVATE(i,j,aux)
 !        
@@ -6603,7 +6603,7 @@ doi4 :      do i = ILB, IUB
             if (CurrProperty%Evolution%AdvectionDiffusion) then        
                !Flux in routeD4 points 
                
-                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
               
                 !!$OMP PARALLEL PRIVATE(i,j,Prop, WaterVolumeOld, WaterVolumeNew, FlowMass)
                 
@@ -6718,7 +6718,7 @@ doi4 :      do i = ILB, IUB
             if (CurrProperty%Evolution%AdvectionDiffusion) then        
                !Flux between runoff and outside 
                
-                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
               
                 !!$OMP PARALLEL PRIVATE(i,j,Prop, WaterVolumeOld, WaterVolumeNew, FlowMass)
                 
@@ -6811,7 +6811,7 @@ doi4 :      do i = ILB, IUB
         
         if (Me%ComputeOptions%AdvDiff_Explicit) then
 
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,CoefInterfDN,CoefInterfBoundary, coefB)
                
@@ -6855,7 +6855,7 @@ doi4 :      do i = ILB, IUB
            
         else !implicit
             
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,CoefInterfDN,CoefInterfBoundary, coefB)
                
@@ -6927,7 +6927,7 @@ doi4 :      do i = ILB, IUB
             !Update total conc
             if (CurrProperty%Evolution%BottomFluxes) then
             
-                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
               
                 !$OMP PARALLEL PRIVATE(i,j)
                    
@@ -7037,7 +7037,7 @@ doi4 :      do i = ILB, IUB
 !        real(8), pointer, dimension(:,:)            :: WaterColumn, WaterColumnOld
 !        !Begin-----------------------------------------------------------------
 !   
-!        !!CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+!        !!CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
 !
 !        CurrProperty => PropertyX
 !
@@ -7266,7 +7266,7 @@ doi4 :      do i = ILB, IUB
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyDiffusivity_New")
 
         
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
         !$OMP PARALLEL PRIVATE(I,J,DiffCoef,VelU,VelV)
 

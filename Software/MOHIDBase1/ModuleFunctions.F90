@@ -9506,7 +9506,7 @@ D2:     do I=imax-1,2,-1
         if (present(factor)) then
             factor_ = factor
         else
-            factor_ = 3
+            factor_ = ChunkKFactor
         endif
         
         Chunk_K = max((KUB - KLB) / factor_, 1)
@@ -9529,7 +9529,7 @@ D2:     do I=imax-1,2,-1
         if (present(factor)) then
             factor_ = factor
         else
-            factor_ = 10
+            factor_ = ChunkJFactor
         endif
         
         Chunk_J = max((JUB - JLB) / factor_, 1)
@@ -9552,7 +9552,7 @@ D2:     do I=imax-1,2,-1
         if (present(factor)) then
             factor_ = factor
         else
-            factor_ = 10
+            factor_ = ChunkIFactor
         endif
 
         Chunk_I = max((IUB - ILB) / factor_, 1)

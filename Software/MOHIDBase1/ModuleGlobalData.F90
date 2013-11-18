@@ -1797,6 +1797,18 @@ Module ModuleGlobalData
     integer, private                                                :: LogFileID       = 0
     character(LEN=1024)                                             :: OnLineString    = null_str !initialization: jauch
     character(StringLength),     dimension(MaxErrorMessages)        :: ErrorMessagesStack
+    
+    !Used only when OpenMP is ON. 
+    !Chunk(x)Factor is used to find the CHUNK size (number of rows/columns/layers)
+    !that is passed to each thread. The Chunk(x) is the value of the chunk size and
+    !is found by this equation:
+    ! Chunk(X) = number_of_(rows or columns or layers) / Chunk(x)Factor
+    integer                                                         :: ChunkIFactor = 99999, &
+                                                                       ChunkJFactor = 99999, &
+                                                                       ChunkKFactor = 99999
+    integer                                                         :: ChunkI = 1, &
+                                                                       ChunkJ = 1, &
+                                                                       ChunkK = 1
       
     type (T_Instance), dimension (MaxModules, MaxInstances), save   :: ObjCollector
     private :: ObjCollector

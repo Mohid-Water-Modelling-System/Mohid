@@ -582,9 +582,9 @@ Module ModulePorousMedia
         real(8), dimension(:,:,:), pointer      :: FluxWAcc       => null()
         real(8), dimension(:,:,:), pointer      :: FluxWAccFinal  => null()
         
-        integer                                 :: ChunkK = 1,  &
-                                                   ChunkJ = 1,  &
-                                                   ChunkI = 1        
+        !integer                                 :: ChunkK = 1,  &
+        !                                           ChunkJ = 1,  &
+        !                                           ChunkI = 1        
     end type  T_PorousMedia
 
     !Global Module Variables
@@ -812,7 +812,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Begin-----------------------------------------------------------------
 
    
-        CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(I,J,di,dj,Sum)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1314,10 +1314,11 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                                                        CUT_OFF_THETA_GW_flag    
                                                             
         real                                        :: dummy_real
-        integer                                     :: dummy_int,       &
-                                                       ChunkKFactor,    &
-                                                       ChunkJFactor,    &
-                                                       ChunkIFactor
+        integer                                     :: dummy_int
+        !integer                                     :: dummy_int,       &
+        !                                               ChunkKFactor,    &
+        !                                               ChunkJFactor,    &
+        !                                               ChunkIFactor
         
         !----------------------------------------------------------------------    
         
@@ -1411,35 +1412,35 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Read convergence options
         !---------------------------------------------------------------------- 
         
-        call GetData(ChunkKFactor,                                              &
-                     Me%ObjEnterData, iflag,                                    &  
-                     keyword      = 'CHUNK_K_FACTOR',                           &
-                     ClientModule = 'ModulePorousMedia',                        &
-                     Default      = 3,                                          &
-                     SearchType   = FromFile,                                   &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) & 
-            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR071")
-
-        call GetData(ChunkJFactor,                                              &
-                     Me%ObjEnterData, iflag,                                    &  
-                     keyword      = 'CHUNK_I_FACTOR',                           &
-                     ClientModule = 'ModulePorousMedia',                        &
-                     Default      = 10,                                         &
-                     SearchType   = FromFile,                                   &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) & 
-            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR071")
-            
-        call GetData(ChunkIFactor,                                              &
-                     Me%ObjEnterData, iflag,                                    &  
-                     keyword      = 'CHUNK_J_FACTOR',                           &
-                     ClientModule = 'ModulePorousMedia',                        &
-                     Default      = 10,                                         &
-                     SearchType   = FromFile,                                   &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) & 
-            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR071")            
+        !call GetData(ChunkKFactor,                                              &
+        !             Me%ObjEnterData, iflag,                                    &  
+        !             keyword      = 'CHUNK_K_FACTOR',                           &
+        !             ClientModule = 'ModulePorousMedia',                        &
+        !             Default      = 3,                                          &
+        !             SearchType   = FromFile,                                   &
+        !             STAT         = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) & 
+        !    call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR071")
+        !
+        !call GetData(ChunkJFactor,                                              &
+        !             Me%ObjEnterData, iflag,                                    &  
+        !             keyword      = 'CHUNK_I_FACTOR',                           &
+        !             ClientModule = 'ModulePorousMedia',                        &
+        !             Default      = 10,                                         &
+        !             SearchType   = FromFile,                                   &
+        !             STAT         = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) & 
+        !    call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR071")
+        !    
+        !call GetData(ChunkIFactor,                                              &
+        !             Me%ObjEnterData, iflag,                                    &  
+        !             keyword      = 'CHUNK_J_FACTOR',                           &
+        !             ClientModule = 'ModulePorousMedia',                        &
+        !             Default      = 10,                                         &
+        !             SearchType   = FromFile,                                   &
+        !             STAT         = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) & 
+        !    call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR071")            
 
         Me%DomainCellsNumber = CountDomainPoints(ChunkKFactor, ChunkJFactor, ChunkIFactor)
         
@@ -1736,9 +1737,9 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         enddo
         
-        Me%ChunkK = max((Me%Size%KUB - Me%Size%KLB) / ChunkKFactor, 1)
-        Me%ChunkJ = max((Me%Size%JUB - Me%Size%JLB) / ChunkJFactor, 1)
-        Me%ChunkI = max((Me%Size%IUB - Me%Size%ILB) / ChunkIFactor, 1)
+        ChunkK = max((Me%Size%KUB - Me%Size%KLB) / ChunkKFactor, 1)
+        !Me%ChunkJ = max((Me%Size%JUB - Me%Size%JLB) / ChunkJFactor, 1)
+        !Me%ChunkI = max((Me%Size%IUB - Me%Size%ILB) / ChunkIFactor, 1)
         
         !write (*,*) 'CHUNK factors:', ChunkKFactor, ChunkJFactor, ChunkIFactor, Me%ChunkK, Me%ChunkJ, Me%ChunkI
         !stop
@@ -3154,7 +3155,7 @@ if2 :           if (BlockFound) then
 
         call SetMatrixValue (Me%Boundary%ImposedBoundaryLevel, Me%Size2D, null_real, Me%ExtVar%BasinPoints)
 
-        CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         
         select case (Me%Boundary%InterpolationMethod)
@@ -3476,7 +3477,7 @@ DoPiezometers:      do while(associated(Piezometer))
 
         end if
 
-        CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkI !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(I,J,XSW, YSW, XSE, YSE, XNE, YNE, XNW, YNW)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -5987,7 +5988,7 @@ dConv:  do while (iteration <= Niteration)
         integer                                     :: Chunk
         !------------------------------------------------------------------------          
 
-        CHUNK = Me%ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        
         
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "SoilWaterVelocity")
 
@@ -6071,7 +6072,7 @@ dConv:  do while (iteration <= Niteration)
         integer                                     :: KUB
         !Begin-----------------------------------------------------------------
         
-        CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
         KUB   = Me%WorkSize%KUB
 
@@ -6223,7 +6224,7 @@ dConv:  do while (iteration <= Niteration)
 
         !------------------------------------------------------------------------          
 
-        CHUNK = Me%ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
         
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "SoilWaterFlux")
 
@@ -6314,7 +6315,7 @@ dConv:  do while (iteration <= Niteration)
         integer                                     :: i, j, k
         integer                                     :: Chunk        
 
-        CHUNK = Me%ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
         
         !$OMP PARALLEL PRIVATE(I,J,K)
 
@@ -6388,7 +6389,7 @@ dConv:  do while (iteration <= Niteration)
         integer                                     :: i, j, k
         integer                                     :: Chunk        
 
-        CHUNK = Me%ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
         
         !X
         !$OMP PARALLEL PRIVATE(I,J,K)
@@ -6458,7 +6459,7 @@ dConv:  do while (iteration <= Niteration)
         integer                                     :: i, j, k
         integer                                     :: Chunk        
 
-        CHUNK = Me%ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
         
         !X
         !$OMP PARALLEL PRIVATE(I,J,K)
@@ -6525,7 +6526,7 @@ dConv:  do while (iteration <= Niteration)
         integer                                     :: i, j, k
         integer                                     :: Chunk        
 
-        CHUNK = Me%ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
         
 
         !X
@@ -6688,7 +6689,7 @@ dConv:  do while (iteration <= Niteration)
         integer                             :: CHUNK, I, J, K
         
         
-        CHUNK = Me%ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
         
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "CalculateNewTheta")
 
@@ -6918,7 +6919,7 @@ dConv:  do while (iteration <= Niteration)
         integer                                     :: i, j, k
         integer                                     :: CHUNK
 
-        CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !Integrates Flow Discharges        
         !$OMP PARALLEL PRIVATE(I,J)
@@ -6950,7 +6951,7 @@ dConv:  do while (iteration <= Niteration)
      
         !Begin-----------------------------------------------------------------
         
-        CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(I,J, dh)
 
@@ -7004,7 +7005,7 @@ dConv:  do while (iteration <= Niteration)
      
         !Begin-----------------------------------------------------------------
         
-        CHUNK = Me%ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
         sum = Me%AccTranspiration
         
         if (Me%TranspirationExists) then
@@ -7080,7 +7081,7 @@ dConv:  do while (iteration <= Niteration)
         integer                                     :: i, j, k
         integer                                     :: chunk
      
-        CHUNK = CHUNK_J(Me%WorkSize%KLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%KLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(I,J,K)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7122,7 +7123,7 @@ dConv:  do while (iteration <= Niteration)
         integer                                     :: i, j, k
         integer                                     :: Chunk
 
-        CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "SoilParameters")
                 
@@ -7408,7 +7409,7 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         real                                        :: ExcessVolume !, dh
 
         
-        CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(I,J,K, ExcessVolume)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7490,7 +7491,7 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         real                                        :: Distance, ExcessPressure
 
         
-!        CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+!        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
 !        !$OMP PARALLEL PRIVATE(I,J,K, ExcessVolume, dh)
 !        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7576,7 +7577,7 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             call SetMatrixValueAllocatable (Me%iFlowBoundaryWalls, Me%Size, 0.0, Me%ExtVar%WaterPoints3D)
 
 
-            CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
             !$OMP PARALLEL PRIVATE(I,J,K,di,dj,BoundaryFinalHead,ConductivityFace,AreaZX,AreaZY,OldVolume,NewTheta) REDUCTION(+:sum)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7675,7 +7676,7 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 
             call SetMatrixValueAllocatable (Me%iFlowBoundaryBottom, Me%Size2D, 0.0, Me%ExtVar%BasinPoints)
 
-            CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
             sum = Me%AccBoundaryFlowVolume
 
@@ -7752,7 +7753,7 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         real                                        :: CellBottomLevel, DZInCell
         real                                        :: FieldHead, FieldTheta
 
-        CHUNK = Me%ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(I,J,K, CellBottomLevel, DZInCell, FieldHead, FieldTheta)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)

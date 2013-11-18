@@ -704,8 +704,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     Me%BWB%NumberOfCells = Me%BWB%NumberOfCells + 1
                 endif
             enddo
-            enddo                        
-            
+            enddo 
+                       
             call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR09c'
             
@@ -737,9 +737,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Reads Data File
             call ReadDataFile
+            
+            !ChunkI and ChunkJ are global variables (defined in ModuleGlobalData)
+            !ChunkK is defined only if PorousMedia is ON and is defined in the ModulePorousMedia
+            !ReadDataFile must be called first, so Chunk(X)Factor user values are defined.
+            ChunkJ = max((Me%Size%JUB - Me%Size%JLB) / ChunkJFactor, 1)
+            ChunkI = max((Me%Size%IUB - Me%Size%ILB) / ChunkIFactor, 1)            
 
             !Allocates Variables
-            call AllocateVariables      ()
+            call AllocateVariables ()
 
             !Verifies User Options
             OptionsType = "GlobalOptions"
@@ -752,6 +758,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructCoupledModules()
 #endif _ENABLE_CUDA
             
+            
+
             !Checks property related options
             if (Me%Coupled%RunoffProperties) then
                 WarningString = "PropertyOptions"
@@ -1316,10 +1324,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetOutPutTime(Me%ObjEnterData,                          &
                            CurrentTime   = Me%CurrentTime,           &
                            EndTime       = Me%EndTime,               &
-                           keyword       = 'EVTP_OUTPUT_TIME2',       &
+                           keyword       = 'EVTP_OUTPUT_TIME2',      &
                            SearchType    = FromFile,                 &
-                           OutPutsTime   = Me%EVTPOutPut2%OutTime,    &
-                           OutPutsOn     = Me%EVTPOutPut2%Yes,        &
+                           OutPutsTime   = Me%EVTPOutPut2%OutTime,   &
+                           OutPutsOn     = Me%EVTPOutPut2%Yes,       &
                            STAT          = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR331'
         
@@ -1439,7 +1447,38 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                            &
                      ClientModule = 'ModuleBasin',                                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR430'           
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR430'   
+        
+        call GetData(ChunkKFactor,                                              &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'CHUNK_K_FACTOR',                           &
+                     ClientModule = 'ModulePorousMedia',                        &
+                     Default      = ChunkKFactor,                               &
+                     SearchType   = FromFile,                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) & 
+            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleBasin - ERR440")                  
+
+        call GetData(ChunkJFactor,                                              &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'CHUNK_I_FACTOR',                           &
+                     ClientModule = 'ModulePorousMedia',                        &
+                     Default      = ChunkJFactor,                               &
+                     SearchType   = FromFile,                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) & 
+            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleBasin - ERR450")
+            
+        call GetData(ChunkIFactor,                                              &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'CHUNK_J_FACTOR',                           &
+                     ClientModule = 'ModulePorousMedia',                        &
+                     Default      = ChunkIFactor,                               &
+                     SearchType   = FromFile,                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) & 
+            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleBasin - ERR460")            
+        
 
     end subroutine ReadDataFile
     !--------------------------------------------------------------------------
@@ -2781,8 +2820,7 @@ i1:         if (CoordON) then
                 write (*,*) '         IGNORE_WATER_COLUMN_ON_EVAP keyword (PorousMedia) are set to' 
                 write (*,*) '         FALSE.'
                 write (*,*)
-            endif
-
+            endif            
                
             !Constructs PorousMediaProperties 
             if (Me%Coupled%PorousMediaProperties) then
@@ -4972,7 +5010,7 @@ cd2 :           if (BlockFound) then
         
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "SimpleInfiltration")
         
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
          
         !$OMP PARALLEL PRIVATE(I,J)
@@ -6431,7 +6469,7 @@ cd2 :           if (BlockFound) then
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, CHUNK, STAT_CALL
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "ActualizeWaterColumn")
 
