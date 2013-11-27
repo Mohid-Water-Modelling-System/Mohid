@@ -444,19 +444,7 @@ Module ModuleHDF5Extractor
                 stop 'ReadKeywords - ModuleHDF5Extractor - ERR143'            
             endif
         endif
-        
-        
-        ! Checks if it wants to skip instants (selecting by time interval)
-        call GetData(Me%ConvertV3toV4,                                          &
-                     Me%ObjEnterData, iflag,                                    &
-                     SearchType   = FromFile,                                   &
-                     keyword      = 'SKIP_INSTANTS',                            &
-                     default      = .false.,                                    &
-                     ClientModule = 'HDF5Extractor',                            &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-        stop 'ConstructParameters - ModuleHDF5Extractor - ERR141'
-
+              
         ! Checks if it is to convert a v3 file to v4 format
         call GetData(Me%ConvertV3toV4,                                          &
                      Me%ObjEnterData, iflag,                                    &
