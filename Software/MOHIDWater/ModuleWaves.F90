@@ -12,6 +12,12 @@
 ! DESCRIPTION   : Module to compute waves processes
 !
 !------------------------------------------------------------------------------
+!
+! Angles in input and output are in atmosphere or wind referential (0º is wind FROM north, 90º from East, 180º S, 270º W
+! Angles in internal computations are in trigonometric referencial (0º is wind FROM west, 90º from south, 180 E, 270º N
+! Directions (integer from 1 to 16) follow trigonometric referencial and so direction 1 corresponds to 0º or wind FROM west
+! direction 5 is 90º or from south, 9 is 180º or E, 13 is 270º or N
+!
 ! Keywords read in the Data File
 !
 ! Keyword                   : Data Type    Default   !Comment
@@ -1719,7 +1725,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !Opposite angles
         do i = 1, Me%TotalDirections
-            AngleList = Me%AngleList(i) + 180.
+            AngleList(i) = Me%AngleList(i) + 180.
         enddo
         
         do j=JLB, JUB
