@@ -86,8 +86,8 @@ Module ModuleWaves
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetOpenPoints2D, UnGetHorizontalMap
     use ModuleHorizontalGrid,   only : LocateCell, GetHorizontalGridSize, GetHorizontalGrid,    &
                                        GetGridAngle, GetCheckDistortion, GetCoordTypeList,      &
-                                       GetGridCoordType,  GetGridOrigin, WriteHorizontalGrid,   &
-                                       UnGetHorizontalGrid, GetXYCellZ
+                                       GetGridCoordType,  GetLatitudeLongitude,                 &
+                                       WriteHorizontalGrid, UnGetHorizontalGrid, GetXYCellZ
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,  &
                                        GetIfMatrixRemainsConstant, KillFillMatrix 
     use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry, GetGeometryDistances, GetGeometrySize
@@ -1927,7 +1927,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         logical                             :: BlockFound
         integer                             :: CoordType, i
         integer                             :: GEOG, SIMPLE_GEOG
-        real                                :: Xorig, Yorig
+        real                                :: RefLatitude, RefLongitude
         real                                :: radians, EarthRadius
         real                                :: Rad_Lat, CosenLat, Radius
         type(T_Polygon), pointer            :: Polygon
@@ -1981,7 +1981,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetGridCoordType(Me%ObjHorizontalGrid, CoordType, STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructLandArea - ModuleWaves - ERR35'
 
-        call GetGridOrigin(Me%ObjHorizontalGrid, Xorig = Xorig, Yorig = Yorig, STAT = STAT_CALL)
+        call GetLatitudeLongitude (Me%ObjHorizontalGrid, RefLatitude, RefLongitude, STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructLandArea - ModuleWaves - ERR36'
 
         if    (CoordType == GEOG)then
@@ -1999,16 +1999,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Polygon => Me%LandArea
 
             do while(associated(Polygon))
-
+            
                 do i = 1, Polygon%Count
 
                     Rad_Lat = (Polygon%VerticesF(i)%Y)/ radians 
                     CosenLat= cos(Rad_Lat)
                     Radius  = CosenLat * EarthRadius
                     
-                    Polygon%VerticesF(i)%X = (Polygon%VerticesF(i)%X - Xorig) * Radius / radians
-                    Polygon%VerticesF(i)%Y = (Polygon%VerticesF(i)%Y - Yorig) * EarthRadius / radians
-
+                    Polygon%VerticesF(i)%X = (Polygon%VerticesF(i)%X - RefLongitude) * Radius / radians
+                    Polygon%VerticesF(i)%Y = (Polygon%VerticesF(i)%Y - RefLatitude)  * EarthRadius / radians
+                    
                 enddo
 
                 call SetLimits(Polygon)
