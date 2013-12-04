@@ -2610,6 +2610,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
 
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_CALL
+        integer                                         :: i, j
 
         !Begin-----------------------------------------------------------------
         
@@ -2617,6 +2618,18 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                              Me%New%WorkSize2D%JLB, Me%New%WorkSize2D%JUB, &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleInterpolateGrids - ERR05'
+        
+        if (NonNegativeProperty(GetPropertyIDNumber(PropertyName))) then
+        
+            do j=Me%New%WorkSize2D%JLB, Me%New%WorkSize2D%JUB
+            do i=Me%New%WorkSize2D%ILB, Me%New%WorkSize2D%IUB
+                if (NewField%Values2D(i,j) > FillValueReal/4 .and. NewField%Values2D(i,j) < 0.) then
+                    NewField%Values2D(i,j) = 0.
+                endif
+            enddo
+            enddo
+        
+        endif
 
 
         call HDF5WriteData(Me%New%ObjHDF5, RootGroup,                                   &
@@ -2642,6 +2655,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         character(len=*)                                :: RootGroup, PropertyName
         type(T_Field), pointer                          :: NewField
         integer                                         :: OutputNumber
+        integer                                         :: i, j, k
         
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_CALL
@@ -2653,6 +2667,20 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                              Me%New%WorkSize3D%KLB, Me%New%WorkSize3D%KUB, &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OutputFields3D - ModuleInterpolateGrids - ERR10'
+
+        if (NonNegativeProperty(GetPropertyIDNumber(PropertyName))) then
+        
+            do k=Me%New%WorkSize3D%KLB, Me%New%WorkSize3D%KUB
+            do j=Me%New%WorkSize3D%JLB, Me%New%WorkSize3D%JUB
+            do i=Me%New%WorkSize3D%ILB, Me%New%WorkSize3D%IUB
+                if (NewField%Values3D(i,j,k) > FillValueReal/4 .and. NewField%Values3D(i,j,k) < 0.) then
+                    NewField%Values3D(i,j,k) = 0.
+                endif
+            enddo
+            enddo
+            enddo
+        
+        endif
 
 
         call HDF5WriteData(Me%New%ObjHDF5, RootGroup,                                   &
@@ -4434,7 +4462,6 @@ iN:     if (NumberOfNodes > 0) then
         endif
 
     end subroutine ExtraPol2DFieldsConstantValue
-
-
+   
 
 end module ModuleInterpolateGrids
