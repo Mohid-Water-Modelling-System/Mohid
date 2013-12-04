@@ -817,7 +817,7 @@ BF:         if (BlockFound) then
             if (Me%MassON) then
                 NewMass         = MassValue(MassTime)
                 !Center in time
-                OutPutFlux      = OutPutFlux + (NewMass - OldMass) / Me%DT
+                OutPutFlux      = OutPutFlux - (NewMass - OldMass) / Me%DT
                 OldMass         = NewMass
             endif
             
