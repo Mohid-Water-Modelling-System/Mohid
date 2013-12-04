@@ -875,7 +875,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%BeginTime = Me%InitialData + Me%DataMatrix(1,1) 
         Me%EndTime   = Me%InitialData + Me%DataMatrix(Me%DataValues,1) 
         
-        if ((Me%EndTime - Me%BeginTime) < 86400. * Me%FrequencyWindow) then
+        if ((Me%EndTime - Me%BeginTime) < 3600. * Me%FrequencyWindow) then
         
             if (Me%PercentileAnalysis ) then
                 Me%PercentileAnalysis  = .false.
@@ -1463,7 +1463,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         write(iAll,*) "<EndTimeSerie>"        
         
         !closes Output files
-        call UnitsManager(Me%iFilter, FileClose, STAT = STAT_CALL)
+        call UnitsManager(iAll, FileClose, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ModifyTimeSeriesNightMedian - ERR20'
         
         deallocate(WriteAux )       
