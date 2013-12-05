@@ -174,6 +174,9 @@ Module ModuleFunctions
     public  :: Check_Water_Property
 #endif
 
+    !check if a property can not have negative values
+    public  :: NonNegativeProperty
+
     !Reading keywords from OnlineString
     public  :: GetDataOnlineString
     
@@ -2214,7 +2217,7 @@ do2 :   do IJ = IJmin, IJmax
             I = IJmin-1 + IJ*dj + di
             J = JImin-1 + IJ*di + dj
             VEC%W(JImin) = -THOMAS%COEF2%F(I, J)/THOMAS%COEF2%E(I, J)
-            VEC%G(JImin) =  THOMAS%TI(I, J)/THOMAS%COEF2%E(I, J)
+            VEC%G(JImin) =  THOMAS%TI(I, J)     /THOMAS%COEF2%E(I, J)
 
 do3 :       do JI=JImin+1,JImax+1
                 I        = IJ*dj + JI*di
@@ -2224,8 +2227,10 @@ do3 :       do JI=JImin+1,JImax+1
                     VEC%W(JI) = -THOMAS%COEF2%F(I,J) / AUX
                     VEC%G(JI) = (THOMAS%TI(I,J) - THOMAS%COEF2%D(I,J) * VEC%G(JI-1))/ AUX
                 else
+                    VEC%W(JI) = 0.
+                    VEC%G(JI) = 0.
                     write(*,*) 'ModelName I, J: ', trim(ModelName), ' ', I, J
-                    stop 'Error: Instability in THOMAS2D - Module Functions - ERR10'
+                    write(*,*) 'Error: Instability in THOMAS2D - Module Functions - ERR10'
                 end if
             end do do3
 
@@ -5164,6 +5169,53 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
 #endif
 
     !--------------------------------------------------------------------------
+
+    !----------------------------------------------------------------------
+
+    logical function NonNegativeProperty(Property)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent (IN) :: Property
+
+        !----------------------------------------------------------------------
+
+cd1 :   if ( SurfaceRadiation_                              == Property .or.            &
+             DownwardLongWaveRadiation_                     == Property .or.            &
+             ShortWaveSolarRadiation_                       == Property .or.            &
+             LongWaveSolarRadiation_                        == Property .or.            &
+             ShortWaveSolarRadiationExtin_                  == Property .or.            &
+             LongWaveSolarRadiationExtin_                   == Property .or.            &
+             SolarRadiation_                                == Property .or.            &
+             Precipitation_                                 == Property .or.            &
+             AtmosphericPressure_                           == Property .or.            &
+             RelativeHumidity_                              == Property .or.            &
+             WindModulos_                                   == Property .or.            &
+             CloudCover_                                    == Property .or.            &
+             Irrigation_                                    == Property .or.            &
+             SunHours_                                      == Property .or.            &
+             SpecificHumidity_                              == Property .or.            &
+             TotalPlantBiomass_                             == Property .or.            &
+             TotalPlantNitrogen_                            == Property .or.            &
+             TotalPlantPhosphorus_                          == Property .or.            &
+             RootBiomass_                                   == Property .or.            &
+             RootDepth_                                     == Property .or.            &
+             LeafAreaIndex_                                 == Property .or.            &
+             SpecificLeafStorage_                           == Property .or.            &
+             CanopyHeight_                                  == Property .or.            &
+             PotLeafAreaIndex_                              == Property .or.            &
+             BoundaryLeafAreaIndex_                         == Property ) then
+             
+            NonNegativeProperty = .TRUE.                   
+                                                            
+        else                                                
+
+            NonNegativeProperty = .FALSE.
+
+        end if cd1
+           
+    end function NonNegativeProperty
+
+    !---------------------------------------------------------------------------------
 
     subroutine GetDataOnlineString (Keyword, CharData, ArrayData, RealData, IntData)
 

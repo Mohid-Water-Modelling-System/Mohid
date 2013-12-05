@@ -73,7 +73,8 @@ Module ModuleTurbulence
     use ModuleProfile,          only : StartProfile, WriteProfile, KillProfile,          &
                                        GetProfileNextOutputTime
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid,           &
-                                       WriteHorizontalGrid, GetXYCellZ
+                                       WriteHorizontalGrid, GetXYCellZ,                  &
+                                       GetDomainDecompositionMPI_ID, GetDomainDecompositionON
     use ModuleHorizontalMap,    only : GetWaterPoints2D, UnGetHorizontalMap
     use ModuleMap,              only : GetWaterPoints3D, GetOpenPoints3D,                &
                                        GetComputeFaces3D, GetImposedTangentialFaces,     &
@@ -261,17 +262,20 @@ Module ModuleTurbulence
     end type T_Diffusivity
 
     type       T_TurbVar
-        real, dimension(:,:,:), pointer             :: Richardson     => null() !inicialization: Carina
-        real, dimension(:,:,:), pointer             :: FPRANDTL       => null() !inicialization: Carina           !Prandtl freq.
-        real, dimension(:,:,:), pointer             :: FBRUNTV        => null() !inicialization: Carina           !Brunt-Vaisalla freq.
-        real, dimension(:,:,:), pointer             :: MixingLengthX  => null() !inicialization: Carina     !MixingLength
-        real, dimension(:,:,:), pointer             :: MixingLengthY  => null() !inicialization: Carina     !MixingLength
-        real, dimension(:,:,:), pointer             :: MixingLengthZ  => null() !inicialization: Carina      !MixingLength
-        real, dimension(:,:,:), pointer             :: Ldownward      => null() !inicialization: Carina      !H. Coelho
-        real, dimension(:,:,:), pointer             :: VMOD           => null() !inicialization: Carina
-        real, dimension(:,:,:), pointer             :: VertPrandtlNumber => null() !inicialization: Carina  !Vertical Prandtl Number 
-        real, dimension(:,:)  , pointer             :: MLD_Surf       => null() !inicialization: Carina
-        real, dimension(:,:)  , pointer             :: MLD_Bot        => null() !inicialization: Carina
+        real, dimension(:,:,:), pointer             :: Richardson     => null() 
+        !Prandtl freq.
+        real, dimension(:,:,:), pointer             :: FPRANDTL       => null()
+        !Brunt-Vaisalla freq.
+        real, dimension(:,:,:), pointer             :: FBRUNTV        => null()
+        real, dimension(:,:,:), pointer             :: MixingLengthX  => null()     
+        real, dimension(:,:,:), pointer             :: MixingLengthY  => null()     
+        real, dimension(:,:,:), pointer             :: MixingLengthZ  => null()     
+        real, dimension(:,:,:), pointer             :: Ldownward      => null()     
+        real, dimension(:,:,:), pointer             :: VMOD           => null() 
+        !Vertical Prandtl Number 
+        real, dimension(:,:,:), pointer             :: VertPrandtlNumber => null() 
+        real, dimension(:,:)  , pointer             :: MLD_Surf       => null() 
+        real, dimension(:,:)  , pointer             :: MLD_Bot        => null() 
         !Variables from TurbGOTM. Needed for output.
         real, dimension(:,:,:), pointer             :: TKE, L, eps, P, B          
         real                                        :: MAXMixingLength        = null_real !inicialization: Carina    !Nihoul & Leendertsee
@@ -489,11 +493,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Reads File Names From Nomfich
             call ReadFileName('IN_TURB', Me%Files%ConstructData, "Turbulence Data File", &
-                               STAT = STAT_CALL)
+                               STAT      = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR02'
 
             call ReadFileName('TURB_HDF', Me%Files%OutPutFields, "Turbulence HDF File",  &
-                               STAT = STAT_CALL)
+                               MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                               DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                               STAT      = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR03'
         
 

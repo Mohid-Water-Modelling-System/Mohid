@@ -94,6 +94,8 @@ Module ModuleField4D
 
     !Selector
     public  :: GetField4DTimeLimits
+    public  :: GetField4DNumberOfInstants
+    public  :: GetField4DInstant
     public  :: GetField4DSize2D
     public  :: GetField4DSize3D                         
     
@@ -268,8 +270,10 @@ Module ModuleField4D
         integer                                     :: MaskDim              = Dim3D
         real                                        :: LatReference
         real                                        :: LonReference
-        logical                                     :: ReadWindow, WindowWithData 
-        real,    dimension(2,2)                     :: WindowLimits
+        logical                                     :: ReadWindowXY, WindowWithData 
+        logical                                     :: ReadWindowJI, ReadWindow
+        real,    dimension(2,2)                     :: WindowLimitsXY
+        type (T_Size2D)                             :: WindowLimitsJI        
         type(T_Field4D), pointer                    :: Next
     end type  T_Field4D
 
@@ -293,34 +297,32 @@ Module ModuleField4D
     subroutine ConstructField4D(Field4DID, EnterDataID, ExtractType, FileName, TimeID,  &
                                 MaskDim, HorizontalGridID, BathymetryID,                &
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
-                                LonReference, LatMin, LatMax, LonMin, LonMax,           &
+                                LonReference, WindowLimitsXY, WindowLimitsJI,           &
                                 Extrapolate, PropertyID, STAT)
 
         !Arguments---------------------------------------------------------------
-        integer,                intent(INOUT)               :: Field4DID
-        integer,                intent(IN )                 :: EnterDataID
-        integer,                intent(IN )                 :: ExtractType        
-        character(*),           intent(IN )                 :: FileName
-        integer,                intent(IN )                 :: TimeID
-        integer,      optional, intent(IN )                 :: MaskDim                
-        integer,      optional, intent(IN )                 :: HorizontalGridID
-        integer,      optional, intent(IN )                 :: BathymetryID
-        integer,      optional, intent(IN )                 :: HorizontalMapID
-        integer,      optional, intent(IN )                 :: GeometryID
-        integer,      optional, intent(IN )                 :: MapID
-        real,         optional, intent(IN )                 :: LatReference
-        real,         optional, intent(IN )                 :: LonReference        
-        real,         optional, intent(IN )                 :: LatMin
-        real,         optional, intent(IN )                 :: LatMax
-        real,         optional, intent(IN )                 :: LonMin
-        real,         optional, intent(IN )                 :: LonMax
-        logical,      optional, intent(IN )                 :: Extrapolate
-        type (T_PropertyID), optional, intent(IN )          :: PropertyID
-        integer,      optional, intent(OUT)                 :: STAT     
+        integer,                                intent(INOUT) :: Field4DID
+        integer,                                intent(IN )   :: EnterDataID
+        integer,                                intent(IN )   :: ExtractType        
+        character(*),                           intent(IN )   :: FileName
+        integer,                                intent(IN )   :: TimeID
+        integer,                      optional, intent(IN )   :: MaskDim                
+        integer,                      optional, intent(IN )   :: HorizontalGridID
+        integer,                      optional, intent(IN )   :: BathymetryID
+        integer,                      optional, intent(IN )   :: HorizontalMapID
+        integer,                      optional, intent(IN )   :: GeometryID
+        integer,                      optional, intent(IN )   :: MapID
+        real,                         optional, intent(IN )   :: LatReference
+        real,                         optional, intent(IN )   :: LonReference        
+        real,    dimension(1:2,1:2),  optional, intent(IN )   :: WindowLimitsXY
+        type (T_Size2D)            ,  optional, intent(IN )   :: WindowLimitsJI
+        logical,                      optional, intent(IN )   :: Extrapolate
+        type (T_PropertyID),          optional, intent(IN )   :: PropertyID
+        integer,                      optional, intent(OUT)   :: STAT     
         
         !Local-------------------------------------------------------------------
-        type (T_PropField), pointer                         :: NewPropField        
-        integer                                             :: ready_, STAT_, nUsers, STAT_CALL
+        type (T_PropField), pointer                           :: NewPropField        
+        integer                                               :: ready_, STAT_, nUsers, STAT_CALL
 
         !------------------------------------------------------------------------
 
@@ -377,28 +379,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     stop 'ConstructField4D - ModuleField4D - ERR20' 
                 endif
                 
-                Me%ReadWindow = .true.
-
-                if (present(LatMin)) then                
-                    Me%WindowLimits(2,1) = LatMin
+                if (present(WindowLimitsXY)) then
+                    Me%WindowLimitsXY(1:2,1:2) = WindowLimitsXY(1:2,1:2)
+                    Me%ReadWindowXY            = .true.
                 else
-                    Me%ReadWindow = .false.
+                    Me%ReadWindowXY            = .false.
                 endif
-
-                if (present(LatMax)) then                
-                    Me%WindowLimits(2,2) = LatMax
+                
+                if (present(WindowLimitsJI)) then
+                    Me%WindowLimitsJI          = WindowLimitsJI
+                    Me%ReadWindowJI            = .true.
                 else
-                    Me%ReadWindow = .false.
+                    Me%ReadWindowJI            = .false.
                 endif
-
-                if (present(LonMin)) then                
-                    Me%WindowLimits(1,1) = LonMin
-                else
-                    Me%ReadWindow = .false.
+                
+                if (Me%ReadWindowXY .and. Me%ReadWindowJI) then                
+                    stop 'ConstructField4D - ModuleField4D - ERR25' 
                 endif
-
-                if (present(LonMax)) then                
-                    Me%WindowLimits(1,2) = LonMax
+                
+                if (Me%ReadWindowXY .or. Me%ReadWindowJI) then
+                    Me%ReadWindow = .true.
                 else
                     Me%ReadWindow = .false.
                 endif
@@ -652,9 +652,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
         !Arguments-------------------------------------------------------------
                                                     
         !Local-----------------------------------------------------------------
-#ifndef _NO_NETCDF
         real(8),   pointer, dimension(:,:)      :: LatR8, LonR8, LatStagR8, LonStagR8
-#endif
         real,      pointer, dimension(:,:)      :: Lat, Lon, LatStag, LonStag        
         real,      pointer, dimension(:,:)      :: LatStagW, LonStagW
         real,   pointer, dimension(:  )         :: XXDummy, YYDummy
@@ -699,14 +697,14 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                  STAT   = STAT_CALL)                                     
             if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR30'
                                         
-            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                              &
+            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                            &
                               GroupName     = "/Grid",                                  &
                               Name          = trim(Me%File%LatStagName),                &
                               Array2D       = LatStag,                                  &
                               STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR40'
             
-            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                              &
+            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                            &
                               GroupName     = "/Grid",                                  &
                               Name          = trim(Me%File%LonStagName),                &
                               Array2D       = LonStag,                                  &
@@ -749,57 +747,90 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
 #endif
         endif
         
-        if (Me%ReadWindow) then
-        
-            allocate (WindowDomain(2,2))
-            
-            WindowDomain(:,:) = FillValueInt
-        
-            call ArrayPolygonWindow(XX              = LonStag,                          &
-                                    YY              = LatStag,                          &
-                                    WIn             = Me%WindowLimits,                  &
-                                    ILB             = 1,                                &
-                                    IUB             = Imax+1,                           &
-                                    JLB             = 1,                                &
-                                    JUB             = Jmax+1,                           &
-                                    WOut            = WindowDomain,                     &
-                                    WindowWithData  = Me%WindowWithData)
-                                    
-            if (.not. Me%WindowWithData) then
-                
-                do j=0,Jmax+1
-                do i=0,Imax+1            
-                    Lon     (i,j)= Lon     (i,j) - 360.
-                    LonStag (i,j)= LonStag (i,j) - 360. 
-                enddo
-                enddo                
+irw:    if (Me%ReadWindow) then
 
+            !WindowLimitsXY(2,1) = South
+            !WindowLimitsXY(2,2) = North
+            !WindowLimitsXY(1,1) = West
+            !WindowLimitsXY(1,2) = East
+
+iXY:        if (Me%ReadWindowXY) then
+                allocate (WindowDomain(2,2))
+                
+                WindowDomain(:,:) = FillValueInt
+            
                 call ArrayPolygonWindow(XX              = LonStag,                          &
                                         YY              = LatStag,                          &
-                                        WIn             = Me%WindowLimits,                  &
+                                        WIn             = Me%WindowLimitsXY,                &
                                         ILB             = 1,                                &
                                         IUB             = Imax+1,                           &
                                         JLB             = 1,                                &
                                         JUB             = Jmax+1,                           &
                                         WOut            = WindowDomain,                     &
                                         WindowWithData  = Me%WindowWithData)
-            
+                                        
                 if (.not. Me%WindowWithData) then
-                    write(*,*) 'Input file do not intersect the model domain'
-                    write(*,*) 'ReadGridFromFile - ModuleField4D - WRN70'
-                endif
-            
-            endif
-            
-            ILB = max(WindowDomain(1,1) - 3,1   )
-            IUB = min(WindowDomain(1,2) + 3,Imax)
-            JLB = max(WindowDomain(2,1) - 3,1   )
-            JUB = min(WindowDomain(2,2) + 3,Jmax)
-            
-            deallocate (WindowDomain)
-            
-wwd1:        if (Me%WindowWithData) then
+                    
+                    do j=0,Jmax+1
+                    do i=0,Imax+1            
+                        Lon     (i,j)= Lon     (i,j) - 360.
+                        LonStag (i,j)= LonStag (i,j) - 360. 
+                    enddo
+                    enddo                
 
+                    call ArrayPolygonWindow(XX              = LonStag,                          &
+                                            YY              = LatStag,                          &
+                                            WIn             = Me%WindowLimitsXY,                &
+                                            ILB             = 1,                                &
+                                            IUB             = Imax+1,                           &
+                                            JLB             = 1,                                &
+                                            JUB             = Jmax+1,                           &
+                                            WOut            = WindowDomain,                     &
+                                            WindowWithData  = Me%WindowWithData)
+                
+                    if (.not. Me%WindowWithData) then
+                        write(*,*) 'Input file do not intersect the model domain'
+                        write(*,*) 'ReadGridFromFile - ModuleField4D - WRN70'
+                    endif
+                
+                endif
+                
+                ILB = max(WindowDomain(1,1) - 3,1   )
+                IUB = min(WindowDomain(1,2) + 3,Imax)
+                JLB = max(WindowDomain(2,1) - 3,1   )
+                JUB = min(WindowDomain(2,2) + 3,Jmax)
+                
+                deallocate (WindowDomain)
+                
+            endif iXY                            
+            
+iJI:        if (Me%ReadWindowJI) then
+
+                ILB = Me%WindowLimitsJI%ILB
+                if (ILB < 1) then
+                    stop 'ReadGridFromFile - ModuleField4D - ERR80'
+                endif
+
+                IUB = Me%WindowLimitsJI%IUB
+                if (IUB > imax) then
+                    stop 'ReadGridFromFile - ModuleField4D - ERR90'
+                endif
+
+                JLB = Me%WindowLimitsJI%JLB
+                if (JLB < 1) then
+                    stop 'ReadGridFromFile - ModuleField4D - ERR100'
+                endif
+
+                JUB = Me%WindowLimitsJI%JUB
+                if (JUB > jmax) then
+                    stop 'ReadGridFromFile - ModuleField4D - ERR110'
+                endif
+                
+            endif iJI
+            
+            
+wwd1:       if (Me%WindowWithData) then
+                
                 allocate(LatStagW(ILB-1:IUB+1,JLB-1:JUB+1))
                 LatStagW(ILB-1:IUB+1,JLB-1:JUB+1) = LatStag(ILB-1:IUB+1,JLB-1:JUB+1)
 
@@ -807,7 +838,8 @@ wwd1:        if (Me%WindowWithData) then
                 LonStagW(ILB-1:IUB+1,JLB-1:JUB+1) = LonStag(ILB-1:IUB+1,JLB-1:JUB+1)
             
             endif wwd1
-        else
+
+        else irw
         
             ILB = 1
             IUB = Imax
@@ -817,7 +849,7 @@ wwd1:        if (Me%WindowWithData) then
             LatStagW => LatStag
             LonStagW => LonStag
             
-        endif
+        endif irw
         
         if (Me%WindowWithData) then
         
@@ -834,7 +866,7 @@ wwd1:        if (Me%WindowWithData) then
                                          JLB                = JLB,                          &
                                          JUB                = JUB,                          &
                                          STAT               = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR80'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR800'
 
         endif    
         
@@ -842,7 +874,7 @@ wwd1:        if (Me%WindowWithData) then
         deallocate(Lon    )
         deallocate(LatStag)
         deallocate(LonStag)
-        if (Me%ReadWindow .and. Me%WindowWithData) then
+        if (Me%ReadWindowXY .and. Me%WindowWithData) then
             deallocate(LatStagW)
             deallocate(LonStagW)
         endif
@@ -1011,11 +1043,12 @@ wwd1:        if (Me%WindowWithData) then
                 
                 call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,            &
                                                            JLB = JLB, JUB = JUB,            &
+                                                           KLB =   1, KUB =   1,            &
                                      STAT   = STAT_CALL)                                   
                                      
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR60'
                                             
-                call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                              &
+                call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                            &
                                   GroupName     = "/Grid",                                  &
                                   Name          = trim(Me%File%MaskName),                   &
                                   Array2D       = Mask2D,                                   &
@@ -1190,7 +1223,7 @@ wwd1:        if (Me%WindowWithData) then
                                  
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR40'
 
-            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                              &
+            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                            &
                               GroupName     = "/Grid",                                  &
                               Name          = trim(Me%File%MaskName),                   &
                               Array3D       = Mask,                                     &
@@ -1525,13 +1558,10 @@ wwd1:        if (Me%WindowWithData) then
         integer,                intent(IN )             :: ExtractType        
         
         !Local-----------------------------------------------------------------
-#ifndef _NO_NETCDF
         type (T_Time)                                   :: AuxTime
         real,    dimension(6)                           :: InitialDate
         real(8), dimension(:), pointer                  :: Instants
-        integer                                         :: NCDF_READ
-#endif        
-        integer                                         :: STAT_CALL, i, HDF5_READ, iflag
+        integer                                         :: STAT_CALL, i, NCDF_READ, HDF5_READ, iflag
         logical                                         :: exist, exist3D, exist2D
 
 
@@ -2300,15 +2330,15 @@ it:     if (NewPropField%ChangeInTime) then
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR30'
             
                  
-            call HDF5ReadWindow(Me%File%Obj, trim(NewPropField%VGroupPath),                   &
-                              trim(NewPropField%FieldName),                                 &
+            call HDF5ReadWindow(Me%File%Obj, trim(NewPropField%VGroupPath),             &
+                              trim(NewPropField%FieldName),                             &
                               Array2D = Field, OutputNumber = Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR40'
 #ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
             call NETCDFReadData(NCDFID          = Me%File%Obj,                          &
-                                Array2D         = Field,                          &
+                                Array2D         = Field,                                &
                                 Name            = trim(NewPropField%FieldName),         &
                                 nInstant        = Instant,                              &
                                 ILB             = ILB,                                  &
@@ -2437,11 +2467,11 @@ it:     if (NewPropField%ChangeInTime) then
             call HDF5SetLimits  (Me%File%Obj, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR30'
             
-            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
-                                GroupName     = trim(NewPropField%VGroupPath),      &
-                                Name          = trim(NewPropField%FieldName),       &
-                                Array3D       = FieldAux,                           &
-                                OutputNumber  = Instant,                            &
+            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                            &
+                                GroupName     = trim(NewPropField%VGroupPath),          &
+                                Name          = trim(NewPropField%FieldName),           &
+                                Array3D       = FieldAux,                               &
+                                OutputNumber  = Instant,                                &
                                 STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR40'
 
@@ -2575,6 +2605,74 @@ it:     if (NewPropField%ChangeInTime) then
 
     end subroutine GetField4DTimeLimits
     
+    !--------------------------------------------------------------------------
+    subroutine GetField4DNumberOfInstants (Field4DID, NumberOfInstants, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: Field4DID
+        integer                                         :: NumberOfInstants
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(Field4DID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            NumberOfInstants = Me%File%NumberOfInstants
+            
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetField4DNumberOfInstants
+    
+    !--------------------------------------------------------------------------
+    
+
+    !--------------------------------------------------------------------------
+    type(T_Time) function GetField4DInstant (Field4DID, Instant, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: Field4DID
+        integer                                         :: Instant
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(Field4DID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            GetField4DInstant = Me%File%InstantsDates(Instant)
+            
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end function GetField4DInstant
+    
+    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
@@ -2692,9 +2790,6 @@ it:     if (NewPropField%ChangeInTime) then
                 call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyField4D - ModuleField4D - ERR10'
 
-                if (present(Matrix2D)) Me%Matrix2D => Matrix2D
-                if (present(Matrix3D)) Me%Matrix3D => Matrix3D
-
                 if      (PropField%SpaceDim == Dim2D) then
                     call ModifyInput2D (PropField) 
                 else if (PropField%SpaceDim == Dim3D) then
@@ -2704,6 +2799,15 @@ it:     if (NewPropField%ChangeInTime) then
                 if (Me%Output%Yes) then
                     call WriteOutput(PropField, PropertyIDNumber)
                 endif
+                
+                if (present(Matrix2D)) then
+                    Matrix2D(:,:) = Me%Matrix2D(:,:)
+                endif
+
+                if (present(Matrix3D)) then
+                    Matrix3D(:,:,:) = Me%Matrix3D(:,:,:)
+                endif
+                                
 
             endif
             

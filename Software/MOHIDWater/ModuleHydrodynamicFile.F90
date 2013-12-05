@@ -386,8 +386,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'StartHydrodynamicFile - ModuleHydrodynamicFile - ERR03' 
 
 
-            call ReadFileName('IN_HYDRO_FILE', DataFile,                                 &
-                               Message = 'HydrodynamicFile Data File', STAT = STAT_CALL)
+            call ReadFileName('IN_HYDRO_FILE', DataFile,                                &
+                               Message = 'HydrodynamicFile Data File',                  &
+                               MPI_ID  = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                               DD_ON   = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                               STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'StartHydrodynamicFile - ModuleHydrodynamicFile - ERR04' 
 
             call ConstructEnterData(Me%ObjEnterData, DataFile, STAT = STAT_CALL) 

@@ -128,7 +128,8 @@ Module ModuleInterfaceSedimentWater
     use ModuleGridData,             only: GetGridData, UngetGridData
     use ModuleHorizontalGrid,       only: GetHorizontalGrid, GetHorizontalGridSize,         &
                                           WriteHorizontalGrid, UnGetHorizontalGrid,         &
-                                          GetGridCellArea, GetXYCellZ
+                                          GetGridCellArea, GetXYCellZ, GetDomainDecompositionMPI_ID,&
+                                          GetDomainDecompositionON
     use ModuleHorizontalMap,        only: GetOpenPoints2D, GetWaterPoints2D, GetBoundaries, &
                                           UnGetHorizontalMap
     use ModuleGeometry,             only: GetGeometrySize, GetGeometryWaterColumn,          &
@@ -946,7 +947,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Message   = trim(Message)
 
         call ReadFileName('BOT_HDF', Me%Files%Results, Message = Message, TIME_END = Me%EndTime, &
-                           Extension = 'bot', STAT = STAT_CALL)
+                           Extension = 'bot',                                           &
+                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT      = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)stop 'StartInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR02'
 
         ! ---> Bottom properties final values in HDF format
@@ -954,7 +958,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Message   = trim(Message)
 
         call ReadFileName('BOT_FIN', Me%Files%Final, Message = Message, TIME_END = Me%EndTime, &
-                           Extension = 'bof', STAT = STAT_CALL)
+                           Extension = 'bof',                                           &
+                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT      = STAT_CALL)
+
         if(STAT_CALL .ne. SUCCESS_)stop 'StartInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR03'
 
 
@@ -963,7 +971,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Message   ='Bottom properties initial values in HDF format.'
         Message   = trim(Message)
 
-        call ReadFileName('BOT_INI', Me%Files%Initial, Message = Message, TIME_END = Me%ActualTime, STAT = STAT_CALL)
+        call ReadFileName('BOT_INI', Me%Files%Initial, Message = Message, TIME_END = Me%ActualTime, &
+                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&                           
+                           STAT      = STAT_CALL)
                                                                                                
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
            

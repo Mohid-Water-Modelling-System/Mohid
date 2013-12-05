@@ -93,7 +93,7 @@ module ModuleMap
     use ModuleHorizontalGrid,   only: GetHorizontalGrid, GetGridCoordType,      &
                                       GetGridAngle, GetLatitudeLongitude,       &
                                       GetGridZone, GetGridOrigin,               & 
-                                      GetCheckDistortion
+                                      GetCheckDistortion, GetDomainDecompositionParameters
     use ModuleFunctions,        only : SetMatrixValue, Chunk_J
     use ModuleStopWatch,        only : StartWatch, StopWatch         
 
@@ -262,6 +262,7 @@ module ModuleMap
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
         logical                             :: IsolatedCell = .false.
         type(T_MapCell), pointer            :: FirstIsolatedCell
+        logical                             :: MasterOrSlave
 
         !----------------------------------------------------------------------
 
@@ -378,40 +379,51 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 !GRIFLET, FFOUNND!! : Make sure that the FirstIsolatedCell is .not. associated!
                 nullify(FirstIsolatedCell)
 
-                if (present(GridDataID) .AND. present(HorizontalGridID)) then
+iGH:            if (present(GridDataID) .AND. present(HorizontalGridID)) then
+                
+                    call GetDomainDecompositionParameters                               &
+                                                  (HorizontalGridID = HorizontalGridID, &
+                                                   MasterOrSlave    = MasterOrSlave,    &
+                                                   STAT             = STAT_CALL)
+                
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR100'
+                    
+iMS:                if (.not. MasterOrSlave) then
 
-                    !Checks the existence of isolated cells which may become endlessly hotter
-                    !(cycle the cells and check the WaterPoints)
-                    do j = JLB, JUB
-                    do i = ILB, IUB 
+                        !Checks the existence of isolated cells which may become endlessly hotter
+                        !(cycle the cells and check the WaterPoints)
+                        do j = JLB, JUB
+                        do i = ILB, IUB 
 
-                        if  (WaterPoints2D(i, j) == 1) then
-                            KFUNDO = KFloorZ(i, j)
-                            do k = KFUNDO, KUB !only waterpoints are checked
+                            if  (WaterPoints2D(i, j) == 1) then
+                                KFUNDO = KFloorZ(i, j)
+                                do k = KFUNDO, KUB !only waterpoints are checked
 
-                                call CheckIsolatedCell(i, j, k, FirstIsolatedCell,      & 
-                                     IsolatedCell) 
+                                    call CheckIsolatedCell(i, j, k, FirstIsolatedCell,      & 
+                                         IsolatedCell) 
 
-                            end do
+                                end do
 
-                        endif
+                            endif
 
-                    end do 
-                    end do 
+                        end do 
+                        end do 
 
-                    if (IsolatedCell) then
+iIC:                    if (IsolatedCell) then
+                            
+                            write(*,*)
+                            write(*,*) 'Isolated cells in horizontal are not allowed.'
+                            write(*,*)
+
+                            !Construct a new bathymetry with no isolated cells
+                            call CorrectIsolatedCells(GridDataID, HorizontalGridID,         &
+                                 FirstIsolatedCell)
+                       
+                        endif iIC
                         
-                        write(*,*)
-                        write(*,*) 'Isolated cells in horizontal are not allowed.'
-                        write(*,*)
+                    endif iMS                        
 
-                        !Construct a new bathymetry with no isolated cells
-                        call CorrectIsolatedCells(GridDataID, HorizontalGridID,         &
-                             FirstIsolatedCell)
-                   
-                    endif
-
-                endif
+                endif iGH
 
                 call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)           
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR06'
@@ -901,6 +913,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
         real                                        :: MinWaterColumn
         integer                                     :: CHUNK
+
 
         !----------------------------------------------------------------------
 

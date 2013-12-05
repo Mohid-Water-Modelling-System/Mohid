@@ -1678,6 +1678,13 @@ Module ModuleGlobalData
     integer, parameter ::  mTimeSeriesOperator_     = 86
     integer, parameter ::  mPressureDifferences_    = 87
     integer, parameter ::  mAnalytical_LDS_         = 88
+    
+    !Domain decomposition
+    integer, parameter :: WestSouth        = 1
+    integer, parameter :: EastNorth        = 2
+    integer, parameter :: SouthNorth_      = 4
+    integer, parameter :: WestEast_        = 5
+    
 
     type T_Size1D
         integer                 :: ILB            = null_int

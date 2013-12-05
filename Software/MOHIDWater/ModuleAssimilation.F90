@@ -44,7 +44,8 @@ Module ModuleAssimilation
                                       ExtractBlockFromBlock, KillEnterData
     use ModuleGridData,         only: GetGridData, UngetGridData        
     use ModuleHorizontalGrid,   only: WriteHorizontalGrid, UnGetHorizontalGrid,             &
-                                      GetGridCellArea, GetXYCellZ
+                                      GetGridCellArea, GetXYCellZ,                          &
+                                      GetDomainDecompositionMPI_ID, GetDomainDecompositionON
     use ModuleHorizontalMap,    only: GetWaterPoints2D, UngetHorizontalMap, GetWaterFaces2D 
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryDistances, UngetGeometry, &
                                       GetGeometryKFloor
@@ -241,7 +242,7 @@ Module ModuleAssimilation
         type(T_Property), pointer               :: FirstAssimilationProp
         type(T_Property), pointer               :: LastAssimilationProp
         integer                                 :: PropertiesNumber            = null_int
-
+        
         !Instance of ModuleHDF5     
         integer                                 :: ObjHDF5            = 0
 
@@ -308,21 +309,21 @@ Module ModuleAssimilation
                                  STAT)
 
         !Arguments--------------------------------------------------------------
-        integer                                 :: AssimilationID
-        integer                                 :: TimeID
-        integer                                 :: GridDataID
-        integer                                 :: HorizontalGridID
-        integer                                 :: HorizontalMapID
-        integer                                 :: MapID
-        integer                                 :: GeometryID
-        integer, optional, intent(OUT)          :: STAT     
+        integer                                         :: AssimilationID
+        integer                                         :: TimeID
+        integer                                         :: GridDataID
+        integer                                         :: HorizontalGridID
+        integer                                         :: HorizontalMapID
+        integer                                         :: MapID
+        integer                                         :: GeometryID
+        integer,                 optional, intent(OUT)  :: STAT     
 
         !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL
-        integer                                 :: ready_         
+        integer                                         :: STAT_CALL
+        integer                                         :: ready_         
 
         !Local-----------------------------------------------------------------
-        integer                                 :: STAT_
+        integer                                         :: STAT_
  
         !Begin-----------------------------------------------------------------
         
@@ -347,7 +348,7 @@ Module ModuleAssimilation
             Me%ObjHorizontalGrid  = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID  )
             Me%ObjGeometry        = AssociateInstance (mGEOMETRY_,       GeometryID        )
             Me%ObjMap             = AssociateInstance (mMAP_,            MapID             ) 
-
+            
 
             call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%ActualTime, &
                                       EndTime = Me%EndTime, STAT = STAT_CALL)
@@ -457,7 +458,7 @@ Module ModuleAssimilation
         Message  ='Assimilation Data Properties.'
         Message  = trim(Message)
 
-        call ReadFileName('ASSIMILA_DAT', Me%Files%ConstructData,               &
+        call ReadFileName('ASSIMILA_DAT', Me%Files%ConstructData,                       &
                            Message = Message, STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)stop 'ReadAssimilationFilesName - ModuleAssimilation - ERR01'
 
@@ -465,8 +466,11 @@ Module ModuleAssimilation
         Message   ='Instant fields of Assimilation properties in HDF format.'
         Message   = trim(Message)
 
-        call ReadFileName('ASSIMILA_HDF', Me%Files%Results, Message = Message,  &
-                           TIME_END = TIME_END, Extension = 'ass', STAT = STAT_CALL)
+        call ReadFileName('ASSIMILA_HDF', Me%Files%Results, Message = Message,          &
+                           TIME_END = TIME_END, Extension = 'ass',                      &
+                           MPI_ID = GetDomainDecompositionMPI_ID (Me%ObjHorizontalGrid),&
+                           DD_ON  = GetDomainDecompositionON     (Me%ObjHorizontalGrid),&
+                           STAT   = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)stop 'ReadAssimilationFilesName - ModuleAssimilation - ERR02'
 
 

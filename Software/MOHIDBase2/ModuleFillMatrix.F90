@@ -45,7 +45,11 @@ Module ModuleFillMatrix
                                        UngetBoxDif, KillBoxDif
     use ModuleGridData,         only : ConstructGridData, GetGridData, UnGetGridData,    &
                                        KillGridData, GetGridDataType 
-    use ModuleHorizontalGrid,   only : GetGridAngle, GetHorizontalGridSize
+    use ModuleHorizontalGrid,   only : GetGridAngle, GetHorizontalGridSize,              &
+                                       GetGridBorderLimits, GetLatitudeLongitude,        &
+                                       GetDomainDecompositionOpenBorders,                &
+                                       GetDomainDecompositionParameters,                 &
+                                       GetDomainDecompositionWorkSize2D
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue,           &
                                        GetTimeSerieDTForNextEvent,                       &
                                        GetTimeSerieTimeOfNextDataset,                    & 
@@ -55,6 +59,10 @@ Module ModuleFillMatrix
     use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData, GetHDF5GroupID,      &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,     &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5
+                                       
+    use ModuleField4D,          only : ConstructField4D, GetField4DNumberOfInstants,    &
+                                       GetField4DInstant, ModifyField4D, KillField4D
+                                       
 
     implicit none
 
@@ -89,6 +97,7 @@ Module ModuleFillMatrix
     public  :: GetTimeInstant
     public  :: GetNextValueForDTPred
     public  :: GetValuesProcessingOptions
+                     
     
     !Modifier
     public  :: ModifyFillMatrix
@@ -194,6 +203,8 @@ Module ModuleFillMatrix
         integer                                     :: Cells        = null_int  !initialization: Jauch
         logical                                     :: Growing      = .false.   !initialization: Jauch
         integer                                     :: Evolution    = null_int  !initialization: Jauch
+        !1 - South; 2 - North; 3 - West; 4 - East        
+        logical, dimension(1:4)                     :: OpenBordersON = .true.
     end type T_Sponge
 
     type T_TimeSerie
@@ -225,7 +236,7 @@ Module ModuleFillMatrix
                                                        nDepths          = null_int, & !initialization: Jauch     
                                                        FirstInstant     = null_int, & !initialization: Jauch
                                                        LastInstant      = null_int    !initialization: Jauch
-        logical                                     :: CyclicTimeON = .false.
+        logical                                     :: CyclicTimeON     = .false.
     end type T_ProfileTimeSerie
 
     type T_Station   
@@ -235,7 +246,7 @@ Module ModuleFillMatrix
         integer                                     :: FillID           = null_int !initialization: Jauch
         logical                                     :: RemainConstant   = .false.        
         logical                                     :: ValueIsDefined   = .false.
-        real                                        :: NewValue         = -null_real
+        real                                        :: NewValue         = -null_real                      
         integer                                     :: NumberOfInstants = 0 
         type(T_Time)                                :: NextEventStart
         type(T_Time)                                :: NextEventEnd
@@ -269,7 +280,7 @@ Module ModuleFillMatrix
 
     end type 
 
-    type T_HDF
+    type T_Field4D
         character(PathLength)                       :: FileName     = null_str, & !initialization: Jauch
                                                        VGroupPath   = null_str, & !initialization: Jauch
                                                        FieldName    = null_str !initialization: Jauch
@@ -290,13 +301,15 @@ Module ModuleFillMatrix
                                                        NextField3D      => null(), &
                                                        ReadField3D      => null(), &
                                                        Array3D          => null()
-        integer                                     :: ObjHDF5  = 0
+        integer                                     :: ObjHDF5          =  0
         integer                                     :: NumberOfInstants = null_int !initialization: Jauch
-        logical                                     :: CyclicTimeON = .false.
-        logical                                     :: From2Dto3D   = .false.
+        logical                                     :: CyclicTimeON     = .false.
+        logical                                     :: From2Dto3D       = .false.
         type(T_Generic4D)                           :: Generic4D
         logical                                     :: ArgumentFileName = .false. !initialization: Jauch
-    end type T_HDF
+        integer                                     :: ObjField4D       = 0
+        logical                                     :: Field4D          = .false.
+    end type T_Field4D
 
 
     private :: T_FillMatrix
@@ -305,12 +318,12 @@ Module ModuleFillMatrix
         type (T_Size2D)                             :: Size2D, WorkSize2D
         type (T_Size3D)                             :: Size3D, WorkSize3D
         type (T_PropertyID)                         :: PropertyID
-        integer                                     :: Dim                      = null_int !initialization: Jauch !2D/3D
-        integer                                     :: TypeZUV                  = null_int !initialization: Jauch !Z/U/V
-        integer                                     :: TimeEvolution            = null_int !initialization: Jauch
-        integer                                     :: SpaceEvolution           = null_int !initialization: Jauch
-        integer                                     :: InitializationMethod     = null_int !initialization: Jauch
-        integer                                     :: InitializationDefault    = null_int !initialization: Jauch
+        integer                                     :: Dim                      = null_int 
+        integer                                     :: TypeZUV                  = null_int 
+        integer                                     :: TimeEvolution            = null_int 
+        integer                                     :: SpaceEvolution           = null_int 
+        integer                                     :: InitializationMethod     = null_int 
+        integer                                     :: InitializationDefault    = null_int 
         logical                                     :: RemainsConstant          = .false.
 
 !        logical                                     :: AccumulatedValue     = .false.
@@ -325,15 +338,15 @@ Module ModuleFillMatrix
         integer                                     :: PredictDTMethod !1 for old method, 2 for new method (for rain, mainly)
         real                                        :: NoDataValue              = null_real !initialization: Jauch
         
-        logical                                     :: Backtracking         = .false.
+        logical                                     :: Backtracking             = .false.
         
-        character(len=StringLength)                 :: OverrideValueKeyword = null_str
-        logical                                     :: OverrideValueKeywordON = .false.
+        character(len=StringLength)                 :: OverrideValueKeyword     = null_str
+        logical                                     :: OverrideValueKeywordON   = .false.
          
-        real                                        :: MinForDTDecrease     = AllmostZero
-        real                                        :: DefaultValue         = null_real !initialization: Jauch
-        real                                        :: PredictedDT          = -null_real
-        real                                        :: DTForNextEvent       = -null_real
+        real                                        :: MinForDTDecrease         = AllmostZero
+        real                                        :: DefaultValue             = null_real !initialization: Jauch
+        real                                        :: PredictedDT              = -null_real
+        real                                        :: DTForNextEvent           = -null_real
         real                                        :: DTForNextDataset     = -null_real
         type(T_Time)                                :: NextEventStart
         type(T_Time)                                :: NextEventEnd
@@ -352,7 +365,7 @@ Module ModuleFillMatrix
         type (T_TimeSerie)                          :: TimeSerie
         type (T_ASCIIFile)                          :: ASCIIFile
         type (T_Sponge   )                          :: Sponge
-        type (T_HDF      )                          :: HDF
+        type (T_Field4D  )                          :: HDF
         type (T_ProfileTimeSerie)                   :: ProfileTimeSerie
         type (T_MultiTimeSerie)                     :: MultiTimeSerie
         integer                                     :: ObjEnterData         = 0 
@@ -398,7 +411,7 @@ Module ModuleFillMatrix
         integer, optional, intent(IN)                   :: ClientID
         character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
-        integer,      optional, intent(OUT)             :: STAT  
+        integer,      optional, intent(OUT)             :: STAT     
         integer,      optional, intent(IN )             :: PredictDTMethod 
         real,         optional, intent(IN )             :: MinForDTDecrease  
         logical,      optional, intent(IN )             :: ValueIsUsedForDTPrediction
@@ -426,7 +439,7 @@ Module ModuleFillMatrix
         call Ready(ObjFillMatrix_, ready_)    
 
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
-       
+
             call AllocateInstance
 
             if (present(PredictDTMethod)) then
@@ -453,7 +466,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             ! Using ubound may cause inconsistency with padded matrices (making IUB larger than the actual grid bound).
             ! PointsToFill2D should have the same dimensions as HorizontalGrid anyway.
             ! Matrices that are used for the Thomas algorithm are padded if _USE_PAGELOCKED (CUDA only) or _PAD_MATRICES (Fortran) is defined
-            call GetHorizontalGridSize(HorizontalGridID, Me%Size2D, Me%WorkSize2D, STAT_)
+            call GetHorizontalGridSize(HorizontalGridID, Me%Size2D, Me%WorkSize2D, STAT = STAT_)
 !            Me%Size2D%ILB       = lbound(PointsToFill2D, dim = 1)
 !            Me%Size2D%IUB       = ubound(PointsToFill2D, dim = 1)
 !            Me%Size2D%JLB       = lbound(PointsToFill2D, dim = 2)
@@ -570,7 +583,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real        , optional, intent(IN )             :: FillMatrix
         character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
-        integer,      optional, intent(OUT)             :: STAT   
+        integer,      optional, intent(OUT)             :: STAT     
         integer,      optional, intent(IN )             :: PredictDTMethod  
         real,         optional, intent(IN )             :: MinForDTDecrease 
         logical,      optional, intent(IN )             :: ValueIsUsedForDTPrediction 
@@ -648,7 +661,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%PropertyID   = PropertyID
 
             Me%Matrix3D     => Matrix3D
-
 
             if (present(FillMatrix)) then
                 FillMatrix_ = FillMatrix
@@ -1102,6 +1114,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR157'                  
         endif
+        
 
         call GetData(Me%PredictDTMethod,                                            &
                      Me%ObjEnterData,  iflag,                                       &
@@ -1203,6 +1216,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     case(ReadTimeSerie)
 
                         call ConstructSpaceTimeSerie (ExtractType)
+
                         if (Me%Dim == Dim2D) then
                             call ModifySpaceTimeSerie    (PointsToFill2D = PointsToFill2D) 
                         else
@@ -1226,7 +1240,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             case(ReadTimeSerie)
 
                 call ConstructSpaceTimeSerie (ExtractType)
-                if (Me%Dim == Dim2D) then                    
+
+                if (Me%Dim == Dim2D) then
                     call ModifySpaceTimeSerie    (PointsToFill2D = PointsToFill2D) 
                 else
                     call ModifySpaceTimeSerie    (PointsToFill3D = PointsToFill3D) 
@@ -1270,7 +1285,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
     subroutine ConstructMultiTimeSerie (ClientID, PointsToFill2D, PointsToFill3D)
     
-        !Arguments-------------------------------------------------------------        
+        !Arguments-------------------------------------------------------------
         integer, intent(IN)                            :: ClientID   
         integer, dimension(:, :), pointer, optional    :: PointsToFill2D
         integer, dimension(:, :, :), pointer, optional :: PointsToFill3D     
@@ -1545,7 +1560,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call KillGridData (MaskGridDataID, STAT = STAT_CALL)  
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR200'  
-        
+                
         if (Me%PredictDTMethod == 2) then                    
 
             !Gets Current Time
@@ -3135,6 +3150,10 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
         
         
         dij(:,:) = 0
+        
+        Me%Sponge%OpenBordersON  = GetDomainDecompositionOpenBorders(Me%ObjHorizontalGrid, &
+                                                                     STAT = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSponge - ModuleFillMatrix - ERR60'
 
 dsp:    do sp = 1, Me%Sponge%Cells
             
@@ -3152,37 +3171,46 @@ dsp:    do sp = 1, Me%Sponge%Cells
             
             Aux     = AuxT(sp)
 
+            !1 - South; 2 - North; 3 - West; 4 - East        
+            !Me%Sponge%OpenBordersON(:)
+
 dk:         do k =  KLB,  KUB
 
-                !Southern and Northen boundary
-    dj:         do j = JLB, JUB
+               !Southern and Northen boundary
+    dl:         do l=1,2
+    
+                    !1 - South; 2 - North; 3 - West; 4 - East        
+                    if (.not.Me%Sponge%OpenBordersON(l)) cycle 
+                   
+                    i = AuxI(l)
+
+    dj:             do j = JLB, JUB
                                 
-    dl:             do l=1,2
-                    
-                        i = AuxI(l)
-                        
                         if (CheckSponge(PointsToFill2D, PointsToFill3D, sp, dij(l,1), dij(l,2), 0, 0, i, j, k)) then
                             call FillSponge(PointsToFill2D, PointsToFill3D, Aux, i, j, k)
                         endif
                 
-                    enddo dl                
+                    enddo dj
                  
-                enddo dj
+                enddo dl
                 
                 !Western and Eastern boundary
-di:             do i = ILB, IUB
-                                                
-dl2:                do l=3,4
+dl2:            do l=3,4
+
+                    !1 - South; 2 - North; 3 - West; 4 - East        
+                    if (.not.Me%Sponge%OpenBordersON(l)) cycle 
                     
-                        j = AuxI(l)
-                        
+                    j = AuxI(l)
+
+di:                 do i = ILB, IUB
+                                                
                         if (CheckSponge(PointsToFill2D, PointsToFill3D, sp, 0, 0, dij(l,3), dij(l,4), i, j, k)) then
                             call FillSponge(PointsToFill2D, PointsToFill3D, Aux, i, j, k)
                         endif
 
-                    enddo dl2        
+                    enddo di
                         
-                enddo di
+                enddo dl2
                 
             enddo dk
             
@@ -3410,6 +3438,9 @@ i2:     if (Me%Dim == Dim2D) then
         integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
         logical                                         :: FoundSecondInstant, LastGroupEqualField
         real                                            :: Year, Month, Day, Hour, Minute, Second
+        real                                            :: LatDefault, LongDefault
+        type (T_Size2D)                                 :: WindowLimitsJI
+        logical                                         :: MasterOrSlave
 
         !Begin-----------------------------------------------------------------
 
@@ -3425,7 +3456,6 @@ i0:     if(Me%Dim == Dim2D)then
 
             allocate(Me%HDF%PreviousField2D (ILB:IUB, JLB:JUB))
             allocate(Me%HDF%NextField2D     (ILB:IUB, JLB:JUB))
-            allocate(Me%HDF%Array2D         (ILB:IUB, JLB:JUB))
 
             Me%HDF%PreviousField2D(:,:) = FillValueReal
             Me%HDF%NextField2D    (:,:) = FillValueReal
@@ -3441,7 +3471,6 @@ i0:     if(Me%Dim == Dim2D)then
 
             allocate(Me%HDF%PreviousField3D (ILB:IUB, JLB:JUB, KLB:KUB))
             allocate(Me%HDF%NextField3D     (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate(Me%HDF%Array3D         (ILB:IUB, JLB:JUB, KLB:KUB))
 
             Me%HDF%PreviousField3D(:,:,:) = FillValueReal
             Me%HDF%NextField3D    (:,:,:) = FillValueReal
@@ -3456,7 +3485,10 @@ i0:     if(Me%Dim == Dim2D)then
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR10'
-        if (Me%HDF%Generic4D%ON) call Generic4thDimension(ExtractType)        
+
+
+        if (Me%HDF%Generic4D%ON) call Generic4thDimension(ExtractType)
+        
 
         call GetData(Me%HDF%VGroupPath,                                                 &
                      Me%ObjEnterData , iflag,                                           &
@@ -3534,6 +3566,7 @@ i0:     if(Me%Dim == Dim2D)then
         endif      
 
         if (.not. Me%HDF%ArgumentFileName) then
+
             call GetData(Me%HDF%FileName,                                               &
                          Me%ObjEnterData , iflag,                                       &
                          SearchType   = ExtractType,                                    &
@@ -3554,14 +3587,76 @@ i0:     if(Me%Dim == Dim2D)then
             stop 'ConstructHDFInput - ModuleFillMatrix - ERR110'
         endif
 
-        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
 
-        call ConstructHDF5 (Me%HDF%ObjHDF5, trim(Me%HDF%FileName), HDF5_READ, STAT = STAT_CALL)
+        call GetData(Me%HDF%Field4D,                                                &
+                     Me%ObjEnterData , iflag,                                       &
+                     SearchType   = ExtractType,                                    &
+                     keyword      = 'FIELD4D',                                      &
+                     default      = .false.,                                        &
+                     ClientModule = 'ModuleFillMatrix',                             &
+                     STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR120'
+        
+        
+if4D:   if (Me%HDF%Field4D) then
 
-        call GetHDF5GroupNumberOfItems(Me%HDF%ObjHDF5, "/Time", &
-                                       Me%HDF%NumberOfInstants, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR130'
+            call GetDomainDecompositionParameters(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                                  MasterOrSlave    = MasterOrSlave,        &
+                                                  STAT             = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR130'
+            
+            if (MasterOrSlave) then
+            
+                call GetDomainDecompositionWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                                      WorkSize         = WindowLimitsJI,       &
+                                                      STAT             = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR140'
+                                                      
+                write(*,*) 'With domain decomposition - ILB,IUB, JLB, JUB',             &
+                            WindowLimitsJI%ILB,WindowLimitsJI%IUB, WindowLimitsJI%JLB, WindowLimitsJI%JUB
+                
+            else
+            
+                WindowLimitsJI = Me%WorkSize2D
+                
+                write(*,*) 'No domain decomposition - ILB,IUB, JLB, JUB',               &
+                            WindowLimitsJI%ILB,WindowLimitsJI%IUB, WindowLimitsJI%JLB, WindowLimitsJI%JUB
+            
+            endif                
+
+            call GetLatitudeLongitude(Me%ObjHorizontalGrid, Latitude  = LatDefault, Longitude = LongDefault, & 
+                                      STAT      = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR150'
+        
+            call ConstructField4D(Field4DID         = Me%HDF%ObjField4D,                &
+                                  EnterDataID       = Me%ObjEnterData,                  &
+                                  ExtractType       = ExtractType,                      &
+                                  FileName          = Me%HDF%FileName,                  &
+                                  TimeID            = Me%ObjTime,                       &   
+                                  MaskDim           = Me%Dim,                           &
+                                  LatReference      = LatDefault,                       &
+                                  LonReference      = LongDefault,                      & 
+                                  WindowLimitsJI    = WindowLimitsJI,                   &
+                                  Extrapolate       = .false.,                          &    
+                                  STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR160'
+            
+            call GetField4DNumberOfInstants(Me%HDF%ObjField4D, Me%HDF%NumberOfInstants, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR170'
+            
+        
+        else if4D
+        
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+            call ConstructHDF5 (Me%HDF%ObjHDF5, trim(Me%HDF%FileName), HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR180'
+
+            call GetHDF5GroupNumberOfItems(Me%HDF%ObjHDF5, "/Time", &
+                                           Me%HDF%NumberOfInstants, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR190'
+        
+        endif if4D
         
         Me%HDF%StartTime = HDF5TimeInstant(1)
         Me%HDF%EndTime   = HDF5TimeInstant(Me%HDF%NumberOfInstants)
@@ -3570,7 +3665,7 @@ i0:     if(Me%Dim == Dim2D)then
         if(Me%HDF%NumberOfInstants == 1) Me%RemainsConstant = .true.
 
         call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR140'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR200'
         
         if (Me%BackTracking) then  
             call BacktrackingTime(Now)
@@ -3585,7 +3680,7 @@ i2:         if(Me%HDF%NumberOfInstants > 1)then
 i2a:            if (Me%PredictDTMethod == 2) then
 
                     !This methodology do NOT works with CYCLICTIME or BACKTRACKING (needs revision)
-                    if (Me%Backtracking) then
+                if (Me%Backtracking) then
                         stop 'ConstructHDFInput - ModuleFillMatrix - ERR145'
                     endif
 
@@ -3655,126 +3750,126 @@ i2a:            if (Me%PredictDTMethod == 2) then
                 else i2a
 
                     if (Me%Backtracking) then
-                        Me%HDF%PreviousInstant  = Me%HDF%NumberOfInstants
-                        Me%HDF%NextInstant      = Me%HDF%PreviousInstant               
-                    else
-                        Me%HDF%PreviousInstant  = 1
-                        Me%HDF%NextInstant      = Me%HDF%PreviousInstant
-                    endif
-                    
-                    Me%HDF%PreviousTime     = HDF5TimeInstant(Me%HDF%PreviousInstant) 
-                    
-                    call CheckCyclicMonths(Me%HDF%PreviousTime, RefTime = Now, CyclicTimeON = Me%HDF%CyclicTimeON)
-
-    i3:             if (Me%HDF%CyclicTimeON) then
+                    Me%HDF%PreviousInstant  = Me%HDF%NumberOfInstants
+                    Me%HDF%NextInstant      = Me%HDF%PreviousInstant               
+                else
+                    Me%HDF%PreviousInstant  = 1
+                    Me%HDF%NextInstant      = Me%HDF%PreviousInstant
+                endif
                 
-                        if (Me%HDF%NumberOfInstants /= 12) stop 'ConstructHDFInput - ModuleFillMatrix - ERR160'
-
-                    else i3
-                    
-    ib:                 if (Me%BackTracking) then  
-                            
-                            if(Me%HDF%PreviousTime .lt. Now)then
-                                write(*,*)
-                                write(*,*)'----------Backtracking mode-----------'
-                                write(*,*)'Could not read solution from HDF5 file'
-                                write(*,*)'Last file instant greater than current time'
-                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR170'
-                            end if
-
-                            if(Me%TimeEvolution .ne. None)then                        
-                                if(Me%HDF%StartTime .gt. Me%BeginTime)then
-                                    write(*,*)
-                                    write(*,*)'----------Backtracking mode-----------'                                
-                                    write(*,*)'Could not read solution from HDF5 file'
-                                    write(*,*)'First instant in file lower than simulation starting time'
-                                    write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                    stop      'ConstructHDFInput - ModuleFillMatrix - ERR180'
-                                end if
-                            endif
-                        
-                        else   ib
-                            if(Me%HDF%PreviousTime .gt. Now)then
-                                write(*,*)
-                                write(*,*)'Could not read solution from HDF5 file'
-                                write(*,*)'First file instant greater than current time'
-                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR190'
-                            end if
-                        
-                            call CheckCyclicMonths(Me%HDF%EndTime, RefTime = Me%EndTime)
-
-
-                            if(Me%TimeEvolution .ne. None)then
-                                if(Me%HDF%EndTime .lt. Me%EndTime)then
-                                    write(*,*)
-                                    write(*,*)'Could not read solution from HDF5 file'
-                                    write(*,*)'Last instant in file lower than simulation ending time'
-                                    write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                    stop      'ConstructHDFInput - ModuleFillMatrix - ERR200'
-                                end if
-                            end if
-                        endif ib
-
-                    endif i3
-
-                    FoundSecondInstant = .false.
+                Me%HDF%PreviousTime     = HDF5TimeInstant(Me%HDF%PreviousInstant) 
                 
-                    !if number of instants greater than 1 then 
-                    !find first and second instants
-    d2:             do while(.not. FoundSecondInstant)
+                call CheckCyclicMonths(Me%HDF%PreviousTime, RefTime = Now, CyclicTimeON = Me%HDF%CyclicTimeON)
 
-                        Me%HDF%PreviousInstant  = Me%HDF%NextInstant
-                        if (Me%Backtracking) then
-                            Me%HDF%NextInstant      = Me%HDF%NextInstant - 1
-                        else                
-                            Me%HDF%NextInstant      = Me%HDF%NextInstant + 1
-                        endif
+i3:             if (Me%HDF%CyclicTimeON) then
+            
+                    if (Me%HDF%NumberOfInstants /= 12) stop 'ConstructHDFInput - ModuleFillMatrix - ERR210'
 
-                        if (Me%HDF%CyclicTimeON .and. Me%HDF%NextInstant .gt. Me%HDF%NumberOfInstants) then
-                            Me%HDF%NextInstant  = 1
+                else i3
+                
+ib:                 if (Me%BackTracking) then  
+                        
+                        if(Me%HDF%PreviousTime .lt. Now)then
+                            write(*,*)
+                            write(*,*)'----------Backtracking mode-----------'
+                            write(*,*)'Could not read solution from HDF5 file'
+                            write(*,*)'Last file instant greater than current time'
+                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR220'
                         end if
 
-
-                        Me%HDF%NextTime         = HDF5TimeInstant(Me%HDF%NextInstant)
-
-                        call CheckCyclicMonths(Me%HDF%NextTime, RefTime = Now,              &
-                                               CyclicTimeON = Me%HDF%CyclicTimeON)
-
-                        if (Me%Backtracking) then
-                            if(Me%HDF%PreviousTime .ge. Now .and. Me%HDF%NextTime .le. Now) then
-                                FoundSecondInstant  = .true.
-                                exit
-                            end if
-                        else
-                            if(Me%HDF%PreviousTime .le. Now .and. Me%HDF%NextTime .ge. Now) then
-                                FoundSecondInstant  = .true.
-                                exit
+                        if(Me%TimeEvolution .ne. None)then                        
+                            if(Me%HDF%StartTime .gt. Me%BeginTime)then
+                                write(*,*)
+                                write(*,*)'----------Backtracking mode-----------'                                
+                                write(*,*)'Could not read solution from HDF5 file'
+                                write(*,*)'First instant in file lower than simulation starting time'
+                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR230'
                             end if
                         endif
-                        Me%HDF%PreviousTime = Me%HDF%NextTime
+                    
+                    else   ib
+                        if(Me%HDF%PreviousTime .gt. Now)then
+                            write(*,*)
+                            write(*,*)'Could not read solution from HDF5 file'
+                            write(*,*)'First file instant greater than current time'
+                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR240'
+                        end if
+                    
+                        call CheckCyclicMonths(Me%HDF%EndTime, RefTime = Me%EndTime)
 
-                        if (Me%Backtracking) then
-                            if(Me%HDF%NextInstant .lt. 1 .and. .not. Me%HDF%CyclicTimeON) then
-                                write(*,*)
-                                write(*,*)'----------Backtracking mode-----------------'
-                                write(*,*)'Could not read solution from HDF5 file'
-                                write(*,*)'Could not find second instant in file'
-                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR190'
-                            end if
-                        
-                        else
-                            if(Me%HDF%NextInstant .gt. Me%HDF%NumberOfInstants .and. .not. Me%HDF%CyclicTimeON) then
+
+                        if(Me%TimeEvolution .ne. None)then
+                            if(Me%HDF%EndTime .lt. Me%EndTime)then
                                 write(*,*)
                                 write(*,*)'Could not read solution from HDF5 file'
-                                write(*,*)'Could not find second instant in file'
+                                write(*,*)'Last instant in file lower than simulation ending time'
                                 write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR200'
+                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR250'
                             end if
-                        endif
-                    end do d2
+                        end if
+                    endif ib
+
+                endif i3
+
+                FoundSecondInstant = .false.
+            
+                !if number of instants greater than 1 then 
+                !find first and second instants
+d2:             do while(.not. FoundSecondInstant)
+
+                    Me%HDF%PreviousInstant  = Me%HDF%NextInstant
+                    if (Me%Backtracking) then
+                        Me%HDF%NextInstant      = Me%HDF%NextInstant - 1
+                    else                
+                        Me%HDF%NextInstant      = Me%HDF%NextInstant + 1
+                    endif
+
+                    if (Me%HDF%CyclicTimeON .and. Me%HDF%NextInstant .gt. Me%HDF%NumberOfInstants) then
+                        Me%HDF%NextInstant  = 1
+                    end if
+
+
+                    Me%HDF%NextTime         = HDF5TimeInstant(Me%HDF%NextInstant)
+
+                    call CheckCyclicMonths(Me%HDF%NextTime, RefTime = Now,              &
+                                           CyclicTimeON = Me%HDF%CyclicTimeON)
+
+                    if (Me%Backtracking) then
+                        if(Me%HDF%PreviousTime .ge. Now .and. Me%HDF%NextTime .le. Now) then
+                            FoundSecondInstant  = .true.
+                            exit
+                        end if
+                    else
+                        if(Me%HDF%PreviousTime .le. Now .and. Me%HDF%NextTime .ge. Now) then
+                            FoundSecondInstant  = .true.
+                            exit
+                        end if
+                    endif
+                    Me%HDF%PreviousTime = Me%HDF%NextTime
+
+                    if (Me%Backtracking) then
+                        if(Me%HDF%NextInstant .lt. 1 .and. .not. Me%HDF%CyclicTimeON) then
+                            write(*,*)
+                            write(*,*)'----------Backtracking mode-----------------'
+                            write(*,*)'Could not read solution from HDF5 file'
+                            write(*,*)'Could not find second instant in file'
+                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR260'
+                        end if
+                    
+                    else
+                        if(Me%HDF%NextInstant .gt. Me%HDF%NumberOfInstants .and. .not. Me%HDF%CyclicTimeON) then
+                            write(*,*)
+                            write(*,*)'Could not read solution from HDF5 file'
+                            write(*,*)'Could not find second instant in file'
+                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR270'
+                        end if
+                    endif
+                end do d2
 
                 endif i2a
 
@@ -3787,6 +3882,7 @@ i2a:            if (Me%PredictDTMethod == 2) then
 
                 call CheckCyclicMonths(Me%HDF%PreviousTime, RefTime = Now)
 
+
                 Me%HDF%NextTime         = Me%HDF%PreviousTime
 
                 call ExtractDate(Me%HDF%PreviousTime, Year, Month, Day, Hour, Minute, Second)
@@ -3797,117 +3893,139 @@ i2a:            if (Me%PredictDTMethod == 2) then
                 write(*,*)'ConstructHDFInput - ModuleFillMatrix - WRN10'
             
             else i2
-            
                 write(*,*)
                 write(*,*)'Could not read solution from HDF5 file'
                 write(*,*)'No time information found'
-                stop 'ConstructHDFInput - ModuleFillMatrix - ERR200'
+                stop 'ConstructHDFInput - ModuleFillMatrix - ERR300'
 
             end if i2
 
             if (Me%PredictDTMethod == 1) then
-i4:             if(Me%Dim == Dim2D)then
+i4:         if(Me%Dim == Dim2D)then
 
-                    call ReadHDF5Values2D(Me%HDF%PreviousInstant, Me%HDF%PreviousField2D)
-                    call ReadHDF5Values2D(Me%HDF%NextInstant,     Me%HDF%NextField2D    )
-                    
-                    !limit maximum values
-                    do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
-                    do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
-               
+                ILB = Me%Size2D%ILB
+                IUB = Me%Size2D%IUB
+                JLB = Me%Size2D%JLB
+                JUB = Me%Size2D%JUB
+
+                allocate(Me%HDF%PreviousField2D (ILB:IUB, JLB:JUB))
+                allocate(Me%HDF%NextField2D     (ILB:IUB, JLB:JUB))
+
+                Me%HDF%PreviousField2D(:,:) = FillValueReal
+                Me%HDF%NextField2D    (:,:) = FillValueReal
+
+                call ReadHDF5Values2D(Me%HDF%PreviousInstant, Me%HDF%PreviousField2D)
+                call ReadHDF5Values2D(Me%HDF%NextInstant,     Me%HDF%NextField2D    )
+                
+                !limit maximum values
+                do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+                do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                
 #ifndef _NOT_IEEE_ARITHMETIC
                         if (ieee_is_nan (Me%HDF%PreviousField2D(i,j)))                      &
                             Me%HDF%PreviousField2D(i,j) = FillValueReal
 #endif
                 
-                        if (abs(Me%HDF%PreviousField2D   (i,j)) > abs(FillValueReal))       &
-                            Me%HDF%PreviousField2D(i,j) = FillValueReal
+                    if (abs(Me%HDF%PreviousField2D   (i,j)) > abs(FillValueReal))       &
+                        Me%HDF%PreviousField2D(i,j) = FillValueReal
 
 #ifndef _NOT_IEEE_ARITHMETIC
-                        if (ieee_is_nan (Me%HDF%NextField2D    (i,j)))                      &
-                            Me%HDF%NextField2D(i,j)     = FillValueReal                
+                    if (ieee_is_nan (Me%HDF%NextField2D    (i,j)))                      &
+                        Me%HDF%NextField2D(i,j)     = FillValueReal                
 #endif
                     
-                        if (abs(Me%HDF%NextField2D       (i,j)) > abs(FillValueReal))       &
-                            Me%HDF%NextField2D(i,j)     = FillValueReal
+                    if (abs(Me%HDF%NextField2D       (i,j)) > abs(FillValueReal))       &
+                        Me%HDF%NextField2D(i,j)     = FillValueReal
+                enddo
                     enddo
-                    enddo
-                                                    
-                    if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
+                                
+                if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
                 
-                        !Interpolates the two matrixes in time
+                    !Interpolates the two matrixes in time
                     call InterpolateMatrix2DInTime(ActualTime       = Now,                         &
-                                                       Size             = Me%WorkSize2D,               &
-                                                       Time1            = Me%HDF%PreviousTime,         &
-                                                       Matrix1          = Me%HDF%PreviousField2D,      &
-                                                       Time2            = Me%HDF%NextTime,             &
-                                                       Matrix2          = Me%HDF%NextField2D,          &
-                                                       MatrixOut        = Me%Matrix2D,                 &
-                                                       PointsToFill2D   = PointsToFill2D)
+                                                   Size             = Me%WorkSize2D,               &
+                                                   Time1            = Me%HDF%PreviousTime,         &
+                                                   Matrix1          = Me%HDF%PreviousField2D,      &
+                                                   Time2            = Me%HDF%NextTime,             &
+                                                   Matrix2          = Me%HDF%NextField2D,          &
+                                                   MatrixOut        = Me%Matrix2D,                 &
+                                                   PointsToFill2D   = PointsToFill2D)
                                                                               
-                    else
+                else
 
-                        Me%Matrix2D(:,:)  = Me%HDF%PreviousField2D(:,:)
+                    Me%Matrix2D(:,:)  = Me%HDF%PreviousField2D(:,:)
 
-                    endif
+                endif
 
-                else i4
+            else i4
 
-                    call ReadHDF5Values3D(Me%HDF%PreviousInstant, Me%HDF%PreviousField3D)
-    
-                    call ReadHDF5Values3D(Me%HDF%NextInstant,     Me%HDF%NextField3D    )
-    
-                    !limit maximum values
-                    do k=Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-                    do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-                    do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+                ILB = Me%Size3D%ILB
+                IUB = Me%Size3D%IUB
+                JLB = Me%Size3D%JLB
+                JUB = Me%Size3D%JUB
+                KLB = Me%Size3D%KLB
+                KUB = Me%Size3D%KUB
+
+                allocate(Me%HDF%PreviousField3D (ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate(Me%HDF%NextField3D     (ILB:IUB, JLB:JUB, KLB:KUB))
+
+                Me%HDF%PreviousField3D(:,:,:) = FillValueReal
+                Me%HDF%NextField3D    (:,:,:) = FillValueReal
+
+                call ReadHDF5Values3D(Me%HDF%PreviousInstant, Me%HDF%PreviousField3D)
+                call ReadHDF5Values3D(Me%HDF%NextInstant,     Me%HDF%NextField3D    )
+
+                !limit maximum values
+                do k=Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
 #ifndef _NOT_IEEE_ARITHMETIC
-                        if (ieee_is_nan (Me%HDF%PreviousField3D(i,j,k)))                    &
-                            Me%HDF%PreviousField3D(i,j,k) = FillValueReal 
+                    if (ieee_is_nan (Me%HDF%PreviousField3D(i,j,k)))                    &
+                        Me%HDF%PreviousField3D(i,j,k) = FillValueReal 
 #endif
-                    
-                        if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))        &
-                            Me%HDF%PreviousField3D(i,j,k) = FillValueReal
-
-#ifndef _NOT_IEEE_ARITHMETIC
-                        if (ieee_is_nan (Me%HDF%NextField3D    (i,j,k)))                    &
-                            Me%HDF%NextField3D(i,j,k) = FillValueReal 
-#endif
-                    
-                        if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))        &
-                            Me%HDF%NextField3D        (i,j,k) = FillValueReal
-                    enddo
-                    enddo
-                    enddo                
-
-
-                    if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
                 
-                           if (Me%PreviousInstantValues) then
+                    if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))        &
+                        Me%HDF%PreviousField3D(i,j,k) = FillValueReal
+
+#ifndef _NOT_IEEE_ARITHMETIC
+                    if (ieee_is_nan (Me%HDF%NextField3D    (i,j,k)))                    &
+                        Me%HDF%NextField3D(i,j,k) = FillValueReal 
+#endif
                     
-                            Me%Matrix3D = Me%HDF%PreviousField3D
+                    if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))        &
+                        Me%HDF%NextField3D        (i,j,k) = FillValueReal
+                enddo
+                enddo
+                enddo                
+
+
+                if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
+                
+                   if (Me%PreviousInstantValues) then
+                    
+                        Me%Matrix3D = Me%HDF%PreviousField3D
   
-                        else                
+                    else                
 
-                            call InterpolateMatrix3DInTime(ActualTime       = Now,                         &
-                                                           Size             = Me%WorkSize3D,               &
-                                                           Time1            = Me%HDF%PreviousTime,         &
-                                                           Matrix1          = Me%HDF%PreviousField3D,      &
-                                                           Time2            = Me%HDF%NextTime,             &
-                                                           Matrix2          = Me%HDF%NextField3D,          &
-                                                           MatrixOut        = Me%Matrix3D,                 &
-                                                           PointsToFill3D   = PointsToFill3D)
-                        endif
-                    
-                    else
-
-                        !Prev and next are equal (last instant?)
-                        Me%Matrix3D(:,:,:)  = Me%HDF%NextField3D(:,:,:)
-
+                        call InterpolateMatrix3DInTime(ActualTime       = Now,                         &
+                                                       Size             = Me%WorkSize3D,               &
+                                                       Time1            = Me%HDF%PreviousTime,         &
+                                                       Matrix1          = Me%HDF%PreviousField3D,      &
+                                                       Time2            = Me%HDF%NextTime,             &
+                                                       Matrix2          = Me%HDF%NextField3D,          &
+                                                       MatrixOut        = Me%Matrix3D,                 &
+                                                       PointsToFill3D   = PointsToFill3D)
                     endif
+                    
+                else
 
-                end if i4
+                    !Prev and next are equal (last instant?)
+                    Me%Matrix3D(:,:,:)  = Me%HDF%NextField3D(:,:,:)
+
+                endif
+
+            end if i4
             endif
 
         endif i1
@@ -3984,25 +4102,38 @@ i4:             if(Me%Dim == Dim2D)then
         integer                                 :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
+
+if4D:   if (Me%HDF%Field4D) then        
+
+            HDF5TimeInstant = GetField4DInstant(Field4DID = Me%HDF%ObjField4D,          &
+                                                Instant   = Instant,                    &
+                                                STAT      =  STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'HDF5TimeInstant - ModuleFillMatrix - ERR10'
         
-        call HDF5SetLimits  (Me%HDF%ObjHDF5, 1, 6, STAT = STAT_CALL)
+        else if4D
+        
+            call HDF5SetLimits  (Me%HDF%ObjHDF5, 1, 6, STAT = STAT_CALL)
 
-        allocate(TimeVector(6))
+            allocate(TimeVector(6))
 
-        call HDF5ReadData   (HDF5ID         = Me%HDF%ObjHDF5,                           &
-                             GroupName      = "/Time",                                  &
-                             Name           = "Time",                                   &
-                             Array1D        = TimeVector,                               &
-                             OutputNumber   = Instant,                                  &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'HDF5TimeInstant - ModuleFillMatrix - ERR01'
+            call HDF5ReadData   (HDF5ID         = Me%HDF%ObjHDF5,                           &
+                                 GroupName      = "/Time",                                  &
+                                 Name           = "Time",                                   &
+                                 Array1D        = TimeVector,                               &
+                                 OutputNumber   = Instant,                                  &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'HDF5TimeInstant - ModuleFillMatrix - ERR20'
+            
+            call SetDate(HDF5TimeInstant, Year     = TimeVector(1), Month  = TimeVector(2), &
+                                          Day      = TimeVector(3), Hour   = TimeVector(4), &
+                                          Minute   = TimeVector(5), Second = TimeVector(6))
 
-        call SetDate(HDF5TimeInstant, Year     = TimeVector(1), Month  = TimeVector(2), &
-                                      Day      = TimeVector(3), Hour   = TimeVector(4), &
-                                      Minute   = TimeVector(5), Second = TimeVector(6))
+                                         
+            deallocate(TimeVector)
+            
 
-                                     
-        deallocate(TimeVector)
+        endif if4D
+
 
     end function HDF5TimeInstant
 
@@ -4034,7 +4165,7 @@ i4:             if(Me%Dim == Dim2D)then
                 stop 'CheckCyclicMonths - ModuleFillMatrix - ERR10'
             endif 
 
-            if (present(RefTime)) then 
+            if      (present(RefTime)) then 
 
                 call ExtractDate(RefTime, Year = Year)
 
@@ -4111,6 +4242,7 @@ i4:             if(Me%Dim == Dim2D)then
         
         !Local-----------------------------------------------------------------
         integer                                 :: Instant, STAT_CALL, Imax, Jmax, i, j
+        type (T_Time)                           :: CurrentTime
 
         !Begin-----------------------------------------------------------------
         
@@ -4119,31 +4251,46 @@ i4:             if(Me%Dim == Dim2D)then
         else
             Instant = InstantIn
         endif
-        
-        call GetHDF5ArrayDimensions(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),            &
-                          trim(Me%HDF%FieldName), OutputNumber = Instant,               &
-                          Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'                                   
-        
-        if ((Imax /= Me%WorkSize2D%IUB - Me%WorkSize2D%ILB + 1) .or.                    &
-            (Jmax /= Me%WorkSize2D%JUB - Me%WorkSize2D%JLB + 1)) then
+if4D:   if (Me%HDF%Field4D) then
+
+            CurrentTime = GetField4DInstant (Me%HDF%ObjField4D, Instant, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'
             
-            write (*,*) trim(Me%HDF%VGroupPath)
-            write (*,*) trim(Me%HDF%FieldName)
-            write (*,*) 'miss match between the HDF5 input file and model domain'
-            stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR20'                                   
+            call ModifyField4D(Field4DID        = Me%HDF%ObjField4D,                    &
+                               PropertyIDNumber = Me%PropertyID%IDNumber,               & 
+                               CurrentTime      = CurrentTime,                          &
+                               Matrix2D         = Field,                                &
+                               STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'
 
-        endif
+        else if4D            
+        
+            call GetHDF5ArrayDimensions(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),        &
+                              trim(Me%HDF%FieldName), OutputNumber = Instant,           &
+                              Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR20'                               
+            
+            if ((Imax /= Me%WorkSize2D%IUB - Me%WorkSize2D%ILB + 1) .or.                &
+                (Jmax /= Me%WorkSize2D%JUB - Me%WorkSize2D%JLB + 1)) then
+                
+                write (*,*) trim(Me%HDF%VGroupPath)
+                write (*,*) trim(Me%HDF%FieldName)
+                write (*,*) 'miss match between the HDF5 input file and model domain'
+                stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR30'                                   
 
-        call HDF5SetLimits  (Me%HDF%ObjHDF5, Me%WorkSize2D%ILB, Me%WorkSize2D%IUB,      &
-                             Me%WorkSize2D%JLB, Me%WorkSize2D%JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR30'
+            endif
+
+            call HDF5SetLimits  (Me%HDF%ObjHDF5, Me%WorkSize2D%ILB, Me%WorkSize2D%IUB,      &
+                                 Me%WorkSize2D%JLB, Me%WorkSize2D%JUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR40'
 
 
-        call HDF5ReadData(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),                      &
-                          trim(Me%HDF%FieldName),                                       &
-                          Array2D = Field, OutputNumber = Instant, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR40'
+            call HDF5ReadData(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),                      &
+                              trim(Me%HDF%FieldName),                                       &
+                              Array2D = Field, OutputNumber = Instant, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR50'
+
+        endif if4D
 
         if(Me%HDF%HasMultiplyingFactor)then
             do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
@@ -4174,6 +4321,7 @@ i4:             if(Me%Dim == Dim2D)then
         real, dimension(:,:,:), pointer         :: Field
 
         !Local-----------------------------------------------------------------
+        type (T_Time)                           :: CurrentTime
         integer                                 :: Imax, Jmax, Kmax
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
 
@@ -4188,54 +4336,61 @@ i4:             if(Me%Dim == Dim2D)then
         if (Me%HDF%From2Dto3D) then
             KLB = 1
             KUB = 1
-            Kmax= 1
-            
-            call GetHDF5ArrayDimensions(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),        &
-                          trim(Me%HDF%FieldName), OutputNumber = Instant,               &
-                          Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR00'                                   
-            
         else
-           
             KLB = Me%WorkSize3D%KLB
             KUB = Me%WorkSize3D%KUB
                      
             Me%HDF%ReadField3D => Field
-            
-            call GetHDF5ArrayDimensions(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),        &
-                          trim(Me%HDF%FieldName), OutputNumber = Instant,               &
-                          Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'                                   
-
         endif
         
         
+if4D:   if (Me%HDF%Field4D) then
+
+            CurrentTime = GetField4DInstant (Me%HDF%ObjField4D, Instant, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR10'
+
+            call ModifyField4D(Field4DID        = Me%HDF%ObjField4D,                    &
+                               PropertyIDNumber = Me%PropertyID%IDNumber,               & 
+                               CurrentTime      = CurrentTime,                          & 
+                               Matrix3D         = Field,                                &
+                               STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'                                   
+
+        else if4D            
         
-        if ((Imax /= IUB - ILB + 1) .or.                                                &
-            (Jmax /= JUB - JLB + 1) .or.                                                &
-            (Kmax /= KUB - KLB + 1)) then
             
-            if (.not.(Kmax == 0 .and. KUB-KLB == 0)) then
+            call GetHDF5ArrayDimensions(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),            &
+                              trim(Me%HDF%FieldName), OutputNumber = Instant,               &
+                              Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR30'                                   
             
-                write (*,*) trim(Me%HDF%VGroupPath)
-                write (*,*) trim(Me%HDF%FieldName)
-                write (*,*) 'miss match between the HDF5 input file and model domain'
-                stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'                                   
-            
+            if ((Imax /= IUB - ILB + 1) .or.                                                &
+                (Jmax /= JUB - JLB + 1) .or.                                                &
+                (Kmax /= KUB - KLB + 1)) then
+                
+                if (.not.(Kmax == 0 .and. KUB-KLB == 0)) then
+                
+                    write (*,*) trim(Me%HDF%VGroupPath)
+                    write (*,*) trim(Me%HDF%FieldName)
+                    write (*,*) 'miss match between the HDF5 input file and model domain'
+                    stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR40'                                   
+                
+                endif
+
             endif
-
-        endif
-      
+          
 
 
-        call HDF5SetLimits  (Me%HDF%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR30'
-        
-             
-        call HDF5ReadData(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),                      &
-                          trim(Me%HDF%FieldName),                                       &
-                          Array3D = Me%HDF%ReadField3D, OutputNumber = Instant, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR40'
+            call HDF5SetLimits  (Me%HDF%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR50'
+            
+                 
+            call HDF5ReadData(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),                      &
+                              trim(Me%HDF%FieldName),                                       &
+                              Array3D = Me%HDF%ReadField3D, OutputNumber = Instant, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR60'
+            
+        endif if4D            
 
         if (Me%HDF%From2Dto3D) then    
            
@@ -4585,7 +4740,6 @@ i4:             if(Me%Dim == Dim2D)then
 
     end subroutine GetTimeInstant
 
-    !--------------------------------------------------------------------------
     
     subroutine GetNextValueForDTPred(FillMatrixID, max_value, STAT)
 
@@ -5787,19 +5941,19 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
                   
         else
         
-            if (ReadNewField(Now,n))then
-                if (n==1) then 
-                    call SetMatrixValue(Me%HDF%PreviousField2D, Me%WorkSize2D, Me%HDF%NextField2D, PointsToFill2D)
-                else
-                    call ReadHDF5Values2D(Me%HDF%PreviousInstant, Me%HDF%PreviousField2D)
-                    
-                    !limit maximum values
-                    do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
-                    do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
-                    
+        if (ReadNewField(Now,n))then
+            if (n==1) then 
+                call SetMatrixValue(Me%HDF%PreviousField2D, Me%WorkSize2D, Me%HDF%NextField2D, PointsToFill2D)
+            else
+                call ReadHDF5Values2D(Me%HDF%PreviousInstant, Me%HDF%PreviousField2D)
+                
+                !limit maximum values
+                do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+                do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                
 #ifndef _NOT_IEEE_ARITHMETIC                    
-                        if (ieee_is_nan (Me%HDF%PreviousField2D(i,j)))                      &
-                            Me%HDF%PreviousField2D(i,j) = FillValueReal                
+                    if (ieee_is_nan (Me%HDF%PreviousField2D(i,j)))                      &
+                        Me%HDF%PreviousField2D(i,j) = FillValueReal                
 #endif
                     
                         if (abs(Me%HDF%PreviousField2D(i,j)) > abs(FillValueReal))          &
@@ -5909,8 +6063,8 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
 
     end subroutine ModifyHDFInput2DTime
 
+    !--------------------------------------------------------------------------
     !-------------------------------------------------------------------------
-    
     subroutine BacktrackingTime(Now)
 
         !Arguments------------------------------------------------------------
@@ -5941,7 +6095,6 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
         !Arguments------------------------------------------------------------
         type (T_Time), intent(OUT)                      :: Now
         integer      , intent(OUT)                      :: n
-        
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL
         type (T_Time)                                   :: CurrentTime
@@ -6409,8 +6562,8 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
         real                                            :: Value1, Value2, NewValue
         logical                                         :: TimeCycle
         real                                            :: DT1, DT2, Angle
-        real                                            :: u1, u2, v1, v2, uf, vf        
-
+        real                                            :: u1, u2, v1, v2, uf, vf
+        
         !Begin----------------------------------------------------------------
         
         !Gets Current Time
@@ -6427,79 +6580,79 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                                         STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifySpaceTimeSerie - ModuleFillMatrix - ERR020'
 
-                
-                if (Me%PropertyID%IDNumber /= WindDirection_) then
+        
+        if (Me%PropertyID%IDNumber /= WindDirection_) then
 
-                    if (TimeCycle) then
+            if (TimeCycle) then
                     
-                        NewValue = Value1
+                NewValue = Value1
 
-                    else
+            else
 
-                        if (Me%UseOriginalValues) then
-                        
-                            NewValue = Value2
-                            
-                        elseif (Me%AccumulateValues) then       !For Rain
-                        
-                            NewValue = Value2 / (Time2 - Time1)
-            
-                            call GetTimeSerieDTForNextEvent (Me%TimeSerie%ObjTimeSerie,          &
-                                                             NewValue, Me%TimeSerie%Column, Now, &
-                                                             Me%PredictedDT, Me%DTForNextEvent,  &
-                                                             STAT  = STAT_CALL)
+                if (Me%UseOriginalValues) then
+                
+                    NewValue = Value2
+                    
+                elseif (Me%AccumulateValues) then       !For Rain
+                
+                    NewValue = Value2 / (Time2 - Time1)
+    
+                    call GetTimeSerieDTForNextEvent (Me%TimeSerie%ObjTimeSerie,          &
+                                                     NewValue, Me%TimeSerie%Column, Now, &
+                                                     Me%PredictedDT, Me%DTForNextEvent,  &
+                                                     STAT  = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ModifySpaceTimeSerie - ModuleFillMatrix - ERR030'
-                        
-                        else
-                            !Interpolates Value for current instant
-                            call InterpolateValueInTime(Now, Time1, Value1, Time2, Value2, NewValue)
-                        endif
-                    endif
-
+                
                 else
+                    !Interpolates Value for current instant
+                    call InterpolateValueInTime(Now, Time1, Value1, Time2, Value2, NewValue)
+                endif
+            endif
 
-                    !Gets Grid Angle
-                    call GetGridAngle(Me%ObjHorizontalGrid, Angle, STAT = STAT_CALL)
+        else
+
+            !Gets Grid Angle
+            call GetGridAngle(Me%ObjHorizontalGrid, Angle, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifySpaceTimeSerie - ModuleFillMatrix - ERR040'
 
-                    if (TimeCycle) then
+            if (TimeCycle) then
 
-                        NewValue = 270. - Value1 + Angle
+                NewValue = 270. - Value1 + Angle
 
-                    else
-                        
-                        Value1   = 270. - Value1 + Angle
-                        Value2   = 270. - Value2 + Angle
-                        
-                        DT1      = Now   - Time1
-                        DT2      = Time2 - Now
+            else
+                
+                Value1   = 270. - Value1 + Angle
+                Value2   = 270. - Value2 + Angle
+                
+                DT1      = Now   - Time1
+                DT2      = Time2 - Now
 
-                        !Interpolates angle
-                        u1 = DT2 * cos(Value1/180*PI)
-                        v1 = DT2 * sin(Value1/180*PI)
+                !Interpolates angle
+                u1 = DT2 * cos(Value1/180*PI)
+                v1 = DT2 * sin(Value1/180*PI)
 
-                        u2 = DT1 * cos(Value2/180*PI)
-                        v2 = DT1 * sin(Value2/180*PI)
+                u2 = DT1 * cos(Value2/180*PI)
+                v2 = DT1 * sin(Value2/180*PI)
 
-                        uf = u1 + u2
-                        vf = v1 + v2
+                uf = u1 + u2
+                vf = v1 + v2
 
-                        !1st Quad
-                        if (uf > 0. .and. vf > 0.) then
-                            NewValue = atan(vf / uf) / PI * 180.
-                        !2 e 3 Quad
-                        elseif (uf < 0.) then
-                            NewValue = atan(vf / uf) / PI * 180. + 180.
-                        !4 Quad
-                        elseif (uf > 0. .and. vf < 0.) then
-                            NewValue = atan(vf / uf) / PI * 180. + 360.
-                        !one value zero
-                        else
-                            NewValue = (DT2 * Value1 + DT1 * Value2) / (DT1 + DT2)
-                        endif
+                !1st Quad
+                if (uf > 0. .and. vf > 0.) then
+                    NewValue = atan(vf / uf) / PI * 180.
+                !2 e 3 Quad
+                elseif (uf < 0.) then
+                    NewValue = atan(vf / uf) / PI * 180. + 180.
+                !4 Quad
+                elseif (uf > 0. .and. vf < 0.) then
+                    NewValue = atan(vf / uf) / PI * 180. + 360.
+                !one value zero
+                else
+                    NewValue = (DT2 * Value1 + DT1 * Value2) / (DT1 + DT2)
+                endif
 
-                    endif
-                    
+            endif
+            
                 endif        
             
             else !Me%PredictDTMethod == 2
@@ -6513,7 +6666,7 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                 if (Now > Me%Timeserie%NextTime) then
                     call ActualizeTimeSerieTimes (Now)
                     call ActualizeTimeSerieValues                   
-                endif
+        endif
                 
                 !avoid evaluate in cosntruct phase where previous and next time are the same
                 if (Now > Me%Timeserie%PreviousTime) then
@@ -7028,7 +7181,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR10'
                 endif
 
-                if (Me%HDF%ObjHDF5 /= 0) then
+                if (Me%HDF%ObjHDF5 /= 0 .or. Me%HDF%ObjField4D /= 0 ) then
 
                     if( associated(Me%HDF%PreviousField2D))then
                         deallocate(Me%HDF%PreviousField2D)
@@ -7056,27 +7209,36 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         nullify   (Me%HDF%ReadField3D)
                     endif
                     
-                    call KillHDF5(Me%HDF%ObjHDF5, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR30'
+if4D:               if (Me%HDF%Field4D) then
 
-  
+                        
+                        call KillField4D(Me%HDF%ObjField4D, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR30'
+                      
+                    else if4D
+
+                        call KillHDF5(Me%HDF%ObjHDF5, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR40'
+
+                    endif if4D
+                      
                     if (Me%HDF%Generic4D%ReadFromTimeSerie) then
                         call KillTimeSerie(Me%HDF%Generic4D%ObjTimeSerie, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR40'
+                        if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR50'
                     endif
   
                 endif
 
                 if (Me%ObjGeometry /= 0) then
                     nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjGeometry)
-                    if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR50'
+                    if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR60'
                 endif
 
                 nUsers = DeassociateInstance (mTIME_,           Me%ObjTime           )
-                if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR60'
+                if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR70'
 
                 nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid )
-                if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR70'
+                if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR80'
                 
 
 

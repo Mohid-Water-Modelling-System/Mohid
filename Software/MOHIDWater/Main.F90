@@ -1,3 +1,4 @@
+
 !------------------------------------------------------------------------------
 !        IST/MARETEC, Water Modelling Group, Mohid modelling system
 !------------------------------------------------------------------------------
@@ -123,81 +124,89 @@ program MohidWater
     implicit none
 
 
-    type T_ModelLink
-        logical                                             :: Hydro   = .false.
-        logical                                             :: Water   = .false.
-        logical                                             :: Nesting = .false.
-        integer                                             :: nProp
-        integer, dimension(:), pointer                      :: PropertyIDNumbers
+    type T_ModelLink                                                                
+        logical                                             :: Hydro                = .false.
+        logical                                             :: Water                = .false.
+        logical                                             :: Nesting              = .false.
+        integer                                             :: nProp                = null_int
+        integer, dimension(:), pointer                      :: PropertyIDNumbers    => null()
         type (T_Size2D)                                     :: Window
     end type 
 
 
     type T_MohidWater
-        integer                                             :: ModelID
-        integer                                             :: ModelLevel
-        character(StringLength)                             :: ModelName
-        character(PathLength)                               :: ModelPath
-        integer                                             :: HorizontalGridID
-        integer                                             :: HydrodynamicID
-        integer                                             :: WaterpropertiesID
+        integer                                             :: ModelID              = 0   
+        integer                                             :: ModelLevel           = null_int
+        character(StringLength)                             :: ModelName            = null_str
+        character(PathLength)                               :: ModelPath            = null_str
+        integer                                             :: HorizontalGridID     = 0
+        integer                                             :: HydrodynamicID       = 0
+        integer                                             :: WaterpropertiesID    = 0
         type (T_Time)                                       :: CurrentTime
-        type (T_Time)                                       :: InfoTime         !Time of the last father information
-        logical                                             :: SubOn
-        integer                                             :: nSubModels
+        type (T_Time)                                       :: StartIteration
+        type (T_Time)                                       :: StartFatherIteration
+        logical                                             :: SubOn                = .false.
+        integer                                             :: nSubModels           = null_int
         type (T_ModelLink)                                  :: FatherLink
-        type (T_ModelLink), dimension(:), pointer           :: SubmodelLink
-        integer                                             :: MPI_ID
-        integer, dimension(:), pointer                      :: SubMPIID
+        type (T_ModelLink), dimension(:), pointer           :: SubmodelLink         => null()
+        integer                                             :: MPI_ID               = null_int
+        integer                                             :: MasterID             = null_int
+        integer                                             :: LastSlaveID          = null_int        
+        integer, dimension(:), pointer                      :: SubMPIID             => null()
 
 #ifdef OVERLAP
-        logical                                             :: Overlap
-        integer                                             :: OverlapModelID
-        integer, dimension(:,:), pointer                    :: OverlapCells
+        logical                                             :: Overlap                  = .false.
+        integer                                             :: OverlapModelID           = 0
+        integer, dimension(:,:), pointer                    :: OverlapCells             => null()
         type (T_ModelLink)                                  :: OverlapLink
-        integer                                             :: OverlapHydrodynamicID
-        integer                                             :: OverlapWaterPropertiesID
+        integer                                             :: OverlapHydrodynamicID    = 0
+        integer                                             :: OverlapWaterPropertiesID = 0
 #endif OVERLAP
         
-        integer                                             :: FatherGridID  = 0    !MPI only
-        type (T_MohidWater), pointer                        :: FatherModel
-        type (T_MohidWater), pointer                        :: Next    
+        integer                                             :: FatherGridID             = null_int
+        type (T_MohidWater), pointer                        :: FatherModel              => null()
+        type (T_MohidWater), pointer                        :: Next                     => null()
     end type T_MohidWater
 
 
     !Variables
-    type (T_MohidWater), pointer                            :: FirstModel
+    type (T_MohidWater), pointer                            :: FirstModel               => null()
     type(T_Time)                                            :: GlobalBeginTime
     type(T_Time)                                            :: GlobalEndTime
     type(T_Time)                                            :: GlobalCurrentTime
 
-    integer                                                 :: NumberOfModels       = 0
+    integer                                                 :: NumberOfModels           = 0
 
     !MPI Stuff        
-    integer                                                 :: myMPI_ID = null_int
-    integer                                                 :: nMPI_Processes
+    integer                                                 :: myMPI_ID             = null_int
+    integer                                                 :: nMPI_Processes       = null_int
 
 #ifdef _USE_MPI
-    character(MPI_MAX_PROCESSOR_NAME)                       :: myMPI_Processor
-    integer                                                 :: Precision
+    character(MPI_MAX_PROCESSOR_NAME)                       :: myMPI_Processor      = null_str
+    integer                                                 :: Precision            = null_int
 #else  _USE_MPI
-    character(StringLength)                                 :: myMPI_Processor
+    character(StringLength)                                 :: myMPI_Processor      = null_str
 #endif _USE_MPI
 
-    logical                                                 :: RunInParallel
+    logical                                                 :: RunInParallel        = .false.
                                                             
     !CPU / System Time
-    type (T_Time)                                           :: InitialSystemTime, FinalSystemTime
-    real                                                    :: TotalCPUTime,     ElapsedSeconds
+    type (T_Time)                                           :: InitialSystemTime 
+    type (T_Time)                                           :: FinalSystemTime
+    real                                                    :: TotalCPUTime         = null_real
+    real                                                    :: ElapsedSeconds       = null_real    
 
-    real                                                    :: CPUTimeConstructor, CPUTimeModifier
-    real                                                    :: WorkCycleElapsed, WorkCycleCPUTime
-    type (T_Time)                                           :: WorkCycleInitial, WorkCycleFinal
+    real                                                    :: CPUTimeConstructor   = null_real    
+    real                                                    :: CPUTimeModifier      = null_real
+    real                                                    :: WorkCycleElapsed     = null_real
+    real                                                    :: WorkCycleCPUTime     = null_real
+    type (T_Time)                                           :: WorkCycleInitial
+    type (T_Time)                                           :: WorkCycleFinal
 
-    integer                                                 :: ObjLagrangianGlobal        = 0
-    integer,                      dimension(:,:), pointer   :: LagInstance
-    character(len=StringLength),  dimension(:  ), pointer   :: ModelNames 
-    real, dimension(:), allocatable                         :: ModelDTs             !MPI only
+    integer                                                 :: ObjLagrangianGlobal  = 0
+    integer,                      dimension(:,:), pointer   :: LagInstance          => null()
+    character(len=StringLength),  dimension(:  ), pointer   :: ModelNames           => null()
+    real, dimension(:), allocatable                         :: ModelDTs             
 
 
 #ifndef _OPENMI_
@@ -405,7 +414,6 @@ program MohidWater
                                                 STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR150'
 
-
                     do iProp = 1, CurrentModel%FatherLink%nProp
 
                         call SetWaterPropFather (CurrentModel%WaterPropertiesID,                    &
@@ -573,7 +581,8 @@ program MohidWater
                 call SetFilesName  (CurrentModel%ModelPath)
 
                 !Monitor Performance of the model execution?
-                call ReadFileName('OUTWATCH', WatchFile, Message = 'Stop Watch File', STAT = STAT_CALL)
+                call ReadFileName('OUTWATCH', WatchFile, Message = 'Stop Watch File',   &
+                                   MPI_ID = myMPI_ID, DD_ON = .true., STAT = STAT_CALL)
                 if (STAT_CALL == SUCCESS_) then
                     STAT_CALL   = CreateWatchGroup (WatchFile)
                     MonitorPerformance  = .true.
@@ -582,7 +591,8 @@ program MohidWater
                 endif
 
                 !Monitors DT
-                call ReadFileName('DT_LOG', DTLogFile, Message = 'Start DTLog File', STAT = STAT_CALL)
+                call ReadFileName('DT_LOG', DTLogFile, Message = 'Start DTLog File',    &
+                                  MPI_ID = myMPI_ID, DD_ON = .true., STAT = STAT_CALL)
                 if (STAT_CALL == SUCCESS_) then            
                     MonitorDT  = .true.
                 else
@@ -601,6 +611,7 @@ program MohidWater
                 call ConstructModel(LagInstance, ModelNames, NumberOfModels,            &
                                     ObjLagrangianGlobal, CurrentModel%ModelID,          &
                                     InitialSystemTime, CurrentModel%MPI_ID,             &
+                                    CurrentModel%MasterID, CurrentModel%LastSlaveID,    &
                                     STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR80'
@@ -615,12 +626,12 @@ program MohidWater
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR90'
 
                 !Gets Current Time of the model
-                call GetModelCurrentTime      (CurrentModel%ModelID, CurrentModel%CurrentTime,    &
+                call GetModelCurrentTime      (CurrentModel%ModelID, CurrentModel%StartIteration, &
                                                STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR100'
 
                 !Sets the last info time 
-                CurrentModel%InfoTime = CurrentModel%CurrentTime
+                CurrentModel%StartFatherIteration = CurrentModel%StartIteration
 
             endif
 
@@ -759,10 +770,6 @@ do1 :       do while (associated(CurrentModel))
                           AuxEnd(4), AuxEnd(5), AuxEnd(6))
 
 
-
-
-
-            write (*,*) 'MPIProcess: ', CurrentModel%MPI_ID
             call GetModelTimeLimits (CurrentModel%ModelID, SubModelBeginTime, SubModelEndTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then 
                 write (*,*) 'MPIProcess: ', CurrentModel%MPI_ID
@@ -951,7 +958,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
             CurrentModel => CurrentModel%Next
 
         enddo  
-
+        
         !Waits for all processes
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR500'
@@ -1074,11 +1081,11 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
 
         !Local-----------------------------------------------------------------
         logical                                     :: TreeExists
-        integer                                     :: iTree, STAT_CALL, i
-        integer                                     :: MPI_ID
+        integer                                     :: iTree, STAT_CALL, i, iMPI, nDomains, nD
+        integer                                     :: MPI_ID, MasterID, LastSlaveID
         type (T_MohidWater), pointer                :: CurrentModel, NextModel
         character(StringLength)                     :: Coment1, Coment2
-        character(PathLength)                       :: AuxChar
+        character(PathLength)                       :: AuxChar, AuxChar1
 
 
         !Nullifies First Pointer
@@ -1087,7 +1094,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
         !Verifies if Tree file exists and allocates the list of models
         inquire(file='tree.dat', EXIST = TreeExists)
       
-        if (TreeExists) then
+iT:     if (TreeExists) then
 
             call UnitsManager(iTree, OPEN_FILE, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModelList - MohidWater - ERR01'
@@ -1103,11 +1110,29 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                 AuxChar = trim(adjustl(AuxChar))
                 if (AuxChar(1:1) == '+') then
                     if (RunInParallel) then
-                        call AddNewModel(trim(adjustl(AuxChar)), MPI_ID)
+                        iMPI = scan(AuxChar,":")
+                        if (iMPI == 0) then
+                            write(*,*) 'No decomposition'
+                            call AddNewModel(trim(adjustl(AuxChar)), MPI_ID)
+                            MPI_ID = MPI_ID + 1
+                        else
+                            read(AuxChar(iMPI+1:),*) nDomains
+                            AuxChar1 = trim(AuxChar(1:iMPI-1))
+                            write(*,*) ' : ', iMPI
+                            write(*,*) 'With decomposition'
+                            MasterID    = MPI_ID
+                            LastSlaveID = MPI_ID + nDomains - 1
+                            do nD = 1, nDomains
+                                write(*,*) 'Domain ', nD
+                                call AddNewModel(trim(adjustl(AuxChar1)), MPI_ID, MasterID, LastSlaveID)
+                                MPI_ID = MPI_ID + 1
+                            enddo
+                        endif
                     else
                         call AddNewModel(trim(adjustl(AuxChar)))
+                        MPI_ID = MPI_ID + 1                        
                     endif
-                    MPI_ID = MPI_ID + 1
+
                 else
                     exit
                 endif
@@ -1118,13 +1143,13 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
 
             NumberOfModels = MPI_ID
 
-        else
+        else iT
 
             call AddNewModel("*")
 
             NumberOfModels = 1
 
-        endif
+        endif iT
 
         allocate(ModelNames(1:NumberOfModels))
         allocate(LagInstance(1:TotalLagInst_, 1:NumberOfModels))
@@ -1156,7 +1181,7 @@ doNext:     do while (associated(NextModel))
                 NextModel => NextModel%Next
             enddo doNext
 
-            MPI_ID       =  MPI_ID + 1
+            !MPI_ID       =  MPI_ID + 1
             CurrentModel => CurrentModel%Next
 
         enddo
@@ -1165,11 +1190,12 @@ doNext:     do while (associated(NextModel))
 
     !--------------------------------------------------------------------------
 
-    subroutine AddNewModel(AuxString, MPI_ID)
+    subroutine AddNewModel(AuxString, MPI_ID, MasterID, LastSlaveID)
 
         !Arguments-------------------------------------------------------------
         character(len=*)                            :: AuxString
         integer, optional                           :: MPI_ID
+        integer, optional                           :: MasterID, LastSlaveID
 
         !Local-----------------------------------------------------------------
         type (T_MohidWater), pointer                :: NewModel
@@ -1184,11 +1210,25 @@ doNext:     do while (associated(NextModel))
 
         !Sets data
         NewModel%ModelID      = 0
+
         if (present(MPI_ID)) then
             NewModel%MPI_ID       = MPI_ID
         else
             NewModel%MPI_ID       = null_int
         endif
+
+        if (present(MasterID)) then
+            NewModel%MasterID     = MasterID
+        else
+            NewModel%MasterID     = null_int
+        endif
+
+        if (present(LastSlaveID)) then
+            NewModel%LastSlaveID  = LastSlaveID
+        else
+            NewModel%LastSlaveID  = null_int
+        endif        
+        
 !        NewModel%FatherMPI_ID = null_int
         NewModel%ModelLevel   = ModelLevel(AuxString)
         NewModel%ModelPath    = ModelPath (AuxString, NewModel%ModelLevel)
@@ -1277,7 +1317,6 @@ doNext:     do while (associated(NextModel))
         integer                                     :: STAT_CALL
         real                                        :: DTmin, DTmax, DT_Father
 
-
         !Search for initial Min and Max Time Step
         
         if (RunInParallel) then
@@ -1298,81 +1337,51 @@ doNext:     do while (associated(NextModel))
         
         if (RunInParallel) then
         
-            write(*,*) 'Start run MPI'
-        
             CurrentModel => FirstModel
-            
             do while (associated(CurrentModel))
-            
-                write(*,*) 'Start CurrentModel%MPI_ID == myMPI_ID'
-            
                 if (CurrentModel%MPI_ID == myMPI_ID) then
-                
-                    write(*,*) 'UpdateTimeAndMapping Main'    
+
+                    !Actualizes the Current Time
                     call UpdateTimeAndMapping    (CurrentModel%ModelID, GlobalCurrentTime, DoNextStep, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR10'
-                    
+
                     if (associated(CurrentModel%FatherModel))  then
-                    
-                    
-                        !
-                        !THESE NEXT LINES HAVE TO BE RECODED. The used approach only works if nesting is done like
-                        !Main
-                        !   Sub
-                        !       SubSub
-                        !Frank Fev 2011                        
-                    
                         DT_Father = ModelDTs(CurrentModel%FatherModel%MPI_ID+1)
-                        !write(*,*)"CurrentModel%FatherModel%MPI_ID: ", CurrentModel%FatherModel%MPI_ID
-                        !write(*,*)"DT_Father                      : ", DT_Father
-                        !call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
-                        !if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR20'
                     else
                         DT_Father = - FillValueReal
                     endif
-
                     if (DoNextStep) then
                         !Waits for information from father
                         if (associated(CurrentModel%FatherModel)) then
-                            
                             if (CurrentModel%FatherLink%Nesting) then
-                        
-                                !Post next recieve...
-                                if (CurrentModel%CurrentTime == CurrentModel%InfoTime) then
-                                    write(*,*) 'ReceiveInformationMPI Main'
+                                if (abs(CurrentModel%StartIteration - CurrentModel%StartFatherIteration) <1e-6) then
+                                    !Son receive information from father
                                     call ReceiveInformationMPI (CurrentModel)
-                                else if (CurrentModel%CurrentTime < CurrentModel%InfoTime) then 
-                                    write(*,*) 'UpdateSubModelValues Main'
+                                else if (CurrentModel%StartIteration < CurrentModel%StartFatherIteration) then 
                                     call UpdateSubModelValues (CurrentModel)
-                                else if (CurrentModel%CurrentTime > CurrentModel%InfoTime) then
-
-                                    stop 'ModifyMohidWater - MohidWater - ERR30'
-
+                                else if (CurrentModel%StartIteration > CurrentModel%StartFatherIteration) then
+                                    stop 'ModifyMohidWater - MohidWater - ERR20'
                                 endif
-                                
                             endif                                
+                        endif
+                        !Run model
+                        call RunModel(CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR30'
+                        
+                        !Gets the Intital Time of the Iteration
+                        call GetModelCurrentTime (CurrentModel%ModelID, CurrentModel%StartIteration, &
+                                                  STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR40'
+
+                        if (CurrentModel%SubOn) then
+                            !send information from father to son
+                            call SendInformationMPI (CurrentModel)
 
                         endif
-                        write(*,*) 'RunModel Main'
-                        call RunModel(CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR40'
-                        write(*,*) 'End RunModel Main'
-                        if (CurrentModel%FatherLink%Nesting) then
-                            write(*,*) 'SendInformationMPI Main'
-                            call SendInformationMPI (CurrentModel)
-                        endif
-                        write(*,*) 'end if 1' 
                     endif
-                    write(*,*) 'end if 2'
                 endif
-                write(*,*) 'end if 3'
-                
                 CurrentModel => CurrentModel%Next
-                
             enddo
-            
-            write(*,*) ' Finish run cycle'
-            
         else
 
             CurrentModel => FirstModel
@@ -1853,9 +1862,9 @@ do1:        do i=2,StringLength
                        STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReceiveInformationMPI - MohidWater - ERR01'
 
-        call SetDate     (CurrentModel%InfoTime, AuxTime(1), AuxTime(2), AuxTime(3),     &
+        call SetDate     (CurrentModel%StartFatherIteration, AuxTime(1), AuxTime(2), AuxTime(3),     &
                           AuxTime(4), AuxTime(5), AuxTime(6))
-
+                          
         if (CurrentModel%FatherLink%Hydro) then
             call RecvHydrodynamicMPI (CurrentModel%HydrodynamicID,             &
                                       CurrentModel%FatherModel%MPI_ID,         &
@@ -1901,21 +1910,16 @@ do1:        do i=2,StringLength
         integer                                     :: STAT_CALL, iSub, iProp
         real, dimension(6)                          :: AuxTime
 
-        !Gets the Current Time
-        call GetModelCurrentTime (CurrentModel%ModelID, CurrentModel%CurrentTime,        &
-                                  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR01'
 
-        call ExtractDate (CurrentModel%CurrentTime, AuxTime(1), AuxTime(2), AuxTime(3),  &
-                          AuxTime(4), AuxTime(5), AuxTime(6))
-
+        call ExtractDate (CurrentModel%StartIteration, AuxTime(1), AuxTime(2), AuxTime(3),  &
+                                                       AuxTime(4), AuxTime(5), AuxTime(6))
+                                                       
         do iSub = 1, CurrentModel%nSubModels
         
-            write(*,*) 'Run mpi', AuxTime
-
             call MPI_Send (AuxTime, 6, Precision, CurrentModel%SubMPIID(iSub), 999,       &
                            MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR02'
+            
 
             if (CurrentModel%SubmodelLink(iSub)%Hydro) then
                 call SendHydrodynamicMPI (CurrentModel%HydrodynamicID,                   &

@@ -109,7 +109,8 @@ Module ModuleSedimentProperties
     use ModuleHorizontalMap,        only: GetOpenPoints2D, GetWaterPoints2D, GetBoundaries,         &
                                           UnGetHorizontalMap       
     use ModuleHorizontalGrid,       only: GetHorizontalGrid, WriteHorizontalGrid, GetGridCellArea,  &
-                                          UnGetHorizontalGrid
+                                          UnGetHorizontalGrid,                                      &
+                                          GetDomainDecompositionON, GetDomainDecompositionMPI_ID
     use ModuleGeometry,             only: GetGeometrySize, UnGetGeometry, GetGeometryVolumes,       &
                                           GetGeometryDistances, GetGeometryKtop
     use ModuleMap,                  only: GetWaterPoints3D, GetOpenPoints3D, GetComputeFaces3D,     &
@@ -2955,7 +2956,10 @@ do1:    do while(associated(Property))
 
         call ReadFileName('SED_HDF', Me%Files%HDFResults,               &
                           Message = Message, Time_end = Me%EndTime,     &
-                          Extension = 'sed', STAT = STAT_CALL)
+                          Extension = 'sed',                            &
+                          MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                          DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                          STAT      = STAT_CALL)
         if (STAT_CALL/=SUCCESS_) &
             stop 'ReadSedimentPropertiesFilesName - ModuleSedimentProperties - ERR02'
 
@@ -2965,7 +2969,10 @@ do1:    do while(associated(Property))
 
         call ReadFileName('SED_FIN', Me%Files%Final,                    &
                           Message = Message, Time_end = Me%EndTime,     &
-                          Extension = 'sef', STAT = STAT_CALL)
+                          Extension = 'sef',                            &
+                          MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                          DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                          STAT      = STAT_CALL)
         if (STAT_CALL/=SUCCESS_) &
             stop 'ReadSedimentPropertiesFilesName - ModuleSedimentProperties - ERR03'
 
@@ -2975,7 +2982,9 @@ do1:    do while(associated(Property))
 
         call ReadFileName('SED_INI', Me%Files%Initial,                  &
                            Message = Message, Time_end = Me%EndTime,    &
-                           STAT = STAT_CALL)
+                           MPI_ID  = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON   = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT    = STAT_CALL)
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then 
 
             call SetError(FATAL_, INTERNAL_,                            & 

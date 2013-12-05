@@ -47,7 +47,8 @@ Module ModuleAtmosphere
     use ModuleHorizontalGrid, only : GetHorizontalGrid, GetHorizontalGridSize, GetGridAngle, &
                                      GetGridLatitudeLongitude, WriteHorizontalGrid,          &
                                      UnGetHorizontalGrid, RotateVectorFieldToGrid,           &
-                                     GetGridCellArea, GetXYCellZ
+                                     GetGridCellArea, GetXYCellZ, GetDomainDecompositionMPI_ID,&
+                                     GetDomainDecompositionON
     use ModuleStatistic,      only : ConstructStatistic, GetStatisticMethod,                 &
                                      GetStatisticParameters, ModifyStatistic, KillStatistic
     use ModuleStopWatch,      only : StartWatch, StopWatch
@@ -609,8 +610,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Message   ='Instant fields of Atmosphere properties in HDF format.'
         Message   = trim(Message)
 
-        call ReadFileName('SURF_HDF', Me%Files%Results, Message = Message, &
-                           TIME_END = Me%EndTime, Extension = 'sur', STAT = STAT_CALL)
+        call ReadFileName('SURF_HDF', Me%Files%Results, Message = Message,              &
+                           TIME_END = Me%EndTime, Extension = 'sur',                    &
+                           MPI_ID   = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON    = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT     = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadPropertiesFilesName - ModuleAtmosphere - ERR02'
 
 
@@ -1089,7 +1093,7 @@ cd2 :           if (BlockFound) then
 
         !Constructs Statistics
         call ConstructSurfStatistics    (NewProperty) 
-           
+        
         !----------------------------------------------------------------------
 
     end subroutine ConstructProperty
@@ -2754,7 +2758,7 @@ do1 :   do while (associated(PropertyX))
                 call GetFillMatrixDTPrediction (PropSunHours%ID%ObjFillMatrix, PropSunHours%PredictedDT,    &
                                                 PropSunHours%DTForNextEvent, STAT = STAT_CALL)                
                 if (STAT_CALL /= SUCCESS_) stop 'ModifySunHours - ModuleAtmosphere - ERR02'            
-            endif
+        endif
 
         endif
 
@@ -2783,7 +2787,7 @@ do1 :   do while (associated(PropertyX))
                 call GetFillMatrixDTPrediction (PropAirTemperature%ID%ObjFillMatrix, PropAirTemperature%PredictedDT,    &
                                                 PropAirTemperature%DTForNextEvent, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyAirTemperature - ModuleAtmosphere - ERR02'
-            endif
+        endif
 
         endif
 

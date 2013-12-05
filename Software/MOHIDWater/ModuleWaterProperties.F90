@@ -205,7 +205,9 @@ Module ModuleWaterProperties
                                           UnGetHorizontalMap
     use ModuleHorizontalGrid,       only: GetHorizontalGrid, WriteHorizontalGrid, GetComputeZUV,&
                                           InterpolRegularGrid, UnGetHorizontalGrid,             &
-                                          GetHorizontalGridSize, GetGridCellArea, GetXYCellZ
+                                          GetHorizontalGridSize, GetGridCellArea, GetXYCellZ,   &
+                                          GetDomainDecompositionParameters,                     &
+                                          GetDomainDecompositionMPI_ID, GetDomainDecompositionON
     use ModuleGeometry,             only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,   &
                                           GetGeometryKFloor, GetGeometryWaterColumn,            &
                                           GetGeometryDistances, GetLayer4Level
@@ -264,7 +266,8 @@ Module ModuleWaterProperties
                                           GetMLD_Surf, UnGetTurbulence
     use ModuleHydrodynamic,         only: GetWaterFluxes, GetWaterLevel, GetDischargesFluxes,   &
                                           UngetHydrodynamic, GetHydroAltimAssim, GetVertical1D, &
-                                          GetXZFlow, GetHydrodynamicAirOptions, GetVelocityModulus
+                                          GetXZFlow, GetHydrodynamicAirOptions,                 &
+                                          GetVelocityModulus
                                           
     use ModuleBivalve,              only: GetBivalveListDeadIDS, GetBivalveNewBornParameters,   &
                                           GetBivalveNewborns, GetBivalveOtherParameters,        &
@@ -577,7 +580,6 @@ Module ModuleWaterProperties
     !Filtration 
     integer, parameter                          :: GrazeR               = 1
     integer, parameter                          :: GrazeD               = 2
-
 
 
     !Types---------------------------------------------------------------------
@@ -1360,7 +1362,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 #endif
 
             call ReadLockExternalVar
-
+            
             ! Construct the variable common to all module  
             call Construct_GlobalVariables
             
@@ -1382,7 +1384,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Constructs the list of WQRates
             call Construct_WQRateList
-
+            
             !Construct Density 
             call ConstructDensity 
 
@@ -1392,9 +1394,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Initialize oxygen to saturation. 
             if (Me%OxygenSaturation)                          &
                 call ModifyOxygenSaturation
-
+                
             call ConstructGlobalOutput
-
+            
             if (Me%OutPut%Yes)            call Open_HDF5_OutPut_File
             
             if (Me%OutW%OutPutWindowsON)  then
@@ -1408,8 +1410,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructDoSat  
             
             !Constructs if the user wants to assimilate altimetry ! guillaume nogueira
-            call ConstructBooleanAltimAssim        
-
+            call ConstructBooleanAltimAssim   
+            
             !Construct the Sub-Modules
 #ifdef _ENABLE_CUDA
             ! CudaID is needed for thomas algorithm in ModuleAdvectionDiffusion
@@ -1419,7 +1421,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 #endif _ENABLE_CUDA
 
             call CheckAditionalOutputs
-         
+            
             !Message to user
             call ConstructLog
 
@@ -2074,7 +2076,6 @@ cd2 :           if (BlockFound) then
         else
             call ConstructCohortList(NewSpecies, ClientNumber)
         endif
-
         
         call ConstructSpeciesSettlement(NewSpecies, ClientNumber)
         
@@ -2154,7 +2155,6 @@ cd2 :           if (BlockFound) then
     
     end subroutine ConstructSpeciesSettlement
  
-  
     !--------------------------------------------------------------------------
     
     subroutine ConstructCohortListFromRestartFile(NewSpecies) 
@@ -4273,14 +4273,14 @@ do1 :   do while (associated(PropertyX))
             Me%NoFlux%ON) then
 
             if(AssimilationID == 0)then
-
-                call StartAssimilation(Me%ObjAssimilation,                   &
-                                       Me%ObjTime,                           &
-                                       Me%ObjGridData,                       &
-                                       Me%ObjHorizontalGrid,                 &
-                                       Me%ObjHorizontalMap,                  &
-                                       Me%ObjMap,                            &
-                                       Me%ObjGeometry,                       &
+                
+                call StartAssimilation(Me%ObjAssimilation,                              &
+                                       Me%ObjTime,                                      &
+                                       Me%ObjGridData,                                  &
+                                       Me%ObjHorizontalGrid,                            &
+                                       Me%ObjHorizontalMap,                             &
+                                       Me%ObjMap,                                       &
+                                       Me%ObjGeometry,                                  &
                                        STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - WaterProperties - ERR70'
 
@@ -4808,7 +4808,10 @@ do1 :   do while (associated(PropertyX))
 
         call ReadFileName('BIV_HDF', FileName, &
                            Message = Message, TIME_END = Me%EndTime,  &
-                           Extension = 'elt', STAT = STAT_CALL)
+                           Extension = 'elt',                         &
+                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT      = STAT_CALL)                           
         if (STAT_CALL .NE. SUCCESS_)                                  &
             stop 'CoupleBivalve - ModuleWaterProperties - ERR00' 
             
@@ -5899,18 +5902,24 @@ subroutine Construct_Discharges_Tracking
         Message   ='Instant fields of water properties in HDF format.'
         Message   = trim(Message)
 
-        call ReadFileName('EUL_HDF', Me%Files%OutPutFields,          &
-                           Message = Message, TIME_END = Me%EndTime, &
-                           Extension = 'elt', STAT = STAT_CALL)
+        call ReadFileName('EUL_HDF', Me%Files%OutPutFields,                             &
+                           Message = Message, TIME_END = Me%EndTime,                    &
+                           Extension = 'elt',                                           &
+                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT      = STAT_CALL)                           
         if (STAT_CALL .NE. SUCCESS_)                                          &
             stop 'Read_WaterProperties_Files_Name - ModuleWaterProperties - ERR02' 
 
         ! ---> Water properties final values in HDF format
         Message   ='Water properties final values in HDF format.'
         Message   = trim(Message)
-        call ReadFileName('EUL_FIN', Me%Files%FinalWaterProperties,  &
-                           Message = Message, TIME_END = Me%EndTime, &
-                           Extension = 'elf', STAT = STAT_CALL)
+        call ReadFileName('EUL_FIN', Me%Files%FinalWaterProperties,                     &
+                           Message = Message, TIME_END = Me%EndTime,                    &
+                           Extension = 'elf',                                           &
+                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT      = STAT_CALL)                           
         if (STAT_CALL .NE. SUCCESS_)                                          &
             stop 'Read_WaterProperties_Files_Name - ModuleWaterProperties - ERR03' 
 
@@ -5921,7 +5930,10 @@ subroutine Construct_Discharges_Tracking
 
         call ReadFileName('EUL_INI', Me%Files%InitialWaterProperties,        &
                            Message = Message, TIME_END = Me%ExternalVar%Now, &
-                           Extension = 'elf',STAT = STAT_CALL)
+                           Extension = 'elf',                                           &
+                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT      = STAT_CALL)                           
 
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             write(*,*)  
@@ -5968,25 +5980,23 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         
         nullify(NewProperty%SubModel%PreviousField, NewProperty%SubModel%NextField)
 
-
         !Construct property ID
         call ConstructPropertyID        (NewProperty%ID, Me%ObjEnterData, FromBlock)
-
+        
         !Construct property values
         call Construct_PropertyState    (NewProperty)
         
         !Construct property values
         call Construct_PropertyValues   (NewProperty)
-
+        
         !Construct property evolution parameters
         call Construct_PropertyEvolution(NewProperty,ClientNumber)
-
+        
         !Defines the property output
         call Construct_PropertyOutPut   (NewProperty, FromBlock)
-
+        
         if (NewProperty%Evolution%DecayRateProperty)                                    &
             call SetDecayRatePropertyOptions(NewProperty)
-
 
     end subroutine Construct_Property
 
@@ -11844,8 +11854,194 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
         end subroutine UpdateWaterMPI
 
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine exchange properties between decompose domains                        !
+    ! coefficients of all domains                                                          !
+    !                                                                                      !
+    ! Input : Velocity%UV%New halo region                                                  !
+    ! OutPut: Velocity%UV%New halo region - boundary domains                               !
+    ! Author: Paulo Chambel (2013/11)                                                      !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine ReceiveSendProperities3DMPI(Property3D)     
+
+        !Arguments------------------------------------------------------------
+
+        real   , dimension(:,:,:), pointer :: Property3D    
+
+
+
+        !Local---------------------------------------------------------------
+        integer                            :: STAT_CALL, IUB, ILB, JUB, JLB, KUB, KLB
+        integer                            :: IUB_R, ILB_R, JUB_R, JLB_R
+        integer                            :: IUB_S, ILB_S, JUB_S, JLB_S
+        integer                            :: Bandwidth
+        integer                            :: DomainA, DomainB, ifd, Direction
+        
+        integer                            :: Source, Destination         
+        integer                            :: iSize
+        integer, save                      :: Precision
+        integer                            :: status(MPI_STATUS_SIZE)       
+        
+        !Domain decomposition
+        logical                            :: MasterOrSlave
+        integer                            :: NInterfaces, Halo_Points, MPI_ID
+        integer, dimension(:,:), pointer   :: Interfaces
+        
+        !Begin---------------------------------------------------------------
+        
+        call GetDomainDecompositionParameters(HorizontalGridID = Me%ObjHorizontalGrid,  &
+                                              MasterOrSlave    = MasterOrSlave,         &
+                                              NInterfaces      = NInterfaces,           &
+                                              Interfaces       = Interfaces,            &
+                                              Halo_Points      = Halo_Points,           &
+                                              MPI_ID           = MPI_ID,                &
+                                              STAT             = STAT_CALL)
+                                              
+        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR10'            
+        
+idd:    if (MasterOrSlave) then
+
+            IUB = Me%WorkSize%IUB
+            ILB = Me%WorkSize%ILB
+            JUB = Me%WorkSize%JUB
+            JLB = Me%WorkSize%JLB
+            KUB = Me%WorkSize%KUB
+            KLB = Me%WorkSize%KLB    
+            
+            Precision   = MPIKind(Property3D)
+            
+    difd:   do ifd = 1, NInterfaces
+
+                DomainA   = Interfaces(ifd,1) 
+                DomainB   = Interfaces(ifd,2) 
+                Direction = Interfaces(ifd,3)
+            
+    iSN:        if (Direction == SouthNorth_) then
+            
+                    !Then North border communication
+    iN:             if (MPI_ID == DomainA) then
+
+                        Bandwidth   = Halo_Points 
+                        iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
+                        Source      = DomainB
+                        Destination = Source
+                        
+                        IUB_R = IUB                 
+                        ILB_R = IUB_R - Bandwidth   + 1 
+                        IUB_S = ILB_R               - 1
+                        ILB_S = IUB_S - Bandwidth   + 1
+                        
+                        !Receive
+                        call MPI_Recv (Property3D(ILB_R:IUB_R, JLB:JUB, KLB:KUB), iSize, Precision,      &
+                                       Source, 180001, MPI_COMM_WORLD, status, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR20'
+                        
+                        !Send
+                        call MPI_Send (Property3D(ILB_S:IUB_S, JLB:JUB, KLB:KUB), iSize, Precision,      &
+                                       Destination, 180002, MPI_COMM_WORLD, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR30'
+                    
+                    endif iN
+
+                    !Then South border communication
+    iS:             if (MPI_ID == DomainB) then
+
+                        Bandwidth   = Halo_Points
+                        iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
+                        Source      = DomainA
+                        Destination = Source
+                        
+                        ILB_R = ILB
+                        IUB_R = ILB_R + Bandwidth - 1             
+                        ILB_S = IUB_R             + 1
+                        IUB_S = ILB_S + Bandwidth - 1 
+                        
+                        !Send
+                        call MPI_Send (Property3D(ILB_S:IUB_S, JLB:JUB, KLB:KUB), iSize, Precision,      &
+                                       Destination, 180001, MPI_COMM_WORLD, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR40'
+
+                        !Receive
+                        call MPI_Recv (Property3D(ILB_R:IUB_R, JLB:JUB, KLB:KUB), iSize, Precision,      &
+                                       Source, 180002, MPI_COMM_WORLD, status, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR50'
+
+                    endif iS
+                    
+                endif iSN  
+                
+    iWE:        if (Direction == WestEast_) then
+                
+                    !Then East border communication
+    iE:             if (MPI_ID == DomainA) then
+
+                        Bandwidth   = Halo_Points 
+                        iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
+                        Source      = DomainB
+                        Destination = Source
+                        
+                        !Receive
+                        JUB_R = JUB                 
+                        JLB_R = JUB_R - Bandwidth   + 1 
+                        JUB_S = JLB_R               - 1
+                        JLB_S = JUB_S - Bandwidth   + 1
+                        
+                        call MPI_Recv (Property3D(ILB:IUB, JLB_R:JUB_R, KLB:KUB), iSize, Precision,      &
+                                       Source, 180005, MPI_COMM_WORLD, status, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR60'
+
+                        !Send
+                        call MPI_Send (Property3D(ILB:IUB, JLB_S:JUB_S, KLB:KUB), iSize, Precision,      &
+                                       Destination, 180006, MPI_COMM_WORLD, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR70'
+
+                    endif iE
+
+                    !Then West border communication
+    iW:             if (MPI_ID == DomainB) then
+
+                        Bandwidth   = Halo_Points 
+                        iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
+                        Source      = DomainA
+                        Destination = Source
+                        
+                        !Receive
+                        JLB_R = JLB
+                        JUB_R = JLB_R + Bandwidth - 1  
+                        JLB_S = JUB_R             + 1
+                        JUB_S = JLB_S + Bandwidth - 1 
+
+                        !Send
+                        call MPI_Send (Property3D(ILB:IUB, JLB_S:JUB_S, KLB:KUB), iSize, Precision,      &
+                                       Destination, 180005, MPI_COMM_WORLD, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR80'
+
+                        call MPI_Recv (Property3D(ILB:IUB, JLB_R:JUB_R, KLB:KUB), iSize, Precision,      &
+                                       Source, 180006, MPI_COMM_WORLD, status, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR90'
+
+                    endif iW
+                    
+                endif iWE                
+                   
+            enddo difd
+
+        endif idd            
+        
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Interfaces, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR100'            
+
+    end subroutine ReceiveSendProperities3DMPI          
+
 #endif _USE_MPI
 
+
+    !---------------------------------------------------------------------------------------------
+    
 
     subroutine SetWaterPropFather (WaterPropertiesSonID, WaterPropertiesFatherID,      &
                                    PropIDNumber, InitialField, STAT)
@@ -13123,7 +13319,7 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             STAT              = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR110'
-
+                        
                     if (Property%Evolution%Discharges)then
 
                         call UnSetDischarges (Me%ObjAdvectionDiffusion, STAT = STAT_CALL)
@@ -13319,6 +13515,10 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                     end if cd6
 
+#if _USE_MPI                    
+                    !MPI and Domain Decomposition is ON exchanges data along domain interfaces
+                    call ReceiveSendProperities3DMPI(Property%Concentration)
+#endif _USE_MPI
                 end if cd2
 
             end if cd1
@@ -13335,6 +13535,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             call RestoreLarvaeAdvectionDiffusion
         
         endif
+        
+       
 
         nullify(Property    )
         nullify(OpenPoints3D)

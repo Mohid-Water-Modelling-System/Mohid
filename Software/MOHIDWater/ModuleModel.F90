@@ -223,7 +223,9 @@ Module ModuleModel
         character(StringLength)                 :: ModelName    = null_str !initialization: Jauch
 
         integer                                 :: NumberOfModels       = 0 !initialization: Jauch
-        integer                                 :: MPI_ID               = FillValueInt
+        integer                                 :: MPI_ID               = null_int
+        integer                                 :: MasterID             = null_int
+        integer                                 :: LastSlaveID          = null_int        
         integer                                 :: ObjLagrangian        = 0 !initialization: Jauch
 !        integer                                 :: ObjLagrangianX       = 0 !initialization: Jauch
         integer                                 :: ObjLagrangianGlobal  = 0 !initialization: Jauch
@@ -322,7 +324,7 @@ Module ModuleModel
 
     subroutine ConstructModel (LagInstance, ModelNames, NumberOfModels,                 &
                                ObjLagrangianGlobal, ModelID, InitialSystemTime,         &
-                               MPI_ID, STAT)
+                               MPI_ID, MasterID, LastSlaveID, STAT)
 
         !Arguments-------------------------------------------------------------
         integer         , dimension(:,:), pointer   :: LagInstance
@@ -330,6 +332,8 @@ Module ModuleModel
         integer                                     :: NumberOfModels, ObjLagrangianGlobal, ModelID
         type (T_Time)                               :: InitialSystemTime
         integer, intent(IN ), optional              :: MPI_ID
+        integer, intent(IN ), optional              :: MasterID
+        integer, intent(IN ), optional              :: LastSlaveID
         integer, intent(OUT), optional              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -421,8 +425,21 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(MPI_ID)) then
                 Me%MPI_ID = MPI_ID
             else
-                Me%MPI_ID = FillValueInt
+                Me%MPI_ID = null_int
             endif
+
+            if (present(MasterID)) then
+                Me%MasterID = MasterID
+            else
+                Me%MasterID = null_int
+            endif
+
+            if (present(LastSlaveID)) then
+                Me%LastSlaveID = LastSlaveID
+            else
+                Me%LastSlaveID = null_int
+            endif
+            
 
 #ifdef      _ONLINE_
 
@@ -507,8 +524,11 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR110'
 
             !Horizontal Grid
-            call ConstructHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,        &
-                                         DataFile         = BathymetryFile,              &
+            call ConstructHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,       &
+                                         DataFile         = BathymetryFile,             &
+                                         MPI_ID           = Me%MPI_ID,                  &
+                                         MasterID         = Me%MasterID,                &
+                                         LastSlaveID      = Me%LastSlaveID,             &
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR120'
           
@@ -704,7 +724,6 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 #ifdef _ENABLE_CUDA
                                          CudaID           = Me%ObjCuda,                 &
 #endif
-                                         MPI_ID           = Me%MPI_ID,                  &
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR260'
 
@@ -739,7 +758,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 #endif _ENABLE_CUDA
                                            STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR290"
-
+            
 #ifndef _LAGRANGIAN_
 
 il:         if (Me%RunLagrangian) then
@@ -1772,7 +1791,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleModel", "RunOneModel")
-
+        
         !Updates the Interface between the sediment and the water column
         call ModifyInterfaceSedimentWater (Me%ObjInterfaceSedimentWater,                &
 #ifdef  _LAGRANGIAN_GLOBAL_          
@@ -1880,7 +1899,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         call UnGetHydrodynamic(Me%ObjHydrodynamic,                                      &
                                Me%ExternalVar%Chezy, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR200'
-
+        
         PredictedDT%DT = Me%DT             
         call Modify_Hydrodynamic(Me%ObjHydrodynamic,                                    &
                                  Me%ExternalVar%Density,                                &
@@ -1908,7 +1927,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExternalVar%Salinity,       &
                                   STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR260'
-
+        
         call WaterProperties_Evolution(Me%ObjWaterProperties, PredWaterDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR270'
 
@@ -1965,7 +1984,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 #endif 
 
         if (MonitorPerformance) call StopWatch ("ModuleModel", "RunOneModel")
-
+        
         !----------------------------------------------------------------------
 
     end subroutine RunOneModel

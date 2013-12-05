@@ -2717,6 +2717,7 @@ i1:         if (PropertyFound) then
         !Local-----------------------------------------------------------------
         type(T_Property),   pointer                     :: CurrentProperty
         type(T_PropertyID)                              :: PropertyID
+        real, dimension(1:2,1:2)                        :: WindowLimitsXY
         real                                            :: West, East, South, North
         logical                                         :: PropertyFound
         integer                                         :: STAT_CALL, nProp, i, flag, emMax, iP
@@ -2761,6 +2762,10 @@ di:             do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
                     if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR40'
                     
                     
+                    WindowLimitsXY(2,1) = South
+                    WindowLimitsXY(2,2) = North
+                    WindowLimitsXY(1,1) = West
+                    WindowLimitsXY(1,2) = East
 
                     call ConstructField4D(Field4DID     = Me%MeteoOcean%Prop(nProp)%Field(i)%ID,        &
                                           EnterDataID   = Me%ObjEnterData,                              &
@@ -2770,10 +2775,7 @@ di:             do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
                                           MaskDim       = Me%MeteoOcean%Prop(nProp)%MaskDim,            &
                                           LatReference  = Me%EulerModel(emMax)%Grid%LatDefault,         &
                                           LonReference  = Me%EulerModel(emMax)%Grid%LongDefault,        & 
-                                          LatMin        = South,                                        & 
-                                          LatMax        = North,                                        & 
-                                          LonMin        = West,                                         & 
-                                          LonMax        = East,                                         & 
+                                          WindowLimitsXY= WindowLimitsXY,                               &
                                           Extrapolate   = .false.,                                      &    
                                           STAT          = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR50'
@@ -7517,11 +7519,11 @@ d1:     do em =1, Me%EulerModelNumber
                                     dble(0.), EulerModel%Waterpoints3D)
             
                 !Starts BoxDif
-                call StartBoxDif(BoxDifID         = EulerModel%ObjEulMonBox,                        &
-                                 TimeID           = EulerModel%ObjTime,                             &
-                                 HorizontalGridID = EulerModel%ObjHorizontalGrid,                   &
-                                 BoxesFilePath    = Me%Files%EulerianMonitorBox,            &
-                                 ScalarOutputList = PropertyList,                           &
+                call StartBoxDif(BoxDifID         = EulerModel%ObjEulMonBox,            &
+                                 TimeID           = EulerModel%ObjTime,                 &
+                                 HorizontalGridID = EulerModel%ObjHorizontalGrid,       &
+                                 BoxesFilePath    = Me%Files%EulerianMonitorBox,        &
+                                 ScalarOutputList = PropertyList,                       &
                                  WaterPoints3D    = EulerModel%Waterpoints3D,           &
                                  Size3D           = EulerModel%Size,                    &
                                  WorkSize3D       = EulerModel%WorkSize,                &
@@ -13428,7 +13430,7 @@ MF:             if (CurrentPartic%Position%Surface) then
                     endif                    
 
                     UWind =   UWind_ * cos(WindDriftAngle * (Pi / 180.)) + VWind_ * sin(WindDriftAngle * (Pi / 180.))
-                    VWind = - UWind_ * sin(WindDriftAngle * (Pi / 180.)) + VWind_ * cos(WindDriftAngle * (Pi / 180.))                   
+                    VWind = - UWind_ * sin(WindDriftAngle * (Pi / 180.)) + VWind_ * cos(WindDriftAngle * (Pi / 180.))
 
                     !Plume velocity
                     UPlume = 0.
@@ -18232,7 +18234,10 @@ d5:     do em =1, Me%EulerModelNumber
 
                 End If
 
-                call WriteTimeSerieLine (Me%EulerModel(em)%Monitor%ObjTimeSerie(Box), DataLine = AuxReal, STAT = STAT_CALL)
+                call WriteTimeSerieLine (Me%EulerModel(em)%Monitor%ObjTimeSerie(Box),   &
+                                         ExternalCurrentTime = Me%Now,                  &
+                                         DataLine            = AuxReal,                 &
+                                         STAT                = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'MonitorParticle - ModuleLagrangianGlobal - ERR02'
             enddo
 

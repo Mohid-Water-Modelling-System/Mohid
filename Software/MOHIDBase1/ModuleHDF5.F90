@@ -4537,6 +4537,7 @@ Module ModuleHDF5
         integer(HSIZE_T ), dimension(:), allocatable    :: count_out
         integer(HID_T)                                  :: STAT_CALL
         character(StringLength)                         :: AuxChar
+        integer, dimension(:, :, :)   , pointer         :: Array3D
         
         !Begin-----------------------------------------------------------------
 
@@ -4580,9 +4581,13 @@ Module ModuleHDF5
             call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR60'
 
+            if (rank >3) then
+                stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR70'
+            endif
+
             !Gets the size
             call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL)
-            if (STAT_CALL < SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR70'
+            if (STAT_CALL < SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR80'
             
             lower_bound(:) = FillValueInt
             upper_bound(:) = FillValueInt
@@ -4595,11 +4600,10 @@ Module ModuleHDF5
                 upper_bound(2) = Me%Limits%JUB
             endif
             
-            if (rank >=3) then
+            if (rank ==3) then
                 lower_bound(3) = Me%Limits%KLB
                 upper_bound(3) = Me%Limits%KUB
             endif
-
 
             allocate (offset_in (rank))
             allocate (count_in  (rank))
@@ -4611,7 +4615,7 @@ Module ModuleHDF5
                 offset_in(1) = lower_bound(1) - 1    
             endif            
 
-            if (Rank >=2) then
+            if (Rank >= 2) then
                 if (present(OffSet2)) then
                     offset_in(2) = OffSet2
                 else                
@@ -4619,10 +4623,10 @@ Module ModuleHDF5
                 endif            
             endif                
 
-            if (Rank >=3) then
-                stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR80'
+            if (rank == 3) then
+                offset_in(3) = 0
             endif
-            
+
             count_in (1:rank) = upper_bound(1:rank) - lower_bound(1:rank) + 1
 
             !Defines the hyperslab in the dataset
@@ -4636,6 +4640,11 @@ Module ModuleHDF5
             dims_mem(1) = upper_bound(1)-lower_bound(1) + 1
             dims_mem(2) = upper_bound(2)-lower_bound(2) + 1
             
+            if (rank == 3) then
+                rank_out    = 3
+                dims_mem(3) = 1
+            endif
+            
             call h5screate_simple_f (rank_out, dims_mem, memspace_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR100'
 
@@ -4648,11 +4657,31 @@ Module ModuleHDF5
             call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F, offset_out, count_out, &
                                         STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR110'
+            
+            if (rank ==3) then
 
-            call h5dread_f (dset_id, NumType, Array2D(lower_bound(1):upper_bound(1), &
-                                                      lower_bound(2):upper_bound(2)),&
-                            dims_mem, STAT_CALL, memspace_id, space_id)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR120'
+                allocate(Array3D(lower_bound(1):upper_bound(1), lower_bound(2):upper_bound(2), 1:1))
+
+                call h5dread_f (dset_id, NumType, Array3D(lower_bound(1):upper_bound(1), &
+                                                          lower_bound(2):upper_bound(2), &
+                                                                       1:            1), &
+                                dims_mem, STAT_CALL, memspace_id, space_id)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR120'
+
+                Array2D(lower_bound(1):upper_bound(1), lower_bound(2):upper_bound(2)) = & 
+                Array3D(lower_bound(1):upper_bound(1), lower_bound(2):upper_bound(2), 1)
+
+                deallocate(Array3D)
+                
+
+            else                
+
+                call h5dread_f (dset_id, NumType, Array2D(lower_bound(1):upper_bound(1), &
+                                                          lower_bound(2):upper_bound(2)),&
+                                dims_mem, STAT_CALL, memspace_id, space_id)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR120'
+
+            endif
 
             !Deallocates temporary matrixes
             deallocate (offset_in )

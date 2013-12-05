@@ -658,7 +658,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     !                                                                      
     !     TIME_END  -> instante da simulacao para gerar nome.                     
 
-    subroutine ReadFileName(KEYWORD, FILE_NAME, Message, TIME_END, Extension, FilesInput,STAT)
+    subroutine ReadFileName(KEYWORD, FILE_NAME, Message, TIME_END, Extension, FilesInput, MPI_ID, DD_ON, STAT)
 
         !Arguments-------------------------------------------------------------
 
@@ -671,6 +671,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         character(LEN = *), optional              :: FilesInput
 
         type(T_Time),       optional, intent(IN ) :: TIME_END
+        integer           , optional              :: MPI_ID
+        logical           , optional              :: DD_ON
 
         !External--------------------------------------------------------------
 
@@ -679,15 +681,16 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         character(LEN = line_length) :: Root
         character(LEN = line_length) :: RootMessage
-        character(LEN  = PathLength) :: FileNomfich       
+        character(LEN = PathLength)  :: FileNomfich       
         
 
         integer                      :: ObjEnterData = 0
 
         !Local-----------------------------------------------------------------
+        integer                      :: STAT_             
+        integer                      :: I, ipath, iFN
+        character(LEN = StringLength):: AuxChar
 
-        integer :: STAT_             
-        integer :: I
 
         !----------------------------------------------------------------------
 
@@ -759,11 +762,32 @@ cd5 :               if (flag .EQ. 0) then
                 STAT_ = SUCCESS_
             end if cd2
 
-
         end if cd4
-
+        
         call KillEnterData(ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop "ReadFileName - ModuleEnterData - ERR02"
+        
+        if (present(MPI_ID) .and. present(DD_ON)) then
+            if (DD_ON) then
+                if (STAT_ == SUCCESS_) then
+                    if (MPI_ID > null_int) then
+                        write(AuxChar,fmt='(i5)') MPI_ID
+                        Auxchar = "MPI_"//trim(adjustl(Auxchar))//"_"
+                        iFN = len_trim(FILE_NAME)
+                        ipath = 0
+                        do i = iFN, 1, -1
+                            if (FILE_NAME(i:i) == '/' .or. FILE_NAME(i:i) == '\') then
+                                ipath = i
+                                exit
+                            endif
+                        enddo    
+                        if (ipath > 0) then
+                            FILE_NAME = FILE_NAME(1:ipath)//trim(Auxchar)//FILE_NAME(ipath+1:iFN)
+                        endif
+                    endif                    
+                endif
+            endif                
+        endif
 
 
         if (present(STAT)) STAT = STAT_
@@ -2356,7 +2380,7 @@ cd6 :           if (present(Default)) then
 cd4 :               if (present(text)) then
                         call WriteErrorMessage(keyword, text, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                              &
-                            stop "Subroutine ReadIntegerVector_New - ModuleEnterData. ERR01."
+                            stop "Subroutine ReadIntegerVector_New; module ModuleEnterData. ERR01."
                     end if cd4
 
                     STAT_ = KEYWORD_NOT_FOUND_ERR_
@@ -2541,7 +2565,7 @@ cd6 :           if (present(Default)) then
 cd4 :               if (present(text)) then
                         call WriteErrorMessage(keyword, text, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                              &
-                            stop "Subroutine ReadRealVector_New - ModuleEnterData. ERR01."
+                            stop "Subroutine ReadRealVector_New; module ModuleEnterData. ERR01."
                     end if cd4
 
                     STAT_ = KEYWORD_NOT_FOUND_ERR_
@@ -2906,7 +2930,7 @@ cd6 :           if (present(Default)) then
 cd4 :               if (present(text)) then
                         call WriteErrorMessage(keyword, text, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                              &
-                            stop "Subroutine ReadDbleVector_New - ModuleEnterData. ERR01."
+                            stop "Subroutine ReadDbleVector_New; module ModuleEnterData. ERR01."
                     end if cd4
 
                     STAT_ = KEYWORD_NOT_FOUND_ERR_
@@ -3040,10 +3064,10 @@ if9 :       if (present(SearchType)) then
 
 
             if (.not.present(keyword).and..not.present(Buffer_Line))          &
-                stop "Subroutine GetData (ReadTime) - ModuleEnterData. ERR01."
+                stop "Subroutine GetData (ReadTime); module ModuleEnterData. ERR01."
             
             if (present(keyword).and.present(Buffer_Line))                    &
-                stop "Subroutine GetData (ReadTime) - ModuleEnterData. ERR02."
+                stop "Subroutine GetData (ReadTime); module ModuleEnterData. ERR02."
 
             if (present(keyword)) then
 
@@ -3089,7 +3113,7 @@ cd6 :           if (present(Default)) then
 cd4 :               if (present(text)) then
                         call WriteErrorMessage(keyword, text, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                              &
-                            stop "Subroutine GetData (ReadTime) - ModuleEnterData. ERR03."
+                            stop "Subroutine GetData (ReadTime); module ModuleEnterData. ERR03."
                     end if cd4
 
                     STAT_ = SUCCESS_
@@ -4320,7 +4344,7 @@ cd1 :   if (.NOT. Me%BLOCK_LOCK) then
 
             Me%BlockClientIDnumber = number
         else
-            stop "Subroutine Block_Lock - ModuleEnterData. ERR01."
+            stop "Subroutine Block_Lock; module ModuleEnterData. ERR01."
         end if cd1
 
         !----------------------------------------------------------------------

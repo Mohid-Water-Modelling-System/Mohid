@@ -87,7 +87,8 @@ Module ModuleWaves
     use ModuleHorizontalGrid,   only : LocateCell, GetHorizontalGridSize, GetHorizontalGrid,    &
                                        GetGridAngle, GetCheckDistortion, GetCoordTypeList,      &
                                        GetGridCoordType,  GetLatitudeLongitude,                 &
-                                       WriteHorizontalGrid, UnGetHorizontalGrid, GetXYCellZ
+                                       UnGetHorizontalGrid, GetXYCellZ, GetDomainDecompositionMPI_ID, &
+                                       GetDomainDecompositionON, WriteHorizontalGrid
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,  &
                                        GetIfMatrixRemainsConstant, KillFillMatrix 
     use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry, GetGeometryDistances, GetGeometrySize
@@ -431,7 +432,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadFileName('WAVES_DAT', Me%FileName, STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_) stop 'ReadWavesFilesName - ModuleWaves - ERR01'
                                 
-        call ReadFileName('WAVES_HDF', Me%OutputFile, STAT = STAT_CALL)               
+  
+        call ReadFileName('WAVES_HDF', Me%OutputFile,                                   &
+                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT      = STAT_CALL)                           
         if (STAT_CALL/=SUCCESS_) stop 'ReadWavesFilesName - ModuleWaves - ERR10'
                                              
     end subroutine ReadWavesFilesName
@@ -1725,7 +1730,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !Opposite angles
         do i = 1, Me%TotalDirections
-            AngleList(i) = Me%AngleList(i) + 180.
+             AngleList(i) = Me%AngleList(i) + 180.
         enddo
         
         do j=JLB, JUB

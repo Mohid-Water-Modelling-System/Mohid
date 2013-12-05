@@ -71,7 +71,8 @@ Module ModuleConsolidation
     use ModuleGridData,         only: GetGridData, UngetGridData            
     use ModuleHorizontalMap
     use ModuleHorizontalGrid,   only: GetHorizontalGrid, GetGridCellArea, UnGetHorizontalGrid,  &
-                                      WriteHorizontalGrid, GetXYCellZ     
+                                      WriteHorizontalGrid, GetXYCellZ, GetDomainDecompositionMPI_ID,&
+                                      GetDomainDecompositionON
     use ModuleGeometry,         only: GetGeometrySize, UnGetGeometry, ComputeInitialGeometry,   &
                                       GetGeometryVolumes, ReadGeometry, ComputeVerticalGeometry,& 
                                       WriteGeometry, GetGeometryAreas, GetGeometryDistances,    &
@@ -491,6 +492,8 @@ Module ModuleConsolidation
                            Me%Files%OutPutFields,                                        &
                            Message   = Message,                                          &
                            Time_End  = Me%EndTime,                                       &
+                           MPI_ID = GetDomainDecompositionMPI_ID (Me%ObjHorizontalGrid), &
+                           DD_ON  = GetDomainDecompositionON     (Me%ObjHorizontalGrid), &
                            STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_)stop 'ReadConsolidationFilesName - ModuleConsolidation - ERR02'
 
@@ -500,6 +503,8 @@ Module ModuleConsolidation
                            Me%Files%Final,                                               &
                            Message = Message,                                            &
                            Time_End  = Me%EndTime,                                       &
+                           MPI_ID = GetDomainDecompositionMPI_ID (Me%ObjHorizontalGrid), &
+                           DD_ON  = GetDomainDecompositionON     (Me%ObjHorizontalGrid), &
                            STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_)stop 'ReadConsolidationFilesName - ModuleConsolidation - ERR03'
 
@@ -511,7 +516,9 @@ Module ModuleConsolidation
                            Me%Files%Initial,                                             &
                            Message   = Message,                                          &
                            Time_End  = Me%EndTime,                                       &
-                           STAT = STAT_CALL)
+                           MPI_ID = GetDomainDecompositionMPI_ID (Me%ObjHorizontalGrid), &
+                           DD_ON  = GetDomainDecompositionON     (Me%ObjHorizontalGrid), &
+                           STAT   = STAT_CALL)
                                                                                                
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then 
 

@@ -34,6 +34,7 @@ Module ModuleTurbGOTM
     use ModuleTime
     use ModuleEnterData,        only : ReadFileName
     use ModuleFunctions,        only : TimeToString, ChangeSuffix, CHUNK_J, CHUNK_I, CHUNK_K
+    use ModuleHorizontalGrid,   only : GetDomainDecompositionMPI_ID, GetDomainDecompositionON
     use ModuleHorizontalMap,    only : GetBoundaries, GetWaterPoints2D, UnGetHorizontalMap
     use ModuleGeometry
     use ModuleMap
@@ -88,32 +89,36 @@ Module ModuleTurbGOTM
     !Types---------------------------------------------------------------------
 
     type     T_ID
-        integer                       :: IDnumber = null_int !inicialization: Carina
-        character(LEN = StringLength) :: name     = null_str !inicialization: Carina
+        integer                       :: IDnumber = null_int 
+        character(LEN = StringLength) :: name     = null_str 
     end type T_ID
 
     type       T_Files
-         character(len=PathLength)    :: ConstructData     = null_str !inicialization: Carina
-         character(len=PathLength)    :: FinalTurbulence   = null_str !inicialization: Carina
-         character(len=PathLength)    :: InitialTurbulence = null_str !inicialization: Carina
+         character(len=PathLength)    :: ConstructData     = null_str 
+         character(len=PathLength)    :: FinalTurbulence   = null_str 
+         character(len=PathLength)    :: InitialTurbulence = null_str 
     end type T_Files
 
     type       T_External
-        real,    pointer, dimension(:,:,:) :: DWZ,dzz           => null() !inicialization: Carina
-        real,    pointer, dimension(:,:,:) :: NN                => null() !inicialization: Carina     !SQUARED FREQ. BRUNT-VAISALLA N=SQRT(G/ROo*dB/dZ)
-        real,    pointer, dimension(:,:,:) :: SS                => null() !inicialization: Carina     !SQUARED FREQ. PRANDTL        M=dU/dZ
-        integer, pointer, dimension(:,:,:) :: WaterPoints3D     => null() !inicialization: Carina
-        integer, pointer, dimension(:,:  ) :: WaterPoints2D     => null() !inicialization: Carina
-        integer, pointer, dimension(:,:,:) :: ComputeFacesU3D   => null() !inicialization: Carina
-        integer, pointer, dimension(:,:,:) :: ComputeFacesV3D   => null() !inicialization: Carina
-        integer, pointer, dimension(:,:,:) :: LandPoints        => null() !inicialization: Carina
-        integer, pointer, dimension(:,:,:) :: OpenPoints3D      => null() !inicialization: Carina    
-        real,    pointer, dimension(:,:  ) :: HT                => null() !inicialization: Carina
-        real,    pointer, dimension(:,:  ) :: u_taub            => null() !inicialization: Carina !shear bottom velocity
-        real,    pointer, dimension(:,:  ) :: u_taus            => null() !inicialization: Carina !shear surface velocity
-        integer, pointer, dimension(:,:  ) :: KFloorZ           => null() !inicialization: Carina
-        real,    pointer, dimension(:,:  ) :: SurfaceRugosity   => null() !inicialization: Carina
-        real,    pointer, dimension(:,:  ) :: BottomRugosity    => null() !inicialization: Carina
+        real,    pointer, dimension(:,:,:) :: DWZ,dzz           => null() 
+        !SQUARED FREQ. BRUNT-VAISALLA N=SQRT(G/ROo*dB/dZ)
+        real,    pointer, dimension(:,:,:) :: NN                => null() 
+        !SQUARED FREQ. PRANDTL        M=dU/dZ
+        real,    pointer, dimension(:,:,:) :: SS                => null()     
+        integer, pointer, dimension(:,:,:) :: WaterPoints3D     => null() 
+        integer, pointer, dimension(:,:  ) :: WaterPoints2D     => null() 
+        integer, pointer, dimension(:,:,:) :: ComputeFacesU3D   => null() 
+        integer, pointer, dimension(:,:,:) :: ComputeFacesV3D   => null() 
+        integer, pointer, dimension(:,:,:) :: LandPoints        => null() 
+        integer, pointer, dimension(:,:,:) :: OpenPoints3D      => null()    
+        real,    pointer, dimension(:,:  ) :: HT                => null() 
+        !shear bottom velocity
+        real,    pointer, dimension(:,:  ) :: u_taub            => null() 
+        !shear surface velocity
+        real,    pointer, dimension(:,:  ) :: u_taus            => null() 
+        integer, pointer, dimension(:,:  ) :: KFloorZ           => null() 
+        real,    pointer, dimension(:,:  ) :: SurfaceRugosity   => null() 
+        real,    pointer, dimension(:,:  ) :: BottomRugosity    => null() 
         type(T_Time)                       :: Now, BeginTime, EndTime
     end type T_External
 
@@ -257,23 +262,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR03'
 
             !Opens the data file with GOTM turbulence information
-            call ReadFileName('TURB_GOTM', Me%Files%ConstructData,              &
+            call ReadFileName('TURB_GOTM', Me%Files%ConstructData,                      &
                                Message = "GOTM Data File", STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR04'
 
             if (Continuous_Compute) then
 
                 !Data From previous run
-                call ReadFileName('TURB_INI', Me%Files%InitialTurbulence,         &
-                                  Message = "GOTM Initial Conditions",            &
-                                  STAT = STAT_CALL)
+                call ReadFileName('TURB_INI', Me%Files%InitialTurbulence,               &
+                                  Message = "GOTM Initial Conditions",                  &
+                                  MPI_ID  = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                                  DD_ON   = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                                  STAT    = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR05'
 
             end if
 
-            call ReadFileName('TURB_FIN', Me%Files%FinalTurbulence,             &
-                              Message = "GOTM Final Conditions",                &
-                              STAT = STAT_CALL)
+            call ReadFileName('TURB_FIN', Me%Files%FinalTurbulence,                     &
+                              Message = "GOTM Final Conditions",                        &
+                              MPI_ID  = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                              DD_ON   = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                              STAT    = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR06'
 
             !Initializes the value of the parameters in the turbulence module GOTM

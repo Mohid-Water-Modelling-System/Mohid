@@ -41,8 +41,9 @@ Module ModuleGridData
 #ifndef _NO_HDF5                                      
                                       WriteHorizontalGrid,                              &
 #endif
-                                      GetCheckDistortion,          &
-                                      GetGridLatitudeLongitude, GetZCoordinates
+                                      GetCheckDistortion,                               &
+                                      GetGridLatitudeLongitude, GetZCoordinates,        &
+                                      GetDomainDecompositionParameters
                                       
 #ifndef _NO_HDF5
     use ModuleHDF5,             only: ConstructHDF5, HDF5ReadData, GetHDF5FileAccess,   &
@@ -140,6 +141,14 @@ Module ModuleGridData
         character(Len = StringLength)       :: PropName       = null_str
 
     end type T_Evolution
+    
+    private :: T_DomainDecomposition
+    type       T_DomainDecomposition        
+        logical                                 :: MasterOrSlave = .false. 
+        type (T_Size2D)                         :: HaloMap
+    end type T_DomainDecomposition
+    
+    
 
     type      T_GridData
         integer                         :: InstanceID          = null_int
@@ -156,11 +165,13 @@ Module ModuleGridData
         logical                         :: Is3D                = .false.
         logical                         :: ReadFile            = .false.
         type (T_Size2D)                 :: WorkSize, Size
+        type (T_Size2D)                 :: GlobalWorkSize
         integer                         :: KLB                 = null_int
         integer                         :: KUB                 = null_int
         real                            :: FillValue           = null_real
         integer                         :: TypeZUV             = null_int
         type (T_Evolution)              :: Evolution
+        type (T_DomainDecomposition)    :: DomainDecomposition
         integer                         :: ObjHorizontalGrid   = 0
         type (T_GridData), pointer      :: Next
     end type T_GridData
@@ -276,11 +287,18 @@ Module ModuleGridData
             endif
 
             !Gets Size
-            call GetHorizontalGridSize (Me%ObjHorizontalGrid,                     &
-                                        Size     = Me%Size,                       &
-                                        WorkSize = Me%WorkSize,                   &
-                                        STAT     = STAT_CALL)
+            call GetHorizontalGridSize (Me%ObjHorizontalGrid,                           &
+                                        Size            = Me%Size,                      &
+                                        WorkSize        = Me%WorkSize,                  &
+                                        GlobalWorkSize  = Me%GlobalWorkSize,            &
+                                        STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleGridData - ERR03' 
+            
+            call GetDomainDecompositionParameters(HorizontalGridID = Me%ObjHorizontalGrid,                 &
+                                                  MasterOrSlave    = Me%DomainDecomposition%MasterOrSlave, &
+                                                  HaloMap          = Me%DomainDecomposition%HaloMap,       &
+                                                  STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleGridData - ERR04' 
 
 
             !Reads the GridData part
@@ -353,7 +371,7 @@ Module ModuleGridData
 
         else 
             
-            stop 'ModuleGridData - ConstructGridData - ERR04' 
+            stop 'ModuleGridData - ConstructGridData - ERR05' 
 
         end if 
 
@@ -557,8 +575,9 @@ Module ModuleGridData
         integer                                     :: STAT_CALL
         integer                                     :: flag
         integer                                     :: line
-        integer                                     :: i, j, k, l
+        integer                                     :: i, j, k, l, ii, jj
         real, dimension(:), allocatable             :: Aux
+        real                                        :: AuxValue
         logical                                     :: Start3DFrom2D 
 
         !----------------------------------------------------------------------
@@ -637,7 +656,30 @@ Coln1:          if      (flag == 3) then
                         i = int(Aux(1))
                         j = int(Aux(2))
 
-                        Me%GridData2D(i, j) = Aux(3)
+                        if (Me%DomainDecomposition%MasterOrSlave) then
+                            if (i>= Me%DomainDecomposition%HaloMap%ILB .and.            &
+                                i<= Me%DomainDecomposition%HaloMap%IUB+1) then
+                                ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                            else
+                                cycle
+                            endif                                
+                        else
+                            ii = i
+                        endif    
+                                
+                        if (Me%DomainDecomposition%MasterOrSlave) then
+                            if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
+                                j<= Me%DomainDecomposition%HaloMap%JUB+1) then
+                                jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                            else
+                                cycle
+                            endif                                
+                        else
+                            jj = j
+                        endif    
+                        
+
+                        Me%GridData2D(ii, jj) = Aux(3)
 
                     enddo
 
@@ -645,8 +687,8 @@ Coln1:          if      (flag == 3) then
 
                     line = FirstLine
 
-                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB
+                    do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB
                         line = line+1
                 
                         !Reached last line before end?
@@ -657,10 +699,35 @@ Coln1:          if      (flag == 3) then
                             stop       'ReadFromBlocks - ModuleGridData - ERR170'
                         end if
 
-                        call GetData(Me%GridData2D(I,J), ObjEnterData,  flag,         & 
-                                     Buffer_Line  = Line,                             &
+                        call GetData(AuxValue, ObjEnterData,  flag,                     &
+                                     Buffer_Line  = Line,                               &
                                      STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR180'
+                        
+
+                        if (Me%DomainDecomposition%MasterOrSlave) then
+                            if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
+                                i<= Me%DomainDecomposition%HaloMap%IUB+1) then
+                                ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                            else
+                                cycle
+                            endif                                
+                        else
+                            ii = i
+                        endif    
+                                
+                        if (Me%DomainDecomposition%MasterOrSlave) then
+                            if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
+                                j<= Me%DomainDecomposition%HaloMap%JUB+1) then
+                                jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                            else
+                                cycle
+                            endif                                
+                        else
+                            jj = j
+                        endif                            
+
+                        Me%GridData2D(ii,jj) = AuxValue
 
                     enddo
                     enddo
@@ -676,8 +743,8 @@ Coln1:          if      (flag == 3) then
                     line = FirstLine
 
                     allocate(Aux(1))
-                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB
+                    do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB
                         line = line+1
                 
                         !Reached last line before end?
@@ -692,8 +759,31 @@ Coln1:          if      (flag == 3) then
                                      Buffer_Line  = Line,              &
                                      STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR200'
+                        
+                        if (Me%DomainDecomposition%MasterOrSlave) then
+                            if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
+                                i<= Me%DomainDecomposition%HaloMap%IUB+1) then
+                                ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                            else
+                                cycle
+                            endif                                
+                        else
+                            ii = i
+                        endif    
+                                
+                        if (Me%DomainDecomposition%MasterOrSlave) then
+                            if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
+                                j<= Me%DomainDecomposition%HaloMap%JUB+1) then
+                                jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                            else
+                                cycle
+                            endif                                
+                        else
+                            jj = j
+                        endif                            
 
-                        Me%GridData3D(i, j,:) = Aux(1)
+                        Me%GridData3D(ii, jj,:) = Aux(1)
+                        
                     enddo
                     enddo
 
@@ -721,8 +811,30 @@ Coln:               if (flag == 4)  then
                             i = int(Aux(1))
                             j = int(Aux(2))
                             k = int(Aux(3))
+                            
+                            if (Me%DomainDecomposition%MasterOrSlave) then
+                                if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
+                                    i<= Me%DomainDecomposition%HaloMap%IUB+1) then
+                                    ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                ii = i
+                            endif    
+                                    
+                            if (Me%DomainDecomposition%MasterOrSlave) then
+                                if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
+                                    j<= Me%DomainDecomposition%HaloMap%JUB+1) then
+                                    jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                jj = j
+                            endif                            
 
-                            Me%GridData3D(i, j, k) = Aux(4)
+                            Me%GridData3D(ii, jj, k) = Aux(4)
                        
                         enddo
 
@@ -744,11 +856,33 @@ Coln:               if (flag == 4)  then
 
                             i = int(Aux(1))
                             j = int(Aux(2))
+                            
+                            if (Me%DomainDecomposition%MasterOrSlave) then
+                                if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
+                                    i<= Me%DomainDecomposition%HaloMap%IUB+1) then
+                                    ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                ii = i
+                            endif    
+                                    
+                            if (Me%DomainDecomposition%MasterOrSlave) then
+                                if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
+                                    j<= Me%DomainDecomposition%HaloMap%JUB+1) then
+                                    jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                jj = j
+                            endif                            
 
                             !Next line crashes in debug.... replaced by do loop - Frank
                             !Me%GridData3D(i, j, Me%KLB : Me%KUB) = Aux(3)
                             do k = Me%KLB, Me%KUB
-                                Me%GridData3D(i, j, k) = Aux(3)
+                                Me%GridData3D(ii, jj, k) = Aux(3)
                             enddo
 
                         enddo
@@ -760,8 +894,8 @@ Coln:               if (flag == 4)  then
 
                         line = FirstLine
 
-                        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB
+                        do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB
                         do k = Me%KLB,       Me%KUB
                             line = line+1
                 
@@ -772,10 +906,34 @@ Coln:               if (flag == 4)  then
                                 stop       'ReadFromBlocks - ModuleGridData - ERR240'
                             end if
 
-                            call GetData(Me%GridData3D(i,j,k), ObjEnterData,  flag,         & 
-                                         Buffer_Line  = Line,                               &
+                            call GetData(AuxValue, ObjEnterData,  flag,                 & 
+                                         Buffer_Line  = Line,                           &
                                          STAT         = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR250'
+                            
+                            if (Me%DomainDecomposition%MasterOrSlave) then
+                                if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
+                                    i<= Me%DomainDecomposition%HaloMap%IUB+1) then
+                                    ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                ii = i
+                            endif    
+                                    
+                            if (Me%DomainDecomposition%MasterOrSlave) then
+                                if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
+                                    j<= Me%DomainDecomposition%HaloMap%JUB+1) then
+                                    jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                jj = j
+                            endif                            
+
+                            Me%GridData3D(ii,jj,k) = AuxValue                            
 
                         enddo
                         enddo

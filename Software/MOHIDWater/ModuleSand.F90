@@ -48,7 +48,8 @@ Module ModuleSand
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetBoundaries, GetOpenPoints2D,        &
                                        GetComputeFaces2D, UnGetHorizontalMap
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, WriteHorizontalGrid,                  &
-                                       GetHorizontalGridSize, UnGetHorizontalGrid, GetXYCellZ
+                                       GetHorizontalGridSize, UnGetHorizontalGrid, GetXYCellZ,  &
+                                       GetDomainDecompositionMPI_ID, GetDomainDecompositionON
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, BoxDif,         &
                                        UngetBoxDif, KillBoxDif
 #ifndef _WAVES_
@@ -970,7 +971,11 @@ i1:     if (Me%Boxes%Yes) then
 
         call ReadFileName('SAND_OUT', Me%Files%OutPutFields,                             &
                            Message = Message, TIME_END = Me%EndTime,                     &
-                           Extension = 'sandlt', STAT = STAT_CALL)
+                           Extension = 'sandlt',                                         &
+                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT      = STAT_CALL)
+
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'Read_Sand_Files_Name - ModuleSand - ERR02' 
 
@@ -979,7 +984,10 @@ i1:     if (Me%Boxes%Yes) then
         Message   = trim(Message)
         call ReadFileName('SAND_END', Me%Files%FinalSand,                                &
                            Message = Message, TIME_END = Me%EndTime,                     &
-                           Extension = 'sandlf', STAT = STAT_CALL)
+                           Extension = 'sandlf',                                         &
+                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT      = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'Read_Sand_Files_Name - ModuleSand - ERR03' 
 
@@ -989,8 +997,12 @@ i1:     if (Me%Boxes%Yes) then
         Message   = trim(Message)
 
         call ReadFileName('SAND_INI', Me%Files%InitialSand,                              &
-                           Message = Message, TIME_END = Me%ExternalVar%Now,             &
-                           Extension = 'sanlf',STAT = STAT_CALL)
+                           Message   = Message, TIME_END = Me%ExternalVar%Now,           &
+                           Extension = 'sanlf',                                          &
+                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           STAT      = STAT_CALL)
+
 
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             write(*,*)  
