@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioUserFile ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{141470D5-4F1E-4328-828C-8767F85E9629}">
 	<Configurations>
-		<Configuration Name="Debug|Win32" WorkingDirectory="X:\Proj_378_Envitejo\simulacoes\AquaSafeWDS\test5\MultiSolution\exe"/>
-		<Configuration Name="Release|Win32" WorkingDirectory="X:\Proj_393_Arcopol+\simula\mohid\TO_PAULO\TO_PAULO\Oil&amp;Inerts\TidalFlats\exe"/>
+		<Configuration Name="Debug|Win32" WorkingDirectory="X:\Proj_402_EnergyMare_Meteogalicia\Simula\Testes_MeteoGalicia\test2\RiasBaixasA_noMPI\exe"/>
+		<Configuration Name="Release|Win32" WorkingDirectory="X:\Proj_402_EnergyMare_Meteogalicia\Simula\IberaiMPITest\Brasil\73643\With_MPI\Level1\exe"/>
 		<Configuration Name="Debug Double|Win32"/>
 		<Configuration Name="Release Double|Win32"/>
 		<Configuration Name="Release Double OpenMP|Win32"/>

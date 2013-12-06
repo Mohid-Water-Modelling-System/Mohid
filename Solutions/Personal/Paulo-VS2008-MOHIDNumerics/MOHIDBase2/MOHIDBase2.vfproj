@@ -5,7 +5,7 @@
 		<Platform Name="x64"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\MPI\IntelFortran11\Include" PreprocessorDefinitions="_GOOGLEMAPS; _LAGRANGIAN_GLOBAL_;_INCREASE_MAXINSTANCES" Interfaces="true" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\MPI\IntelFortran11\Include" PreprocessorDefinitions="_GOOGLEMAPS; _LAGRANGIAN_GLOBAL_;_INCREASE_MAXINSTANCES;" Interfaces="true" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" UninitializedVariablesCheck="true" DescriptorDataTypeCheck="true" DescriptorDataSizeCheck="true" ArgTempCreatedCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -15,7 +15,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" HeapArrays="64" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\MPI\IntelFortran11\Include" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_;_GOOGLEMAPS" OpenMPConditionalCompilation="false" StandardWarnings="standardWarningsF03" Diagnostics="diagnosticsShowAll" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" RuntimeChecks="rtChecksAll"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" HeapArrays="64" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\MPI\IntelFortran11\Include" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_;_GOOGLEMAPS;_USE_MPI" OpenMPConditionalCompilation="false" StandardWarnings="standardWarningsF03" Diagnostics="diagnosticsShowAll" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" RuntimeChecks="rtChecksNone"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -45,7 +45,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release Double OpenMP|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" InlineFunctionExpansion="expandDisable" OmitFramePointers="false" BufferedIO="true" HeapArrays="64" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release Double OpenMP" PreprocessorDefinitions="_GOOGLEMAPS; _LAGRANGIAN_GLOBAL_" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" InlineFunctionExpansion="expandDisable" OmitFramePointers="false" BufferedIO="true" HeapArrays="64" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release Double OpenMP;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\MPI\IntelFortran11\Include" PreprocessorDefinitions="_GOOGLEMAPS; _LAGRANGIAN_GLOBAL_" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true" RuntimeChecks="rtChecksAll"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -55,7 +55,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release OpenMP|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release OpenMP" PreprocessorDefinitions="_GOOGLEMAPS; _LAGRANGIAN_GLOBAL_" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" OpenMPDiagLevel="openMPDiagLevel1" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release OpenMP;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\MPI\IntelFortran11\Include" PreprocessorDefinitions="_GOOGLEMAPS; _LAGRANGIAN_GLOBAL_;_USE_MPI" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" OpenMPDiagLevel="openMPDiagLevel1" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -135,7 +135,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|x64" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" HeapArrays="64" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\x64\Release" StandardWarnings="standardWarningsF95" Diagnostics="diagnosticsShowAll" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" HeapArrays="64" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\x64\Release;..\..\..\..\ExternalLibs\MPI_x64\IntelFortran11\Include" PreprocessorDefinitions="_NO_NETCDF" StandardWarnings="standardWarningsF95" Diagnostics="diagnosticsShowAll" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" OutputCarriageControl="outputCCNone" RuntimeChecks="rtChecksNone"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -341,6 +341,7 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleHorizontalMap.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleInterpolation.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleMap.F90"/>
-		<File RelativePath="..\..\..\..\Software\SmallTools\Convert2netcdf\ModuleNETCDF.F90"/>
+		<File RelativePath="..\..\..\..\Software\SmallTools\Convert2netcdf\ModuleNETCDF.F90">
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleStatistic.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

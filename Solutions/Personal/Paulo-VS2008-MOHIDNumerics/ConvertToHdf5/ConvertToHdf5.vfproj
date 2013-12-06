@@ -5,7 +5,7 @@
 		<Platform Name="x64"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug;..\MOHIDBase2\Debug;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include" PreprocessorDefinitions="_GOOGLEMAPS" Interfaces="true" UnformattedFileConversion="fileConversionBigEndian" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug;..\MOHIDBase2\Debug;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include" PreprocessorDefinitions="_GOOGLEMAPS" Interfaces="true" UnformattedFileConversion="fileConversionBigEndian" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" RuntimeLibrary="rtMultiThreadedDebug"/>
 				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_debug_single.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Debug;..\MOHIDBase2\Debug;..\..\..\..\ExternalLibs\NetCDF\Lib;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\Lib;..\..\..\..\ExternalLibs\hdf4\hdf4.2.5-win32\dll" IgnoreDefaultLibraryNames="msvcrtd.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="640000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib netcdfs.lib netcdf.lib netcdf90.lib libfproj4.lib  hd425m.lib hdf_fcstubdll.lib hdf_fortrandll.lib hm425m.lib mfhdf_fcstubdll.lib mfhdf_fortrandll.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -15,7 +15,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release;..\MOHIDBase2\Release;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include" PreprocessorDefinitions="_GOOGLEMAPS" UnformattedFileConversion="fileConversionBigEndian" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" FloatingPointExceptionHandling="fpe0" Traceback="true" RuntimeChecks="rtChecksAll"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release;..\MOHIDBase2\Release;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include" PreprocessorDefinitions="_GOOGLEMAPS" UnformattedFileConversion="fileConversionBigEndian" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" RuntimeChecks="rtChecksAll"/>
 				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_release_single.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Release;..\MOHIDBase2\Release;..\..\..\..\ExternalLibs\NetCDF\Lib;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\Lib;..\..\..\..\ExternalLibs\hdf4\hdf4.2.5-win32\dll" IgnoreDefaultLibraryNames="msvcrt.lib" SubSystem="subSystemConsole" StackReserveSize="640000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib netcdfs.lib netcdf.lib netcdf90.lib  libfproj4.lib hd425m.lib hdf_fcstubdll.lib hdf_fortrandll.lib hm425m.lib mfhdf_fcstubdll.lib mfhdf_fortrandll.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -85,8 +85,8 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|x64">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include" PreprocessorDefinitions="_USE_PROJ4" UnformattedFileConversion="fileConversionBigEndian" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true"/>
-				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release;..\..\..\..\ExternalLibs\NetCDF\Lib;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\Lib" IgnoreDefaultLibraryNames="libc" SubSystem="subSystemConsole" StackReserveSize="64000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib netcdfs.lib netcdf.lib netcdf90.lib  libfproj4.lib"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\x64\Release;..\MOHIDBase2\x64\Release;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\include\fortran" PreprocessorDefinitions="_USE_PROJ4;_NO_NETCDF" UnformattedFileConversion="fileConversionBigEndian" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\x64\Release;..\MOHIDBase2\x64\Release;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\lib" IgnoreDefaultLibraryNames="msvcrt.lib" SubSystem="subSystemConsole" StackReserveSize="640000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -230,13 +230,16 @@
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ConvertToHDF5.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleAladinFormat.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleARPSFormat.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleARPSToWW3.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleCFFormat.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleCFPolcomFormat.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleConvertModisL2.F90">
 			<FileConfiguration Name="Debug Developper Single|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug OpenMI|x64" ExcludedFromBuild="true"/>
@@ -294,7 +297,8 @@
 			<FileConfiguration Name="Release Double CUDA|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleCOWAMAAsciiWind.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleERA40Format.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleEUCenterFormat.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleGFSasciiWind.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleGlueHDF5Files.F90">
@@ -325,7 +329,7 @@
 			<FileConfiguration Name="Debug OpenMP|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Release|x64">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
+				<Tool Name="VFFortranCompilerTool" AdditionalIncludeDirectories="..\..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\include\fortran" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Debug|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Debug Double PhreeqC|x64">
@@ -345,28 +349,38 @@
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleHDF5ToASCIIandBIN.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleHellermanRosensteinAscii.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleHYCOMFormat.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
-		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleIHRadarFormat.F90"/>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
+		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleIHRadarFormat.F90">
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleInterpolateGrids.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleInterpolateTime.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleLevitusFormat.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleMERCATORFormat.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleMM5Format.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleMOG2DFormat.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\SmallTools\Convert2netcdf\ModuleNETCDF.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true">
+				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessNo"/></FileConfiguration></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleNetCDFCF_2_HDF5MOHID.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModulePatchHDF5Files.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleReadSWANNonStationary.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleSWAN.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleTecnoceanAscii.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleWOAFormat.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleWRFFormat.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ncdflib.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/></File></Filter></Files>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File></Filter></Files>
 	<Globals/></VisualStudioProject>

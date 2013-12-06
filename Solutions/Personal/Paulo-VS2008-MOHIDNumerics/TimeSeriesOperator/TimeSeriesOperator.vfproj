@@ -4,8 +4,8 @@
 		<Platform Name="Win32"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug;E:\Aplica\Proj_322_Aquasafe\Work Development\TimeSerieAnalyzis\Numerical_Recipes_90\Numerical_recipes_f90" Interfaces="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
-				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="E:\Aplica\Proj_322_Aquasafe\Work Development\TimeSerieAnalyzis\Numerical_Recipes_90\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="NumericalRecipes.lib"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug;D:\Projects\NumericalRecipes\Numerical_Recipes_90\lib" Interfaces="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="D:\Projects\NumericalRecipes\Numerical_Recipes_90\lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="NumericalRecipes.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -28,8 +28,8 @@
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<File RelativePath="..\..\..\..\Software\SmallTools\TimeSeriesOperator\ModuleTimeSeriesOperator.f90"/>
-		<File RelativePath="..\..\..\..\..\..\Aplica\Proj_322_Aquasafe\Work Development\TimeSerieAnalyzis\Numerical_Recipes_90\Numerical_recipes_f90\nr.f90"/>
-		<File RelativePath="..\..\..\..\..\..\Aplica\Proj_322_Aquasafe\Work Development\TimeSerieAnalyzis\Numerical_Recipes_90\Numerical_recipes_f90\nrtype.f90"/>
-		<File RelativePath="..\..\..\..\..\..\Aplica\Proj_322_Aquasafe\Work Development\TimeSerieAnalyzis\Numerical_Recipes_90\Numerical_recipes_f90\nrutil.f90"/>
+		<File RelativePath="..\..\..\..\..\NumericalRecipes\Numerical_Recipes_90\Numerical_recipes_f90\nr.f90"/>
+		<File RelativePath="..\..\..\..\..\NumericalRecipes\Numerical_Recipes_90\Numerical_recipes_f90\nrtype.f90"/>
+		<File RelativePath="..\..\..\..\..\NumericalRecipes\Numerical_Recipes_90\Numerical_recipes_f90\nrutil.f90"/>
 		<File RelativePath="..\..\..\..\Software\SmallTools\TimeSeriesOperator\TimeSeriesOperator.f90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

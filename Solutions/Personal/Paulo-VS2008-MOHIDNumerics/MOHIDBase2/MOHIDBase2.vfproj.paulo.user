@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioUserFile ProjectType="typeStaticLibrary" ProjectCreator="Intel Fortran" Keyword="Static Library" Version="11.0" ProjectIdGuid="{98ABA093-7927-4BCD-B011-BF409B5BBB78}">
 	<Configurations>
-		<Configuration Name="Debug|Win32" WorkingDirectory="X:\Proj_351_EASYCO\softwaredevelopment\New folder\DynamicModel0\MultiSolution\exe"/>
-		<Configuration Name="Release|Win32" WorkingDirectory="\\poseidon\Aplica\Proj_Efacec\Simula\Flow3D\DecantadorCompleto\exe"/>
+		<Configuration Name="Debug|Win32" Command="C:\Program Files (x86)\MPICH2\bin\mpiexec.exe" CommandArguments="-np 5 -localonly X:\Proj_402_EnergyMare_Meteogalicia\Simula\Testes_MeteoGalicia\test1\RiasBaixas5_cores\exe\MOHIDWater_debug_single.exe" WorkingDirectory="D:\Aplica\33"/>
+		<Configuration Name="Release|Win32" WorkingDirectory="d:\Aplica\33"/>
 		<Configuration Name="Debug Double|Win32"/>
 		<Configuration Name="Release Double|Win32"/>
 		<Configuration Name="Release Double OpenMP|Win32"/>
