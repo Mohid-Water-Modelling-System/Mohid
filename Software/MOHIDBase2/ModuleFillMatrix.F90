@@ -3586,6 +3586,12 @@ i0:     if(Me%Dim == Dim2D)then
             write(*,*)'Could not find file '//trim(Me%HDF%FileName)
             stop 'ConstructHDFInput - ModuleFillMatrix - ERR110'
         endif
+        
+
+        call GetDomainDecompositionParameters(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                              MasterOrSlave    = MasterOrSlave,        &
+                                              STAT             = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR130'        
 
 
         call GetData(Me%HDF%Field4D,                                                &
@@ -3597,14 +3603,12 @@ i0:     if(Me%Dim == Dim2D)then
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR120'
         
+        if (MasterOrSlave) then
+            Me%HDF%Field4D = .true. 
+        endif
         
 if4D:   if (Me%HDF%Field4D) then
 
-            call GetDomainDecompositionParameters(HorizontalGridID = Me%ObjHorizontalGrid, &
-                                                  MasterOrSlave    = MasterOrSlave,        &
-                                                  STAT             = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR130'
-            
             if (MasterOrSlave) then
             
                 call GetDomainDecompositionWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &

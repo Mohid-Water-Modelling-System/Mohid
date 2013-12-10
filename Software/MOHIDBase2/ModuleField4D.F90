@@ -586,7 +586,6 @@ wwd:        if (Me%WindowWithData) then
                                  HDF5_CREATE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR20'
         
- 
         !Write the Horizontal Grid
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjHDF5Out,                   &
                                  WorkSize = WorkSize2D, STAT = STAT_CALL)
@@ -1555,15 +1554,14 @@ wwd1:       if (Me%WindowWithData) then
     subroutine ConstructFile(ExtractType)
 
         !Arguments-------------------------------------------------------------
-        integer,                intent(IN )             :: ExtractType        
+        integer,                intent(IN )                     :: ExtractType        
         
         !Local-----------------------------------------------------------------
-        type (T_Time)                                   :: AuxTime
-        real,    dimension(6)                           :: InitialDate
-        real(8), dimension(:), pointer                  :: Instants
-        integer                                         :: STAT_CALL, i, NCDF_READ, HDF5_READ, iflag
-        logical                                         :: exist, exist3D, exist2D
-
+        type (T_Time)                                           :: AuxTime
+        real,    dimension(6)                                   :: InitialDate
+        real(8), dimension(:), pointer                          :: Instants
+        integer                                                 :: STAT_CALL, i, NCDF_READ, HDF5_READ, iflag
+        logical                                                 :: exist, exist3D, exist2D, exist2D_2
 
         !Begin-----------------------------------------------------------------
 
@@ -1590,13 +1588,13 @@ wwd1:       if (Me%WindowWithData) then
         if (Me%File%Form == HDF5_) then
         
             call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
-
+            
             call ConstructHDF5 (Me%File%Obj, trim(Me%File%FileName), HDF5_READ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR30'
-
+            
             call GetHDF5GroupNumberOfItems(Me%File%Obj, "/Time", &
                                            Me%File%NumberOfInstants, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR40'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR50'
             
             allocate(Me%File%InstantsDates(Me%File%NumberOfInstants))
             
@@ -1615,11 +1613,13 @@ wwd1:       if (Me%WindowWithData) then
             
             if (Me%MaskDim == DimUnknown) then
                 call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints3D', exist3D, STAT= STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR45'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR60'
 
                 call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints2D', exist2D, STAT= STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR45'
-
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR70'
+                
+                call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints', exist2D_2, STAT= STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR80'
                 
                 if (exist3d) then
                     Me%MaskDim = Dim3D
@@ -1628,6 +1628,10 @@ wwd1:       if (Me%WindowWithData) then
                     Me%MaskDim = Dim2D
                 endif
                 
+                if (exist2D_2) then
+                    Me%MaskDim = Dim2D
+                endif
+                                
                 if (exist2D .and. exist3D) then
                     Me%MaskDim = Dim2D
                 endif
@@ -1638,7 +1642,13 @@ wwd1:       if (Me%WindowWithData) then
             if (Me%MaskDim == Dim3D) then
                 Me%File%DefaultNames%mask   = 'WaterPoints3D'
             else
-                Me%File%DefaultNames%mask   = 'WaterPoints2D'
+                if (exist2D) then
+                    Me%File%DefaultNames%mask   = 'WaterPoints2D'
+                endif
+                if (exist2D_2) then
+                    Me%File%DefaultNames%mask   = 'WaterPoints'
+                    write(*,*) Me%File%DefaultNames%mask                    
+                endif                                    
             endif
             Me%File%DefaultNames%depth_stag = 'VerticalZ'
             
@@ -1656,7 +1666,7 @@ wwd1:       if (Me%WindowWithData) then
         
             call ConstructNETCDF(NCDFID = Me%File%Obj, FileName = trim(Me%File%FileName),&
                                  Access = NCDF_READ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR50'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR90'
             
             if (Me%MaskDim == DimUnknown) then
                
@@ -1671,7 +1681,7 @@ wwd1:       if (Me%WindowWithData) then
             call NETCDFReadTime(NCDFID = Me%File%Obj, InitialDate = InitialDate,        &
                                 nInstants = Me%File%NumberOfInstants,                   &
                                 Instants = Instants, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR60'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR100'
             
             call SetDate(Time1 = AuxTime, Year = InitialDate(1), Month = InitialDate(2), &
                                            Day = InitialDate(3), Hour  = InitialDate(4), &
@@ -1690,7 +1700,7 @@ wwd1:       if (Me%WindowWithData) then
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%StartTime,                 &
                                                 EndTime = Me%EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR80'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR110'
         
         call GetData(Me%File%LonStagName,                                               &
                      Me%ObjEnterData,  iflag,                                           &
@@ -1699,7 +1709,7 @@ wwd1:       if (Me%WindowWithData) then
                      default        = Me%File%DefaultNames%lon_stag,                    &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR90'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR120'
         
         call GetData(Me%File%LatStagName,                                               &
                      Me%ObjEnterData,  iflag,                                           &
@@ -1708,7 +1718,7 @@ wwd1:       if (Me%WindowWithData) then
                      default        = Me%File%DefaultNames%lat_stag,                    &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR100'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR130'
 
         call GetData(Me%File%DepthStagName,                                             &
                      Me%ObjEnterData,  iflag,                                           &
@@ -1717,7 +1727,7 @@ wwd1:       if (Me%WindowWithData) then
                      default        = Me%File%DefaultNames%depth_stag,                  &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR110'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR140'
 
         call GetData(Me%File%BathymName,                                                &
                      Me%ObjEnterData,  iflag,                                           &
@@ -1726,7 +1736,7 @@ wwd1:       if (Me%WindowWithData) then
                      default        = Me%File%DefaultNames%bat,                         &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR120'         
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR150'         
         
 
         call GetData(Me%File%MaskName,                                                  &
@@ -1736,7 +1746,7 @@ wwd1:       if (Me%WindowWithData) then
                      default        = Me%File%DefaultNames%mask,                        &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR130'        
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR160'        
  
                
     end subroutine ConstructFile
