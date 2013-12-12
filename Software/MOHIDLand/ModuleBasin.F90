@@ -182,7 +182,7 @@ Module ModuleBasin
     private ::      HDF5Output
     private ::      EVTPHDFOutput
     private ::      TimeSerieOutput
-    private ::      GlobalMassBalance
+    private ::      GlobalMassError
     private ::      ComputeNextDT
 
     !Destructor
@@ -506,11 +506,9 @@ Module ModuleBasin
         type (T_WaterMassBalance)                   :: MB
         type (T_IntegratedFlow)                     :: DailyFlow            
         type (T_IntegratedFlow)                     :: MonthlyFlow            
-        real, dimension(:), pointer                 :: TimeSeriesBuffer  => null() !Water Balance
+        real, dimension(:), pointer                 :: TimeSeriesBuffer  => null() !Water Error
         real, dimension(:), pointer                 :: TimeSeriesBuffer2 => null()
-        real, dimension(:), pointer                 :: TimeSeriesBuffer3 => null() !Properties Balance
-        real, dimension(:), pointer                 :: TimeSeriesBuffer4 => null() !Water Fluxes
-        real, dimension(:), pointer                 :: TimeSeriesBuffer5 => null() !Properties Fluxes
+        real, dimension(:), pointer                 :: TimeSeriesBuffer3 => null() !Properties Error
         real, dimension(:), pointer                 :: BWBBuffer         => null() !buffer to be used for Basin Water Balance
         
         !Basin Water Balance
@@ -558,9 +556,7 @@ Module ModuleBasin
         !integer                                     :: ObjEVTPRefHDF            = 0
         integer                                     :: ObjTimeSerie             = 0
         integer                                     :: ObjTimeSerieBasin        = 0
-        integer                                     :: ObjTimeSerieBasin2       = 0
         integer                                     :: ObjTimeSerieBasinMass    = 0
-        integer                                     :: ObjTimeSerieBasinMass2   = 0
         integer                                     :: ObjPorousMediaProperties = 0
         integer                                     :: ObjBWB                   = 0 !Basin Water Balance Timeseries ID
         integer                                     :: ObjDischargesRunoff      = 0 !Discharges in Runoff
@@ -2017,204 +2013,133 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         deallocate(PropertyList)
 
-
-        !Time Serie of water balance integrated for the basin
-        allocate(PropertyList(26))
-        PropertyList(1)     = "Initial_Volume_Runoff_m3"
-        PropertyList(2)     = "Initial_Volume_Vegetation_m3"
-        PropertyList(3)     = "Initial_Volume_PorousMedia_m3"
-        PropertyList(4)     = "Initial_Volume_Channels_m3"
-        PropertyList(5)     = "Evap_From_Vegetation_m3"
-        PropertyList(6)     = "Evap_From_Ground_m3"
-        PropertyList(7)     = "Evap_From_Soil_m3"
-        PropertyList(8)     = "Rain_Above_Leafs_m3"
-        PropertyList(9)     = "Rain_Uncovered_m3"
-        PropertyList(10)     = "Rain_Covered_m3"
-        PropertyList(11)     = "Leaf_Drainage_m3"
-        PropertyList(12)     = "Rain_Below_Leafs_m3"
-        PropertyList(13)     = "Out_Volume_Channel_m3"
-        PropertyList(14)    = "Out_Volume_Overland_m3"
-        PropertyList(15)    = "Final_Volume_Runof_m3"
-        PropertyList(16)    = "Final_Volume_Vegetation_m3"
-        PropertyList(17)    = "Final_Volume_PorousMedia_m3"
-        PropertyList(18)    = "Final_Volume_Channels_m3"
-        PropertyList(19)    = "Volume_Error_Ratio_Global"
-        PropertyList(20)    = "Volume_Error_Ratio_Runoff"
-        PropertyList(21)    = "Volume_Error_Ratio_Porous"
-        PropertyList(22)    = "Volume_Error_Ratio_DNet"
-        PropertyList(23)    = "Volume_Error_Ratio_Veg"
-        PropertyList(24)    = "Infiltration_m3"
-        PropertyList(25)    = "OL_Volume_To_Channels_m3"
-        PropertyList(26)    = "GW_Volume_To_Channels_m3"
-
-
-        call StartTimeSerie(Me%ObjTimeSerieBasin, Me%ObjTime,                           &
-                            Me%Files%TimeSerieLocation,                                 &
-                            PropertyList, "srb",                                        &
-                            ResultFileName = 'Basin Water Balance',                     &
-                            STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR02'
-
-        deallocate(PropertyList)
+        if (Me%VerifyGlobalMass) then
+            !Time Serie of water error integrated for the basin
+            allocate(PropertyList(26))
+            PropertyList(1)     = "Initial_Volume_Runoff_m3"
+            PropertyList(2)     = "Initial_Volume_Vegetation_m3"
+            PropertyList(3)     = "Initial_Volume_PorousMedia_m3"
+            PropertyList(4)     = "Initial_Volume_Channels_m3"
+            PropertyList(5)     = "Evap_From_Vegetation_m3"
+            PropertyList(6)     = "Evap_From_Ground_m3"
+            PropertyList(7)     = "Evap_From_Soil_m3"
+            PropertyList(8)     = "Rain_Above_Leafs_m3"
+            PropertyList(9)     = "Rain_Uncovered_m3"
+            PropertyList(10)     = "Rain_Covered_m3"
+            PropertyList(11)     = "Leaf_Drainage_m3"
+            PropertyList(12)     = "Rain_Below_Leafs_m3"
+            PropertyList(13)     = "Out_Volume_Channel_m3"
+            PropertyList(14)    = "Out_Volume_Overland_m3"
+            PropertyList(15)    = "Final_Volume_Runof_m3"
+            PropertyList(16)    = "Final_Volume_Vegetation_m3"
+            PropertyList(17)    = "Final_Volume_PorousMedia_m3"
+            PropertyList(18)    = "Final_Volume_Channels_m3"
+            PropertyList(19)    = "Volume_Error_Ratio_Global"
+            PropertyList(20)    = "Volume_Error_Ratio_Runoff"
+            PropertyList(21)    = "Volume_Error_Ratio_Porous"
+            PropertyList(22)    = "Volume_Error_Ratio_DNet"
+            PropertyList(23)    = "Volume_Error_Ratio_Veg"
+            PropertyList(24)    = "Infiltration_m3"
+            PropertyList(25)    = "OL_Volume_To_Channels_m3"
+            PropertyList(26)    = "GW_Volume_To_Channels_m3"
 
 
-        !Time Serie of water balance integrated for the basin
-        allocate(PropertyList(13))
-        PropertyList(1)     = "Evap_From_Vegetation_m3/s"
-        PropertyList(2)     = "Evap_From_Ground_m3/s"
-        PropertyList(3)     = "Evap_From_Soil_m3/s"
-        PropertyList(4)     = "Rain_Above_Leafs_m3/s"
-        PropertyList(5)     = "Rain_Uncovered_m3/s"
-        PropertyList(6)     = "Rain_Covered_m3/s"
-        PropertyList(7)     = "Leaf_Drainage_m3/s"
-        PropertyList(8)     = "Rain_Below_Leafs_m3/s"
-        PropertyList(9)     = "Out_Volume_Channel_m3/s"
-        PropertyList(10)    = "Out_Volume_Overland_m3/s"
-        PropertyList(11)    = "Infiltration_m3/s"
-        PropertyList(12)    = "OL_Volume_To_Channels_m3/s"
-        PropertyList(13)    = "GW_Volume_To_Channels_m3/s"
-
-
-        call StartTimeSerie(Me%ObjTimeSerieBasin2, Me%ObjTime,                           &
-                            Me%Files%TimeSerieLocation,                                 &
-                            PropertyList, "srb",                                        &
-                            ResultFileName = 'Basin Water Balance Fluxes',              &
-                            STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR020'
-
-        deallocate(PropertyList)
-
-        !Time Serie of properties mass balance integrated for the basin
-        if (Me%Coupled%RunoffProperties) then
-            
-            nProperties = 0
-            PropertyX => Me%FirstProperty
-            do while (associated(PropertyX))
-                if (PropertyX%AdvectionDiffusion .and. PropertyX%Inherited) then
-                    nProperties = nProperties + 1
-                endif
-                PropertyX => PropertyX%Next
-            enddo
-!            if (Me%Coupled%Evapotranspiration) then
-!                nProperties = nProperties - 1
-!            endif
-            
-            !23 outputs per property
-            allocate(PropertyList(nProperties * 23))
-            allocate (Me%TimeSeriesBuffer3(nProperties * 23))
-
-            ColNumber = 1
-            PropertyX => Me%FirstProperty
-            do while (associated(PropertyX))
-                if (PropertyX%AdvectionDiffusion) then
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Initial_Mass_Runoff_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Initial_Mass_Vegetation_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Initial_Mass_PorousMedia_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Initial_Mass_Channels_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Transp_Mass_From_Soil_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Rain_Mass_In_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Rain_Mass_UnCovered_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Rain_Mass_Covered_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" LeafDrainage_Mass_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Drainage+Uncovered_Mass_kg"
-                    ColNumber = ColNumber + 1                    
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Out_Mass_Channel_kg"
-                    ColNumber = ColNumber + 1
-!                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Out_Mass_Overland_kg"
-!                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Final_Mass_Runoff_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Final_Mass_Vegetation_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Final_Mass_PorousMedia_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Final_Mass_Channels_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Mass_Error_Ratio_Global"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Mass_Error_Ratio_Runoff"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Mass_Error_Ratio_Porous"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Mass_Error_Ratio_DNet"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Mass_Error_Ratio_Veg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Infiltration_Mass_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" OL_Mass_To_Channels_kg"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" GW_Mass_To_Channels_kg"
-                    ColNumber = ColNumber + 1
-                endif
-                PropertyX => PropertyX%Next
-            enddo
-
-            call StartTimeSerie(Me%ObjTimeSerieBasinMass, Me%ObjTime,                       &
+            call StartTimeSerie(Me%ObjTimeSerieBasin, Me%ObjTime,                           &
                                 Me%Files%TimeSerieLocation,                                 &
                                 PropertyList, "srb",                                        &
-                                ResultFileName = 'Basin Mass Balance',                      &
+                                ResultFileName = 'Basin Water Error',                       &
                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR020'
-
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR02'
 
             deallocate(PropertyList)
-            
 
-            !10 outputs per property
-            allocate(PropertyList(nProperties * 10))
-            allocate (Me%TimeSeriesBuffer5(nProperties * 10))
+            !Time Serie of properties mass balance integrated for the basin
+            if (Me%Coupled%RunoffProperties) then
+                
+                nProperties = 0
+                PropertyX => Me%FirstProperty
+                do while (associated(PropertyX))
+                    if (PropertyX%AdvectionDiffusion .and. PropertyX%Inherited) then
+                        nProperties = nProperties + 1
+                    endif
+                    PropertyX => PropertyX%Next
+                enddo
+    !            if (Me%Coupled%Evapotranspiration) then
+    !                nProperties = nProperties - 1
+    !            endif
+                
+                !23 outputs per property
+                allocate(PropertyList(nProperties * 23))
+                allocate (Me%TimeSeriesBuffer3(nProperties * 23))
 
-            ColNumber = 1
-            PropertyX => Me%FirstProperty
-            do while (associated(PropertyX))
-                if (PropertyX%AdvectionDiffusion) then
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Transp_Mass_From_Soil_kg/s"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Rain_Mass_In_kg/s"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Rain_Mass_UnCovered_kg/s"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Rain_Mass_Covered_kg/s"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" LeafDrainage_Mass_kg/s"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Drainage+Uncovered_Mass_kg/s"
-                    ColNumber = ColNumber + 1                    
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Out_Mass_Channel_kg/s"
-                    ColNumber = ColNumber + 1
-!                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Out_Mass_Overland_kg"
-!                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Infiltration_Mass_kg/s"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" OL_Mass_To_Channels_kg/s"
-                    ColNumber = ColNumber + 1
-                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" GW_Mass_To_Channels_kg/s"
-                    ColNumber = ColNumber + 1
-                endif
-                PropertyX => PropertyX%Next
-            enddo
+                ColNumber = 1
+                PropertyX => Me%FirstProperty
+                do while (associated(PropertyX))
+                    if (PropertyX%AdvectionDiffusion) then
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Initial_Mass_Runoff_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Initial_Mass_Vegetation_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Initial_Mass_PorousMedia_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Initial_Mass_Channels_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Transp_Mass_From_Soil_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Rain_Mass_In_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Rain_Mass_UnCovered_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Rain_Mass_Covered_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" LeafDrainage_Mass_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Drainage+Uncovered_Mass_kg"
+                        ColNumber = ColNumber + 1                    
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Out_Mass_Channel_kg"
+                        ColNumber = ColNumber + 1
+    !                    PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Out_Mass_Overland_kg"
+    !                    ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Final_Mass_Runoff_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Final_Mass_Vegetation_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Final_Mass_PorousMedia_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Final_Mass_Channels_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Mass_Error_Ratio_Global"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Mass_Error_Ratio_Runoff"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Mass_Error_Ratio_Porous"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Mass_Error_Ratio_DNet"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Mass_Error_Ratio_Veg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" Infiltration_Mass_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" OL_Mass_To_Channels_kg"
+                        ColNumber = ColNumber + 1
+                        PropertyList(ColNumber)     = trim(PropertyX%ID%Name)//" GW_Mass_To_Channels_kg"
+                        ColNumber = ColNumber + 1
+                    endif
+                    PropertyX => PropertyX%Next
+                enddo
 
-            call StartTimeSerie(Me%ObjTimeSerieBasinMass2, Me%ObjTime,                      &
-                                Me%Files%TimeSerieLocation,                                 &
-                                PropertyList, "srb",                                        &
-                                ResultFileName = 'Basin Mass Balance Fluxes',               &
-                                STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR020'
+                call StartTimeSerie(Me%ObjTimeSerieBasinMass, Me%ObjTime,                       &
+                                    Me%Files%TimeSerieLocation,                                 &
+                                    PropertyList, "srb",                                        &
+                                    ResultFileName = 'Basin Mass Error',                        &
+                                    STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR020'
 
 
-            deallocate(PropertyList)
-            
-            
+                deallocate(PropertyList)            
+                
+            endif
+        
         endif
         
         call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2),         &
@@ -2645,7 +2570,6 @@ i1:         if (CoordON) then
         if (Me%Coupled%Snow) allocate(Me%SnowPack (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
 
         allocate(Me%TimeSeriesBuffer    (26))
-        allocate(Me%TimeSeriesBuffer4   (13))
         allocate(Me%TimeSeriesBuffer2   (1))
 
         Me%ExtUpdate%WaterLevel               = FillValueReal
@@ -3490,8 +3414,8 @@ cd2 :           if (BlockFound) then
 !                                   Me%MB%FinalVolumeChannels)
                 MassEvaluationTime = "Final"
                 call CalculateMass (MassEvaluationTime)
-                !Verifies Mass and makes global balance...
-                call GlobalMassBalance
+                !Verifies Mass and makes global error...
+                call GlobalMassError
             endif
             
             if (Me%ComputeBasinWaterBalance) then
@@ -7886,7 +7810,7 @@ cd2 :           if (BlockFound) then
     !--------------------------------------------------------------------------
     
     
-    subroutine GlobalMassBalance
+    subroutine GlobalMassError
 
         !Arguments-------------------------------------------------------------
 
@@ -7912,9 +7836,9 @@ cd2 :           if (BlockFound) then
        Me%MB%OutVolumeOverLand = 0.0
        if (Me%Coupled%Runoff) then
 !            call GetFlowAtBoundary (Me%ObjRunoff, OL_FlowAtBoundary, STAT = STAT_CALL)
-!            if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR020'
+!            if (STAT_CALL /= SUCCESS_) stop 'GlobalMassError - ModuleBasin - ERR020'
             call GetBoundaryFlux (Me%ObjRunoff, OL_FlowAtBoundary, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR020'
+            if (STAT_CALL /= SUCCESS_) stop 'GlobalMassError - ModuleBasin - ERR020'
 
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7926,7 +7850,7 @@ cd2 :           if (BlockFound) then
             enddo
             enddo
             call UnGetRunoff(Me%ObjRunoff, OL_FlowAtBoundary, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR021'
+            if (STAT_CALL /= SUCCESS_) stop 'GlobalMassError - ModuleBasin - ERR021'
         endif
         
         !Misses get to the discharges in runoff.
@@ -8031,30 +7955,8 @@ cd2 :           if (BlockFound) then
        
 
         call WriteTimeSerieLine (Me%ObjTimeSerieBasin, Me%TimeSeriesBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR30'     
-        
-        
-        !Final Mass Balance
-        Me%TimeSeriesBuffer4(1)  = Me%MB%EvapFromVegetation / Me%CurrentDT
-        Me%TimeSeriesBuffer4(2)  = Me%MB%EvapFromGround    / Me%CurrentDT
-        Me%TimeSeriesBuffer4(3)  = Me%MB%EvapFromSoil      / Me%CurrentDT
-        Me%TimeSeriesBuffer4(4)  = Me%MB%TotalRainIn       / Me%CurrentDT    !rain total (direct + veg)
-        Me%TimeSeriesBuffer4(5)  = Me%MB%RainDirect        / Me%CurrentDT    !rain direct (uncovered)
-        Me%TimeSeriesBuffer4(6)  = Me%MB%RainInVeg         / Me%CurrentDT   !rain veg (covered)
-        Me%TimeSeriesBuffer4(7)  = Me%MB%DrainageFromVeg   / Me%CurrentDT
-        Me%TimeSeriesBuffer4(8)  = Me%MB%RainRunoff        / Me%CurrentDT !arriving at runoff (direct + drainage)
-        Me%TimeSeriesBuffer4(9)  = Me%MB%OutVolumeChannel  / Me%CurrentDT
-        Me%TimeSeriesBuffer4(10) = Me%MB%OutVolumeOverLand / Me%CurrentDT
-        
-        !Flux among modules
-        Me%TimeSeriesBuffer4(11) = Me%MB%Infiltration   / Me%CurrentDT
-        Me%TimeSeriesBuffer4(12) = Me%MB%OLFlowToRiver  / Me%CurrentDT
-        Me%TimeSeriesBuffer4(13) = Me%MB%GWFlowToRiver  / Me%CurrentDT
-       
-
-        call WriteTimeSerieLine (Me%ObjTimeSerieBasin2, Me%TimeSeriesBuffer4, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR40'     
-                
+        if (STAT_CALL /= SUCCESS_) stop 'GlobalMassError - ModuleBasin - ERR30'     
+                      
         
         !!!Mass Balance
         if (Me%Coupled%RunoffProperties) then
@@ -8081,7 +7983,7 @@ cd2 :           if (BlockFound) then
                                                 DNExchangeMass          = PropertyX%MB%PMPExchangeMassToDN,&
                                                 RPExchangeMass          = PropertyX%MB%RPExchangeMassToPMP,&
                                                 STAT                    = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR40'     
+                        if (STAT_CALL /= SUCCESS_) stop 'GlobalMassError - ModuleBasin - ERR40'     
                         
                     endif
                     if (Me%Coupled%RunoffProperties) then
@@ -8090,7 +7992,7 @@ cd2 :           if (BlockFound) then
                                                 PropertyID              = PropertyX%ID%IDNumber,           &
                                                 DNExchangeMass          = PropertyX%MB%RPExchangeMassToDN, &
                                                 STAT                    = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR50'     
+                        if (STAT_CALL /= SUCCESS_) stop 'GlobalMassError - ModuleBasin - ERR50'     
                     
                     endif
                     if (Me%Coupled%DrainageNetwork) then
@@ -8100,7 +8002,7 @@ cd2 :           if (BlockFound) then
                                                 TotalOutFlowMass        = PropertyX%MB%DNOutFlowMass,      &
     !                                            TotalOverTopMass        = DNOverTopMass,                   &
                                                 STAT                    = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR60'  
+                        if (STAT_CALL /= SUCCESS_) stop 'GlobalMassError - ModuleBasin - ERR60'  
                     endif                   
                     
                     !Global MASS BALANCE misses discharges and boundary flow in Runoff and diffuse discharge in DrainageNet  
@@ -8219,49 +8121,18 @@ cd2 :           if (BlockFound) then
                     Me%TimeSeriesBuffer3(ColNumber)  = PropertyX%MB%PMPExchangeMassToDN
                     ColNumber                       = ColNumber + 1 
                     
-                    
-                    !Final Mass Balance fluxes
-                    Me%TimeSeriesBuffer5(FluxColNumber)  = PropertyX%MB%PMPTranspiredMass / Me%CurrentDT
-                    FluxColNumber                       = FluxColNumber + 1 
-                    Me%TimeSeriesBuffer5(FluxColNumber)  = PropertyX%MB%TotalRainMass / Me%CurrentDT       !total input
-                    FluxColNumber                       = FluxColNumber + 1 
-                    Me%TimeSeriesBuffer5(FluxColNumber)  = PropertyX%MB%UncoveredRainMass / Me%CurrentDT   !rain direct
-                    FluxColNumber                       = FluxColNumber + 1 
-                    Me%TimeSeriesBuffer5(FluxColNumber)  = PropertyX%MB%CoveredRainMass / Me%CurrentDT     !rain leafs
-                    FluxColNumber                       = FluxColNumber + 1       
-                    Me%TimeSeriesBuffer5(FluxColNumber)  = PropertyX%MB%VegDrainedMass / Me%CurrentDT      !leaf leak
-                    FluxColNumber                       = FluxColNumber + 1   
-                    Me%TimeSeriesBuffer5(FluxColNumber)  = PropertyX%MB%RunoffInputMass  / Me%CurrentDT    !leaf leak + direct rain
-                    FluxColNumber                       = FluxColNumber + 1                                                       
-                    Me%TimeSeriesBuffer5(FluxColNumber)  = PropertyX%MB%DNOutFlowMass / Me%CurrentDT
-                    FluxColNumber                       = FluxColNumber + 1 
-    !                Me%TimeSeriesBuffer3(ColNumber)  = PropertyX%MB%RPBoundaryOutFlowMass
-    !                ColNumber                       = ColNumber + 1 
-                                        
-                    !Flux among modules
-                    Me%TimeSeriesBuffer5(FluxColNumber)  = PropertyX%MB%RPExchangeMassToPMP / Me%CurrentDT
-                    FluxColNumber                       = FluxColNumber + 1 
-                    Me%TimeSeriesBuffer5(FluxColNumber)  = PropertyX%MB%RPExchangeMassToDN / Me%CurrentDT
-                    FluxColNumber                       = FluxColNumber + 1 
-                    Me%TimeSeriesBuffer5(FluxColNumber)  = PropertyX%MB%PMPExchangeMassToDN / Me%CurrentDT
-                    FluxColNumber                       = FluxColNumber + 1 
-               
                 endif
                 PropertyX => PropertyX%Next
             
             end do
             
             call WriteTimeSerieLine (Me%ObjTimeSerieBasinMass, Me%TimeSeriesBuffer3, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR40'                        
-  
-            call WriteTimeSerieLine (Me%ObjTimeSerieBasinMass2, Me%TimeSeriesBuffer5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR50'                        
-
+            if (STAT_CALL /= SUCCESS_) stop 'GlobalMassError - ModuleBasin - ERR40'                        
         
         endif
         
         
-    end subroutine GlobalMassBalance
+    end subroutine GlobalMassError
 
     !--------------------------------------------------------------------------
 
@@ -8782,11 +8653,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 if ((Me%ObjTimeSerieBasin > 0)) then
                     call KillTimeSerie(Me%ObjTimeSerieBasin, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR170'
-                endif
-
-                if ((Me%ObjTimeSerieBasin2 > 0)) then
-                    call KillTimeSerie(Me%ObjTimeSerieBasin2, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR170'
                 endif
                
