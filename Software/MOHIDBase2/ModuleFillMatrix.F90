@@ -4340,6 +4340,7 @@ if4D:   if (Me%HDF%Field4D) then
         if (Me%HDF%From2Dto3D) then
             KLB = 1
             KUB = 1
+            Kmax= 1
         else
             KLB = Me%WorkSize3D%KLB
             KUB = Me%WorkSize3D%KUB
@@ -4362,11 +4363,18 @@ if4D:   if (Me%HDF%Field4D) then
 
         else if4D            
         
+            if (Me%HDF%From2Dto3D) then
+                call GetHDF5ArrayDimensions(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),    &
+                                  trim(Me%HDF%FieldName), OutputNumber = Instant,       &
+                                  Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR30'
+            else
+                call GetHDF5ArrayDimensions(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),    &
+                                  trim(Me%HDF%FieldName), OutputNumber = Instant,       &
+                                  Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR31'                                   
+            endif
             
-            call GetHDF5ArrayDimensions(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),            &
-                              trim(Me%HDF%FieldName), OutputNumber = Instant,               &
-                              Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR30'                                   
             
             if ((Imax /= IUB - ILB + 1) .or.                                                &
                 (Jmax /= JUB - JLB + 1) .or.                                                &
