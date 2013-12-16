@@ -4211,7 +4211,15 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         Me%WorkSize%IUB = Me%LongLat%imax-2
         Me%WorkSize%JLB = 1
         Me%WorkSize%JUB = Me%LongLat%jmax-2
-
+        
+        !to warn the user before the model crashes
+        !cant use a NetCDF with one of the dimension as 2 (or lower) because IUB or JUB would be zero (or lower).
+        if ((Me%WorkSize%IUB < 1) .or. (Me%WorkSize%JUB < 1)) then
+            write (*,*)
+            write (*,*) 'Please use a NETCDF file with more than'
+            write (*,*) '2x2 points so that the grid can be correctly extracted'
+            stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
+        endif
 
         Me%Size%ILB     = 0
         Me%Size%IUB     = Me%WorkSize%IUB + 1
