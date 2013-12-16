@@ -32,7 +32,8 @@ Module ModuleTimeSerie
 
     use ModuleGlobalData
     use ModuleTime                 
-    use ModuleEnterData            
+    use ModuleEnterData 
+    use ModuleDrawing           
 
     implicit none
 
@@ -124,7 +125,7 @@ Module ModuleTimeSerie
 
     type       T_TimeSerie
         real                                        :: DT                 = null_real
-        real                                        :: FirstDT = 0
+        real                                        :: FirstDT            = 0
         integer                                     :: TotalOutPutsNumber = null_int
         integer                                     :: BufferSize         = null_int      !Number of instantes which can kept
         integer                                     :: BufferCount        = null_int      !Current number of instantes
@@ -178,7 +179,7 @@ Module ModuleTimeSerie
         logical                                     :: TimeSerie2D          = .false.
         logical                                     :: TimeSerie1D          = .false.
         logical                                     :: ComputeResidual      = .true.
-        logical                                     :: IgnoreON             = .false.
+        !logical                                     :: IgnoreON             = .false.
 
         !TimeSerieInput 
         logical                                     :: TimeCycle            = .false.
@@ -188,33 +189,36 @@ Module ModuleTimeSerie
         type (T_Time)                               :: PreviousTime
         type (T_Time)                               :: NextTime
         type (T_Time)                               :: TimeOfNextDataset
-        real                                        :: DTForNextEvent
-        real                                        :: DTForNextDataset
-        integer                                     :: NextInstant
-        integer                                     :: PreviousInstant
-        integer                                     :: InstantOfNextDataset
-        integer                                     :: CurrentIndex = 2    
-        integer                                     :: StartIndex   = 1 
-        integer                                     :: EndIndex     = 1
+        real                                        :: DTForNextEvent       = null_real
+        real                                        :: DTForNextDataset     = null_real
+        integer                                     :: NextInstant          = null_int
+        integer                                     :: PreviousInstant      = null_int
+        integer                                     :: InstantOfNextDataset = null_int
+        integer                                     :: CurrentIndex         = 2    
+        integer                                     :: StartIndex           = 1 
+        integer                                     :: EndIndex             = 1
 
         !TimeSerieOutput
-        type(T_TimeSerie), dimension(:), pointer    :: TimeSerie
+        type(T_TimeSerie), dimension(:), pointer    :: TimeSerie            => null()
+        
+        type (T_Polygon), pointer                   :: ModelDomain          => null()
+        logical                                     :: ModelDomainON        = .false.
 
         !Instance of Module_EnterData
-        integer                                     :: ObjEnterData     = 0
+        integer                                     :: ObjEnterData         = 0
 
         !Instance of ModuleTime
-        integer                                     :: ObjTime          = 0
+        integer                                     :: ObjTime              = 0
 
-        type (T_TimeSerieInOutPut), pointer         :: Next
+        type (T_TimeSerieInOutPut), pointer         :: Next                 => null()
 
-        logical                                     :: UseTabulatedData = .true.
+        logical                                     :: UseTabulatedData     = .true.
 
     end type T_TimeSerieInOutPut
 
     !Global Variables
-    type (T_TimeSerieInOutPut), pointer             :: FirstTimeSerie
-    type (T_TimeSerieInOutPut), pointer             :: Me
+    type (T_TimeSerieInOutPut), pointer             :: FirstTimeSerie       => null()
+    type (T_TimeSerieInOutPut), pointer             :: Me                   => null()
 
     !--------------------------------------------------------------------------
 
@@ -232,33 +236,34 @@ Module ModuleTimeSerie
                               TimeSerieDataFile, PropertyList, Extension, WaterPoints3D, &
                               WaterPoints2D, WaterPoints1D, ResultFileName, Instance,    &
                               ModelName, CoordX, CoordY, UseTabulatedData,               &
-                              HavePath, Comment, STAT)
+                              HavePath, Comment, ModelDomain, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: TimeSerieID
-        integer                                     :: ObjTime
-        character(len=*), intent(IN )               :: TimeSerieDataFile
-        character(len=*), dimension(:), pointer     :: PropertyList
-        character(len=*), intent(IN )               :: Extension
-        integer, dimension(:,:,:), optional, pointer:: WaterPoints3D
-        integer, dimension(:,:  ), optional, pointer:: WaterPoints2D
-        integer, dimension(:    ), optional, pointer:: WaterPoints1D
-        character(len=*), optional, intent(IN )     :: ResultFileName
-        character(len=*), optional, intent(IN )     :: Instance  
-        character(len=*), optional, intent(IN )     :: ModelName
-        real, optional                              :: CoordX
-        real, optional                              :: CoordY
-        logical, optional, intent(IN )              :: UseTabulatedData
-        logical, optional, intent(IN )              :: HavePath
-        character(len=*), optional, intent(IN )     :: Comment
-        integer, optional, intent(OUT)              :: STAT
+        integer                                         :: TimeSerieID
+        integer                                         :: ObjTime
+        character(len=*), intent(IN )                   :: TimeSerieDataFile
+        character(len=*), dimension(:), pointer         :: PropertyList
+        character(len=*), intent(IN )                   :: Extension
+        integer, dimension(:,:,:), optional, pointer    :: WaterPoints3D
+        integer, dimension(:,:  ), optional, pointer    :: WaterPoints2D
+        integer, dimension(:    ), optional, pointer    :: WaterPoints1D
+        character(len=*), optional, intent(IN )         :: ResultFileName
+        character(len=*), optional, intent(IN )         :: Instance  
+        character(len=*), optional, intent(IN )         :: ModelName
+        real, optional                                  :: CoordX
+        real, optional                                  :: CoordY
+        logical, optional, intent(IN )                  :: UseTabulatedData
+        logical, optional, intent(IN )                  :: HavePath
+        character(len=*), optional, intent(IN )         :: Comment
+        type (T_Polygon), pointer, optional, intent(IN ):: ModelDomain
+        integer, optional, intent(OUT)                  :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
-        integer                                     :: ready_ , STAT_
-        integer                                     :: FromFile
-        integer                                     :: flag, ret
-        integer                                     :: iTimeSerie, j
+        integer                                         :: STAT_CALL
+        integer                                         :: ready_ , STAT_
+        integer                                         :: FromFile
+        integer                                         :: flag, ret
+        integer                                         :: iTimeSerie, j
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -291,6 +296,13 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (present(UseTabulatedData)) then
                 Me%UseTabulatedData = UseTabulatedData
+            endif
+            
+            if (present(ModelDomain)) then
+                Me%ModelDomainON = .true.
+                Me%ModelDomain   => ModelDomain
+            else
+                Me%ModelDomainON = .false.
             endif
 
             !Constructs EnterData
@@ -337,16 +349,16 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (flag > 0) Me%ReplacePathON = .true. 
 
-            call GetData(Me%IgnoreON,                                           &
-                         Me%ObjEnterData,                                       &
-                         flag,                                                  &
-                         SearchType   = FromFile,                               &
-                         keyword      ='IGNORE_ON',                             &
-                         Default      = .false.,                                &
-                         ClientModule ='ModuleTimeSerie',                       &
-                         STAT         = STAT_CALL)        
-            if (STAT_CALL .NE. SUCCESS_)                                        &
-                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie - ModuleTimeSerie. ERR50") 
+            !call GetData(Me%IgnoreON,                                           &
+            !             Me%ObjEnterData,                                       &
+            !             flag,                                                  &
+            !             SearchType   = FromFile,                               &
+            !             keyword      ='IGNORE_ON',                             &
+            !             Default      = .false.,                                &
+            !             ClientModule ='ModuleTimeSerie',                       &
+            !             STAT         = STAT_CALL)        
+            !if (STAT_CALL .NE. SUCCESS_)                                        &
+            !    call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie - ModuleTimeSerie. ERR50") 
 
             !Stores the number of properties
             Me%NumberOfProperties = size(PropertyList)
@@ -557,13 +569,14 @@ do1:    do while (BlockFound)
         integer                             :: ClientNumber
         integer                             :: iTimeSerie, iflag
         integer                             :: FromBlock, FromFile
+        type (T_PointF), pointer            :: TimeSeriesXY
 
 
         !Gets parameter from the module EnterData
         call GetExtractType(FromBlock = FromBlock, FromFile = FromFile)
 
 
-        do iTimeSerie = 1, Me%NumberOfTimeSeries
+d1:     do iTimeSerie = 1, Me%NumberOfTimeSeries
 
             call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,              &
                                         block_begin, block_end, BlockFound,         &
@@ -643,6 +656,22 @@ do1:    do while (BlockFound)
                 endif
                 
             endif
+            
+i12:        if (Me%TimeSerie(iTimeSerie)%CoordON .and. Me%ModelDomainON) then
+            
+                nullify (TimeSeriesXY)
+                allocate(TimeSeriesXY)
+            
+                TimeSeriesXY%X = Me%TimeSerie(iTimeSerie)%CoordX
+                TimeSeriesXY%Y = Me%TimeSerie(iTimeSerie)%CoordY
+            
+                if (.not. IsPointInsidePolygon(TimeSeriesXY, Me%ModelDomain)) then
+                    Me%TimeSerie(iTimeSerie)%IgnoreON = .true. 
+                endif
+                
+                deallocate(TimeSeriesXY)
+                
+            endif i12
 
 i8:         if (.not. Me%TimeSerie(iTimeSerie)%CoordON) then
 
@@ -727,7 +756,7 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
             call Block_Unlock(Me%ObjEnterData, ClientNumber)
 
 
-        enddo
+        enddo d1
 
         ReadTimeSeriesLocation = SUCCESS_
 
@@ -749,6 +778,8 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
         call GetExtractType(FromBlock = FromBlock, FromFile = FromFile)
 
         do iTimeSerie = 1, Me%NumberOfTimeSeries
+        
+            if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
 
             call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,              &
                                         block_begin, block_end, BlockFound,         &
@@ -989,6 +1020,8 @@ cd1:    if(present(WaterPoints3D)) then
 
             do iTimeSerie = 1, Me%NumberOfTimeSeries
             
+                if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
+            
                 if (Me%TimeSerie(iTimeSerie)%CoordON .or.                               &
                     Me%TimeSerie(iTimeSerie)%DepthON) cycle
 
@@ -1101,6 +1134,8 @@ cd1:    if(present(WaterPoints3D)) then
 
         do iTimeSerie = 1, Me%NumberOfTimeSeries
 
+            if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
+
             nProperties = Me%NumberOfProperties
             nOutputs    = Me%TimeSerie(iTimeSerie)%TotalOutPutsNumber
 
@@ -1164,18 +1199,19 @@ cd1:    if(present(WaterPoints3D)) then
 
         integer                                 :: iTimeSerie, PropNumber
         integer                                 :: STAT_CALL, iP, unit, nProp
-        character(len=3)                        :: AuxI, AuxJ, AuxK
-        character(len=PathLength)               :: RootPath
+        character(len=3)                        :: AuxI, AuxJ, AuxK, Aux
+        character(len=PathLength)               :: RootPath, FileName
         type (T_Time)                           :: CurrentTime
-        integer                                 :: iCh
+        integer                                 :: iCh, i
         logical                                 :: HavePath_
+        character(len=StringLength)             :: Action_
 
 
         !----------------------------------------------------------------------
 
         PropNumber = size (PropertyList, DIM = 1)
 
-        if (PropNumber > 1000) stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR01'
+        if (PropNumber > 1000) stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR10'
         
         if (present(HavePath)) then
             HavePath_ = HavePath
@@ -1197,7 +1233,10 @@ cd1:    if(present(WaterPoints3D)) then
             RootPath=" "
         endif
         
-        do iTimeSerie = 1, Me%NumberOfTimeSeries
+d1:     do iTimeSerie = 1, Me%NumberOfTimeSeries
+
+            if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
+
 cd1 :       if (present(ResultFileName)) then
                 !Constructs the name of the file
                 Me%TimeSerie(iTimeSerie)%FileName = trim(adjustl(RootPath      ))//      &
@@ -1257,20 +1296,74 @@ cd1 :       if (present(ResultFileName)) then
             if (STAT_CALL /= SUCCESS_) then
                 write(*,*) 'Error opening time series file ',                       &
                             trim(Me%TimeSerie(iTimeSerie)%FileName)
-                stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR03'
+                stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR20'
             endif
+            
+            i = 0
+            
+            FileName = Me%TimeSerie(iTimeSerie)%FileName
+            
+            do 
 
-            open (file   = Me%TimeSerie(iTimeSerie)%FileName,                       &
-                  unit   = Me%TimeSerie(iTimeSerie)%UnitNumber,                     & 
-                  status = "unknown",                                               &
-                  form   = "formatted", IOSTAT = STAT_CALL)
+                open (file   = FileName,                                                &
+                      unit   = Me%TimeSerie(iTimeSerie)%UnitNumber,                     & 
+                      status = "unknown",                                               &
+                      form   = "formatted", IOSTAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_) then
-                write(*,*) 'Error opening time series file ',                       &
-                            trim(Me%TimeSerie(iTimeSerie)%FileName)
-                stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR04'
-            endif
+                if (STAT_CALL /= SUCCESS_) then
+                    write(*,*) 'Error opening time series file ',                       &
+                                trim(Me%TimeSerie(iTimeSerie)%FileName)
+                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR50'
+                endif            
+            
+                inquire (file      = FileName,                                          &
+                         ACTION    = Action_,                                           & 
+                         IOSTAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then                     
+                    write(*,*) 'Error inquiring if time series file has already opened', &
+                                trim(Me%TimeSerie(iTimeSerie)%FileName)
+                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR30'
+                endif
+                
+                i = i + 1
+                
+                if (i >100) then
+                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR40'
+                endif                    
+                
+                if (Action_ == 'READ') then
+                    
+                    if (i == 1) then
+                        write(*,*) 'Warnning file already opened'
+                        write(*,*) 'FileName =',Trim(Me%TimeSerie(iTimeSerie)%FileName)
+                    endif
+                    
+                    write(Aux,'(I3)') i
 
+                    FileName = Trim(Me%TimeSerie(iTimeSerie)%FileName)//"_copy_"//trim(adjustl(Aux))
+                    
+                    if (i ==1) then
+                        write(*,*) 'NewFileName =',Trim(Me%TimeSerie(iTimeSerie)%FileName)
+                        write(*,*) 'OpenTimeSerieFiles - ModuleTimeSerie - WRN10'
+                    endif
+                    
+                    !Close the file
+                    call UnitsManager(Me%TimeSerie(iTimeSerie)%UnitNumber, CLOSE_FILE,  &
+                                      STAT = STAT_CALL)
+
+                    if (STAT_CALL /= SUCCESS_) then
+                        write(*,*) 'Error closing time series file ',                   &
+                                    trim(Me%TimeSerie(iTimeSerie)%FileName)
+                        stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR50'
+                    endif                    
+                    
+                else
+                    exit
+                endif                    
+
+            enddo
+
+            
             !Writes the header
             unit  = Me%TimeSerie(iTimeSerie)%UnitNumber
             nProp = Me%NumberOfProperties
@@ -1332,7 +1425,7 @@ cd1 :       if (present(ResultFileName)) then
                 Me%TimeSerie(iTimeSerie)%LastResidual = CurrentTime
             end if
 
-       enddo
+       enddo d1
 
         1000 format(1x,"     Seconds   YY  MM  DD  hh  mm       ss", 2x, 1000(1x, A43))
         2000 format(1x,"     Seconds   YY  MM  DD  hh  mm       ss", 2x, 1000(1x, A))
@@ -1838,6 +1931,8 @@ cd2 :       if (Me%Points) then
 
                 !Calculates the residual values
                 do iTimeSerie = 1, Me%NumberOfTimeSeries
+                
+                    if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
 
                     i = Me%TimeSerie(iTimeSerie)%LocalizationI
                     j = Me%TimeSerie(iTimeSerie)%LocalizationJ
@@ -2020,6 +2115,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
 do1:        do iTimeSerie = 1, Me%NumberOfTimeSeries
 
+                if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
+
                 if(Me%ComputeResidual)then
 
                     !Calculates the residual values
@@ -2155,6 +2252,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
 do1:        do iTimeSerie = 1, Me%NumberOfTimeSeries
+
+                if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
 
                 if(Me%ComputeResidual)then
 
@@ -2432,6 +2531,8 @@ cd2 :       if (Me%Points) then
 
                 !Calculates the residual values
                 do iTimeSerie = 1, Me%NumberOfTimeSeries
+                
+                    if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
 
                     i = Icell(iTimeSerie)
                     j = Jcell(iTimeSerie)
@@ -2608,6 +2709,8 @@ cd2 :       if (Me%Points) then
 
                 !Calculates the residual values
                 do iTimeSerie = 1, Me%NumberOfTimeSeries
+                
+                    if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
 
                     i = I_cell
                     j = J_cell
@@ -2873,13 +2976,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         call Ready(TimeSerieID, ready_)    
         
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
- 
-            if (Me%IgnoreON) then
-                Me%TimeSerie(Number)%IgnoreON = .true. 
-                IgnoreOK                      = .true.
-            else
-                IgnoreOK                      = .false.
-            endif
+
+            IgnoreOK = Me%TimeSerie(Number)%IgnoreON
 
             STAT_ = SUCCESS_
         else 
@@ -4049,7 +4147,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 !Disposes buffer
                 do iTimeSerie = 1, Me%NumberOfTimeSeries
+                
+                    if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
+                    
                     call WriteBufferToFile(Me%TimeSerie(iTimeSerie), Me%NumberOfProperties)
+                    
                 enddo
 
                 !Closes files
@@ -4062,6 +4164,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 !Deallocates Time Serie Buffer
                 do iTimeSerie = 1, Me%NumberOfTimeSeries
+                
+                    if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
+                
                     deallocate(Me%TimeSerie(iTimeSerie)%TimeSerieData, STAT = STAT_CALL)
                     !Intel Compiler gives here an STAT_CALL = 493
 !                    if (STAT_CALL .NE. SUCCESS_) stop 'KillTimeSerie - ModuleTimeSerie - ERR01'
@@ -4157,6 +4262,8 @@ cd3 :           if (associated(Me%TimeSerie)) then
         real                                        :: Year, Month, Day, Hour, Minute, Second
 
         do iTimeSerie = 1, Me%NumberOfTimeSeries
+        
+            if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
 
             nProperties = Me%NumberOfProperties
             unit = Me%TimeSerie(iTimeSerie)%UnitNumber

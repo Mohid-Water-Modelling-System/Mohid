@@ -114,6 +114,7 @@ Module ModuleHorizontalGrid
     public  :: GetCellZInterceptByPolygon
 
     public  :: GetGridBorderPolygon
+    public  :: GetGridOutBorderPolygon
     public  :: GetGridBorderLimits
     
     public  :: GetXYInsideDomain
@@ -131,6 +132,13 @@ Module ModuleHorizontalGrid
     public  :: UnGetHorizontalGrid
     
     public  :: InterpolXYPoint
+    
+    public  :: ReturnsIntersectionCorners
+    private ::      ComputesIntersectionCorners
+    
+    public  :: WindowIntersectDomain
+    private ::      WindowCellsIntersection    
+    
 #ifdef _USE_PROJ4
     public  :: FromGeo2SpherMercator1D
     public  :: FromGeo2SpherMercatorScalar
@@ -373,6 +381,7 @@ Module ModuleHorizontalGrid
         !Grid boundary
         type(T_Border),          pointer        :: GridBorderCart      => null()
         type(T_Border),          pointer        :: GridBorderCoord     => null()
+        type(T_Border),          pointer        :: GridOutBorderCoord  => null()
         type(T_Border),          pointer        :: GridBorderAlongGrid => null()
 
 
@@ -4007,22 +4016,26 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
         nullify (Me%GridBorderCart )
         nullify (Me%GridBorderCoord)
+        nullify (Me%GridOutBorderCoord)        
         nullify (Me%GridBorderAlongGrid)
 
 
         allocate(Me%GridBorderCart )
         allocate(Me%GridBorderCoord)
+        allocate(Me%GridOutBorderCoord)
         allocate(Me%GridBorderAlongGrid)
 
 
         Me%GridBorderCart%Type_         = Rectang_
         Me%GridBorderCoord%Type_        = Rectang_
+        Me%GridoUTBorderCoord%Type_     = Rectang_
         Me%GridBorderAlongGrid%Type_    = Rectang_
 
 Inp:    if (Me%CornersXYInput) then
 
             Me%GridBorderCart%Type_      = ComplexPolygon_
             Me%GridBorderCoord%Type_     = ComplexPolygon_
+            Me%GridoUTBorderCoord%Type_  = ComplexPolygon_
             Me%GridBorderAlongGrid%Type_ = ComplexPolygon_
 
         else  Inp
@@ -4031,6 +4044,7 @@ Inp:    if (Me%CornersXYInput) then
 
                 Me%GridBorderCart%Type_      = RotatedRectang_
                 Me%GridBorderCoord%Type_     = RotatedRectang_
+                Me%GridOutBorderCoord%Type_  = RotatedRectang_
                 Me%GridBorderAlongGrid%Type_ = RotatedRectang_
             endif
 
@@ -4072,10 +4086,10 @@ Inp:    if (Me%CornersXYInput) then
 
         endif
 
-        !if (Me%GridBorderCoord%Type_     /= Rectang_) 
-                                                      call DefinesBorderPoly(XX2D,              &
-                                                                             YY2D,              &
-                                                                             Me%GridBorderCoord)
+        call DefinesBorderPoly(XX2D, YY2D, Me%GridBorderCoord)
+        
+        call DefinesBorderPoly(XX2D, YY2D, Me%GridOutBorderCoord, Outer = .true.)        
+                                                                             
         nullify(XX2D, YY2D)
 
         if (Me%GridBorderCart%Type_      /= Rectang_) call DefinesBorderPoly(Me%XX_IE,          &
@@ -4092,15 +4106,17 @@ Inp:    if (Me%CornersXYInput) then
     !This subroutine defines the border polygon
 
 
-    subroutine DefinesBorderPoly(XX2D, YY2D, GridBorder)
+    subroutine DefinesBorderPoly(XX2D, YY2D, GridBorder, Outer)
 
         !Arguments-------------------------------------------------------------
         type (T_Border),  pointer                   :: GridBorder
-        real,   dimension(:,:), pointer             :: XX2D, YY2D        
+        real,   dimension(:,:), pointer             :: XX2D, YY2D 
+        logical, optional, intent(IN)               :: Outer       
         
         !Local-----------------------------------------------------------------
         integer                                     :: ILB, IUB, JLB, JUB
-        integer                                     :: Nvert, i, j
+        integer                                     :: Nvert, i, j, di
+        logical                                     :: Outer_
 
         !Begin-----------------------------------------------------------------
 
@@ -4108,6 +4124,12 @@ Inp:    if (Me%CornersXYInput) then
         IUB = Me%WorkSize%IUB 
         JLB = Me%WorkSize%JLB 
         JUB = Me%WorkSize%JUB 
+        
+        if (present(Outer)) then
+            Outer_ = Outer
+        else
+            Outer_ = .false.
+        endif            
 
 
         if      (GridBorder%Type_ == ComplexPolygon_) then 
@@ -4117,6 +4139,10 @@ Inp:    if (Me%CornersXYInput) then
             if ((IUB-ILB)>=2) then
                             
                 Nvert = 2*(IUB-ILB-1)
+                
+                if (Outer_) then
+                    Nvert = Nvert + 4
+                endif
                 
             else
             
@@ -4128,8 +4154,16 @@ Inp:    if (Me%CornersXYInput) then
             if ((JUB-JLB)>=2) then
                             
                 Nvert = Nvert + 2*(JUB-JLB-1)
+                
+                if (Outer_) then
+                    Nvert = Nvert + 4
+                endif
 
             endif
+            
+            !The last vertix equal to the first 
+            
+            Nvert = Nvert + 1
                 
 
 !        else if (GridBorder%Type_ == RotatedRectang_) then 
@@ -4146,34 +4180,41 @@ Inp:    if (Me%CornersXYInput) then
         if      (GridBorder%Type_ == ComplexPolygon_) then 
 
             GridBorder%Polygon_%Count = 0
+            
+            if (Outer_) then
+                di = 0
+            else
+                di = 1                
+            endif
+
         
             !West boundary
-            do i = ILB + 1, IUB-1
+            do i = ILB + di, IUB-di
                 GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JLB+1)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JLB+1)
+                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JLB+di)
+                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JLB+di)
             enddo
 
             !North boundary
-            do j = JLB+1, JUB-1
+            do j = JLB+di, JUB-di + 1
                 GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(IUB, j)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(IUB, j)
+                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(IUB+1-di, j)
+                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(IUB+1-di, j)
             enddo
 
             !East boundary
-            do i =  IUB-1, ILB + 1, -1
+            do i =  IUB-di, ILB + di, -1
                 GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JUB)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JUB)
+                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JUB+1-di)
+                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JUB+1-di)
             enddo
 
 
             !South boundary
-            do j =  JUB-1, JLB+1, -1
+            do j =  JUB-di, JLB+di, -1
                 GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(ILB+1, j)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(ILB+1, j)
+                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(ILB+di, j)
+                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(ILB+di, j)
             enddo
 
 !        else if (GridBorder%Type_ == RotatedRectang_) then 
@@ -6366,6 +6407,42 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
     end subroutine GetGridBorderPolygon
 
     !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetGridOutBorderPolygon(HorizontalGridID, Polygon, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer,                  intent(IN)        :: HorizontalGridID
+        type(T_Polygon),  pointer                   :: Polygon
+        integer, optional,        intent(OUT)       :: STAT    
+ 
+        !Local-------------------------------------------------------------------
+        integer                                     :: STAT_             
+        integer                                     :: ready_              
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+            (ready_ == READ_LOCK_ERR_)) then
+
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+
+            Polygon => Me%GridOutBorderCoord%Polygon_
+
+            STAT_ = SUCCESS_
+        else    i1
+            STAT_ = ready_
+        end if  i1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetGridOutBorderPolygon
+
+    !-------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
     subroutine GetGridBorderLimits(HorizontalGridID, West, East, South, North, STAT)
@@ -6681,9 +6758,183 @@ i2:                 if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j) ==
     end subroutine GetCellZInterceptByPolygon
 
     !--------------------------------------------------------------------------
-
+                
     !--------------------------------------------------------------------------
 
+    logical function WindowIntersectDomain(HorizontalGridID, WorkSize2D, STAT)
+                                                
+
+        !Arguments-------------------------------------------------------------
+        integer,                     intent(IN )    :: HorizontalGridID   
+        type (T_Size2D),             intent(IN )    :: WorkSize2D
+        integer, optional,           intent(OUT)    :: STAT
+
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_        
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if (Me%DomainDecomposition%MasterOrSlave) then
+                
+                WindowIntersectDomain = WindowCellsIntersection(Me%DomainDecomposition%HaloMap, WorkSize2D)
+
+            else
+            
+                WindowIntersectDomain = WindowCellsIntersection(Me%WorkSize, WorkSize2D)
+            
+            endif
+                        
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end function WindowIntersectDomain
+    
+    !----------------------------------------------------------------------    
+
+    logical function WindowCellsIntersection(WorkSizeA, WorkSizeB)
+                                                
+
+        !Arguments-------------------------------------------------------------
+        type (T_Size2D), intent(IN )    :: WorkSizeA, WorkSizeB
+
+        !Local-----------------------------------------------------------------
+        logical                         :: LineInterSection, ColumnInterSection
+        
+        !Begin-----------------------------------------------------------------
+        
+        LineInterSection        = .false. 
+        ColumnInterSection      = .false. 
+        
+        if ((WorkSizeA%ILB >= WorkSizeB%ILB .and. WorkSizeA%ILB <= WorkSizeB%IUB) .or. &
+            (WorkSizeA%IUB >= WorkSizeB%ILB .and. WorkSizeA%IUB <= WorkSizeB%IUB)) then
+            LineInterSection = .true.                
+        endif            
+
+        if ((WorkSizeB%ILB >= WorkSizeA%ILB .and. WorkSizeB%ILB <= WorkSizeA%IUB) .or. &
+            (WorkSizeB%IUB >= WorkSizeA%ILB .and. WorkSizeB%IUB <= WorkSizeA%IUB)) then
+            LineInterSection = .true.                
+        endif            
+        
+
+        if ((WorkSizeA%JLB >= WorkSizeB%JLB .and. WorkSizeA%JLB >= WorkSizeB%JUB) .or. &
+            (WorkSizeA%JUB >= WorkSizeB%JLB .and. WorkSizeA%JUB <= WorkSizeB%JUB)) then
+            ColumnInterSection = .true.                
+        endif            
+
+        if ((WorkSizeB%JLB >= WorkSizeA%JLB .and. WorkSizeB%JLB >= WorkSizeA%JUB) .or. &
+            (WorkSizeB%JUB >= WorkSizeA%JLB .and. WorkSizeB%JUB <= WorkSizeA%JUB)) then
+            ColumnInterSection = .true.                
+        endif            
+        
+        if (LineInterSection .and. ColumnInterSection) then
+            WindowCellsIntersection = .true.
+        else
+            WindowCellsIntersection = .false.        
+        endif            
+        !----------------------------------------------------------------------
+
+    end function WindowCellsIntersection    
+
+    !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    type (T_Size2D) function ReturnsIntersectionCorners(HorizontalGridID, WorkSize2D, STAT)
+                                                
+
+        !Arguments-------------------------------------------------------------
+        integer,                     intent(IN )    :: HorizontalGridID   
+        type (T_Size2D),             intent(IN )    :: WorkSize2D
+        integer, optional,           intent(OUT)    :: STAT
+
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_        
+
+        !Local-----------------------------------------------------------------
+        type (T_Size2D)                             :: WorkSize2DAux
+        integer                                     :: STAT_ 
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if (Me%DomainDecomposition%MasterOrSlave) then
+                
+                WorkSize2DAux                  = ComputesIntersectionCorners(Me%DomainDecomposition%HaloMap, WorkSize2D)
+                
+                ReturnsIntersectionCorners%ILB = WorkSize2DAux%ILB - Me%DomainDecomposition%HaloMap%ILB + 1
+                ReturnsIntersectionCorners%IUB = WorkSize2DAux%IUB - Me%DomainDecomposition%HaloMap%ILB + 1
+                
+                ReturnsIntersectionCorners%JLB = WorkSize2DAux%JLB - Me%DomainDecomposition%HaloMap%JLB + 1
+                ReturnsIntersectionCorners%JUB = WorkSize2DAux%JUB - Me%DomainDecomposition%HaloMap%JLB + 1
+
+            else
+            
+                ReturnsIntersectionCorners = ComputesIntersectionCorners(Me%WorkSize, WorkSize2D)
+            
+            endif
+                        
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end function ReturnsIntersectionCorners
+    
+    !----------------------------------------------------------------------    
+
+    type (T_Size2D) function ComputesIntersectionCorners(WorkSizeA, WorkSizeB)
+                                                
+
+        !Arguments-------------------------------------------------------------
+        type (T_Size2D), intent(IN )    :: WorkSizeA, WorkSizeB
+
+
+        !Begin-----------------------------------------------------------------
+        
+        ComputesIntersectionCorners%ILB = max(WorkSizeA%ILB,WorkSizeB%ILB)
+        ComputesIntersectionCorners%IUB = min(WorkSizeA%IUB,WorkSizeB%IUB)
+        ComputesIntersectionCorners%JLB = max(WorkSizeA%JLB,WorkSizeB%JLB)
+        ComputesIntersectionCorners%JUB = min(WorkSizeA%JUB,WorkSizeB%JUB)
+            
+        !----------------------------------------------------------------------
+
+    end function ComputesIntersectionCorners    
+
+    !--------------------------------------------------------------------------
+    
     subroutine GetDomainDecompositionParameters(HorizontalGridID, ON, Master,           &
                                                 Master_MPI_ID, MasterOrSlave,           &
                                                 NInterfaces, Interfaces, Halo_Points,   &
@@ -8615,6 +8866,7 @@ doi:        do i = ILBSon, IUBSon
 #if _GOOGLEMAPS   
         real(8),     dimension(:,:), pointer        :: XX_aux, YY_aux
 #endif        
+        integer,     dimension(:  ), pointer        :: AuxInt4
         type(T_Size2D)                              :: WorkSize_
         integer                                     :: WorkILB, WorkIUB
         integer                                     :: WorkJLB, WorkJUB
@@ -8753,6 +9005,36 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                 endif
 
 #endif
+
+                if (Me%DomainDecomposition%MasterOrSlave) then
+                
+                    allocate(AuxInt4(4))
+                    
+                    !Sets limits for next write operations
+                    call HDF5SetLimits   (ObjHDF5, 1, 4, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR40'
+                                        
+                    AuxInt4(1) = Me%DomainDecomposition%Global%ILB
+                    AuxInt4(2) = Me%DomainDecomposition%Global%IUB
+                    AuxInt4(3) = Me%DomainDecomposition%Global%JLB
+                    AuxInt4(4) = Me%DomainDecomposition%Global%JUB
+
+                    call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Global", "ILB_IUB_JLB_JUB", &
+                                          "-", Array1D = AuxInt4, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR50'
+
+                    AuxInt4(1) = Me%DomainDecomposition%HaloMap%ILB + WorkILB - 1
+                    AuxInt4(2) = Me%DomainDecomposition%HaloMap%ILB + WorkIUB - 1
+                    AuxInt4(3) = Me%DomainDecomposition%HaloMap%JLB + WorkJLB - 1
+                    AuxInt4(4) = Me%DomainDecomposition%HaloMap%JLB + WorkJUB - 1
+
+                    call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Mapping", "ILB_IUB_JLB_JUB",&
+                                          "-", Array1D = AuxInt4, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR60'
+
+                    deallocate(AuxInt4)
+                    
+                endif
 
             endif
 
@@ -9494,6 +9776,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 !                endif
 
+                deallocate(Me%GridOutBorderCoord%Polygon_%VerticesF)
+                nullify   (Me%GridOutBorderCoord%Polygon_%VerticesF)
+
+                deallocate(Me%GridOutBorderCoord%Polygon_)
+                nullify   (Me%GridOutBorderCoord%Polygon_)
 
                 if (Me%GridBorderCart%Type_  /= Rectang_) then
                     deallocate(Me%GridBorderCart%Polygon_%VerticesF)
@@ -9516,11 +9803,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 deallocate(Me%GridBorderCart     )
                 deallocate(Me%GridBorderCoord    )
+                deallocate(Me%GridOutBorderCoord )
                 deallocate(Me%GridBorderAlongGrid)
 
  
                 nullify   (Me%GridBorderCart     )
                 nullify   (Me%GridBorderCoord    )
+                nullify   (Me%GridOutBorderCoord )
                 nullify   (Me%GridBorderAlongGrid)
 
 

@@ -182,6 +182,7 @@ Module ModuleWaterProperties
                                           ExtractBlockFromBlock, KillEnterData, RewindBuffer,   &
                                           GetOutPutTimeWindows
     use ModuleStopWatch,            only: StartWatch, StopWatch
+    use ModuleDrawing
     use ModuleProfile,              only: StartProfile, WriteProfile, KillProfile
     use ModuleGridData,             only: GetGridData, UngetGridData
     use ModuleDischarges,           only: GetDischargesNumber, GetDischargesGridLocalization,   &
@@ -194,7 +195,8 @@ Module ModuleWaterProperties
     use ModuleTimeSerie,            only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerie,  &
                                           GetNumberOfTimeSeries, GetTimeSerieLocation,          &
                                           CorrectsCellsTimeSerie, TryIgnoreTimeSerie,           &
-                                          WriteTimeSerieLine, GetTimeSerieValue, KillTimeSerie
+                                          WriteTimeSerieLine, GetTimeSerieValue, KillTimeSerie, &
+                                          GetTimeSerieName
     use ModuleLightExtinction,      only: ConstructLightExtinction, ModifyLightExtinctionField, &
                                           GetLightExtinctionOptions, KillLightExtinction,       &
                                           GetShortWaveExtinctionField, UnGetLightExtinction,    &
@@ -207,7 +209,9 @@ Module ModuleWaterProperties
                                           InterpolRegularGrid, UnGetHorizontalGrid,             &
                                           GetHorizontalGridSize, GetGridCellArea, GetXYCellZ,   &
                                           GetDomainDecompositionParameters,                     &
-                                          GetDomainDecompositionMPI_ID, GetDomainDecompositionON
+                                          GetDomainDecompositionMPI_ID, GetDomainDecompositionON,&
+                                          WindowIntersectDomain, ReturnsIntersectionCorners,    &
+                                          GetGridOutBorderPolygon
     use ModuleGeometry,             only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,   &
                                           GetGeometryKFloor, GetGeometryWaterColumn,            &
                                           GetGeometryDistances, GetLayer4Level
@@ -853,10 +857,11 @@ Module ModuleWaterProperties
     end type T_OutPut
     
     type      T_OutW
-        type(T_OutPutTime),dimension(:),pointer :: OutPutWindows
+        type(T_OutPutTime),dimension(:),pointer :: OutPutWindows   => null() 
+        type(T_Size2D    ),dimension(:),pointer :: OriginalCorners => null()
         logical                                 :: OutPutWindowsON = .false.           
         integer                                 :: WindowsNumber   = 0     
-        integer,           dimension(:),pointer :: ObjHDF5
+        integer,           dimension(:),pointer :: ObjHDF5         => null()
         logical                                 :: Simple          = .false. 
     end type  T_OutW
 
@@ -1431,9 +1436,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%OutW%OutPutWindowsON)  then
             
                 do iW = 1, Me%OutW%WindowsNumber
-
-                    call OutPut_Results_HDF(iW)
-                        
+                    if (Me%OutW%OutPutWindows(iW)%ON) then
+                        call OutPut_Results_HDF(iW)
+                    endif    
                 enddo
                 
             endif                
@@ -2221,7 +2226,7 @@ cd2 :           if (BlockFound) then
                             if(one_char == space)then
                                 NewCohortIDChar = trim(PropertyName(SpeciesNameLength+9:ichar-1))
                                 
-                                read(NewCohortIDChar, ('(i)')) NewCohortID
+                                read(NewCohortIDChar, '(I)') NewCohortID
                                 
                                 allocate(NewCohort)
 
@@ -3354,12 +3359,13 @@ cd2 :           if (BlockFound) then
         integer, pointer, dimension(:, :, :)        :: WaterPoints3D
         character (Len = PathLength)                :: FileName
         character (Len = StringLength)              :: AuxChar
-        type(T_Size2D)                              :: WorkSize2D
+        type(T_Size2D)                              :: WorkSize2D, WorkSize2DAux
         integer                                     :: STAT_CALL
         integer                                     :: WorkILB, WorkIUB
         integer                                     :: WorkJLB, WorkJUB
         integer                                     :: WorkKLB, WorkKUB
         integer                                     :: HDF5_CREATE, ObjHDF5, i, n, j
+        logical                                     :: OutputOk, MasterOrSlave
 
         !----------------------------------------------------------------------
         !Bounds
@@ -3369,8 +3375,10 @@ cd2 :           if (BlockFound) then
         else
             FileName = trim(Me%Files%OutPutFields)//"5"
         endif
+        
+        OutputOk = .true.
 
-        if (present(iW)) then
+i2:     if (present(iW)) then
 
             WorkILB = Me%OutW%OutPutWindows(iW)%ILB
             WorkIUB = Me%OutW%OutPutWindows(iW)%IUB
@@ -3387,6 +3395,46 @@ cd2 :           if (BlockFound) then
             WorkSize2D%JLB = Me%OutW%OutPutWindows(iW)%JLB 
             WorkSize2D%JUB = Me%OutW%OutPutWindows(iW)%JUB 
             
+            Me%OutW%OutPutWindows(iW)%ON = .true.
+            
+            call GetDomainDecompositionParameters(HorizontalGridID = Me%ObjHorizontalGrid,  &
+                                                  MasterOrSlave    = MasterOrSlave,         &
+                                                  STAT             = STAT_CALL)
+                                                  
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR10'
+            
+            
+            if (MasterOrSlave) then
+
+                if (WindowIntersectDomain(Me%ObjHorizontalGrid, WorkSize2D)) then
+                
+                    WorkSize2DAux%ILB             = WorkSize2D%ILB
+                    WorkSize2DAux%IUB             = WorkSize2D%IUB
+                    
+                    WorkSize2DAux%JLB             = WorkSize2D%JLB
+                    WorkSize2DAux%JUB             = WorkSize2D%JUB
+                
+                    WorkSize2D                    = ReturnsIntersectionCorners(Me%ObjHorizontalGrid, WorkSize2DAux)
+
+                    WorkILB                       = WorkSize2D%ILB            
+                    WorkIUB                       = WorkSize2D%IUB 
+                    
+                    WorkJLB                       = WorkSize2D%JLB
+                    WorkJUB                       = WorkSize2D%JUB 
+                    
+                    Me%OutW%OutPutWindows(iW)%ILB = WorkSize2D%ILB 
+                    Me%OutW%OutPutWindows(iW)%IUB = WorkSize2D%IUB 
+                                                  
+                    Me%OutW%OutPutWindows(iW)%JLB = WorkSize2D%JLB
+                    Me%OutW%OutPutWindows(iW)%JUB = WorkSize2D%JUB 
+                      
+                    
+                else                                     
+                    Me%OutW%OutPutWindows(iW)%ON = .false. 
+                    OutputOk                     = .false.               
+                endif                    
+            endif            
+            
             write(AuxChar,fmt='(i5)') iW
             Auxchar           = "_w"//trim(adjustl(Auxchar))//".hdf5"
             n                 = len_trim(Auxchar) 
@@ -3398,7 +3446,7 @@ cd2 :           if (BlockFound) then
             enddo
             FileName(i:i+n-1) = trim(Auxchar)
             
-        else
+        else i2
 
             WorkILB = Me%WorkSize%ILB 
             WorkIUB = Me%WorkSize%IUB 
@@ -3415,79 +3463,83 @@ cd2 :           if (BlockFound) then
             WorkSize2D%JLB = Me%WorkSize%JLB 
             WorkSize2D%JUB = Me%WorkSize%JUB 
 
-        endif
-
-        !Gets a pointer to Bathymetry
-        call GetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR01'
-
-        !Gets WaterPoints3D
-        call GetWaterPoints3D   (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR03'
-
-
-        !Gets File Access Code
-        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+        endif i2
         
-        ObjHDF5 = 0
+i1:     if (OutputOk) then
 
-        !Opens HDF5 File
-        call ConstructHDF5      (ObjHDF5, trim(FileName),                &
-                                 HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR04'
-        
-        if (present(ObjHDF5External))then
+            !Gets a pointer to Bathymetry
+            call GetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR20'
+
+            !Gets WaterPoints3D
+            call GetWaterPoints3D   (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR30'
+
+
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
             
-            ObjHDF5External = ObjHDF5
-            
-        else
-        
-            if (present(iW)) then
+            ObjHDF5 = 0
 
-                Me%OutW%ObjHDF5(iW) = ObjHDF5
-               
+            !Opens HDF5 File
+            call ConstructHDF5      (ObjHDF5, trim(FileName),                &
+                                     HDF5_CREATE, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR40'
+            
+            if (present(ObjHDF5External))then
+                
+                ObjHDF5External = ObjHDF5
+                
             else
-              
-                Me%ObjHDF5          = ObjHDF5
+            
+                if (present(iW)) then
 
-            endif
-        endif       
-        
-        !Write the Horizontal Grid
-        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
-                                 WorkSize = WorkSize2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR08'
-        
+                    Me%OutW%ObjHDF5(iW) = ObjHDF5
+                   
+                else
+                  
+                    Me%ObjHDF5          = ObjHDF5
 
-        !Sets limits for next write operations
-        call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                       &
-                              WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR05'
+                endif
+            endif       
+            
+            !Write the Horizontal Grid
+            call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
+                                     WorkSize = WorkSize2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR50'
+            
 
-
-        !Writes the Grid
-        call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",                      &
-                              Array2D = Bathymetry,                                     &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR06'
-
-        call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints3D", "-",                   &
-                              Array3D = WaterPoints3D,                                  &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR07'
-
-        !Writes everything to disk
-        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR09'
+            !Sets limits for next write operations
+            call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                       &
+                                  WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR60'
 
 
-        !Ungets the Bathymetry
-        call UngetGridData (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR10'
+            !Writes the Grid
+            call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",                      &
+                                  Array2D = Bathymetry,                                     &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR70'
 
-        !Ungets the WaterPoints
-        call UnGetMap        (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR11'
+            call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints3D", "-",                   &
+                                  Array3D = WaterPoints3D,                                  &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR80'
+
+            !Writes everything to disk
+            call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR90'
+
+
+            !Ungets the Bathymetry
+            call UngetGridData (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR100'
+
+            !Ungets the WaterPoints
+            call UnGetMap        (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR110'
+
+        endif i1
 
         !----------------------------------------------------------------------
 
@@ -3599,7 +3651,8 @@ cd2 :           if (BlockFound) then
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
         integer                                             :: dn, Id, Jd, TimeSerieNumber
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=StringLength)                         :: TimeSerieLocationFile, TimeSerieName
+        type (T_Polygon), pointer                           :: ModelDomainLimit
 
         !----------------------------------------------------------------------
 
@@ -3661,57 +3714,92 @@ cd2 :           if (BlockFound) then
                          ClientModule = 'ModuleWaterProperties',                        &
                          Default      = Me%Files%ConstructData,                         &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                &
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'Construct_Time_Serie - ModuleWaterProperties - ERR20' 
+                
+            call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,       &
+                                         Polygon          = ModelDomainLimit,           &
+                                         STAT             = STAT_CALL)           
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Construct_Time_Serie - ModuleWaterProperties - ERR30' 
 
             call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                            &
                                 trim(TimeSerieLocationFile),                            &
                                 PropertyList, "srw",                                    &
                                 WaterPoints3D   = Me%ExternalVar%WaterPoints3D,         &
                                 ModelName       = Me%ModelName,                         &
+                                ModelDomain     = ModelDomainLimit,                     &
                                 STAT            = STAT_CALL)
-            if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR30'
+            if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR40'
 
-
+            call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Polygon          = ModelDomainLimit,               &
+                                     STAT             = STAT_CALL)                      
+            if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR50'
+            
             !Constructs TimeSerie
             !Deallocates PropertyList
             deallocate(PropertyList, STAT = STAT_CALL)
-            if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR40'
+            if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR60'
 
             !Corrects if necessary the cell of the time serie based in the time serie coordinates
             call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR50'  
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR70'  
 
             do dn = 1, TimeSerieNumber
+
+                call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR80'
+
+                if (IgnoreOK) cycle
 
                 call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                           CoordX   = CoordX,                                &
                                           CoordY   = CoordY,                                & 
                                           CoordON  = CoordON,                               &
                                           STAT     = STAT_CALL)
+                                          
+                call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR90'  
+                                          
                 if (CoordON) then
                     call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
 
                     if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
-                        stop 'Construct_Time_Serie - ModuleWaterProperties - ERR60'
+                        stop 'Construct_Time_Serie - ModuleWaterProperties - ERR100'
                     endif                            
 
-                    if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
+!                    if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
             
-                        call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR70'
+!                        call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+!                        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR70'
 
-                        if (IgnoreOK) then
-                            cycle
-                        else
-                            stop 'Construct_Time_Serie - ModuleWaterProperties - ERR80'
-                        endif
+!                        if (IgnoreOK) then
+!                            cycle
+!                        else
+!                            stop 'Construct_Time_Serie - ModuleWaterProperties - ERR80'
+!                        endif
 
-                    endif
+!                    endif
 
                     call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR90'
+                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR110'
                 endif
+
+                call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                          LocalizationI   = Id,                             &
+                                          LocalizationJ   = Jd,                             & 
+                                          STAT     = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR120'
+
+                if (Me%ExternalVar%WaterPoints3D(Id, Jd, Me%WorkSize%KUB) /= WaterPoint) then
+                    
+                     write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
+
+                endif
+
+
 
 
             enddo
@@ -10758,10 +10846,20 @@ cd2 :       if (BlockFound) then
             
          if(Me%OutW%OutPutWindowsON)then
 
-            allocate(Me%OutW%ObjHDF5(Me%OutW%WindowsNumber))
+            allocate(Me%OutW%ObjHDF5        (Me%OutW%WindowsNumber))
+            allocate(Me%OutW%OriginalCorners(Me%OutW%WindowsNumber))
             
             do iW = 1, Me%OutW%WindowsNumber
+
                 Me%OutW%OutPutWindows%NextOutPut = 1
+
+                Me%OutW%OriginalCorners(iW)%ILB = Me%OutW%OutPutWindows(iW)%ILB
+                Me%OutW%OriginalCorners(iW)%IUB = Me%OutW%OutPutWindows(iW)%IUB
+                Me%OutW%OriginalCorners(iW)%JLB = Me%OutW%OutPutWindows(iW)%JLB
+                Me%OutW%OriginalCorners(iW)%JUB = Me%OutW%OutPutWindows(iW)%JUB
+                
+                Me%OutW%OutPutWindows(iW)%ON    = .true.
+
             enddo 
             
             if (.not.associated(Me%OutPut%Aux3D)) then
@@ -11234,8 +11332,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (Me%OutW%OutPutWindowsON)  then
             
                 do iW = 1, Me%OutW%WindowsNumber
-
-                    call OutPut_Results_HDF(iW)
+                    
+                    if (Me%OutW%OutPutWindows(iW)%ON) then
+                        call OutPut_Results_HDF(iW)
+                    endif
                         
                 enddo
                 
@@ -21139,6 +21239,11 @@ i2:     if (Me%OutPut%Radiation) then
 
         do dn = 1, TimeSerieNumber
 
+            call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR20'
+
+            if (IgnoreOK) cycle
+
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                       LocalizationI = id,                               &
                                       LocalizationJ = jd,                               &
@@ -21150,18 +21255,18 @@ i2:     if (Me%OutPut%Radiation) then
 
             if (DepthON) then
 
-                if (Id < 0 .or. Jd < 0) then
+!                if (Id < 0 .or. Jd < 0) then
                 
-                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR20'
+!                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR20'
 
-                    if (IgnoreOK) then
-                        cycle
-                    else
-                        stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR30'
-                    endif
+!                    if (IgnoreOK) then
+!                        cycle
+!                    else
+!                        stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR30'
+!                    endif
 
-                endif
+!                endif
 
                 kd = GetLayer4Level(Me%ObjGeometry, id, jd, DepthLevel, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR40'

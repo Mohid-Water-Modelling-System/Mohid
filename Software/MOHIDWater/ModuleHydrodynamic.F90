@@ -134,7 +134,11 @@ Module ModuleHydrodynamic
                                        GetDomainDecompositionMPI_ID, GetDomainDecompositionON, &
                                        GetDomainDecompositionSlaves,                     &
                                        GetDomainDecompositionSlavesSize,                 &
-                                       GetDomainDecompositionParameters
+                                       GetDomainDecompositionParameters,                 &
+                                       WindowIntersectDomain,                            &
+                                       ReturnsIntersectionCorners,                       &                                       
+                                       GetGridOutBorderPolygon
+                                       
     use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,          &
                                        GetGeometryDistances, GetGeometryKFloor,          &
                                        GetGeometryMinWaterColumn, UnGetGeometry,         &
@@ -1419,6 +1423,7 @@ Module ModuleHydrodynamic
 
     type      T_OutW
         type(T_OutPutTime), dimension(:), pointer :: OutPutWindows      => null()
+        type(T_Size2D    ), dimension(:), pointer :: OriginalCorners    => null()
         logical                                   :: OutPutWindowsON    = .false. !initialization: Jauch        
         integer                                   :: WindowsNumber      = 0       !initialization: Jauch
         integer,            dimension(:), pointer :: ObjHDF5            => null()
@@ -1957,6 +1962,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call Construct_Numerical_Options
 
         call Verify_Numerical_Options   
+        
+        call ConstructDomainDecomposition        
 
         call Construct_OutPutTime
 
@@ -1974,8 +1981,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call Actualize_HydrodynamicTimeStep
         
-        call ConstructDomainDecomposition        
-
         call InitialHydrodynamicField (DischargesID, AssimilationID) 
 
         call StartOutputBoxFluxes     
@@ -8563,10 +8568,20 @@ cd5 :           if (opened) then
             
          if(Me%OutW%OutPutWindowsON)then
 
-            allocate(Me%OutW%ObjHDF5(Me%OutW%WindowsNumber))
+            allocate(Me%OutW%ObjHDF5        (Me%OutW%WindowsNumber))
+            allocate(Me%OutW%OriginalCorners(Me%OutW%WindowsNumber))
             
             do iW = 1, Me%OutW%WindowsNumber
+                
                 Me%OutW%OutPutWindows%NextOutPut = 1
+                
+                Me%OutW%OriginalCorners(iW)%ILB = Me%OutW%OutPutWindows(iW)%ILB
+                Me%OutW%OriginalCorners(iW)%IUB = Me%OutW%OutPutWindows(iW)%IUB
+                Me%OutW%OriginalCorners(iW)%JLB = Me%OutW%OutPutWindows(iW)%JLB
+                Me%OutW%OriginalCorners(iW)%JUB = Me%OutW%OutPutWindows(iW)%JUB
+                
+                Me%OutW%OutPutWindows(iW)%ON    = .true.
+                
             enddo 
 
         end if
@@ -9811,7 +9826,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         !Local-----------------------------------------------------------------
         real, pointer, dimension(:, :)              :: Bathymetry
         integer, pointer, dimension(:, :, :)        :: WaterPoints3D
-        type(T_Size2D)                              :: WorkSize2D
+        type(T_Size2D)                              :: WorkSize2D, WorkSize2DAux
         character (Len = PathLength)                :: FileName
         character (Len = StringLength)              :: AuxChar
         integer                                     :: STAT_CALL
@@ -9819,17 +9834,19 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         integer                                     :: WorkJLB, WorkJUB
         integer                                     :: WorkKLB, WorkKUB
         integer                                     :: HDF5_CREATE, ObjHDF5, i, n, j
-        logical                                     :: SimpleOutPut 
+        logical                                     :: SimpleOutPut, OutputOk 
 
         !----------------------------------------------------------------------
         !Bounds
+        
+        OutputOk = .true.
 
         FileName = trim(Me%Files%OutPutFields)//"5"
 
         SimpleOutPut = .false. 
 
         if (present(iW)) then
-
+        
             WorkILB = Me%OutW%OutPutWindows(iW)%ILB
             WorkIUB = Me%OutW%OutPutWindows(iW)%IUB
 
@@ -9839,11 +9856,44 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
             WorkKLB = Me%OutW%OutPutWindows(iW)%KLB
             WorkKUB = Me%OutW%OutPutWindows(iW)%KUB
             
-            WorkSize2D%ILB = Me%OutW%OutPutWindows(iW)%ILB            
-            WorkSize2D%IUB = Me%OutW%OutPutWindows(iW)%IUB 
+            WorkSize2D%ILB = WorkILB            
+            WorkSize2D%IUB = WorkIUB 
             
-            WorkSize2D%JLB = Me%OutW%OutPutWindows(iW)%JLB 
-            WorkSize2D%JUB = Me%OutW%OutPutWindows(iW)%JUB 
+            WorkSize2D%JLB = WorkJLB
+            WorkSize2D%JUB = WorkJUB
+            
+            Me%OutW%OutPutWindows(iW)%ON = .true.
+            
+            if (Me%DomainDecomposition%MasterOrSlave) then
+            
+                if (WindowIntersectDomain(Me%ObjHorizontalGrid, WorkSize2D)) then
+                
+                    WorkSize2DAux%ILB = WorkSize2D%ILB
+                    WorkSize2DAux%IUB = WorkSize2D%IUB
+                    
+                    WorkSize2DAux%JLB = WorkSize2D%JLB
+                    WorkSize2DAux%JUB = WorkSize2D%JUB
+                
+                    WorkSize2D        = ReturnsIntersectionCorners(Me%ObjHorizontalGrid, WorkSize2DAux)
+
+                    WorkILB           = WorkSize2D%ILB            
+                    WorkIUB           = WorkSize2D%IUB 
+                    
+                    WorkJLB           = WorkSize2D%JLB
+                    WorkJUB           = WorkSize2D%JUB   
+                    
+                    Me%OutW%OutPutWindows(iW)%ILB = WorkSize2D%ILB 
+                    Me%OutW%OutPutWindows(iW)%IUB = WorkSize2D%IUB 
+                                                  
+                    Me%OutW%OutPutWindows(iW)%JLB = WorkSize2D%JLB
+                    Me%OutW%OutPutWindows(iW)%JUB = WorkSize2D%JUB 
+                                          
+                    
+                else
+                    Me%OutW%OutPutWindows(iW)%ON = .false. 
+                    OutputOk                     = .false.               
+                endif                    
+            endif
             
             write(AuxChar,fmt='(i5)') iW
             Auxchar           = "_w"//trim(adjustl(Auxchar))//".hdf5"
@@ -9873,77 +9923,78 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
             
 
         endif
-
-        !Gets a pointer to Bathymetry
-        call GetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR10'
-
-        !Gets WaterPoints3D
-        call GetWaterPoints3D   (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR20'
-
-
-        !Gets File Access Code
-        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
-
-        ObjHDF5 = 0
-
-        !Opens HDF File
-        call ConstructHDF5      (ObjHDF5,                                               &
-                                 trim(FileName),                                        &
-                                 HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR30'
         
-        
-        if (present(iW)) then
+iStart: if (OutputOk) then
+            
+            !Gets a pointer to Bathymetry
+            call GetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR10'
 
-            Me%OutW%ObjHDF5(iW) = ObjHDF5
-          
-        else
-          
-            Me%ObjHDF5          = ObjHDF5
-
-        endif
-
-
-        
-        
-        !Write the Horizontal Grid
-        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
-                                 WorkSize = WorkSize2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR410'
-
-        !Sets limits for next write operations
-        call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                       &
-                              WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR420'
+            !Gets WaterPoints3D
+            call GetWaterPoints3D   (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR20'
 
 
-        !Writes the Grid
-        call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",                      &
-                              Array2D = Bathymetry,                                     &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR430'
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
 
-        call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints3D", "-",                   &  
-                              Array3D = WaterPoints3D,                                  &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR440'
+            ObjHDF5 = 0
+
+            !Opens HDF File
+            call ConstructHDF5      (ObjHDF5,                                               &
+                                     trim(FileName),                                        &
+                                     HDF5_CREATE, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR30'
+            
+            
+            if (present(iW)) then
+
+                Me%OutW%ObjHDF5(iW) = ObjHDF5
+              
+            else
+              
+                Me%ObjHDF5          = ObjHDF5
+
+            endif
+
+            
+            !Write the Horizontal Grid
+            call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
+                                     WorkSize = WorkSize2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR410'
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                       &
+                                  WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR420'
 
 
-        !Writes everything to disk
-        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR460'
+            !Writes the Grid
+            call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",                      &
+                                  Array2D = Bathymetry,                                     &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR430'
+
+            call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints3D", "-",                   &  
+                                  Array3D = WaterPoints3D,                                  &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR440'
 
 
-        !Ungets the Bathymetry
-        call UngetGridData (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR470'
+            !Writes everything to disk
+            call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR460'
 
-        !Ungets the WaterPoints
-        call UnGetMap        (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR480'
 
+            !Ungets the Bathymetry
+            call UngetGridData (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR470'
+
+            !Ungets the WaterPoints
+            call UnGetMap        (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR480'
+
+        endif iStart
 
         !----------------------------------------------------------------------
 
@@ -10058,6 +10109,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         integer                                             :: iflag, dn, Id, Jd, TimeSerieNumber, i, j
         character(len=PathLength)                           :: TimeSerieLocationFile
         character(len=StringLength)                         :: TimeSerieName
+        type (T_Polygon), pointer                           :: ModelDomainLimit
 
         !Begin-----------------------------------------------------------------
 
@@ -10101,6 +10153,12 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Construct_Time_Serie - Hydrodynamic - ERR30' 
+            
+        call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Polygon          = ModelDomainLimit,               &
+                                     STAT             = STAT_CALL)           
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_Time_Serie - Hydrodynamic - ERR35' 
 
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
@@ -10108,10 +10166,19 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
                             PropertyList, "srh",                                        &
                             WaterPoints3D = Me%External_Var%WaterPoints3D,              &
                             ModelName     = Me%ModelName,                               &
+                            ModelDomain   = ModelDomainLimit,                           &
                             STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR40")
+            
+
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               &
+                                 Polygon          = ModelDomainLimit,                   &
+                                 STAT             = STAT_CALL)                          
+
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_Time_Serie - Hydrodynamic - ERR45' 
 
 
         !Deallocates PropertyList
@@ -10126,6 +10193,11 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
 
         do dn = 1, TimeSerieNumber
 
+            call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR100'
+            
+            if (IgnoreOK) cycle
+
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                       CoordX   = CoordX,                                &
                                       CoordY   = CoordY,                                & 
@@ -10139,30 +10211,31 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
             
 i1:         if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                       
+                                          
                 if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
                     stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR90'
                 endif                            
 
-                if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
+              !  if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
                 
-                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR100'
+              !      call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+              !      if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR100'
 
-                    if (IgnoreOK) then
-                        write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
-                        cycle
-                    else
-                        stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR110'
-                    endif
+              !      if (IgnoreOK) then
+              !          write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
+              !          cycle
+             !       else
+             !           stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR110'
+             !       endif
 
-                endif
+             !   endif
 
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR120'
 
             endif i1
+            
 
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                       LocalizationI   = Id,                             &
@@ -41338,24 +41411,27 @@ do5:            do i = ILB, IUB
         if (Me%OutW%OutPutWindowsON)  then
         
             do iW = 1, Me%OutW%WindowsNumber
+            
+                if (Me%OutW%OutPutWindows(iW)%ON) then
 
-                NextOutPut = Me%OutW%OutPutWindows(iW)%NextOutPut
-                
-                OutPutFileOK = .false. 
+                    NextOutPut = Me%OutW%OutPutWindows(iW)%NextOutPut
+                    
+                    OutPutFileOK = .false. 
 
-                if (NextOutPut <= Me%OutW%OutPutWindows(iW)%Number) then
-                    if (Me%CurrentTime >= Me%OutW%OutPutWindows(iW)%OutTime(NextOutPut)) then
-                        OutPutFileOK = .true.
+                    if (NextOutPut <= Me%OutW%OutPutWindows(iW)%Number) then
+                        if (Me%CurrentTime >= Me%OutW%OutPutWindows(iW)%OutTime(NextOutPut)) then
+                            OutPutFileOK = .true.
+                        endif
                     endif
-                endif
-                
-                if (OutPutFileOK) then
-                    call Write_HDF5_Format(iW)
                     
-                    NextOutPut = NextOutPut + 1
-                    
-                    Me%OutW%OutPutWindows(iW)%NextOutPut = NextOutPut
-                endif
+                    if (OutPutFileOK) then
+                        call Write_HDF5_Format(iW)
+                        
+                        NextOutPut = NextOutPut + 1
+                        
+                        Me%OutW%OutPutWindows(iW)%NextOutPut = NextOutPut
+                    endif
+                endif                    
             enddo
             
         endif        
@@ -42090,17 +42166,15 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         integer                             :: CHUNK
         logical                             :: SimpleOutPut
         type (T_Time)                       :: Aux
-        real(8)                             :: AuxPeriod, TotalTime        
+        real(8)                             :: AuxPeriod, TotalTime
 
         !----------------------------------------------------------------------
 
-        !A if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Write_HDF5_Format")
-        
         SimpleOutPut = .false.
 
         !Bounds
         if (present(iW)) then
-
+                
             WorkILB = Me%OutW%OutPutWindows(iW)%ILB
             WorkIUB = Me%OutW%OutPutWindows(iW)%IUB
 
@@ -42143,9 +42217,6 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             
         endif
         
-        
-
-
         WaterPoints3D       => Me%External_Var%WaterPoints3D
         ComputeFaces3D_W    => Me%External_Var%ComputeFaces3D_W
         KFloorZ             => Me%External_Var%KFloor_Z
@@ -42743,6 +42814,7 @@ cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
         nullify(KFloorZ         )
         nullify(ComputeFaces3D_W)
         nullify(OpenPoints3D    )
+            
 
         !A if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Write_HDF5_Format")
 
@@ -43316,6 +43388,12 @@ cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
 
         do dn = 1, TimeSerieNumber
 
+
+            call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR20'
+            
+            if (IgnoreOK) cycle
+
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                       LocalizationI = id,                               &
                                       LocalizationJ = jd,                               &
@@ -43324,18 +43402,19 @@ cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
                                       STAT          = STAT_CALL)
             if (DepthON) then
 
-                if (Id < 0 .or. Jd < 0) then
+!                if (Id < 0 .or. Jd < 0) then
                 
-                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR20'
+!                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR20'
 
-                    if (IgnoreOK) then
-                        cycle
-                    else
-                        stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR30'
-                    endif
+!                    if (IgnoreOK) then
+!                        cycle
+!                    else
+!                        stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR30'
+!                    endif
 
-                endif
+!                endif
+
                 kd = GetLayer4Level(Me%ObjGeometry, id, jd, DepthLevel, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR40'
 

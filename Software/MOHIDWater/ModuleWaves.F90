@@ -3231,18 +3231,18 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
         KUB = Me%WorkSize%KUB
         KLB = Me%WorkSize%KLB
         
-                !SZZ, DWZ    
-        call GetGeometryDistances(Me%ObjGeometry,                                           & 
-                                  SZZ         = Me%ExternalVar%SZZ,                         &
-                                  STAT        = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR50'
+        call GetGeometryWaterColumn(Me%ObjGeometry,                                     &
+                                    WaterColumn = Me%ExternalVar%WaterColumn,           &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeWaveLength - ModuleLagrangianGlobal - ERR50'
+        
 
         do j=JLB, JUB
         do i=ILB, IUB
             
             if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
 
-                WaterDepth         = Me%ExternalVar%SZZ(i, j, 0) - Me%ExternalVar%SZZ(i, j, KUB)
+                WaterDepth         = Me%ExternalVar%WaterColumn(i, j)
                 WaveAmplitude      = Me%WaveHeight%Field(i, j) / 2.
                 WavePeriod         = Me%WavePeriod%Field(i, j)
 
@@ -3256,7 +3256,11 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
                     G_Aux                       = ((2 * Pi / WavePeriod)**2) * WaterDepth / gravity
                     F_Aux                       = G_Aux + (1 / (1. + 0.6522 * G_Aux + 0.4622 * (G_Aux**2) + &
                                                   0.0864 * (G_Aux**4) + 0.0675 * (G_Aux**5)))
-                    Me%WaveLength%Field(i, j)   = WavePeriod * sqrt(gravity * WaterDepth / F_Aux)
+                    if (F_Aux > 0. .and. WaterDepth > 0.) then
+                        Me%WaveLength%Field(i, j) = WavePeriod * sqrt(gravity * WaterDepth / F_Aux)
+                    else
+                        Me%WaveLength%Field(i, j) = 0.                     
+                    endif
 
                 end if
                 
@@ -3266,8 +3270,8 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
         end do
 
 
-        !SZZ
-        call UnGetGeometry (Me%ObjGeometry, Me%ExternalVar%SZZ, STAT  = STAT_CALL)
+        !WaterColumn
+        call UnGetGeometry (Me%ObjGeometry, Me%ExternalVar%WaterColumn, STAT  = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR80'
 
            

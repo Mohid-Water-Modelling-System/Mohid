@@ -1609,18 +1609,17 @@ wwd1:       if (Me%WindowWithData) then
             Me%File%DefaultNames%bat        = 'Bathymetry'
             Me%File%DefaultNames%lon_stag   = 'Longitude'
             Me%File%DefaultNames%lat_stag   = 'Latitude'
+ 
+            call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints2D', exist2D, STAT= STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR70'
             
+            call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints', exist2D_2, STAT= STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR80'           
             
             if (Me%MaskDim == DimUnknown) then
                 call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints3D', exist3D, STAT= STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR60'
 
-                call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints2D', exist2D, STAT= STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR70'
-                
-                call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints', exist2D_2, STAT= STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR80'
-                
                 if (exist3d) then
                     Me%MaskDim = Dim3D
                 endif
