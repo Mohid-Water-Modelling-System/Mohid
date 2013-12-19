@@ -41,7 +41,7 @@ Module ModuleDrawing
     
     !Subroutines--------------------------------------------------------------
     public  ::    New
-    private ::    Add
+    public  ::    Add
     public  ::    SetLimits
     public  ::    IsVisible
     public  ::    IsPointInsidePolygon

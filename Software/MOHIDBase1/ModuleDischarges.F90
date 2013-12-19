@@ -3960,14 +3960,21 @@ cd1:    if (DischargesID > 0) then
         !Local-----------------------------------------------------------------
         integer                                     :: ready_         
 
-        call Ready(DischargesID, ready_)    
-        
-        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-            GetNumberOfDischarges = Me%DischargesNumber
-        else 
+        if (.not. associated(FirstDischarges)) then
             GetNumberOfDischarges = - 99
-        end if
+
+        else            
+        
+            call Ready(DischargesID, ready_)    
+        
+            if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+                GetNumberOfDischarges = Me%DischargesNumber
+            else 
+                GetNumberOfDischarges = - 99
+            end if
        
+        end if 
+        
         return
  
     end function GetNumberOfDischarges

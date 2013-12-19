@@ -47437,6 +47437,110 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     
     
     end function GetWaterLevel1D
+        
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetSurfaceVelocityU
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETSURFACEVELOCITYU"::GetSurfaceVelocityU
+    !DEC$ ENDIF
+    logical function GetSurfaceVelocityU(HydrodynamicID, nComputePoints, velocityU)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HydrodynamicID
+        integer                                     :: nComputePoints
+        real(8), dimension(nComputePoints)          :: velocityU
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        integer                                     :: i, j, idx
+
+        call Ready(HydrodynamicID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            !Gets WaterPoints2D
+            call GetWaterPoints2D(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D,    &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetSurfaceVelocityU - ModuleHydrodynamic - ERR01'
+
+            idx = 1
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%External_Var%WaterPoints2D(i, j) == WaterPoint) then
+                    velocityU(idx) = Me%Velocity%Horizontal%U%New(i, j, Me%WorkSize%KUB)
+                    idx = idx + 1 
+                endif
+            enddo
+            enddo
+
+            !UnGets WaterPoints2D
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetSurfaceVelocityU - ModuleHydrodynamic - ERR02'
+
+       
+            GetSurfaceVelocityU = .true.
+        else 
+            GetSurfaceVelocityU = .false.
+        end if
+           
+        return
+    
+    
+    end function GetSurfaceVelocityU
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetSurfaceVelocityV
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETSURFACEVELOCITYV"::GetSurfaceVelocityV
+    !DEC$ ENDIF
+    logical function GetSurfaceVelocityV(HydrodynamicID, nComputePoints, velocityV)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HydrodynamicID
+        integer                                     :: nComputePoints
+        real(8), dimension(nComputePoints)          :: velocityV
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        integer                                     :: i, j, idx
+
+        call Ready(HydrodynamicID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            !Gets WaterPoints2D
+            call GetWaterPoints2D(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D,    &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetSurfaceVelocityV - ModuleHydrodynamic - ERR01'
+
+            idx = 1
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%External_Var%WaterPoints2D(i, j) == WaterPoint) then
+                    velocityV(idx) = Me%Velocity%Horizontal%V%New(i, j, Me%WorkSize%KUB)
+                    idx = idx + 1 
+                endif
+            enddo
+            enddo
+
+            !UnGets WaterPoints2D
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetSurfaceVelocityV - ModuleHydrodynamic - ERR02'
+
+       
+            GetSurfaceVelocityV = .true.
+        else 
+            GetSurfaceVelocityV = .false.
+        end if
+           
+        return
+    
+    
+    end function GetSurfaceVelocityV    
     
 #endif
 

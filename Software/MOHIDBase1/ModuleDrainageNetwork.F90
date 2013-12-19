@@ -15340,7 +15340,7 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             GetNumberOfOutlets = Me%TotalOutlets
         else 
-            GetNumberOfNodes = - 99.0
+            GetNumberOfOutlets = - 99.0
         end if
            
     end function GetNumberOfOutlets    
@@ -15365,7 +15365,7 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         call Ready(DrainageNetworkID, ready_)    
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            do OutletPos = 1, MeTotalOutlets
+            do OutletPos = 1, Me%TotalOutlets
                 OutletNodeID(OutletPos) = Me%OutletNodePos(OutletPos)
             enddo
             

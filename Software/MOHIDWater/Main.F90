@@ -1294,7 +1294,7 @@ doNext:     do while (associated(NextModel))
         do while (Running)
             
             !The which was here has been refactored into a function, 
-            !so it can be called from here and from OpenMP
+            !so it can be called from here and from OpenMI
             Running = DoOneTimeStep (DTmin)
             
         enddo
@@ -2034,8 +2034,17 @@ do1:        do i=2,StringLength
         
         !Local-----------------------------------------------------------------
         logical                                     :: dummy
+        real                                        :: DTmin, DTmax
         
-        dummy = DoOneTimeStep()
+        !Search for initial Min and Max Time Step
+        DTmin   = - FillValueReal
+        DTmax   =   FillValueReal
+        call SearchMinMaxTimeStep (DTmin, DTmax)
+
+        
+        
+        dummy = DoOneTimeStep(DTmin)
+        
         PerformTimeStep = .true.
 
     end function PerformTimeStep

@@ -414,7 +414,8 @@ Module ModuleLagrangianGlobal
                                        RewindBlockinBlock, ExtractBlockFromBlockFromBlock,  &
                                        GetBlockSize, KillEnterData
     use ModuleDrawing,          only : T_Polygon, T_PointF, PointDistanceToPolygon, New,    &
-                                       T_Lines, IsVisible, SegIntersectLine, SegIntersectPolygon
+                                       Add, SetLimits, T_Lines, IsVisible, SegIntersectLine,&
+                                       SegIntersectPolygon
     use ModuleWaterQuality,     only : StartWaterQuality, WaterQuality, GetDTWQM,           &
                                        GetWQPropIndex, KillWaterQuality
     use ModuleGridData,         only : GetGridData, GetMaximumValue, ModifyGridData, UngetGridData
@@ -13496,9 +13497,9 @@ MF:             if (CurrentPartic%Position%Surface) then
                         Else
 if_stm:                     If (CurrentOrigin%Movement%StokesDriftMethod == LonguetHigginsGeneric) then 
                                 If (WaterDepth > (WaveLength / 2.)) then
-                                    write(*,*) 'Can not compute Stokes Drift with generic formulation (potential floating overflow). &
-                                                Since (WaterDepth > WaveLength / 2), deep water approach is adequate                &
-                                                - change Stokes Drift Method to LonguetHigginsDeep'
+                                    write(*,*) 'Can not compute Stokes Drift with generic formulation (potential floating overflow)'
+                                    write(*,*) 'Since (WaterDepth > WaveLength / 2), deep water approach is adequate'
+                                    write(*,*) '- change Stokes Drift Method to LonguetHigginsDeep'
                                     stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR11'
                                 endif
                                 
@@ -25177,6 +25178,89 @@ em1:    do em =1, Me%EulerModelNumber
     end subroutine ReadUnLockEulerianDensity
 
     !--------------------------------------------------------------------------
+    
+#ifdef _OPENMI_    
+        
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::SetBoomLocation
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_SETBOOMLOCATION"::SetBoomLocation
+    !DEC$ ENDIF
+    logical function SetBoomLocation(LagrangianID, nPoints, boomCoordsX, boomCoordsY)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: LagrangianID
+        integer                                     :: nPoints
+        real(8), dimension(nPoints)                 :: boomCoordsX
+        real(8), dimension(nPoints)                 :: boomCoordsY
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        integer                                     :: iPoint
+        type(T_Lines), pointer                      :: CurrLine
+
+        call Ready(LagrangianID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            !Deallocates current boom
+            if (associated(Me%Booms%Individual)) then
+                deallocate(Me%Booms%Individual)
+            endif
+
+            
+            if (nPoints == 0) then
+
+                Me%Booms%Number = 0
+                
+            else
+                    
+                Me%Booms%Number = 1
+                allocate(Me%Booms%Individual(Me%Booms%Number))
+
+                Me%Booms%Individual(1)%Name = "External Imposed Boom"
+                
+                Me%Booms%Individual(1)%Description = "Description"
+                
+                Me%Booms%Individual(1)%VelLimit = 0.4
+                
+                Me%Booms%Individual(1)%WaveLimit = 0.6
+                
+                nullify(Me%Booms%Individual(1)%Lines)
+
+                call Add(Me%Booms%Individual(1)%Lines, CurrLine)
+                
+                CurrLine%nNodes = nPoints
+                
+
+                allocate(CurrLine%X(1:CurrLine%nNodes))
+                allocate(CurrLine%Y(1:CurrLine%nNodes))
+
+                do iPoint = 1, nPoints
+                    CurrLine%X(iPoint) = boomCoordsX(iPoint)
+                    CurrLine%Y(iPoint) = boomCoordsY(iPoint)
+                enddo
+                                        
+                call SetLimits(CurrLine)     
+                
+                
+            endif
+                
+
+            SetBoomLocation = .true.
+        else 
+            call PlaceErrorMessageOnStack("Lagrangian not ready")
+            SetBoomLocation = .false.
+        end if
+           
+
+    end function SetBoomLocation
+    
+    !--------------------------------------------------------------------------
+
+    
+#endif    
 
 end Module ModuleLagrangianGlobal
 
