@@ -7570,6 +7570,7 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 
         
         Me%AccBoundaryFlowVolume = 0.0
+        sum = 0.0
         
         !Impose lateral aquifer levels
         if (Me%SoilOpt%ImposeBoundaryWalls) then

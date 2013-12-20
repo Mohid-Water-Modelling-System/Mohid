@@ -7223,10 +7223,10 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Sets Boundary values
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint .and. &      !BasinPoint
-                Me%BoundaryCells     (i,j)   == BasinPoint .and. &      !BoundaryPoints
-!                Me%myWaterColumn     (i, j)  > 0.1         .and. &      !"Flooding"
-                Me%myWaterLevel      (i, j)  > Me%BoundaryValue) then   !Level higher then imposed level
+            if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint .and.          &      !BasinPoint
+                Me%BoundaryCells     (i,j)   == BasinPoint .and.          &      !BoundaryPoints
+                Me%ExtVar%Topography (i, j)  < Me%MaxDtmForBoundary .and. &      !Low land point where to imposes BC
+                Me%myWaterLevel      (i, j)  > Me%BoundaryValue) then            !Level higher then imposed level
 
 !                !Check if near a boundary point
 !                NearBoundary = .false.
