@@ -111,6 +111,19 @@
 !       <<EndAreaFiles>>
 !   <EndGridDataInfo>
 !
+!
+!!!Create river section dredging!!!
+!
+!   SECTION_COMPUTE            : 0/1               [0]           !1 - Compute Sections from given xyz points (pairs of section begin and end)
+!   SECTION_HEIGHT             : real              [0.]           !Section middle height (from first point Z)
+!   SECTION_INTERPOL_TYPE      : int               [1]           !1 - linear; 2 - power; 3 - root
+!   SECTION_INTERPOL_ORDER     : real              [1.]          !power or root order (2 - power of 2, squared root)
+!   SECTION_POINTS_TO_ADD      : int               [7.]          !points to add to each section (beside section end and start)
+!   SECTION_XYZ_FILE           : char               -            !output file with original points (section boundaries) and created points
+!
+!       !areas to select where to triangulate (if active)
+!       <BeginAreaFiles>
+!       <EndAreaFiles>
 
 program DigitalTerrainCreator
     
@@ -156,8 +169,11 @@ program DigitalTerrainCreator
     
     integer, parameter                              :: Average_                     = 1
     integer, parameter                              :: Minimum_                     = 2    
-
-
+    
+    !Z interpolation
+    integer, parameter                              :: LinearInterpol_              = 1
+    integer, parameter                              :: PowerInterpol_               = 2
+    integer, parameter                              :: RootInterpol_                = 3
 
     !Globals-------------------------------------------------------------------
     type     T_ExternalVar
@@ -251,6 +267,14 @@ program DigitalTerrainCreator
         integer, dimension(4)                       :: WindowLimits
         
         integer                                     :: FillMethod
+        
+        logical                                     :: ComputeSections
+        integer                                     :: SectionPointsToAdd
+        integer                                     :: SectionInterpolType
+        real                                        :: SectionInterpolOrder
+        real                                        :: SectionHeight
+        character(len=line_length)                  :: SectionXYZFile
+        type(T_Polygon),pointer                     :: SectionAreas
 
         type(T_ExternalVar)                         :: ExtVar
         type(T_Triang     )                         :: Triang
@@ -545,7 +569,10 @@ program DigitalTerrainCreator
             stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR30'
         endif
 
-
+        
+        !Could not understand how to use this with river sections to dredge so created a new way
+        !to define section by creating it from section boundaries (XYZ file) and middle depth
+        !David 12-2013
 i1:     if (Me%River%CanonicSpace) then
 
             call GetData(Me%River%MaintainBed,                                          &
@@ -609,7 +636,100 @@ i2:         if      (trim(AuxChar) == 'j') then
             if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66'
 
         endif i1
-
+        
+        !The latter canonic space does not seem usefull in creating real river sections so 
+        !created a new method to compute river sections from given points. The given points should be
+        !even, created in pairs, being the first of each pair the section begin and the second the section end
+        !As these points are constructed in GUI the z is undefined and will be filled with bathymetry in
+        !The sections are computed linearly, root or power from section begin given middle point height
+        call GetData(Me%ComputeSections,                                                &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType   = FromFile_,                                          &
+                     keyword      ='SECTION_COMPUTE',                                   &
+                     ClientModule ='DigitalTerrainCreator',                             &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66a'
+        
+        if (Me%ComputeSections) then
+        
+            if (.not. Me%BatimInON) then
+                write (*,*)
+                write (*,*) 'Define the keyword BATIM_INI, defining the path to the bathymetry file'
+                write (*,*) 'to be able to compute sections boundaries elevations'
+                stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66b'                
+            endif
+            
+            !interpolation type to create the section points z's (linear, root or power producing
+            !a V, U and "hart" section shapes respectively
+            call GetData(Me%SectionInterpolType,                                            &
+                         Me%ObjEnterData, flag,                                             &
+                         SearchType   = FromFile_,                                          &
+                         keyword      ='SECTION_INTERPOL_TYPE',                             &
+                         ClientModule ='DigitalTerrainCreator',                             &
+                         Default      = LinearInterpol_,                                    &
+                         STAT         = STAT_CALL)        
+            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66c'
+            
+            if (Me%SectionInterpolType .ne. LinearInterpol_         &
+                .and. Me%SectionInterpolType .ne. PowerInterpol_  &
+                .and. Me%SectionInterpolType .ne. RootInterpol_) then
+                write (*,*)
+                write (*,*) 'Define the keyword SECTION_INTERPOL_TYPE with value 1'
+                write (*,*) '(linear) or 2 (power) or 3 (root)'
+                stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66c2'              
+            endif 
+            
+            !for power and root define the order (2 - power to 2 or squared root)
+            !by default 1 (same as linear)
+            call GetData(Me%SectionInterpolOrder,                                           &
+                         Me%ObjEnterData, flag,                                             &
+                         SearchType   = FromFile_,                                          &
+                         keyword      ='SECTION_INTERPOL_ORDER',                            &
+                         ClientModule ='DigitalTerrainCreator',                             &
+                         Default      = 1.,                                                 &
+                         STAT         = STAT_CALL)        
+            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66c3'
+            
+            !height for middle point of section and it is measured in relation to first point Z of the pair
+            call GetData(Me%SectionHeight,                                                  &
+                         Me%ObjEnterData, flag,                                             &
+                         SearchType   = FromFile_,                                          &
+                         keyword      ='SECTION_HEIGHT',                                    &
+                         ClientModule ='DigitalTerrainCreator',                             &
+                         Default      = 0.,                                                 &
+                         STAT         = STAT_CALL)        
+            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66d'
+            
+            !How many points to add in the section beside the boundary ones (start and end)
+            call GetData(Me%SectionPointsToAdd,                                             &
+                         Me%ObjEnterData, flag,                                             &
+                         SearchType   = FromFile_,                                          &
+                         keyword      ='SECTION_POINTS_TO_ADD',                             &
+                         ClientModule ='DigitalTerrainCreator',                             &
+                         Default      = 7,                                                  &
+                         STAT         = STAT_CALL)        
+            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66e'
+            
+            !Output file with xyz from original file (but with z filled) and also the added points
+            call GetData(Me%SectionXYZFile,                                                 &
+                         Me%ObjEnterData, flag,                                             &
+                         SearchType   = FromFile_,                                          &
+                         keyword      ='SECTION_XYZ_FILE',                                  &
+                         ClientModule ='DigitalTerrainCreator',                             &
+                         STAT         = STAT_CALL)        
+            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66f'    
+            
+            if (flag == 0) then
+                write (*,*)
+                write (*,*) 'Define the keyword SECTION_XYZ_FILE, defining the path to the file'
+                write (*,*) 'to place the original xyz points and the created by the section method'
+                stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66g'
+            endif
+            
+            call ConstructSelectedArea
+                   
+        endif
 
         call GetData(Me%Filter,                                                     &
                      Me%ObjEnterData, flag,                                         &
@@ -877,6 +997,68 @@ i2:         if      (trim(AuxChar) == 'j') then
     
     !--------------------------------------------------------------------------
 
+
+    subroutine ConstructSelectedArea
+
+        !Local-----------------------------------------------------------------
+        integer                             :: flag, STAT_CALL
+        character(len=line_length)          :: AreaFilePath
+        character(len=line_length)          :: FullBufferLine
+        integer                             :: ClientNumber, StartLine, EndLine
+        integer                             :: CurrentLineNumber
+        logical                             :: BlockFound
+        !Begin-----------------------------------------------------------------
+
+        call ExtractBlockFromBuffer(Me%ObjEnterData,                         &
+                                    ClientNumber,                           &
+                                    '<BeginAreaFiles>',                     &
+                                    '<EndAreaFiles>',                       &
+                                    BlockFound,                             &
+                                    STAT = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructSelectedArea - DigitalTerrainCreator - ERR130'
+
+        if (BlockFound) then
+
+            call GetBlockSize(Me%ObjEnterData,                              &
+                              ClientNumber,                                 &
+                              StartLine,                                    &
+                              EndLine,                                      &
+                              FromBlock_,                            &
+                              STAT = STAT_CALL)
+
+            do CurrentLineNumber = StartLine + 1 , EndLine - 1
+
+                call GetFullBufferLine(Me%ObjEnterData,                     &
+                                       CurrentLineNumber,                   &
+                                       FullBufferLine,                      &
+                                       STAT = STAT_CALL)
+                if(STAT_CALL .ne. SUCCESS_) stop 'ConstructSelectedArea - DigitalTerrainCreator - ERR140'
+
+                !Get LandArea files paths
+                call GetData(AreaFilePath,                                  &
+                             Me%ObjEnterData,                               &
+                             flag,                                          &
+                             SearchType   = FromBlockInBlock_,              &
+                             Buffer_Line  = CurrentLineNumber,              &
+                             STAT         = STAT_CALL)        
+                if(STAT_CALL .ne. SUCCESS_) stop 'ConstructSelectedArea - DigitalTerrainCreator - ERR150'
+
+                !Construct overlapping Area collection
+                call New(Me%SectionAreas,  trim(AreaFilePath))
+
+            end do
+
+        endif
+        
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructSelectedArea - DigitalTerrainCreator - ERR160'
+
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructSelectedArea - DigitalTerrainCreator - ERR170'        
+    
+    end subroutine ConstructSelectedArea
+    
+    !--------------------------------------------------------------------------
     
     subroutine ReadTriangulationOptions
         
@@ -1201,7 +1383,8 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
         call AllocateTempVariables
         
         call SetGridLimits
-
+        
+       
         if (Me%BatimInON) then
             call ConstructInitialGridData
         else
@@ -1209,6 +1392,21 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
         endif
 
         call DefineGridPoints
+
+        !if true, XYZ data incomplete (only sections boundaries). 
+        !Need to add more points XY to define section and compute Z.
+        !Needs to be after BatimInON to fill bathum
+        if (Me%ComputeSections) then
+            
+            !first, fill points Z (section boundaries) with known grid data
+            call FillingPoints        
+            
+            !second, compute new section points
+            call ComputeSections
+            
+            !if interpolation is next needs to have no data points
+            if (Me%InterpolType == Triangulation) call SelectAreaForInterpolation
+        endif
 
         if (Me%PointsForInterpolation /= OnlyXYZPoints) then
         if (.not.Me%BatimInOn .or. (Me%BatimInOn .and. .not. Me%BatimInMatch)) then
@@ -1274,6 +1472,272 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
 
     !--------------------------------------------------------------------------
     
+    subroutine ComputeSections
+    
+        !Local-----------------------------------------------------------------
+        integer                                          :: NumberOfPoints
+        real,    dimension(:  ), pointer                 :: XVector, YVector, ZVector
+        integer                                          :: ipoint, CurrentPoint, NextPoint
+        integer                                          :: CurrentSectionPoint
+        integer                                          :: UnitNumber
+        real                                             :: CurrentX, CurrentY, NextX, NextY
+        real                                             :: MiddlePointX, MiddlePointY, HalfWidth
+        real                                             :: DistanceToMiddle, Factor, StepX, StepY
+        integer                                          :: STAT_CALL
+        type(T_XYZPoints),                 pointer       :: XYZPoints     !local temp storage 
+        real                                             :: Exponent
+        !Begin-----------------------------------------------------------------
+        
+        
+        !open the file to write down the points
+        call UnitsManager (UnitNumber, OPEN_FILE, STAT = STAT_CALL)
+        open (unit=UnitNumber, status = 'unknown', file = trim(adjustl(Me%SectionXYZFile)))
+        
+        !second, add new points and compute Z
+        !loop through all xyz points
+        Me%CurrentXYZPoints => Me%XYZPoints
+
+         !Only the first collection for now. Because the New fucntion will add a new to the list
+         !and then it is infinite adding a new one and analyzing it and adding
+        do while(associated(Me%CurrentXYZPoints))
+            
+            !verify that the xyz points are even so that every one has a pair (section start and end)
+            if (MOD(Me%CurrentXYZPoints%Count, 2) /= 0) then
+                write (*,*)
+                write (*,*) 'In section method need to provide even number of'
+                write (*,*) 'xyz points since they define section start and end.'
+                stop ' ComputeSections - DigitalTerrainCreator - ERR10'
+            endif
+            
+            !write the new points group
+            write(UnitNumber,*)'<begin_xyz>'
+            
+            !points to add (number of points defined bt the user per pair of xyz points)
+            NumberOfPoints = (Me%CurrentXYZPoints%Count / 2.) * Me%SectionPointsToAdd
+            
+            allocate(XVector(NumberOfPoints))
+            allocate(YVector(NumberOfPoints))                       
+            allocate(ZVector(NumberOfPoints))
+            
+            ipoint = 0
+                       
+            !go with step 2 because it is assumed that pairs of points
+            !defining the section begin and end were created
+            do CurrentPoint = 1, Me%CurrentXYZPoints%Count, 2
+                
+                !define section beggin (current point)
+                !and section end (next point)
+                NextPoint = CurrentPoint + 1
+                CurrentX = Me%CurrentXYZPoints%X(CurrentPoint)
+                CurrentY = Me%CurrentXYZPoints%Y(CurrentPoint)
+                NextX    = Me%CurrentXYZPoints%X(NextPoint)
+                NextY    = Me%CurrentXYZPoints%Y(NextPoint)
+                
+                write(UnitNumber,*)Me%CurrentXYZPoints%X(CurrentPoint), Me%CurrentXYZPoints%Y(CurrentPoint), &
+                                    Me%CurrentXYZPoints%Z(CurrentPoint)
+                write(UnitNumber,*)Me%CurrentXYZPoints%X(NextPoint), Me%CurrentXYZPoints%Y(NextPoint),       &
+                                    Me%CurrentXYZPoints%Z(NextPoint)
+                
+                !define middle point (here the depth will be the one defined by the user)
+                MiddlePointX = (CurrentX + NextX) / 2.
+                MiddlePointY = (CurrentY + NextY) / 2.
+                HalfWidth = sqrt((MiddlePointX - CurrentX)**2 + (MiddlePointY - CurrentY)**2)
+                
+                !define step to compute new xyz points (same sumber as points needed - always odd
+                StepX = (NextX - CurrentX) / (Me%SectionPointsToAdd + 1)
+                StepY = (NextY - CurrentY) / (Me%SectionPointsToAdd + 1)
+                
+                
+                !go trough all new points to define their coordinates
+                do CurrentSectionPoint = 1, Me%SectionPointsToAdd
+                    
+                    ipoint = ipoint + 1
+                    !new point coordinates
+                    XVector (ipoint) = CurrentX + StepX * CurrentSectionPoint
+                    YVector (ipoint) = CurrentY + StepY * CurrentSectionPoint
+                    
+                    DistanceToMiddle = sqrt((MiddlePointX - XVector (ipoint))**2 + (MiddlePointY - YVector (ipoint))**2)
+                    
+                    !shape of the section to compute point Z (linear V, root U, power "heart") 
+                    if (Me%SectionInterpolType == LinearInterpol_)then
+                        Exponent = 1
+                    else if (Me%SectionInterpolType == PowerInterpol_)then
+                        Exponent = Me%SectionInterpolOrder
+                    else if (Me%SectionInterpolType == RootInterpol_)then
+                        Exponent = 1. / Me%SectionInterpolOrder
+                    endif
+                    
+                    !factor of middle height to compute point Z
+                    Factor = LinearInterpolation (HalfWidth, 0., 0., 1., DistanceToMiddle)**Exponent
+                    
+                    !Point Z is the first point (section begin) minus the height computed
+                    ZVector(ipoint) = Me%CurrentXYZPoints%Z(CurrentPoint) - Factor * Me%SectionHeight
+                    
+                    !not allow higher than boundary after passing the middle
+                    if ((CurrentSectionPoint > Me%SectionPointsToAdd / 2.)     &
+                         .and. (ZVector(ipoint) > Me%CurrentXYZPoints%Z(NextPoint))) then
+                        ZVector(ipoint) = Me%CurrentXYZPoints%Z(NextPoint)
+                    endif
+
+                    write(UnitNumber,*)XVector (ipoint), YVector (ipoint), ZVector(ipoint)
+                    
+                enddo
+                
+            end do
+            
+            !Construct XYZ points collection. For now only local so that this process is not inifinite
+            !if the collection was added to Me%XYZPoints it would be next evaluated again
+            call New(XYZPoints, XVector, YVector, ZVector)
+
+            deallocate(XVector)
+            deallocate(YVector)                       
+            deallocate(ZVector)
+            
+            write(UnitNumber,*)'<end_xyz>'
+            
+            !Only the first collection for now. Because the New fucntion will add a new to the list
+            !and then it is infinite adding a new one and analyzing it and adding
+            Me%CurrentXYZPoints => Me%CurrentXYZPoints%Next
+        
+        end do
+        
+        !close the xyz file
+        call UnitsManager (UnitNumber, CLOSE_FILE, STAT = STAT_CALL)        
+        
+        
+        !only after the computation add to the Me%XYZPoints or the previous cycle would be infinite
+        Me%CurrentXYZPoints => XYZPoints
+        do while(associated(Me%CurrentXYZPoints))
+        
+            call New(Me%XYZPoints, Me%CurrentXYZPoints)
+            
+            Me%CurrentXYZPoints => Me%CurrentXYZPoints%Next
+            
+        enddo
+        
+        !nullify    (CurrentXYZPoints)
+        deallocate (XYZPoints)
+        
+    
+    end subroutine ComputeSections
+    
+    !--------------------------------------------------------------------------
+
+    subroutine FillingPoints
+
+        !Local-----------------------------------------------------------------
+        type (T_PointF),   pointer          :: GridPoint
+        integer                             :: CurrentPoint
+        integer                             :: i, j
+        real                                :: XSW, YSW, XSE, YSE, XNE, YNE, XNW, YNW
+        logical                             :: FoundPoint
+
+        !Begin-----------------------------------------------------------------
+
+        write(*,*)"Filling points with known data..."
+
+
+        !loop through all xyz points
+        Me%CurrentXYZPoints => Me%XYZPoints
+
+        do while(associated(Me%CurrentXYZPoints))
+
+            do CurrentPoint = 1, Me%CurrentXYZPoints%Count
+
+                if(.not. Me%CurrentXYZPoints%Inside(CurrentPoint))then
+                    
+                    Me%AuxPoint%X = Me%CurrentXYZPoints%X(CurrentPoint)
+                    Me%AuxPoint%Y = Me%CurrentXYZPoints%Y(CurrentPoint)
+
+                    FoundPoint = .false.
+                    
+                    do i = Me%ExtVar%WorkSize%ILB,  Me%ExtVar%WorkSize%IUB
+                    do j = Me%ExtVar%WorkSize%JLB , Me%ExtVar%WorkSize%JUB
+                                   
+                        if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. .not. FoundPoint) then
+
+                            GridPoint => Me%GridPoint(i, j)
+                            
+                            XSW = Me%ExtVar%XX_IE(i, j)
+                            YSW = Me%ExtVar%YY_IE(i, j)
+                            XSE = Me%ExtVar%XX_IE(i, j + 1)
+                            YSE = Me%ExtVar%YY_IE(i, j + 1)
+                            XNE = Me%ExtVar%XX_IE(i + 1, j + 1)
+                            YNE = Me%ExtVar%YY_IE(i + 1, j + 1)
+                            XNW = Me%ExtVar%XX_IE(i + 1, j)
+                            YNW = Me%ExtVar%YY_IE(i + 1, j)
+
+                            Me%Rect%VerticesF(1)%X = XSW
+                            Me%Rect%VerticesF(1)%Y = YSW
+                            Me%Rect%VerticesF(2)%X = XSE
+                            Me%Rect%VerticesF(2)%Y = YSE
+                            Me%Rect%VerticesF(3)%X = XNE
+                            Me%Rect%VerticesF(3)%Y = YNE
+                            Me%Rect%VerticesF(4)%X = XNW
+                            Me%Rect%VerticesF(4)%Y = YNW
+
+                            Me%Rect%VerticesF(5)%X = Me%Rect%VerticesF(1)%X
+                            Me%Rect%VerticesF(5)%Y = Me%Rect%VerticesF(1)%Y
+                            
+                            call SetLimits(Me%Rect)
+                            
+                            if(IsPointInsidePolygon(Me%AuxPoint, Me%Rect))then
+                                Me%CurrentXYZPoints%Z(CurrentPoint) = Me%Depth(i,j)
+                                FoundPoint = .true.
+                            end if
+                            
+                        endif
+                    enddo
+                    enddo
+                    
+                    if (.not. FoundPoint) then
+                        write (*,*)
+                        write (*,*) 'Point x y outside grid',  Me%AuxPoint%X, Me%AuxPoint%Y
+                        write (*,*) 'Please remove all points outside grid'
+                        stop 'FillingPoints - DigitalTerrainTool - ERR10'
+                    endif
+
+                end if
+
+            end do
+
+            Me%CurrentXYZPoints => Me%CurrentXYZPoints%Next
+        end do
+        
+    end subroutine FillingPoints
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine SelectAreaForInterpolation
+
+        !Local-----------------------------------------------------------------
+        type (T_PointF),   pointer          :: GridPoint
+        integer                             :: i, j    
+        !Begin----------------------------------------------------------------
+        
+        do i = Me%ExtVar%WorkSize%ILB,  Me%ExtVar%WorkSize%IUB
+        do j = Me%ExtVar%WorkSize%JLB , Me%ExtVar%WorkSize%JUB
+
+            if (Me%ExtVar%DefineCellsMap(i, j)==1) then
+
+                GridPoint => Me%GridPoint(i, j)
+
+                if (associated(Me%SectionAreas)) then
+                
+                    if (IsVisible(Me%SectionAreas, GridPoint)) then
+                        Me%Depth(i,j) = Me%NoDataPoint
+                    endif     
+                
+                endif
+            endif
+        enddo
+        enddo
+    
+    end subroutine SelectAreaForInterpolation
+
+    !--------------------------------------------------------------------------
+
     subroutine SelectPoints
 
         call SelectPointsWithData

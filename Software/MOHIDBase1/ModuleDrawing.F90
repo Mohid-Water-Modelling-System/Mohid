@@ -76,12 +76,14 @@ Module ModuleDrawing
     private ::    NewXYZPoint_V2
     private ::    NewXYZPoint_V3
     private ::    NewXYZPoint_V4
+    private ::    NewXYZPoint_V5
     interface     New
         module procedure NewPolygon
         module procedure NewXYZPoint
         module procedure NewXYZPoint_V2 
         module procedure NewXYZPoint_V3 
         module procedure NewXYZPoint_V4 
+        module procedure NewXYZPoint_V5
         module procedure NewLine
     end interface New
     
@@ -764,6 +766,50 @@ if2 :               if (BlockFound) then
         nullify   (XYZPoint)
 
     end subroutine NewXYZPoint_V4
+    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
+    subroutine NewXYZPoint_V5(XYZPoints, XYZPointCollection)
+        
+        !Arguments-------------------------------------------------------------
+        type(T_XYZPoints),               pointer    :: XYZPoints
+        type(T_XYZPoints),               pointer    :: XYZPointCollection
+
+        !Local-----------------------------------------------------------------
+        type(T_XYZPoints),               pointer    :: XYZPoint
+        integer                                     :: i
+ 
+        !Begin-----------------------------------------------------------------
+
+ 
+        !this can not be done directly with XYZPointCollection or it would remove info
+        !this is just to add to the list a new blank object
+        call Add(XYZPoints, XYZPoint)
+
+        XYZPoint%Count = XYZPointCollection%Count
+        
+        allocate(XYZPoint%X     (1:(XYZPoint%Count))) 
+        allocate(XYZPoint%Y     (1:(XYZPoint%Count)))
+        allocate(XYZPoint%Z     (1:(XYZPoint%Count))) 
+        allocate(XYZPoint%Inside(1:(XYZPoint%Count))) 
+        
+        XYZPoint%FileFormat = TypeX_Y_Z
+       
+        XYZPoint%Inside = .false.
+        
+         do i = 1 , XYZPoint%Count
+           
+            XYZPoint%X(i)  = XYZPointCollection%X(i)
+            XYZPoint%Y(i)  = XYZPointCollection%Y(i)
+            XYZPoint%Z(i)  = XYZPointCollection%Z(i)
+
+        end do
+        
+        call SetLimits(XYZPoint)
+        
+
+        nullify   (XYZPoint)
+
+    end subroutine NewXYZPoint_V5
     !--------------------------------------------------------------------------    
     !--------------------------------------------------------------------------
     subroutine AddXYZPoint (XYZPoints, ObjXYZPoint)
