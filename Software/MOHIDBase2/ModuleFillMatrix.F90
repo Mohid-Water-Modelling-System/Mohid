@@ -938,13 +938,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 Me%DefaultValue = null_real
                 
-            elseif((Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == Boxes   ) .or. &
-                   (Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == Constant))then
+            elseif(Me%OverrideValueKeywordON .and. Me%InitializationMethod == AsciiFile)then
+            
+                Me%DefaultValue = null_real
+                
+            elseif((Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == Boxes    ) .or. &
+                   (Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == AsciiFile) .or. &
+                   (Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == Constant ))then
                    
                 write(*,*)'Initialization method for property '//trim(Me%PropertyID%Name)
-                write(*,*)'can only be CONSTANT or BOXES'
+                write(*,*)'can only be CONSTANT, BOXES or ASCII'
                 stop 'ReadOptions - ModuleFillMatrix - ERR102'
-     
+
             
             else
 
@@ -2947,9 +2952,34 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR01'
         if (iflag==0)then
-            write(*,*)'ASCII File Name not given'
-            stop 'ConstructSpaceASCIIFile - ModuleFillMatrix - ERR02'
-        end if
+        
+           if(Me%OverrideValueKeywordON)then
+                
+                call GetData(Me%ASCIIFile%FileName,                                &
+                             Me%ObjEnterData , iflag,                              &
+                             SearchType   = ExtractType,                           &
+                             keyword      = trim(Me%OverrideValueKeyword),         &
+                             ClientModule = 'ModuleFillMatrix',                    &
+                             STAT         = STAT_CALL)                                      
+                
+                if (STAT_CALL .NE. SUCCESS_)  then
+                    write(*,*)trim(Me%PropertyID%Name)//', '//trim(Me%OverrideValueKeyword) 
+                    stop 'ReadOptions - ModuleFillMatrix - ERR01'
+                end if           
+                
+                if(iflag == 0)then
+                    write(*,*)'Please define the ASCII file in the override keyword '//trim(Me%PropertyID%Name)
+                    write(*,*)'to give values for property '//trim(Me%PropertyID%Name)
+                    stop 'ReadOptions - ModuleFillMatrix - ERR011'
+                end if
+                           
+            else
+
+                write(*,*) 'ASCII File Name not given not given for property '//trim(Me%PropertyID%Name)           
+                stop       'ConstructSpaceASCIIFile - ModuleFillMatrix - ERR02'
+
+            end if        
+           end if
 
         if (Me%Dim == Dim2D) then
 

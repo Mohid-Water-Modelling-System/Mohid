@@ -168,6 +168,7 @@
 
     use ModuleGlobalData
     use ModuleEnterData
+    use ModuleFunctions, only: Chunk_I
     use ModuleTime
     !use ifport
 
@@ -4690,10 +4691,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_)then
         integer                                         :: STAT_, ready_
         integer                                         :: Index
         !integer                                         :: STAT_CALL
-
+        integer                                     :: Chunk
         !---------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
+        
+        CHUNK = CHUNK_I(Me%Array%ILB, Me%Array%IUB)
+
         
         call Ready(ObjBivalveID, ready_)
 
@@ -4727,11 +4731,19 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_)then
 
             call AllocateAndInitializeByTimeStep
             
+            !$OMP PARALLEL SHARED(Me, OpenPoints) PRIVATE(Index)
+
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+
             do Index = Me%Array%ILB, Me%Array%IUB
 
                 call ComputeBivalve (Index, OpenPoints(Index))
 
             enddo
+            
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+
             
             call UpdateListDeadAndNewBornIDs
                         

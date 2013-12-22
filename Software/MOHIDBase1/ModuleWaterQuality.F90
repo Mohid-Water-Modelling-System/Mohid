@@ -33,7 +33,7 @@ Module ModuleWaterQuality
     use ModuleGlobalData
     use ModuleLUD
     use ModuleEnterData
-    use ModuleFunctions, only: OxygenSaturation, PhytoLightLimitationFactor
+    use ModuleFunctions, only: OxygenSaturation, PhytoLightLimitationFactor, Chunk_I
 
     implicit none
 
@@ -4622,13 +4622,15 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         !Local-------------------------------------------------------------------
         integer                                       :: STAT_          
         logical                                       :: CalcPoint
-
+        integer                                       :: Chunk
         !real                                          :: totalN
         !real                                          :: totalP
         !real                                          :: totalSi
         !------------------------------------------------------------------------                         
 
         STAT_ = UNKNOWN_
+
+        CHUNK = CHUNK_I(WQArrayLB, WQArrayUB)
 
         call Ready(WaterQualityID, ready_)    
 
@@ -4670,6 +4672,10 @@ cd6 :       if (present(FishFood)) then
 
 
             call StartWaterQualityIteration
+            
+            !$OMP PARALLEL SHARED(Me, OpenPoints) PRIVATE(index, CalcPoint)
+
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 
 do1 :       do index = WQArrayLB, WQArrayUB
             
@@ -4821,6 +4827,8 @@ do1 :       do index = WQArrayLB, WQArrayUB
 
             end if
             end do do1
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
 
 
             nullify(Me%ExternalVar%Salinity   )
