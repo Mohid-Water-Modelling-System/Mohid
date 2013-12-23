@@ -114,12 +114,14 @@
 !
 !!!Create river section dredging!!!
 !
-!   SECTION_COMPUTE            : 0/1               [0]           !1 - Compute Sections from given xyz points (pairs of section begin and end)
-!   SECTION_HEIGHT             : real              [0.]           !Section middle height (from first point Z)
+!   SECTION_COMPUTE            : 0/1               [0]           !1 - Compute sections from given xyz points 
+!                                                                   (pairs of section begin and end)
+!   SECTION_HEIGHT             : real              [0.]          !Section middle height (from first point Z)
 !   SECTION_INTERPOL_TYPE      : int               [1]           !1 - linear; 2 - power; 3 - root
 !   SECTION_INTERPOL_ORDER     : real              [1.]          !power or root order (2 - power of 2, squared root)
 !   SECTION_POINTS_TO_ADD      : int               [7.]          !points to add to each section (beside section end and start)
-!   SECTION_XYZ_FILE           : char               -            !output file with original points (section boundaries) and created points
+!   SECTION_XYZ_FILE           : char               -            !output file with original points (section boundaries) 
+!                                                                  and created points
 !
 !       !areas to select where to triangulate (if active)
 !       <BeginAreaFiles>
@@ -1485,7 +1487,7 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
         real                                             :: DistanceToMiddle, Factor, StepX, StepY
         integer                                          :: STAT_CALL
         type(T_XYZPoints),                 pointer       :: XYZPoints     !local temp storage 
-        real                                             :: Exponent
+        real                                             :: Exponent, SectionHeight
         !Begin-----------------------------------------------------------------
         
         
@@ -1533,11 +1535,10 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
                 NextX    = Me%CurrentXYZPoints%X(NextPoint)
                 NextY    = Me%CurrentXYZPoints%Y(NextPoint)
                 
+                !Begin section point
                 write(UnitNumber,*)Me%CurrentXYZPoints%X(CurrentPoint), Me%CurrentXYZPoints%Y(CurrentPoint), &
                                     Me%CurrentXYZPoints%Z(CurrentPoint)
-                write(UnitNumber,*)Me%CurrentXYZPoints%X(NextPoint), Me%CurrentXYZPoints%Y(NextPoint),       &
-                                    Me%CurrentXYZPoints%Z(NextPoint)
-                
+                                                    
                 !define middle point (here the depth will be the one defined by the user)
                 MiddlePointX = (CurrentX + NextX) / 2.
                 MiddlePointY = (CurrentY + NextY) / 2.
@@ -1570,18 +1571,38 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
                     !factor of middle height to compute point Z
                     Factor = LinearInterpolation (HalfWidth, 0., 0., 1., DistanceToMiddle)**Exponent
                     
-                    !Point Z is the first point (section begin) minus the height computed
-                    ZVector(ipoint) = Me%CurrentXYZPoints%Z(CurrentPoint) - Factor * Me%SectionHeight
+                    !if between first point and middle
+                    if (CurrentSectionPoint .le. Me%SectionPointsToAdd / 2.) then
                     
-                    !not allow higher than boundary after passing the middle
-                    if ((CurrentSectionPoint > Me%SectionPointsToAdd / 2.)     &
-                         .and. (ZVector(ipoint) > Me%CurrentXYZPoints%Z(NextPoint))) then
-                        ZVector(ipoint) = Me%CurrentXYZPoints%Z(NextPoint)
-                    endif
+                        !Point Z is the first point (section begin) minus the height computed
+                        ZVector(ipoint) = Me%CurrentXYZPoints%Z(CurrentPoint) - Factor * Me%SectionHeight
+                    
+                    else !if between middle and second point
+                        
+                        SectionHeight = Me%CurrentXYZPoints%Z(NextPoint)      -   &
+                                        (Me%CurrentXYZPoints%Z(CurrentPoint)  -   &
+                                         Me%SectionHeight                   )
+                                        
+                        if (SectionHeight .lt. 0.0) then
+                            write(*,*) 'Negative section height. Make sure that the second point of the section'
+                            write(*,*) 'is not in an area lower than the middle point (height specified by the user)'
+                            stop 'ComputeSections - DigitalTerrainCreator - ERR010'
+                        endif
 
+                        !Point Z is the second point (section end) minus the height computed
+                        ZVector(ipoint) = Me%CurrentXYZPoints%Z(Nextpoint) - Factor * SectionHeight
+
+                    endif
+                    
+                    !added point
                     write(UnitNumber,*)XVector (ipoint), YVector (ipoint), ZVector(ipoint)
                     
                 enddo
+                
+                !end section point
+                write(UnitNumber,*)Me%CurrentXYZPoints%X(NextPoint), Me%CurrentXYZPoints%Y(NextPoint),       &
+                                    Me%CurrentXYZPoints%Z(NextPoint)
+
                 
             end do
             
