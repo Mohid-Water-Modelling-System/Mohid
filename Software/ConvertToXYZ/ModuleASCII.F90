@@ -51,6 +51,8 @@ Module ModuleASCII
         character(len=StringLength)     :: FileName
         character(len=StringLength)     :: OutputFileName
         logical                         :: IgnoreNegativeValues
+        logical                         :: ReduceResolution
+        integer                         :: ReduceResolutionStep
         integer                         :: nCols
         integer                         :: nRows
         real                            :: xllCorner
@@ -147,6 +149,30 @@ Module ModuleASCII
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR030'
         
+        !Reduce resolution (ignore points at specific interval). This can be quite usefull when 
+        !handling very detailed DTM's that can not be opened in GUI because of the size. It can be 
+        !usefull to inspect data and compare to result grid data DTM in Digital Terrain Creator
+        call GetData(Me%ReduceResolution,                           &
+                     Me%ObjEnterData, iflag,                        &
+                     SearchType   = FromBlock,                      &
+                     keyword      = 'REDUCE_RESOLUTION',            &
+                     default      = .false.,                        &
+                     ClientModule = 'ModuleASCII',                  &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR040'
+        
+        !what will be the frequency of points to pick
+        if (Me%ReduceResolution) then
+            call GetData(Me%ReduceResolutionStep,                       &
+                         Me%ObjEnterData, iflag,                        &
+                         SearchType   = FromBlock,                      &
+                         keyword      = 'REDUCE_RESOLUTION_STEP',       &
+                         default      = 0,                              &
+                         ClientModule = 'ModuleASCII',                  &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR040'
+        endif
+        
     end subroutine ReadOptions
 
 
@@ -225,6 +251,7 @@ Module ModuleASCII
         real                                        :: X,Y
         integer                                     :: i,j
         integer                                     :: STAT_CALL
+        integer                                     :: Counter                 !for reducing resolution case
 
         !Begin------------------------------------------------------------------
 
@@ -248,14 +275,21 @@ Module ModuleASCII
 
         X = Me%xllCorner + Me%CellSize/2
         Y = Me%yllCorner + Me%nRows * Me%CellSize - Me%CellSize/2
-
+        
+        !if reducing resolution, initialize counter so that first point is written
+        Counter = Me%ReduceResolutionStep
+        
         do i = 1, Me%nRows
         
             read (Me%Unit, *) (Me%Z(j), j = 1, Me%nCols)
 
             do j = 1, Me%nCols
                 if ((.not. Me%IgnoreNegativeValues) .or. (Me%Z(j) >= 0.)) then
-                    write(Me%OutputUnit,*) X, Y, Me%Z(j)
+                    Counter = Counter + 1
+                    if ((.not. Me%ReduceResolution) .or. (Counter >= Me%ReduceResolutionStep)) then
+                        write(Me%OutputUnit,*) X, Y, Me%Z(j)
+                        Counter = 0
+                    endif
                 endif
                 X = X + Me%CellSize               
             end do
