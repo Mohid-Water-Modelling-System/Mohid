@@ -17,7 +17,8 @@
 
 !   INPUT_FILENAME              : char              -           !Path to input file to convert
 !   OUTPUT_FILENAME             : char              -           !Path to XYZ file generated
-
+!   REDUCE_RESOLUTION           : 0/1               0           !Connect/Disconnect resolution reduction
+!   REDUCE_RESOLUTION_STEP      : integer           0           !Interval of points that will be picked
 
 
 Module ModuleASCII
@@ -151,7 +152,7 @@ Module ModuleASCII
         
         !Reduce resolution (ignore points at specific interval). This can be quite usefull when 
         !handling very detailed DTM's that can not be opened in GUI because of the size. It can be 
-        !usefull to inspect data and compare to result grid data DTM in Digital Terrain Creator
+        !usefull to inspect data and compare to result grid data DTM from Digital Terrain Creator
         call GetData(Me%ReduceResolution,                           &
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
