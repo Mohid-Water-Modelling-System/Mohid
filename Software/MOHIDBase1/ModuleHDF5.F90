@@ -79,7 +79,7 @@ Module ModuleHDF5
     public  ::  GetHDF5ObjectInfo
     public  ::  GetHDF5ArrayDimensions
     public  ::  GetHDF5FileOkToRead
-    
+    public  ::  GetHDF5FileName
 
 #ifdef _GUI_
     public  :: HDF5InquireFile
@@ -5036,6 +5036,41 @@ Module ModuleHDF5
     end subroutine GetHDF5FileID
 
     !--------------------------------------------------------------------------
+    
+    
+
+    subroutine GetHDF5FileName (HDF5ID, FileName, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                  , intent(IN)       :: HDF5ID
+        character(len=*)         , intent(OUT)      :: FileName    
+        integer, optional        , intent(OUT)      :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            FileName = Me%FileName
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine GetHDF5FileName
+
+    !--------------------------------------------------------------------------
+
     
     logical function GetHDF5FileOkToRead (FileName)
 

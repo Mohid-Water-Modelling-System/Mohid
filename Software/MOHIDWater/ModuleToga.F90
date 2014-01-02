@@ -94,17 +94,17 @@ Module ModuleToga
         real(8)                                 :: P     = null_real
         real(8)                                 :: PP    = null_real
         real(8)                                 :: ENP   = null_real
-        character(len=5), pointer, dimension(:) :: kon   => null()  !inicialization: Carina
-        integer, pointer, dimension(:)          :: indx  => null()  !inicialization: Carina
-        real, pointer, dimension(:)             :: Sig, twoc  => null()  !inicialization: Carina
-        real, pointer, dimension(:)             :: CH, CHP    => null()  !inicialization: Carina  
-        real, pointer, dimension(:)             :: VMare, UMare, FMare, Freq  => null()  !inicialization: Carina
-        type (T_Toga), pointer                  :: Next  => null()  !inicialization: Carina
+        character(len=5), pointer, dimension(:) :: kon   => null()  
+        integer, pointer, dimension(:)          :: indx  => null()  
+        real, pointer, dimension(:)             :: Sig, twoc  => null()  
+        real, pointer, dimension(:)             :: CH, CHP    => null()  
+        real, pointer, dimension(:)             :: VMare, UMare, FMare, Freq  => null()  
+        type (T_Toga), pointer                  :: Next  => null()  
     end type T_Toga
 
     !Global Module Variables
-    type (T_Toga), pointer                      :: FirstToga   => null()  !inicialization: Carina
-    type (T_Toga), pointer                      :: Me          => null()  !inicialization: Carina
+    type (T_Toga), pointer                      :: FirstToga   => null() 
+    type (T_Toga), pointer                      :: Me          => null() 
 
     !Data----------------------------------------------------------------------
     character(LEN = 5), dimension(NCompt ), parameter  :: KonTB = (/                             &

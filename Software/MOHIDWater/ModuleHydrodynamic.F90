@@ -14581,14 +14581,14 @@ cd7:            if (Faces3D_USon(i, j, k) == Covered .and. .not. DeadZoneSon) th
                             Me%SubModel%DUZ_New(i, j, k)  = 0.
                         else
                             !!!! $OMP CRITICAL (ASMV6_ERR08)
+                            write(*,*) Me%ModelName
+                            write(*,*) 'i, j, k'
+                            write(*,*) i, j, k
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR08") 
                             !!!! $OMP END CRITICAL (ASMV6_ERR08)
                         endif
 
                     endif
-
-
-
 
                 endif cd7
 
@@ -14629,6 +14629,9 @@ cd77:       if ((ImposedTangFacesUSon(i, j, k) == Imposed  .or.                 
                     if (Me%SubModel%MissingNull) then 
                         Me%SubModel%U_New(i, j, k)  = 0.
                     else
+                        write(*,*) Me%ModelName, Me%DomainDecomposition%MPI_ID
+                        write(*,*) 'i, j, k'
+                        write(*,*) i, j, k                    
                         !!!! $OMP CRITICAL (ASMV7_ERR09)
                         call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR09") 
                         !!!! $OMP END CRITICAL (ASMV7_ERR09)
@@ -19146,7 +19149,9 @@ cd21:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
         ! !! $OMP END DO
         ! !! $OMP END PARALLEL
 
-        Average = Average / real (Counter)
+        if (Counter > 0) then
+            Average = Average / real (Counter)
+        endif            
 
         ! !! $OMP PARALLEL SHARED(Deviation) PRIVATE(i,j,ComputePoint)
         !Standard Deviation
@@ -19174,8 +19179,10 @@ cd21:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
         enddo
         ! !! $OMP END DO
         ! !! $OMP END PARALLEL
-        
-        Deviation = Deviation / real (Counter)
+
+        if (Counter > 0) then        
+            Deviation = Deviation / real (Counter)
+        endif            
 
         !$OMP PARALLEL PRIVATE(i,j,ComputePoint,Dif)
         !Remove lower Spikes
@@ -19252,8 +19259,12 @@ cd21:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
         
         nullify(Null_Mapping)
 
-        call GetComputeZUV(Me%ObjHorizontalGrid, ComputeZ, ComputeU, ComputeV, STAT = status)
-        if (status /= SUCCESS_)                                                     &
+        call GetComputeZUV(HorizontalGridID = Me%ObjHorizontalGrid,                     &
+                           ComputeZ         = ComputeZ,                                 &
+                           ComputeU         = ComputeU,                                 &
+                           ComputeV         = ComputeV,                                 &
+                           STAT             = status)
+        if (status /= SUCCESS_)                                                         &
             call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR10") 
 
 cd1:    if (Me%SubModel%InterPolTime .and. .not. InitialField) then
@@ -47239,6 +47250,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                        Faces3D_UFather, Faces3D_VFather,                 &
                                        WetFaces_UFather, WetFaces_VFather, InitialField, &
                                        FatherGridID)
+                                       
 
                 if (.not. InitialField) then
                 

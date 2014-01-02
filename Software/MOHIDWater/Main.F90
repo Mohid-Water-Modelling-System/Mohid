@@ -78,7 +78,7 @@ program MohidWater
     use ModuleHorizontalGrid,   only : ConstructHorizontalGrid,                          &
                                        ConstructFatherGridLocation,                      &
                                        GetGridFileName, GetHorizontalGridSize,           &
-                                       GetNotDefinedCells
+                                       GetNotDefinedCells, GetSonWindow
 #ifdef OVERLAP
     use ModuleModel,            only : ConstructModel, UpdateTimeAndMapping,             &
                                        RunModel, KillModel, GetModelTimeStep,            &
@@ -366,7 +366,7 @@ program MohidWater
                                                WorkSize = CurrentModel%FatherLink%Window,&
                                                  STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR100'
-
+                    
                 endif 
 
 
@@ -612,7 +612,7 @@ program MohidWater
                                     ObjLagrangianGlobal, CurrentModel%ModelID,          &
                                     InitialSystemTime, CurrentModel%MPI_ID,             &
                                     CurrentModel%MasterID, CurrentModel%LastSlaveID,    &
-                                    STAT = STAT_CALL)
+                                    CurrentModel%ModelPath, STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR80'
                 
@@ -680,11 +680,22 @@ program MohidWater
                     
                     !Converts an integer Array to a String
                     call ConvertIntToStr (FileNameInt, FileNameStr, PathLength)
+                    
+                    write(*,*) 'call ConstructHorizontalGrid'
+                    write(*,*) CurrentModel%FatherGridID
+                    write(*,*) FileNameStr
+                    write(*,*) CurrentModel%FatherModel%MPI_ID
+                    write(*,*) CurrentModel%FatherModel%MasterID
+                    write(*,*) CurrentModel%FatherModel%LastSlaveID
+                    
 
                     !Constructs the Father Grid
-                    call ConstructHorizontalGrid (HorizontalGridID = CurrentModel%FatherGridID, &
-                                                  DataFile         = FileNameStr,               &
-                                                  STAT             = STAT_CALL)
+                    call ConstructHorizontalGrid(HorizontalGridID = CurrentModel%FatherGridID,              &
+                                                 DataFile         = FileNameStr,                            &
+                                                 MPI_ID           = CurrentModel%FatherModel%MPI_ID,        &
+                                                 MasterID         = CurrentModel%FatherModel%MasterID,      &
+                                                 LastSlaveID      = CurrentModel%FatherModel%LastSlaveID,   &
+                                                 STAT             = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR160'
 
 
@@ -705,10 +716,25 @@ program MohidWater
 
                     else
 
-                        call GetHorizontalGridSize(CurrentModel%FatherGridID,                   &
-                                                   WorkSize = CurrentModel%FatherLink%Window,   &
-                                                   STAT = STAT_CALL)
+                        !call GetHorizontalGridSize(CurrentModel%FatherGridID,                   &
+                        !                           WorkSize = CurrentModel%FatherLink%Window,   &
+                        !                           STAT = STAT_CALL)
+                        !if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR200'
+                        
+                        call GetSonWindow (HorizontalGridID         = CurrentModel%HorizontalGridID,    &
+                                           HorizontalGridFatherID   = CurrentModel%FatherGridID,        &
+                                           Window                   = CurrentModel%FatherLink%Window,   &
+                                           STAT                     = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR200'
+                        
+                        
+                        write(*,*) 'call GetHorizontalGridSize'
+                        write(*,*) 'myMPI_ID',myMPI_ID
+                        write(*,*) 'Window - ILB',CurrentModel%FatherLink%Window%ILB
+                        write(*,*) 'Window - IUB',CurrentModel%FatherLink%Window%IUB
+                        write(*,*) 'Window - JLB',CurrentModel%FatherLink%Window%JLB
+                        write(*,*) 'Window - JUB',CurrentModel%FatherLink%Window%JUB                     
+                        
 
                     endif 
                     
@@ -720,7 +746,7 @@ program MohidWater
                                                      Window = CurrentModel%FatherLink%Window,   &
                                                      STAT   = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR220'
-
+                    
                 endif
 
             endif
@@ -934,6 +960,12 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR450'
 
                     endif 
+                    write(*,*) 'call MPI_Send (CurrentModel%FatherLink%Window%ILB, 1, MPI_INTEGER'
+                    write(*,*) 'myMPI_ID',myMPI_ID
+                    write(*,*) 'Window - ILB',CurrentModel%FatherLink%Window%ILB
+                    write(*,*) 'Window - IUB',CurrentModel%FatherLink%Window%IUB
+                    write(*,*) 'Window - JLB',CurrentModel%FatherLink%Window%JLB
+                    write(*,*) 'Window - JUB',CurrentModel%FatherLink%Window%JUB                     
                     
                     call MPI_Send (CurrentModel%FatherLink%Window%ILB, 1, MPI_INTEGER,   &
                                    CurrentModel%FatherModel%MPI_ID, tag, MPI_COMM_WORLD, STAT_CALL)
@@ -973,6 +1005,12 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                 do iSub = 1, CurrentModel%nSubModels
                     
                     if (CurrentModel%SubmodelLink(iSub)%Hydro) then
+                        write(*,*) 'myMPI_ID',myMPI_ID
+                        write(*,*) 'SubMPI_ID',CurrentModel%SubMPIID(iSub)
+                        write(*,*) 'Window - ILB',CurrentModel%SubmodelLink(iSub)%Window%ILB
+                        write(*,*) 'Window - IUB',CurrentModel%SubmodelLink(iSub)%Window%IUB
+                        write(*,*) 'Window - JLB',CurrentModel%SubmodelLink(iSub)%Window%JLB
+                        write(*,*) 'Window - JUB',CurrentModel%SubmodelLink(iSub)%Window%JUB                        
                         call SendHydrodynamicMPI (CurrentModel%HydrodynamicID,           &
                                                   CurrentModel%SubMPIID(iSub),           &
                                                   CurrentModel%SubmodelLink(iSub)%Window,&
@@ -1097,7 +1135,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
 iT:     if (TreeExists) then
 
             call UnitsManager(iTree, OPEN_FILE, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModelList - MohidWater - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModelList - MohidWater - ERR10'
 
             open(UNIT = iTree, FILE = 'tree.dat', status = 'OLD')
 
@@ -1116,7 +1154,8 @@ iT:     if (TreeExists) then
                             call AddNewModel(trim(adjustl(AuxChar)), MPI_ID)
                             MPI_ID = MPI_ID + 1
                         else
-                            read(AuxChar(iMPI+1:),*) nDomains
+                            read(AuxChar(iMPI+1:),*, iostat = STAT_CALL) nDomains
+                            if (STAT_CALL /= SUCCESS_) stop 'ConstructModelList - MohidWater - ERR20'
                             AuxChar1 = trim(AuxChar(1:iMPI-1))
                             write(*,*) ' : ', iMPI
                             write(*,*) 'With decomposition'
@@ -1139,7 +1178,7 @@ iT:     if (TreeExists) then
             enddo 
 
 100         call UnitsManager(iTree, CLOSE_FILE, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModelList - MohidWater - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModelList - MohidWater - ERR30'
 
             NumberOfModels = MPI_ID
 
@@ -1230,7 +1269,7 @@ doNext:     do while (associated(NextModel))
         endif        
         
 !        NewModel%FatherMPI_ID = null_int
-        NewModel%ModelLevel   = ModelLevel(AuxString)
+        NewModel%ModelLevel   = ModelLevel_f(AuxString)
         NewModel%ModelPath    = ModelPath (AuxString, NewModel%ModelLevel)
         NewModel%ModelName    = ModelName (NewModel%ModelPath)
         NewModel%SubOn        = .false.
@@ -1566,7 +1605,7 @@ doNext:     do while (associated(NextModel))
 
     !--------------------------------------------------------------------------
 
-    integer function ModelLevel (String)
+    integer function ModelLevel_f (String)
 
         !Arguments-------------------------------------------------------------
         Character(len=*), intent(in)                :: String
@@ -1575,17 +1614,17 @@ doNext:     do while (associated(NextModel))
         integer                                     :: Level, i
 
         if(String(1:1)/='+') then
-            ModelLevel=0
+            ModelLevel_f=0
         else
             Level=1
 do1:        do i=2,StringLength
                 if (String(i:i)/='+') exit
                 Level=Level+1
             enddo do1
-            ModelLevel = Level
+            ModelLevel_f = Level
         endif
 
-    end function ModelLevel
+    end function ModelLevel_f
 
     !--------------------------------------------------------------------------
 

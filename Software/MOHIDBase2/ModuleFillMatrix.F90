@@ -3672,6 +3672,7 @@ if4D:   if (Me%HDF%Field4D) then
                                   LonReference      = LongDefault,                      & 
                                   WindowLimitsJI    = WindowLimitsJI,                   &
                                   Extrapolate       = .false.,                          &    
+                                  PropertyID        = Me%PropertyID,                    &                                  
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR160'
             

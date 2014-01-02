@@ -59,7 +59,8 @@ Module ModuleRunOff
                                         GetDischargesGridLocalization,                   &
                                         GetDischargeWaterFlow, GetDischargesIDName,      &
                                         TryIgnoreDischarge, GetDischargeSpatialEmission, &
-                                        CorrectsCellsDischarges, Kill_Discharges
+                                        CorrectsCellsDischarges, Kill_Discharges,        &
+                                        GetByPassON
                                         
     implicit none
 
@@ -3820,10 +3821,11 @@ doIter:         do while (iter <= Niter)
 
         !Local------------------------------------------------------------------
         integer                                 :: iDis, nDischarges
-        integer                                 :: i, j, k
-        real                                    :: SurfaceElevation    
+        integer                                 :: i, j, k, ib, jb
+        real                                    :: SurfaceElevation, SurfaceElevationByPass    
         real                                    :: Flow, MaxFlow   
         integer                                 :: STAT_CALL
+        logical                                 :: ByPassON
 
         !Sets to 0
         call SetMatrixValue(Me%lFlowDischarge, Me%Size, 0.0)
@@ -3839,17 +3841,31 @@ doIter:         do while (iter <= Niter)
                                                Igrid = i,                               &
                                                JGrid = j,                               &
                                                KGrid = k,                               &
+                                               IByPass       = ib,                      &
+                                               JByPass       = jb,                      &                                               
                                                STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR02'
             
             if (k == 0) then
-                
+
+                !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
+                call GetByPassON(Me%ObjDischarges, iDis, ByPassON, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR03'
+
+                if (ByPassON) then
+                    SurfaceElevationByPass = Me%myWaterLevel(ib, jb)
+                else
+                    SurfaceElevationByPass = FillValueReal
+                endif
+
                 !real(8) to real as expected in GetDischargeWaterFlow
                 SurfaceElevation = Me%myWaterLevel(i, j)
                 call GetDischargeWaterFlow(Me%ObjDischarges,                            &
                                         Me%ExtVar%Now, iDis,                            &
                                         SurfaceElevation,                               &
-                                        Flow, STAT = STAT_CALL)
+                                        Flow,                                           &
+                                        SurfaceElevation2 = SurfaceElevationByPass,     &
+                                        STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR04'
                 
                 !each additional flow can remove all water column left

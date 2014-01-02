@@ -41,7 +41,7 @@ Module ModuleAssimilation
                                       HDF5WriteData, HDF5FlushMemory, KillHDF5
     use ModuleEnterData,        only: ReadFileName, ConstructEnterData, GetData,            &
                                       ExtractBlockFromBuffer, Block_Unlock, GetOutPutTime,  &
-                                      ExtractBlockFromBlock, KillEnterData
+                                      ExtractBlockFromBlock, KillEnterData, RewindBuffer
     use ModuleGridData,         only: GetGridData, UngetGridData        
     use ModuleHorizontalGrid,   only: WriteHorizontalGrid, UnGetHorizontalGrid,             &
                                       GetGridCellArea, GetXYCellZ,                          &
@@ -676,7 +676,7 @@ Module ModuleAssimilation
         integer                                 :: iflag
         type (T_Property),    pointer                       :: NewProperty
         integer                                             :: ClientNumber
-        integer                                             :: STAT_CALL
+        integer                                             :: STAT_CALL, vv
         logical                                             :: BlockFound
 
         !----------------------------------------------------------------------
@@ -747,6 +747,8 @@ Module ModuleAssimilation
             end if
 
          end if
+         
+         vv = 0
 
 do1 :   do
             call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,      &
@@ -755,9 +757,15 @@ do1 :   do
 
 cd1 :       if      (STAT_CALL .EQ. SUCCESS_      ) then    
 cd2 :           if (BlockFound) then                                                  
+
+                    vv = vv + 1
+                    
+                    write(*,*) 'Start',vv
                     
                     ! Construct a New Property 
                     Call ConstructProperty(NewProperty, ClientNumber)
+                    
+                    write(*,*) 'End',vv
 
                     ! Add new Property to the Assimilation List 
                     Call Add_Property     (NewProperty)
@@ -765,6 +773,9 @@ cd2 :           if (BlockFound) then
                     call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_) &
                         stop 'ConstructAssimilationList - ModuleAssimilation - ERR01'
+                        
+                    call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationList - ModuleAssimilation - ERR10'
                         
                     exit do1    !No more blocks
 

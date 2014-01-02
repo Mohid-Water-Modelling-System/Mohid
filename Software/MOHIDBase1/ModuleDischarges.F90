@@ -2733,15 +2733,28 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
 
             elseif (DischargeX%DischargeType == FlowOver) then
 
-                !Q = cv * b * sqrt(2*g) * H^(1.5)
-                H = SurfaceElevation - DischargeX%FlowOver%CrestHeigth
+                !Q = cv * b * sqrt(2*g) * H^(1.5)            
+                if (DischargeX%ByPass%ON .and. DischargeX%ByPass%Side == SideB) then
+                    !Downstream of the Weir
+                    H = SurfaceElevation2 - DischargeX%FlowOver%CrestHeigth
+
+                else
+                    !Upstream of the Weir
+                    H = SurfaceElevation  - DischargeX%FlowOver%CrestHeigth
+                endif            
+            
                 if (H > 0) then
                     Flow = -sqrt(19.6) * DischargeX%FlowOver%DischargeCoeficient *       &
                                          DischargeX%FlowOver%WeirLength  * H ** 1.5
                 else
                     Flow = 0.
                 endif
-
+                
+                
+                if (DischargeX%ByPass%ON .and. DischargeX%ByPass%Side == SideB) then
+                    Flow = - Flow
+                endif
+                                    
             elseif (DischargeX%DischargeType == Valve) then
 
 

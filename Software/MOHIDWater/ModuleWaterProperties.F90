@@ -13335,7 +13335,9 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                     
                     if (Property%AddOffSet)then
                     
-                        Property%DischConc(:) = Property%DischConc(:) + Property%OffSet
+                        if (Property%Evolution%Discharges) then
+                            Property%DischConc(:) = Property%DischConc(:) + Property%OffSet
+                        endif                            
                         
                         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -13344,14 +13346,28 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
                                 Property%Concentration(i,j,k)      = Property%Concentration(i,j,k)      + &
                                                                      Property%OffSet
-                                Property%Assimilation%Field(i,j,k) = Property%Assimilation%Field(i,j,k) + &
-                                                                     Property%OffSet
                             endif
                         
                         enddo
                         enddo
                         enddo
                         
+                        if (associated(Property%Assimilation%Field)) then
+
+                            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            
+                                if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
+                                    Property%Assimilation%Field(i,j,k) = Property%Assimilation%Field(i,j,k) + &
+                                                                         Property%OffSet
+                                endif
+                            
+                            enddo
+                            enddo
+                            enddo
+                            
+                        endif
                     endif
 
                     if (Property%Evolution%Discharges)then
@@ -13431,7 +13447,10 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                     
                     if (Property%AddOffSet)then
                     
-                        Property%DischConc(:) = Property%DischConc(:) - Property%OffSet
+                        if (Property%Evolution%Discharges) then
+                            Property%DischConc(:) = Property%DischConc(:) - Property%OffSet
+                        endif                            
+                        
                         
                         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -13440,14 +13459,29 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
                                 Property%Concentration(i,j,k)      = Property%Concentration(i,j,k)      - &
                                                                      Property%OffSet
-                                Property%Assimilation%Field(i,j,k) = Property%Assimilation%Field(i,j,k) - &
-                                                                     Property%OffSet
                             endif
                         
                         enddo
                         enddo
                         enddo
                         
+                        if (associated(Property%Assimilation%Field)) then
+
+                            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            
+                                if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
+                                    Property%Assimilation%Field(i,j,k) = Property%Assimilation%Field(i,j,k) - &
+                                                                         Property%OffSet
+                                endif
+                            
+                            enddo
+                            enddo
+                            enddo
+
+                        endif
+                                                
                     endif
 
 

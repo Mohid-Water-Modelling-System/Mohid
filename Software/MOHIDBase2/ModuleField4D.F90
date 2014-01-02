@@ -145,102 +145,137 @@ Module ModuleField4D
     integer, parameter                              :: Scalar_          = 1
     integer, parameter                              :: VectorX_         = 2
     integer, parameter                              :: VectorY_         = 3
+    
+    !Harmonics
+    integer, parameter :: WaveNameLength = 5
+    integer, parameter :: NComponents    = 146
+    integer, parameter :: NAdmit         = 19
+    
 
     !Parameter-----------------------------------------------------------------
 
     !Types---------------------------------------------------------------------
 
+    type T_Harmonics
+        logical                                                  :: ON          = .false.
+        integer                                                  :: Number      =  null_int
+        character(Len=WaveNameLength), dimension(:),     pointer :: WaveName    => null()
+        real,                          dimension(:,:,:), pointer :: Phase3D     => null()
+        real,                          dimension(:,:,:), pointer :: Amplitude3D => null()
+        real,                          dimension(:,:  ), pointer :: Phase2D     => null()
+        real,                          dimension(:,:  ), pointer :: Amplitude2D => null()
+    end type T_Harmonics     
+
+
     type T_DefaultNames
-        character(Len=StringLength) :: bat       
-        character(Len=StringLength) :: lon_stag  
-        character(Len=StringLength) :: lat_stag  
-        character(Len=StringLength) :: mask      
-        character(Len=StringLength) :: depth_stag
+        character(Len=StringLength) :: bat          = null_str   
+        character(Len=StringLength) :: lon_stag     = null_str     
+        character(Len=StringLength) :: lat_stag     = null_str 
+        character(Len=StringLength) :: mask         = null_str 
+        character(Len=StringLength) :: depth_stag   = null_str 
     end type T_DefaultNames
 
 
     !Generic 4D
     type T_Generic4D
-        logical                            :: ON
-        logical                            :: ReadFromTimeSerie
-        integer                            :: ObjTimeSerie
-        integer                            :: TimeSerieColumn
-        real                               :: CurrentValue
+        logical                            :: ON                    = .false.
+        logical                            :: ReadFromTimeSerie     = .false.
+        integer                            :: ObjTimeSerie          = null_int
+        integer                            :: TimeSerieColumn       = null_int
+        real                               :: CurrentValue          = null_real
 
     end type 
     
     type T_ExternalVar
-        integer, dimension(:,:  ), pointer :: WaterPoints2D
-        integer, dimension(:,:,:), pointer :: WaterPoints3D
-        real,    dimension(:,:  ), pointer :: Bathymetry
+        integer, dimension(:,:  ), pointer :: WaterPoints2D         => null()
+        integer, dimension(:,:,:), pointer :: WaterPoints3D         => null()
+        real,    dimension(:,:  ), pointer :: Bathymetry            => null()
     end type T_ExternalVar
     
     type       T_OutPut
-         type (T_Time), pointer, dimension(:)   :: OutTime
-         integer                                :: TotalOutputs
-         integer                                :: NextOutPut
-         logical                                :: Yes                  = .false.
-         logical                                :: Run_End              = .false.
+         type (T_Time), pointer, dimension(:)   :: OutTime          => null()
+         integer                                :: TotalOutputs     = null_int
+         integer                                :: NextOutPut       = null_int
+         logical                                :: Yes              = .false.
+         logical                                :: Run_End          = .false.
     end type T_OutPut
     
 
     type T_File
-        character(PathLength)                       :: FileName 
-        type (T_Time)                               :: StartTime,  EndTime        
-        integer                                     :: Obj = 0
-        integer                                     :: NumberOfInstants
-        type (T_Time), dimension(:), pointer        :: InstantsDates
-        logical                                     :: CyclicTimeON = .false.
-        integer                                     :: Form = HDF5_
-        character(StringLength)                     :: LonStagName, LatStagName
-        character(StringLength)                     :: DepthStagName, MaskName, BathymName
+        character(PathLength)                       :: FileName             = null_str
+        type (T_Time)                               :: StartTime
+        type (T_Time)                               :: EndTime        
+        integer                                     :: Obj                  = 0
+        integer                                     :: NumberOfInstants     = null_int
+        type (T_Time), dimension(:), pointer        :: InstantsDates        => null()    
+        logical                                     :: CyclicTimeON         = .false.
+        integer                                     :: Form                 = HDF5_
+        character(StringLength)                     :: LonStagName          = null_str
+        character(StringLength)                     :: LatStagName          = null_str
+        character(StringLength)                     :: DepthStagName        = null_str
+        character(StringLength)                     :: MaskName             = null_str
+        character(StringLength)                     :: BathymName           = null_str
         type (T_DefaultNames)                       :: DefaultNames        
     end type T_File
     
     type T_PropField
-        character(PathLength)                       :: FieldName, VGroupPath
-        real                                        :: MultiplyingFactor
+        character(PathLength)                       :: FieldName            = null_str
+        character(PathLength)                       :: VGroupPath           = null_str
+        real                                        :: MultiplyingFactor    = null_real
         logical                                     :: HasMultiplyingFactor = .false.
-        real                                        :: AddingFactor
-        real                                        :: MinValue, MaxValue
-        logical                                     :: MinValueON, MaxValueON        
-        logical                                     :: HasAddingFactor = .false.
-        logical                                     :: From2Dto3D   = .false.        
-        type (T_Time)                               :: NextTime,  PreviousTime
+        real                                        :: AddingFactor         = null_real
+        real                                        :: MinValue             = null_real
+        real                                        :: MaxValue             = null_real
+        logical                                     :: MinValueON           = .false.
+        logical                                     :: MaxValueON           = .false.
+        logical                                     :: HasAddingFactor      = .false.
+        logical                                     :: From2Dto3D           = .false.        
+        type (T_Time)                               :: NextTime
+        type (T_Time)                               :: PreviousTime
         type (T_PropertyID)                         :: ID
         type(T_Generic4D)                           :: Generic4D
-       
-        integer                                     :: SpaceDim             !2D/3D
-        integer                                     :: TypeZUV              !Z/U/V
+        type (T_Harmonics)                          :: Harmonics
+        !2D/3D
+        integer                                     :: SpaceDim             = null_int
+        !Z/U/V
+        integer                                     :: TypeZUV              = null_int
         
-        logical                                     :: ChangeInTime
+        logical                                     :: ChangeInTime         = .false.
         
-        integer                                     :: ValuesType
-        real                                        :: Next4DValue     = FillValueReal
-        real                                        :: Previous4DValue = FillValueReal
-        integer                                     :: NextInstant, PreviousInstant 
-        real, dimension(:,:  ), pointer             :: PreviousField2D, NextField2D
-        real, dimension(:,:,:), pointer             :: PreviousField3D, NextField3D
+        integer                                     :: ValuesType           = null_int
+        real                                        :: Next4DValue          = null_real
+        real                                        :: Previous4DValue      = null_real
+        integer                                     :: NextInstant          = null_int
+        integer                                     :: PreviousInstant      = null_int
+        real, dimension(:,:  ), pointer             :: PreviousField2D      => null()
+        real, dimension(:,:  ), pointer             :: NextField2D          => null()
+        real, dimension(:,:,:), pointer             :: PreviousField3D      => null()
+        real, dimension(:,:,:), pointer             :: NextField3D          => null()
         
         real                                        :: MinForDTDecrease     = AllmostZero
-        real                                        :: DefaultValue
+        real                                        :: DefaultValue         = null_real
         real                                        :: PredictedDT          = -null_real
         real                                        :: DTForNextEvent       = -null_real
-        type(T_PropField), pointer                  :: Next        
+        type(T_PropField), pointer                  :: Next                 => null()    
     end type T_PropField            
 
 
     private :: T_Field4D
     type       T_Field4D
-        integer                                     :: InstanceID
-        type (T_Size2D)                             :: Size2D, WorkSize2D
-        type (T_Size3D)                             :: Size3D, WorkSize3D
+        integer                                     :: InstanceID   = null_int
+        type (T_Size2D)                             :: Size2D
+        type (T_Size2D)                             :: WorkSize2D
+        type (T_Size3D)                             :: Size3D
+        type (T_Size3D)                             :: WorkSize3D
         
-        real,    dimension(:, :   ), pointer        :: Matrix2D
-        real,    dimension(:, :, :), pointer        :: Matrix3D, Depth3D
+        real,    dimension(:, :   ), pointer        :: Matrix2D     => null()  
+        real,    dimension(:, :, :), pointer        :: Matrix3D     => null()  
+        real,    dimension(:, :, :), pointer        :: Depth3D      => null()  
         
-        type (T_Time)                               :: StartTime, EndTime
-        type (T_Time)                               :: CurrentTimeExt, CurrentTimeInt        
+        type (T_Time)                               :: StartTime
+        type (T_Time)                               :: EndTime
+        type (T_Time)                               :: CurrentTimeExt
+        type (T_Time)                               :: CurrentTimeInt
         type (T_ExternalVar)                        :: ExternalVar
         type (T_PropField), pointer                 :: FirstPropField
         type (T_File      )                         :: File
@@ -268,18 +303,20 @@ Module ModuleField4D
         logical                                     :: Extrapolate          = .false. 
 
         integer                                     :: MaskDim              = Dim3D
-        real                                        :: LatReference
-        real                                        :: LonReference
-        logical                                     :: ReadWindowXY, WindowWithData 
-        logical                                     :: ReadWindowJI, ReadWindow
-        real,    dimension(2,2)                     :: WindowLimitsXY
+        real                                        :: LatReference         = null_real
+        real                                        :: LonReference         = null_real
+        logical                                     :: ReadWindowXY         = .false. 
+        logical                                     :: WindowWithData       = .false. 
+        logical                                     :: ReadWindowJI         = .false. 
+        logical                                     :: ReadWindow           = .false. 
+        real,    dimension(2,2)                     :: WindowLimitsXY       = null_real
         type (T_Size2D)                             :: WindowLimitsJI        
-        type(T_Field4D), pointer                    :: Next
+        type(T_Field4D), pointer                    :: Next                 => null()
     end type  T_Field4D
 
     !Global Module Variables
-    type (T_Field4D), pointer                    :: FirstObjField4D
-    type (T_Field4D), pointer                    :: Me
+    type (T_Field4D), pointer                       :: FirstObjField4D      => null()
+    type (T_Field4D), pointer                       :: Me                   => null()
 
     !--------------------------------------------------------------------------
     
@@ -651,7 +688,9 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
         !Arguments-------------------------------------------------------------
                                                     
         !Local-----------------------------------------------------------------
+#ifndef _NO_NETCDF            
         real(8),   pointer, dimension(:,:)      :: LatR8, LonR8, LatStagR8, LonStagR8
+#endif        
         real,      pointer, dimension(:,:)      :: Lat, Lon, LatStag, LonStag        
         real,      pointer, dimension(:,:)      :: LatStagW, LonStagW
         real,   pointer, dimension(:  )         :: XXDummy, YYDummy
@@ -1313,6 +1352,7 @@ wwd1:       if (Me%WindowWithData) then
         integer                                         :: STAT_CALL
         integer                                         :: iflag
         logical                                         :: LastGroupEqualField
+        integer                                         :: ExtractTypeBlock
 
         !---------------------------------------------------------------------
         
@@ -1485,17 +1525,151 @@ wwd1:       if (Me%WindowWithData) then
         if (iflag==1) then
             PropField%MaxValueON = .true.
         endif
+
+
+        call GetData(PropField%Harmonics%ON,                                            &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'HARMONICS',                                        &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160'
         
+        if (PropField%Harmonics%ON) then
+
+            if      (ExtractType == FromFile_   ) then
+                    
+                ExtractTypeBlock = FromBlock_
+
+            elseif  (ExtractType == FromBlock_  ) then   
+
+                ExtractTypeBlock = FromBlockInBlock_
         
+            else
+            
+                stop 'ReadOptions - ModuleField4D - ERR170'
+            
+            endif
+            
+            call ReadHarmonicWaves(PropField, ExtractTypeBlock)
+            
+        endif            
+
+
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160' 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR200' 
 
     end subroutine ReadOptions
 
     !--------------------------------------------------------------------------
 
-   !----------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+
+    subroutine ReadHarmonicWaves(PropField, ExtractType)
+
+        !Arguments-------------------------------------------------------------
+        type (T_PropField), pointer                 :: PropField                
+        integer                                     :: ExtractType
+
+        !Local-----------------------------------------------------------------
+        character(LEN = StringLength   ), parameter :: block_begin = '<beginharmonics>'
+        character(LEN = StringLength   ), parameter :: block_end   = '<endharmonics>'
+        
+        integer                                     :: STAT_CALL, ClientNumber, FirstLine, LastLine, i
+        logical                                     :: BlockFound
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, iflag
+        
+        !Begin-----------------------------------------------------------------
+
+        if      (ExtractType == FromBlock_   ) then
+                
+            call ExtractBlockFromBuffer(EnterDataID         = Me%ObjEnterData,          &
+                                        ClientNumber        = ClientNumber,             &
+                                        block_begin         = block_begin,              &
+                                        block_end           = block_end,                &
+                                        BlockFound          = BlockFound,               &
+                                        FirstLine           = FirstLine,                &
+                                        LastLine            = LastLine,                 &
+                                        STAT                = STAT_CALL)
+                                        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR10'
+            if (.not. BlockFound     ) stop 'ReadHarmonicWaves - ModuleField4D - ERR20'
+            
+
+        elseif  (ExtractType == FromBlockInBlock_  ) then   
+
+            call ExtractBlockFromBlock (EnterDataID         = Me%ObjEnterData,          &
+                                        ClientNumber        = ClientNumber,             &
+                                        block_begin         = block_begin,              &
+                                        block_end           = block_end,                &
+                                        BlockInBlockFound   = BlockFound,               &
+                                        FirstLine           = FirstLine,                &
+                                        LastLine            = LastLine,                 &
+                                        STAT                = STAT_CALL)
+                                        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR30'
+            if (.not. BlockFound     ) stop 'ReadHarmonicWaves - ModuleField4D - ERR40'
+
+    
+        else
+        
+            stop 'ReadHarmonicWaves - ModuleField4D - ERR50'
+        
+        endif
+        
+        PropField%Harmonics%Number = LastLine - FirstLine - 1 
+        
+        allocate(PropField%Harmonics%WaveName(PropField%Harmonics%Number))
+        
+i0:     if(PropField%SpaceDim == Dim2D) then
+
+            ILB = Me%Size2D%ILB
+            IUB = Me%Size2D%IUB
+            JLB = Me%Size2D%JLB
+            JUB = Me%Size2D%JUB
+
+            allocate(PropField%Harmonics%Phase2D    (ILB:IUB, JLB:JUB))
+            allocate(PropField%Harmonics%Amplitude2D(ILB:IUB, JLB:JUB))
+
+            PropField%Harmonics%Phase2D    (:,:) = FillValueReal
+            PropField%Harmonics%Amplitude2D(:,:) = FillValueReal
+
+        else i0
+
+            ILB = Me%Size3D%ILB
+            IUB = Me%Size3D%IUB
+            JLB = Me%Size3D%JLB
+            JUB = Me%Size3D%JUB
+            KLB = Me%Size3D%KLB
+            KUB = Me%Size3D%KUB
+
+            allocate(PropField%Harmonics%Phase3D    (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate(PropField%Harmonics%Amplitude3D(ILB:IUB, JLB:JUB, KLB:KUB))
+
+            PropField%Harmonics%Phase3D    (:,:,:) = FillValueReal
+            PropField%Harmonics%Amplitude3D(:,:,:) = FillValueReal
+            
+        endif i0
+
+        do i = 1, PropField%Harmonics%Number
+            call GetData(PropField%Harmonics%WaveName(i),                           &
+                         Me%ObjEnterData,  iflag, Buffer_Line  = FirstLine + i,     &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR60'
+        enddo
+                    
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR70'
+
+    end subroutine ReadHarmonicWaves
+
+    !--------------------------------------------------------------------------
+
+                
+    !--------------------------------------------------------------------------
+
 
     subroutine Generic4thDimension(PropField, ExtractType)
 
@@ -1557,10 +1731,13 @@ wwd1:       if (Me%WindowWithData) then
         integer,                intent(IN )                     :: ExtractType        
         
         !Local-----------------------------------------------------------------
+#ifndef _NO_NETCDF
         type (T_Time)                                           :: AuxTime
         real,    dimension(6)                                   :: InitialDate
         real(8), dimension(:), pointer                          :: Instants
-        integer                                                 :: STAT_CALL, i, NCDF_READ, HDF5_READ, iflag
+        integer                                                 :: NCDF_READ
+#endif        
+        integer                                                 :: STAT_CALL, i, HDF5_READ, iflag
         logical                                                 :: exist, exist3D, exist2D, exist2D_2
 
         !Begin-----------------------------------------------------------------
@@ -1635,7 +1812,10 @@ wwd1:       if (Me%WindowWithData) then
                     Me%MaskDim = Dim2D
                 endif
                 
-                
+                if (exist2D_2 .and. exist3D) then
+                    Me%MaskDim = Dim3D
+                endif
+                                
             endif                
             
             if (Me%MaskDim == Dim3D) then
@@ -4059,6 +4239,27 @@ wwd:            if (Me%WindowWithData) then
                             if(associated (PropField%NextField3D))then
                                 deallocate(PropField%NextField3D)
                                 nullify   (PropField%NextField3D)
+                            end if
+                            
+                            if(associated (PropField%Harmonics%Phase2D))then
+                                deallocate(PropField%Harmonics%Phase2D)
+                                nullify   (PropField%Harmonics%Phase2D)
+                            end if
+
+                            if(associated (PropField%Harmonics%Amplitude2D))then
+                                deallocate(PropField%Harmonics%Amplitude2D)
+                                nullify   (PropField%Harmonics%Amplitude2D)
+                            end if
+                                                        
+
+                            if(associated (PropField%Harmonics%Phase3D))then
+                                deallocate(PropField%Harmonics%Phase3D)
+                                nullify   (PropField%Harmonics%Phase3D)
+                            end if
+
+                            if(associated (PropField%Harmonics%Amplitude3D))then
+                                deallocate(PropField%Harmonics%Amplitude3D)
+                                nullify   (PropField%Harmonics%Amplitude3D)
                             end if
                             
                             PropField => PropField%Next

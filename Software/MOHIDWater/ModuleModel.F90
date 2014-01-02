@@ -226,6 +226,7 @@ Module ModuleModel
         integer                                 :: MPI_ID               = null_int
         integer                                 :: MasterID             = null_int
         integer                                 :: LastSlaveID          = null_int        
+        character(PathLength)                   :: ModelPath            = null_str
         integer                                 :: ObjLagrangian        = 0 !initialization: Jauch
 !        integer                                 :: ObjLagrangianX       = 0 !initialization: Jauch
         integer                                 :: ObjLagrangianGlobal  = 0 !initialization: Jauch
@@ -324,47 +325,48 @@ Module ModuleModel
 
     subroutine ConstructModel (LagInstance, ModelNames, NumberOfModels,                 &
                                ObjLagrangianGlobal, ModelID, InitialSystemTime,         &
-                               MPI_ID, MasterID, LastSlaveID, STAT)
+                               MPI_ID, MasterID, LastSlaveID, ModelPath, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer         , dimension(:,:), pointer   :: LagInstance
-        character(len=*), dimension(:  ), pointer   :: ModelNames
-        integer                                     :: NumberOfModels, ObjLagrangianGlobal, ModelID
-        type (T_Time)                               :: InitialSystemTime
-        integer, intent(IN ), optional              :: MPI_ID
-        integer, intent(IN ), optional              :: MasterID
-        integer, intent(IN ), optional              :: LastSlaveID
-        integer, intent(OUT), optional              :: STAT
+        integer         , dimension(:,:), pointer           :: LagInstance
+        character(len=*), dimension(:  ), pointer           :: ModelNames
+        integer                                             :: NumberOfModels, ObjLagrangianGlobal, ModelID
+        type (T_Time)                                       :: InitialSystemTime
+        integer, intent(IN ), optional                      :: MPI_ID
+        integer, intent(IN ), optional                      :: MasterID
+        integer, intent(IN ), optional                      :: LastSlaveID
+        character(len=*),     intent(IN ), optional         :: ModelPath
+        integer, intent(OUT), optional                      :: STAT
 
         !Local-----------------------------------------------------------------
-        integer, allocatable, dimension(:)          :: AuxInt4
-        integer                                     :: STAT_
-        integer                                     :: STAT_CALL, ready_
-        integer                                     :: FromFile, flag
-        character(PathLength)                       :: BathymetryFile, DataFile
-        character(PathLength), save                 :: LagNomfich
+        integer, allocatable, dimension(:)                  :: AuxInt4
+        integer                                             :: STAT_
+        integer                                             :: STAT_CALL, ready_
+        integer                                             :: FromFile, flag
+        character(PathLength)                               :: BathymetryFile, DataFile
+        character(PathLength), save                         :: LagNomfich
 
         !character(StringLength), dimension(:), pointer :: AuxModelNames
 
 #ifndef _SEDIMENT_
-        character(PathLength)                       :: SedimentFile, SedGeometryFile
+        character(PathLength)                               :: SedimentFile, SedGeometryFile
 #endif
-        integer                                     :: ObjEnterData = 0
+        integer                                             :: ObjEnterData = 0
 #ifndef _AIR_
-        integer, dimension(:, :), pointer           :: WaterPoints2D
+        integer, dimension(:, :), pointer                   :: WaterPoints2D
 #endif
 #ifndef _WAVES_
-        logical                                     :: WaveParametersON
+        logical                                             :: WaveParametersON
 #endif
 
 #ifdef _USE_SEQASSIMILATION
-        logical                                     :: HydroSeqAssim = .false.
-        logical                                     :: WaterSeqAssim = .false.
+        logical                                             :: HydroSeqAssim = .false.
+        logical                                             :: WaterSeqAssim = .false.
 #endif _USE_SEQASSIMILATION
-        !$ integer                                     :: openmp_num_threads
+        !$ integer                                             :: openmp_num_threads
         
 #ifdef _ENABLE_CUDA
-        type(T_Size3D)                              :: GeometrySize
+        type(T_Size3D)                                      :: GeometrySize
 #endif _ENABLE_CUDA
 
         !----------------------------------------------------------------------
@@ -439,7 +441,12 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 Me%LastSlaveID = null_int
             endif
-            
+
+            if (present(ModelPath)) then
+                Me%ModelPath = ModelPath
+            else
+                Me%ModelPath = null_str
+            endif            
 
 #ifdef      _ONLINE_
 
@@ -529,6 +536,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          MPI_ID           = Me%MPI_ID,                  &
                                          MasterID         = Me%MasterID,                &
                                          LastSlaveID      = Me%LastSlaveID,             &
+                                         ModelPath        = Me%ModelPath,               &   
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR120'
           
