@@ -84,11 +84,6 @@ Module ModuleGauge
     private ::      Ready
     private ::          LocateObjGauge
 
-    !Parameter
-    integer, parameter :: WaveNameLength = 5
-    integer, parameter :: NComponents    = 146
-    integer, parameter :: NAdmit         = 19
-
     !Evolution Options
     character(LEN = StringLength), parameter :: Char_Harmonics   = 'Harmonics',          &
                                                 Char_TimeSerie   = 'Time Serie',         &
@@ -96,10 +91,6 @@ Module ModuleGauge
                                                 Char_Constant    = 'Constant'
     integer, parameter                       :: Constant = 0, Harmonics = 1,             &
                                                 TimeSerie = 2, NoEvolution = 3
-
-    !PREDICTION method 
-    integer, parameter                       :: Task2000_ = 1, Toga_ = 2
-    
     !Type
     type T_TidalWave
         character(LEN = WaveNameLength) :: Name         = null_str

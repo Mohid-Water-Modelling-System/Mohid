@@ -1685,6 +1685,13 @@ Module ModuleGlobalData
     integer, parameter :: SouthNorth_      = 4
     integer, parameter :: WestEast_        = 5
     
+    !Parameter
+    integer, parameter :: WaveNameLength = 5
+    integer, parameter :: NComponents    = 146
+    integer, parameter :: NAdmit         = 19
+    
+    !PREDICTION method 
+    integer, parameter :: Task2000_ = 1, Toga_ = 2        
 
     type T_Size1D
         integer                 :: ILB            = null_int
