@@ -145,11 +145,7 @@ Module ModuleField4D
     integer, parameter                              :: Scalar_          = 1
     integer, parameter                              :: VectorX_         = 2
     integer, parameter                              :: VectorY_         = 3
-    
-    !Harmonics
-    integer, parameter :: WaveNameLength = 5
-    integer, parameter :: NComponents    = 146
-    integer, parameter :: NAdmit         = 19
+
     
 
     !Parameter-----------------------------------------------------------------
@@ -1002,7 +998,7 @@ wwd1:       if (Me%WindowWithData) then
         !Local-----------------------------------------------------------------
         integer,   pointer, dimension(:,:)      :: Mask2D
         integer,   pointer, dimension(:,:,:)    :: Mask3D
-        integer                                 :: ILB, IUB, JLB, JUB, Kmax, STAT_CALL
+        integer                                 :: ILB, IUB, JLB, JUB, Kmax, STAT_CALL, KLB, KUB
 
         !Begin-----------------------------------------------------------------
         
@@ -1078,14 +1074,28 @@ wwd1:       if (Me%WindowWithData) then
                     
            !Read horizontal grid
             if      (Me%File%Form == HDF5_  ) then
+
+                KLB = 1
+                KUB = 1
+
+                if (trim(Me%File%MaskName) == 'WaterPoints3D') then
+                    call GetHDF5ArrayDimensions (HDF5ID = Me%File%Obj, GroupName = "/Grid",     &
+                                                ItemName = trim(Me%File%MaskName),              &
+                                                Kmax = Kmax, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR10'
+                    
+                    KUB = Kmax
+                    
+                endif
                 
-                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,            &
-                                                           JLB = JLB, JUB = JUB,            &
-                                                           KLB =   1, KUB =   1,            &
+                
+                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,        &
+                                                           JLB = JLB, JUB = JUB,        &
+                                                           KLB = KLB, KUB = KUB,        &
                                      STAT   = STAT_CALL)                                   
                                      
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR60'
-                                            
+                
                 call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                            &
                                   GroupName     = "/Grid",                                  &
                                   Name          = trim(Me%File%MaskName),                   &
@@ -1431,6 +1441,17 @@ wwd1:       if (Me%WindowWithData) then
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR70'
+        
+        if (iflag == 0) then
+            call GetData(PropField%FieldName,                                           &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'HDF_FIELD_NAME',                               &
+                         default      = trim(PropField%ID%Name),                        &
+                         ClientModule = 'ModuleField4D',                                &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR75'
+        endif
 
         call GetData(LastGroupEqualField,                                               &
                      Me%ObjEnterData , iflag,                                           &
@@ -1789,14 +1810,21 @@ i0:     if(PropField%SpaceDim == Dim2D) then
  
             call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints2D', exist2D, STAT= STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR70'
-            
+                       
             call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints', exist2D_2, STAT= STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR80'           
             
-            if (Me%MaskDim == DimUnknown) then
-                call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints3D', exist3D, STAT= STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR60'
 
+            
+
+            
+            call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints3D', exist3D, STAT= STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR60'
+            
+            if (Me%MaskDim == DimUnknown) then
+            
+
+                
                 if (exist3d) then
                     Me%MaskDim = Dim3D
                 endif
@@ -1818,6 +1846,8 @@ i0:     if(PropField%SpaceDim == Dim2D) then
                                 
             endif                
             
+            Me%File%DefaultNames%mask   = 'WaterPoints'
+            
             if (Me%MaskDim == Dim3D) then
                 Me%File%DefaultNames%mask   = 'WaterPoints3D'
             else
@@ -1829,6 +1859,26 @@ i0:     if(PropField%SpaceDim == Dim2D) then
                     write(*,*) Me%File%DefaultNames%mask                    
                 endif                                    
             endif
+
+            if (exist3D) then
+                Me%File%DefaultNames%mask   = 'WaterPoints3D'
+            endif
+
+            if (exist2D) then
+                Me%File%DefaultNames%mask   = 'WaterPoints2D'
+            endif
+
+            if (exist2D_2) then
+                Me%File%DefaultNames%mask   = 'WaterPoints'
+            endif
+            
+            if (exist2D_2 .and. exist3D) then
+                Me%File%DefaultNames%mask   = 'WaterPoints'
+            endif
+            
+            
+
+            
             Me%File%DefaultNames%depth_stag = 'VerticalZ'
             
 #ifndef _NO_NETCDF

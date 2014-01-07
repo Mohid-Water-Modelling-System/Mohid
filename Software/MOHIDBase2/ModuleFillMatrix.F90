@@ -3651,7 +3651,14 @@ if4D:   if (Me%HDF%Field4D) then
                 
             else
             
-                WindowLimitsJI = Me%WorkSize2D
+                if(Me%Dim == Dim2D)then
+                    WindowLimitsJI     = Me%WorkSize2D
+                else                    
+                    WindowLimitsJI%ILB = Me%WorkSize3D%ILB
+                    WindowLimitsJI%IUB = Me%WorkSize3D%IUB
+                    WindowLimitsJI%JLB = Me%WorkSize3D%JLB
+                    WindowLimitsJI%JUB = Me%WorkSize3D%JUB
+                endif
                 
                 write(*,*) 'No domain decomposition - ILB,IUB, JLB, JUB',               &
                             WindowLimitsJI%ILB,WindowLimitsJI%IUB, WindowLimitsJI%JLB, WindowLimitsJI%JUB
@@ -3675,6 +3682,7 @@ if4D:   if (Me%HDF%Field4D) then
                                   PropertyID        = Me%PropertyID,                    &                                  
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR160'
+            
             
             call GetField4DNumberOfInstants(Me%HDF%ObjField4D, Me%HDF%NumberOfInstants, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR170'

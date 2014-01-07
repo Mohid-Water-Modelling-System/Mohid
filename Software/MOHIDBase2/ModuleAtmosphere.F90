@@ -31,6 +31,7 @@
 Module ModuleAtmosphere
 
     use ModuleGlobalData
+    use ModuleDrawing
     use ModuleTime
     use ModuleHDF5
     use ModuleFunctions,      only : ConstructPropertyID, CHUNK_J
@@ -39,7 +40,7 @@ Module ModuleAtmosphere
                                      GetNextValueForDTPred, GetValuesProcessingOptions
     use ModuleTimeSerie,      only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,     &
                                      GetTimeSerieLocation, CorrectsCellsTimeSerie,      &
-                                     GetNumberOfTimeSeries, TryIgnoreTimeSerie
+                                     GetNumberOfTimeSeries, TryIgnoreTimeSerie, GetTimeSerieName
     use ModuleEnterData,      only : ReadFileName, ConstructEnterData, GetData,              &
                                      ExtractBlockFromBuffer, Block_Unlock, GetOutPutTime,    &
                                      KillEnterData
@@ -48,7 +49,7 @@ Module ModuleAtmosphere
                                      GetGridLatitudeLongitude, WriteHorizontalGrid,          &
                                      UnGetHorizontalGrid, RotateVectorFieldToGrid,           &
                                      GetGridCellArea, GetXYCellZ, GetDomainDecompositionMPI_ID,&
-                                     GetDomainDecompositionON
+                                     GetDomainDecompositionON, GetGridOutBorderPolygon
     use ModuleStatistic,      only : ConstructStatistic, GetStatisticMethod,                 &
                                      GetStatisticParameters, ModifyStatistic, KillStatistic
     use ModuleStopWatch,      only : StartWatch, StopWatch
@@ -215,13 +216,13 @@ Module ModuleAtmosphere
         real                                        :: DT    = 0 
     end type  T_DTLimits
     
-    type      T_Limits
+    type      T_Limits_A
         logical                                     :: UseLimits = .false.
         type(T_DTLimits)                            :: Light
         type(T_DTLimits)                            :: Medium
         type(T_DTLimits)                            :: Heavy
         real                                        :: MaxValue = 0.0
-    end type  T_Limits
+    end type  T_Limits_A
 
     type      T_Atmosphere
         integer                                     :: InstanceID   = null_int !initialization: Jauch
@@ -252,8 +253,8 @@ Module ModuleAtmosphere
 !        logical                                     :: UsePrecipitationForDTPred    = .false.
 !        logical                                     :: UseIrrigationForDTPred       = .false.
 
-        type(T_Limits)                              :: Rain
-        type(T_Limits)                              :: Irrigation
+        type(T_Limits_A)                            :: Rain
+        type(T_Limits_A)                            :: Irrigation
         
         integer                                     :: RadiationMethod          = 1
         integer                                     :: CloudCoverMethod         = null_int !initialization: Jauch
@@ -703,7 +704,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         type(T_Property), pointer                           :: PropertyX
         integer                                             :: nProperties
         character(len=PathLength)                           :: TimeSerieLocationFile
+        character(len=StringLength)                         :: TimeSerieName
         character(len=StringLength), dimension(:), pointer  :: PropertyList
+        type (T_Polygon), pointer                           :: ModelDomainLimit
 
         !Begin-----------------------------------------------------------------
 
@@ -744,6 +747,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL .NE. SUCCESS_)                                                    &
                 stop 'Construct_Time_Serie - ModuleAtmosphere - ERR20' 
 
+            call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                         Polygon          = ModelDomainLimit,               &
+                                         STAT             = STAT_CALL)           
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                stop 'Construct_Time_Serie - ModuleAtmosphere - ERR25' 
+
+
 
             !Constructs TimeSerie
             call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                            &
@@ -751,8 +761,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                 PropertyList, "srs",                                    &
                                 WaterPoints2D = Me%ExternalVar%MappingPoints2D,         &
                                 ModelName     = Me%ModelName,                           &
+                                ModelDomain   = ModelDomainLimit,                       &                                
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR30'
+            
+            call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Polygon          = ModelDomainLimit,               &
+                                     STAT             = STAT_CALL)                          
+            
 
             !Deallocates PropertyList
             deallocate(PropertyList, STAT = STAT_CALL)
@@ -763,36 +779,58 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR50'
 
             do dn = 1, TimeSerieNumber
-
+            
+                call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR60'
+                
+                if (IgnoreOK) cycle
+            
                 call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                           CoordX   = CoordX,                                &
                                           CoordY   = CoordY,                                & 
                                           CoordON  = CoordON,                               &
                                           STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR70'
+                
+                call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR80'  
+                                      
                 if (CoordON) then
                     call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
 
                 
                     if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
-                        stop 'CConstructTimeSerie - ModuleAtmosphere - ERR60'
+                        stop 'CConstructTimeSerie - ModuleAtmosphere - ERR90'
                     endif                            
-                    if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
+                   ! if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
                                     
-                        call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR70'
+                   !     call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                   !     if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR100'
 
-                        if (IgnoreOK) then
-                            cycle
-                        else
-                            stop 'ConstructTimeSerie - ModuleAtmosphere - ERR80'
-                        endif
+                   !     if (IgnoreOK) then
+                   !         cycle
+                   !     else
+                   !         stop 'ConstructTimeSerie - ModuleAtmosphere - ERR80'
+                   !     endif
 
-                    endif
+                    !endif
 
                     call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR90'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR110'
                 endif
+                
+                call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                          LocalizationI   = Id,                             &
+                                          LocalizationJ   = Jd,                             & 
+                                          STAT     = STAT_CALL)
 
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR120'
+
+                if (Me%ExternalVar%MappingPoints2D(Id, Jd) /= WaterPoint) then
+                    
+                     write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
+
+                endif
             enddo
         endif
 

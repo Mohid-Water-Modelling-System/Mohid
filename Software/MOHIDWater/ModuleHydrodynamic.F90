@@ -4309,7 +4309,7 @@ case1 : select case(String)
         !<EndKeyword>
 
         call GetData(HorizontalAdvection,                                                &
-                     Me%ObjEnterData, iflag,                                &
+                     Me%ObjEnterData, iflag,                                             &
                      Keyword    = 'HORIZONTALADVECTION',                                 &
                      !By default compute always the Horizontal Advection
                      Default    = .True.,                                                &
@@ -4324,7 +4324,7 @@ case1 : select case(String)
         if (iflag == 0) then
 
             call GetData(HorizontalAdvection,                                            &
-                         Me%ObjEnterData, iflag,                            &
+                         Me%ObjEnterData, iflag,                                         &
                          Keyword    = 'HORIZONTALCONVECTION',                            &
                          !By default compute always the Horizontal Advection
                          Default    = .True.,                                            &

@@ -4634,7 +4634,7 @@ Module ModuleHDF5
             !Defines the hyperslab in the dataset
             call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
                                                STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR90'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR100'
 
 
             !Defines the memory dataspace
@@ -4644,11 +4644,11 @@ Module ModuleHDF5
             
             if (rank == 3) then
                 rank_out    = 3
-                dims_mem(3) = 1
+                dims_mem(3) = upper_bound(3)-lower_bound(3) + 1
             endif
             
             call h5screate_simple_f (rank_out, dims_mem, memspace_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR110'
 
 
             !Define the memory hyperslab
@@ -4658,20 +4658,22 @@ Module ModuleHDF5
             count_out  = count_in
             call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F, offset_out, count_out, &
                                         STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR110'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR120'
             
             if (rank ==3) then
 
-                allocate(Array3D(lower_bound(1):upper_bound(1), lower_bound(2):upper_bound(2), 1:1))
+                allocate(Array3D(lower_bound(1):upper_bound(1), lower_bound(2):upper_bound(2), &
+                                 lower_bound(3):upper_bound(3)))
 
                 call h5dread_f (dset_id, NumType, Array3D(lower_bound(1):upper_bound(1), &
                                                           lower_bound(2):upper_bound(2), &
-                                                                       1:            1), &
+                                                          lower_bound(3):upper_bound(3)), &
                                 dims_mem, STAT_CALL, memspace_id, space_id)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR120'
-
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR130'
+                
                 Array2D(lower_bound(1):upper_bound(1), lower_bound(2):upper_bound(2)) = & 
-                Array3D(lower_bound(1):upper_bound(1), lower_bound(2):upper_bound(2), 1)
+                Array3D(lower_bound(1):upper_bound(1), lower_bound(2):upper_bound(2), upper_bound(3))
+                
 
                 deallocate(Array3D)
                 
@@ -4681,7 +4683,7 @@ Module ModuleHDF5
                 call h5dread_f (dset_id, NumType, Array2D(lower_bound(1):upper_bound(1), &
                                                           lower_bound(2):upper_bound(2)),&
                                 dims_mem, STAT_CALL, memspace_id, space_id)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR120'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR140'
 
             endif
 
@@ -4693,19 +4695,19 @@ Module ModuleHDF5
 
             !Closes data space
             call h5sclose_f  (memspace_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR140'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR150'
 
             !Closes data space
             call h5sclose_f  (space_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR150'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR160'
 
             !End access to the dataset
             call h5dclose_f  (dset_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR160'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR170'
 
             !Closes group
             call h5gclose_f  (gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR170'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR180'
 
             STAT_ = SUCCESS_
 
