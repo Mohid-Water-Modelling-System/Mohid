@@ -541,9 +541,11 @@ Module ModuleInterfaceSedimentWater
   
 
     type       T_Shear
-         real, pointer, dimension (:,:)             :: CurrentVel   => null(), &
-                                                       CurrentU     => null(), &
-                                                       CurrentV     => null()
+         real, pointer, dimension (:,:)             :: CurrentVel   => null()
+         real, pointer, dimension (:,:)             :: CurrentU     => null()
+         real, pointer, dimension (:,:)             :: CurrentV     => null()
+         real, pointer, dimension (:,:)             :: UFace        => null()
+         real, pointer, dimension (:,:)             :: VFace        => null()         
          real, pointer, dimension (:,:)             :: Velocity     => null()
          real, pointer, dimension (:,:)             :: Tension      => null()
          logical                                    :: Limitation           = .false.      
@@ -1313,6 +1315,17 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR60'
             Me%Shear_Stress%CurrentV(:,:) = FillValueReal
+
+            allocate(Me%Shear_Stress%UFace(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            if(STAT_CALL .ne. SUCCESS_)&
+                stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR70'
+            Me%Shear_Stress%UFace(:,:) = FillValueReal
+
+            allocate(Me%Shear_Stress%VFace(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            if(STAT_CALL .ne. SUCCESS_)&
+                stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR80'
+            Me%Shear_Stress%VFace(:,:) = FillValueReal
+
 
         endif
 
@@ -4643,6 +4656,8 @@ do1 :       do while (associated(Property))
                             Me%Shear_Stress%CurrentVel(i, j) = sqrt(UVC2)
                             Me%Shear_Stress%CurrentU  (i, j) = UC
                             Me%Shear_Stress%CurrentV  (i, j) = VC
+                            Me%Shear_Stress%UFace     (i, j) = Velocity_U(i,j,kbottom)
+                            Me%Shear_Stress%VFace     (i, j) = Velocity_V(i,j,kbottom)
 
                         endif
 
@@ -6569,6 +6584,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         Me%WaveShear_Stress%TensionCurrents,                     &
                         Me%Shear_Stress%Velocity,                                &
                         Me%ExtWater%MinWaterColumn,                              &
+                        Me%Shear_Stress%UFace,                                   &
+                        Me%Shear_Stress%VFace,                                   &
                         STAT = STAT_CALL)
         if(STAT_CALL /= SUCCESS_)                                                &
             stop 'ModifySandTransport - ModuleInterfaceSedimentWater - ERR02'
@@ -8785,6 +8802,17 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27c'
                     nullify(Me%Shear_Stress%CurrentV)
+
+
+                    deallocate(Me%Shear_Stress%UFace,   STAT = STAT_CALL) 
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27d'
+                    nullify(Me%Shear_Stress%UFace)
+
+                    deallocate(Me%Shear_Stress%VFace,   STAT = STAT_CALL) 
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27e'
+                    nullify(Me%Shear_Stress%VFace)
 
 
                 endif

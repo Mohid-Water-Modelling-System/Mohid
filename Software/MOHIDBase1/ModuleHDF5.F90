@@ -5212,7 +5212,6 @@ Module ModuleHDF5
 
         if (ready_ .EQ. IDLE_ERR_) then
 
-
             !Creates the dataset with default properties
             if (present(OutputNumber)) then
                 call ConstructDSName (ItemName, OutputNumber, ItemName_)
@@ -5812,8 +5811,10 @@ cd1:    if (HDF5ID > 0) then
             Me => Me%Next
         enddo
 
-        if (.not. associated(Me))                                          &
+        if (.not. associated(Me)) then
+            write(*,*) Me%FileName
             stop 'ModuleHDF5 - LocateObjHDF5 - ERR01'
+        endif            
 
     end subroutine LocateObjHDF5
 

@@ -24479,8 +24479,10 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                 if (Me%OutW%OutPutWindowsON)  then
                 
                     do iW = 1, Me%OutW%WindowsNumber
-                        call KillHDF5 (Me%OutW%ObjHDF5(iW), STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillWaterProperties - ModuleWaterProperties - ERR455'
+                        if (Me%OutW%OutPutWindows(iW)%ON) then
+                            call KillHDF5 (Me%OutW%ObjHDF5(iW), STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillWaterProperties - ModuleWaterProperties - ERR455'
+                        endif                            
                     enddo
                     
                 endif                

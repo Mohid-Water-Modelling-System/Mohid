@@ -701,7 +701,6 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
 
        !Get grid horizontal space dimensions
         if      (Me%File%Form == HDF5_  ) then
-
             call GetHDF5ArrayDimensions (HDF5ID = Me%File%Obj, GroupName = "/Grid",     &
                                         ItemName = trim(Me%File%BathymName),            &
                                         Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
@@ -1082,7 +1081,7 @@ wwd1:       if (Me%WindowWithData) then
                     call GetHDF5ArrayDimensions (HDF5ID = Me%File%Obj, GroupName = "/Grid",     &
                                                 ItemName = trim(Me%File%MaskName),              &
                                                 Kmax = Kmax, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR10'
+                    if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR60'
                     
                     KUB = Kmax
                     
@@ -1094,14 +1093,14 @@ wwd1:       if (Me%WindowWithData) then
                                                            KLB = KLB, KUB = KUB,        &
                                      STAT   = STAT_CALL)                                   
                                      
-                if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR60'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR70'
                 
                 call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                            &
                                   GroupName     = "/Grid",                                  &
                                   Name          = trim(Me%File%MaskName),                   &
                                   Array2D       = Mask2D,                                   &
                                   STAT          = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR70'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR80'
 #ifndef _NO_NETCDF
             else if (Me%File%Form == NetCDF_) then
             
@@ -1113,7 +1112,7 @@ wwd1:       if (Me%WindowWithData) then
                                     JLB             = JLB,                                  &
                                     JUB             = JUB,                                  &
                                     STAT            = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR80'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR90'
 #endif    
             endif
         
@@ -1125,7 +1124,7 @@ wwd1:       if (Me%WindowWithData) then
                                     HorizontalGridID     = Me%ObjHorizontalGrid,        &
                                     Points               = Mask2D,                      &
                                     STAT                 = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR90'
+        if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR100'
 
 
         deallocate(Mask2D)
@@ -1154,7 +1153,6 @@ wwd1:       if (Me%WindowWithData) then
         
        !Get grid vertical space dimensions
         if      (Me%File%Form == HDF5_  ) then
-
             call GetHDF5ArrayDimensions (HDF5ID = Me%File%Obj, GroupName = "/Grid",     &
                                         ItemName = trim(Me%File%MaskName),              &
                                         Kmax = Kmax, STAT = STAT_CALL)
@@ -1673,7 +1671,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
             PropField%Harmonics%Amplitude3D(:,:,:) = FillValueReal
             
         endif i0
-
+        
         do i = 1, PropField%Harmonics%Number
             call GetData(PropField%Harmonics%WaveName(i),                           &
                          Me%ObjEnterData,  iflag, Buffer_Line  = FirstLine + i,     &
@@ -2540,7 +2538,6 @@ it:     if (NewPropField%ChangeInTime) then
         JUB = Me%WorkSize2D%JUB
         
         if      (Me%File%Form == HDF5_  ) then
-
             call GetHDF5ArrayDimensions(Me%File%Obj, trim(NewPropField%VGroupPath),         &
                               trim(NewPropField%FieldName), OutputNumber = Instant,         &
                               Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
@@ -2677,7 +2674,6 @@ it:     if (NewPropField%ChangeInTime) then
         
 
         if      (Me%File%Form == HDF5_  ) then
-
             call GetHDF5ArrayDimensions(Me%File%Obj, trim(NewPropField%VGroupPath),         &
                               trim(NewPropField%FieldName), OutputNumber = Instant,         &
                               Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)

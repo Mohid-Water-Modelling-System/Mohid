@@ -25995,10 +25995,13 @@ cd7:            if (ImplicitFaces) then
 
                     FCoef_2D (ib, jb) = 0.
 
-                    TiCoef_2D(ib, jb) =   (T4 - (D2     ) * WaterLevel_New(ib - di, jb - dj)   &
-                                        - (F2           ) * WaterLevel_New(ib + di, jb + dj))/ &
-                                          (E2 + E4)
-
+                    if (abs (E2 + E4) > 0) then
+                        TiCoef_2D(ib, jb) =   (T4 - (D2     ) * WaterLevel_New(ib - di, jb - dj)   &
+                                            - (F2           ) * WaterLevel_New(ib + di, jb + dj))/ &
+                                              (E2 + E4)
+                    else
+                        TiCoef_2D(ib, jb) = 0.
+                    endif
                 endif cd7
 
 

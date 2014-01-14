@@ -9010,7 +9010,7 @@ doi:        do i = ILBSon, IUBSon
         type(T_Size2D)                              :: WorkSize_
         integer                                     :: WorkILB, WorkIUB
         integer                                     :: WorkJLB, WorkJUB
-        integer                                     :: STAT_, ready_, STAT_CALL, ilen
+        integer                                     :: STAT_, ready_, STAT_CALL, ilen, iFile, i
         character(len=PathLength)                   :: FileName, AuxFile
         character(len=StringLength)                 :: AuxChar
         !Begin-----------------------------------------------------------------
@@ -9223,8 +9223,16 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                     
                         call GetHDF5FileName (ObjHDF5, FileName, STAT= STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR100'
+                        iFile = 1
+                        ilen  = len_trim(FileName)
+                        do i = ilen,1,-1
+                            if (FileName(i:i) == '/' .or. FileName(i:i) == '\') then
+                                iFile = i+1 
+                                exit
+                            endif                                
+                        enddo
                         
-                        write(Me%DomainDecomposition%FilesListID,'(A)') trim(FileName)
+                        write(Me%DomainDecomposition%FilesListID,'(A)') trim(FileName(iFile:ilen))
                         
                     endif
                     
