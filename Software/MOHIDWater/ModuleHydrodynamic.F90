@@ -137,7 +137,7 @@ Module ModuleHydrodynamic
                                        GetDomainDecompositionParameters,                 &
                                        WindowIntersectDomain,                            &
                                        ReturnsIntersectionCorners,                       &                                       
-                                       GetGridOutBorderPolygon
+                                       GetGridOutBorderPolygon, SetHorizontalGridWindow
                                        
     use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,          &
                                        GetGeometryDistances, GetGeometryKFloor,          &
@@ -9862,6 +9862,11 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
             WorkSize2D%JLB = WorkJLB
             WorkSize2D%JUB = WorkJUB
             
+            call SetHorizontalGridWindow (HorizontalGridID     = Me%ObjHorizontalGrid,  &
+                                          GlobalWorkSizeWindow = WorkSize2D,            &
+                                          STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR05'
+            
             Me%OutW%OutPutWindows(iW)%ON = .true.
             
             if (Me%DomainDecomposition%MasterOrSlave) then
@@ -9950,7 +9955,7 @@ iStart: if (OutputOk) then
             if (present(iW)) then
 
                 Me%OutW%ObjHDF5(iW) = ObjHDF5
-              
+                
             else
               
                 Me%ObjHDF5          = ObjHDF5

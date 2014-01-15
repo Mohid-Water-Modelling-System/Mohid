@@ -83,6 +83,7 @@ Module ModuleHorizontalGrid
     public  :: LocateCell
     public  :: LocateCellPolygons
     public  :: RecenterHorizontalGrid    
+    public  :: SetHorizontalGridWindow
 
     !Selector
     public  :: GetHorizontalGridSize
@@ -444,6 +445,9 @@ Module ModuleHorizontalGrid
         type (T_Size2D)                         :: Size
         type (T_Size2D)                         :: WorkSize
         type (T_Size2D)                         :: GlobalWorkSize
+        
+        logical                                 :: WindowGrid   = .false.
+        type (T_Size2D)                         :: GlobalWorkSizeWindow
 
         character(PathLength)                   :: FileName = null_str 
         
@@ -9156,10 +9160,19 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                     call HDF5SetLimits   (ObjHDF5, 1, 4, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR40'
                                         
-                    AuxInt4(1) = Me%DomainDecomposition%Global%ILB
-                    AuxInt4(2) = Me%DomainDecomposition%Global%IUB
-                    AuxInt4(3) = Me%DomainDecomposition%Global%JLB
-                    AuxInt4(4) = Me%DomainDecomposition%Global%JUB
+                    
+                    if (Me%WindowGrid) then
+                    !For the case of the window hdf5 output 
+                        AuxInt4(1) = Me%GlobalWorkSizeWindow%ILB
+                        AuxInt4(2) = Me%GlobalWorkSizeWindow%IUB
+                        AuxInt4(3) = Me%GlobalWorkSizeWindow%JLB
+                        AuxInt4(4) = Me%GlobalWorkSizeWindow%JUB
+                    else
+                        AuxInt4(1) = Me%DomainDecomposition%Global%ILB
+                        AuxInt4(2) = Me%DomainDecomposition%Global%IUB
+                        AuxInt4(3) = Me%DomainDecomposition%Global%JLB
+                        AuxInt4(4) = Me%DomainDecomposition%Global%JUB
+                    endif                        
 
                     call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Global", "ILB_IUB_JLB_JUB", &
                                           "-", Array1D = AuxInt4, STAT = STAT_CALL)
@@ -9255,6 +9268,44 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
     end subroutine WriteHorizontalGrid 
 
     !--------------------------------------------------------------------------
+
+    subroutine SetHorizontalGridWindow (HorizontalGridID, GlobalWorkSizeWindow, STAT)
+
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        type(T_Size2D)                              :: GlobalWorkSizeWindow
+        integer,        optional                    :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
+
+            Me%WindowGrid            = .true.
+            Me%GlobalWorkSizeWindow  = GlobalWorkSizeWindow
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+
+    end subroutine SetHorizontalGridWindow 
+
+    !--------------------------------------------------------------------------
+
 
     !----------------------------------------------------------------------------
 

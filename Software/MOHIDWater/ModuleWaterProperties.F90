@@ -211,7 +211,7 @@ Module ModuleWaterProperties
                                           GetDomainDecompositionParameters,                     &
                                           GetDomainDecompositionMPI_ID, GetDomainDecompositionON,&
                                           WindowIntersectDomain, ReturnsIntersectionCorners,    &
-                                          GetGridOutBorderPolygon
+                                          GetGridOutBorderPolygon, SetHorizontalGridWindow
     use ModuleGeometry,             only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,   &
                                           GetGeometryKFloor, GetGeometryWaterColumn,            &
                                           GetGeometryDistances, GetLayer4Level
@@ -3394,6 +3394,11 @@ i2:     if (present(iW)) then
             
             WorkSize2D%JLB = Me%OutW%OutPutWindows(iW)%JLB 
             WorkSize2D%JUB = Me%OutW%OutPutWindows(iW)%JUB 
+            
+            call SetHorizontalGridWindow (HorizontalGridID     = Me%ObjHorizontalGrid,  &
+                                          GlobalWorkSizeWindow = WorkSize2D,            &
+                                          STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR05'            
             
             Me%OutW%OutPutWindows(iW)%ON = .true.
             
