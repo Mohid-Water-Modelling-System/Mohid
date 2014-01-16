@@ -39,19 +39,21 @@ Module ModuleInterfaceWaterAir
                                           SetMatrixValue, CHUNK_J
     use ModuleEnterData,            only: ConstructEnterData, GetData, ExtractBlockFromBuffer,  &
                                           Block_Unlock, GetOutPutTime, ReadFileName,            &
-                                          KillEnterData             
+                                          KillEnterData   
+    use ModuleDrawing                                                    
     use ModuleGridData,             only: GetGridData, UnGetGridData
     use ModuleHorizontalGrid,       only: GetHorizontalGridSize, WriteHorizontalGrid,           &
                                           RotateVectorFieldToGrid, RotateVectorGridToField,     &
                                           GetGridCellArea, UnGetHorizontalGrid, GetXYCellZ,     &
-                                          GetDomainDecompositionMPI_ID, GetDomainDecompositionON         
+                                          GetDomainDecompositionMPI_ID, GetDomainDecompositionON,&
+                                          GetGridOutBorderPolygon, UngetHorizontalGrid         
     use ModuleHorizontalMap,        only: GetWaterPoints2D, UnGetHorizontalMap          
     use ModuleGeometry,             only: GetGeometrySize
     use ModuleMap,                  only: GetWaterPoints3D, UnGetMap                   
     use ModuleBoxDif,               only: StartBoxDif, BoxDif, KillBoxDif               
     use ModuleTimeSerie,            only: StartTimeSerie, WriteTimeSerie, KillTimeSerie,        &
                                           GetTimeSerieLocation, CorrectsCellsTimeSerie,         &
-                                          GetNumberOfTimeSeries, TryIgnoreTimeSerie
+                                          GetNumberOfTimeSeries, TryIgnoreTimeSerie, GetTimeSerieName
     use ModuleWaterProperties,      only: GetDensity, GetConcentration, UnGetWaterProperties,   &
                                           GetWaterPropertiesAirOptions, SetSurfaceFlux,         &
                                           GetPropertySurfaceFlux
@@ -1489,7 +1491,8 @@ do1 :   do while (associated(PropertyX))
         integer                                             :: nProperties
         character(len=StringLength)                         :: TimeSerieLocationFile
         character(len=StringLength), dimension(:), pointer  :: PropertyList
-
+        character(len=StringLength)                         :: TimeSerieName
+        type (T_Polygon), pointer                           :: ModelDomainLimit
 
         !----------------------------------------------------------------------
 
@@ -1519,16 +1522,21 @@ do1 :   do while (associated(PropertyX))
             enddo
 
 
-            call GetData(TimeSerieLocationFile,                                             &
-                         Me%ObjEnterData, iflag,                                            &
-                         SearchType   = FromFile,                                           &
-                         keyword      = 'TIME_SERIE_LOCATION',                              &
-                         ClientModule = 'ModuleWaterProperties',                            &
-                         Default      = Me%Files%InputData,                                 &
+            call GetData(TimeSerieLocationFile,                                         &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'TIME_SERIE_LOCATION',                          &
+                         ClientModule = 'ModuleWaterProperties',                        &
+                         Default      = Me%Files%InputData,                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                    &
+            if (STAT_CALL .NE. SUCCESS_)                                                &
                 stop 'Construct_Time_Serie - ModuleInterfaceWaterAir - ERR20' 
 
+            call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,       &
+                                         Polygon          = ModelDomainLimit,           &
+                                         STAT             = STAT_CALL)           
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'Construct_Time_Serie - ModuleInterfaceWaterAir - ERR25' 
 
             !Constructs TimeSerie
             call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                            &
@@ -1536,8 +1544,14 @@ do1 :   do while (associated(PropertyX))
                                 PropertyList, "sri",                                    &
                                 WaterPoints3D = Me%ExtWater%WaterPoints3D,              &
                                 ModelName     = Me%ModelName,                           & 
+                                ModelDomain   = ModelDomainLimit,                       &
                                 STAT          = STAT_CALL)
             if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleInterfaceWaterAir - ERR30'
+            
+            call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Polygon          = ModelDomainLimit,               &
+                                     STAT             = STAT_CALL)                          
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceWaterAir - ERR35'            
 
             !Deallocates PropertyList
             deallocate(PropertyList, STAT = STAT_CALL)
@@ -1549,35 +1563,60 @@ do1 :   do while (associated(PropertyX))
             if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceWaterAir - ERR50'
 
             do dn = 1, TimeSerieNumber
+            
+                call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceWaterAir - ERR60'
+                
+                if (IgnoreOK) cycle
 
                 call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                           CoordX   = CoordX,                                &
                                           CoordY   = CoordY,                                & 
                                           CoordON  = CoordON,                               &
                                           STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceWaterAir - ERR70'
+                
+                call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceWaterAir - ERR80'  
+                                                          
                 if (CoordON) then
                     call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
 
                     if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
-                        stop 'Construct_Time_Serie - ModuleInterfaceWaterAir - ERR60'
+                        stop 'Construct_Time_Serie - ModuleInterfaceWaterAir - ERR90'
                     endif                            
 
-                    if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
+                    !if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
                 
-                        call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceWaterAir - ERR70'
+                    !    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                    !    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceWaterAir - ERR70'
 
-                        if (IgnoreOK) then
-                            cycle
-                        else
-                            stop 'Construct_Time_Serie - ModuleInterfaceWaterAir - ERR80'
-                        endif
+                    !    if (IgnoreOK) then
+                    !        cycle
+                    !    else
+                    !        stop 'Construct_Time_Serie - ModuleInterfaceWaterAir - ERR80'
+                    !    endif
 
-                    endif
+                    !endif
 
 
                     call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceWaterAir - ERR90'
+                endif
+
+                call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                          LocalizationI   = Id,                             &
+                                          LocalizationJ   = Jd,                             & 
+                                          STAT     = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceWaterAir - ERR120'
+
+                if (Me%ExtWater%WaterPoints3D(Id, Jd, Me%WorkSize3D%KUB) /= WaterPoint) then
+                    
+                     write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',   &
+                                 trim(Me%ModelName), ' ModuleInterfaceWaterAir'
+                     write(*,*) 'ConstructTimeSerie - ModuleInterfaceWaterAir - WRN120'
+                     
                 endif
 
             enddo

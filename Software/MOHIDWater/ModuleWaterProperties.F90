@@ -211,7 +211,7 @@ Module ModuleWaterProperties
                                           GetDomainDecompositionParameters,                     &
                                           GetDomainDecompositionMPI_ID, GetDomainDecompositionON,&
                                           WindowIntersectDomain, ReturnsIntersectionCorners,    &
-                                          GetGridOutBorderPolygon, SetHorizontalGridWindow
+                                          GetGridOutBorderPolygon
     use ModuleGeometry,             only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,   &
                                           GetGeometryKFloor, GetGeometryWaterColumn,            &
                                           GetGeometryDistances, GetLayer4Level
@@ -3359,7 +3359,7 @@ cd2 :           if (BlockFound) then
         integer, pointer, dimension(:, :, :)        :: WaterPoints3D
         character (Len = PathLength)                :: FileName
         character (Len = StringLength)              :: AuxChar
-        type(T_Size2D)                              :: WorkSize2D, WorkSize2DAux
+        type(T_Size2D)                              :: WorkSize2D, WorkSize2DAux, GlobalWorkSizeWindow
         integer                                     :: STAT_CALL
         integer                                     :: WorkILB, WorkIUB
         integer                                     :: WorkJLB, WorkJUB
@@ -3395,10 +3395,7 @@ i2:     if (present(iW)) then
             WorkSize2D%JLB = Me%OutW%OutPutWindows(iW)%JLB 
             WorkSize2D%JUB = Me%OutW%OutPutWindows(iW)%JUB 
             
-            call SetHorizontalGridWindow (HorizontalGridID     = Me%ObjHorizontalGrid,  &
-                                          GlobalWorkSizeWindow = WorkSize2D,            &
-                                          STAT                 = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR05'            
+            GlobalWorkSizeWindow = WorkSize2D
             
             Me%OutW%OutPutWindows(iW)%ON = .true.
             
@@ -3500,18 +3497,27 @@ i1:     if (OutputOk) then
                 if (present(iW)) then
 
                     Me%OutW%ObjHDF5(iW) = ObjHDF5
+                    
+                    !Write the Horizontal Grid
+                    call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                &
+                                             WorkSize               = WorkSize2D,          &
+                                             WindowGrid             = .true.,              &   
+                                             GlobalWorkSizeWindow   = GlobalWorkSizeWindow,&                    
+                                             STAT                   = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR50'
+
                    
                 else
-                  
+
                     Me%ObjHDF5          = ObjHDF5
 
+                    !Write the Horizontal Grid
+                    call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
+                                             WorkSize = WorkSize2D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR50'
+                 
                 endif
             endif       
-            
-            !Write the Horizontal Grid
-            call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
-                                     WorkSize = WorkSize2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR50'
             
 
             !Sets limits for next write operations

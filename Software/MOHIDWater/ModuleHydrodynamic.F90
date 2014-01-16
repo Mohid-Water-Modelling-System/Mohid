@@ -137,7 +137,7 @@ Module ModuleHydrodynamic
                                        GetDomainDecompositionParameters,                 &
                                        WindowIntersectDomain,                            &
                                        ReturnsIntersectionCorners,                       &                                       
-                                       GetGridOutBorderPolygon, SetHorizontalGridWindow
+                                       GetGridOutBorderPolygon
                                        
     use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,          &
                                        GetGeometryDistances, GetGeometryKFloor,          &
@@ -9826,7 +9826,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         !Local-----------------------------------------------------------------
         real, pointer, dimension(:, :)              :: Bathymetry
         integer, pointer, dimension(:, :, :)        :: WaterPoints3D
-        type(T_Size2D)                              :: WorkSize2D, WorkSize2DAux
+        type(T_Size2D)                              :: WorkSize2D, WorkSize2DAux, GlobalWorkSizeWindow
         character (Len = PathLength)                :: FileName
         character (Len = StringLength)              :: AuxChar
         integer                                     :: STAT_CALL
@@ -9862,11 +9862,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
             WorkSize2D%JLB = WorkJLB
             WorkSize2D%JUB = WorkJUB
             
-            call SetHorizontalGridWindow (HorizontalGridID     = Me%ObjHorizontalGrid,  &
-                                          GlobalWorkSizeWindow = WorkSize2D,            &
-                                          STAT                 = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR05'
-            
+            GlobalWorkSizeWindow         = WorkSize2D
             Me%OutW%OutPutWindows(iW)%ON = .true.
             
             if (Me%DomainDecomposition%MasterOrSlave) then
@@ -9955,18 +9951,27 @@ iStart: if (OutputOk) then
             if (present(iW)) then
 
                 Me%OutW%ObjHDF5(iW) = ObjHDF5
+
+                !Write the Horizontal Grid
+                call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                 &
+                                         WorkSize                = WorkSize2D,          &           
+                                         WindowGrid              = .true.,              &   
+                                         GlobalWorkSizeWindow    = GlobalWorkSizeWindow,&
+                                         STAT                    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR405'
                 
             else
               
                 Me%ObjHDF5          = ObjHDF5
 
+                !Write the Horizontal Grid
+                call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
+                                         WorkSize = WorkSize2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR410'
+
             endif
 
             
-            !Write the Horizontal Grid
-            call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
-                                     WorkSize = WorkSize2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR410'
 
             !Sets limits for next write operations
             call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                       &

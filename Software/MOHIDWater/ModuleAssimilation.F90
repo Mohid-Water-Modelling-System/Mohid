@@ -30,12 +30,13 @@
 Module ModuleAssimilation
 
     use ModuleGlobalData
+    use ModuleDrawing    
     use ModuleTime
     use ModuleStopWatch
     use ModuleTimeSerie,        only: StartTimeSerie,                                   &
                                       GetTimeSerieLocation, CorrectsCellsTimeSerie,     &
                                       GetNumberOfTimeSeries, TryIgnoreTimeSerie,        &
-                                      WriteTimeSerie, KillTimeSerie         
+                                      WriteTimeSerie, GetTimeSerieName, KillTimeSerie         
 
     use ModuleHDF5,             only: ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,      &
                                       HDF5WriteData, HDF5FlushMemory, KillHDF5
@@ -45,7 +46,8 @@ Module ModuleAssimilation
     use ModuleGridData,         only: GetGridData, UngetGridData        
     use ModuleHorizontalGrid,   only: WriteHorizontalGrid, UnGetHorizontalGrid,             &
                                       GetGridCellArea, GetXYCellZ,                          &
-                                      GetDomainDecompositionMPI_ID, GetDomainDecompositionON
+                                      GetDomainDecompositionMPI_ID, GetDomainDecompositionON,&
+                                      GetGridOutBorderPolygon
     use ModuleHorizontalMap,    only: GetWaterPoints2D, UngetHorizontalMap, GetWaterFaces2D 
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryDistances, UngetGeometry, &
                                       GetGeometryKFloor
@@ -569,8 +571,9 @@ Module ModuleAssimilation
         integer                                             :: dn, Id, Jd, TimeSerieNumber        
         integer                                             :: nProperties
         type(T_Property), pointer                           :: PropertyX
+        character(len=StringLength)                         :: TimeSerieName
         character(len=StringLength), dimension(:), pointer  :: PropertyList
-
+        type (T_Polygon), pointer                           :: ModelDomainLimit
         !Begin-----------------------------------------------------------------
 
         call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
@@ -601,23 +604,36 @@ Module ModuleAssimilation
                 PropertyX=>PropertyX%Next
             enddo
 
-            call GetData(TimeSerieLocationFile,                                             &
-                         Me%ObjEnterData, iflag,                                            &
-                         SearchType   = FromFile,                                           &
-                         keyword      = 'TIME_SERIE_LOCATION',                              &
-                         ClientModule = 'ModuleWaterProperties',                            &
-                         Default      = Me%Files%ConstructData,                             &
+            call GetData(TimeSerieLocationFile,                                         &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'TIME_SERIE_LOCATION',                          &
+                         ClientModule = 'ModuleWaterProperties',                        &
+                         Default      = Me%Files%ConstructData,                         &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR20'
+            
+            call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,       &
+                                         Polygon          = ModelDomainLimit,           &
+                                         STAT             = STAT_CALL)           
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'Construct_Time_Serie - ModuleAssimilation - ERR25' 
+            
 
 
             !Constructs TimeSerie
-            call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
-                                trim(TimeSerieLocationFile),                                &
-                                PropertyList, "sra",                                        &
-                                WaterPoints3D = WaterPoints3D,                              &
+            call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                            &
+                                trim(TimeSerieLocationFile),                            &
+                                PropertyList, "sra",                                    &
+                                WaterPoints3D = WaterPoints3D,                          &
+                                ModelDomain   = ModelDomainLimit,                       &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR30'
+            
+            call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Polygon          = ModelDomainLimit,               &
+                                     STAT             = STAT_CALL)                          
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR35'            
 
             !Deallocates PropertyList
             deallocate(PropertyList)
@@ -627,38 +643,59 @@ Module ModuleAssimilation
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR40'
 
             do dn = 1, TimeSerieNumber
+            
+                call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR50'
+                
+                if (IgnoreOK) cycle            
 
-                call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
-                                          CoordX   = CoordX,                                &
-                                          CoordY   = CoordY,                                & 
-                                          CoordON  = CoordON,                               &
+                call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                          &  
+                                          CoordX   = CoordX,                            &
+                                          CoordY   = CoordY,                            & 
+                                          CoordON  = CoordON,                           &
                                           STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR60'
+                                          
+                call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR70'
 
                 if (CoordON) then
                     call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
 
                     if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
-                        stop 'ConstructTimeSerie - ModuleAssimilation - ERR50'
+                        stop 'ConstructTimeSerie - ModuleAssimilation - ERR80'
                     endif                            
 
-                    if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
+                    !if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
                                     
-                        call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR60'
+                    !    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                    !    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR60'
 
-                        if (IgnoreOK) then
-                            cycle
-                        else
-                            stop 'ConstructTimeSerie - ModuleAssimilation - ERR70'
-                        endif
+                    !    if (IgnoreOK) then
+                    !        cycle
+                    !    else
+                    !        stop 'ConstructTimeSerie - ModuleAssimilation - ERR70'
+                    !     endif
 
-                    endif
+                    !endif
 
                     call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR80'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR90'
 
                 endif
+                
+                call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                          LocalizationI   = Id,                             &
+                                          LocalizationJ   = Jd,                             & 
+                                          STAT     = STAT_CALL)
 
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR120'
+
+                if (WaterPoints3D(Id, Jd,Me%WorkSize%KUB) /= WaterPoint) then
+                    
+                     write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',' Module Assimilation'
+
+                endif
             enddo
 
         endif

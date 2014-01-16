@@ -68,11 +68,12 @@ Module ModuleConsolidation
     use ModuleEnterData,        only: ConstructEnterData, KillEnterData, GetData, GetOutPutTime,&
                                       RewindBlock, RewindBuffer, ExtractBlockFromBlock,         &
                                       ExtractBlockFromBuffer, ReadFileName, Block_Unlock
+    USE ModuleDrawing                                      
     use ModuleGridData,         only: GetGridData, UngetGridData            
     use ModuleHorizontalMap
     use ModuleHorizontalGrid,   only: GetHorizontalGrid, GetGridCellArea, UnGetHorizontalGrid,  &
                                       WriteHorizontalGrid, GetXYCellZ, GetDomainDecompositionMPI_ID,&
-                                      GetDomainDecompositionON
+                                      GetDomainDecompositionON, GetGridOutBorderPolygon
     use ModuleGeometry,         only: GetGeometrySize, UnGetGeometry, ComputeInitialGeometry,   &
                                       GetGeometryVolumes, ReadGeometry, ComputeVerticalGeometry,& 
                                       WriteGeometry, GetGeometryAreas, GetGeometryDistances,    &
@@ -84,7 +85,7 @@ Module ModuleConsolidation
                                       HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5
     use ModuleTimeSerie,        only: StartTimeSerie, WriteTimeSerie, KillTimeSerie,    &
                                       GetTimeSerieLocation, CorrectsCellsTimeSerie,     &
-                                      GetNumberOfTimeSeries, TryIgnoreTimeSerie
+                                      GetNumberOfTimeSeries, TryIgnoreTimeSerie, GetTimeSerieName
     use ModuleFillMatrix,       only: ConstructFillMatrix, GetDefaultValue, KillFillMatrix
     use ModuleStopWatch,        only: StartWatch, StopWatch
 
@@ -1394,9 +1395,6 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
     subroutine Construct_Time_Serie
 
-        !External--------------------------------------------------------------
-        character(len=StringLength), dimension(:), pointer  :: PropertyList
-
         !Local-----------------------------------------------------------------
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
@@ -1406,6 +1404,9 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         integer, dimension(:,:,:), pointer                  :: WaterPoints3D
         integer                                             :: iflag
         character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=StringLength)                         :: TimeSerieName
+        character(len=StringLength), dimension(:), pointer  :: PropertyList
+        type (T_Polygon), pointer                           :: ModelDomainLimit
 
         !Begin-----------------------------------------------------------------
 
@@ -1445,17 +1446,29 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Construct_Time_Serie - ModuleConsolidation - ERR30' 
-
+            
+        call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Polygon          = ModelDomainLimit,               &
+                                     STAT             = STAT_CALL)           
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_Time_Serie - ModuleConsolidation - ERR40' 
+            
 
         !Constructs TimeSerie (file extension *.src)
         call StartTimeSerie(Me%ObjTimeSerie,                                            &
                             Me%ObjTime,                                                 &
                             TimeSerieLocationFile,                                      &
                             PropertyList, "src",                                        &
-                            WaterPoints3D,                                              &
-                            STAT = STAT_CALL)
+                            WaterPoints3D = WaterPoints3D,                              &
+                            ModelDomain   = ModelDomainLimit,                           &
+                            STAT          = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError (FATAL_, INTERNAL_, "Construct_Time_Serie - ModuleConsolidation - ERR40")
+            call SetError (FATAL_, INTERNAL_, "Construct_Time_Serie - ModuleConsolidation - ERR50")
+            
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                 Polygon          = ModelDomainLimit,               &
+                                 STAT             = STAT_CALL)                          
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleConsolidation - ERR60'            
 
 
         !Deallocates PropertyList
@@ -1469,31 +1482,57 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleConsolidation - ERR60'
 
         do dn = 1, TimeSerieNumber
-
+        
+            call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleConsolidation - ERR70'
+            
+            if (IgnoreOK) cycle            
+        
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                       CoordX   = CoordX,                                &
                                       CoordY   = CoordY,                                & 
                                       CoordON  = CoordON,                               &
                                       STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleConsolidation - ERR80'
+            
+            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleConsolidation - ERR90'  
+           
             if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleConsolidation - ERR70'
 
-                if (Id < 0 .or. Jd < 0) then
+                if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                    stop 'CConstructTimeSerie - ModuleConsolidation - ERR100'
+                endif         
+
+                !if (Id < 0 .or. Jd < 0) then
                 
-                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleConsolidation - ERR80'
+                    !call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                !    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleConsolidation - ERR80'
 
-                    if (IgnoreOK) then
-                        cycle
-                    else
-                        stop 'Construct_Time_Serie - ModuleConsolidation - ERR90'
-                    endif
+                !    if (IgnoreOK) then
+                !        cycle
+                !    else
+                !        stop 'Construct_Time_Serie - ModuleConsolidation - ERR90'
+                !    endif
 
-                endif
+                !endif
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleConsolidation - ERR100'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleConsolidation - ERR110'
+            endif
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      LocalizationI   = Id,                             &
+                                      LocalizationJ   = Jd,                             & 
+                                      STAT     = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleConsolidation - ERR120'
+
+            if (WaterPoints3D(Id, Jd, Me%WorkSize%KUB) /= WaterPoint) then
+                
+                 write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',' ModuleConsolidation'
+
             endif
 
 
@@ -1503,7 +1542,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         !Unget WaterPoints3D
         call UnGetMap(Me%ObjMap,Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                             &
-            call SetError (FATAL_, INTERNAL_, "Construct_Time_Serie - ModuleConsolidation - ERR110")
+            call SetError (FATAL_, INTERNAL_, "Construct_Time_Serie - ModuleConsolidation - ERR130")
     
         
     end subroutine Construct_Time_Serie

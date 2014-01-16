@@ -88,7 +88,8 @@ Module ModuleWaves
                                        GetGridAngle, GetCheckDistortion, GetCoordTypeList,      &
                                        GetGridCoordType,  GetLatitudeLongitude,                 &
                                        UnGetHorizontalGrid, GetXYCellZ, GetDomainDecompositionMPI_ID, &
-                                       GetDomainDecompositionON, WriteHorizontalGrid
+                                       GetDomainDecompositionON, WriteHorizontalGrid,           &
+                                       GetGridOutBorderPolygon
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,  &
                                        GetIfMatrixRemainsConstant, KillFillMatrix 
     use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry, GetGeometryDistances, GetGeometrySize
@@ -97,7 +98,7 @@ Module ModuleWaves
     use ModuleGridData,         only : GetGridData, UngetGridData, WriteGridData   
     use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,   &
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,    &
-                                       GetNumberOfTimeSeries, TryIgnoreTimeSerie
+                                       GetNumberOfTimeSeries, TryIgnoreTimeSerie, GetTimeSerieName
     use ModuleDrawing         
 
     implicit none
@@ -1036,6 +1037,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                             :: STATUS
         integer                                             :: iflag
         character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=StringLength)                         :: TimeSerieName
+        type (T_Polygon), pointer                           :: ModelDomainLimit
+        
         
         !Begin-----------------------------------------------------------------
         
@@ -1110,6 +1114,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STATUS)
             if (STATUS .NE. SUCCESS_)                                                   &
                 stop 'Construct_TimeSerie - ModuleWaves - ERR30'
+                
+            call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                         Polygon          = ModelDomainLimit,               &
+                                         STAT             = STAT_CALL)           
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                stop 'Construct_Time_Serie - ModuleWaves - ERR35' 
+               
 
             !Constructs TimeSerie
             call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                            &
@@ -1117,11 +1128,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                 PropertyList, "srv",                                    &
                                 WaterPoints2D = Me%ExternalVar%WaterPoints2D,           &
                                 ModelName     = Me%ModelName,                           &
+                                ModelDomain   = ModelDomainLimit,                       &
                                 STAT = STATUS)
 
             if (STATUS /= SUCCESS_)                                                     &
                 stop 'Construct_TimeSerie - ModuleWaves - ERR40'
 
+            call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Polygon          = ModelDomainLimit,               &
+                                     STAT             = STAT_CALL)                          
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleWaves - ERR45'
 
             !Deallocates PropertyList
             deallocate(PropertyList, STAT = STATUS)
@@ -1136,32 +1152,56 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             do dn = 1, TimeSerieNumber
 
+                call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleWaves - ERR65'
+                
+                if (IgnoreOK) cycle
+
                 call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                           CoordX   = CoordX,                                &
                                           CoordY   = CoordY,                                & 
                                           CoordON  = CoordON,                               &
                                           STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleWaves - ERR70'
+                
+                call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleWaves - ERR80'  
+                                          
                 if (CoordON) then
                     call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+                    
                     if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
-                        stop 'Construct_TimeSerie - ModuleWaves - ERR70'
+                        stop 'Construct_TimeSerie - ModuleWaves - ERR90'
                     endif                            
 
-                    if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then                
+                    !if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then                
                     
-                        call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Construct_TimeSerie - ModuleWaves - ERR80'
+                    !    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                    !    if (STAT_CALL /= SUCCESS_) stop 'Construct_TimeSerie - ModuleWaves - ERR80'
 
-                        if (IgnoreOK) then
-                            cycle
-                        else
-                            stop 'Construct_TimeSerie - ModuleWaves - ERR90'
-                        endif
+                    !    if (IgnoreOK) then
+                    !        cycle
+                    !    else
+                    !        stop 'Construct_TimeSerie - ModuleWaves - ERR90'
+                    !    endif
 
-                    endif
+                    !endif
 
                     call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Construct_TimeSerie - ModuleWaves - ERR100'
+                endif
+
+                call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                          LocalizationI   = Id,                             &
+                                          LocalizationJ   = Jd,                             & 
+                                          STAT     = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleWaves - ERR120'
+
+                if (Me%ExternalVar%WaterPoints2D(Id, Jd) /= WaterPoint) then
+                    
+                     write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',trim(Me%ModelName), ' Module waves'
+
                 endif
 
 

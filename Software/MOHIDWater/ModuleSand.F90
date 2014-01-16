@@ -34,6 +34,7 @@ Module ModuleSand
     use ModuleStopWatch,        only : StartWatch, StopWatch
     use ModuleFunctions         
     use ModuleTime              
+    use ModuleDrawing 
     use ModuleHDF5,             only : ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,         &
                                        HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5
     use ModuleEnterData           
@@ -44,12 +45,13 @@ Module ModuleSand
                                        GetDischargeWaterFlow, GetDischargeConcentration
     use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,           &
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,            &
-                                       GetNumberOfTimeSeries, TryIgnoreTimeSerie       
+                                       GetNumberOfTimeSeries, TryIgnoreTimeSerie, GetTimeSerieName       
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetBoundaries, GetOpenPoints2D,        &
                                        GetComputeFaces2D, UnGetHorizontalMap
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, WriteHorizontalGrid,                  &
                                        GetHorizontalGridSize, UnGetHorizontalGrid, GetXYCellZ,  &
-                                       GetDomainDecompositionMPI_ID, GetDomainDecompositionON
+                                       GetDomainDecompositionMPI_ID, GetDomainDecompositionON,  &
+                                       GetGridOutBorderPolygon
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, BoxDif,         &
                                        UngetBoxDif, KillBoxDif
 #ifndef _WAVES_
@@ -972,12 +974,17 @@ i1:     if (Me%Boxes%Yes) then
         call ReadFileName('SAND_DATA', Me%Files%ConstructData,                           &
                            Message = Message, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Read_Sand_Files_Name - ModuleSand - ERR01' 
+            stop 'Read_Sand_Files_Name - ModuleSand - ERR10' 
 
 
         ! ---> File in HDF format where is written instant fields of Sand properties
         Message   ='Instant fields of sand properties in HDF format.'
         Message   = trim(Message)
+        
+        if (GetDomainDecompositionON    (Me%ObjHorizontalGrid)) then
+            write(*,*) 'Module Sand not ready to run in domain decomposition mode'
+            stop 'Read_Sand_Files_Name - ModuleSand - ERR20' 
+        endif
 
         call ReadFileName('SAND_OUT', Me%Files%OutPutFields,                             &
                            Message = Message, TIME_END = Me%EndTime,                     &
@@ -1049,7 +1056,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
         integer                                             :: dn, Id, Jd, TimeSerieNumber  
+        character(len=StringLength)                         :: TimeSerieName
         character(len=StringLength), dimension(:), pointer  :: PropertyList
+        type (T_Polygon), pointer                           :: ModelDomainLimit
+
 
         !----------------------------------------------------------------------
 
@@ -1078,9 +1088,15 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
                             trim(TimeSerieLocationFile),                                &
                             PropertyList, "srsand",                                     &
-                            WaterPoints2D = Me%ExternalVar%WaterPoints2D,               & 
+                            WaterPoints2D = Me%ExternalVar%WaterPoints2D,               &
+                            ModelDomain   = ModelDomainLimit,                           & 
                             STAT          = STAT_CALL)
         if (STAT_CALL /= 0) stop 'ConstructTimeSerie - ModuleSand - ERR30'
+        
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               &
+                                 Polygon          = ModelDomainLimit,                   &
+                                 STAT             = STAT_CALL)                          
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR35'
 
         !Deallocates PropertyList
         deallocate(PropertyList, STAT = STAT_CALL)
@@ -1091,35 +1107,58 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR50'
 
         do dn = 1, TimeSerieNumber
+        
+            call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR60'
+            
+            if (IgnoreOK) cycle        
 
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                       CoordX   = CoordX,                                &
                                       CoordY   = CoordY,                                & 
                                       CoordON  = CoordON,                               &
                                       STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR70'
+            
+            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR80'  
+                                  
             if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+                
                 if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
-                    stop 'ConstructTimeSerie - ModuleSand - ERR60'
+                    stop 'ConstructTimeSerie - ModuleSand - ERR90'
                 endif                            
 
-                if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
+                !if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
 
-                
-                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR70'
+                !    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                !    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR70'
 
-                    if (IgnoreOK) then
-                        cycle
-                    else
-                        stop 'ConstructTimeSerie - ModuleSand - ERR80'
-                    endif
+                !    if (IgnoreOK) then
+                !        cycle
+                !    else
+                !        stop 'ConstructTimeSerie - ModuleSand - ERR80'
+                !    endif
 
-                endif
+                !endif
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR90'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR100'
             endif
+            
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      LocalizationI   = Id,                             &
+                                      LocalizationJ   = Jd,                             & 
+                                      STAT     = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR120'
+
+            if (Me%ExternalVar%WaterPoints2D(Id, Jd) /= WaterPoint) then
+                
+                 write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',' ModuleSand'
+
+            endif            
 
         enddo
 

@@ -753,22 +753,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL .NE. SUCCESS_)                                                    &
                 stop 'Construct_Time_Serie - ModuleAtmosphere - ERR25' 
 
-
-
             !Constructs TimeSerie
             call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                            &
                                 trim(TimeSerieLocationFile),                            &
                                 PropertyList, "srs",                                    &
                                 WaterPoints2D = Me%ExternalVar%MappingPoints2D,         &
                                 ModelName     = Me%ModelName,                           &
-                                ModelDomain   = ModelDomainLimit,                       &                                
+                                ModelDomain   = ModelDomainLimit,                       &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR30'
             
             call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
                                      Polygon          = ModelDomainLimit,               &
                                      STAT             = STAT_CALL)                          
-            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAtmosphere - ERR35'
 
             !Deallocates PropertyList
             deallocate(PropertyList, STAT = STAT_CALL)
@@ -798,7 +796,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (CoordON) then
                     call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
 
-                
                     if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
                         stop 'CConstructTimeSerie - ModuleAtmosphere - ERR90'
                     endif                            

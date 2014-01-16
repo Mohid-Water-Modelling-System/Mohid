@@ -65,31 +65,34 @@ Module ModuleTurbulence
     use ModuleEnterData  
     use ModuleFunctions,        only : SetMatrixValue, CHUNK_J, CHUNK_K, Sigma
     use ModuleGlobalData
+    use ModuleDrawing    
     use ModuleGridData,         only : GetGridData, UngetGridData   
-    use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,          &
-                                       GetGeometryDistances, GetGeometryKFloor,          &
+    use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,         &
+                                       GetGeometryDistances, GetGeometryKFloor,         &
                                        GetLayer4Level, UnGetGeometry
     use ModuleHDF5
-    use ModuleProfile,          only : StartProfile, WriteProfile, KillProfile,          &
+    use ModuleProfile,          only : StartProfile, WriteProfile, KillProfile,         &
                                        GetProfileNextOutputTime
-    use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid,           &
-                                       WriteHorizontalGrid, GetXYCellZ,                  &
-                                       GetDomainDecompositionMPI_ID, GetDomainDecompositionON
+    use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid,          &
+                                       WriteHorizontalGrid, GetXYCellZ,                 &
+                                       GetDomainDecompositionMPI_ID,                    &
+                                       GetDomainDecompositionON, GetGridOutBorderPolygon
     use ModuleHorizontalMap,    only : GetWaterPoints2D, UnGetHorizontalMap
-    use ModuleMap,              only : GetWaterPoints3D, GetOpenPoints3D,                &
-                                       GetComputeFaces3D, GetImposedTangentialFaces,     &
+    use ModuleMap,              only : GetWaterPoints3D, GetOpenPoints3D,               &
+                                       GetComputeFaces3D, GetImposedTangentialFaces,    &
                                        GetImposedNormalFaces, UnGetMap             
-    use ModuleStatistic,        only : ConstructStatistic, GetStatisticMethod,           &
-                                       GetStatisticParameters, ModifyStatistic,          &
+    use ModuleStatistic,        only : ConstructStatistic, GetStatisticMethod,          &
+                                       GetStatisticParameters, ModifyStatistic,         &
                                        KillStatistic
     use ModuleStopWatch,        only : StartWatch, StopWatch         
     use ModuleTime                 
-    use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,    &
-                                       GetTimeSerieLocation, CorrectsCellsTimeSerie,     &
-                                       GetNumberOfTimeSeries, TryIgnoreTimeSerie
+    use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,   &
+                                       GetTimeSerieLocation, CorrectsCellsTimeSerie,    &
+                                       GetNumberOfTimeSeries, TryIgnoreTimeSerie,       &
+                                       GetTimeSerieName
 
     use ModuleTurbGOTM         
-    use ModuleFillMatrix,       only : ConstructFillMatrix, GetIfMatrixRemainsConstant,  &
+    use ModuleFillMatrix,       only : ConstructFillMatrix, GetIfMatrixRemainsConstant, &
                                        GetDefaultValue, KillFillMatrix
 
     implicit none
@@ -278,14 +281,14 @@ Module ModuleTurbulence
         real, dimension(:,:)  , pointer             :: MLD_Bot        => null() 
         !Variables from TurbGOTM. Needed for output.
         real, dimension(:,:,:), pointer             :: TKE, L, eps, P, B          
-        real                                        :: MAXMixingLength        = null_real !inicialization: Carina    !Nihoul & Leendertsee
-        real                                        :: MINHorizontalViscosity = null_real !inicialization: Carina    !Estuary & Smagorinsky
-        real                                        :: ReferenceDepth         = null_real !inicialization: Carina    !Estuary
-        real                                        :: ReferenceVelocity      = null_real !inicialization: Carina    !Estuary
-        real                                        :: HORCON                 = null_real !inicialization: Carina    !Smagorinsky
-        real                                        :: TKE_MLD,RICH_MLD       = null_real !inicialization: Carina
-        logical                                     :: SmagorinskyStratified  = .false.   !inicialization: Carina
-        real                                        :: RichardsonCritical     = null_real !inicialization: Carina
+        real                                        :: MAXMixingLength        = null_real !Nihoul & Leendertsee
+        real                                        :: MINHorizontalViscosity = null_real !Estuary & Smagorinsky
+        real                                        :: ReferenceDepth         = null_real !Estuary
+        real                                        :: ReferenceVelocity      = null_real !Estuary
+        real                                        :: HORCON                 = null_real !Smagorinsky
+        real                                        :: TKE_MLD,RICH_MLD       = null_real 
+        logical                                     :: SmagorinskyStratified  = .false.   
+        real                                        :: RichardsonCritical     = null_real 
     end type T_TurbVar
 
     type       T_External
@@ -631,7 +634,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                             :: nProperties,pl
         integer                                             :: STAT_CALL, iflag
         character(len=StringLength)                         :: TimeSerieLocationFile
-
+        character(len=StringLength)                         :: TimeSerieName
+        type (T_Polygon), pointer                           :: ModelDomainLimit
         !Begin-----------------------------------------------------------------
 
         nProperties = 4
@@ -683,6 +687,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop "Construct_Time_Serie - Turbulence - ERR10" 
+            
+        call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Polygon          = ModelDomainLimit,               &
+                                     STAT             = STAT_CALL)           
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_Time_Serie - Turbulence - ERR20'             
 
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
@@ -690,8 +700,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                             PropertyList, "srt",                                        &
                             WaterPoints3D = Me%ExternalVar%WaterPoints3D,               &
                             ModelName     = Me%ModelName,                               &
+                            ModelDomain   = ModelDomainLimit,                           &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop "Construct_Time_Serie - Turbulence - ERR20" 
+        if (STAT_CALL /= SUCCESS_) stop "Construct_Time_Serie - Turbulence - ERR30" 
+    
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                 Polygon          = ModelDomainLimit,               &
+                                 STAT             = STAT_CALL)                          
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - Turbulence - ERR35'        
 
         !Deallocates PropertyList
         deallocate(PropertyList)
@@ -701,35 +717,59 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop "Construct_Time_Serie - Turbulence - ERR30" 
 
         do dn = 1, TimeSerieNumber
+        
+            call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - Turbulence - ERR60'
+            
+            if (IgnoreOK) cycle        
 
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                       CoordX   = CoordX,                                &
                                       CoordY   = CoordY,                                & 
                                       CoordON  = CoordON,                               &
                                       STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - Turbulence - ERR70'
+            
+            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - Turbulence - ERR80'  
+                                      
             if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
-                    stop "Construct_Time_Serie - Turbulence - ERR40" 
+                    stop "Construct_Time_Serie - Turbulence - ERR90" 
                 endif                            
 
-                if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
+                !if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
 
-                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop "Construct_Time_Serie - Turbulence - ERR50" 
+                !    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                !    if (STAT_CALL /= SUCCESS_) stop "Construct_Time_Serie - Turbulence - ERR50" 
 
-                    if (IgnoreOK) then
-                        cycle
-                    else
-                        stop "Construct_Time_Serie - Turbulence - ERR60" 
-                    endif
+                !    if (IgnoreOK) then
+                !        cycle
+                !    else
+                !        stop "Construct_Time_Serie - Turbulence - ERR60" 
+                !    endif
 
-                endif
+                !endif
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop "Construct_Time_Serie - Turbulence - ERR70" 
+                if (STAT_CALL /= SUCCESS_) stop "Construct_Time_Serie - Turbulence - ERR110" 
             endif
+            
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      LocalizationI   = Id,                             &
+                                      LocalizationJ   = Jd,                             & 
+                                      STAT     = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - Turbulence - ERR120'
+
+            if (Me%ExternalVar%WaterPoints3D(Id, Jd, Me%WorkSize%KUB) /= WaterPoint) then
+                
+                 write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',trim(Me%ModelName),' Turbulence'
+
+            endif
+            
 
         enddo
 
@@ -4609,6 +4649,11 @@ do2 :   do I = ILB, IUB
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleTurbulence - ERR10'  
 
         do dn = 1, TimeSerieNumber
+        
+            call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleTurbulence - ERR20'
+            
+            if (IgnoreOK) cycle        
 
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                       LocalizationI = id,                               &
@@ -4620,18 +4665,18 @@ do2 :   do I = ILB, IUB
 
             if (DepthON) then
 
-                if (Id < 0 .or. Jd < 0) then
-                
-                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleTurbulence - ERR30'
+!                if (Id < 0 .or. Jd < 0) then
+!                
+!                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleTurbulence - ERR30'
 
-                    if (IgnoreOK) then
-                        cycle
-                    else
-                        stop 'OutPut_TimeSeries - ModuleTurbulence - ERR40'
-                    endif
+!                    if (IgnoreOK) then
+!                        cycle
+!                    else
+!                        stop 'OutPut_TimeSeries - ModuleTurbulence - ERR40'
+!                    endif
 
-                endif
+!                endif
 
                 kd = GetLayer4Level(Me%ObjGeometry, id, jd, DepthLevel, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleTurbulence - ERR50'

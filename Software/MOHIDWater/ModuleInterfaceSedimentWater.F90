@@ -120,6 +120,7 @@ Module ModuleInterfaceSedimentWater
 
     use ModuleGlobalData
     use ModuleEnterData
+    use ModuleDrawing    
     use ModuleTime
     use ModuleFunctions,            only: ConstructPropertyID, TimeToString, ChangeSuffix,  &
                                           CHUNK_J, CHUNK_I
@@ -129,7 +130,7 @@ Module ModuleInterfaceSedimentWater
     use ModuleHorizontalGrid,       only: GetHorizontalGrid, GetHorizontalGridSize,         &
                                           WriteHorizontalGrid, UnGetHorizontalGrid,         &
                                           GetGridCellArea, GetXYCellZ, GetDomainDecompositionMPI_ID,&
-                                          GetDomainDecompositionON
+                                          GetDomainDecompositionON, GetGridOutBorderPolygon
     use ModuleHorizontalMap,        only: GetOpenPoints2D, GetWaterPoints2D, GetBoundaries, &
                                           UnGetHorizontalMap
     use ModuleGeometry,             only: GetGeometrySize, GetGeometryWaterColumn,          &
@@ -142,7 +143,7 @@ Module ModuleInterfaceSedimentWater
                                           UngetBoxDif, KillBoxDif
     use ModuleTimeSerie,            only: StartTimeSerie, WriteTimeSerie, KillTimeSerie,    &
                                           GetTimeSerieLocation, CorrectsCellsTimeSerie,     &
-                                          GetNumberOfTimeSeries, TryIgnoreTimeSerie
+                                          GetNumberOfTimeSeries, TryIgnoreTimeSerie, GetTimeSerieName
     use ModuleStatistic,            only: ConstructStatistic, GetStatisticMethod,           &
                                           GetStatisticParameters, ModifyStatistic,          &
                                           KillStatistic
@@ -3032,6 +3033,8 @@ do1 :   do while (associated(PropertyX))
         type (T_Property), pointer                          :: PropertyX
         integer                                             :: nProperties
         character(len=StringLength), dimension(:), pointer  :: PropertyList
+        character(len=StringLength)                         :: TimeSerieName
+        type (T_Polygon), pointer                           :: ModelDomainLimit
 
         !----------------------------------------------------------------------
 
@@ -3071,15 +3074,26 @@ do1 :   do while (associated(PropertyX))
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR20' 
 
+        call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Polygon          = ModelDomainLimit,               &
+                                     STAT             = STAT_CALL)           
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR25' 
 
         !Constructs TimeSerie
-        call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                    &
-                            trim(TimeSerieLocationFile),                    &
-                            PropertyList, "srb",                            &
-                            WaterPoints3D = Me%ExtWater%WaterPoints3D,      &
-                            ModelName     = Me%ModelName,                   & 
+        call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
+                            trim(TimeSerieLocationFile),                                &
+                            PropertyList, "srb",                                        &
+                            WaterPoints3D = Me%ExtWater%WaterPoints3D,                  &
+                            ModelName     = Me%ModelName,                               & 
+                            ModelDomain   = ModelDomainLimit,                           &
                             STAT          = STAT_CALL)
         if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR30'
+        
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               &
+                                 Polygon          = ModelDomainLimit,                   &   
+                                 STAT             = STAT_CALL)                          
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR35'        
 
         !Deallocates PropertyList
         deallocate(PropertyList, STAT = STAT_CALL)
@@ -3090,35 +3104,57 @@ do1 :   do while (associated(PropertyX))
         if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR50'
 
         do dn = 1, TimeSerieNumber
+        
+            call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR60'
+            
+            if (IgnoreOK) cycle        
 
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                       CoordX   = CoordX,                                &
                                       CoordY   = CoordY,                                & 
                                       CoordON  = CoordON,                               &
                                       STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR70'
+            
+            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR80'  
+                                      
             if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
-                    stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR60'
+                    stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR90'
                 endif                            
 
-                if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
+                !if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
                 
-                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR70'
+                !    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                !    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR70'
 
-                    if (IgnoreOK) then
-                        cycle
-                    else
-                        stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR80'
-                    endif
+                !    if (IgnoreOK) then
+                !        cycle
+                !    else
+                !        stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR80'
+                !    endif
 
-                endif
+                !endif
 
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR90'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR100'
+            endif
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      LocalizationI   = Id,                             &
+                                      LocalizationJ   = Jd,                             & 
+                                      STAT     = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR120'
+
+            if (Me%ExtWater%WaterPoints3D(Id, Jd,Me%WaterWorkSize3D%KUB) /= WaterPoint) then
+                
+                 write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',' ModuleInterfaceSedimentWater'
             endif
 
         enddo
