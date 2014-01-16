@@ -110,6 +110,8 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "TimeSeriesOperator", "TimeS
 		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
 	EndProjectSection
 EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "DomainDecompositionConsolidation", "DomainDecompositionConsolidation\DomainDecompositionConsolidation.vfproj", "{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug Developper Single|Win32 = Debug Developper Single|Win32
@@ -850,7 +852,8 @@ Global
 		{F7F18E20-F2C7-4B03-8433-8B9D277EF125}.Release OpenMP|x64.ActiveCfg = Release|Win32
 		{F7F18E20-F2C7-4B03-8433-8B9D277EF125}.Release|Win32.ActiveCfg = Release|Win32
 		{F7F18E20-F2C7-4B03-8433-8B9D277EF125}.Release|Win32.Build.0 = Release|Win32
-		{F7F18E20-F2C7-4B03-8433-8B9D277EF125}.Release|x64.ActiveCfg = Release|Win32
+		{F7F18E20-F2C7-4B03-8433-8B9D277EF125}.Release|x64.ActiveCfg = Release|x64
+		{F7F18E20-F2C7-4B03-8433-8B9D277EF125}.Release|x64.Build.0 = Release|x64
 		{E726656D-EAC7-4838-8A2E-95671ECC501A}.Debug Developper Single|Win32.ActiveCfg = Debug|Win32
 		{E726656D-EAC7-4838-8A2E-95671ECC501A}.Debug Developper Single|Win32.Build.0 = Debug|Win32
 		{E726656D-EAC7-4838-8A2E-95671ECC501A}.Debug Developper Single|x64.ActiveCfg = Debug|Win32
@@ -923,6 +926,44 @@ Global
 		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release|Win32.ActiveCfg = Release|Win32
 		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release|Win32.Build.0 = Release|Win32
 		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}.Release|x64.ActiveCfg = Release|Win32
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Developper Single|Win32.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Developper Single|x64.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Developper Single|x64.Build.0 = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Double Openmp|Win32.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Double Openmp|x64.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Double Openmp|x64.Build.0 = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Double PhreeqC|x64.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Double PhreeqC|x64.Build.0 = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Double|Win32.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Double|x64.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug Double|x64.Build.0 = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug OpenMI|Win32.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug OpenMI|x64.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug OpenMI|x64.Build.0 = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug OpenMP|Win32.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug OpenMP|x64.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug OpenMP|x64.Build.0 = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug|Win32.Build.0 = Debug|Win32
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug|x64.ActiveCfg = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Debug|x64.Build.0 = Debug|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release Double OpenMP PhreeqC|x64.Build.0 = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release Double OpenMP|Win32.ActiveCfg = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release Double OpenMP|x64.ActiveCfg = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release Double OpenMP|x64.Build.0 = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release Double|Win32.ActiveCfg = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release Double|x64.ActiveCfg = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release Double|x64.Build.0 = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release OpenMP|Win32.ActiveCfg = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release OpenMP|x64.ActiveCfg = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release OpenMP|x64.Build.0 = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release|Win32.ActiveCfg = Release|Win32
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release|Win32.Build.0 = Release|Win32
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release|x64.ActiveCfg = Release|x64
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -950,5 +991,6 @@ Global
 		{F7F18E20-F2C7-4B03-8433-8B9D277EF125} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{E726656D-EAC7-4838-8A2E-95671ECC501A} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{216CC80F-8FC2-4C1D-BE4F-15C010D710DC} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
+		{5EBBEAC1-A17B-4EAE-A233-6C491F10D012} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 	EndGlobalSection
 EndGlobal
