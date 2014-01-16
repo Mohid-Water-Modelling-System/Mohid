@@ -62,7 +62,8 @@ Module ModuleHDF5
     public  ::  HDF5WriteGlobalAttribute
     public  ::  HDF5ReadData
     public  ::  HDF5ReadHyperSlab
-    public  ::  HDF5ReadWindow    
+    public  ::  HDF5ReadWindow 
+    public  ::  HDF5WriteWindow   
     public  ::  HDF5FlushMemory
 
     !Destructor
@@ -79,6 +80,7 @@ Module ModuleHDF5
     public  ::  GetHDF5ObjectInfo
     public  ::  GetHDF5ArrayDimensions
     public  ::  GetHDF5FileOkToRead
+    public  ::  GetHDF5DataTypeID
     public  ::  GetHDF5FileName
 
 #ifdef _GUI_
@@ -132,7 +134,17 @@ Module ModuleHDF5
         module procedure HDF5ReadWindowI4_1D
     end interface
     
-    
+    interface HDF5WriteWindow
+        module procedure HDF5WriteWindowR4_3D    
+        module procedure HDF5WriteWindowR4_2D
+        module procedure HDF5WriteWindowR4_1D
+        module procedure HDF5WriteWindowR8_3D
+        module procedure HDF5WriteWindowR8_2D
+        module procedure HDF5WriteWindowR8_1D
+        module procedure HDF5WriteWindowI4_3D
+        module procedure HDF5WriteWindowI4_2D
+        module procedure HDF5WriteWindowI4_1D
+    end interface
 
     interface HDF5WriteGlobalAttribute
         module procedure HDF5WriteGlobalAttribute_Char
@@ -3441,8 +3453,6 @@ Module ModuleHDF5
 
     end subroutine HDF5ReadWindowR4_1D
 
-
-
     !--------------------------------------------------------------------------
 
     subroutine HDF5ReadWindowR4_2D (HDF5ID, GroupName, Name,                            &
@@ -3973,8 +3983,6 @@ Module ModuleHDF5
 
     end subroutine HDF5ReadWindowR8_1D
 
-
-
     !--------------------------------------------------------------------------
 
     subroutine HDF5ReadWindowR8_2D (HDF5ID, GroupName, Name,                            &
@@ -4155,7 +4163,6 @@ Module ModuleHDF5
 
     end subroutine HDF5ReadWindowR8_2D
 
-    !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
     subroutine HDF5ReadWindowR8_3D   (HDF5ID, GroupName, Name,                          &
@@ -4506,8 +4513,6 @@ Module ModuleHDF5
 
     end subroutine HDF5ReadWindowI4_1D
 
-
-
     !--------------------------------------------------------------------------
 
     subroutine HDF5ReadWindowI4_2D (HDF5ID, GroupName, Name,                            &
@@ -4634,7 +4639,7 @@ Module ModuleHDF5
             !Defines the hyperslab in the dataset
             call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
                                                STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR90'
 
 
             !Defines the memory dataspace
@@ -4648,7 +4653,7 @@ Module ModuleHDF5
             endif
             
             call h5screate_simple_f (rank_out, dims_mem, memspace_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR110'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_2D - ModuleHDF5 - ERR100'
 
 
             !Define the memory hyperslab
@@ -4909,9 +4914,1404 @@ Module ModuleHDF5
         if (present(STAT)) STAT = STAT_        
 
     end subroutine HDF5ReadWindowI4_3D
+    
+        !--------------------------------------------------------------------------
+
+    subroutine HDF5WriteWindowR4_3D   (HDF5ID, GroupName, Name,                          &
+                                      Array3D,                                          &
+                                      OffSet1, OffSet2, OffSet3,                        &
+                                      OutputNumber, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        character(len=*)                                :: GroupName
+        character(len=*)                                :: Name
+        real(4), dimension(:, :, :), pointer            :: Array3D
+        integer, optional                               :: OffSet1
+        integer, optional                               :: OffSet2
+        integer, optional                               :: OffSet3                
+        integer, optional                               :: OutputNumber
+        integer, optional                               :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer, dimension(3)                           :: lower_bound, upper_bound
+        integer(HSIZE_T), dimension(7)                  :: dims, maxdims
+        integer(HSIZE_T), dimension(7)                  :: dims_mem
+        integer(HID_T)                                  :: dset_id, gr_id, datatype_id
+        integer(HID_T)                                  :: space_id, rank
+        integer(HID_T)                                  :: memspace_id, NumType, class_id
+        integer(HSSIZE_T), dimension(:), allocatable    :: offset_in
+        integer(HSIZE_T ), dimension(:), allocatable    :: count_in
+        integer(HID_T)                                  :: STAT_CALL
+        character(StringLength)                         :: AuxChar
+        
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            NumType = H5T_NATIVE_REAL
+        
+            !Opens the Group
+            call h5gopen_f      (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR10'
+
+
+            !Opens the DataSet
+            if (present(OutputNumber)) then
+                call ConstructDSName (Name, OutputNumber, AuxChar)
+            else
+                AuxChar = Name
+            endif
+
+
+            !Opens the Dataset
+            call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR20'
+
+                !Gets the data type id
+            call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR30'
+
+            call h5tget_class_f(datatype_id, class_id, STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR40'
+
+            !Gets a handle of the dataspace
+            call h5dget_space_f (dset_id, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR50'
+
+            !Gets the rank
+            call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR60'
+
+            !Gets the size
+            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL)
+            if (STAT_CALL < SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR70'
+            
+            lower_bound(:) = FillValueInt
+            upper_bound(:) = FillValueInt
+            
+            lower_bound(1) = Me%Limits%ILB
+            upper_bound(1) = Me%Limits%IUB
+
+            if (rank >=2) then
+                lower_bound(2) = Me%Limits%JLB
+                upper_bound(2) = Me%Limits%JUB
+            endif
+            
+            if (rank >=3) then
+                lower_bound(3) = Me%Limits%KLB
+                upper_bound(3) = Me%Limits%KUB
+            endif
+
+
+            allocate (offset_in (rank))
+            allocate (count_in  (rank))
+
+            
+            if (present(OffSet1)) then
+                offset_in(1) = OffSet1
+            else                
+                offset_in(1) = lower_bound(1) - 1    
+            endif            
+
+            if (Rank >=2) then
+                if (present(OffSet2)) then
+                    offset_in(2) = OffSet2
+                else                
+                    offset_in(2) = lower_bound(2) - 1    
+                endif            
+            endif                
+
+            if (Rank >=3) then
+                if (present(OffSet3)) then
+                    offset_in(3) = OffSet3
+                else                
+                    offset_in(3) = lower_bound(3) - 1    
+                endif            
+            endif
+            
+            count_in (1:rank) = upper_bound(1:rank) - lower_bound(1:rank) + 1
+
+            !Defines the hyperslab in the dataset
+            call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
+                                               STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR80'
+
+
+            !Defines the memory dataspace
+            dims_mem(1) = upper_bound(1)-lower_bound(1) + 1
+            dims_mem(2) = upper_bound(2)-lower_bound(2) + 1
+            dims_mem(3) = upper_bound(3)-lower_bound(3) + 1
+            
+            call h5screate_simple_f (rank, dims_mem, memspace_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR90'
+
+            call h5dwrite_f (dset_id, NumType, Array3D,&
+                            dims_mem, STAT_CALL, memspace_id, space_id)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR100'
+            
+            !Deallocates temporary matrixes
+            deallocate (offset_in )
+            deallocate (count_in  )
+            
+            !Closes data space
+            call h5sclose_f  (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR110'
+
+            !End access to the dataset
+            call h5dclose_f  (dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR120'
+
+            !Closes group
+            call h5gclose_f  (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_3D - ModuleHDF5 - ERR130'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_        
+
+    end subroutine HDF5WriteWindowR4_3D
+        
+        !--------------------------------------------------------------------------
+
+    subroutine HDF5WriteWindowR4_2D (HDF5ID, GroupName, Name,                    &
+                                    Array2D, OffSet1, OffSet2,                   &
+                                    OutputNumber, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        character(len=*)                                :: GroupName
+        character(len=*)                                :: Name
+        real(4), dimension(:, :)   , pointer            :: Array2D
+        integer, optional                               :: OffSet1
+        integer, optional                               :: OffSet2
+        integer, optional                               :: OutputNumber
+        integer, optional                               :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer, dimension(3)                           :: lower_bound, upper_bound
+        integer(HSIZE_T), dimension(7)                  :: dims, maxdims
+        integer(HSIZE_T), dimension(7)                  :: dims_mem
+        integer(HID_T)                                  :: dset_id, gr_id, datatype_id
+        integer(HID_T)                                  :: space_id, rank
+        integer(HID_T)                                  :: memspace_id, NumType, class_id
+        integer(HSSIZE_T), dimension(:), allocatable    :: offset_in
+        integer(HSIZE_T ), dimension(:), allocatable    :: count_in
+        integer(HID_T)                                  :: STAT_CALL
+        character(StringLength)                         :: AuxChar
+        
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            NumType = H5T_NATIVE_REAL
+        
+            !Opens the Group
+            call h5gopen_f      (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR10'
+
+            !Opens the DataSet
+            if (present(OutputNumber)) then
+                call ConstructDSName (Name, OutputNumber, AuxChar)
+            else
+                AuxChar = Name
+            endif
+
+            !Opens the Dataset
+            call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR20'
+
+            !Gets the data type id
+            call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR30'
+
+            call h5tget_class_f(datatype_id, class_id, STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR40'
+
+            !Gets a handle of the dataspace
+            call h5dget_space_f (dset_id, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR50'
+
+            !Gets the rank
+            call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR60'
+
+            !Gets the size
+            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL)
+            if (STAT_CALL < SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR70'
+            
+            lower_bound(:) = FillValueInt
+            upper_bound(:) = FillValueInt
+            
+            lower_bound(1) = Me%Limits%ILB
+            upper_bound(1) = Me%Limits%IUB
+
+            if (rank >=2) then
+                lower_bound(2) = Me%Limits%JLB
+                upper_bound(2) = Me%Limits%JUB
+            endif
+            
+            if (rank >=3) then
+                lower_bound(3) = Me%Limits%KLB
+                upper_bound(3) = Me%Limits%KUB
+            endif
+
+            allocate (offset_in (rank))
+            allocate (count_in  (rank))
+            
+            if (present(OffSet1)) then
+                offset_in(1) = OffSet1
+            else                
+                offset_in(1) = lower_bound(1) - 1    
+            endif            
+
+            if (Rank >=2) then
+                if (present(OffSet2)) then
+                    offset_in(2) = OffSet2
+                else                
+                    offset_in(2) = lower_bound(2) - 1    
+                endif            
+            endif                
+
+            if (Rank >=3) then
+                stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR80'
+            endif
+            
+            count_in (1:rank) = upper_bound(1:rank) - lower_bound(1:rank) + 1
+
+            !Defines the hyperslab in the dataset
+            call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
+                                               STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR90'
+
+            dims_mem(1) = upper_bound(1)-lower_bound(1) + 1
+            dims_mem(2) = upper_bound(2)-lower_bound(2) + 1
+            
+            call h5screate_simple_f (rank, dims_mem, memspace_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR100'
+            
+            call h5dwrite_f (dset_id, NumType, Array2D,&
+                            dims_mem, STAT_CALL, memspace_id, space_id)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR110'
+            
+            deallocate (offset_in )
+            deallocate (count_in  )
+
+            !Closes data space
+            call h5sclose_f  (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR120'
+
+            !End access to the dataset
+            call h5dclose_f  (dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR130'
+
+            !Closes group
+            call h5gclose_f  (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_2D - ModuleHDF5 - ERR140'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_        
+
+    end subroutine HDF5WriteWindowR4_2D
+    
+    !--------------------------------------------------------------------------
+
+    subroutine HDF5WriteWindowR4_1D  (HDF5ID, GroupName, Name,                          &
+                                    Array1D, OffSet1,                                   &
+                                    OutputNumber, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        character(len=*)                                :: GroupName
+        character(len=*)                                :: Name
+        real(4), dimension(:)      , pointer            :: Array1D
+        integer, optional                               :: OffSet1
+        integer, optional                               :: OutputNumber
+        integer, optional                               :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer, dimension(3)                           :: lower_bound, upper_bound
+        integer(HSIZE_T), dimension(7)                  :: dims, maxdims
+        integer(HSIZE_T), dimension(7)                  :: dims_mem
+        integer(HID_T)                                  :: dset_id, gr_id, datatype_id
+        integer(HID_T)                                  :: space_id, rank
+        integer(HID_T)                                  :: memspace_id, NumType, class_id
+        integer(HSSIZE_T), dimension(:), allocatable    :: offset_in
+        integer(HSIZE_T ), dimension(:), allocatable    :: count_in
+        integer(HID_T)                                  :: STAT_CALL
+        character(StringLength)                         :: AuxChar
+        
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            NumType = H5T_NATIVE_REAL
+        
+            !Opens the Group
+            call h5gopen_f      (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR10'
+
+
+            !Opens the DataSet
+            if (present(OutputNumber)) then
+                call ConstructDSName (Name, OutputNumber, AuxChar)
+            else
+                AuxChar = Name
+            endif
+
+
+            !Opens the Dataset
+            call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR20'
+
+                !Gets the data type id
+            call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR30'
+
+            call h5tget_class_f(datatype_id, class_id, STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR40'
+
+            !Gets a handle of the dataspace
+            call h5dget_space_f (dset_id, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR50'
+
+            !Gets the rank
+            call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR60'
+
+            !Gets the size
+            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL)
+            if (STAT_CALL < SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR70'
+            
+            lower_bound(:) = FillValueInt
+            upper_bound(:) = FillValueInt
+            
+            lower_bound(1) = Me%Limits%ILB
+            upper_bound(1) = Me%Limits%IUB
+
+            if (rank >=2) then
+                stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR80'
+            endif
+            
+
+            allocate (offset_in (rank))
+            allocate (count_in  (rank))
+
+            
+            if (present(OffSet1)) then
+                offset_in(1) = OffSet1
+            else                
+                offset_in(1) = lower_bound(1) - 1    
+            endif            
+
+            count_in (1:rank) = upper_bound(1:rank) - lower_bound(1:rank) + 1
+
+            !Defines the hyperslab in the dataset
+            call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
+                                               STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR80'
+
+            !Defines the memory dataspace
+            dims_mem(1) = upper_bound(1)-lower_bound(1) + 1
+            
+            call h5screate_simple_f (rank, dims_mem, memspace_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR90'
+
+            call h5dwrite_f (dset_id, NumType, Array1D,&
+                             dims_mem, STAT_CALL, memspace_id, space_id)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR100'
+            
+            !Deallocates temporary matrixes
+            deallocate (offset_in )
+            deallocate (count_in  )
+            
+            !Closes data space
+            call h5sclose_f  (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR110'
+
+            !End access to the dataset
+            call h5dclose_f  (dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR120'
+
+            !Closes group
+            call h5gclose_f  (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR4_1D - ModuleHDF5 - ERR130'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_        
+
+    end subroutine HDF5WriteWindowR4_1D
+    
+    !--------------------------------------------------------------------------
+
+    subroutine HDF5WriteWindowR8_3D  (HDF5ID, GroupName, Name,                          &
+                                      Array3D,                                          &
+                                      OffSet1, OffSet2, OffSet3,                        &
+                                      OutputNumber, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        character(len=*)                                :: GroupName
+        character(len=*)                                :: Name
+        real(8), dimension(:, :, :), pointer            :: Array3D
+        integer, optional                               :: OffSet1
+        integer, optional                               :: OffSet2
+        integer, optional                               :: OffSet3                
+        integer, optional                               :: OutputNumber
+        integer, optional                               :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer, dimension(3)                           :: lower_bound, upper_bound
+        integer(HSIZE_T), dimension(7)                  :: dims, maxdims
+        integer(HSIZE_T), dimension(7)                  :: dims_mem
+        integer(HID_T)                                  :: dset_id, gr_id, datatype_id
+        integer(HID_T)                                  :: space_id, rank
+        integer(HID_T)                                  :: memspace_id, NumType, class_id
+        integer(HSSIZE_T), dimension(:), allocatable    :: offset_in
+        integer(HSIZE_T ), dimension(:), allocatable    :: count_in
+        integer(HID_T)                                  :: STAT_CALL
+        character(StringLength)                         :: AuxChar
+        
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            NumType = H5T_NATIVE_DOUBLE
+        
+            !Opens the Group
+            call h5gopen_f      (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR10'
+
+
+            !Opens the DataSet
+            if (present(OutputNumber)) then
+                call ConstructDSName (Name, OutputNumber, AuxChar)
+            else
+                AuxChar = Name
+            endif
+
+
+            !Opens the Dataset
+            call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR20'
+
+                !Gets the data type id
+            call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR30'
+
+            call h5tget_class_f(datatype_id, class_id, STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR40'
+
+            !Gets a handle of the dataspace
+            call h5dget_space_f (dset_id, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR50'
+
+            !Gets the rank
+            call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR60'
+
+            !Gets the size
+            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL)
+            if (STAT_CALL < SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR70'
+            
+            lower_bound(:) = FillValueInt
+            upper_bound(:) = FillValueInt
+            
+            lower_bound(1) = Me%Limits%ILB
+            upper_bound(1) = Me%Limits%IUB
+
+            if (rank >=2) then
+                lower_bound(2) = Me%Limits%JLB
+                upper_bound(2) = Me%Limits%JUB
+            endif
+            
+            if (rank >=3) then
+                lower_bound(3) = Me%Limits%KLB
+                upper_bound(3) = Me%Limits%KUB
+            endif
+
+
+            allocate (offset_in (rank))
+            allocate (count_in  (rank))
+
+            
+            if (present(OffSet1)) then
+                offset_in(1) = OffSet1
+            else                
+                offset_in(1) = lower_bound(1) - 1    
+            endif            
+
+            if (Rank >=2) then
+                if (present(OffSet2)) then
+                    offset_in(2) = OffSet2
+                else                
+                    offset_in(2) = lower_bound(2) - 1    
+                endif            
+            endif                
+
+            if (Rank >=3) then
+                if (present(OffSet3)) then
+                    offset_in(3) = OffSet3
+                else                
+                    offset_in(3) = lower_bound(3) - 1    
+                endif            
+            endif
+            
+            count_in (1:rank) = upper_bound(1:rank) - lower_bound(1:rank) + 1
+
+            !Defines the hyperslab in the dataset
+            call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
+                                               STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR80'
+
+
+            !Defines the memory dataspace
+            dims_mem(1) = upper_bound(1)-lower_bound(1) + 1
+            dims_mem(2) = upper_bound(2)-lower_bound(2) + 1
+            dims_mem(3) = upper_bound(3)-lower_bound(3) + 1
+            
+            call h5screate_simple_f (rank, dims_mem, memspace_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR90'
+
+            call h5dwrite_f (dset_id, NumType, Array3D,&
+                             dims_mem, STAT_CALL, memspace_id, space_id)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR100'
+            
+            !Deallocates temporary matrixes
+            deallocate (offset_in )
+            deallocate (count_in  )
+            
+            !Closes data space
+            call h5sclose_f  (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR110'
+
+            !End access to the dataset
+            call h5dclose_f  (dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR120'
+
+            !Closes group
+            call h5gclose_f  (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_3D - ModuleHDF5 - ERR130'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_        
+
+    end subroutine HDF5WriteWindowR8_3D
+    
+    !--------------------------------------------------------------------------
+
+    subroutine HDF5WriteWindowR8_2D (HDF5ID, GroupName, Name,                            &
+                                    Array2D, OffSet1, OffSet2,                          &
+                                    OutputNumber, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        character(len=*)                                :: GroupName
+        character(len=*)                                :: Name
+        real(8), dimension(:, :)   , pointer            :: Array2D
+        integer, optional                               :: OffSet1
+        integer, optional                               :: OffSet2
+        integer, optional                               :: OutputNumber
+        integer, optional                               :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer, dimension(3)                           :: lower_bound, upper_bound
+        integer(HSIZE_T), dimension(7)                  :: dims, maxdims
+        integer(HSIZE_T), dimension(7)                  :: dims_mem
+        integer(HID_T)                                  :: dset_id, gr_id, datatype_id
+        integer(HID_T)                                  :: space_id, rank
+        integer(HID_T)                                  :: memspace_id, NumType, class_id
+        integer(HSSIZE_T), dimension(:), allocatable    :: offset_in
+        integer(HSIZE_T ), dimension(:), allocatable    :: count_in
+        integer(HID_T)                                  :: STAT_CALL
+        character(StringLength)                         :: AuxChar
+        
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            NumType = H5T_NATIVE_DOUBLE
+        
+            !Opens the Group
+            call h5gopen_f      (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR10'
+
+
+            !Opens the DataSet
+            if (present(OutputNumber)) then
+                call ConstructDSName (Name, OutputNumber, AuxChar)
+            else
+                AuxChar = Name
+            endif
+
+
+            !Opens the Dataset
+            call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR20'
+
+                !Gets the data type id
+            call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR30'
+
+            call h5tget_class_f(datatype_id, class_id, STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR40'
+
+            !Gets a handle of the dataspace
+            call h5dget_space_f (dset_id, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR50'
+
+            !Gets the rank
+            call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR60'
+
+            !Gets the size
+            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL)
+            if (STAT_CALL < SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR70'
+            
+            lower_bound(:) = FillValueInt
+            upper_bound(:) = FillValueInt
+            
+            lower_bound(1) = Me%Limits%ILB
+            upper_bound(1) = Me%Limits%IUB
+
+            if (rank >=2) then
+                lower_bound(2) = Me%Limits%JLB
+                upper_bound(2) = Me%Limits%JUB
+            endif
+            
+            if (rank >=3) then
+                lower_bound(3) = Me%Limits%KLB
+                upper_bound(3) = Me%Limits%KUB
+            endif
+
+
+            allocate (offset_in (rank))
+            allocate (count_in  (rank))
+
+            
+            if (present(OffSet1)) then
+                offset_in(1) = OffSet1
+            else                
+                offset_in(1) = lower_bound(1) - 1    
+            endif            
+
+            if (Rank >=2) then
+                if (present(OffSet2)) then
+                    offset_in(2) = OffSet2
+                else                
+                    offset_in(2) = lower_bound(2) - 1    
+                endif            
+            endif                
+
+            if (Rank >=3) then
+                stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR80'
+            endif
+            
+            count_in (1:rank) = upper_bound(1:rank) - lower_bound(1:rank) + 1
+
+            !Defines the hyperslab in the dataset
+            call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
+                                               STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR90'
+
+
+            !Defines the memory dataspace
+            dims_mem(1) = upper_bound(1)-lower_bound(1) + 1
+            dims_mem(2) = upper_bound(2)-lower_bound(2) + 1
+            
+            call h5screate_simple_f (rank, dims_mem, memspace_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR100'
+
+            call h5dwrite_f (dset_id, NumType, Array2D,&
+                             dims_mem, STAT_CALL, memspace_id, space_id)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR110'
+            
+            !Deallocates temporary matrixes
+            deallocate (offset_in )
+            deallocate (count_in  )
+
+            !Closes data space
+            call h5sclose_f  (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR120'
+
+            !End access to the dataset
+            call h5dclose_f  (dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR130'
+
+            !Closes group
+            call h5gclose_f  (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR140'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_        
+
+    end subroutine HDF5WriteWindowR8_2D
+    
+    !--------------------------------------------------------------------------
+
+    subroutine HDF5WriteWindowR8_1D  (HDF5ID, GroupName, Name,                          &
+                                    Array1D, OffSet1,                                   &
+                                    OutputNumber, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        character(len=*)                                :: GroupName
+        character(len=*)                                :: Name
+        real(8), dimension(:)      , pointer            :: Array1D
+        integer, optional                               :: OffSet1
+        integer, optional                               :: OutputNumber
+        integer, optional                               :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer, dimension(3)                           :: lower_bound, upper_bound
+        integer(HSIZE_T), dimension(7)                  :: dims, maxdims
+        integer(HSIZE_T), dimension(7)                  :: dims_mem
+        integer(HID_T)                                  :: dset_id, gr_id, datatype_id
+        integer(HID_T)                                  :: space_id, rank
+        integer(HID_T)                                  :: memspace_id, NumType, class_id
+        integer(HSSIZE_T), dimension(:), allocatable    :: offset_in
+        integer(HSIZE_T ), dimension(:), allocatable    :: count_in
+        integer(HID_T)                                  :: STAT_CALL
+        character(StringLength)                         :: AuxChar
+        
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            NumType = H5T_NATIVE_DOUBLE
+        
+            !Opens the Group
+            call h5gopen_f      (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR10'
+
+
+            !Opens the DataSet
+            if (present(OutputNumber)) then
+                call ConstructDSName (Name, OutputNumber, AuxChar)
+            else
+                AuxChar = Name
+            endif
+
+
+            !Opens the Dataset
+            call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR20'
+
+                !Gets the data type id
+            call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR30'
+
+            call h5tget_class_f(datatype_id, class_id, STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR40'
+
+            !Gets a handle of the dataspace
+            call h5dget_space_f (dset_id, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR50'
+
+            !Gets the rank
+            call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR60'
+
+            !Gets the size
+            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL)
+            if (STAT_CALL < SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR70'
+            
+            lower_bound(:) = FillValueInt
+            upper_bound(:) = FillValueInt
+            
+            lower_bound(1) = Me%Limits%ILB
+            upper_bound(1) = Me%Limits%IUB
+
+            if (rank >=2) then
+                stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR80'
+            endif
+            
+
+            allocate (offset_in (rank))
+            allocate (count_in  (rank))
+
+            
+            if (present(OffSet1)) then
+                offset_in(1) = OffSet1
+            else                
+                offset_in(1) = lower_bound(1) - 1    
+            endif            
+
+            count_in (1:rank) = upper_bound(1:rank) - lower_bound(1:rank) + 1
+
+            !Defines the hyperslab in the dataset
+            call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
+                                               STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR80'
+
+
+            !Defines the memory dataspace
+            dims_mem(1) = upper_bound(1)-lower_bound(1) + 1
+            
+            call h5screate_simple_f (rank, dims_mem, memspace_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR90'
+
+            call h5dwrite_f (dset_id, NumType, Array1D,&
+                             dims_mem, STAT_CALL, memspace_id, space_id)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_2D - ModuleHDF5 - ERR100'
+
+            !Deallocates temporary matrixes
+            deallocate (offset_in )
+            deallocate (count_in  )
+
+            !Closes data space
+            call h5sclose_f  (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR110'
+
+            !End access to the dataset
+            call h5dclose_f  (dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR120'
+
+            !Closes group
+            call h5gclose_f  (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowR8_1D - ModuleHDF5 - ERR130'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_        
+
+    end subroutine HDF5WriteWindowR8_1D    
+        
+    !--------------------------------------------------------------------------
+
+    subroutine HDF5WriteWindowI4_3D  (HDF5ID, GroupName, Name,                          &
+                                      Array3D,                                          &
+                                      OffSet1, OffSet2, OffSet3,                        &
+                                      OutputNumber, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        character(len=*)                                :: GroupName
+        character(len=*)                                :: Name
+        integer, dimension(:, :, :), pointer            :: Array3D
+        integer, optional                               :: OffSet1
+        integer, optional                               :: OffSet2
+        integer, optional                               :: OffSet3                
+        integer, optional                               :: OutputNumber
+        integer, optional                               :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer, dimension(3)                           :: lower_bound, upper_bound
+        integer(HSIZE_T), dimension(7)                  :: dims, maxdims
+        integer(HSIZE_T), dimension(7)                  :: dims_mem
+        integer(HID_T)                                  :: dset_id, gr_id, datatype_id
+        integer(HID_T)                                  :: space_id, rank
+        integer(HID_T)                                  :: memspace_id, NumType, class_id
+        integer(HSSIZE_T), dimension(:), allocatable    :: offset_in
+        integer(HSIZE_T ), dimension(:), allocatable    :: count_in
+        integer(HID_T)                                  :: STAT_CALL
+        character(StringLength)                         :: AuxChar
+        
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            NumType = H5T_NATIVE_INTEGER 
+        
+            !Opens the Group
+            call h5gopen_f      (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR10'
+
+            !Opens the DataSet
+            if (present(OutputNumber)) then
+                call ConstructDSName (Name, OutputNumber, AuxChar)
+            else
+                AuxChar = Name
+            endif
+
+            !Opens the Dataset
+            call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR20'
+
+                !Gets the data type id
+            call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR30'
+
+            call h5tget_class_f(datatype_id, class_id, STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR40'
+
+            !Gets a handle of the dataspace
+            call h5dget_space_f (dset_id, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR50'
+
+            !Gets the rank
+            call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR60'
+
+            !Gets the size
+            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL)
+            if (STAT_CALL < SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR70'
+            
+            lower_bound(:) = FillValueInt
+            upper_bound(:) = FillValueInt
+            
+            lower_bound(1) = Me%Limits%ILB
+            upper_bound(1) = Me%Limits%IUB
+
+            if (rank >=2) then
+                lower_bound(2) = Me%Limits%JLB
+                upper_bound(2) = Me%Limits%JUB
+            endif
+            
+            if (rank >=3) then
+                lower_bound(3) = Me%Limits%KLB
+                upper_bound(3) = Me%Limits%KUB
+            endif
+
+
+            allocate (offset_in (rank))
+            allocate (count_in  (rank))
+
+            
+            if (present(OffSet1)) then
+                offset_in(1) = OffSet1
+            else                
+                offset_in(1) = lower_bound(1) - 1    
+            endif            
+
+            if (Rank >=2) then
+                if (present(OffSet2)) then
+                    offset_in(2) = OffSet2
+                else                
+                    offset_in(2) = lower_bound(2) - 1    
+                endif            
+            endif                
+
+            if (Rank >=3) then
+                if (present(OffSet3)) then
+                    offset_in(3) = OffSet3
+                else                
+                    offset_in(3) = lower_bound(3) - 1    
+                endif            
+            endif
+            
+            count_in (1:rank) = upper_bound(1:rank) - lower_bound(1:rank) + 1
+
+            !Defines the hyperslab in the dataset
+            call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
+                                               STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR80'
+
+
+            !Defines the memory dataspace
+            dims_mem(1) = upper_bound(1)-lower_bound(1) + 1
+            dims_mem(2) = upper_bound(2)-lower_bound(2) + 1
+            dims_mem(3) = upper_bound(3)-lower_bound(3) + 1
+            
+            call h5screate_simple_f (rank, dims_mem, memspace_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowI4_3D - ModuleHDF5 - ERR90'
+
+            call h5dwrite_f (dset_id, NumType, Array3D,&
+                            dims_mem, STAT_CALL, memspace_id, space_id)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR100'
+            
+            !Deallocates temporary matrixes
+            deallocate (offset_in )
+            deallocate (count_in  )
+            
+            !Closes data space
+            call h5sclose_f  (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR110'
+
+            !End access to the dataset
+            call h5dclose_f  (dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR120'
+
+            !Closes group
+            call h5gclose_f  (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR130'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_        
+
+    end subroutine HDF5WriteWindowI4_3D
 
     !--------------------------------------------------------------------------
 
+    subroutine HDF5WriteWindowI4_2D(HDF5ID, GroupName, Name,                            &
+                                    Array2D, OffSet1, OffSet2,                          &
+                                    OutputNumber, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        character(len=*)                                :: GroupName
+        character(len=*)                                :: Name
+        integer, dimension(:, :)   , pointer            :: Array2D
+        integer, optional                               :: OffSet1
+        integer, optional                               :: OffSet2
+        integer, optional                               :: OutputNumber
+        integer, optional                               :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer, dimension(3)                           :: lower_bound, upper_bound
+        integer(HSIZE_T), dimension(7)                  :: dims, maxdims
+        integer(HSIZE_T), dimension(7)                  :: dims_mem
+        integer(HID_T)                                  :: dset_id, gr_id, datatype_id
+        integer(HID_T)                                  :: space_id, rank
+        integer(HID_T)                                  :: memspace_id, NumType, class_id
+        integer(HSSIZE_T), dimension(:), allocatable    :: offset_in
+        integer(HSIZE_T ), dimension(:), allocatable    :: count_in
+        integer(HID_T)                                  :: STAT_CALL
+        character(StringLength)                         :: AuxChar
+        integer, dimension(:, :, :)   , pointer         :: Array3D
+        
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+            
+            NumType = H5T_NATIVE_INTEGER 
+        
+            !Opens the Group
+            call h5gopen_f      (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR10'
+
+
+            !Opens the DataSet
+            if (present(OutputNumber)) then
+                call ConstructDSName (Name, OutputNumber, AuxChar)
+            else
+                AuxChar = Name
+            endif
+
+
+            !Opens the Dataset
+            call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) AuxChar
+                stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR20'
+            endif
+                !Gets the data type id
+            call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR30'
+
+            call h5tget_class_f(datatype_id, class_id, STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR40'
+
+            !Gets a handle of the dataspace
+            call h5dget_space_f (dset_id, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR50'
+
+            !Gets the rank
+            call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR60'
+
+            if (rank >3) then
+                stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR70'
+            endif
+
+            !Gets the size
+            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL)
+            if (STAT_CALL < SUCCESS_) stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR80'
+            
+            lower_bound(:) = FillValueInt
+            upper_bound(:) = FillValueInt
+            
+            lower_bound(1) = Me%Limits%ILB
+            upper_bound(1) = Me%Limits%IUB
+
+            if (rank >=2) then
+                lower_bound(2) = Me%Limits%JLB
+                upper_bound(2) = Me%Limits%JUB
+            endif
+            
+            if (rank ==3) then
+                lower_bound(3) = Me%Limits%KLB
+                upper_bound(3) = Me%Limits%KUB
+            endif
+
+            allocate (offset_in (rank))
+            allocate (count_in  (rank))
+
+            
+            if (present(OffSet1)) then
+                offset_in(1) = OffSet1
+            else                
+                offset_in(1) = lower_bound(1) - 1    
+            endif            
+
+            if (Rank >= 2) then
+                if (present(OffSet2)) then
+                    offset_in(2) = OffSet2
+                else                
+                    offset_in(2) = lower_bound(2) - 1    
+                endif            
+            endif                
+
+            if (rank == 3) then
+                offset_in(3) = 0
+            endif
+
+            count_in (1:rank) = upper_bound(1:rank) - lower_bound(1:rank) + 1
+
+            !Defines the hyperslab in the dataset
+            call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
+                                               STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR90'
+
+            !Defines the memory dataspace
+            dims_mem(1) = upper_bound(1)-lower_bound(1) + 1
+            dims_mem(2) = upper_bound(2)-lower_bound(2) + 1
+            
+            if (rank == 3) then
+                dims_mem(3) = 1
+            endif
+            
+            call h5screate_simple_f (rank, dims_mem, memspace_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR100'
+
+            call h5dwrite_f (dset_id, NumType, Array2D,&
+                            dims_mem, STAT_CALL, memspace_id, space_id)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR110'
+
+            !Deallocates temporary matrixes
+            deallocate (offset_in )
+            deallocate (count_in  )
+
+            !Closes data space
+            call h5sclose_f  (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR120'
+
+            !End access to the dataset
+            call h5dclose_f  (dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR130'
+
+            !Closes group
+            call h5gclose_f  (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_2D - ModuleHDF5 - ERR140'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_        
+
+    end subroutine HDF5WriteWindowI4_2D
+
+    !--------------------------------------------------------------------------
+
+    subroutine HDF5WriteWindowI4_1D(HDF5ID, GroupName, Name,                            &
+                                    Array1D, OffSet1,                                   &
+                                    OutputNumber, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        character(len=*)                                :: GroupName
+        character(len=*)                                :: Name
+        integer, dimension(:)      , pointer            :: Array1D
+        integer, optional                               :: OffSet1
+        integer, optional                               :: OutputNumber
+        integer, optional                               :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer, dimension(3)                           :: lower_bound, upper_bound
+        integer(HSIZE_T), dimension(7)                  :: dims, maxdims
+        integer(HSIZE_T), dimension(7)                  :: dims_mem
+        integer(HID_T)                                  :: dset_id, gr_id, datatype_id
+        integer(HID_T)                                  :: space_id, rank
+        integer(HID_T)                                  :: memspace_id, NumType, class_id
+        integer(HSSIZE_T), dimension(:), allocatable    :: offset_in
+        integer(HSIZE_T ), dimension(:), allocatable    :: count_in
+        integer(HID_T)                                  :: STAT_CALL
+        character(StringLength)                         :: AuxChar
+        
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            NumType = H5T_NATIVE_INTEGER 
+        
+            !Opens the Group
+            call h5gopen_f      (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR10'
+
+
+            !Opens the DataSet
+            if (present(OutputNumber)) then
+                call ConstructDSName (Name, OutputNumber, AuxChar)
+            else
+                AuxChar = Name
+            endif
+
+
+            !Opens the Dataset
+            call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR20'
+
+                !Gets the data type id
+            call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR30'
+
+            call h5tget_class_f(datatype_id, class_id, STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR40'
+
+            !Gets a handle of the dataspace
+            call h5dget_space_f (dset_id, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR50'
+
+            !Gets the rank
+            call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR60'
+
+            !Gets the size
+            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL)
+            if (STAT_CALL < SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR70'
+            
+            lower_bound(:) = FillValueInt
+            upper_bound(:) = FillValueInt
+            
+            lower_bound(1) = Me%Limits%ILB
+            upper_bound(1) = Me%Limits%IUB
+
+            if (rank >=2) then
+                stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR80'
+            endif
+            
+
+            allocate (offset_in (rank))
+            allocate (count_in  (rank))
+            
+            if (present(OffSet1)) then
+                offset_in(1) = OffSet1
+            else                
+                offset_in(1) = lower_bound(1) - 1    
+            endif            
+
+            count_in (1:rank) = upper_bound(1:rank) - lower_bound(1:rank) + 1
+
+            !Defines the hyperslab in the dataset
+            call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
+                                               STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR90'
+
+            !Defines the memory dataspace
+            dims_mem(1) = upper_bound(1)-lower_bound(1) + 1
+            
+            call h5screate_simple_f (rank, dims_mem, memspace_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR100'
+
+            call h5dwrite_f (dset_id, NumType, Array1D,&
+                            dims_mem, STAT_CALL, memspace_id, space_id)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_3D - ModuleHDF5 - ERR110'
+            
+            !Deallocates temporary matrixes
+            deallocate (offset_in )
+            deallocate (count_in  )
+
+            !Closes data space
+            call h5sclose_f  (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR120'
+
+            !End access to the dataset
+            call h5dclose_f  (dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR130'
+
+            !Closes group
+            call h5gclose_f  (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteWindowI4_1D - ModuleHDF5 - ERR140'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_        
+
+    end subroutine HDF5WriteWindowI4_1D
 
     !--------------------------------------------------------------------------
 
@@ -5399,6 +6799,96 @@ Module ModuleHDF5
 
 
     end subroutine GetHDF5GroupID
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetHDF5DataTypeID (HDF5ID, FatherGroupName, GroupPosition, GroupName, &
+                                  DataType, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        character(*)                                    :: FatherGroupName
+        character(*)                                    :: GroupName
+        integer                                         :: GroupPosition
+        integer, intent(OUT)                            :: DataType
+        integer, optional, intent(OUT)                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer(HID_T)                                  :: STAT_CALL
+        integer(HID_T)                                  :: gr_id
+        integer(HID_T)                                  :: dset_id
+        integer(HID_T)                                  :: space_id
+        integer(HID_T)                                  :: datatype_id
+        integer(HID_T)                                  :: GroupType
+        integer(HSIZE_T)                                :: size
+        integer(HID_T)                                  :: class_id
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+           
+            call h5gopen_f       (Me%FileID, adjustl(trim(FatherGroupName)), gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5DataTypeID - ModuleHDF5 - ERR01'
+                    
+            call h5gget_obj_info_idx_f(Me%FileID, adjustl(trim(FatherGroupName)), GroupPosition-1, &   
+                                       GroupName, GroupType, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5DataTypeID - ModuleHDF5 - ERR02'
+            
+            if (GroupType == H5G_DATASET_F) then
+
+                !Opens data set
+                call h5dopen_f      (gr_id, adjustl(trim(GroupName)), dset_id, STAT_CALL)
+
+                !Opens data space
+                call h5dget_space_f (dset_id, space_id, STAT_CALL)
+    
+                !Gets datatype
+                call h5dget_type_f (dset_id, datatype_id,   STAT)
+                call h5tget_size_f (datatype_id, size,      STAT)
+                call h5tget_class_f(datatype_id, class_id,  STAT) 
+
+if1 :           if (class_id == H5T_FLOAT_F) then
+if11 :              if (size == 8) then
+                        dataType = H5T_NATIVE_DOUBLE
+                    elseif (size == 4) then if11
+                        dataType = H5T_NATIVE_REAL
+                    endif if11
+                elseif (class_id == H5T_INTEGER_F) then if1
+                    dataType = H5T_NATIVE_INTEGER
+                else if1
+                    stop 'GetHDF5DataTypeID - ModModuleHDF5uleDDC - ERR03'
+                endif if1
+
+                call h5tclose_f    (datatype_id, STAT) 
+
+                !Closes data space
+                call h5sclose_f     (space_id, STAT_CALL)
+
+                !Closes data set
+                call h5dclose_f     (dset_id, STAT_CALL)
+            
+            end if
+            
+            call h5gclose_f      (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5DataTypeID - ModuleHDF5 - ERR04'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine GetHDF5DataTypeID
 
     !--------------------------------------------------------------------------
 
