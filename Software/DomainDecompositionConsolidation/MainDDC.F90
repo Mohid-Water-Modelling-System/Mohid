@@ -8,7 +8,7 @@
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
 ! DATE          :  2013
-! REVISION      : Ricardo Miranda
+! REVISION      : Ricardo Miranda/Joao Ribeiro
 ! DESCRIPTION   : Program to consolidate results from MPI run with domain decomposition
 !
 !------------------------------------------------------------------------------
