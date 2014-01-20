@@ -15037,12 +15037,12 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
             F_Reynolds = exp( -1.7095 + 1.33438 * W_ - 0.11591 * W_**2)
 
-        ElseIf ( (Nd > 580.) .AND. (Nd <= 1.55E10**7.)) then
+        ElseIf ( (Nd > 580.) .AND. (Nd <= 1.55E7)) then
 
             F_Reynolds = exp( -1.81391 + 1.34671 * W_ - 0.12427 * W_**2 + 0.006344 * W_**3)
 
         Else
-            write(*,*)'Error computing Reynolds Number (Nd > 1.55E10**7)'
+            write(*,*)'Error computing Reynolds Number (Nd > 1.55E7)'
             stop 'Lagrangian - F_Reynolds - ERR01'
         End If          
         
