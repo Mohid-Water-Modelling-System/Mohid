@@ -302,6 +302,9 @@ Module ModuleInterfaceWaterAir
          type(T_PropertyID)                         :: ID
          real, dimension(:,:), pointer              :: Field, FieldGrid     => null()
          type(T_Evolution)                          :: Evolution
+         integer                                    :: SVPMethod            = 1
+         integer                                    :: C1                   = 1
+         integer                                    :: C2                   = 1
          logical                                    :: TimeSerie            = .false.
          logical                                    :: BoxTimeSerie         = .false.
          logical                                    :: CEQUALW2             = .false.
@@ -1082,7 +1085,45 @@ cd2 :           if (BlockFound) then
             NewProperty%FieldGrid(:,:) = FillValueReal
 
         endif
-
+        
+        if (NewProperty%ID%IDNumber == LatentHeat_) then
+			!1 - Uses AirTemperature. 2. Calculates SurfaceAirTemperature based on airtemperature and wind velocity
+			!Method 2 created to correct high latent heat losses when WaterTemperature >> AirTemperature
+            call GetData (NewProperty%SVPMethod,                                             &
+                Me%ObjEnterData, iflag,                                            &
+                Keyword        = 'SVP_METHOD',                                     &
+                Default        = 1,                                                &
+                SearchType     = FromBlock,                                        &
+                ClientModule   = 'ModuleInterfaceWaterAir',                        &
+                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+            stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR12'
+            
+            if (NewProperty%SVPMethod == 2) then
+            call GetData (NewProperty%C1,                                             &
+                Me%ObjEnterData, iflag,                                            &
+                Keyword        = 'KS_LH',                                     &
+                Default        = 1,                                                &
+                SearchType     = FromBlock,                                        &
+                ClientModule   = 'ModuleInterfaceWaterAir',                        &
+                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+            stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR15'
+            
+                call GetData (NewProperty%C2,                                          &
+                    Me%ObjEnterData, iflag,                                            &
+                    Keyword        = 'POWER_LH',                                       &
+                    Default        = 1,                                              &
+                    SearchType     = FromBlock,                                        &
+                    ClientModule   = 'ModuleInterfaceWaterAir',                        &
+                    STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR15'
+                
+            
+            endif
+                  
+        endif
 
     end subroutine Construct_PropertyValues
 
@@ -2704,6 +2745,8 @@ do1 :   do while (associated(PropertyX))
         real,    dimension(:,:,:), pointer          :: WaterTemperature
         real,    dimension(:,:  ), pointer          :: AirTemperature, RelativeHumidity
         real                                        :: WindVelocity
+        real                                        :: SurfaceAirTemperature
+        real                                        :: SurfaceRelHumidity
         integer                                     :: ILB, IUB, JLB, JUB, KUB, i, j, STAT_CALL
         !Begin-----------------------------------------------------------------
         
@@ -2760,8 +2803,33 @@ do1 :   do while (associated(PropertyX))
                 
 !                if (PropLatentHeat%Field(i, j) > 0.) PropLatentHeat%Field(i, j) = 0.
 
+!               When water temperature was higher than that of Air temperature, the latent heat losses were too high.
+!               The new code considers that the air temperature near water in this cases is closer to the water temperature
+!               value (and never higher than the water temperature) and is dependent on the wind velocity.
+!               Variable SurfaceAirTemperature added. The same happens with the relative humidity.
+                if ((PropLatentHeat%SVPMethod == 2) .and. (WaterTemperature(i, j, KUB) > AirTemperature(i, j))) then
+                !         ºC                       ºC + ºC * (ms-1 / (ms-1 + ms-1)** ()
+                    SurfaceAirTemperature = AirTemperature(i, j) + (WaterTemperature(i, j, KUB)- AirTemperature(i, j))*  &
+                                            (PropLatentHeat%C1/(PropLatentHeat%C1+WindVelocity))**PropLatentHeat%C2
+                    
+                    if(RelativeHumidity(i,j) > 0.7) then
+                !                              % + % * (ms-1 / (ms-1 + ms-1)** ()
+                        SurfaceRelHumidity = RelativeHumidity(i,j) + (1 - RelativeHumidity(i,j))*   &
+                                            (PropLatentHeat%C1/(PropLatentHeat%C1+WindVelocity))**PropLatentHeat%C2
+                    else
+                        SurfaceRelHumidity = RelativeHumidity(i,j)
+                    endif                        
+                         
+                else
+                  
+                    SurfaceAirTemperature = AirTemperature(i, j)                                                        
+                    SurfaceRelHumidity = RelativeHumidity(i,j)
+                
+                    
+                endif
+                                             
                 PropLatentHeat%Field(i, j) = LatentHeat    (ReferenceDensity, WaterTemperature(i, j, KUB),  &
-                                                            AirTemperature  (i, j), RelativeHumidity(i, j), &
+                                                            SurfaceAirTemperature, SurfaceRelHumidity, &
                                                             WindVelocity)
                    
 

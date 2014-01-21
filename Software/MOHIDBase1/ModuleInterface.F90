@@ -905,6 +905,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 allocate(Me%SOD (ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR61'
+                
+                allocate(Me%CellArea1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR65'
             
             case (BenthosModel )
             
@@ -4042,6 +4045,7 @@ cd4 :           if (ReadyToCompute) then
                                                     Me%Temperature,                       &
                                                     Me%Oxygen,                            &
                                                     Me%Mass,                              &
+                                                    Me%CellArea1D,                        &
                                                     Me%OpenPoints,                        &
                                                     SODRate  = Me%SOD,                    &
                                                     STAT = STAT_CALL)
@@ -4052,6 +4056,7 @@ cd4 :           if (ReadyToCompute) then
                                                     Me%Temperature,                       &
                                                     Me%Oxygen,                            &
                                                     Me%Mass,                              &
+                                                    Me%CellArea1D,                        &
                                                     Me%OpenPoints,                        &
                                                     STAT     = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface2D - ModuleInterface - ERR01a'
@@ -8918,6 +8923,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                         call KillCEQUALW2(Me%ObjCEQUALW2, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR50'
+                        
+                        if(associated(Me%CellArea1D))then
+                            deallocate(Me%CellArea1D, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR55'
+                        end if
 
                     case(BenthosModel)
                         

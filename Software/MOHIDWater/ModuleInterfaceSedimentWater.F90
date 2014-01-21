@@ -8041,6 +8041,7 @@ subroutine BenthicEcology_Processes
                                           PropertyID    = PropertyX%ID%IDNumber,            &
                                           Concentration = PropertyX%WaterConcentration,     &
                                           WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                                          CellArea2D    = Me%ExternalVar%GridCellArea,      &
                                           OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
                                           STAT          = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                            &
@@ -8406,6 +8407,13 @@ PropX:      do while (associated(PropertyX))
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) &
                             stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR07'
+                            
+                        call HDF5WriteData  (Me%ObjHDF5, "/Grid/CellArea", "CellArea",           &
+                                 'm2', Array2D = Me%ExternalVar%GridCellArea,                    &
+                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR07a'
+                            
                     end if
                     
                     if(PropertyX%Evolution%SedimentWaterFluxes)then

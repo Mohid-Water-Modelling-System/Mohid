@@ -1170,6 +1170,7 @@ Module ModuleWaterProperties
         integer                                 :: MaxThreads
         
         logical                                 :: TempFirstTimeWarning  = .false.
+        logical                                 :: AllWithDischarges     = .false.
         
 #ifdef _USE_SEQASSIMILATION
         integer, pointer, dimension(:)          :: PropertiesID
@@ -7461,6 +7462,9 @@ case1 : select case(PropertyID)
             write(*,*) 
             write(*,*)' Property ', trim(NewProperty%ID%Name), ' discharged without advection-diffusion.' 
             stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR100'
+            
+        else if  (.not. NewProperty%evolution%Discharges) then
+                 Me%AllWithDischarges = .true. 
         end if
       
         if (NewProperty%evolution%Discharges)                                            &
@@ -18795,10 +18799,16 @@ dn:         do n=1, nCells
                                     PropertyX%DischConc(AuxCell) = DischargeConc
                                                                   
                                 endif i2
-                                
-                            else i1
-                                                            
-                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i , j , k) 
+                            !introduction of a error message for the case of negative flow value and 
+                            !absence of DISCHARGES Keyword in waterproperty    
+                            elseif (Me%AllWithDischarges) then
+                                                
+                                    call SetError(WARNING_, INTERNAL_, &
+                                   "DISCHARGE keyword must be active in ALL water properties when negative flow values", ON)
+                                   stop 'WaterPropDischarges - ModuleWaterProperties - ERR95'
+                            else       
+                                   
+                                   PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i , j , k) 
                                 
                             endif i1
                         

@@ -289,6 +289,7 @@ Module ModuleCEQUALW2
         real, pointer, dimension(:  )               :: ShortWaveRadiation
         real, pointer, dimension(:  )               :: LightExtCoefField
         real, pointer, dimension(:  )               :: Thickness
+        real, pointer, dimension(:  )               :: CellArea
         real, pointer, dimension(:,:)               :: Mass      
     end type T_External
 
@@ -304,7 +305,13 @@ Module ModuleCEQUALW2
         real                                        :: AM !Mortality             
         
         !Algal saturating light intensity at maximum phtosynthetic rate [W m^-2]
-        real                                        :: ASAT 
+        real                                        :: ASAT
+        
+        !Algal half-saturation coefficients for oxygen consumption [mgO2/l]
+        real                                        :: AOK1
+        real                                        :: AOK2
+        real                                        :: AOK3
+        real                                        :: AOK4
 
         !Algal half-saturation coefficients [g m^-3]
         real                                        :: AHSP  !for Phosphurus   
@@ -535,6 +542,7 @@ Module ModuleCEQUALW2
                                                     
         !Oxygen Limit                               
         real                                        ::  O2LIM    = null_real
+        integer                                     ::  O2Method = 1
                                                     
         !Oxygen Kinetic Flux                        
         !real                                        ::  DOAE     = null_real
@@ -549,6 +557,8 @@ Module ModuleCEQUALW2
         real                                        ::  DO1      = null_real
         real                                        ::  DO2      = null_real
         real                                        ::  DO3      = null_real
+        real                                        ::  O2K1     = null_real
+        real                                        ::  O2K2     = null_real
                                                     
         !Decay Rates                                
         real                                        ::  NH4D     = null_real
@@ -563,6 +573,7 @@ Module ModuleCEQUALW2
         !real                                        ::  CBODDK   = null_real
         real                                        ::  DETD     = null_real
         real                                        ::  SODD     = null_real
+        real                                        ::  SODDO2   = null_real
         !Instance of Module_EnterData
         integer                                     :: ObjEnterData = 0
         
@@ -2237,8 +2248,43 @@ cd2 :           if (BlockFound) then
                      ClientModule  =  MohidModules(mCEQUALW2_)%Name,                    &
                      STAT          =  STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_) stop "ReadAlgaeParameters - ModuleCEQUALW2 - ERR08"
-
-
+        
+        !Algal half-saturation coefficients for oxygen consumption [mgO2/l]
+        call GetData(NewAlgae%AOK1,                                                     &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType    =  FromBlock,                                        &
+                     keyword       = 'A_OK1',                                            &
+                     default       =  13.0,                                             &
+                     ClientModule  =  MohidModules(mCEQUALW2_)%Name,                    &
+                     STAT          =  STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop "ReadAlgaeParameters - ModuleCEQUALW2 - ERR035"
+        
+        call GetData(NewAlgae%AOK2,                                                     &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType    =  FromBlock,                                        &
+                     keyword       = 'A_OK2',                                            &
+                     default       =  11.0,                                             &
+                     ClientModule  =  MohidModules(mCEQUALW2_)%Name,                    &
+                     STAT          =  STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop "ReadAlgaeParameters - ModuleCEQUALW2 - ERR037"
+        
+        call GetData(NewAlgae%AOK3,                                                     &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType    =  FromBlock,                                        &
+                     keyword       = 'A_OK3',                                           &
+                     default       =  2.5,                                              &
+                     ClientModule  =  MohidModules(mCEQUALW2_)%Name,                    &
+                     STAT          =  STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop "ReadAlgaeParameters - ModuleCEQUALW2 - ERR038"
+        
+        call GetData(NewAlgae%AOK4,                                                     &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType    =  FromBlock,                                        &
+                     keyword       = 'A_OK4',                                           &
+                     default       =  7.0,                                              &
+                     ClientModule  =  MohidModules(mCEQUALW2_)%Name,                    &
+                     STAT          =  STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop "ReadAlgaeParameters - ModuleCEQUALW2 - ERR039"
 
         !AHSN - Algal half-saturation for nitrogen limited growth [g m^-3]
         call GetData(NewAlgae%AHSN,                                                     &
@@ -3340,18 +3386,54 @@ cd2 :           if (BlockFound) then
                                      ClientModule  =  MohidModules(mCEQUALW2_)%Name,            &
                                      STAT          =  STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_) stop "ReadOxygenParameters - ModuleCEQUALW2 - ERR01"
+                                                
+                        call GetData(Me%O2Method,                                               &
+                                     Me%ObjEnterData, flag,                                     &
+                                     SearchType    =  FromBlock,                                &
+                                     keyword       = 'O2_METHOD',                               &
+                                     default       =  1,                                        &
+                                     ClientModule  =  MohidModules(mCEQUALW2_)%Name,            &
+                                     STAT          =  STAT_CALL)
+                        if(STAT_CALL .ne. SUCCESS_) stop "ReadOxygenParameters - ModuleCEQUALW2 - ERR02"
+                        
+                        !Oxygen rate multiplier for oxygen consuming processes
+                        
+                        call GetData(Me%O2K1,                                                   &
+                                     Me%ObjEnterData, flag,                                     &
+                                     SearchType    =  FromBlock,                                &
+                                     keyword       = 'O2_K1',                                   &
+                                     default       =  2.5,                                      &
+                                     ClientModule  =  MohidModules(mCEQUALW2_)%Name,            &
+                                     STAT          =  STAT_CALL)
+                        if(STAT_CALL .ne. SUCCESS_) stop "ReadOxygenParameters - ModuleCEQUALW2 - ERR03"
+                        
+                        call GetData(Me%O2K2,                                                   &
+                                     Me%ObjEnterData, flag,                                     &
+                                     SearchType    =  FromBlock,                                &
+                                     keyword       = 'O2_K2',                                   &
+                                     default       =  7.0,                                      &
+                                     ClientModule  =  MohidModules(mCEQUALW2_)%Name,            &
+                                     STAT          =  STAT_CALL)
+                        if(STAT_CALL .ne. SUCCESS_) stop "ReadOxygenParameters - ModuleCEQUALW2 - ERR04"
+                        
+                        if ((Me%O2LIM == 0).and.(Me%O2Method == 2)) then
+                            write(*,*) "Consider changing O2LIM because O2LIM = 0 causes division by zero for O2 = 0"
+                            stop "ReadOxygenParameters - ModuleCEQUALW2 - ERR03" 
+                        
+                        
+                        end if
                          
                 else cd2
                     
                     call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-                    if(STAT_CALL .ne. SUCCESS_) stop "ReadOxygenParameters - ModuleCEQUALW2 - ERR02"
+                    if(STAT_CALL .ne. SUCCESS_) stop "ReadOxygenParameters - ModuleCEQUALW2 - ERR04"
 
                     exit do1    !No more blocks
                 end if cd2
 
             else if (STAT_CALL .EQ. BLOCK_END_ERR_) then cd1
                 
-                stop "ReadOxygenParameters - ModuleCEQUALW2 - ERR03"
+                stop "ReadOxygenParameters - ModuleCEQUALW2 - ERR05"
        
             end if cd1
        
@@ -4293,15 +4375,15 @@ cd0:            if (CalcPoint) then
         integer                                 :: NIT, PHOSP, SIPART, SIDISS,DET
         integer                                 :: AlgaeIndex, EpiphytonIndex
         real                                    :: Shade, TopRadiation, Thickness, Gamma
-        real                                    :: ASat, ESat, LTCoef 
+        real                                    :: ASat, ESat, LTCoef, AOK1, AOK2, AOK3, AOK4 
         real                                    :: Lightlim, ATRM, ATRMR, ATRMF,AG,AP,AN,AR,AM,AE
         real                                    :: ETRM, ETRMR, ETRMF,EG,EP,EN,ER,EM,EE
         real                                    :: Nitrate, Ammonia, Algae_, Epiphyton_, Phosphorus     
-        real                                    :: aux1, aux2, aux3
+        real                                    :: aux1, aux2, aux3, Aux4
         real                                    :: NONZERO = 1.0E-20
         type(T_Algae),      pointer             :: Algae
         type(T_Epiphyton),  pointer             :: Epiphyton
-
+        character (len = StringLength)          :: StrWarning
 
         !-----------------------------------------------------------------------
 
@@ -4320,12 +4402,29 @@ cd0:            if (CalcPoint) then
         Temperature = Me%ExternalVar%Temperature (index)
 
         !Auxiliary variables (related with oxygen limitation)for the calculation of decay rates                
-        
+        if (Me%O2Method == 1) then
+       
         Me%DO1    = (1.0+SIGN(1.0, Me%ExternalVar%Mass(O,index) - Me%O2LIM))  * 0.5
         Me%DO2    = (1.0+SIGN(1.0, Me%O2LIM  - Me%ExternalVar%Mass(O,index))) * 0.5
         Me%DO3    = (1.0+SIGN(1.0, Me%ExternalVar%Mass(O,index)-1.E-10)) * 0.5
 
         
+        elseif (Me%O2Method == 2) then
+        
+        !Uses a semisaturation constant to control mineralization, nitrification and denitrification rates
+        
+        Me%DO1    = Me%ExternalVar%Mass(O,index)/(Me%ExternalVar%Mass(O,index)+ Me%O2LIM)
+        Me%DO2    = 1-(Me%ExternalVar%Mass(O,index)/(Me%ExternalVar%Mass(O,index)+ Me%O2LIM))
+        Me%DO3    = Me%ExternalVar%Mass(O,index)/(Me%ExternalVar%Mass(O,index)+ Me%O2LIM)
+        
+        elseif (Me%O2Method == 3) then
+        
+        Me%DO1    = 1./(1.0 + (Me%O2K1/(Me%ExternalVar%Mass(O,index)))**Me%O2K2)
+                    
+        Me%DO2    = 1 - 1./(1.0+ (Me%O2K1/(Me%ExternalVar%Mass(O,index)))**Me%O2K2)
+                    
+        Me%DO3    = 1./(1.0 + (Me%O2K1/(Me%ExternalVar%Mass(O,index)))**Me%O2K2)
+        endif
         
         !Decay Rates
 
@@ -4387,6 +4486,13 @@ cd0:            if (CalcPoint) then
             do while(associated(Algae))
 
                 ASat   = Algae%Asat
+                AOK1   = Algae%AOK1
+                AOK2   = Algae%AOK2
+                AOK3   = Algae%AOK3
+                AOK4   = Algae%AOK4
+                
+                Aux4 = (1./(1.0 + (AOK3/(Me%ExternalVar%Mass(O,index)))**AOK4)) * &
+                       (1./(1.0 + (Me%ExternalVar%Mass(O,index)/AOK1)**AOK2))
                 
                 LTCoef = TopRadiation*Shade/ASat
                                                           
@@ -4418,8 +4524,15 @@ cd0:            if (CalcPoint) then
                 Algae%Slim(index) = Me%ExternalVar%Mass(SIDISS,index)/     &
                 (Me%ExternalVar%Mass(SIDISS,index)+Algae%AHSSI)                                          
 
-
-                Algae%OverallLim (index)    = min(Algae%Plim(index), Algae%Nlim(index),Algae%Slim(index),Algae%Lightlim(index))
+                if ((Me%O2Method == 1) .or. (Me%O2Method == 2)) then
+                
+                    Algae%OverallLim(index) = min(Algae%Plim(index),Algae%Nlim(index),Algae%Slim(index),Algae%Lightlim(index))
+                
+                elseif (Me%O2Method == 3) then
+                
+                    Algae%OverallLim(index) = min(Algae%Plim(index),Algae%Nlim(index),Algae%Slim(index),Algae%Lightlim(index),Aux4)
+                    
+                end if
 
                 AlgaeIndex = Algae%PropIndex   
 
@@ -4444,15 +4557,15 @@ cd0:            if (CalcPoint) then
                 Aux1 = ATRM * AG * Algae%OverallLim (index)
                 Aux2 = Phosphorus/(AP * Me%DTDay * Algae_ + NONZERO) 
                 Aux3 = (Ammonia + Nitrate)/(AN * Me%DTDay * Algae_ + NONZERO)  
-
-                Algae%AGR =  min (Aux1, Aux2, Aux3) 
-
-                Algae%ARR =  ATRM * AR * Me%DO3
-
-                Algae%AMR = (ATRMR + 1.0-ATRMF) * AM
                 
-                Algae%AER =  MIN((1.0 - Lightlim)*AE * ATRM , Algae%AGR)                                       
-
+                       
+                Algae%ARR =  ATRM * AR * Me%DO3
+                              
+                Algae%AGR =  min (Aux1, Aux2, Aux3)
+                Algae%AMR = (ATRMR + 1.0-ATRMF) * AM
+                Algae%AER =  MIN((1.0 - Lightlim)*AE * ATRM , Algae%AGR)
+  
+                                
                 !corrigir mais tarde (so da rates da ultima alga)!!!pina
                 Me%Rate%Value(Me%Rate%CequalIndex%ANLim,        index)  = Algae%NLim(index)       
                 Me%Rate%Value(Me%Rate%CequalIndex%APLim,        index)  = Algae%PLim(index)       
@@ -5505,7 +5618,8 @@ cd0:            if (CalcPoint) then
     subroutine CEQUALW2Benthic(CEQUALW2_ID,                                    &
                            Temperature,                                        &
                            Oxygen,                                             &
-                           Mass,                                               &                           
+                           Mass,                                               &
+                           CellArea,                                           &
                            OpenPoints,                                         &
                            SODRate,                                            &
                            STAT)  
@@ -5516,6 +5630,7 @@ cd0:            if (CalcPoint) then
         real   , optional,    pointer, dimension(:  ) :: SODRate
         real,                 pointer, dimension(:  ) :: Temperature
         real,                 pointer, dimension(:  ) :: Oxygen
+        real,                 pointer, dimension(:  ) :: CellArea
         integer, optional,    pointer, dimension(:  ) :: OpenPoints
         integer, optional,    intent(OUT)             :: STAT
          
@@ -5545,6 +5660,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             Me%ExternalVar%Oxygen                       => Oxygen
             if (.NOT. associated(Me%ExternalVar%Oxygen))                &
                 stop 'CEQUALW2Benthic - ModuleCEQUALW2 - ERR03'
+                
+             Me%ExternalVar%CellArea                    => CellArea
+            if (.NOT. associated(Me%ExternalVar%CellArea))                &
+                stop 'CEQUALW2Benthic - ModuleCEQUALW2 - ERR06'
                 
             if (Me%SOD%UseSod .and. .NOT. present(SODRate))         then
                 write(*,*) 'SOD defined in BentichCEQUALW2 but not in Interface Sediment Water.'
@@ -5619,6 +5738,7 @@ cd3:            if (CalcPoint) then
             nullify(Me%ExternalVar%Salinity    )
             nullify(Me%ExternalVar%Temperature )
             nullify(Me%ExternalVar%Oxygen      )
+            nullify(Me%ExternalVar%CellArea    )
             nullify(Me%ExternalVar%Alkalinity  )
             nullify(Me%ExternalVar%Mass        )
            
@@ -5652,27 +5772,63 @@ cd3:            if (CalcPoint) then
         ! temperature rate multiplier
 
         Temperature = Me%ExternalVar%Temperature (index)
-        Oxygen      = Me%ExternalVar%Oxygen      (index)
+        Oxygen      = Me%ExternalVar%Oxygen(index) * 1000.0
    
         lam1        = Rising(Temperature,Me%DETT1,Me%DETT2,Me%DETK1,Me%DETK2)
         Me%DETTRM   = lam1/(1.0+lam1-Me%DETK1)
         
+        if (Me%O2Method == 1) then
         !Auxiliary variables (related with oxygen limitation)for the calculation of decay rates                       
-        Me%DO3      = (1.0+SIGN(1.0, Oxygen -1.E-10)) * 0.5
+            Me%DO3 = (1.0+SIGN(1.0, Oxygen -1.E-10)) * 0.5
         
-        Me%DETD     =  Me%DETTRM  * Me%SDK      *Me%ExternalVar%Mass(DET,index) * Me%DO3                         
+            Me%DETD = Me%DETTRM * Me%SDK * Me%ExternalVar%Mass(DET,index) * Me%DO3                         
         
-        !Calculate SOD TRM if needed
-        if (Me%SOD%UseSOD) then
+            if (Me%SOD%UseSOD) then
+        
+                lam1        = Rising(Temperature,Me%SOD%T1,Me%SOD%T2,Me%SOD%K1,Me%SOD%K2)
+                
+                Me%SOD%TRM  = lam1/(1.0+lam1-Me%SOD%K1)
+                
+                Me%DO2      = (1.0+SIGN(1.0, Me%O2LIM  - Oxygen)) * 0.5
+                
+                Me%SODD     =  Me%SOD%TRM * Me%SOD%Rate(index) * Me%DO2
+                Me%SODDO2   =  Me%SOD%TRM * Me%SOD%Rate(index) * Me%DO3
             
-            lam1        = Rising(Temperature,Me%SOD%T1,Me%SOD%T2,Me%SOD%K1,Me%SOD%K2)
+            end if
             
-            Me%SOD%TRM  = lam1/(1.0+lam1-Me%SOD%K1)
+        elseif (Me%O2Method == 2) then
+        
+                Me%DO3 = Oxygen/(Oxygen+ Me%O2LIM)
+                Me%DETD = Me%DETTRM * Me%SDK * Me%ExternalVar%Mass(DET,index) * Me%DO3
+                
+            if (Me%SOD%UseSOD) then
+              
+                lam1        = Rising(Temperature,Me%SOD%T1,Me%SOD%T2,Me%SOD%K1,Me%SOD%K2)
+                
+                Me%SOD%TRM  = lam1/(1.0+lam1-Me%SOD%K1)
             
-            Me%DO2      = (1.0+SIGN(1.0, Me%O2LIM  - Oxygen)) * 0.5
+                Me%DO2      = 1-(Oxygen/(Oxygen + Me%O2LIM))
             
-            Me%SODD     =  Me%SOD%TRM * Me%SOD%Rate(index) * Me%DO2
-    
+                Me%SODD     =  Me%SOD%TRM * Me%SOD%Rate(index) * Me%DO2
+                Me%SODDO2   =  Me%SOD%TRM * Me%SOD%Rate(index) * Me%DO3
+                    
+            endif
+        
+        elseif (Me%O2Method == 3) then
+            
+                Me%DO3    = 1./(1.0 + (Me%O2K1/Oxygen)**Me%O2K2)
+                Me%DETD = Me%DETTRM * Me%SDK * Me%ExternalVar%Mass(DET,index) * Me%DO3
+        
+            if (Me%SOD%UseSOD) then
+            
+                lam1        = Rising(Temperature,Me%SOD%T1,Me%SOD%T2,Me%SOD%K1,Me%SOD%K2)
+                Me%SOD%TRM  = lam1/(1.0+lam1-Me%SOD%K1)
+                
+                Me%DO2      = 1 - 1./(1.0 + (Me%O2K1/Oxygen)**Me%O2K2)
+                Me%SODD     =  Me%SOD%TRM * Me%SOD%Rate(index) * Me%DO2
+                Me%SODDO2   =  Me%SOD%TRM * Me%SOD%Rate(index) * Me%DO3
+                
+            endif
         endif                
 
                         
@@ -5705,8 +5861,9 @@ cd3:            if (CalcPoint) then
         
         
         if (Me%SOD%UseSOD )then
-        
-            Me%ExternalVar%Mass(PHOSP,index) = Me%ExternalVar%Mass(PHOSP,index) + Me%SODD * Me%SOD%PO4R
+        !                                             kg            +           kg m-2 d-1  *  []   *   (m2) *  d
+            Me%ExternalVar%Mass(PHOSP,index) = Me%ExternalVar%Mass(PHOSP,index) + Me%SODD * Me%SOD%PO4R *  &
+                                               Me%ExternalVar%CellArea(index) * Me%DtDay           
         
         endif
         
@@ -5737,8 +5894,9 @@ cd3:            if (CalcPoint) then
         Me%ExternalVar%Mass(AM,index) = Me%ExternalVar%Mass(AM,index) + NH4DET * Me%DtDay
         
         if (Me%SOD%UseSOD )then
-        
-            Me%ExternalVar%Mass(AM,index) = Me%ExternalVar%Mass(AM,index) + Me%SODD * Me%SOD%NH4R
+        !                                             kg            +           kg m-2 d-1  *  []   *   (m2) *  d
+            Me%ExternalVar%Mass(AM,index) = Me%ExternalVar%Mass(AM,index) + Me%SODD * Me%SOD%NH4R *  &
+                                            Me%ExternalVar%CellArea(index) * Me%DtDay
         
         endif
 
@@ -5769,8 +5927,9 @@ cd3:            if (CalcPoint) then
         Me%ExternalVar%Mass(DSI,index) = Me%ExternalVar%Mass(DSI,index) + DSIDDET * Me%DtDay
         
         if (Me%SOD%UseSOD )then
-        
-            Me%ExternalVar%Mass(DSI,index) = Me%ExternalVar%Mass(DSI,index) + Me%SODD * Me%SOD%SiR
+        !                                             kg            +           kg m-2 d-1  *  []   *   (m2) *  d
+            Me%ExternalVar%Mass(DSI,index) = Me%ExternalVar%Mass(DSI,index) + Me%SODD * Me%SOD%SiR *  &
+                                            Me%ExternalVar%CellArea(index) * Me%DtDay
         
         endif
     
@@ -5804,12 +5963,13 @@ cd3:            if (CalcPoint) then
             if (Me%SOD%DefaultO2)then
                 !remove Relplace DO2 with DO3 in SODD (this is how it's done in the original cequal code)
                 !Doesn't make mutch cense because SOD uses O2 even if it still doesn't release any nutrients
-                SODDL = Me%SODD * Me%DO3 / Me%DO2                
+                SODDL = Me%SODDO2               
             else
                 SODDL = Me%SODD
             endif
             
-            Me%ExternalVar%Mass(O,index) = Me%ExternalVar%Mass(O,index) - SODDL * Me%SOD%O2Sink
+            Me%ExternalVar%Mass(O,index) = Me%ExternalVar%Mass(O,index) - SODDL * Me%SOD%O2Sink *  &
+                                           Me%ExternalVar%CellArea(index) * Me%DtDay
         
         endif                                                                       
  
@@ -5836,7 +5996,8 @@ cd3:            if (CalcPoint) then
         
         if (Me%SOD%UseSOD )then
         
-            Me%ExternalVar%Mass(ICarbonIndex,index) = Me%ExternalVar%Mass(ICarbonIndex,index) + Me%SODD * Me%SOD%CO2R
+            Me%ExternalVar%Mass(ICarbonIndex,index) = Me%ExternalVar%Mass(ICarbonIndex,index) + Me%SODD * Me%SOD%CO2R *  &
+                                                      Me%ExternalVar%CellArea(index) * Me%DtDay
         
         endif       
                 
