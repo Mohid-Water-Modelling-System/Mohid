@@ -195,11 +195,18 @@ Module ModuleSand
         real                                    :: MinWaterColumn   = FillValueReal 
     end type T_External
 
-    
+    private :: T_Residual
+    type       T_Residual
+        logical                                 :: ON           = .false.
+        type(T_Time)                            :: StartTime    
+        real, dimension(:,:), pointer           :: FluxX        => null ()
+        real, dimension(:,:), pointer           :: FluxY        => null ()        
+    end type   T_Residual
+
     private :: T_Aceleration
     type       T_Aceleration
-        logical         :: Yes      = .false.
-        real            :: Coef     = FillValueReal
+        logical                                 :: Yes          = .false.
+        real                                    :: Coef         = FillValueReal
     end type   T_Aceleration
 
     private :: T_OutPut
@@ -315,6 +322,7 @@ Module ModuleSand
         type (T_External)                          :: ExternalVar
         type (T_Discharges)                        :: Discharges
         type (T_Boxes     )                        :: Boxes
+        type (T_Residual  )                        :: Residual
         real, dimension(:,:), pointer              :: FluxX                 => null ()
         real, dimension(:,:), pointer              :: FluxY                 => null ()
         real, dimension(:,:), pointer              :: FluxXY                => null ()
@@ -838,6 +846,21 @@ i1:     if (Me%Boxes%Yes) then
         else
             Me%Aceleration%Yes = .false.
         endif
+
+
+        call GetData(Me%Residual%ON,                                                    &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RESIDUAL',                                         &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleSand',                                       &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR150' 
+        
+        if (Me%Residual%ON .and. .not. Me%Evolution%OLD) then
+            Me%Residual%StartTime = Me%BeginTime
+        endif                
+
 
     end subroutine ConstructEvolution
 
@@ -1589,7 +1612,7 @@ cd2 :               if (BlockFound) then
         if (Me%Evolution%OLD) then
 
             call ReadInitialField(FieldName = Me%DZ_Residual%ID%Name, Field2D = Me%DZ_Residual%Field2D)
-
+            
         else
 
             Me%DZ_Residual%Field2D(:,:) = 0.
@@ -1677,6 +1700,26 @@ cd2 :               if (BlockFound) then
         
         allocate(Me%FluxDir(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         Me%FluxDir(:,:) = 0.        
+        
+        if (Me%Residual%ON) then
+
+            allocate(Me%Residual%FluxX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            Me%Residual%FluxX(:,:) = 0.
+
+            allocate(Me%Residual%FluxY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            Me%Residual%FluxY(:,:) = 0.
+            
+            if (Me%Evolution%Old) then
+            
+                call ReadResidualStartTime()
+                
+                call ReadInitialField(FieldName = "Residual Transport Flux X", Field2D = Me%Residual%FluxX)
+                
+                call ReadInitialField(FieldName = "Residual Transport Flux Y", Field2D = Me%Residual%FluxY)                
+            
+            endif
+            
+        endif
         
 
         allocate(Me%TransportCapacity(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -1915,9 +1958,8 @@ cd2 :               if (BlockFound) then
     subroutine ReadInitialField(FieldName, Field2D)
 
         !Arguments-------------------------------------------------------------
-        character (Len = StringLength)              :: FieldName
+        character (Len = *)                         :: FieldName
         real, dimension(:,:), pointer               :: Field2D
-
 
         !Local-----------------------------------------------------------------
         logical                                     :: EXIST
@@ -1973,7 +2015,7 @@ cd0:    if (EXIST) then
                                  STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadInitialField; ModuleSand - ERR03.'
-
+                
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadInitialField; ModuleSand - ERR06.'
@@ -1988,6 +2030,67 @@ cd0:    if (EXIST) then
         !----------------------------------------------------------------------
 
     end subroutine ReadInitialField
+
+    !--------------------------------------------------------------------------
+
+
+    subroutine ReadResidualStartTime()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        logical                                    :: EXIST
+        integer                                    :: STAT_CALL
+        integer                                    :: ObjHDF5
+        integer(4)                                 :: HDF5_READ
+        real,    dimension(:    ), pointer         :: AuxTime
+
+        !----------------------------------------------------------------------
+
+        inquire (FILE=trim(Me%Files%InitialSand)//"5", EXIST = EXIST)
+
+cd0:    if (EXIST) then
+
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+            ObjHDF5 = 0
+
+            !Opens HDF5 File
+            call ConstructHDF5 (ObjHDF5,                                                 &
+                                trim(Me%Files%InitialSand)//"5", HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadResidualStartTime; ModuleSand - ERR10.'
+
+
+            call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSand - ERR30'
+            
+            allocate(AuxTime(6))
+
+            call HDF5ReadData  (ObjHDF5, "/Results",                                    &
+                                 "Residual Start Time",                                 &
+                                 Array1D = AuxTime, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSand - ERR40'
+            
+            call SetDate   (Me%Residual%StartTime, AuxTime(1), AuxTime(2), AuxTime(3), &
+                            AuxTime(4), AuxTime(5), AuxTime(6))
+                      
+            deallocate(AuxTime)
+                
+            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadResidualStartTime; ModuleSand - ERR50.'
+        
+        else if(.not. EXIST) then cd0
+
+                stop 'ReadResidualStartTime; ModuleSand - ERR60.'
+
+        endif cd0
+
+        !----------------------------------------------------------------------
+
+    end subroutine ReadResidualStartTime
 
     !--------------------------------------------------------------------------
 
@@ -3632,7 +3735,7 @@ cd0:    if (EXIST) then
     subroutine ComputeEvolution            
 
         !Local-----------------------------------------------------------------
-        real                               :: DT_Area1, DT_Area2, AbsFluxXY
+        real                               :: DT_Area1, DT_Area2, AbsFluxXY, RunPeriod
         integer                            :: i, j, di, dj
         !----------------------------------------------------------------------
 
@@ -3651,6 +3754,20 @@ cd0:    if (EXIST) then
             Me%FluxY (:,:) = Me%Aceleration%Coef * Me%FluxY (:,:)
             Me%FluxXY(:,:) = Me%Aceleration%Coef * Me%FluxXY(:,:)
 
+        endif
+        
+        if (Me%Residual%ON) then
+
+                RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
+
+                !FluxXY / sqrt(2)
+                Me%Residual%FluxX(:,:) = ( Me%Residual%FluxX(:,:) * (RunPeriod -  Me%Evolution%SandDT)          + &
+                                          (Me%FluxX(:,:) + Me%FluxXY(:,:) / SquareRoot2) * Me%Evolution%SandDT) / &
+                                           RunPeriod
+                !FluxXY / sqrt(2)
+                Me%Residual%FluxY(:,:) = ( Me%Residual%FluxY(:,:) * (RunPeriod -  Me%Evolution%SandDT)          + &
+                                          (Me%FluxY(:,:) + Me%FluxXY(:,:) / SquareRoot2) * Me%Evolution%SandDT) / &
+                                           RunPeriod
         endif
         
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -4126,7 +4243,22 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                                      "m3/s/m", Array2D = Me%FluxY,                       &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR90'
+                
+                if (Me%Residual%ON) then
+                
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux X", &
+                                         "Residual Transport Flux X",                      &
+                                         "m3/s/m", Array2D = Me%Residual%FluxX,            &
+                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR80'
 
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux Y", &
+                                         "Residual Transport Flux Y",                      &
+                                         "m3/s/m", Array2D = Me%Residual%FluxY,            &
+                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR90'
+                
+                endif
 
                 !Writes everything to disk
                 call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
@@ -4307,7 +4439,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 endif
 
 
-                 call WriteFinalState
+                call WriteFinalState
 
 do1 :           do i=1, Me%Classes%Number
                     
@@ -4350,7 +4482,12 @@ if1:            if (Me%Classes%Number > 0) then
                 deallocate(Me%FluxXY )                
                 deallocate(Me%FluxDir)
                 deallocate(Me%TransportCapacity)
-
+                
+                if (Me%Residual%ON) then
+                    deallocate(Me%Residual%FluxX  )
+                    deallocate(Me%Residual%FluxY  )
+                endif
+                
                 !if (Me%TransportMethod == VanRijn1) deallocate (Me%Dast)
                 
                 if   (Me%TransportMethod == VanRijn1  &
@@ -4428,9 +4565,11 @@ if1:            if (Me%Classes%Number > 0) then
     subroutine WriteFinalState
 
         !Local--------------------------------------------------------------
-        integer                                 :: WorkILB, WorkIUB
-        integer                                 :: WorkJLB, WorkJUB
-        integer                                 :: STAT_CALL
+        real,    dimension(6    ), target      :: AuxTime
+        real,    dimension(:    ), pointer     :: TimePtr
+        integer                                :: WorkILB, WorkIUB
+        integer                                :: WorkJLB, WorkJUB
+        integer                                :: STAT_CALL
         !----------------------------------------------------------------------
 
         !Bounds
@@ -4448,7 +4587,7 @@ if1:            if (Me%Classes%Number > 0) then
                              WorkJLB, WorkJUB,                                           &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSand - ERR01'
+            stop 'WriteFinalState - ModuleSand - ERR10'
 
         !Final concentration
         call HDF5WriteData  (Me%ObjHDF5, "/Results",                                     &
@@ -4457,7 +4596,7 @@ if1:            if (Me%Classes%Number > 0) then
                              Array2D = Me%DZ_Residual%Field2D,                           &
                              STAT    = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSand - ERR02'
+            stop 'WriteFinalState - ModuleSand - ERR20'
 
         call HDF5WriteData  (Me%ObjHDF5, "/Results",                                     &
                              "Bathymetry",                                               &
@@ -4465,18 +4604,52 @@ if1:            if (Me%Classes%Number > 0) then
                              Array2D = Me%ExternalVar%Bathymetry,                        &
                              STAT    = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSand - ERR03'
+            stop 'WriteFinalState - ModuleSand - ERR30'
 
+        if (Me%Residual%ON) then
+            call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
+                                 "Residual Transport Flux X",                           &
+                                 "m3/s/m",                                              &
+                                 Array2D = Me%Residual%FluxX,                           &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'WriteFinalState - ModuleSand - ERR40'
 
+            call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
+                                 "Residual Transport Flux Y",                           &
+                                 "m3/s/m",                                              &
+                                 Array2D = Me%Residual%FluxY,                           &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'WriteFinalState - ModuleSand - ERR50'
+
+            call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'WriteFinalState - ModuleSand - ERR60'
+
+            !Writes current time
+            call ExtractDate   (Me%Residual%StartTime, AuxTime(1), AuxTime(2), AuxTime(3), &
+                                AuxTime(4), AuxTime(5), AuxTime(6))
+            TimePtr => AuxTime
+            call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSand - ERR70'
+
+            call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
+                                 "Residual Start Time", "YYYY/MM/DD HH:MM:SS",          &
+                                 Array1D = TimePtr, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSand - ERR80'
+                                 
+
+        endif
    
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSand - ERR03'
+            stop 'WriteFinalState - ModuleSand - ERR90'
 
         call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSand - ERR04'
+            stop 'WriteFinalState - ModuleSand - ERR100'
 
     end subroutine WriteFinalState
 
