@@ -704,7 +704,7 @@ Module ModuleWaterProperties
     
     type       T_SizeClass 
        character(len=StringLength)              :: Name
-       real,    pointer, dimension(:,:,:)       :: Density
+       real,    pointer, dimension(:,:,:)       :: Density => null()
        real                                     :: Minimum, Maximum
     end type   T_SizeClass
 
@@ -1864,7 +1864,7 @@ cd2 :           if (BlockFound) then
         real                                        :: ModelDT
         
         !Local-----------------------------------------------------------------
-        real, pointer, dimension(:)              :: LocalSizeClasses
+        real, pointer, dimension(:)                 :: LocalSizeClasses
         integer                                     :: iClass
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         character(len=StringLength)                 :: AuxChar1, AuxChar2
@@ -2453,8 +2453,8 @@ do1:        do while (associated(ObjCohort%Next))
         
         CohortPropName       = 'AGE'
         NewProperty%ID%Name  = trim(adjustl(NewCohort%ID%Name))//" age"
-                
         call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+        NewProperty%Evolution%AdvectionDiffusion  = .false. !age has no advection-diffusion
         
         nullify(NewProperty)
 
@@ -2611,12 +2611,17 @@ do1:        do while (associated(ObjCohort%Next))
         if (NewProperty%evolution%AdvectionDiffusion)         &
             call Read_Advec_Difus_Parameters(NewProperty)
 
-        NewProperty%Evolution%MinConcentration         = .false.
+        Me%Coupled%MinimumConcentration%Yes            = ON
+        NewProperty%Evolution%MinConcentration         = .true.
         NewProperty%Evolution%MaxConcentration         = .false.
-        NewProperty%MinValue                           = FillValueReal
+        NewProperty%MinValue                           = 0.
         NewProperty%MaxValue                           = - FillValueReal
-        NewProperty%Mass_Created (:,:,:)               = 0. 
-        NewProperty%Mass_Destroid(:,:,:)               = 0.  
+        
+        allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)stop 'Subroutine Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR10'
+        
+        NewProperty%Mass_Created(:,:,:) = 0.  
+
         NewProperty%Scalar                             = 0.0
         NewProperty%Assimilation%Scalar                = 0.0
         
@@ -2910,9 +2915,9 @@ do6 :                       do K = WKLB, WKUB
         
         CohortPropName = 'AGE'
         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" age"
-
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
         
+        call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+        NewProperty%Evolution%AdvectionDiffusion  = .false. !age has no advection-diffusion    
         nullify(NewProperty)
 
         !generate property number
@@ -2951,13 +2956,13 @@ do6 :                       do K = WKLB, WKUB
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                             :: WILB, WIUB, WJLB, WJUB
         integer                             :: WKLB, WKUB
-        integer                             :: Index, nIndex = 0
+        integer                             :: Index
         logical                             :: VariableDT
         real                                :: ModelDT
         real                                :: NewbornValue
         integer                             :: iSpecies, SpeciesPosMatrixNewborns
         real                                :: ErrorAux, auxFactor, DTaux
-        integer                             :: MassConservation           
+        integer                             :: NullGradient           
         
         !----------------------------------------------------------------------
  
@@ -3013,7 +3018,7 @@ do6 :                       do K = WKLB, WKUB
          
         NewProperty%evolution%Variable           = .true.
         
-        call GetBoundaryConditionList(MassConservation = MassConservation)
+        call GetBoundaryConditionList(NullGradient = NullGradient)
         
         NewProperty%Evolution%Advec_Difus_Parameters%NumericStability    = .FALSE.
         NewProperty%Evolution%Advec_Difus_Parameters%SchmidtNumberH      = 1.0
@@ -3023,8 +3028,8 @@ do6 :                       do K = WKLB, WKUB
         NewProperty%Evolution%Advec_Difus_Parameters%DiffusionV_imp_exp  = 0.0
         NewProperty%Evolution%Advec_Difus_Parameters%NullDif             = .false.
         NewProperty%Evolution%Advec_Difus_Parameters%DecayTime           = 0.0
-        NewProperty%Evolution%Advec_Difus_Parameters%BoundaryCondition   = MassConservation
-        NewProperty%Evolution%Advec_Difus_Parameters%AdvectionH_imp_exp  = 0.0
+        NewProperty%Evolution%Advec_Difus_Parameters%BoundaryCondition   = NullGradient
+        NewProperty%Evolution%Advec_Difus_Parameters%AdvectionH_imp_exp  = 1.0
         NewProperty%Evolution%Advec_Difus_Parameters%DiffusionH_imp_exp  = 0.
         NewProperty%Evolution%Advec_Difus_Parameters%ImplicitH_Direction = DirectionX
         
@@ -3035,12 +3040,17 @@ do6 :                       do K = WKLB, WKUB
         NewProperty%Evolution%Advec_Difus_Parameters%VolumeRelMax        = 1.5
         NewProperty%Evolution%Advec_Difus_Parameters%AdvectionNudging    = .false.
         
-        NewProperty%Evolution%MinConcentration   = .false.
-        NewProperty%Evolution%MaxConcentration   = .false.
-        NewProperty%MinValue                     = FillValueReal
-        NewProperty%MaxValue                     = - FillValueReal
-        NewProperty%Mass_Created (:,:,:)         = 0. 
-        NewProperty%Mass_Destroid(:,:,:)         = 0.  
+        Me%Coupled%MinimumConcentration%Yes                              = ON
+        NewProperty%Evolution%MinConcentration                           = .true.
+        NewProperty%Evolution%MaxConcentration                           = .false.
+        NewProperty%MinValue                                             = 0.0
+        NewProperty%MaxValue                                             = - FillValueReal
+        
+        allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)stop 'Subroutine Construct_CohortPropertiesFromCohort - ModuleWaterProperties - ERR10'
+        
+        NewProperty%Mass_Created(:,:,:) = 0.  
+  
         NewProperty%Scalar                       = 0.0
         
         NewProperty%Assimilation%Scalar          = 0.0
@@ -3152,8 +3162,6 @@ do6 :                       do K = WKLB, WKUB
                 NewbornValue = Species%A_0
         end select                
                    
-        nIndex = sum(Me%ExternalVar%WaterPoints3D)
-        
         do iSpecies = 1, Me%Bivalve%nSpecies
         
             if (Species%ID%IDNumber .eq. Me%Bivalve%MatrixNewborns(iSpecies, 1)) then
@@ -3162,7 +3170,7 @@ do6 :                       do K = WKLB, WKUB
                 
                 if (CohortPropName .eq. 'NUMBER') then
                 
-                    do Index = 1, nIndex
+                    Index = 1
                     
                         do k = WKLB, WKUB
                          do j = WJLB, WJUB
@@ -3170,18 +3178,15 @@ do6 :                       do K = WKLB, WKUB
                           
                             if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
                                 NewProperty%Concentration (i, j, k) = Me%Bivalve%MatrixNewborns(SpeciesPosMatrixNewborns, Index+1)
+                                Index = Index + 1
                             end if  
                                                                             
                           end do
                          end do
                         end do
-                    
-                    end do
-                    
+                 
                 else
 
-                    do Index = 1, nIndex
-                    
                         do k = WKLB, WKUB
                          do j = WJLB, WJUB
                           do i = WILB, WIUB
@@ -3194,8 +3199,6 @@ do6 :                       do K = WKLB, WKUB
                          end do
                         end do
                     
-                    end do
-
                 end if                
                 
             end if
@@ -15913,26 +15916,19 @@ cd5:                if (TotalVolume > 0.) then
                         Property_MH%Evolution%AdvectionDiffusion = .true.
                         Property_MR%Evolution%AdvectionDiffusion = .true.
                         Property_N%Evolution%AdvectionDiffusion  = .true.
-                            
+                        
                         call ComputeCohortLarvaeDistribution(Cohort, Property_L, Species%LarvaeMaxSize)
-                            
-                    else
+                    endif
                     
+                    !this IF is separated because Cohort%AtLeastOneLarvae can change
+                    !after the call to sub ComputeCohortLarvaeDistribution
+                    if(.not. Cohort%AtLeastOneLarvae)then
                         Property_L%Evolution%AdvectionDiffusion  = .false.
                         Property_MV%Evolution%AdvectionDiffusion = .false.
                         Property_ME%Evolution%AdvectionDiffusion = .false.
                         Property_MH%Evolution%AdvectionDiffusion = .false.
                         Property_MR%Evolution%AdvectionDiffusion = .false.
                         Property_N%Evolution%AdvectionDiffusion  = .false.
-                            
-                        deallocate(Cohort%Larvae)
-                        deallocate(Cohort%AuxLarvaeN)
-                        deallocate(Cohort%AuxLarvaeL)
-                        deallocate(Cohort%AuxLarvaeME)
-                        deallocate(Cohort%AuxLarvaeMV)
-                        deallocate(Cohort%AuxLarvaeMH)
-                        deallocate(Cohort%AuxLarvaeMR)
-                            
                     endif
                         
                     Cohort  => Cohort%Next
@@ -15986,7 +15982,8 @@ cd5:                if (TotalVolume > 0.) then
         
             if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
 
-                if (Property_L%Concentration(i,j,k) .le. LarvaeMaxSize) then 
+                if (Property_L%Concentration(i,j,k) .le. LarvaeMaxSize .and. &
+                    Property_L%Concentration(i,j,k) .gt. 0.) then 
                     Cohort%Larvae(i,j,k) = 1
                 else
                     Cohort%Larvae(i,j,k) = 0
@@ -16325,7 +16322,6 @@ TOut:   if (CurrentTime >= OutTime) then
         type (T_Species),  pointer              :: Species
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                 :: i, j, k, iClass
-        !$ integer                              :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -16350,20 +16346,17 @@ TOut:   if (CurrentTime >= OutTime) then
         do while (associated(Species))
         
                 !Total Density
-                Me%CellMass(:,:,:) = 0.
+                call SetMatrixValue(Me%CellMass, Me%Size, 0.)
                 
-                !$OMP PARALLEL PRIVATE(I,J,K)
+                
                 do K = KLB, KUB
-                !$OMP DO SCHEDULE(STATIC, CHUNK)
                 do J = JLB, JUB
                 do I = ILB, IUB
                     Me%CellMass(i,j,k) = Species%TotalDensity(i, j, k) * &
                                          Me%ExternalVar%GridCellArea(i, j)
                 end do
                 end do
-                !$OMP END DO
                 end do
-                !$OMP END PARALLEL
 
                 call BoxDif(Me%Bivalve%ObjBoxDif, Me%CellMass,             &
                             trim(Species%ID%Name)//'_'//trim('TotalDensity'),   &
@@ -16374,20 +16367,16 @@ TOut:   if (CurrentTime >= OutTime) then
 
                
                 !Field Density
-                Me%CellMass(:,:,:) = 0.
+                call SetMatrixValue(Me%CellMass, Me%Size, 0.)
                 
-                !$OMP PARALLEL PRIVATE(I,J,K)
                 do K = KLB, KUB
-                !$OMP DO SCHEDULE(STATIC, CHUNK)
                 do J = JLB, JUB
                 do I = ILB, IUB
                     Me%CellMass(i,j,k) = Species%FieldDensity(i, j, k) * &
                                          Me%ExternalVar%GridCellArea(i, j)
                 end do
                 end do
-                !$OMP END DO
                 end do
-                !$OMP END PARALLEL
 
                 call BoxDif(Me%Bivalve%ObjBoxDif, Me%CellMass,            &
                             trim(Species%ID%Name)//'_'//trim('FieldDensity'),  &
@@ -16396,23 +16385,18 @@ TOut:   if (CurrentTime >= OutTime) then
                 if (STAT_CALL /= SUCCESS_)  &
                     stop 'BivalveOutputBoxTimeSerie - ModuleWaterProperties - ERR02'
 
-                Me%CellMass(:,:,:) = null_real
 
                 !Total Biomass
-                Me%CellMass(:,:,:) = 0.
+                call SetMatrixValue(Me%CellMass, Me%Size, 0.)
                 
-                !$OMP PARALLEL PRIVATE(I,J,K)
                 do K = KLB, KUB
-                !$OMP DO SCHEDULE(STATIC, CHUNK)
                 do J = JLB, JUB
                 do I = ILB, IUB
                     Me%CellMass(i,j,k) = Species%TotalBiomass(i, j, k) * &
                                          Me%ExternalVar%GridCellArea(i, j)
                 end do
                 end do
-                !$OMP END DO
                 end do
-                !$OMP END PARALLEL
 
                 call BoxDif(Me%Bivalve%ObjBoxDif, Me%CellMass,            &
                             trim(Species%ID%Name)//'_'//trim('TotalBiomass'),  &
@@ -16421,27 +16405,22 @@ TOut:   if (CurrentTime >= OutTime) then
                 if (STAT_CALL /= SUCCESS_)  &
                     stop 'BivalveOutputBoxTimeSerie - ModuleWaterProperties - ERR03'
 
-                Me%CellMass(:,:,:) = null_real
-                                 
                 if (Species%BySizeOutputHDF) then
                 
                     do iClass = 1, Species%NumberSizeClasses
                                             
                         !ClassDensity
-                        Me%CellMass(:,:,:) = 0.
+                        call SetMatrixValue(Me%CellMass, Me%Size, 0.)
+
                         
-                        !$OMP PARALLEL PRIVATE(I,J,K)
                         do K = KLB, KUB
-                        !$OMP DO SCHEDULE(STATIC, CHUNK)
                         do J = JLB, JUB
                         do I = ILB, IUB
                             Me%CellMass(i,j,k) = Species%SizeClasses(iClass)%Density(i, j, k) * &
                                                  Me%ExternalVar%GridCellArea(i, j)
                         end do
                         end do
-                        !$OMP END DO
                         end do
-                        !$OMP END PARALLEL
                         
                         call BoxDif(Me%Bivalve%ObjBoxDif, Me%CellMass                                        , &
                                     trim(Species%ID%Name)//'_'//trim(Species%SizeClasses(iClass)%Name) , &
@@ -16450,8 +16429,6 @@ TOut:   if (CurrentTime >= OutTime) then
                         if (STAT_CALL /= SUCCESS_)  &
                             stop 'BivalveOutputBoxTimeSerie - ModuleWaterProperties - ERR05'
 
-                        Me%CellMass(:,:,:) = null_real
-                               
                     enddo
                 
                 end if
@@ -16590,6 +16567,10 @@ TOut:   if (CurrentTime >= OutTime) then
         type (T_Cohort), pointer                    :: CohortToContinue
         integer                                     :: iDeadIDs = 0,nDeadIDs, DynamicCohortID 
         
+        nullify(Cohort)
+        nullify(Species)
+        nullify(CohortToContinue)
+        
         nDeadIDs = size(Me%Bivalve%ListDeadIDS)
        
         Species  => Me%Bivalve%FirstSpecies
@@ -16597,14 +16578,16 @@ TOut:   if (CurrentTime >= OutTime) then
   
             Cohort  => Species%FirstCohort
        d2:  do while (associated(Cohort))
-       
+
                 iDeadIDs = 1
                 DynamicCohortID = GetDynamicPropertyIDNumber(trim(adjustl(Cohort%ID%Name))//" length")
                 
                 do iDeadIDs = 1, nDeadIDs
 
                     if (Me%Bivalve%ListDeadIDS(iDeadIDs) .eq. DynamicCohortID) then
-                                    
+                                  
+                        nullify(CohortToContinue)
+  
                         CohortToContinue => Cohort%Next
              
                         call RemoveCohortFromList (Species, Cohort)
@@ -16659,6 +16642,16 @@ TOut:   if (CurrentTime >= OutTime) then
                 ObjSpecies%nCohorts  = ObjSpecies%nCohorts - 1
                 
                 write(*,*)trim(adjustl(Cohort%ID%Name))// "....weeeggg!!!"
+                
+                if(ObjSpecies%LarvaeTransport)then
+                    deallocate (Cohort%Larvae     ) 
+                    deallocate (Cohort%AuxLarvaeL ) 
+                    deallocate (Cohort%AuxLarvaeME) 
+                    deallocate (Cohort%AuxLarvaeMV) 
+                    deallocate (Cohort%AuxLarvaeMH) 
+                    deallocate (Cohort%AuxLarvaeMR) 
+                    deallocate (Cohort%AuxLarvaeN ) 
+                endif
                 
                 deallocate    (Cohort)
                 nullify       (Cohort)
@@ -23932,6 +23925,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         type (T_WQRate  ),  pointer                 :: WQRateX
         type (T_DischargeTimeSerie), pointer        :: DischargeTimeSerieToKill
         type (T_DischargeTimeSerie), pointer        :: DischargeTimeSerie
+        integer                                     :: iClass
 
         !----------------------------------------------------------------------
         STAT_ = UNKNOWN_
@@ -24388,8 +24382,8 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                         
                             !Population variables
                             deallocate(Species%TotalDensity, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) &
-                        stop 'KillWaterProperties - ModuleWaterProperties - ERR425a'
+                            if (STAT_CALL /= SUCCESS_) &
+                                stop 'KillWaterProperties - ModuleWaterProperties - ERR425a'
                             nullify(Species%TotalDensity)
                     
                             deallocate(Species%FieldDensity, STAT = STAT_CALL)
@@ -24408,8 +24402,15 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                             nullify(Species%CohortsNumber)
                             
                             if(Species%BySizeOutputHDF .or. Species%BySizeBoxTimeSerie)then
+                                
+                                do iClass = 1, Species%NumberSizeClasses
+                                    deallocate(Species%SizeClasses(iClass)%Density)
+                                    nullify   (Species%SizeClasses(iClass)%Density)
+                                enddo
+                            
                                 deallocate (Species%SizeClasses)
                                 nullify(Species%SizeClasses)
+                                
                             endif
                             
                         end if
@@ -24418,18 +24419,15 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                         
                             Cohort => Species%FirstCohort
                             do while (associated(Cohort))
-                            
-                                if(Cohort%AtLeastOneLarvae)then
-                        
-                                    deallocate (Cohort%Larvae     ) 
-                                    deallocate (Cohort%AuxLarvaeL ) 
-                                    deallocate (Cohort%AuxLarvaeME) 
-                                    deallocate (Cohort%AuxLarvaeMV) 
-                                    deallocate (Cohort%AuxLarvaeMH) 
-                                    deallocate (Cohort%AuxLarvaeMR) 
-                                    deallocate (Cohort%AuxLarvaeN ) 
+                       
+                                deallocate (Cohort%Larvae     ) 
+                                deallocate (Cohort%AuxLarvaeL ) 
+                                deallocate (Cohort%AuxLarvaeME) 
+                                deallocate (Cohort%AuxLarvaeMV) 
+                                deallocate (Cohort%AuxLarvaeMH) 
+                                deallocate (Cohort%AuxLarvaeMR) 
+                                deallocate (Cohort%AuxLarvaeN ) 
                                     
-                                endif
                        
                                 Cohort => Cohort%Next
                             end do
@@ -24753,7 +24751,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                         stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR150'
 
                     !g/1000 = kg, to avoid big numbers
-                    Total_Mass_Created = SUM(Property%Mass_Created)/1000
+                    Total_Mass_Created = SUM(Property%Mass_Created)/1000.0
 
                     write(str_mass_created, '(f20.8)') Total_Mass_Created
           
@@ -24778,7 +24776,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                         stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR160'
 
                     !g/1000 = kg, to avoid big numbers
-                    Total_Mass_Destroid = SUM(Property%Mass_Destroid)/1000
+                    Total_Mass_Destroid = SUM(Property%Mass_Destroid)/1000.0
 
                     write(str_mass_destroid, '(f20.8)') Total_Mass_destroid
           

@@ -735,8 +735,10 @@
         logical                              :: OutputON                 = OFF
         integer                              :: TotalOutputs, NextOutPut = null_int
         type (T_Time), pointer, dimension(:) :: BivalveOutputTimes
-        integer                              :: IndexOutput          = null_int
-        real                                 :: ConvertionFactor     = 1.0 !convertion from m2 to m3
+        integer                              :: IndexOutput              = null_int
+        integer, dimension(1:30)             :: IndexOutputs             = null_int 
+        integer                              :: nIndexOutputs            = null_int              
+        real                                 :: ConvertionFactor         = 1.0 !convertion from m2 to m3
         type (T_Output        )              :: MassOutput
         type (T_PropIndex     )              :: PropIndex
         type (T_ComputeOptions)              :: ComputeOptions
@@ -752,6 +754,8 @@
         
         type (T_RestartSpecies), dimension(:), pointer  :: RestartSpecies
         integer                              :: nRestartSpecies
+        logical                              :: ComputeThisIndex        = .true.
+        logical                              :: OutputThisIndex         = .false.
     end type T_Bivalve
 
 
@@ -880,12 +884,21 @@ cd1 :   if (ready_ .EQ. OFF_ERR_) then
     !-------------------------------------------------------------------------------
 
     subroutine ReadDataBivalve
+    
+        !Local----------------------------------------------------------------------
+        integer             :: i
+
+        !Begin----------------------------------------------------------------------
 
         call ConstructGlobalVariables
         
         call ConstructSpecies
 
-        if (Me%OutputON) call ConstructOutputs   
+        if (Me%OutputON) then
+            do i=1, Me%nIndexOutputs
+                call ConstructOutputs(Me%IndexOutputs(i))
+            enddo
+        end if
 
     end subroutine ReadDataBivalve
 
@@ -1056,15 +1069,22 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
         if (STAT_CALL .NE. SUCCESS_)                                       &
         stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR110'
         
-        call GetData(Me%IndexOutput                                      , &
+        call GetData(Me%IndexOutputs                                     , &
                     Me%ObjEnterData, flag                                , &
                     SearchType   = FromFile                              , &
-                    keyword      = 'INDEX_OUTPUT'                        , &
-                    default      = 0                                     , &
+                    keyword      = 'INDEX_OUTPUTS'                       , &
                     ClientModule = 'ModuleBivalve'                       , &
                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                       &
-        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR120'
+        if (STAT_CALL .NE. SUCCESS_)then
+            !By default 30 values are read so this error always exist.
+            if (STAT_CALL /= SIZE_ERR_) then 
+                stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR120'
+            else
+                Me%nIndexOutputs = flag
+            endif
+        else
+            Me%nIndexOutputs = 0
+        endif
         
         call GetData(Me%Old                                              , &
                      Me%ObjEnterData, flag                               , &
@@ -1090,6 +1110,10 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
         call ReadFileName("BIV_FIN", Me%FinalFileName, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                       &
         stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR150'
+        
+        allocate(Me%ExternalVar%InitialPhyto (Me%Array%ILB:Me%Array%IUB))
+        allocate(Me%ExternalVar%InitialShrimp(Me%Array%ILB:Me%Array%IUB))
+
         
     end subroutine ConstructGlobalVariables
 
@@ -1148,38 +1172,35 @@ cd2 :           if (BlockFound) then
                     
                     allocate(Me%RestartSpecies(iSpecies)%CohortIDs(1:Me%RestartSpecies(iSpecies)%nCohorts))
                     
-                    call ExtractBlockFromBlock(ObjEnterData, ClientNumber,      &
-                                               '<begin_cohort>', '<end_cohort>',&
-                                               BlockCohortsFound,               &
-                                               FirstLine = FirstLine,           &
-                                               LastLine  = LastLine,            &
-                                               STAT      = STAT_CALL)
-                    if (STAT_CALL .EQ. SUCCESS_) then    
-                        if (BlockCohortsFound) then                 
-                        
-                            iCohort = 0       
-
-                            do iLine = FirstLine+1, LastLine-1
-                            
-                                call GetData(ID, ObjEnterData, flag, Buffer_Line  = iLine, STAT = STAT_CALL)
-                                if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialBivalveFile - ModuleBivalve - ERR40'  
-                                
-                                iCohort = iCohort + 1 
-                                Me%RestartSpecies(iSpecies)%CohortIDs(iCohort) = ID
-                                        
-                            enddo
-                            
-                            if(iCohort .NE. Me%RestartSpecies(iSpecies)%nCohorts)then
-                                stop 'Subroutine ReadInitialBivalveFile - ModuleBivalve - ERR50'
-                            endif
-
-                        else
-                            stop 'Subroutine ReadInitialBivalveFile - ModuleBivalve - ERR60'
-                        endif      
-                    else
-                        stop 'Subroutine ReadInitialBivalveFile - ModuleBivalve - ERR70'
-                    endif
+                    do iCohort = 1, Me%RestartSpecies(iSpecies)%nCohorts
                     
+                        BlockCohortsFound = .false.
+                    
+                        call ExtractBlockFromBlock(ObjEnterData, ClientNumber,      &
+                                                   '<begin_cohort>', '<end_cohort>',&
+                                                   BlockCohortsFound,               &
+                                                   FirstLine = FirstLine,           &
+                                                   LastLine  = LastLine,            &
+                                                   STAT      = STAT_CALL)
+                        if (STAT_CALL .EQ. SUCCESS_) then    
+                            if (BlockCohortsFound) then                 
+                            
+                                do iLine = FirstLine+1, LastLine-1
+                                
+                                    call GetData(ID, ObjEnterData, flag, Buffer_Line  = iLine, STAT = STAT_CALL)
+                                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialBivalveFile - ModuleBivalve - ERR40'  
+                                    
+                                    Me%RestartSpecies(iSpecies)%CohortIDs(iCohort) = ID
+                                            
+                                enddo
+
+                            else
+                                stop 'Subroutine ReadInitialBivalveFile - ModuleBivalve - ERR60'
+                            endif      
+                        else
+                            stop 'Subroutine ReadInitialBivalveFile - ModuleBivalve - ERR70'
+                        endif
+                    enddo
 
                 else cd2
                 
@@ -1339,6 +1360,7 @@ do1:        do while (associated(ObjSpecies))
         !Local----------------------------------------------------------------------
         type(T_Cohort)          , pointer             :: NewCohort
         character(len=5)                              :: CohortIDStr
+        integer                                       :: i
 
         !Begin----------------------------------------------------------------------
 
@@ -1356,9 +1378,9 @@ do1:        do while (associated(ObjSpecies))
         NewCohort%ID%Name = trim(adjustl(NewSpecies%ID%Name))//" cohort "//trim(adjustl(CohortIDStr))
 
         if (NewSpecies%CohortOutput) then
-
-            call ConstructCohortOutput (NewCohort)
-
+            do i=1, Me%nIndexOutputs
+                call ConstructCohortOutput (NewCohort, Me%IndexOutputs(i))
+            enddo
         end if
 
         nullify(NewCohort)
@@ -1409,7 +1431,10 @@ do1:        do while (associated(ObjCohort%Next))
 
     !-------------------------------------------------------------------------------
 
-    subroutine ConstructOutputs
+    subroutine ConstructOutputs(iIndexOutput)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                         :: iIndexOutput
 
         !Local----------------------------------------------------------------------
             integer                                     :: STAT_CALL,i
@@ -1426,7 +1451,7 @@ do1:        do while (associated(ObjCohort%Next))
         
         !call getarg(1,ArgumentInComand) 
 
-        write(IndexOutputStr, ('(I5)')) Me%IndexOutput
+        write(IndexOutputStr, ('(I5)')) iIndexOutput
                  
         Species => Me%FirstSpecies
         do while(associated(Species))
@@ -1609,11 +1634,16 @@ do1:        do while (associated(ObjCohort%Next))
 
     !-------------------------------------------------------------------------------
 
-    subroutine ConstructCohortOutput (Cohort)
+    subroutine ConstructCohortOutput (Cohort, iIndexOutput)
+        
+        !Arguments------------------------------------------------------------------
+        type (T_Cohort),        pointer   :: Cohort
+        integer                           :: iIndexOutput
+
 
         !Local----------------------------------------------------------------------
         integer                           :: STAT_CALL
-        type (T_Cohort),        pointer   :: Cohort
+
         character(len=500)                :: CohortFileName
         character(len=900)                :: OuputHeader
         character(len=16)                 :: IndexOutputStr
@@ -1625,7 +1655,7 @@ do1:        do while (associated(ObjCohort%Next))
 
         !Bivalve processes, bivalve1.dat
         
-        write(IndexOutputStr, ('(I5)')) Me%IndexOutput
+        write(IndexOutputStr, ('(I5)')) iIndexOutput
         
         CohortFileName = trim(Me%PathFileName)//trim(IndexOutputStr)//'_'//trim(Cohort%ID%Name)//'.srw'
         
@@ -3890,7 +3920,9 @@ do1:        do while (associated(ObjPredator%Next))
         integer                                     :: Number
         integer                                     :: Shrimp, Crab, OysterCatcher
         integer                                     :: EiderDuck, HerringGull
-
+        real                                        :: TotalNumberOfIndividuals
+        integer                                     :: iIndexOutput
+        
         !Begin-----------------------------------------------------------------
         
         Shrimp        = Me%PropIndex%Shrimp
@@ -3963,6 +3995,8 @@ do1:        do while (associated(ObjPredator%Next))
             Species => Species%Next
 
         end do
+        
+        TotalNumberOfIndividuals = 0.0
 
         Species => Me%FirstSpecies
         do while(associated(Species))
@@ -3996,7 +4030,7 @@ do1:        do while (associated(ObjPredator%Next))
                 Species%PopulationProcesses%TNStartTimeStep =  Species%PopulationProcesses%TNStartTimeStep        + &
                                                                Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index)
 
-                
+                                                              
                 if(associated(Cohort%FeedingOn)) deallocate (Cohort%FeedingOn)
                 
                 allocate(Cohort%FeedingOn(Species%nParticles, 3)) !store values, Col = Filtered ingested assimilated 
@@ -4004,10 +4038,27 @@ do1:        do while (associated(ObjPredator%Next))
                 Cohort => Cohort%Next
 
             end do
+            
+            TotalNumberOfIndividuals = TotalNumberOfIndividuals + Species%PopulationProcesses%TNStartTimeStep
                                     
             Species => Species%Next
 
         end do
+        
+        if(TotalNumberOfIndividuals .gt. 0.0)then
+            Me%ComputeThisIndex = .true.
+        else
+            Me%ComputeThisIndex = .false.
+        endif
+        
+        if(Me%OutputON)then
+            Me%OutputThisIndex = .false.
+            do iIndexOutput = 1, Me%nIndexOutputs
+                if(Index == Me%IndexOutputs(iIndexOutput))then
+                    Me%OutputThisIndex = .true.
+                endif
+            enddo
+        endif
         
     end subroutine PrepareRunByIndex
     
@@ -4731,9 +4782,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_)then
 
             call AllocateAndInitializeByTimeStep
             
-            !$OMP PARALLEL SHARED(Me, OpenPoints) PRIVATE(Index)
-
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 
             do Index = Me%Array%ILB, Me%Array%IUB
 
@@ -4741,9 +4789,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_)then
 
             enddo
             
-            !$OMP END DO NOWAIT
-            !$OMP END PARALLEL
-
+            if(Me%OutputON) Me%NextOutPut = Me%NextOutPut + 1
             
             call UpdateListDeadAndNewBornIDs
                         
@@ -4808,10 +4854,6 @@ d2:         do while (associated(Cohort))
         allocate(Me%MatrixNewborns(Me%nSpecies, TotalNumberIndex+1))
         
         Me%MatrixNewborns = 0
-        
-        allocate(Me%ExternalVar%InitialPhyto(TotalNumberIndex))
-        allocate(Me%ExternalVar%InitialShrimp(TotalNumberIndex))
-               
                
     end subroutine AllocateAndInitializeByTimeStep
 
@@ -4824,39 +4866,41 @@ d2:         do while (associated(Cohort))
         integer, intent(IN)           :: CheckIfOpenPoint
 
         !Local-----------------------------------------------------------------
-
         !Begin-----------------------------------------------------------------
 
         call PrepareRunByIndex (Index)
         
-        call ComputeMortalityByVelocity (Index)
+        if(Me%ComputeThisIndex)then
         
-        call ComputeMortalityByWrongSettlement (Index)
+            call ComputeMortalityByVelocity (Index)
+            
+            call ComputeMortalityByWrongSettlement (Index)
 
-        call ComputeIndividualProcesses (Index, CheckIfOpenPoint)
+            call ComputeIndividualProcesses (Index, CheckIfOpenPoint)
 
-        call ComputeExtraStarvationMortality (Index)
-                
-        call ComputeNaturalMortality (Index)
+            call ComputeExtraStarvationMortality (Index)
+                    
+            call ComputeNaturalMortality (Index)
 
-        call ComputePredation (Index, CheckIfOpenPoint)
-        
-        call ComputePopulationVariables (Index)
+            call ComputePredation (Index, CheckIfOpenPoint)
+            
+            call ComputePopulationVariables (Index)
+            
+            call UpdateCohortState
+
+        end if
           
-        if ((Me%OutputON) .and. (Index .eq. Me%IndexOutput)) then
         
+        if(Me%OutputThisIndex)then
+
             if (Me%ExternalVar%CurrentTime >= Me%BivalveOutputTimes(Me%NextOutPut)) then
         
                 call WriteOutput (Index)
-                
-                Me%NextOutPut = Me%NextOutPut + 1
             
             endif
             
         endif
         
-        call UpdateCohortState
-
         call RestoreUnits (Index)
         
    end subroutine ComputeBivalve
@@ -7289,7 +7333,7 @@ d2:         do while(associated(Cohort))
             !number of gametes to be released/d.ind
             Cohort%Processes%GametesToRelease = Cohort%Processes%Spawning/(MEb + MVb)
             
-            if (Index .eq. Me%IndexOutput) then
+            if (Me%OutputThisIndex) then
                        
                 Species%PopulationProcesses%nSpawning = Species%PopulationProcesses%nSpawning + 1
 
@@ -8451,7 +8495,7 @@ d2:         do while(associated(Cohort))
                 
                 PopulationProcesses%MaxLength = max(PopulationProcesses%MaxLength,Me%ExternalVar%Mass(L,Index))
 
-                if (Index .eq. Me%IndexOutput) then
+                if (Me%OutputThisIndex) then
                            
                     Me%MaxTNField = max(Me%MaxTNField,PopulationProcesses%TNField)
 
@@ -9571,6 +9615,8 @@ d2:         do while (associated(Cohort))
         type (T_Cohort)            , pointer      :: CohortToContinue
         integer                                   :: iDeadIDs = 0,DynamicCohortID 
         !----------------------------------------------------------------------
+        
+        nullify(CohortToContinue)
 
         Species  => Me%FirstSpecies
 d1:     do while (associated(Species))
@@ -9584,6 +9630,8 @@ d2:         do while (associated(Cohort))
                 do iDeadIDs = 1, Me%nLastDeadID
 
                     if (Me%ListDeadIDs(iDeadIDs) .eq. DynamicCohortID) then
+                    
+                        nullify(CohortToContinue)
 
                         CohortToContinue => Cohort%Next
 
@@ -9785,7 +9833,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 if(associated(Me%ListDeadIDs )) deallocate (Me%ListDeadIDs)
                 if(associated(Me%MatrixNewborns)) deallocate (Me%MatrixNewborns)
-
+                
+                deallocate(Me%ExternalVar%InitialPhyto )
+                deallocate(Me%ExternalVar%InitialShrimp)
 
                 if (Me%ObjTime /= 0) then
                     nUsers = DeassociateInstance(mTIME_, Me%ObjTime)
