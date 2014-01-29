@@ -16321,7 +16321,7 @@ TOut:   if (CurrentTime >= OutTime) then
         !Local-----------------------------------------------------------------
         type (T_Species),  pointer              :: Species
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                 :: i, j, k, iClass
+        integer                                 :: i, j, k, iClass        
 
         !----------------------------------------------------------------------
 
@@ -16346,7 +16346,7 @@ TOut:   if (CurrentTime >= OutTime) then
         do while (associated(Species))
         
                 !Total Density
-                call SetMatrixValue(Me%CellMass, Me%Size, 0.)
+                call SetMatrixValue(Me%CellMass, Me%Size, 0.D0)
                 
                 
                 do K = KLB, KUB
@@ -16367,7 +16367,7 @@ TOut:   if (CurrentTime >= OutTime) then
 
                
                 !Field Density
-                call SetMatrixValue(Me%CellMass, Me%Size, 0.)
+                call SetMatrixValue(Me%CellMass, Me%Size, 0.D0)
                 
                 do K = KLB, KUB
                 do J = JLB, JUB
@@ -16387,7 +16387,7 @@ TOut:   if (CurrentTime >= OutTime) then
 
 
                 !Total Biomass
-                call SetMatrixValue(Me%CellMass, Me%Size, 0.)
+                call SetMatrixValue(Me%CellMass, Me%Size, 0.D0)
                 
                 do K = KLB, KUB
                 do J = JLB, JUB
@@ -16410,7 +16410,7 @@ TOut:   if (CurrentTime >= OutTime) then
                     do iClass = 1, Species%NumberSizeClasses
                                             
                         !ClassDensity
-                        call SetMatrixValue(Me%CellMass, Me%Size, 0.)
+                        call SetMatrixValue(Me%CellMass, Me%Size, 0.D0)
 
                         
                         do K = KLB, KUB
