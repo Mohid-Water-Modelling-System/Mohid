@@ -93,7 +93,7 @@ module ModuleMap
     use ModuleHorizontalGrid,   only: GetHorizontalGrid, GetGridCoordType,      &
                                       GetGridAngle, GetLatitudeLongitude,       &
                                       GetGridZone, GetGridOrigin,               & 
-                                      GetCheckDistortion, GetDomainDecompositionParameters
+                                      GetCheckDistortion, GetDDecompParameters
     use ModuleFunctions,        only : SetMatrixValue, Chunk_J
     use ModuleStopWatch,        only : StartWatch, StopWatch         
 
@@ -381,7 +381,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 iGH:            if (present(GridDataID) .AND. present(HorizontalGridID)) then
                 
-                    call GetDomainDecompositionParameters                               &
+                    call GetDDecompParameters                               &
                                                   (HorizontalGridID = HorizontalGridID, &
                                                    MasterOrSlave    = MasterOrSlave,    &
                                                    STAT             = STAT_CALL)

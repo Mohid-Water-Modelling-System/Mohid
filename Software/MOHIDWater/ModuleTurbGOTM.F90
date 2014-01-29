@@ -34,7 +34,7 @@ Module ModuleTurbGOTM
     use ModuleTime
     use ModuleEnterData,        only : ReadFileName
     use ModuleFunctions,        only : TimeToString, ChangeSuffix, CHUNK_J, CHUNK_I, CHUNK_K
-    use ModuleHorizontalGrid,   only : GetDomainDecompositionMPI_ID, GetDomainDecompositionON
+    use ModuleHorizontalGrid,   only : GetDDecompMPI_ID, GetDDecompON
     use ModuleHorizontalMap,    only : GetBoundaries, GetWaterPoints2D, UnGetHorizontalMap
     use ModuleGeometry
     use ModuleMap
@@ -271,8 +271,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 !Data From previous run
                 call ReadFileName('TURB_INI', Me%Files%InitialTurbulence,               &
                                   Message = "GOTM Initial Conditions",                  &
-                                  MPI_ID  = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                                  DD_ON   = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                                  MPI_ID  = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                                  DD_ON   = GetDDecompON    (Me%ObjHorizontalGrid),&
                                   STAT    = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR05'
 
@@ -280,8 +280,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ReadFileName('TURB_FIN', Me%Files%FinalTurbulence,                     &
                               Message = "GOTM Final Conditions",                        &
-                              MPI_ID  = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                              DD_ON   = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                              MPI_ID  = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                              DD_ON   = GetDDecompON    (Me%ObjHorizontalGrid),&
                               STAT    = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR06'
 

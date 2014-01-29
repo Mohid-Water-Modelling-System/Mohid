@@ -121,13 +121,13 @@ Module ModuleHorizontalGrid
     private ::      InsideDomainPolygon
 
     public  :: GetGridBorderType
-    public  :: GetDomainDecompositionOpenBorders
-    public  :: GetDomainDecompositionParameters
-    public  :: GetDomainDecompositionSlaves
-    public  :: GetDomainDecompositionSlavesSize
-    public  :: GetDomainDecompositionWorkSize2D
-    public  :: GetDomainDecompositionMPI_ID    
-    public  :: GetDomainDecompositionON
+    public  :: GetDDecompOpenBorders
+    public  :: GetDDecompParameters
+    public  :: GetDDecompSlaves
+    public  :: GetDDecompSlavesSize
+    public  :: GetDDecompWorkSize2D
+    public  :: GetDDecompMPI_ID    
+    public  :: GetDDecompON
     
     public  :: GetSonWindow
 
@@ -325,8 +325,8 @@ Module ModuleHorizontalGrid
         integer                                 :: Type_    = null_int !initialization: jauch - or should be set to 0 (zero)?
     end type T_Border
     
-    private :: T_DomainDecomposition
-    type       T_DomainDecomposition        
+    private :: T_DDecomp
+    type       T_DDecomp        
         logical                                 :: ON               = .false. 
         logical                                 :: Master           = .false. 
         logical                                 :: MasterOrSlave    = .false. 
@@ -355,7 +355,7 @@ Module ModuleHorizontalGrid
         logical                                 :: FilesListOpen  = .false.
         integer                                 :: FilesListID    = null_int
         character(PathLength)                   :: ModelPath      = null_str  
-    end type T_DomainDecomposition
+    end type T_DDecomp
     
 
     type T_HorizontalGrid
@@ -447,7 +447,7 @@ Module ModuleHorizontalGrid
         
         character(PathLength)                   :: FileName = null_str 
         
-        type(T_DomainDecomposition)             :: DomainDecomposition        
+        type(T_DDecomp)             :: DDecomp        
         
         !Instances
         integer                                 :: ObjHDF5       = 0
@@ -520,27 +520,27 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             if (present(MPI_ID)) then
-                Me%DomainDecomposition%MPI_ID = MPI_ID
+                Me%DDecomp%MPI_ID = MPI_ID
             endif
            
             
             if (present(MasterID)) then
-                Me%DomainDecomposition%Master_MPI_ID = MasterID
+                Me%DDecomp%Master_MPI_ID = MasterID
                 if (MasterID == MPI_ID) then
-                    Me%DomainDecomposition%Master = .true.
+                    Me%DDecomp%Master = .true.
                 endif                  
             endif
 
             if (present(LastSlaveID)) then
                 if (MPI_ID > null_int .and. MasterID > null_int) then
                     if (LastSlaveID > null_int) then
-                        Me%DomainDecomposition%ON            = .true.
-                        Me%DomainDecomposition%MasterOrSlave = .true. 
-                        Me%DomainDecomposition%Nslaves       = LastSlaveID - MasterID 
+                        Me%DDecomp%ON            = .true.
+                        Me%DDecomp%MasterOrSlave = .true. 
+                        Me%DDecomp%Nslaves       = LastSlaveID - MasterID 
                         if (present(ModelPath)) then
-                            Me%DomainDecomposition%ModelPath  = ModelPath
+                            Me%DDecomp%ModelPath  = ModelPath
                         else
-                            Me%DomainDecomposition%ModelPath  = null_str
+                            Me%DDecomp%ModelPath  = null_str
                         endif
                     endif
                 endif
@@ -722,12 +722,12 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             call DefineBorderPolygons
             
             !Intialization of domain decomposition procedure
-            !call ConstructDomainDecomposition                         
+            !call ConstructDDecomp                         
 
     end subroutine GenerateGrid
 
 
-    subroutine ConstructDomainDecomposition
+    subroutine ConstructDDecomp
 
 #ifdef _USE_MPI
 
@@ -742,15 +742,15 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
         logical                                 :: Exist
         !----------------------------------------------------------------------
 
-        Me%DomainDecomposition%Global%JLB = Me%GlobalWorkSize%JLB
-        Me%DomainDecomposition%Global%JUB = Me%GlobalWorkSize%JUB
-        Me%DomainDecomposition%Global%ILB = Me%GlobalWorkSize%ILB
-        Me%DomainDecomposition%Global%IUB = Me%GlobalWorkSize%IUB
+        Me%DDecomp%Global%JLB = Me%GlobalWorkSize%JLB
+        Me%DDecomp%Global%JUB = Me%GlobalWorkSize%JUB
+        Me%DDecomp%Global%ILB = Me%GlobalWorkSize%ILB
+        Me%DDecomp%Global%IUB = Me%GlobalWorkSize%IUB
         
-        allocate(Me%DomainDecomposition%Slaves_MPI_ID(Me%DomainDecomposition%Nslaves))
+        allocate(Me%DDecomp%Slaves_MPI_ID(Me%DDecomp%Nslaves))
         
-        do i=1, Me%DomainDecomposition%Nslaves
-            Me%DomainDecomposition%Slaves_MPI_ID(i) = Me%DomainDecomposition%Master_MPI_ID + i
+        do i=1, Me%DDecomp%Nslaves
+            Me%DDecomp%Slaves_MPI_ID(i) = Me%DDecomp%Master_MPI_ID + i
         enddo                
 
         ! ---> ASCII file used to define domain decomposition 
@@ -765,116 +765,116 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'HorizontalGrid',                                   &
                      STAT         = STAT_CALL)           
         if (STAT_CALL /= SUCCESS_)                                                      &
-           call SetError(FATAL_, INTERNAL_, "ConstructDomainDecomposition - Hydrodynamic - ERR10")
+           call SetError(FATAL_, INTERNAL_, "ConstructDDecomp - Hydrodynamic - ERR10")
 
 ii:     if (iflag == 0) then
-            Me%DomainDecomposition%Auto = .true.
+            Me%DDecomp%Auto = .true.
         else ii
             inquire(FILE = DDFile, EXIST = Exist)
 iE:         if  (Exist) then
                 !open()
                 call ConstructEnterData(Me%ObjEnterData2, DDFile, STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_)                                                     &
-                   call SetError(FATAL_, INTERNAL_, "ConstructDomainDecomposition - Hydrodynamic - ERR20")
+                   call SetError(FATAL_, INTERNAL_, "ConstructDDecomp - Hydrodynamic - ERR20")
 
-                call OptionsDomainDecomposition
+                call OptionsDDecomp
                 
                 call KillEnterData(Me%ObjEnterData2, STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_)                                                     &
-                   call SetError(FATAL_, INTERNAL_, "ConstructDomainDecomposition - Hydrodynamic - ERR30")
+                   call SetError(FATAL_, INTERNAL_, "ConstructDDecomp - Hydrodynamic - ERR30")
                 
             else iE
-                Me%DomainDecomposition%Auto = .true.
+                Me%DDecomp%Auto = .true.
             endif iE
 
         endif ii               
         
-        if (Me%DomainDecomposition%MasterOrSlave) then
+        if (Me%DDecomp%MasterOrSlave) then
         
-            if (Me%DomainDecomposition%Auto) then
-                call AutomaticDomainDecomposition
+            if (Me%DDecomp%Auto) then
+                call AutomaticDDecomp
             endif
         
-            if (Me%DomainDecomposition%NeighbourSouth /= null_int) then         
-                AuxHalo = Me%DomainDecomposition%Halo_Points
+            if (Me%DDecomp%NeighbourSouth /= null_int) then         
+                AuxHalo = Me%DDecomp%Halo_Points
                 !1 - South; 2 - North; 3 - West; 4 - East        
-                Me%DomainDecomposition%OpenBordersON(1)  = .false. 
+                Me%DDecomp%OpenBordersON(1)  = .false. 
             else
                 AuxHalo = 0.
             endif
 
-            Me%DomainDecomposition%HaloMap%ILB  = Me%DomainDecomposition%Mapping%ILB - AuxHalo
-            Me%WorkSize%ILB                     = 1
-            Me%DomainDecomposition%Inner%ILB    = Me%WorkSize%ILB                    + AuxHalo
+            Me%DDecomp%HaloMap%ILB  = Me%DDecomp%Mapping%ILB - AuxHalo
+            Me%WorkSize%ILB         = 1
+            Me%DDecomp%Inner%ILB    = Me%WorkSize%ILB        + AuxHalo
             
-            if (Me%DomainDecomposition%NeighbourNorth /= null_int) then         
-                AuxHalo = Me%DomainDecomposition%Halo_Points
+            if (Me%DDecomp%NeighbourNorth /= null_int) then         
+                AuxHalo = Me%DDecomp%Halo_Points
                 !1 - South; 2 - North; 3 - West; 4 - East        
-                Me%DomainDecomposition%OpenBordersON(2)  = .false. 
+                Me%DDecomp%OpenBordersON(2)  = .false. 
             else
                 AuxHalo = 0.
             endif
             
-            Me%DomainDecomposition%HaloMap%IUB  = Me%DomainDecomposition%Mapping%IUB + AuxHalo
-            Me%WorkSize%IUB                     = Me%DomainDecomposition%HaloMap%IUB - Me%DomainDecomposition%HaloMap%ILB + 1
-            Me%DomainDecomposition%Inner%IUB    = Me%WorkSize%IUB                    - AuxHalo
+            Me%DDecomp%HaloMap%IUB  = Me%DDecomp%Mapping%IUB + AuxHalo
+            Me%WorkSize%IUB         = Me%DDecomp%HaloMap%IUB - Me%DDecomp%HaloMap%ILB + 1
+            Me%DDecomp%Inner%IUB    = Me%WorkSize%IUB        - AuxHalo
             
             
-            if (Me%DomainDecomposition%HaloMap%IUB - Me%DomainDecomposition%HaloMap%ILB /=  &
-                Me%WorkSize%IUB                    - Me%WorkSize%ILB) then
+            if (Me%DDecomp%HaloMap%IUB - Me%DDecomp%HaloMap%ILB /=  &
+                Me%WorkSize%IUB        - Me%WorkSize%ILB) then
                 
                 write(*,*) "Decomposition domains is inconsistent with the grid data input - Lines "
                 write(*,*) 'WorkSize ILB,IUB, =',Me%WorkSize%ILB,Me%WorkSize%IUB
-                write(*,*) 'HaloMap  ILB,IUB, =',Me%DomainDecomposition%HaloMap%ILB,Me%DomainDecomposition%HaloMap%IUB
-                stop "ConstructDomainDecomposition - ModuleHydrodynamic - ERR40"
+                write(*,*) 'HaloMap  ILB,IUB, =',Me%DDecomp%HaloMap%ILB,Me%DDecomp%HaloMap%IUB
+                stop "ConstructDDecomp - ModuleHydrodynamic - ERR40"
 
             endif          
             
-            if (Me%DomainDecomposition%NeighbourWest /= null_int) then         
-                AuxHalo = Me%DomainDecomposition%Halo_Points
+            if (Me%DDecomp%NeighbourWest /= null_int) then         
+                AuxHalo = Me%DDecomp%Halo_Points
                 !1 - South; 2 - North; 3 - West; 4 - East        
-                Me%DomainDecomposition%OpenBordersON(3)  = .false. 
+                Me%DDecomp%OpenBordersON(3)  = .false. 
             else
                 AuxHalo = 0.
             endif
             
-            Me%DomainDecomposition%HaloMap%JLB  = Me%DomainDecomposition%Mapping%JLB - AuxHalo
-            Me%WorkSize%JLB                     = 1
-            Me%DomainDecomposition%Inner%JLB    = Me%WorkSize%JLB                    + AuxHalo
+            Me%DDecomp%HaloMap%JLB  = Me%DDecomp%Mapping%JLB - AuxHalo
+            Me%WorkSize%JLB         = 1
+            Me%DDecomp%Inner%JLB    = Me%WorkSize%JLB        + AuxHalo
 
             
-            if (Me%DomainDecomposition%NeighbourEast /= null_int) then         
-                AuxHalo = Me%DomainDecomposition%Halo_Points
+            if (Me%DDecomp%NeighbourEast /= null_int) then         
+                AuxHalo = Me%DDecomp%Halo_Points
                 !1 - South; 2 - North; 3 - West; 4 - East        
-                Me%DomainDecomposition%OpenBordersON(4)  = .false. 
+                Me%DDecomp%OpenBordersON(4)  = .false. 
             else
                 AuxHalo = 0.
             endif
             
-            Me%DomainDecomposition%HaloMap%JUB  = Me%DomainDecomposition%Mapping%JUB + AuxHalo
-            Me%WorkSize%JUB                     = Me%DomainDecomposition%HaloMap%JUB - Me%DomainDecomposition%HaloMap%JLB + 1
-            Me%DomainDecomposition%Inner%JUB    = Me%WorkSize%JUB                    - AuxHalo
+            Me%DDecomp%HaloMap%JUB  = Me%DDecomp%Mapping%JUB + AuxHalo
+            Me%WorkSize%JUB         = Me%DDecomp%HaloMap%JUB - Me%DDecomp%HaloMap%JLB + 1
+            Me%DDecomp%Inner%JUB    = Me%WorkSize%JUB        - AuxHalo
             
-            if (Me%DomainDecomposition%HaloMap%JUB - Me%DomainDecomposition%HaloMap%JLB /=  &
-                Me%WorkSize%JUB                    - Me%WorkSize%JLB) then
+            if (Me%DDecomp%HaloMap%JUB - Me%DDecomp%HaloMap%JLB /=  &
+                Me%WorkSize%JUB        - Me%WorkSize%JLB) then
                 
                 write(*,*) "Decomposition domains is inconsistent with the grid data input - Columns "
                 write(*,*) 'WorkSize JLB,JUB, =',Me%WorkSize%JLB,Me%WorkSize%JUB
-                write(*,*) 'HaloMap  JLB,JUB, =',Me%DomainDecomposition%HaloMap%JLB,Me%DomainDecomposition%HaloMap%JUB
-                stop "ConstructDomainDecomposition - ModuleHydrodynamic - ERR50"
+                write(*,*) 'HaloMap  JLB,JUB, =',Me%DDecomp%HaloMap%JLB,Me%DDecomp%HaloMap%JUB
+                stop "ConstructDDecomp - ModuleHydrodynamic - ERR50"
 
             endif            
             
             
-            if (Me%DomainDecomposition%Master) then
+            if (Me%DDecomp%Master) then
             
-                !if (Me%DomainDecomposition%Nslaves /= 7) write(*,*) 'e44'
+                !if (Me%DDecomp%Nslaves /= 7) write(*,*) 'e44'
                 
-                !allocate(Me%DomainDecomposition%Slaves_MPI_ID (Me%DomainDecomposition%Nslaves))
-                allocate(Me%DomainDecomposition%Slaves_Inner  (Me%DomainDecomposition%Nslaves))
-                allocate(Me%DomainDecomposition%Slaves_Size   (Me%DomainDecomposition%Nslaves))
-                allocate(Me%DomainDecomposition%Slaves_Mapping(Me%DomainDecomposition%Nslaves))
-                allocate(Me%DomainDecomposition%Slaves_HaloMap(Me%DomainDecomposition%Nslaves))
+                !allocate(Me%DDecomp%Slaves_MPI_ID (Me%DDecomp%Nslaves))
+                allocate(Me%DDecomp%Slaves_Inner  (Me%DDecomp%Nslaves))
+                allocate(Me%DDecomp%Slaves_Size   (Me%DDecomp%Nslaves))
+                allocate(Me%DDecomp%Slaves_Mapping(Me%DDecomp%Nslaves))
+                allocate(Me%DDecomp%Slaves_HaloMap(Me%DDecomp%Nslaves))
             
             endif
         
@@ -882,13 +882,13 @@ iE:         if  (Exist) then
         
 #endif _USE_MPI        
 
-    end subroutine ConstructDomainDecomposition
+    end subroutine ConstructDDecomp
 
     !End----------------------------------------------------------------
 
 #if _USE_MPI   
 
-    subroutine OptionsDomainDecomposition()
+    subroutine OptionsDDecomp()
         
         !Arguments------------------------------------------------------------
 
@@ -911,34 +911,34 @@ iE:         if  (Exist) then
         !Begin----------------------------------------------------------------
 
         
-        call GetData(Value          = Me%DomainDecomposition%Halo_Points,           &
-                     EnterDataID    = Me%ObjEnterData2,                             & 
-                     flag           = iflag,                                        &
-                     keyword        = 'HALOPOINTS',                                 &
-                     SearchType     = FromFile,                                     &
-                     ClientModule   = 'ModuleHydrodynamic',                         &
-                     default        = 2,                                            &
+        call GetData(Value          = Me%DDecomp%Halo_Points,                           &
+                     EnterDataID    = Me%ObjEnterData2,                                 & 
+                     flag           = iflag,                                            &
+                     keyword        = 'HALOPOINTS',                                     &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleHydrodynamic',                             &
+                     default        = 2,                                                &
                      STAT           = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR10'
         
         
 
         call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR120'
+        if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR120'
         
 
-        Me%DomainDecomposition%Auto = .false.
+        Me%DDecomp%Auto = .false.
         
-iSl:    do i =1, Me%DomainDecomposition%Nslaves + 1
+iSl:    do i =1, Me%DDecomp%Nslaves + 1
 
             !Searches sub-domains blocks
-            call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                    &
-                                         BeginBlock1, EndBlock1,                            &
+            call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                &
+                                         BeginBlock1, EndBlock1,                        &
                                          BlockFound, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR130'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR130'
             if (.not. BlockFound     ) then
-                Me%DomainDecomposition%Auto = .true.
-                write(*,*) 'OptionsDomainDecomposition  - ModuleHydrodynamic - WRN140' 
+                Me%DDecomp%Auto = .true.
+                write(*,*) 'OptionsDDecomp  - ModuleHydrodynamic - WRN140' 
                 write(*,*) 'Domain Decomposition in automatic mode' 
                 exit
             endif
@@ -950,29 +950,29 @@ iSl:    do i =1, Me%DomainDecomposition%Nslaves + 1
                          SearchType     = FromBlock,                                    &
                          ClientModule   = 'ModuleHydrodynamic',                         &
                          STAT           = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR150'
-            if (iflag     == 0       ) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR160' 
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR150'
+            if (iflag     == 0       ) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR160' 
             
             MissMatchID = .true. 
                                     
-            do ii =1, Me%DomainDecomposition%Nslaves
-                if (Me%DomainDecomposition%Slaves_MPI_ID(ii) == MPI_ID) then
+            do ii =1, Me%DDecomp%Nslaves
+                if (Me%DDecomp%Slaves_MPI_ID(ii) == MPI_ID) then
                     MissMatchID = .false.
                 endif                
             enddo
             
-            if (Me%DomainDecomposition%Master_MPI_ID == MPI_ID) then
+            if (Me%DDecomp%Master_MPI_ID == MPI_ID) then
                 MissMatchID = .false.
             endif    
 
             if (MissMatchID) then
                 write(*,*) 'Domain -', MPI_ID, ' is not one of decomposition domains' 
-                stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR165'            
+                stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR165'            
             endif
             
-            if (MPI_ID == Me%DomainDecomposition%MPI_ID) then
+            if (MPI_ID == Me%DDecomp%MPI_ID) then
             
-                Me%DomainDecomposition%MasterOrSlave = .true.
+                Me%DDecomp%MasterOrSlave = .true.
             
                 allocate(Aux1D(1:2))            
 
@@ -984,19 +984,19 @@ iSl:    do i =1, Me%DomainDecomposition%Nslaves + 1
                              ClientModule   = 'ModuleHydrodynamic',                         &
                              STAT           = STAT_CALL)            
                 if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= KEYWORD_NOT_FOUND_ERR_) then
-                    stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR170'
+                    stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR170'
                 endif                    
-                if (iflag     /= 2       ) then
+                if (iflag     /= 2) then
                     if (iflag == 0) then
-                        Aux1D(1) = Me%DomainDecomposition%Global%ILB
-                        Aux1D(2) = Me%DomainDecomposition%Global%IUB
+                        Aux1D(1) = Me%DDecomp%Global%ILB
+                        Aux1D(2) = Me%DDecomp%Global%IUB
                     else                        
-                        stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR180'
+                        stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR180'
                     endif
                 endif                                            
                 
-                Me%DomainDecomposition%Mapping%ILB = Aux1D(1)
-                Me%DomainDecomposition%Mapping%IUB = Aux1D(2)
+                Me%DDecomp%Mapping%ILB = Aux1D(1)
+                Me%DDecomp%Mapping%IUB = Aux1D(2)
                 
                 call GetData(Vector         = Aux1D,                                        &
                              EnterDataID    = Me%ObjEnterData2,                             & 
@@ -1006,19 +1006,19 @@ iSl:    do i =1, Me%DomainDecomposition%Nslaves + 1
                              ClientModule   = 'ModuleHydrodynamic',                         &
                              STAT           = STAT_CALL)            
                 if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= KEYWORD_NOT_FOUND_ERR_) then
-                    stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR190'
+                    stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR190'
                 endif                    
-                if (iflag     /= 2       ) then
+                if (iflag     /= 2) then
                     if (iflag == 0) then
-                        Aux1D(1) = Me%DomainDecomposition%Global%JLB
-                        Aux1D(2) = Me%DomainDecomposition%Global%JUB
+                        Aux1D(1) = Me%DDecomp%Global%JLB
+                        Aux1D(2) = Me%DDecomp%Global%JUB
                     else                        
-                        stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR200'
+                        stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR200'
                     endif
                 endif
 
-                Me%DomainDecomposition%Mapping%JLB = Aux1D(1)
-                Me%DomainDecomposition%Mapping%JUB = Aux1D(2)
+                Me%DDecomp%Mapping%JLB = Aux1D(1)
+                Me%DDecomp%Mapping%JUB = Aux1D(2)
                 
                 
                 deallocate(Aux1D)
@@ -1030,24 +1030,24 @@ iSl:    do i =1, Me%DomainDecomposition%Nslaves + 1
         enddo iSl
 
         call Block_Unlock(Me%ObjEnterData2, ClientNumber, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR210'
+        if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR210'
         
 
         call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR220'
+        if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR220'
         
-iAuto:  if (.not. Me%DomainDecomposition%Auto) then
+iAuto:  if (.not. Me%DDecomp%Auto) then
         
-            call GetData(Value          = Me%DomainDecomposition%NInterfaces,               &
+            call GetData(Value          = Me%DDecomp%NInterfaces,               &
                          EnterDataID    = Me%ObjEnterData2,                                 & 
                          flag           = iflag,                                            &
                          keyword        = 'INTERFACES_NUMBER',                              &
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleHydrodynamic',                             &
                          STAT           = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR230'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR230'
             
-            allocate(Me%DomainDecomposition%Interfaces(Me%DomainDecomposition%NInterfaces,3))
+            allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
 
             allocate(Aux1D(1:2))                                                  
 
@@ -1056,7 +1056,7 @@ iAuto:  if (.not. Me%DomainDecomposition%Auto) then
                                          BeginBlock2, EndBlock2, BlockFound,                &
                                          FirstLine = FirstLine, LastLine = LastLine,        &
                                          STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR240'        
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR240'        
             
             if (BlockFound) then
 
@@ -1066,8 +1066,8 @@ iAuto:  if (.not. Me%DomainDecomposition%Auto) then
                     SN_N_Interfaces = 0
                 endif                
                 
-                if (SN_N_Interfaces > Me%DomainDecomposition%NInterfaces) then
-                    stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR250'
+                if (SN_N_Interfaces > Me%DDecomp%NInterfaces) then
+                    stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR250'
                 endif
                 
                 in = 0
@@ -1081,41 +1081,41 @@ iAuto:  if (.not. Me%DomainDecomposition%Auto) then
                                  ClientModule   = 'ModuleHydrodynamic',                             &
                                  Buffer_Line    = line,                                             &
                                  STAT           = STAT_CALL)            
-                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR260'
-                    if (iflag     /= 2       ) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR270'
+                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR260'
+                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR270'
                     
                     in = in + 1
                     
                     do jj = 1, 2
                         MissMatchID = .true. 
                                                 
-                        do ii =1, Me%DomainDecomposition%Nslaves
-                            if (Me%DomainDecomposition%Slaves_MPI_ID(ii) == Aux1D(jj)) then
+                        do ii =1, Me%DDecomp%Nslaves
+                            if (Me%DDecomp%Slaves_MPI_ID(ii) == Aux1D(jj)) then
                                 MissMatchID = .false.
                             endif                
                         enddo
                         
-                        if (Me%DomainDecomposition%Master_MPI_ID == Aux1D(jj)) then
+                        if (Me%DDecomp%Master_MPI_ID == Aux1D(jj)) then
                             MissMatchID = .false.
                         endif    
 
                         if (MissMatchID) then
                             write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains' 
-                            stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR275'
+                            stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR275'
                         endif                        
                     enddo
                                     
                     
-                    Me%DomainDecomposition%Interfaces(in,1) = Aux1D(1)
-                    Me%DomainDecomposition%Interfaces(in,2) = Aux1D(2)
-                    Me%DomainDecomposition%Interfaces(in,3) = SouthNorth_
+                    Me%DDecomp%Interfaces(in,1) = Aux1D(1)
+                    Me%DDecomp%Interfaces(in,2) = Aux1D(2)
+                    Me%DDecomp%Interfaces(in,3) = SouthNorth_
 
-                    if (Me%DomainDecomposition%MPI_ID == Aux1D(1)) then
-                        Me%DomainDecomposition%NeighbourNorth = Aux1D(2)
+                    if (Me%DDecomp%MPI_ID == Aux1D(1)) then
+                        Me%DDecomp%NeighbourNorth = Aux1D(2)
                     endif
                     
-                    if (Me%DomainDecomposition%MPI_ID == Aux1D(2)) then
-                        Me%DomainDecomposition%NeighbourSouth = Aux1D(1)
+                    if (Me%DDecomp%MPI_ID == Aux1D(2)) then
+                        Me%DDecomp%NeighbourSouth = Aux1D(1)
                     endif            
                     
                 enddo
@@ -1127,7 +1127,7 @@ iAuto:  if (.not. Me%DomainDecomposition%Auto) then
                                          BeginBlock3, EndBlock3, BlockFound,                &
                                          FirstLine = FirstLine, LastLine = LastLine,        &
                                          STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR280'        
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR280'        
             
             if (BlockFound) then
 
@@ -1137,8 +1137,8 @@ iAuto:  if (.not. Me%DomainDecomposition%Auto) then
                     WE_N_Interfaces = 0
                 endif                     
                 
-                if (SN_N_Interfaces + WE_N_Interfaces /= Me%DomainDecomposition%NInterfaces) then
-                    stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR290'
+                if (SN_N_Interfaces + WE_N_Interfaces /= Me%DDecomp%NInterfaces) then
+                    stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR290'
                 endif
                 
 
@@ -1151,40 +1151,40 @@ iAuto:  if (.not. Me%DomainDecomposition%Auto) then
                                  ClientModule   = 'ModuleHydrodynamic',                             &
                                  Buffer_Line    = line,                                             &
                                  STAT           = STAT_CALL)            
-                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR300'
-                    if (iflag     /= 2       ) stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR310'
+                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR300'
+                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR310'
                     
                     in = in + 1
 
                     do jj = 1, 2
                         MissMatchID = .true. 
                                                 
-                        do ii =1, Me%DomainDecomposition%Nslaves
-                            if (Me%DomainDecomposition%Slaves_MPI_ID(ii) == Aux1D(jj)) then
+                        do ii =1, Me%DDecomp%Nslaves
+                            if (Me%DDecomp%Slaves_MPI_ID(ii) == Aux1D(jj)) then
                                 MissMatchID = .false.
                             endif                
                         enddo
                         
-                        if (Me%DomainDecomposition%Master_MPI_ID == Aux1D(jj)) then
+                        if (Me%DDecomp%Master_MPI_ID == Aux1D(jj)) then
                             MissMatchID = .false.
                         endif    
 
                         if (MissMatchID) then
                             write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains' 
-                            stop 'OptionsDomainDecomposition  - ModuleHydrodynamic - ERR315'
+                            stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR315'
                         endif                        
                     enddo
                     
-                    Me%DomainDecomposition%Interfaces(in,1) = Aux1D(1)
-                    Me%DomainDecomposition%Interfaces(in,2) = Aux1D(2)
-                    Me%DomainDecomposition%Interfaces(in,3) = WestEast_
+                    Me%DDecomp%Interfaces(in,1) = Aux1D(1)
+                    Me%DDecomp%Interfaces(in,2) = Aux1D(2)
+                    Me%DDecomp%Interfaces(in,3) = WestEast_
                     
-                    if (Me%DomainDecomposition%MPI_ID == Aux1D(1)) then
-                        Me%DomainDecomposition%NeighbourEast = Aux1D(2)
+                    if (Me%DDecomp%MPI_ID == Aux1D(1)) then
+                        Me%DDecomp%NeighbourEast = Aux1D(2)
                     endif
                     
-                    if (Me%DomainDecomposition%MPI_ID == Aux1D(2)) then
-                        Me%DomainDecomposition%NeighbourWest = Aux1D(1)
+                    if (Me%DDecomp%MPI_ID == Aux1D(2)) then
+                        Me%DDecomp%NeighbourWest = Aux1D(1)
                     endif               
                     
                 enddo
@@ -1195,12 +1195,12 @@ iAuto:  if (.not. Me%DomainDecomposition%Auto) then
     
         endif iAuto
     
-    end subroutine OptionsDomainDecomposition
+    end subroutine OptionsDDecomp
     
     !End------------------------------------------------------------------
 
 
-    subroutine AutomaticDomainDecomposition()
+    subroutine AutomaticDDecomp()
         
         !Arguments------------------------------------------------------------
 
@@ -1214,63 +1214,63 @@ iAuto:  if (.not. Me%DomainDecomposition%Auto) then
         !Begin----------------------------------------------------------------
 
         
-        if (Me%DomainDecomposition%Halo_Points == null_int) then
-            Me%DomainDecomposition%Halo_Points = 2
+        if (Me%DDecomp%Halo_Points == null_int) then
+            Me%DDecomp%Halo_Points = 2
         endif
-        write(*,*) 'halo_points', Me%DomainDecomposition%Halo_Points        
+        write(*,*) 'halo_points', Me%DDecomp%Halo_Points        
         
-iAuto:  if (Me%DomainDecomposition%Auto) then
+iAuto:  if (Me%DDecomp%Auto) then
         
             !In automatic mode MOHID slices the domains along the matrix lines (ILB-IUB)
 
-            Me%DomainDecomposition%Mapping%JLB = Me%DomainDecomposition%Global%JLB
-            Me%DomainDecomposition%Mapping%JUB = Me%DomainDecomposition%Global%JUB
+            Me%DDecomp%Mapping%JLB = Me%DDecomp%Global%JLB
+            Me%DDecomp%Mapping%JUB = Me%DDecomp%Global%JUB
             
-            ILB  = Me%DomainDecomposition%Global%ILB
-            IUB  = Me%DomainDecomposition%Global%IUB
-            ND   = Me%DomainDecomposition%Nslaves + 1
+            ILB  = Me%DDecomp%Global%ILB
+            IUB  = Me%DDecomp%Global%IUB
+            ND   = Me%DDecomp%Nslaves + 1
             IDD  = real (IUB - ILB + 1) / real(ND)
-            is   = Me%DomainDecomposition%Master_MPI_ID
+            is   = Me%DDecomp%Master_MPI_ID
             
-            do i=1, Me%DomainDecomposition%Nslaves + 1
-                if (is + i - 1 == Me%DomainDecomposition%MPI_ID) then
+            do i=1, Me%DDecomp%Nslaves + 1
+                if (is + i - 1 == Me%DDecomp%MPI_ID) then
                     ilb_map = ILB     + int(real(i-1)*IDD)
                     iub_map = ILB - 1 + int(real(i  )*IDD)
                     exit
                 endif
             enddo
             
-            Me%DomainDecomposition%Mapping%ILB = ilb_map
-            Me%DomainDecomposition%Mapping%IUB = iub_map
-            write(*,*) 'Limits ', Me%DomainDecomposition%MPI_ID, iub_map, ilb_map
+            Me%DDecomp%Mapping%ILB = ilb_map
+            Me%DDecomp%Mapping%IUB = iub_map
+            write(*,*) 'Limits ', Me%DDecomp%MPI_ID, iub_map, ilb_map
             
-            Me%DomainDecomposition%NInterfaces = Me%DomainDecomposition%Nslaves
+            Me%DDecomp%NInterfaces = Me%DDecomp%Nslaves
 
-            allocate(Me%DomainDecomposition%Interfaces(Me%DomainDecomposition%NInterfaces,3))
+            allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
             
-            do i = 1, Me%DomainDecomposition%NInterfaces
+            do i = 1, Me%DDecomp%NInterfaces
 
-                iSouth = Me%DomainDecomposition%Master_MPI_ID + i - 1
-                iNorth = Me%DomainDecomposition%Master_MPI_ID + i
+                iSouth = Me%DDecomp%Master_MPI_ID + i - 1
+                iNorth = Me%DDecomp%Master_MPI_ID + i
                 
-                Me%DomainDecomposition%Interfaces(i,1) = iSouth
-                Me%DomainDecomposition%Interfaces(i,2) = iNorth
-                Me%DomainDecomposition%Interfaces(i,3) = SouthNorth_
-                write(*,*) 'Interface ', i, Me%DomainDecomposition%Interfaces(i,1), Me%DomainDecomposition%Interfaces(i,2)
+                Me%DDecomp%Interfaces(i,1) = iSouth
+                Me%DDecomp%Interfaces(i,2) = iNorth
+                Me%DDecomp%Interfaces(i,3) = SouthNorth_
+                write(*,*) 'Interface ', i, Me%DDecomp%Interfaces(i,1), Me%DDecomp%Interfaces(i,2)
 
-                 if (Me%DomainDecomposition%MPI_ID == iSouth) then
-                    Me%DomainDecomposition%NeighbourNorth = iNorth
+                 if (Me%DDecomp%MPI_ID == iSouth) then
+                    Me%DDecomp%NeighbourNorth = iNorth
                 endif
                 
-                if (Me%DomainDecomposition%MPI_ID == iNorth) then
-                    Me%DomainDecomposition%NeighbourSouth = iSouth
+                if (Me%DDecomp%MPI_ID == iNorth) then
+                    Me%DDecomp%NeighbourSouth = iSouth
                 endif            
                 
             enddo
 
         endif iAuto        
     
-    end subroutine AutomaticDomainDecomposition
+    end subroutine AutomaticDDecomp
     
     !End------------------------------------------------------------------
 
@@ -2313,20 +2313,20 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         Me%GlobalWorkSize%JUB = AuxInt(2)        
         
         !Intialization of domain decomposition procedure
-        call ConstructDomainDecomposition                         
+        call ConstructDDecomp                         
 
-        if (Me%DomainDecomposition%MasterOrSlave)  then
+        if (Me%DDecomp%MasterOrSlave)  then
 
             Me%Size%ILB     = Me%WorkSize%ILB-1 
             Me%Size%IUB     = Me%WorkSize%IUB+1
             
-            if (Me%GlobalWorkSize%ILB /= Me%DomainDecomposition%Global%ILB) then
+            if (Me%GlobalWorkSize%ILB /= Me%DDecomp%Global%ILB) then
                 write(*,*) "Me%GlobalWorkSize%ILB",Me%GlobalWorkSize%ILB                                            
-                write(*,*) "Me%DomainDecomposition%Global%ILB",Me%DomainDecomposition%Global%ILB
+                write(*,*) "Me%DDecomp%Global%ILB",Me%DDecomp%Global%ILB
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR32'
             endif
 
-            if (Me%GlobalWorkSize%IUB /= Me%DomainDecomposition%Global%IUB) then
+            if (Me%GlobalWorkSize%IUB /= Me%DDecomp%Global%IUB) then
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR34'
             endif
 
@@ -2341,16 +2341,16 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         endif
 
 
-        if (Me%DomainDecomposition%MasterOrSlave)  then
+        if (Me%DDecomp%MasterOrSlave)  then
 
             Me%Size%JLB     = Me%WorkSize%JLB-1 
             Me%Size%JUB     = Me%WorkSize%JUB+1
             
-            if (Me%GlobalWorkSize%JLB /= Me%DomainDecomposition%Global%JLB) then
+            if (Me%GlobalWorkSize%JLB /= Me%DDecomp%Global%JLB) then
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR52'
             endif
 
-            if (Me%GlobalWorkSize%JUB /= Me%DomainDecomposition%Global%JUB) then
+            if (Me%GlobalWorkSize%JUB /= Me%DDecomp%Global%JUB) then
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR54'
             endif
 
@@ -2562,10 +2562,10 @@ BF:     if (BlockFound) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR230'
                 
-                if (Me%DomainDecomposition%MasterOrSlave) then
-                    if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
-                        i<= Me%DomainDecomposition%HaloMap%IUB+1) then
-                        ii = i - Me%DomainDecomposition%HaloMap%ILB + 1
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                        i<= Me%DDecomp%HaloMap%IUB+1) then
+                        ii = i - Me%DDecomp%HaloMap%ILB + 1
                     else
                         cycle
                     endif                                
@@ -2573,10 +2573,10 @@ BF:     if (BlockFound) then
                     ii = i
                 endif    
                         
-                if (Me%DomainDecomposition%MasterOrSlave) then
-                    if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
-                        j<= Me%DomainDecomposition%HaloMap%JUB+1) then
-                        jj = j - Me%DomainDecomposition%HaloMap%JLB + 1
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                        j<= Me%DDecomp%HaloMap%JUB+1) then
+                        jj = j - Me%DDecomp%HaloMap%JLB + 1
                     else
                         cycle
                     endif                                
@@ -2719,9 +2719,9 @@ iconY:      if (ConstantSpacingY) Then
                     
                     XY_Aux   = XY_Aux + DY
                     
-                    if (Me%DomainDecomposition%MasterOrSlave) then
-                        if (i>= Me%DomainDecomposition%HaloMap%ILB .and.                &
-                            i<= Me%DomainDecomposition%HaloMap%IUB+1) then
+                    if (Me%DDecomp%MasterOrSlave) then
+                        if (i>= Me%DDecomp%HaloMap%ILB .and.                &
+                            i<= Me%DDecomp%HaloMap%IUB+1) then
                             ii = ii + 1
                         else
                             cycle
@@ -2764,9 +2764,9 @@ iconY:      if (ConstantSpacingY) Then
                                      STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR300'
                         
-                        if (Me%DomainDecomposition%MasterOrSlave) then
-                            if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
-                                i<= Me%DomainDecomposition%HaloMap%IUB+1) then
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                i<= Me%DDecomp%HaloMap%IUB+1) then
                                 ii = ii + 1
                             else
                                 cycle
@@ -2808,9 +2808,9 @@ iconX:      if (ConstantSpacingX) Then
 
                     XY_Aux = XY_Aux + DX
                     
-                    if (Me%DomainDecomposition%MasterOrSlave) then
-                        if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
-                            j<= Me%DomainDecomposition%HaloMap%JUB+1) then
+                    if (Me%DDecomp%MasterOrSlave) then
+                        if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                            j<= Me%DDecomp%HaloMap%JUB+1) then
                             jj = jj + 1
                         else
                             cycle
@@ -2858,9 +2858,9 @@ iconX:      if (ConstantSpacingX) Then
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR370'
                         
 
-                        if (Me%DomainDecomposition%MasterOrSlave) then
-                            if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
-                                j<= Me%DomainDecomposition%HaloMap%JUB+1) then
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                j<= Me%DDecomp%HaloMap%JUB+1) then
                                 jj = jj + 1
                             else
                                 cycle
@@ -2929,9 +2929,9 @@ BF1:    if (Me%ReadCartCorners) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR430'
                 
-                if (Me%DomainDecomposition%MasterOrSlave) then
-                    if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
-                        i<= Me%DomainDecomposition%HaloMap%IUB+1) then
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                        i<= Me%DDecomp%HaloMap%IUB+1) then
                         ii = ii + 1
                     else
                         cycle
@@ -2940,9 +2940,9 @@ BF1:    if (Me%ReadCartCorners) then
                     ii = i
                 endif    
                         
-                if (Me%DomainDecomposition%MasterOrSlave) then
-                    if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
-                        j<= Me%DomainDecomposition%HaloMap%JUB+1) then
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                        j<= Me%DDecomp%HaloMap%JUB+1) then
                         jj = jj + 1
                     else
                         cycle
@@ -6901,9 +6901,9 @@ i2:                 if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j) ==
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            if (Me%DomainDecomposition%MasterOrSlave) then
+            if (Me%DDecomp%MasterOrSlave) then
                 
-                WindowIntersectDomain = WindowCellsIntersection(Me%DomainDecomposition%HaloMap, WorkSize2D)
+                WindowIntersectDomain = WindowCellsIntersection(Me%DDecomp%HaloMap, WorkSize2D)
 
             else
             
@@ -6999,15 +6999,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            if (Me%DomainDecomposition%MasterOrSlave) then
+            if (Me%DDecomp%MasterOrSlave) then
                 
-                WorkSize2DAux                  = ComputesIntersectionCorners(Me%DomainDecomposition%HaloMap, WorkSize2D)
+                WorkSize2DAux                  = ComputesIntersectionCorners(Me%DDecomp%HaloMap, WorkSize2D)
                 
-                ReturnsIntersectionCorners%ILB = WorkSize2DAux%ILB - Me%DomainDecomposition%HaloMap%ILB + 1
-                ReturnsIntersectionCorners%IUB = WorkSize2DAux%IUB - Me%DomainDecomposition%HaloMap%ILB + 1
+                ReturnsIntersectionCorners%ILB = WorkSize2DAux%ILB - Me%DDecomp%HaloMap%ILB + 1
+                ReturnsIntersectionCorners%IUB = WorkSize2DAux%IUB - Me%DDecomp%HaloMap%ILB + 1
                 
-                ReturnsIntersectionCorners%JLB = WorkSize2DAux%JLB - Me%DomainDecomposition%HaloMap%JLB + 1
-                ReturnsIntersectionCorners%JUB = WorkSize2DAux%JUB - Me%DomainDecomposition%HaloMap%JLB + 1
+                ReturnsIntersectionCorners%JLB = WorkSize2DAux%JLB - Me%DDecomp%HaloMap%JLB + 1
+                ReturnsIntersectionCorners%JUB = WorkSize2DAux%JUB - Me%DDecomp%HaloMap%JLB + 1
 
             else
             
@@ -7049,7 +7049,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
     
-    subroutine GetDomainDecompositionParameters(HorizontalGridID, ON, Master,           &
+    subroutine GetDDecompParameters(HorizontalGridID, ON, Master,           &
                                                 Master_MPI_ID, MasterOrSlave,           &
                                                 NInterfaces, Interfaces, Halo_Points,   &
                                                 MPI_ID, Global, Mapping, Inner, HaloMap,&
@@ -7091,52 +7091,52 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             if (present(ON)) then
-                ON            = Me%DomainDecomposition%ON
+                ON            = Me%DDecomp%ON
             endif
             
             if (present(Master)) then
-              Master          = Me%DomainDecomposition%Master
+              Master          = Me%DDecomp%Master
             endif
             
             if (present(Master_MPI_ID)) then
-              Master_MPI_ID   = Me%DomainDecomposition%Master_MPI_ID
+              Master_MPI_ID   = Me%DDecomp%Master_MPI_ID
             endif
               
             if (present(MasterOrSlave)) then
-                MasterOrSlave = Me%DomainDecomposition%MasterOrSlave
+                MasterOrSlave = Me%DDecomp%MasterOrSlave
             endif                
 
             if (present(NInterfaces)) then
-                NInterfaces   = Me%DomainDecomposition%NInterfaces   
+                NInterfaces   = Me%DDecomp%NInterfaces   
             endif
             
             if (present(Interfaces)) then
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-                Interfaces   => Me%DomainDecomposition%Interfaces   
+                Interfaces   => Me%DDecomp%Interfaces   
             endif
                 
             if (present(Halo_Points)) then
-                Halo_Points   = Me%DomainDecomposition%Halo_Points
+                Halo_Points   = Me%DDecomp%Halo_Points
             endif
             
             if (present(MPI_ID)) then
-                MPI_ID        = Me%DomainDecomposition%MPI_ID  
+                MPI_ID        = Me%DDecomp%MPI_ID  
             endif
             
             if (present(Global)) then
-                Global       = Me%DomainDecomposition%Global
+                Global       = Me%DDecomp%Global
             endif
             
             if (present(Mapping)) then
-                Mapping      = Me%DomainDecomposition%Mapping
+                Mapping      = Me%DDecomp%Mapping
             endif
             
             if (present(Inner)) then
-                Inner        = Me%DomainDecomposition%Inner
+                Inner        = Me%DDecomp%Inner
             endif
 
             if (present(HaloMap)) then
-                HaloMap       = Me%DomainDecomposition%HaloMap
+                HaloMap       = Me%DDecomp%HaloMap
             endif          
                         
             STAT_ = SUCCESS_
@@ -7149,13 +7149,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         !----------------------------------------------------------------------
 
-    end subroutine GetDomainDecompositionParameters
+    end subroutine GetDDecompParameters
 
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
-    subroutine GetDomainDecompositionSlaves(HorizontalGridID, Nslaves, Slaves_MPI_ID, STAT)
+    subroutine GetDDecompSlaves(HorizontalGridID, Nslaves, Slaves_MPI_ID, STAT)
                                                 
 
         !Arguments-------------------------------------------------------------
@@ -7182,10 +7182,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            Nslaves          = Me%DomainDecomposition%Nslaves
+            Nslaves          = Me%DDecomp%Nslaves
 
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-            Slaves_MPI_ID   => Me%DomainDecomposition%Slaves_MPI_ID   
+            Slaves_MPI_ID   => Me%DDecomp%Slaves_MPI_ID   
                         
             STAT_ = SUCCESS_
         else 
@@ -7197,13 +7197,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         !----------------------------------------------------------------------
 
-    end subroutine GetDomainDecompositionSlaves
+    end subroutine GetDDecompSlaves
 
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
-    subroutine GetDomainDecompositionSlavesSize(HorizontalGridID, iSlave,               &
+    subroutine GetDDecompSlavesSize(HorizontalGridID, iSlave,               &
                                                 Slaves_Inner, Slaves_Size,              &
                                                 Slaves_Mapping, Slaves_HaloMap, STAT)
                                                 
@@ -7236,19 +7236,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             if (present(Slaves_Inner)) then
-                Slaves_Inner   = Me%DomainDecomposition%Slaves_Inner   (iSlave)
+                Slaves_Inner   = Me%DDecomp%Slaves_Inner   (iSlave)
             endif
                             
             if (present(Slaves_Size)) then
-                Slaves_Size    = Me%DomainDecomposition%Slaves_Size    (iSlave)
+                Slaves_Size    = Me%DDecomp%Slaves_Size    (iSlave)
             endif
 
            if (present(Slaves_Mapping)) then
-                Slaves_Mapping = Me%DomainDecomposition%Slaves_Mapping (iSlave)
+                Slaves_Mapping = Me%DDecomp%Slaves_Mapping (iSlave)
             endif
                             
             if (present(Slaves_HaloMap)) then
-                Slaves_HaloMap = Me%DomainDecomposition%Slaves_HaloMap (iSlave)
+                Slaves_HaloMap = Me%DDecomp%Slaves_HaloMap (iSlave)
             endif
                         
             STAT_ = SUCCESS_
@@ -7261,13 +7261,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         !----------------------------------------------------------------------
 
-    end subroutine GetDomainDecompositionSlavesSize
+    end subroutine GetDDecompSlavesSize
 
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
-    integer function GetDomainDecompositionMPI_ID(HorizontalGridID, STAT)
+    integer function GetDDecompMPI_ID(HorizontalGridID, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                     intent(IN )    :: HorizontalGridID   
@@ -7285,14 +7285,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         STAT_ = UNKNOWN_
         
-        GetDomainDecompositionMPI_ID = null_int
+        GetDDecompMPI_ID = null_int
 
         call Ready(HorizontalGridID, ready_) 
         
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            GetDomainDecompositionMPI_ID  = Me%DomainDecomposition%MPI_ID
+            GetDDecompMPI_ID  = Me%DDecomp%MPI_ID
             
             STAT_ = SUCCESS_
         else 
@@ -7304,12 +7304,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         !----------------------------------------------------------------------
 
-    end function GetDomainDecompositionMPI_ID
+    end function GetDDecompMPI_ID
 
     !--------------------------------------------------------------------------
      !--------------------------------------------------------------------------
 
-    logical function GetDomainDecompositionON(HorizontalGridID, STAT)
+    logical function GetDDecompON(HorizontalGridID, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                     intent(IN )    :: HorizontalGridID   
@@ -7327,14 +7327,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         STAT_ = UNKNOWN_
         
-        GetDomainDecompositionON = .false.
+        GetDDecompON = .false.
 
         call Ready(HorizontalGridID, ready_) 
         
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            GetDomainDecompositionON  = Me%DomainDecomposition%MasterOrSlave
+            GetDDecompON  = Me%DDecomp%MasterOrSlave
             
             STAT_ = SUCCESS_
         else 
@@ -7346,13 +7346,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         !----------------------------------------------------------------------
 
-    end function GetDomainDecompositionON
+    end function GetDDecompON
 
     !--------------------------------------------------------------------------
    
     !--------------------------------------------------------------------------
 
-    function GetDomainDecompositionOpenBorders(HorizontalGridID, STAT)
+    function GetDDecompOpenBorders(HorizontalGridID, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )              :: HorizontalGridID   
@@ -7360,7 +7360,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
 
         !External--------------------------------------------------------------
-        logical,  dimension(1:4)                    :: GetDomainDecompositionOpenBorders
+        logical,  dimension(1:4)                    :: GetDDecompOpenBorders
         integer :: ready_        
 
         !Local-----------------------------------------------------------------
@@ -7376,7 +7376,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            GetDomainDecompositionOpenBorders(1:4) = Me%DomainDecomposition%OpenBordersON(1:4)
+            GetDDecompOpenBorders(1:4) = Me%DDecomp%OpenBordersON(1:4)
 
             STAT_ = SUCCESS_
         else 
@@ -7388,14 +7388,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         !----------------------------------------------------------------------
 
-    end function GetDomainDecompositionOpenBorders
+    end function GetDDecompOpenBorders
 
     !--------------------------------------------------------------------------
     
 
     !--------------------------------------------------------------------------
 
-    subroutine GetDomainDecompositionWorkSize2D(HorizontalGridID, WorkSize, STAT)
+    subroutine GetDDecompWorkSize2D(HorizontalGridID, WorkSize, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )              :: HorizontalGridID   
@@ -7419,10 +7419,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            WorkSize%ILB = Me%DomainDecomposition%HaloMap%ILB
-            WorkSize%IUB = Me%DomainDecomposition%HaloMap%IUB
-            WorkSize%JLB = Me%DomainDecomposition%HaloMap%JLB
-            WorkSize%JUB = Me%DomainDecomposition%HaloMap%JUB
+            WorkSize%ILB = Me%DDecomp%HaloMap%ILB
+            WorkSize%IUB = Me%DDecomp%HaloMap%IUB
+            WorkSize%JLB = Me%DDecomp%HaloMap%JLB
+            WorkSize%JUB = Me%DDecomp%HaloMap%JUB
 
             STAT_ = SUCCESS_
         else 
@@ -7434,7 +7434,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         !----------------------------------------------------------------------
 
-    end subroutine GetDomainDecompositionWorkSize2D
+    end subroutine GetDDecompWorkSize2D
 
     !--------------------------------------------------------------------------
 
@@ -9164,7 +9164,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
 #endif
 
-                if (Me%DomainDecomposition%MasterOrSlave) then
+                if (Me%DDecomp%MasterOrSlave) then
                 
                     allocate(AuxInt4(4))
                     
@@ -9180,20 +9180,20 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         AuxInt4(3) = GlobalWorkSizeWindow_%JLB
                         AuxInt4(4) = GlobalWorkSizeWindow_%JUB
                     else
-                        AuxInt4(1) = Me%DomainDecomposition%Global%ILB
-                        AuxInt4(2) = Me%DomainDecomposition%Global%IUB
-                        AuxInt4(3) = Me%DomainDecomposition%Global%JLB
-                        AuxInt4(4) = Me%DomainDecomposition%Global%JUB
+                        AuxInt4(1) = Me%DDecomp%Global%ILB
+                        AuxInt4(2) = Me%DDecomp%Global%IUB
+                        AuxInt4(3) = Me%DDecomp%Global%JLB
+                        AuxInt4(4) = Me%DDecomp%Global%JUB
                     endif                        
 
                     call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Global", "ILB_IUB_JLB_JUB", &
                                           "-", Array1D = AuxInt4, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR50'
 
-                    AuxInt4(1) = Me%DomainDecomposition%HaloMap%ILB + WorkILB - 1
-                    AuxInt4(2) = Me%DomainDecomposition%HaloMap%ILB + WorkIUB - 1
-                    AuxInt4(3) = Me%DomainDecomposition%HaloMap%JLB + WorkJLB - 1
-                    AuxInt4(4) = Me%DomainDecomposition%HaloMap%JLB + WorkJUB - 1
+                    AuxInt4(1) = Me%DDecomp%HaloMap%ILB + WorkILB - 1
+                    AuxInt4(2) = Me%DDecomp%HaloMap%ILB + WorkIUB - 1
+                    AuxInt4(3) = Me%DDecomp%HaloMap%JLB + WorkJLB - 1
+                    AuxInt4(4) = Me%DDecomp%HaloMap%JLB + WorkJUB - 1
 
                     call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Mapping", "ILB_IUB_JLB_JUB",&
                                           "-", Array1D = AuxInt4, STAT = STAT_CALL)
@@ -9201,38 +9201,38 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                     deallocate(AuxInt4)
                     
-                    if (.not. Me%DomainDecomposition%FilesListOpen) then
+                    if (.not. Me%DDecomp%FilesListOpen) then
                     
-                        call UnitsManager(Me%DomainDecomposition%FilesListID, FileOpen, STAT = STAT_CALL) 
+                        call UnitsManager(Me%DDecomp%FilesListID, FileOpen, STAT = STAT_CALL) 
 
                         if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR70'
                         
-                        write(AuxChar,fmt='(i5)') Me%DomainDecomposition%MPI_ID
+                        write(AuxChar,fmt='(i5)') Me%DDecomp%MPI_ID
                         
-                        Me%DomainDecomposition%FilesListName = trim(adjustl(Me%DomainDecomposition%FilesListName))
-                        Me%DomainDecomposition%ModelPath     = trim(adjustl(Me%DomainDecomposition%ModelPath    ))
+                        Me%DDecomp%FilesListName = trim(adjustl(Me%DDecomp%FilesListName))
+                        Me%DDecomp%ModelPath     = trim(adjustl(Me%DDecomp%ModelPath    ))
                         
-                        Me%DomainDecomposition%FilesListName = "MPI_"//trim(adjustl(Auxchar))//"_"//trim(Me%DomainDecomposition%FilesListName)
+                        Me%DDecomp%FilesListName = "MPI_"//trim(adjustl(Auxchar))//"_"//trim(Me%DDecomp%FilesListName)
                         
-                        ilen = len_trim(Me%DomainDecomposition%ModelPath)
+                        ilen = len_trim(Me%DDecomp%ModelPath)
                         
-                        Me%DomainDecomposition%ModelPath(ilen-2: ilen) = "res"
+                        Me%DDecomp%ModelPath(ilen-2: ilen) = "res"
                         
                         !windows path
-                        AuxFile = trim(adjustl(Me%DomainDecomposition%ModelPath))//"/"//trim(adjustl(Me%DomainDecomposition%FilesListName))
+                        AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"/"//trim(adjustl(Me%DDecomp%FilesListName))
 
                         open(file   = AuxFile,                                          &
-                             unit   = Me%DomainDecomposition%FilesListID,               &
+                             unit   = Me%DDecomp%FilesListID,               &
                              status = "unknown",                                        &
                              form   = "formatted",                                      &
                              IOSTAT = STAT_CALL)
                         
                         if (STAT_CALL /= SUCCESS_) then
                             !linux path
-                            AuxFile = trim(adjustl(Me%DomainDecomposition%ModelPath))//"\"//trim(adjustl(Me%DomainDecomposition%FilesListName))
+                            AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"\"//trim(adjustl(Me%DDecomp%FilesListName))
                             
                             open(file   = AuxFile,                                      &
-                                 unit   = Me%DomainDecomposition%FilesListID,           &
+                                 unit   = Me%DDecomp%FilesListID,           &
                                  status = "unknown",                                    &
                                  form   = "formatted",                                  &
                                  IOSTAT = STAT_CALL)
@@ -9240,11 +9240,11 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                             if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR80'
                         endif                     
                         
-                        Me%DomainDecomposition%FilesListOpen = .true.       
+                        Me%DDecomp%FilesListOpen = .true.       
                         
                     endif
                     
-                    if (Me%DomainDecomposition%FilesListOpen) then
+                    if (Me%DDecomp%FilesListOpen) then
                     
                         call GetHDF5FileName (ObjHDF5, FileName, STAT= STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR100'
@@ -9257,7 +9257,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                             endif                                
                         enddo
                         
-                        write(Me%DomainDecomposition%FilesListID,'(A)') trim(FileName(iFile:ilen))
+                        write(Me%DDecomp%FilesListID,'(A)') trim(FileName(iFile:ilen))
                         
                     endif
                     
@@ -10046,7 +10046,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 call KillFatherGridList
                 
-                call KillDomainDecomposition
+                call KillDDecomp
 
 
                 !ObjHorizontalGrid
@@ -10283,7 +10283,7 @@ do1 :   do while(associated(FatherGrid))
 
     end subroutine KillFatherGridList
 
-    subroutine KillDomainDecomposition
+    subroutine KillDDecomp
 
 #ifdef _USE_MPI
 
@@ -10295,41 +10295,41 @@ do1 :   do while(associated(FatherGrid))
         
         !Begin-----------------------------------------------------------------        
 
-        if (associated(Me%DomainDecomposition%Slaves_MPI_ID))    then
-            deallocate(Me%DomainDecomposition%Slaves_MPI_ID)
-            nullify   (Me%DomainDecomposition%Slaves_MPI_ID)
+        if (associated(Me%DDecomp%Slaves_MPI_ID))    then
+            deallocate(Me%DDecomp%Slaves_MPI_ID)
+            nullify   (Me%DDecomp%Slaves_MPI_ID)
         endif
         
-        if (associated(Me%DomainDecomposition%Slaves_Size))      then
-            deallocate(Me%DomainDecomposition%Slaves_Size)
-            nullify   (Me%DomainDecomposition%Slaves_Size)
+        if (associated(Me%DDecomp%Slaves_Size))      then
+            deallocate(Me%DDecomp%Slaves_Size)
+            nullify   (Me%DDecomp%Slaves_Size)
         endif
 
-        if (associated(Me%DomainDecomposition%Slaves_Inner))     then
-            deallocate(Me%DomainDecomposition%Slaves_Inner)
-            nullify   (Me%DomainDecomposition%Slaves_Inner)
+        if (associated(Me%DDecomp%Slaves_Inner))     then
+            deallocate(Me%DDecomp%Slaves_Inner)
+            nullify   (Me%DDecomp%Slaves_Inner)
         endif
         
-        if (associated(Me%DomainDecomposition%Slaves_Mapping))   then
-            deallocate(Me%DomainDecomposition%Slaves_Mapping)
-            nullify   (Me%DomainDecomposition%Slaves_Mapping)
+        if (associated(Me%DDecomp%Slaves_Mapping))   then
+            deallocate(Me%DDecomp%Slaves_Mapping)
+            nullify   (Me%DDecomp%Slaves_Mapping)
         endif
         
-        if (associated(Me%DomainDecomposition%Slaves_HaloMap))   then
-            deallocate(Me%DomainDecomposition%Slaves_HaloMap)
-            nullify   (Me%DomainDecomposition%Slaves_HaloMap)
+        if (associated(Me%DDecomp%Slaves_HaloMap))   then
+            deallocate(Me%DDecomp%Slaves_HaloMap)
+            nullify   (Me%DDecomp%Slaves_HaloMap)
         endif
 
-        if (associated(Me%DomainDecomposition%Interfaces))       then
-            deallocate(Me%DomainDecomposition%Interfaces)
-            nullify   (Me%DomainDecomposition%Interfaces)
+        if (associated(Me%DDecomp%Interfaces))       then
+            deallocate(Me%DDecomp%Interfaces)
+            nullify   (Me%DDecomp%Interfaces)
         endif              
         
-        if (Me%DomainDecomposition%FilesListOpen) then
+        if (Me%DDecomp%FilesListOpen) then
                     
-            call UnitsManager(Me%DomainDecomposition%FilesListID, FileClose, STAT = STAT_CALL) 
+            call UnitsManager(Me%DDecomp%FilesListID, FileClose, STAT = STAT_CALL) 
 
-            if (STAT_CALL /= SUCCESS_) stop 'KillDomainDecomposition - HorizontalGrid - ERR10'                                 
+            if (STAT_CALL /= SUCCESS_) stop 'KillDDecomp - HorizontalGrid - ERR10'                                 
 
         endif
         !----------------------------------------------------------------------
@@ -10337,7 +10337,7 @@ do1 :   do while(associated(FatherGrid))
         
 #endif _USE_MPI        
 
-    end subroutine KillDomainDecomposition
+    end subroutine KillDDecomp
 
     !End----------------------------------------------------------------
 

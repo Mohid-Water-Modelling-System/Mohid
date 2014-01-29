@@ -46,7 +46,7 @@ Module ModuleDDC
     private ::                  OpenDecomposedFiles2
     private ::                      ScanDecomposedFiles
     private ::                          GetHDF5ReadWriteFileAccessCode
-    private ::                          GetDomainDecomposition
+    private ::                          GetDDecomp
     private ::                              GetHDF5ReadFileAccessCode
     private ::                                 GetMappingValues
     private ::          WriteConsolidatedHDF
@@ -467,7 +467,7 @@ if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
         
         call KillHDF5(  HDF5ID   = ObjHDF5_In,                                      &
                         STAT     = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'GetDomainDecomposition - ModuleDDC - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'GetDDecomp - ModuleDDC - ERR01'
         
 if1 :   if (hash_get_next_exists(hash_map_in, HDFFile)) then
 
@@ -1349,7 +1349,7 @@ if4 :               if (IDOut <0) then
                 
                     call hash_setObjID(hash_map_in, key = adjustl(trim(Directory)) // '\' // HDFinfile, ObjID = ObjHDF5_Out)
                 
-                    call GetDomainDecomposition(HDFFile = adjustl(trim(Directory)) // '\' // HDFinfile,   &
+                    call GetDDecomp(HDFFile = adjustl(trim(Directory)) // '\' // HDFinfile,   &
                                                 hash_map_in = hash_map_in,                                &
                                                 FirstTime = .TRUE.)
                                     
@@ -1410,7 +1410,7 @@ if4 :               if (IDOut <0) then
     
     !--------------------------------------------------------------------------
     
-    recursive subroutine GetDomainDecomposition(HDFFile,hash_map_in,FirstTime)
+    recursive subroutine GetDDecomp(HDFFile,hash_map_in,FirstTime)
 
         !Arguments-------------------------------------------------------------
         CHARACTER(PathLength)                       :: HDFFile
@@ -1458,9 +1458,9 @@ if2 :   if(FirstTime) then
         
             call KillHDF5(HDF5ID   = ObjHDF5_In,                                                  &
                           STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetDomainDecomposition - ModuleDDC - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'GetDDecomp - ModuleDDC - ERR01'
          
-            call GetDomainDecomposition(HDFFile = HDFFile,   &
+            call GetDDecomp(HDFFile = HDFFile,   &
                                         hash_map_in = hash_map_in,                                &
                                         FirstTime = .FALSE.)                                                  
         
@@ -1471,13 +1471,13 @@ if2 :   if(FirstTime) then
                                         
             call KillHDF5(HDF5ID   = ObjHDF5_In,                                                  &
                           STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetDomainDecomposition - ModuleDDC - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'GetDDecomp - ModuleDDC - ERR02'
             
         endif if2
         
         !------------------------------------------------------------------------
 
-        end subroutine GetDomainDecomposition
+        end subroutine GetDDecomp
         !--------------------------------------------------------------------------
 
         subroutine GetMappingValues(ObjHDF5_In, IDIn, GroupName, DataVal1D)

@@ -46,7 +46,7 @@ Module ModuleAssimilation
     use ModuleGridData,         only: GetGridData, UngetGridData        
     use ModuleHorizontalGrid,   only: WriteHorizontalGrid, UnGetHorizontalGrid,             &
                                       GetGridCellArea, GetXYCellZ,                          &
-                                      GetDomainDecompositionMPI_ID, GetDomainDecompositionON,&
+                                      GetDDecompMPI_ID, GetDDecompON,&
                                       GetGridOutBorderPolygon
     use ModuleHorizontalMap,    only: GetWaterPoints2D, UngetHorizontalMap, GetWaterFaces2D 
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryDistances, UngetGeometry, &
@@ -470,8 +470,8 @@ Module ModuleAssimilation
 
         call ReadFileName('ASSIMILA_HDF', Me%Files%Results, Message = Message,          &
                            TIME_END = TIME_END, Extension = 'ass',                      &
-                           MPI_ID = GetDomainDecompositionMPI_ID (Me%ObjHorizontalGrid),&
-                           DD_ON  = GetDomainDecompositionON     (Me%ObjHorizontalGrid),&
+                           MPI_ID = GetDDecompMPI_ID (Me%ObjHorizontalGrid),&
+                           DD_ON  = GetDDecompON     (Me%ObjHorizontalGrid),&
                            STAT   = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)stop 'ReadAssimilationFilesName - ModuleAssimilation - ERR02'
 

@@ -208,8 +208,8 @@ Module ModuleWaterProperties
     use ModuleHorizontalGrid,       only: GetHorizontalGrid, WriteHorizontalGrid, GetComputeZUV,&
                                           InterpolRegularGrid, UnGetHorizontalGrid,             &
                                           GetHorizontalGridSize, GetGridCellArea, GetXYCellZ,   &
-                                          GetDomainDecompositionParameters,                     &
-                                          GetDomainDecompositionMPI_ID, GetDomainDecompositionON,&
+                                          GetDDecompParameters,                                 &
+                                          GetDDecompMPI_ID, GetDDecompON,                       &
                                           WindowIntersectDomain, ReturnsIntersectionCorners,    &
                                           GetGridOutBorderPolygon
     use ModuleGeometry,             only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,   &
@@ -3403,9 +3403,9 @@ i2:     if (present(iW)) then
             
             Me%OutW%OutPutWindows(iW)%ON = .true.
             
-            call GetDomainDecompositionParameters(HorizontalGridID = Me%ObjHorizontalGrid,  &
-                                                  MasterOrSlave    = MasterOrSlave,         &
-                                                  STAT             = STAT_CALL)
+            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,  &
+                                      MasterOrSlave    = MasterOrSlave,         &
+                                      STAT             = STAT_CALL)
                                                   
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR10'
             
@@ -4912,8 +4912,8 @@ do1 :   do while (associated(PropertyX))
         call ReadFileName('BIV_HDF', FileName, &
                            Message = Message, TIME_END = Me%EndTime,  &
                            Extension = 'elt',                         &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)                           
         if (STAT_CALL .NE. SUCCESS_)                                  &
             stop 'CoupleBivalve - ModuleWaterProperties - ERR00' 
@@ -6008,10 +6008,10 @@ subroutine Construct_Discharges_Tracking
         call ReadFileName('EUL_HDF', Me%Files%OutPutFields,                             &
                            Message = Message, TIME_END = Me%EndTime,                    &
                            Extension = 'elt',                                           &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),          &
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),          &
                            STAT      = STAT_CALL)                           
-        if (STAT_CALL .NE. SUCCESS_)                                          &
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Read_WaterProperties_Files_Name - ModuleWaterProperties - ERR02' 
 
         ! ---> Water properties final values in HDF format
@@ -6020,10 +6020,10 @@ subroutine Construct_Discharges_Tracking
         call ReadFileName('EUL_FIN', Me%Files%FinalWaterProperties,                     &
                            Message = Message, TIME_END = Me%EndTime,                    &
                            Extension = 'elf',                                           &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),          &
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),          &
                            STAT      = STAT_CALL)                           
-        if (STAT_CALL .NE. SUCCESS_)                                          &
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Read_WaterProperties_Files_Name - ModuleWaterProperties - ERR03' 
 
 
@@ -6031,11 +6031,11 @@ subroutine Construct_Discharges_Tracking
         Message   ='Water properties initial values in HDF format.'
         Message   = trim(Message)
 
-        call ReadFileName('EUL_INI', Me%Files%InitialWaterProperties,        &
-                           Message = Message, TIME_END = Me%ExternalVar%Now, &
+        call ReadFileName('EUL_INI', Me%Files%InitialWaterProperties,                   &
+                           Message = Message, TIME_END = Me%ExternalVar%Now,            &
                            Extension = 'elf',                                           &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),          &
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),          &
                            STAT      = STAT_CALL)                           
 
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
@@ -12011,7 +12011,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         
         !Begin---------------------------------------------------------------
         
-        call GetDomainDecompositionParameters(HorizontalGridID = Me%ObjHorizontalGrid,  &
+        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
                                               MasterOrSlave    = MasterOrSlave,         &
                                               NInterfaces      = NInterfaces,           &
                                               Interfaces       = Interfaces,            &

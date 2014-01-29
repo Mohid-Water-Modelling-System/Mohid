@@ -79,6 +79,7 @@ Module ModuleHDF5
     public  ::  GetHDF5DataSetExist
     public  ::  GetHDF5ObjectInfo
     public  ::  GetHDF5ArrayDimensions
+    public  ::  GetHDF5ArrayDim
     public  ::  GetHDF5FileOkToRead
     public  ::  GetHDF5DataTypeID
     public  ::  GetHDF5FileName
@@ -6666,7 +6667,7 @@ Module ModuleHDF5
             if (present(Kmax)) then
                 Kmax = dims(3)
                 if (rank <3) then
-                    stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR100'
+                    Kmax = 1
                 endif
             endif    
             
@@ -6686,6 +6687,83 @@ Module ModuleHDF5
 
 
     end subroutine GetHDF5ArrayDimensions
+    
+    !--------------------------------------------------------------------------
+
+    integer function GetHDF5ArrayDim (HDF5ID, GroupName, ItemName, OutputNumber, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HDF5ID
+        character(len=*)                            :: GroupName
+        character(len=*)                            :: ItemName
+        integer,  intent(IN ), optional             :: OutputNumber
+        integer,  intent(OUT), optional             :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                              :: gr_id, space_id, dset_id, rank
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_, STAT_CALL
+        character(StringLength)                     :: ItemName_
+        
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            !Creates the dataset with default properties
+            if (present(OutputNumber)) then
+                call ConstructDSName (ItemName, OutputNumber, ItemName_)
+            else
+                ItemName_ = ItemName
+            endif
+            
+           !Opens the group
+            call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDim - ModuleHDF5 - ERR10'
+
+            !Opens the Dataset
+            call h5dopen_f          (gr_id, ItemName_, dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDim - ModuleHDF5 - ERR20'
+            
+            !Opens data space
+            call h5dget_space_f     (dset_id, space_id,  STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDim - ModuleHDF5 - ERR30'
+
+           !Gets rank
+            call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDim - ModuleHDF5 - ERR35'
+
+            !Closes data space
+            call h5sclose_f         (space_id,  STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDim - ModuleHDF5 - ERR50'
+
+            !Closes data set
+            call h5dclose_f         (dset_id,  STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDim - ModuleHDF5 - ERR60'
+
+            !Closes the Group
+            call h5gclose_f         (gr_id,  STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDim - ModuleHDF5 - ERR70'
+            
+            GetHDF5ArrayDim = rank
+            
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end function GetHDF5ArrayDim 
     
     !--------------------------------------------------------------------------
 

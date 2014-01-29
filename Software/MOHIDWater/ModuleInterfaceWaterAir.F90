@@ -45,7 +45,7 @@ Module ModuleInterfaceWaterAir
     use ModuleHorizontalGrid,       only: GetHorizontalGridSize, WriteHorizontalGrid,           &
                                           RotateVectorFieldToGrid, RotateVectorGridToField,     &
                                           GetGridCellArea, UnGetHorizontalGrid, GetXYCellZ,     &
-                                          GetDomainDecompositionMPI_ID, GetDomainDecompositionON,&
+                                          GetDDecompMPI_ID, GetDDecompON,&
                                           GetGridOutBorderPolygon, UngetHorizontalGrid         
     use ModuleHorizontalMap,        only: GetWaterPoints2D, UnGetHorizontalMap          
     use ModuleGeometry,             only: GetGeometrySize
@@ -651,8 +651,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call ReadFileName('AIRW_HDF', Me%Files%Results, Message = Message, TIME_END = Me%EndTime, &
                            Extension = 'arw',                                           &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)stop 'ReadWaterAirFilesName - ModuleInterfaceWaterAir - ERR02'
 

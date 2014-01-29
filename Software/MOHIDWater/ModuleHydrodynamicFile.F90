@@ -388,8 +388,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ReadFileName('IN_HYDRO_FILE', DataFile,                                &
                                Message = 'HydrodynamicFile Data File',                  &
-                               MPI_ID  = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                               DD_ON   = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                               MPI_ID  = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                               DD_ON   = GetDDecompON    (Me%ObjHorizontalGrid),&
                                STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'StartHydrodynamicFile - ModuleHydrodynamicFile - ERR04' 
 

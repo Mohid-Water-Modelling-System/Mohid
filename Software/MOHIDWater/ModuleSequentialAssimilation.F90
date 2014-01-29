@@ -870,8 +870,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadFileName('SEQASSIM_HDF', Me%Files%OutPutFields,                &
                            Message = Message, TIME_END = Me%EndTime,            &
                            Extension = 'sqt',                                   &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'Read_SeqAssimilation_Files_Name - ModuleSequentialAssimilation - ERR04' 

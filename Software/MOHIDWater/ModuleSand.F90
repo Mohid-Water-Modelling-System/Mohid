@@ -50,7 +50,7 @@ Module ModuleSand
                                        GetComputeFaces2D, UnGetHorizontalMap
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, WriteHorizontalGrid,                  &
                                        GetHorizontalGridSize, UnGetHorizontalGrid, GetXYCellZ,  &
-                                       GetDomainDecompositionMPI_ID, GetDomainDecompositionON,  &
+                                       GetDDecompMPI_ID, GetDDecompON,  &
                                        GetGridOutBorderPolygon
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, BoxDif,         &
                                        UngetBoxDif, KillBoxDif
@@ -1004,7 +1004,7 @@ i1:     if (Me%Boxes%Yes) then
         Message   ='Instant fields of sand properties in HDF format.'
         Message   = trim(Message)
         
-        if (GetDomainDecompositionON    (Me%ObjHorizontalGrid)) then
+        if (GetDDecompON    (Me%ObjHorizontalGrid)) then
             write(*,*) 'Module Sand not ready to run in domain decomposition mode'
             stop 'Read_Sand_Files_Name - ModuleSand - ERR20' 
         endif
@@ -1012,8 +1012,8 @@ i1:     if (Me%Boxes%Yes) then
         call ReadFileName('SAND_OUT', Me%Files%OutPutFields,                             &
                            Message = Message, TIME_END = Me%EndTime,                     &
                            Extension = 'sandlt',                                         &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                     &
@@ -1025,8 +1025,8 @@ i1:     if (Me%Boxes%Yes) then
         call ReadFileName('SAND_END', Me%Files%FinalSand,                                &
                            Message = Message, TIME_END = Me%EndTime,                     &
                            Extension = 'sandlf',                                         &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'Read_Sand_Files_Name - ModuleSand - ERR03' 
@@ -1039,8 +1039,8 @@ i1:     if (Me%Boxes%Yes) then
         call ReadFileName('SAND_INI', Me%Files%InitialSand,                              &
                            Message   = Message, TIME_END = Me%ExternalVar%Now,           &
                            Extension = 'sanlf',                                          &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)
 
 

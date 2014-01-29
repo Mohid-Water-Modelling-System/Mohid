@@ -52,7 +52,8 @@ Module ModuleField4D
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
                                        HDF5WriteData, HDF5FlushMemory, HDF5WriteData,   &
-                                       GetHDF5GroupExist, GetHDF5DataSetExist
+                                       GetHDF5GroupExist, GetHDF5DataSetExist,          &
+                                       GetHDF5ArrayDim
 #ifndef _NO_NETCDF                                       
     ! Manages NetCDF files
     use ModuleNetCDF,           only : GetNCDFFileAccess, ConstructNETCDF,              &
@@ -66,7 +67,7 @@ Module ModuleField4D
 #endif
 #endif
     use ModuleTimeSerie
-     
+    use ModuleTask2000,         only : Task2000Level               
                                        
 
 
@@ -146,20 +147,27 @@ Module ModuleField4D
     integer, parameter                              :: VectorX_         = 2
     integer, parameter                              :: VectorY_         = 3
 
-    
+    character(len=9)                                :: char_amplitude_  = 'amplitude'
+    character(len=5)                                :: char_phase_      = 'phase'    
+    character(len=8)                                :: char_residual_   = 'residual'        
 
     !Parameter-----------------------------------------------------------------
 
     !Types---------------------------------------------------------------------
 
     type T_Harmonics
-        logical                                                  :: ON          = .false.
-        integer                                                  :: Number      =  null_int
-        character(Len=WaveNameLength), dimension(:),     pointer :: WaveName    => null()
-        real,                          dimension(:,:,:), pointer :: Phase3D     => null()
-        real,                          dimension(:,:,:), pointer :: Amplitude3D => null()
-        real,                          dimension(:,:  ), pointer :: Phase2D     => null()
-        real,                          dimension(:,:  ), pointer :: Amplitude2D => null()
+        logical                                                    :: ON             = .false.
+        integer                                                    :: Number         = null_int
+        real                                                       :: TimeReference  = null_real
+        real                                                       :: ReferenceValue = null_real 
+        character(Len=WaveNameLength), dimension(:),       pointer :: WaveName       => null()
+        real,                          dimension(:,:,:,:), pointer :: Phase3D        => null()
+        real,                          dimension(:,:,:,:), pointer :: Amplitude3D    => null()
+        real,                          dimension(:,:,:  ), pointer :: Phase2D        => null()
+        real,                          dimension(:,:,:  ), pointer :: Amplitude2D    => null()
+        real,                          dimension(:,:,:  ), pointer :: Residual3D     => null()
+        real,                          dimension(:,:    ), pointer :: Residual2D     => null()
+        
     end type T_Harmonics     
 
 
@@ -205,6 +213,7 @@ Module ModuleField4D
         integer                                     :: NumberOfInstants     = null_int
         type (T_Time), dimension(:), pointer        :: InstantsDates        => null()    
         logical                                     :: CyclicTimeON         = .false.
+        logical                                     :: TimeON               = .false.        
         integer                                     :: Form                 = HDF5_
         character(StringLength)                     :: LonStagName          = null_str
         character(StringLength)                     :: LatStagName          = null_str
@@ -305,6 +314,7 @@ Module ModuleField4D
         logical                                     :: WindowWithData       = .false. 
         logical                                     :: ReadWindowJI         = .false. 
         logical                                     :: ReadWindow           = .false. 
+        integer                                     :: ClientID             = null_int
         real,    dimension(2,2)                     :: WindowLimitsXY       = null_real
         type (T_Size2D)                             :: WindowLimitsJI        
         type(T_Field4D), pointer                    :: Next                 => null()
@@ -331,7 +341,7 @@ Module ModuleField4D
                                 MaskDim, HorizontalGridID, BathymetryID,                &
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
-                                Extrapolate, PropertyID, STAT)
+                                Extrapolate, PropertyID, ClientID, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,                                intent(INOUT) :: Field4DID
@@ -351,6 +361,7 @@ Module ModuleField4D
         type (T_Size2D)            ,  optional, intent(IN )   :: WindowLimitsJI
         logical,                      optional, intent(IN )   :: Extrapolate
         type (T_PropertyID),          optional, intent(IN )   :: PropertyID
+        integer,                      optional, intent(OUT)   :: ClientID     
         integer,                      optional, intent(OUT)   :: STAT     
         
         !Local-------------------------------------------------------------------
@@ -375,12 +386,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             Me%ObjEnterData      = AssociateInstance (mENTERDATA_,      EnterDataID     )
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
+            
+            if (present(ClientID)) then
+                Me%ClientID = ClientID
+            else
+                Me%ClientID = FillValueInt
+            endif
 
             Me%File%FileName     = trim(FileName)
             if (present(MaskDim)) then
-                Me%MaskDim           = MaskDim
+                Me%MaskDim  = MaskDim
             else
-                Me%MaskDim           = DimUnknown
+                Me%MaskDim  = DimUnknown
             endif
             
             Me%WindowWithData    = .true. 
@@ -524,7 +541,11 @@ wwd:        if (Me%WindowWithData) then
                 
                 call ReadOptions            (NewPropField, ExtractType)     
                 
-                call ConstructPropertyField (NewPropField)
+                if (NewPropField%Harmonics%ON) then
+                    call ConstructPropertyFieldHarmonics (NewPropField)
+                else
+                    call ConstructPropertyField          (NewPropField)
+                endif
                 
                 if (Me%OutPut%Yes) then
                     call Open_HDF5_OutPut_File(NewPropField)
@@ -998,6 +1019,7 @@ wwd1:       if (Me%WindowWithData) then
         integer,   pointer, dimension(:,:)      :: Mask2D
         integer,   pointer, dimension(:,:,:)    :: Mask3D
         integer                                 :: ILB, IUB, JLB, JUB, Kmax, STAT_CALL, KLB, KUB
+        integer                                 :: ArrayHDF_Dim
 
         !Begin-----------------------------------------------------------------
         
@@ -1010,6 +1032,8 @@ wwd1:       if (Me%WindowWithData) then
         
         
         if (Me%MaskDim == Dim3D) then                                    
+
+            ArrayHDF_Dim = FillValueInt    
         
            !Get grid vertical space dimensions
             if      (Me%File%Form == HDF5_  ) then
@@ -1018,6 +1042,11 @@ wwd1:       if (Me%WindowWithData) then
                                             ItemName = trim(Me%File%MaskName),              &
                                             Kmax = Kmax, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR10'
+                
+                ArrayHDF_Dim= GetHDF5ArrayDim(HDF5ID = Me%File%Obj, GroupName = "/Grid",   &
+                                              ItemName = trim(Me%File%MaskName), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR15'
+                
 #ifndef _NO_NETCDF               
             else if (Me%File%Form == NetCDF_) then
             
@@ -1028,24 +1057,51 @@ wwd1:       if (Me%WindowWithData) then
             endif
             
             allocate(Mask3D  (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB,1:Kmax))  
-            
         
-           !Read horizontal grid
+                   !Read horizontal grid
             if      (Me%File%Form == HDF5_  ) then
+            
+            
+                if      (ArrayHDF_Dim == 3) then
                 
-                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,        &
-                                                           JLB = JLB, JUB = JUB,        &
-                                                           KLB = 1, KUB = Kmax,         &
-                                     STAT   = STAT_CALL)                                
-                                     
-                if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR30'
-                                            
-                call HDF5ReadWindow(HDF5ID      = Me%File%Obj,                          &
-                                  GroupName     = "/Grid",                              &
-                                  Name          = trim(Me%File%MaskName),               &
-                                  Array3D       = Mask3D,                               &
-                                  STAT          = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR40'
+                    call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,        &
+                                                               JLB = JLB, JUB = JUB,        &
+                                                               KLB = 1, KUB = Kmax,         &
+                                         STAT   = STAT_CALL)                                
+                                         
+                    if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR30'
+                    
+                    
+                                                
+                    call HDF5ReadWindow(HDF5ID      = Me%File%Obj,                          &
+                                      GroupName     = "/Grid",                              &
+                                      Name          = trim(Me%File%MaskName),               &
+                                      Array3D       = Mask3D,                               &
+                                      STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR40'
+                    
+            elseif (ArrayHDF_Dim == 2) then
+
+                    call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,        &
+                                                               JLB = JLB, JUB = JUB,        &
+                                         STAT   = STAT_CALL)                                
+                    if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR42'
+                    
+                    call HDF5ReadWindow(HDF5ID      = Me%File%Obj,                          &
+                                      GroupName     = "/Grid",                              &
+                                      Name          = trim(Me%File%MaskName),               &
+                                      Array2D       = Mask2D,                               &
+                                      STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR44'
+                    
+                    
+            
+            else
+            
+                stop 'ReadMap2DFromFile - ModuleField4D - ERR46'
+            
+            endif                    
+            
 #ifndef _NO_NETCDF
             else if (Me%File%Form == NetCDF_) then
             
@@ -1063,7 +1119,9 @@ wwd1:       if (Me%WindowWithData) then
 #endif                      
             endif
             
-            Mask2D(:,:) = Mask3D(:,:,Kmax)
+            if (ArrayHDF_Dim /= 2) then
+                Mask2D(:,:) = Mask3D(:,:,Kmax)
+            endif                
             
             deallocate(Mask3D)
             nullify   (Mask3D)
@@ -1192,9 +1250,11 @@ wwd1:       if (Me%WindowWithData) then
                                                     
         !Local-----------------------------------------------------------------
          real,      pointer, dimension(:,:,:)    :: SZZ
-         integer,   pointer, dimension(:,:,:)    :: mask    
+         integer,   pointer, dimension(:,:,:)    :: mask
+         integer,   pointer, dimension(:,:  )    :: Array2D    
          integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL 
-         logical                                 :: Exist  
+         logical                                 :: Exist
+         integer                                 :: ArrayHDF_Dim, k  
          
 
         !Begin-----------------------------------------------------------------
@@ -1221,7 +1281,7 @@ wwd1:       if (Me%WindowWithData) then
             
             call GetHDF5GroupExist (HDF5ID = Me%File%Obj, GroupName = "/Grid/VerticalZ",&
                                     Exist  = Exist, STAT = STAT_CALL)                                
-            if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR15'
+            if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR20'
             
             if (Exist) then
                                         
@@ -1231,14 +1291,14 @@ wwd1:       if (Me%WindowWithData) then
                                   Array3D       = SZZ,                                  &
                                   OffSet3       = 0,                                    &       
                                   STAT          = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR20'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR30'
                 
             else
                 if (KUB==1) then
                     SZZ(:,:,0) = 1.
                     SZZ(:,:,1) = 0.
                 else
-                    stop 'ReadMap3DFromFile - ModuleField4D - ERR25'
+                    stop 'ReadMap3DFromFile - ModuleField4D - ERR40'
                 endif
             endif
                             
@@ -1255,40 +1315,73 @@ wwd1:       if (Me%WindowWithData) then
                                 KLB             = KLB,                                  &
                                 KUB             = KUB,                                  &
                                 STAT            = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR30'
+            if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR50'
 #endif                  
         endif
 
 
        if      (Me%File%Form == HDF5_  ) then
+       
+            ArrayHDF_Dim = GetHDF5ArrayDim(HDF5ID = Me%File%Obj, GroupName = "/Grid",   &
+                                          ItemName = trim(Me%File%MaskName), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR60'       
             
-            call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,            &
-                                                       JLB = JLB, JUB = JUB,            &
-                                                       KLB = KLB, KUB = KUB,            &
-                                 STAT   = STAT_CALL)                                
-                                 
-            if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR40'
+            if          (ArrayHDF_Dim == 3) then
+            
+                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,        &
+                                                           JLB = JLB, JUB = JUB,        &
+                                                           KLB = KLB, KUB = KUB,        &
+                                     STAT   = STAT_CALL)                                
+                                     
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR70'
 
-            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                            &
-                              GroupName     = "/Grid",                                  &
-                              Name          = trim(Me%File%MaskName),                   &
-                              Array3D       = Mask,                                     &
-                              STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR50'
+                call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
+                                  GroupName     = "/Grid",                              &
+                                  Name          = trim(Me%File%MaskName),               &
+                                  Array3D       = Mask,                                 &
+                                  STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR80'
+                
+            else if     (ArrayHDF_Dim == 2) then
+            
+                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,        &
+                                                           JLB = JLB, JUB = JUB,        &
+                                     STAT   = STAT_CALL)                                
+                                     
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR90'
+                
+                allocate(Array2D(ILB:IUB, JLB:JUB))
+
+                call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
+                                  GroupName     = "/Grid",                              &
+                                  Name          = trim(Me%File%MaskName),               &
+                                  Array2D       = Array2D,                              &
+                                  STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR100'            
+            
+                do k=KLB,KUB
+                    Mask(ILB:IUB, JLB:JUB,k) = Array2D(ILB:IUB, JLB:JUB)
+                enddo                    
+                
+                deallocate(Array2D)
+                
+            else
+            
+            endif
 #ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
-                call NETCDFReadData(NCDFID          = Me%File%Obj,                          &
-                                    Array3D         = Mask,                                 &
-                                    Name            = trim(Me%File%MaskName),               &
-                                    ILB             = ILB,                                  &
-                                    IUB             = IUB,                                  &
-                                    JLB             = JLB,                                  &
-                                    JUB             = JUB,                                  &
-                                    KLB             = KLB,                                  &
-                                    KUB             = KUB,                                  &
+                call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
+                                    Array3D         = Mask,                             &
+                                    Name            = trim(Me%File%MaskName),           &
+                                    ILB             = ILB,                              &
+                                    IUB             = IUB,                              &
+                                    JLB             = JLB,                              &
+                                    JUB             = JUB,                              &
+                                    KLB             = KLB,                              &
+                                    KUB             = KUB,                              &
                                     STAT            = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR60'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR110'
 #endif                
         endif
         
@@ -1297,18 +1390,18 @@ wwd1:       if (Me%WindowWithData) then
                             HorizontalMapID     = Me%ObjHorizontalMap,                  &
                             WaterPoints3D       = Mask,                                 &
                             STAT                = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR70'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR120'
         
         call GetWaterPoints3D(Map_ID            = Me%ObjMap,                    &
                               WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
                               STAT              = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR80'
+        if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR130'
 
         call ComputeInitialGeometry(GeometryID      = Me%ObjGeometry,                   &
                                     WaterPoints3D   = Me%ExternalVar%WaterPoints3D,     &
                                     SZZ             = SZZ,                              &
                                     STAT            = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR90'
+        if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR140'
 
     end subroutine ReadMap3DFromFile         
  
@@ -1460,10 +1553,6 @@ wwd1:       if (Me%WindowWithData) then
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR80'
 
-        if (LastGroupEqualField)                                                        &
-            PropField%VGroupPath=trim(PropField%VGroupPath)//"/"//trim(PropField%FieldName)
-
-
         call GetData(PropField%From2Dto3D,                                              &
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
@@ -1486,6 +1575,18 @@ wwd1:       if (Me%WindowWithData) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR100'        
 
         Me%OutPut%NextOutPut = 1
+        
+       call GetData(PropField%Harmonics%ON,                                            &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'HARMONICS',                                        &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160'    
+        
+        if (LastGroupEqualField)                                                        &
+            PropField%VGroupPath=trim(PropField%VGroupPath)//"/"//trim(PropField%FieldName)            
 
         call GetData(PropField%SpaceDim,                                                &
                      Me%ObjEnterData , iflag,                                           &
@@ -1497,13 +1598,38 @@ wwd1:       if (Me%WindowWithData) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR110'
         
         if (iflag == 0 .and. Me%File%Form == HDF5_) then
-            call GetHDF5ArrayDimensions (Me%File%Obj, trim(PropField%VGroupPath),       &
-                              trim(PropField%FieldName), OutputNumber = 1,              &
-                              NDim = PropField%SpaceDim, STAT = STAT_CALL)
-                              
-            if (STAT_CALL /= SUCCESS_)stop 'ReadOptions - ModuleField4D - ERR120'
-        endif
         
+            if (PropField%Harmonics%ON) then
+                call GetHDF5ArrayDimensions (Me%File%Obj, trim(PropField%VGroupPath),   &
+                                  char_residual_,                                       &
+                                  NDim = PropField%SpaceDim, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadOptions - ModuleField4D - ERR115'
+            else                
+                call GetHDF5ArrayDimensions (Me%File%Obj, trim(PropField%VGroupPath),   &
+                                  trim(PropField%FieldName), OutputNumber = 1,          &
+                                  NDim = PropField%SpaceDim, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadOptions - ModuleField4D - ERR120'
+            endif                
+        endif
+        if (PropField%Harmonics%ON) then
+
+            if      (ExtractType == FromFile_   ) then
+                    
+                ExtractTypeBlock = FromBlock_
+
+            elseif  (ExtractType == FromBlock_  ) then   
+
+                ExtractTypeBlock = FromBlockInBlock_
+        
+            else
+            
+                stop 'ReadOptions - ModuleField4D - ERR170'
+            
+            endif
+            
+            call ReadHarmonicWaves(PropField, ExtractTypeBlock)
+            
+        endif   
 
         call GetData(PropField%ChangeInTime,                                            &
                      Me%ObjEnterData , iflag,                                           &
@@ -1546,34 +1672,6 @@ wwd1:       if (Me%WindowWithData) then
         endif
 
 
-        call GetData(PropField%Harmonics%ON,                                            &
-                     Me%ObjEnterData , iflag,                                           &
-                     SearchType   = ExtractType,                                        &
-                     keyword      = 'HARMONICS',                                        &
-                     default      = .false.,                                            &
-                     ClientModule = 'ModuleField4D',                                    &
-                     STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160'
-        
-        if (PropField%Harmonics%ON) then
-
-            if      (ExtractType == FromFile_   ) then
-                    
-                ExtractTypeBlock = FromBlock_
-
-            elseif  (ExtractType == FromBlock_  ) then   
-
-                ExtractTypeBlock = FromBlockInBlock_
-        
-            else
-            
-                stop 'ReadOptions - ModuleField4D - ERR170'
-            
-            endif
-            
-            call ReadHarmonicWaves(PropField, ExtractTypeBlock)
-            
-        endif            
 
 
         ! Check if the simulation goes backward in time or forward in time (default mode)
@@ -1593,14 +1691,16 @@ wwd1:       if (Me%WindowWithData) then
         integer                                     :: ExtractType
 
         !Local-----------------------------------------------------------------
-        character(LEN = StringLength   ), parameter :: block_begin = '<beginharmonics>'
-        character(LEN = StringLength   ), parameter :: block_end   = '<endharmonics>'
+        character(LEN = StringLength   ), parameter :: block_begin = '<<beginharmonics>>'
+        character(LEN = StringLength   ), parameter :: block_end   = '<<endharmonics>>'
         
         integer                                     :: STAT_CALL, ClientNumber, FirstLine, LastLine, i
         logical                                     :: BlockFound
-        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, iflag
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, iflag, NW
         
         !Begin-----------------------------------------------------------------
+        
+        ClientNumber = Me%ClientID
 
         if      (ExtractType == FromBlock_   ) then
                 
@@ -1639,7 +1739,8 @@ wwd1:       if (Me%WindowWithData) then
         endif
         
         PropField%Harmonics%Number = LastLine - FirstLine - 1 
-        
+        NW                         = PropField%Harmonics%Number
+
         allocate(PropField%Harmonics%WaveName(PropField%Harmonics%Number))
         
 i0:     if(PropField%SpaceDim == Dim2D) then
@@ -1649,11 +1750,14 @@ i0:     if(PropField%SpaceDim == Dim2D) then
             JLB = Me%Size2D%JLB
             JUB = Me%Size2D%JUB
 
-            allocate(PropField%Harmonics%Phase2D    (ILB:IUB, JLB:JUB))
-            allocate(PropField%Harmonics%Amplitude2D(ILB:IUB, JLB:JUB))
+            allocate(PropField%Harmonics%Phase2D    (ILB:IUB, JLB:JUB, 1:NW))
+            allocate(PropField%Harmonics%Amplitude2D(ILB:IUB, JLB:JUB, 1:NW))
+            allocate(PropField%Harmonics%Residual2D (ILB:IUB, JLB:JUB))
 
-            PropField%Harmonics%Phase2D    (:,:) = FillValueReal
-            PropField%Harmonics%Amplitude2D(:,:) = FillValueReal
+
+            PropField%Harmonics%Phase2D    (:,:, :) = FillValueReal
+            PropField%Harmonics%Amplitude2D(:,:, :) = FillValueReal
+            PropField%Harmonics%Residual2D (:,:)    = FillValueReal        
 
         else i0
 
@@ -1664,11 +1768,13 @@ i0:     if(PropField%SpaceDim == Dim2D) then
             KLB = Me%Size3D%KLB
             KUB = Me%Size3D%KUB
 
-            allocate(PropField%Harmonics%Phase3D    (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate(PropField%Harmonics%Amplitude3D(ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate(PropField%Harmonics%Phase3D    (ILB:IUB, JLB:JUB, KLB:KUB, 1:NW))
+            allocate(PropField%Harmonics%Amplitude3D(ILB:IUB, JLB:JUB, KLB:KUB, 1:NW))
+            allocate(PropField%Harmonics%Residual3D (ILB:IUB, JLB:JUB, KLB:KUB))
 
-            PropField%Harmonics%Phase3D    (:,:,:) = FillValueReal
-            PropField%Harmonics%Amplitude3D(:,:,:) = FillValueReal
+            PropField%Harmonics%Phase3D    (:,:,:,:) = FillValueReal
+            PropField%Harmonics%Amplitude3D(:,:,:,:) = FillValueReal
+            PropField%Harmonics%Residual3D (:,:,:  ) = FillValueReal
             
         endif i0
         
@@ -1678,9 +1784,30 @@ i0:     if(PropField%SpaceDim == Dim2D) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR60'
         enddo
-                    
-        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR70'
+        
+        if      (ExtractType == FromBlock_   ) then
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR70'
+        endif
+        
+        call GetData(PropField%Harmonics%TimeReference,                                 &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'TIME_REF',                                         &
+                     default      = 0.,                                                 &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR80'
+        
+        call GetData(PropField%Harmonics%ReferenceValue,                                &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'REF_VALUE',                                        &
+                     default      = 0.,                                                 &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR90'
+   
 
     end subroutine ReadHarmonicWaves
 
@@ -1788,19 +1915,30 @@ i0:     if(PropField%SpaceDim == Dim2D) then
             call ConstructHDF5 (Me%File%Obj, trim(Me%File%FileName), HDF5_READ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR30'
             
-            call GetHDF5GroupNumberOfItems(Me%File%Obj, "/Time", &
-                                           Me%File%NumberOfInstants, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR50'
+            call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                          &
+                                    GroupName   = "/Time",                              &
+                                    Exist       = Me%File%TimeON,                       &
+                                    STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR40'
             
-            allocate(Me%File%InstantsDates(Me%File%NumberOfInstants))
             
-            do i=1, Me%File%NumberOfInstants
-                Me%File%InstantsDates(i) = HDF5TimeInstant(i)
-            enddo
+            if (Me%File%TimeON) then
+                call GetHDF5GroupNumberOfItems(Me%File%Obj, "/Time", &
+                                               Me%File%NumberOfInstants, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ConstructFile - ModuleField4D - ERR50'
+                endif
 
-            Me%File%StartTime = Me%File%InstantsDates(1)
-            Me%File%EndTime   = Me%File%InstantsDates(Me%File%NumberOfInstants)
-            
+                allocate(Me%File%InstantsDates(Me%File%NumberOfInstants))
+                
+                do i=1, Me%File%NumberOfInstants
+                    Me%File%InstantsDates(i) = HDF5TimeInstant(i)
+                enddo
+
+                Me%File%StartTime = Me%File%InstantsDates(1)
+                Me%File%EndTime   = Me%File%InstantsDates(Me%File%NumberOfInstants)
+                
+            endif            
             
             Me%File%DefaultNames%bat        = 'Bathymetry'
             Me%File%DefaultNames%lon_stag   = 'Longitude'
@@ -1811,10 +1949,6 @@ i0:     if(PropField%SpaceDim == Dim2D) then
                        
             call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints', exist2D_2, STAT= STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR80'           
-            
-
-            
-
             
             call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints3D', exist3D, STAT= STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR60'
@@ -2048,6 +2182,12 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                 allocate(Me%Matrix2D(ILB:IUB, JLB:JUB))
                 Me%Matrix2D(:,:) = FillValueReal
             endif
+            
+            if (.not.Associated(Me%Matrix3D)) then
+                allocate(Me%Matrix3D(ILB:IUB, JLB:JUB, 0:2))
+                Me%Matrix3D(:,:,:) = FillValueReal
+            endif
+            
 
         else i0
 
@@ -2299,6 +2439,72 @@ it:     if (NewPropField%ChangeInTime) then
     end subroutine ConstructPropertyField
 
     !--------------------------------------------------------------------------
+
+    subroutine ConstructPropertyFieldHarmonics(NewPropField)
+
+        !Arguments-------------------------------------------------------------
+        type (T_PropField), pointer                     :: NewPropField        
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB
+        type (T_Time)                                   :: CurrentTime
+
+        !Begin-----------------------------------------------------------------
+        
+        if (Me%Backtracking) then
+            CurrentTime = Me%EndTime
+        else
+            CurrentTime = Me%StartTime
+        endif            
+
+i0:     if(NewPropField%SpaceDim == Dim2D)then
+
+            ILB = Me%Size2D%ILB
+            IUB = Me%Size2D%IUB
+            JLB = Me%Size2D%JLB
+            JUB = Me%Size2D%JUB
+
+            if (.not.Associated(Me%Matrix2D)) then
+                allocate(Me%Matrix2D(ILB:IUB, JLB:JUB))
+                Me%Matrix2D(:,:) = FillValueReal
+            endif
+            
+            if (.not.Associated(Me%Matrix3D)) then
+                allocate(Me%Matrix3D(ILB:IUB, JLB:JUB, 0:2))
+                Me%Matrix3D(:,:,:) = FillValueReal
+            endif            
+            
+            call ReadValues2DHarmonics(NewPropField)
+            call FromHarmonics2Field2D(NewPropField, CurrentTime) 
+
+        else i0
+
+            ILB = Me%Size3D%ILB
+            IUB = Me%Size3D%IUB
+            JLB = Me%Size3D%JLB
+            JUB = Me%Size3D%JUB
+            KLB = Me%Size3D%KLB
+            KUB = Me%Size3D%KUB
+
+            if (.not.Associated(Me%Matrix3D)) then
+                allocate(Me%Matrix3D(ILB:IUB, JLB:JUB, KLB:KUB))
+                Me%Matrix3D(:,:,:) = FillValueReal
+            endif
+
+            if (.not.Associated(Me%Depth3D)) then
+                allocate(Me%Depth3D(ILB:IUB, JLB:JUB, KLB:KUB))
+                Me%Depth3D(:,:,:) = FillValueReal
+            endif
+            
+            call ReadValues3DHarmonics(NewPropField)
+            call FromHarmonics2Field3D(NewPropField, CurrentTime) 
+            
+        endif i0
+        
+    end subroutine ConstructPropertyFieldHarmonics
+
+    !--------------------------------------------------------------------------
+
 
     character(len=StringLength) function NCDFName(Number)
 
@@ -2677,7 +2883,7 @@ it:     if (NewPropField%ChangeInTime) then
             call GetHDF5ArrayDimensions(Me%File%Obj, trim(NewPropField%VGroupPath),         &
                               trim(NewPropField%FieldName), OutputNumber = Instant,         &
                               Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR10'                                   
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR10'                                   
 #ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
@@ -2798,6 +3004,686 @@ it:     if (NewPropField%ChangeInTime) then
 
     !--------------------------------------------------------------------------
 
+    
+    !--------------------------------------------------------------------------
+    subroutine ReadValues2DHarmonics (NewPropField)
+
+        !Arguments-------------------------------------------------------------
+        type (T_PropField), pointer             :: NewPropField                
+       
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:  ), pointer         :: Field
+        integer                                 :: STAT_CALL, Imax, Jmax, ILB, IUB, JLB, JUB, NW, N
+        integer                                 :: SILB, SIUB, SJLB, SJUB
+        character(len=StringLength)             :: GroupName, FieldName
+
+        !Begin-----------------------------------------------------------------
+        
+        ILB  = Me%WorkSize2D%ILB
+        IUB  = Me%WorkSize2D%IUB
+        JLB  = Me%WorkSize2D%JLB
+        JUB  = Me%WorkSize2D%JUB
+        
+        SILB = Me%Size2D%ILB
+        SIUB = Me%Size2D%IUB
+        SJLB = Me%Size2D%JLB
+        SJUB = Me%Size2D%JUB
+        
+        NW  = NewPropField%Harmonics%Number
+        
+        allocate(Field(SILB:SIUB,SJLB:SJUB))
+        
+d1:     do N =1, NW       
+
+            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveName(N))
+            
+            FieldName = char_amplitude_ 
+        
+            if      (Me%File%Form == HDF5_  ) then
+                call GetHDF5ArrayDimensions(Me%File%Obj, GroupName, FieldName,          &
+                                            Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR10'                                   
+#ifndef _NO_NETCDF
+            else if (Me%File%Form == NetCDF_) then
+            
+                call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, STAT = STAT_CALL)
+#endif
+            endif            
+
+            if ((Imax < IUB - ILB + 1) .or.                                                &
+                (Jmax < JUB - JLB + 1)) then
+                
+                write (*,*) "GroupName =",trim(GroupName)
+                write (*,*) "FieldName =",trim(FieldName)
+                write (*,*) 'miss match between the input file and model domain'
+                stop 'ReadValues2DHarmonics - ModuleField4D - ERR20'                                   
+
+            endif
+          
+            if      (Me%File%Form == HDF5_  ) then
+
+                call HDF5SetLimits  (Me%File%Obj, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR30'
+                
+                     
+                call HDF5ReadWindow(Me%File%Obj, GroupName, FieldName,                  &
+                                    Array2D = Field, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR40'
+                
+#ifndef _NO_NETCDF
+            else if (Me%File%Form == NetCDF_) then
+            
+                FieldName = trim(NewPropField%Harmonics%WaveName(N))//"/"//char_amplitude_
+            
+                call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
+                                    Array2D         = Field,                            &
+                                    Name            = FieldName,                        &
+                                    ILB             = ILB,                              &
+                                    IUB             = IUB,                              &
+                                    JLB             = JLB,                              &
+                                    JUB             = JUB,                              &
+                                    STAT            = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR50'            
+#endif            
+            endif           
+            
+            NewPropField%Harmonics%Amplitude2D(:,:,N) = Field(:,:)
+            
+        enddo d1
+        
+d2:     do N =1, NW       
+
+            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveName(N))
+            
+            FieldName = char_phase_ 
+        
+            if      (Me%File%Form == HDF5_  ) then
+                call GetHDF5ArrayDimensions(Me%File%Obj, GroupName, FieldName,          &
+                                            Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR60'                                   
+#ifndef _NO_NETCDF
+            else if (Me%File%Form == NetCDF_) then
+            
+                call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, STAT = STAT_CALL)
+#endif
+            endif            
+
+            if ((Imax < IUB - ILB + 1) .or.                                                &
+                (Jmax < JUB - JLB + 1)) then
+                
+                write (*,*) "GroupName =",trim(GroupName)
+                write (*,*) "FieldName =",trim(FieldName)
+                write (*,*) 'miss match between the input file and model domain'
+                stop 'ReadValues2DHarmonics - ModuleField4D - ERR70'                                   
+
+            endif
+          
+            if      (Me%File%Form == HDF5_  ) then
+
+                call HDF5SetLimits  (Me%File%Obj, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR80'
+                
+                     
+                call HDF5ReadWindow(Me%File%Obj, GroupName, FieldName,                  &
+                                    Array2D = Field, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR90'
+                
+#ifndef _NO_NETCDF
+            else if (Me%File%Form == NetCDF_) then
+            
+                FieldName = trim(NewPropField%Harmonics%WaveName(N))//"/"//char_phase_
+            
+                call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
+                                    Array2D         = Field,                            &
+                                    Name            = FieldName,                        &
+                                    ILB             = ILB,                              &
+                                    IUB             = IUB,                              &
+                                    JLB             = JLB,                              &
+                                    JUB             = JUB,                              &
+                                    STAT            = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR100'            
+#endif            
+            endif           
+            
+            NewPropField%Harmonics%Phase2D(:,:,N) = Field(:,:) / 360.
+            
+        enddo d2        
+        
+        GroupName = trim(NewPropField%VGroupPath)
+        
+        FieldName = char_residual_ 
+    
+        if      (Me%File%Form == HDF5_  ) then
+            call GetHDF5ArrayDimensions(Me%File%Obj, GroupName, FieldName,          &
+                                        Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR60'                                   
+#ifndef _NO_NETCDF
+        else if (Me%File%Form == NetCDF_) then
+        
+            call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, STAT = STAT_CALL)
+#endif
+        endif            
+
+        if ((Imax < IUB - ILB + 1) .or.                                                &
+            (Jmax < JUB - JLB + 1)) then
+            
+            write (*,*) "GroupName =",trim(GroupName)
+            write (*,*) "FieldName =",trim(FieldName)
+            write (*,*) 'miss match between the input file and model domain'
+            stop 'ReadValues2DHarmonics - ModuleField4D - ERR70'                                   
+
+        endif
+      
+        if      (Me%File%Form == HDF5_  ) then
+
+            call HDF5SetLimits  (Me%File%Obj, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR80'
+            
+                 
+            call HDF5ReadWindow(Me%File%Obj, GroupName, FieldName,                  &
+                                Array2D = Field, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR90'
+            
+#ifndef _NO_NETCDF
+        else if (Me%File%Form == NetCDF_) then
+        
+            FieldName = char_residual_
+        
+            call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
+                                Array2D         = Field,                            &
+                                Name            = FieldName,                        &
+                                ILB             = ILB,                              &
+                                IUB             = IUB,                              &
+                                JLB             = JLB,                              &
+                                JUB             = JUB,                              &
+                                STAT            = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues2DHarmonics - ModuleField4D - ERR100'            
+#endif            
+        endif           
+        
+        NewPropField%Harmonics%Residual2D(:,:) = Field(:,:) 
+        
+
+        deallocate(Field)
+
+    end subroutine ReadValues2DHarmonics
+    
+    
+    !--------------------------------------------------------------------------
+
+    subroutine FromHarmonics2Field2D(NewPropField, CurrentTime)
+
+        !Arguments-------------------------------------------------------------
+        type (T_PropField), pointer             :: NewPropField                
+        type (T_Time)                           :: CurrentTime
+       
+        !Local-----------------------------------------------------------------
+        real, dimension(:  ),   pointer         :: Amplitude, Phase
+        real, dimension(:,:)  , pointer         :: Field
+        integer                                 :: STAT_CALL, ILB, IUB, JLB, JUB, NW, i, j, n
+
+        !Begin-----------------------------------------------------------------
+       
+        Field       => Me%Matrix2D
+
+        ILB = Me%WorkSize2D%ILB
+        IUB = Me%WorkSize2D%IUB
+        JLB = Me%WorkSize2D%JLB
+        JUB = Me%WorkSize2D%JUB
+        NW  = NewPropField%Harmonics%Number   
+        
+        do i = ILB,IUB
+        do j = JLB,JUB
+
+            Amplitude   => NewPropField%Harmonics%Amplitude2D(i, j, :)
+            Phase       => NewPropField%Harmonics%Phase2D    (i, j, :)   
+            
+            do n=1,NW
+                if (ISNAN(Amplitude(n))) Amplitude(n) = FillValueReal
+                if (ISNAN(Phase    (n))) Phase    (n) = FillValueReal
+            enddo                 
+            
+            if (sum(Amplitude(1:NW))>0.) then             
+        
+                call Task2000Level(WaterLevel       = Field(i, j),                              &
+                                   TimeReference    = NewPropField%Harmonics%TimeReference,     &
+                                   NWaves           = NewPropField%Harmonics%Number,            &
+                                   WaveAmplitude    = Amplitude,                                &
+                                   WavePhase        = Phase,                                    &
+                                   WaveName         = NewPropField%Harmonics%WaveName,          & 
+                                   time_            = CurrentTime,                              &
+                                   STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'FromHarmonics2Field2D - ModuleField4D - ERR10'  
+                
+                Field(i, j) = Field(i, j) + NewPropField%Harmonics%Residual2D(i, j)
+                
+            else                
+                
+                Field(i, j) = FillValueReal
+                
+            endif                
+        enddo
+        enddo
+    
+        if(NewPropField%HasMultiplyingFactor)then
+            do j = JLB, JUB
+            do i = ILB, IUB
+                Field(i,j) = Field(i,j) * NewPropField%MultiplyingFactor
+            enddo
+            enddo
+        end if
+
+        if(NewPropField%HasAddingFactor)then
+            do j = JLB, JUB
+            do i = ILB, IUB
+                Field(i,j) = Field(i,j) + NewPropField%AddingFactor
+            enddo
+            enddo
+        end if
+        
+        if(NewPropField%MinValueON)then
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Field(i,j) < NewPropField%MinValue) then
+                    Field(i,j) = 0.
+                endif
+            enddo
+            enddo
+        end if        
+
+        if(NewPropField%MaxValueON)then
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Field(i,j) > NewPropField%MaxValue) then
+                    Field(i,j) = 0.
+                endif
+            enddo
+            enddo
+        end if        
+
+        if (associated(Me%Matrix3D)) then
+            Me%Matrix3D(ILB:IUB,JLB:JUB,1) = Field(ILB:IUB,JLB:JUB)
+        endif            
+        
+        nullify(Field)
+    
+    end subroutine FromHarmonics2Field2D
+
+    !--------------------------------------------------------------------------    
+ 
+     
+    !--------------------------------------------------------------------------
+    subroutine ReadValues3DHarmonics (NewPropField)
+
+        !Arguments-------------------------------------------------------------
+        type (T_PropField), pointer             :: NewPropField                
+       
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:,:)  , pointer       :: Field
+        integer                                 :: STAT_CALL, Imax, Jmax, Kmax
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB, NW, N
+        integer                                 :: SILB, SIUB, SJLB, SJUB, SKLB, SKUB
+        integer                                 :: k
+        character(len=StringLength)             :: GroupName, FieldName
+
+        !Begin-----------------------------------------------------------------
+        
+        ILB  = Me%WorkSize3D%ILB
+        IUB  = Me%WorkSize3D%IUB
+        JLB  = Me%WorkSize3D%JLB
+        JUB  = Me%WorkSize3D%JUB
+
+        SILB = Me%Size3D%ILB
+        SIUB = Me%Size3D%IUB
+        SJLB = Me%Size3D%JLB
+        SJUB = Me%Size3D%JUB
+
+        if (NewPropField%From2Dto3D) then
+            KLB = 1
+            KUB = 1
+            SKLB = Me%Size3D%KLB
+            SKUB = Me%Size3D%KUB
+            
+        else
+ 
+            KLB = Me%WorkSize3D%KLB
+            KUB = Me%WorkSize3D%KUB
+            SKLB = Me%Size3D%KLB
+            SKUB = Me%Size3D%KUB
+            
+        endif        
+        
+        
+        NW  = NewPropField%Harmonics%Number
+        
+        allocate(Field(SILB:SIUB,SJLB:SJUB,SKLB:SKUB))
+        
+d1:     do N =1, NW       
+
+            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveName(N))
+            
+            FieldName = char_amplitude_ 
+        
+            if      (Me%File%Form == HDF5_  ) then
+                call GetHDF5ArrayDimensions(Me%File%Obj, GroupName, FieldName,          &
+                                            Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR10'                                   
+#ifndef _NO_NETCDF
+            else if (Me%File%Form == NetCDF_) then
+            
+                call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, KUB = Kmax, STAT = STAT_CALL)
+#endif
+            endif            
+
+            if ((Imax < IUB - ILB + 1) .or.                                             &
+                (Jmax < JUB - JLB + 1) .or.                                             &
+                (Kmax < KUB - KLB + 1)) then
+                
+                write (*,*) "GroupName =",trim(GroupName)
+                write (*,*) "FieldName =",trim(FieldName)
+                write (*,*) 'miss match between the input file and model domain'
+                stop 'ReadValues3DHarmonics - ModuleField4D - ERR20'                                   
+
+            endif
+          
+            if      (Me%File%Form == HDF5_  ) then
+
+                call HDF5SetLimits  (Me%File%Obj, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR30'
+                
+                     
+                call HDF5ReadWindow(Me%File%Obj, GroupName, FieldName,                  &
+                                    Array3D = Field, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR40'
+                
+#ifndef _NO_NETCDF
+            else if (Me%File%Form == NetCDF_) then
+            
+                FieldName = trim(NewPropField%Harmonics%WaveName(N))//"/"//char_amplitude_
+            
+                call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
+                                    Array3D         = Field,                            &
+                                    Name            = FieldName,                        &
+                                    ILB             = ILB,                              &
+                                    IUB             = IUB,                              &
+                                    JLB             = JLB,                              &
+                                    JUB             = JUB,                              &
+                                    KLB             = KLB,                              &
+                                    KUB             = KUB,                              &
+                                    STAT            = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR50'            
+#endif            
+            endif           
+            
+            
+            
+            if (NewPropField%From2Dto3D) then
+                
+                do k=Me%Size3D%KLB, Me%Size3D%KUB
+                    NewPropField%Harmonics%Amplitude3D(:,:,k,N) = Field(:,:,1)
+                enddo
+                
+            else
+                NewPropField%Harmonics%Amplitude3D(:,:,:,N) = Field(:,:,:)                
+            endif        
+                        
+            
+        enddo d1
+        
+d2:     do N =1, NW       
+
+            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveName(N))
+            
+            FieldName = char_phase_ 
+        
+            if      (Me%File%Form == HDF5_  ) then
+                call GetHDF5ArrayDimensions(Me%File%Obj, GroupName, FieldName,          &
+                                            Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR60'                                   
+#ifndef _NO_NETCDF
+            else if (Me%File%Form == NetCDF_) then
+            
+                call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, KUB = Kmax, STAT = STAT_CALL)
+#endif
+            endif            
+
+            if ((Imax < IUB - ILB + 1) .or.                                             &
+                (Jmax < JUB - JLB + 1) .or.                                             &
+                (Kmax < KUB - KLB + 1)) then
+                
+                write (*,*) "GroupName =",trim(GroupName)
+                write (*,*) "FieldName =",trim(FieldName)
+                write (*,*) 'miss match between the input file and model domain'
+                stop 'ReadValues3DHarmonics - ModuleField4D - ERR70'                                   
+
+            endif
+          
+            if      (Me%File%Form == HDF5_  ) then
+
+                call HDF5SetLimits  (Me%File%Obj, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR80'
+                
+                     
+                call HDF5ReadWindow(Me%File%Obj, GroupName, FieldName,                  &
+                                    Array3D = Field, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR90'
+                
+#ifndef _NO_NETCDF
+            else if (Me%File%Form == NetCDF_) then
+            
+                FieldName = trim(NewPropField%Harmonics%WaveName(N))//"/"//char_phase_
+            
+                call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
+                                    Array3D         = Field,                            &
+                                    Name            = FieldName,                        &
+                                    ILB             = ILB,                              &
+                                    IUB             = IUB,                              &
+                                    JLB             = JLB,                              &
+                                    JUB             = JUB,                              &
+                                    KLB             = KLB,                              &
+                                    KUB             = KUB,                              &
+                                    STAT            = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR100'            
+#endif            
+            endif           
+            
+           
+            if (NewPropField%From2Dto3D) then
+                
+                do k=Me%Size3D%KLB, Me%Size3D%KUB
+                    NewPropField%Harmonics%Phase3D(:,:,k,N) = Field(:,:,1) / 360.
+                enddo
+                
+            else
+                NewPropField%Harmonics%Phase3D(:,:,:,N) = Field(:,:,:) / 360.
+            endif     
+            
+        enddo d2        
+        
+        GroupName = trim(NewPropField%VGroupPath)
+        
+        FieldName = char_residual_ 
+    
+        if      (Me%File%Form == HDF5_  ) then
+            call GetHDF5ArrayDimensions(Me%File%Obj, GroupName, FieldName,          &
+                                        Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR60'                                   
+#ifndef _NO_NETCDF
+        else if (Me%File%Form == NetCDF_) then
+        
+            call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, KUB = Kmax, STAT = STAT_CALL)
+#endif
+        endif            
+
+        if ((Imax < IUB - ILB + 1) .or.                                             &
+            (Jmax < JUB - JLB + 1) .or.                                             &
+            (Kmax < KUB - KLB + 1)) then
+            
+            write (*,*) "GroupName =",trim(GroupName)
+            write (*,*) "FieldName =",trim(FieldName)
+            write (*,*) 'miss match between the input file and model domain'
+            stop 'ReadValues3DHarmonics - ModuleField4D - ERR70'                                   
+
+        endif
+      
+        if      (Me%File%Form == HDF5_  ) then
+
+            call HDF5SetLimits  (Me%File%Obj, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR80'
+            
+                 
+            call HDF5ReadWindow(Me%File%Obj, GroupName, FieldName,                  &
+                                Array3D = Field, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR90'
+            
+#ifndef _NO_NETCDF
+        else if (Me%File%Form == NetCDF_) then
+        
+            FieldName = char_residual_
+        
+            call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
+                                Array3D         = Field,                            &
+                                Name            = FieldName,                        &
+                                ILB             = ILB,                              &
+                                IUB             = IUB,                              &
+                                JLB             = JLB,                              &
+                                JUB             = JUB,                              &
+                                KLB             = KLB,                              &
+                                KUB             = KUB,                              &
+                                STAT            = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3DHarmonics - ModuleField4D - ERR100'            
+#endif            
+        endif           
+        
+       
+        if (NewPropField%From2Dto3D) then
+            
+            do k=Me%Size3D%KLB, Me%Size3D%KUB
+                NewPropField%Harmonics%Residual3D(:,:,k) = Field(:,:,1)
+            enddo
+            
+        else
+            NewPropField%Harmonics%Residual3D(:,:,:)   = Field(:,:,:)
+        endif     
+        
+
+        deallocate(Field)
+
+    end subroutine ReadValues3DHarmonics
+    
+    
+    !--------------------------------------------------------------------------
+
+    subroutine FromHarmonics2Field3D(NewPropField, CurrentTime)
+
+        !Arguments-------------------------------------------------------------
+        type (T_PropField), pointer             :: NewPropField                
+        type (T_Time)                           :: CurrentTime
+       
+        !Local-----------------------------------------------------------------
+        real, dimension(:  ),     pointer       :: Amplitude, Phase
+        real, dimension(:,:,:)  , pointer       :: Field
+        integer                                 :: STAT_CALL, ILB, IUB, JLB, JUB, KLB, KUB, NW, i, j, k, n
+
+        !Begin-----------------------------------------------------------------
+       
+        Field       => Me%Matrix3D
+
+        ILB = Me%WorkSize3D%ILB
+        IUB = Me%WorkSize3D%IUB
+        JLB = Me%WorkSize3D%JLB
+        JUB = Me%WorkSize3D%JUB
+        KLB = Me%WorkSize3D%KLB
+        KUB = Me%WorkSize3D%KUB        
+        NW  = NewPropField%Harmonics%Number   
+        
+        do k = KLB,KUB        
+        do j = JLB,JUB
+        do i = ILB,IUB
+
+            Amplitude   => NewPropField%Harmonics%Amplitude3D(i, j, k, :)
+            Phase       => NewPropField%Harmonics%Phase3D    (i, j, k, :)        
+            do n=1,NW
+                if (ISNAN(Amplitude(n))) Amplitude(n) = FillValueReal
+                if (ISNAN(Phase    (n))) Phase    (n) = FillValueReal
+            enddo
+            if (sum(Amplitude(1:NW))>0.) then             
+        
+                call Task2000Level(WaterLevel       = Field(i, j, k),                           &
+                                   TimeReference    = NewPropField%Harmonics%TimeReference,     &
+                                   NWaves           = NewPropField%Harmonics%Number,            &
+                                   WaveAmplitude    = Amplitude,                                &
+                                   WavePhase        = Phase,                                    &
+                                   WaveName         = NewPropField%Harmonics%WaveName,          & 
+                                   time_            = CurrentTime,                              &
+                                   STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'FromHarmonics2Field3D - ModuleField4D - ERR10' 
+                 
+                Field(i, j, k) = Field(i, j, k) + NewPropField%Harmonics%Residual3D(i, j, k)
+                
+            else                
+                
+                Field(i, j, k) = FillValueReal
+                
+            endif   
+        enddo                         
+        enddo
+        enddo
+    
+        if(NewPropField%HasMultiplyingFactor)then
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                Field(i,j,k) = Field(i,j,k) * NewPropField%MultiplyingFactor
+            enddo
+            enddo
+            enddo
+        end if
+
+        if(NewPropField%HasAddingFactor)then
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                Field(i,j,k) = Field(i,j,k) + NewPropField%AddingFactor
+            enddo
+            enddo
+            enddo
+        end if
+        
+        if(NewPropField%MinValueON)then
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Field(i,j,k) < NewPropField%MinValue) then
+                    Field(i,j,k) = 0.
+                endif
+            enddo
+            enddo
+            enddo
+        end if        
+
+        if(NewPropField%MaxValueON)then
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB                
+                if (Field(i,j,k) > NewPropField%MaxValue) then
+                    Field(i,j,k) = 0.
+                endif
+            enddo
+            enddo
+            enddo
+        end if        
+
+        
+        nullify(Field)
+    
+    end subroutine FromHarmonics2Field3D
+
+    !--------------------------------------------------------------------------    
+
+ 
+    !--------------------------------------------------------------------------
+
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -2849,7 +3735,8 @@ it:     if (NewPropField%ChangeInTime) then
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                         :: STAT_, ready_
+        logical                                         :: TimeExist
+        integer                                         :: STAT_, ready_, STAT_CALL
 
         !----------------------------------------------------------------------
 
@@ -2857,10 +3744,22 @@ it:     if (NewPropField%ChangeInTime) then
 
         call Ready(Field4DID, ready_)
 
-        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            NumberOfInstants = Me%File%NumberOfInstants
+            call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                          &
+                                    GroupName   = "/Time",                              &
+                                    Exist       = TimeExist,                            &
+                                    STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetField4DNumberOfInstants - ModuleField4D - ERR10'
+            
+            if (TimeExist) then            
+            
+                NumberOfInstants = Me%File%NumberOfInstants
+
+            else
+                NumberOfInstants = 1
+            endif                
             
             STAT_ = SUCCESS_
 
@@ -2884,7 +3783,8 @@ it:     if (NewPropField%ChangeInTime) then
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_, ready_, STAT_CALL
+        logical                                         :: TimeExist
 
         !----------------------------------------------------------------------
 
@@ -2892,10 +3792,20 @@ it:     if (NewPropField%ChangeInTime) then
 
         call Ready(Field4DID, ready_)
 
-        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            GetField4DInstant = Me%File%InstantsDates(Instant)
+            call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                          &
+                                    GroupName   = "/Time",                              &
+                                    Exist       = TimeExist,                            &
+                                    STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetField4DInstant - ModuleField4D - ERR10'
+            
+            if (TimeExist) then            
+                GetField4DInstant = Me%File%InstantsDates(Instant)
+            else
+                GetField4DInstant = Me%StartTime
+            endif            
             
             STAT_ = SUCCESS_
 
@@ -3020,15 +3930,26 @@ it:     if (NewPropField%ChangeInTime) then
             if (Me%CurrentTimeInt < Me%File%StartTime) CorrectTimeFrame = .false.  
             if (Me%CurrentTimeInt > Me%File%EndTime  ) CorrectTimeFrame = .false.              
             
-            if (CorrectTimeFrame) then
-        
-                call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4D - ModuleField4D - ERR10'
+            call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4D - ModuleField4D - ERR10'
+            
+            if (PropField%Harmonics%ON) CorrectTimeFrame = .true.
+
+            if (CorrectTimeFrame ) then
 
                 if      (PropField%SpaceDim == Dim2D) then
-                    call ModifyInput2D (PropField) 
+                    if (PropField%Harmonics%ON) then
+                        call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)                        
+                    else
+                        call ModifyInput2D        (PropField) 
+                    endif                        
                 else if (PropField%SpaceDim == Dim3D) then
-                    call ModifyInput3D (PropField)
+                    if (PropField%Harmonics%ON) then
+                        call FromHarmonics2Field3D(PropField, Me%CurrentTimeInt)                        
+                    else
+                        call ModifyInput3D        (PropField) 
+                    endif                        
+
                 endif
                 
                 if (Me%Output%Yes) then
@@ -3355,8 +4276,11 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         
         nPoints = size(X)
         
-        call ModifyInput2D(PropField)
-        
+        if (PropField%Harmonics%ON) then
+            call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)                        
+        else
+            call ModifyInput2D        (PropField) 
+        endif                        
 
         call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
                               WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
@@ -3657,7 +4581,12 @@ dnP:    do nP = 1,nPoints
 
         !Begin----------------------------------------------------------------
         
-        call ModifyInput3D(PropField)
+        if (PropField%Harmonics%ON) then
+            call FromHarmonics2Field3D(PropField, Me%CurrentTimeInt)                        
+        else
+            call ModifyInput3D        (PropField) 
+        endif                        
+
         
         call GetWaterPoints3D(Map_ID            = Me%ObjMap,                            &
                               WaterPoints3D     = Me%ExternalVar%WaterPoints3D,         &
@@ -4287,6 +5216,11 @@ wwd:            if (Me%WindowWithData) then
                                 nullify   (PropField%NextField3D)
                             end if
                             
+                            if(associated (PropField%Harmonics%WaveName))then
+                                deallocate(PropField%Harmonics%WaveName)
+                                nullify   (PropField%Harmonics%WaveName)
+                            end if
+                            
                             if(associated (PropField%Harmonics%Phase2D))then
                                 deallocate(PropField%Harmonics%Phase2D)
                                 nullify   (PropField%Harmonics%Phase2D)
@@ -4306,6 +5240,16 @@ wwd:            if (Me%WindowWithData) then
                             if(associated (PropField%Harmonics%Amplitude3D))then
                                 deallocate(PropField%Harmonics%Amplitude3D)
                                 nullify   (PropField%Harmonics%Amplitude3D)
+                            end if
+
+                            if(associated (PropField%Harmonics%Residual3D))then
+                                deallocate(PropField%Harmonics%Residual3D)
+                                nullify   (PropField%Harmonics%Residual3D)
+                            end if
+
+                            if(associated (PropField%Harmonics%Residual2D))then
+                                deallocate(PropField%Harmonics%Residual2D)
+                                nullify   (PropField%Harmonics%Residual2D)
                             end if
                             
                             PropField => PropField%Next

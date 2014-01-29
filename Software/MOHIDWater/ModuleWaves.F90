@@ -87,8 +87,8 @@ Module ModuleWaves
     use ModuleHorizontalGrid,   only : LocateCell, GetHorizontalGridSize, GetHorizontalGrid,    &
                                        GetGridAngle, GetCheckDistortion, GetCoordTypeList,      &
                                        GetGridCoordType,  GetLatitudeLongitude,                 &
-                                       UnGetHorizontalGrid, GetXYCellZ, GetDomainDecompositionMPI_ID, &
-                                       GetDomainDecompositionON, WriteHorizontalGrid,           &
+                                       UnGetHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID, &
+                                       GetDDecompON, WriteHorizontalGrid,           &
                                        GetGridOutBorderPolygon
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,  &
                                        GetIfMatrixRemainsConstant, KillFillMatrix 
@@ -435,8 +435,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                 
   
         call ReadFileName('WAVES_HDF', Me%OutputFile,                                   &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)                           
         if (STAT_CALL/=SUCCESS_) stop 'ReadWavesFilesName - ModuleWaves - ERR10'
                                              

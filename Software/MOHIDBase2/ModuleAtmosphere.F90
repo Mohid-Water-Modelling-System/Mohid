@@ -48,8 +48,8 @@ Module ModuleAtmosphere
     use ModuleHorizontalGrid, only : GetHorizontalGrid, GetHorizontalGridSize, GetGridAngle, &
                                      GetGridLatitudeLongitude, WriteHorizontalGrid,          &
                                      UnGetHorizontalGrid, RotateVectorFieldToGrid,           &
-                                     GetGridCellArea, GetXYCellZ, GetDomainDecompositionMPI_ID,&
-                                     GetDomainDecompositionON, GetGridOutBorderPolygon
+                                     GetGridCellArea, GetXYCellZ, GetDDecompMPI_ID,&
+                                     GetDDecompON, GetGridOutBorderPolygon
     use ModuleStatistic,      only : ConstructStatistic, GetStatisticMethod,                 &
                                      GetStatisticParameters, ModifyStatistic, KillStatistic
     use ModuleStopWatch,      only : StartWatch, StopWatch
@@ -613,8 +613,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call ReadFileName('SURF_HDF', Me%Files%Results, Message = Message,              &
                            TIME_END = Me%EndTime, Extension = 'sur',                    &
-                           MPI_ID   = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON    = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID   = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON    = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT     = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadPropertiesFilesName - ModuleAtmosphere - ERR02'
 

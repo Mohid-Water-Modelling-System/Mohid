@@ -43,7 +43,7 @@ Module ModuleGridData
 #endif
                                       GetCheckDistortion,                               &
                                       GetGridLatitudeLongitude, GetZCoordinates,        &
-                                      GetDomainDecompositionParameters
+                                      GetDDecompParameters
                                       
 #ifndef _NO_HDF5
     use ModuleHDF5,             only: ConstructHDF5, HDF5ReadData, GetHDF5FileAccess,   &
@@ -142,11 +142,11 @@ Module ModuleGridData
 
     end type T_Evolution
     
-    private :: T_DomainDecomposition
-    type       T_DomainDecomposition        
+    private :: T_DDecomp
+    type       T_DDecomp        
         logical                                 :: MasterOrSlave = .false. 
         type (T_Size2D)                         :: HaloMap
-    end type T_DomainDecomposition
+    end type T_DDecomp
     
     
 
@@ -171,7 +171,7 @@ Module ModuleGridData
         real                            :: FillValue           = null_real
         integer                         :: TypeZUV             = null_int
         type (T_Evolution)              :: Evolution
-        type (T_DomainDecomposition)    :: DomainDecomposition
+        type (T_DDecomp)    :: DDecomp
         integer                         :: ObjHorizontalGrid   = 0
         type (T_GridData), pointer      :: Next
     end type T_GridData
@@ -294,9 +294,9 @@ Module ModuleGridData
                                         STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleGridData - ERR03' 
             
-            call GetDomainDecompositionParameters(HorizontalGridID = Me%ObjHorizontalGrid,                 &
-                                                  MasterOrSlave    = Me%DomainDecomposition%MasterOrSlave, &
-                                                  HaloMap          = Me%DomainDecomposition%HaloMap,       &
+            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,                 &
+                                                  MasterOrSlave    = Me%DDecomp%MasterOrSlave, &
+                                                  HaloMap          = Me%DDecomp%HaloMap,       &
                                                   STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleGridData - ERR04' 
 
@@ -656,10 +656,10 @@ Coln1:          if      (flag == 3) then
                         i = int(Aux(1))
                         j = int(Aux(2))
 
-                        if (Me%DomainDecomposition%MasterOrSlave) then
-                            if (i>= Me%DomainDecomposition%HaloMap%ILB .and.            &
-                                i<= Me%DomainDecomposition%HaloMap%IUB+1) then
-                                ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (i>= Me%DDecomp%HaloMap%ILB .and.            &
+                                i<= Me%DDecomp%HaloMap%IUB+1) then
+                                ii = i + 1 - Me%DDecomp%HaloMap%ILB
                             else
                                 cycle
                             endif                                
@@ -667,10 +667,10 @@ Coln1:          if      (flag == 3) then
                             ii = i
                         endif    
                                 
-                        if (Me%DomainDecomposition%MasterOrSlave) then
-                            if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
-                                j<= Me%DomainDecomposition%HaloMap%JUB+1) then
-                                jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                j<= Me%DDecomp%HaloMap%JUB+1) then
+                                jj = j + 1 - Me%DDecomp%HaloMap%JLB
                             else
                                 cycle
                             endif                                
@@ -705,10 +705,10 @@ Coln1:          if      (flag == 3) then
                         if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR180'
                         
 
-                        if (Me%DomainDecomposition%MasterOrSlave) then
-                            if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
-                                i<= Me%DomainDecomposition%HaloMap%IUB+1) then
-                                ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                i<= Me%DDecomp%HaloMap%IUB+1) then
+                                ii = i + 1 - Me%DDecomp%HaloMap%ILB
                             else
                                 cycle
                             endif                                
@@ -716,10 +716,10 @@ Coln1:          if      (flag == 3) then
                             ii = i
                         endif    
                                 
-                        if (Me%DomainDecomposition%MasterOrSlave) then
-                            if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
-                                j<= Me%DomainDecomposition%HaloMap%JUB+1) then
-                                jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                j<= Me%DDecomp%HaloMap%JUB+1) then
+                                jj = j + 1 - Me%DDecomp%HaloMap%JLB
                             else
                                 cycle
                             endif                                
@@ -760,10 +760,10 @@ Coln1:          if      (flag == 3) then
                                      STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR200'
                         
-                        if (Me%DomainDecomposition%MasterOrSlave) then
-                            if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
-                                i<= Me%DomainDecomposition%HaloMap%IUB+1) then
-                                ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                i<= Me%DDecomp%HaloMap%IUB+1) then
+                                ii = i + 1 - Me%DDecomp%HaloMap%ILB
                             else
                                 cycle
                             endif                                
@@ -771,10 +771,10 @@ Coln1:          if      (flag == 3) then
                             ii = i
                         endif    
                                 
-                        if (Me%DomainDecomposition%MasterOrSlave) then
-                            if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
-                                j<= Me%DomainDecomposition%HaloMap%JUB+1) then
-                                jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                j<= Me%DDecomp%HaloMap%JUB+1) then
+                                jj = j + 1 - Me%DDecomp%HaloMap%JLB
                             else
                                 cycle
                             endif                                
@@ -812,10 +812,10 @@ Coln:               if (flag == 4)  then
                             j = int(Aux(2))
                             k = int(Aux(3))
                             
-                            if (Me%DomainDecomposition%MasterOrSlave) then
-                                if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
-                                    i<= Me%DomainDecomposition%HaloMap%IUB+1) then
-                                    ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                    i<= Me%DDecomp%HaloMap%IUB+1) then
+                                    ii = i + 1 - Me%DDecomp%HaloMap%ILB
                                 else
                                     cycle
                                 endif                                
@@ -823,10 +823,10 @@ Coln:               if (flag == 4)  then
                                 ii = i
                             endif    
                                     
-                            if (Me%DomainDecomposition%MasterOrSlave) then
-                                if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
-                                    j<= Me%DomainDecomposition%HaloMap%JUB+1) then
-                                    jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                    j<= Me%DDecomp%HaloMap%JUB+1) then
+                                    jj = j + 1 - Me%DDecomp%HaloMap%JLB
                                 else
                                     cycle
                                 endif                                
@@ -857,10 +857,10 @@ Coln:               if (flag == 4)  then
                             i = int(Aux(1))
                             j = int(Aux(2))
                             
-                            if (Me%DomainDecomposition%MasterOrSlave) then
-                                if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
-                                    i<= Me%DomainDecomposition%HaloMap%IUB+1) then
-                                    ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                    i<= Me%DDecomp%HaloMap%IUB+1) then
+                                    ii = i + 1 - Me%DDecomp%HaloMap%ILB
                                 else
                                     cycle
                                 endif                                
@@ -868,10 +868,10 @@ Coln:               if (flag == 4)  then
                                 ii = i
                             endif    
                                     
-                            if (Me%DomainDecomposition%MasterOrSlave) then
-                                if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
-                                    j<= Me%DomainDecomposition%HaloMap%JUB+1) then
-                                    jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                    j<= Me%DDecomp%HaloMap%JUB+1) then
+                                    jj = j + 1 - Me%DDecomp%HaloMap%JLB
                                 else
                                     cycle
                                 endif                                
@@ -911,10 +911,10 @@ Coln:               if (flag == 4)  then
                                          STAT         = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR250'
                             
-                            if (Me%DomainDecomposition%MasterOrSlave) then
-                                if (i>= Me%DomainDecomposition%HaloMap%ILB .and. &
-                                    i<= Me%DomainDecomposition%HaloMap%IUB+1) then
-                                    ii = i + 1 - Me%DomainDecomposition%HaloMap%ILB
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                    i<= Me%DDecomp%HaloMap%IUB+1) then
+                                    ii = i + 1 - Me%DDecomp%HaloMap%ILB
                                 else
                                     cycle
                                 endif                                
@@ -922,10 +922,10 @@ Coln:               if (flag == 4)  then
                                 ii = i
                             endif    
                                     
-                            if (Me%DomainDecomposition%MasterOrSlave) then
-                                if (j>= Me%DomainDecomposition%HaloMap%JLB .and. &
-                                    j<= Me%DomainDecomposition%HaloMap%JUB+1) then
-                                    jj = j + 1 - Me%DomainDecomposition%HaloMap%JLB
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                    j<= Me%DDecomp%HaloMap%JUB+1) then
+                                    jj = j + 1 - Me%DDecomp%HaloMap%JLB
                                 else
                                     cycle
                                 endif                                

@@ -75,8 +75,8 @@ Module ModuleTurbulence
                                        GetProfileNextOutputTime
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid,          &
                                        WriteHorizontalGrid, GetXYCellZ,                 &
-                                       GetDomainDecompositionMPI_ID,                    &
-                                       GetDomainDecompositionON, GetGridOutBorderPolygon
+                                       GetDDecompMPI_ID,                    &
+                                       GetDDecompON, GetGridOutBorderPolygon
     use ModuleHorizontalMap,    only : GetWaterPoints2D, UnGetHorizontalMap
     use ModuleMap,              only : GetWaterPoints3D, GetOpenPoints3D,               &
                                        GetComputeFaces3D, GetImposedTangentialFaces,    &
@@ -500,8 +500,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR02'
 
             call ReadFileName('TURB_HDF', Me%Files%OutPutFields, "Turbulence HDF File",  &
-                               MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                               DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                               MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                               DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                                STAT      = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR03'
         

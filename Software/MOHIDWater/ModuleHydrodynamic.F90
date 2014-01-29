@@ -131,10 +131,10 @@ Module ModuleHydrodynamic
                                        GetCheckDistortion, GetGridRotation, GetGridAngle,&
                                        RotateVectorFieldToGrid, GetXYCellZ,              &
                                        GetCellZInterceptByPolygon, GetCellZInterceptByLine,&
-                                       GetDomainDecompositionMPI_ID, GetDomainDecompositionON, &
-                                       GetDomainDecompositionSlaves,                     &
-                                       GetDomainDecompositionSlavesSize,                 &
-                                       GetDomainDecompositionParameters,                 &
+                                       GetDDecompMPI_ID, GetDDecompON,                   &
+                                       GetDDecompSlaves,                                 &
+                                       GetDDecompSlavesSize,                             &
+                                       GetDDecompParameters,                             &
                                        WindowIntersectDomain,                            &
                                        ReturnsIntersectionCorners,                       &                                       
                                        GetGridOutBorderPolygon
@@ -697,8 +697,8 @@ Module ModuleHydrodynamic
          character(len=PathLength) :: Energy              = null_str !initialization: jauch
     end type T_Files
     
-    private :: T_DomainDecomposition
-    type       T_DomainDecomposition        
+    private :: T_DDecomp
+    type       T_DDecomp        
         logical                                 :: ON               = .false. 
         logical                                 :: Master           = .false. 
         logical                                 :: MasterOrSlave    = .false. 
@@ -721,7 +721,7 @@ Module ModuleHydrodynamic
         integer                                 :: Halo_Points      = null_int 
         integer, pointer, dimension(:,:)        :: Interfaces       => null()
         integer                                 :: NInterfaces      = null_int 
-    end type T_DomainDecomposition
+    end type T_DDecomp
 
     !Generic 4D
     private :: T_Generic4D
@@ -1631,7 +1631,7 @@ Module ModuleHydrodynamic
         type(T_Scraper       ) :: Scraper
         type(T_Thinwalls     ) :: Thinwalls
         
-        type(T_DomainDecomposition) :: DomainDecomposition
+        type(T_DDecomp)        :: DDecomp
                 
         logical                :: FirstIteration = .true.
 #ifdef _USE_SEQASSIMILATION
@@ -1963,7 +1963,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call Verify_Numerical_Options   
         
-        call ConstructDomainDecomposition        
+        call ConstructDDecomp        
 
         call Construct_OutPutTime
 
@@ -2037,7 +2037,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !End----------------------------------------------------------------
 
-    subroutine ConstructDomainDecomposition
+    subroutine ConstructDDecomp
 
 #ifdef _USE_MPI
 
@@ -2051,88 +2051,88 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         
         
-        call GetDomainDecompositionParameters                                           &
-                             (HorizontalGridID = Me%ObjHorizontalGrid,                  &
-                              ON               = Me%DomainDecomposition%ON,             &
-                              Master           = Me%DomainDecomposition%Master,         &
-                              Master_MPI_ID    = Me%DomainDecomposition%Master_MPI_ID,  &
-                              MasterOrSlave    = Me%DomainDecomposition%MasterOrSlave,  &
-                              NInterfaces      = Me%DomainDecomposition%NInterfaces,    &
-                              Halo_Points      = Me%DomainDecomposition%Halo_Points,    &
-                              MPI_ID           = Me%DomainDecomposition%MPI_ID,         &
-                              Global           = Me%DomainDecomposition%Global,         &  
-                              Mapping          = Me%DomainDecomposition%Mapping,        & 
-                              Inner            = Me%DomainDecomposition%Inner,          &
-                              HaloMap          = Me%DomainDecomposition%HaloMap,        &
+        call GetDDecompParameters                                           &
+                             (HorizontalGridID = Me%ObjHorizontalGrid,      &
+                              ON               = Me%DDecomp%ON,             &
+                              Master           = Me%DDecomp%Master,         &
+                              Master_MPI_ID    = Me%DDecomp%Master_MPI_ID,  &
+                              MasterOrSlave    = Me%DDecomp%MasterOrSlave,  &
+                              NInterfaces      = Me%DDecomp%NInterfaces,    &
+                              Halo_Points      = Me%DDecomp%Halo_Points,    &
+                              MPI_ID           = Me%DDecomp%MPI_ID,         &
+                              Global           = Me%DDecomp%Global,         &  
+                              Mapping          = Me%DDecomp%Mapping,        & 
+                              Inner            = Me%DDecomp%Inner,          &
+                              HaloMap          = Me%DDecomp%HaloMap,        &
                               STAT             = STAT_CALL)
                                               
         if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR10'        
         
-        if (Me%DomainDecomposition%MasterOrSlave) then
+        if (Me%DDecomp%MasterOrSlave) then
 
-            GILB = Me%DomainDecomposition%Global%ILB - 1
-            GIUB = Me%DomainDecomposition%Global%IUB + 1       
-            GJLB = Me%DomainDecomposition%Global%JLB - 1
-            GJUB = Me%DomainDecomposition%Global%JUB + 1               
+            GILB = Me%DDecomp%Global%ILB - 1
+            GIUB = Me%DDecomp%Global%IUB + 1       
+            GJLB = Me%DDecomp%Global%JLB - 1
+            GJUB = Me%DDecomp%Global%JUB + 1               
 
-            if (Me%DomainDecomposition%Master) then
+            if (Me%DDecomp%Master) then
         
             
                 JImin = min (GILB, GJLB)
                 JImax = max (GIUB, GJUB)
                 
-                allocate (Me%DomainDecomposition%VECG(JImin : JImax), STAT = STAT_CALL)
-                allocate (Me%DomainDecomposition%VECW(JImin : JImax), STAT = STAT_CALL)
+                allocate (Me%DDecomp%VECG(JImin : JImax), STAT = STAT_CALL)
+                allocate (Me%DDecomp%VECW(JImin : JImax), STAT = STAT_CALL)
 
-                Me%DomainDecomposition%VECG(:) = 0
-                Me%DomainDecomposition%VECW(:) = 0
+                Me%DDecomp%VECG(:) = 0
+                Me%DDecomp%VECW(:) = 0
                 
-                allocate(Me%DomainDecomposition%Coef)
+                allocate(Me%DDecomp%Coef)
 
-                allocate (Me%DomainDecomposition%Coef%D    (GILB:GIUB, GJLB:GJUB)) 
-                allocate (Me%DomainDecomposition%Coef%E    (GILB:GIUB, GJLB:GJUB)) 
-                allocate (Me%DomainDecomposition%Coef%Eaux (GILB:GIUB, GJLB:GJUB))         
-                allocate (Me%DomainDecomposition%Coef%F    (GILB:GIUB, GJLB:GJUB)) 
-                allocate (Me%DomainDecomposition%Coef%Ti   (GILB:GIUB, GJLB:GJUB)) 
-                allocate (Me%DomainDecomposition%Coef%TiAux(GILB:GIUB, GJLB:GJUB)) 
+                allocate (Me%DDecomp%Coef%D    (GILB:GIUB, GJLB:GJUB)) 
+                allocate (Me%DDecomp%Coef%E    (GILB:GIUB, GJLB:GJUB)) 
+                allocate (Me%DDecomp%Coef%Eaux (GILB:GIUB, GJLB:GJUB))         
+                allocate (Me%DDecomp%Coef%F    (GILB:GIUB, GJLB:GJUB)) 
+                allocate (Me%DDecomp%Coef%Ti   (GILB:GIUB, GJLB:GJUB)) 
+                allocate (Me%DDecomp%Coef%TiAux(GILB:GIUB, GJLB:GJUB)) 
                 
-                Me%DomainDecomposition%Coef%D    (:,:)= 0
-                Me%DomainDecomposition%Coef%E    (:,:)= 1
-                Me%DomainDecomposition%Coef%Eaux (:,:)= 1
-                Me%DomainDecomposition%Coef%F    (:,:)= 0
-                Me%DomainDecomposition%Coef%Ti   (:,:)= 0
-                Me%DomainDecomposition%Coef%TiAux(:,:)= 0
+                Me%DDecomp%Coef%D    (:,:)= 0
+                Me%DDecomp%Coef%E    (:,:)= 1
+                Me%DDecomp%Coef%Eaux (:,:)= 1
+                Me%DDecomp%Coef%F    (:,:)= 0
+                Me%DDecomp%Coef%Ti   (:,:)= 0
+                Me%DDecomp%Coef%TiAux(:,:)= 0
                 
-                allocate (Me%DomainDecomposition%WaterLevel_New(GILB:GIUB, GJLB:GJUB)) 
+                allocate (Me%DDecomp%WaterLevel_New(GILB:GIUB, GJLB:GJUB)) 
                 
-                Me%DomainDecomposition%WaterLevel_New(:,:) = 0.
+                Me%DDecomp%WaterLevel_New(:,:) = 0.
                 
-                call GetDomainDecompositionSlaves(HorizontalGridID = Me%ObjHorizontalGrid,&
-                                                  Nslaves          = Me%DomainDecomposition%Nslaves,&
-                                                  Slaves_MPI_ID    = Slaves_MPI_ID,     &
-                                                  STAT             = STAT_CALL)
+                call GetDDecompSlaves(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                      Nslaves          = Me%DDecomp%Nslaves,            &
+                                      Slaves_MPI_ID    = Slaves_MPI_ID,                 &
+                                      STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR20'
                 
-                allocate(Me%DomainDecomposition%Slaves_MPI_ID (Me%DomainDecomposition%Nslaves))
+                allocate(Me%DDecomp%Slaves_MPI_ID (Me%DDecomp%Nslaves))
                 
-                Me%DomainDecomposition%Slaves_MPI_ID(:) = Slaves_MPI_ID(:)
+                Me%DDecomp%Slaves_MPI_ID(:) = Slaves_MPI_ID(:)
                 
                 call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Slaves_MPI_ID, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR30'
                 
-                allocate(Me%DomainDecomposition%Slaves_Inner  (Me%DomainDecomposition%Nslaves))
-                allocate(Me%DomainDecomposition%Slaves_Size   (Me%DomainDecomposition%Nslaves))
-                allocate(Me%DomainDecomposition%Slaves_Mapping(Me%DomainDecomposition%Nslaves))
-                allocate(Me%DomainDecomposition%Slaves_HaloMap(Me%DomainDecomposition%Nslaves))
+                allocate(Me%DDecomp%Slaves_Inner  (Me%DDecomp%Nslaves))
+                allocate(Me%DDecomp%Slaves_Size   (Me%DDecomp%Nslaves))
+                allocate(Me%DDecomp%Slaves_Mapping(Me%DDecomp%Nslaves))
+                allocate(Me%DDecomp%Slaves_HaloMap(Me%DDecomp%Nslaves))
                 
-                do i=1, Me%DomainDecomposition%Nslaves
-                    call GetDomainDecompositionSlavesSize                               &
+                do i=1, Me%DDecomp%Nslaves
+                    call GetDDecompSlavesSize                                           &
                           (HorizontalGridID = Me%ObjHorizontalGrid,                     &
                           iSlave           = i,                                         &
-                          Slaves_Inner     = Me%DomainDecomposition%Slaves_Inner(i),    &
-                          Slaves_Size      = Me%DomainDecomposition%Slaves_Size(i),     &   
-                          Slaves_Mapping   = Me%DomainDecomposition%Slaves_Mapping(i),  &
-                          Slaves_HaloMap   = Me%DomainDecomposition%Slaves_HaloMap(i),  &
+                          Slaves_Inner     = Me%DDecomp%Slaves_Inner(i),                &
+                          Slaves_Size      = Me%DDecomp%Slaves_Size(i),                 &   
+                          Slaves_Mapping   = Me%DDecomp%Slaves_Mapping(i),              &
+                          Slaves_HaloMap   = Me%DDecomp%Slaves_HaloMap(i),              &
                           STAT             = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR40'
                 enddo
@@ -2143,7 +2143,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
 #endif _USE_MPI        
 
-    end subroutine ConstructDomainDecomposition
+    end subroutine ConstructDDecomp
 
     !End----------------------------------------------------------------
 
@@ -2378,7 +2378,9 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                        PointsToFill2D       = Me%External_Var%WaterPoints2D,&
                                        Matrix2D             = Me%WaterLevel%New,            &
                                        TypeZUV              = TypeZ_,                       &
+                                       ClientID             = ClientNumber,                 &
                                        STAT                 = STAT_CALL)
+                                       
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR30'
             
             Me%WaterLevel%New (:,:) = Me%WaterLevel%New (:,:) / Me%OutPut%WaterLevelUnits            
@@ -2510,7 +2512,8 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                        PointsToFill3D       = PointsToFill3D,                   &
                                        Matrix3D             = Matrix3D,                         &
                                        TypeZUV              = Me%Velocity%Horizontal%U%InTypeZUV,&
-                                       FillMatrix           = 0.,                               &             
+                                       FillMatrix           = 0.,                               &
+                                       ClientID             = ClientNumber,                     &                                        
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR150'
 
@@ -2619,7 +2622,8 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                        PointsToFill3D       = PointsToFill3D,                   &
                                        Matrix3D             = Matrix3D,                         &
                                        TypeZUV              = Me%Velocity%Horizontal%V%InTypeZUV,&
-                                       FillMatrix           = 0.,                               &             
+                                       FillMatrix           = 0.,                               &
+                                       ClientID             = ClientNumber,                     &            
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR240'
 
@@ -3387,11 +3391,11 @@ cd1:    if (Evolution == Solve_Equations_) then
         call ReadFileName('OUT_DESF', Me%Files%OutPutFields,                            &
                            Message   = Message, TIME_END = Me%EndTime,                  &
                            Extension = 'hyt',                                           &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),          &
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),          &
                            STAT      = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                  &
+        if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. ERR03.' 
 
 
@@ -3403,8 +3407,8 @@ cd1:    if (Evolution == Solve_Equations_) then
         call ReadFileName('OUT_FIN', Me%Files%FinalHydrodynamic,                        &
                            Message   = Message, TIME_END = Me%EndTime,                  &
                            Extension = 'hyf',                                           &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),          &
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),          &
                            STAT      = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. ERR04.' 
@@ -3417,8 +3421,8 @@ cd1:    if (Evolution == Solve_Equations_) then
 
         call ReadFileName('IN_CNDI', Me%Files%InitialHydrodynamic,                      &
                            Message   = Message, TIME_END = Me%BeginTime,                &
-                           MPI_ID    = GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDomainDecompositionON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)
 
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
@@ -3466,8 +3470,8 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         Me%Files%Energy = trim(adjustl(RootPath))//"TotalEnergy.dat"
 
-        if (GetDomainDecompositionON    (Me%ObjHorizontalGrid)) then
-            write(AuxChar,fmt='(i5)') GetDomainDecompositionMPI_ID(Me%ObjHorizontalGrid)
+        if (GetDDecompON    (Me%ObjHorizontalGrid)) then
+            write(AuxChar,fmt='(i5)') GetDDecompMPI_ID(Me%ObjHorizontalGrid)
             Auxchar = "_"//trim(adjustl(Auxchar))//".MPI"
             Me%Files%Energy = trim(Me%Files%Energy) // Auxchar
         endif
@@ -9865,7 +9869,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
             GlobalWorkSizeWindow         = WorkSize2D
             Me%OutW%OutPutWindows(iW)%ON = .true.
             
-            if (Me%DomainDecomposition%MasterOrSlave) then
+            if (Me%DDecomp%MasterOrSlave) then
             
                 if (WindowIntersectDomain(Me%ObjHorizontalGrid, WorkSize2D)) then
                 
@@ -14639,7 +14643,7 @@ cd77:       if ((ImposedTangFacesUSon(i, j, k) == Imposed  .or.                 
                     if (Me%SubModel%MissingNull) then 
                         Me%SubModel%U_New(i, j, k)  = 0.
                     else
-                        write(*,*) Me%ModelName, Me%DomainDecomposition%MPI_ID
+                        write(*,*) Me%ModelName, Me%DDecomp%MPI_ID
                         write(*,*) 'i, j, k'
                         write(*,*) i, j, k                    
                         !!!! $OMP CRITICAL (ASMV7_ERR09)
@@ -20209,6 +20213,7 @@ cd3:        if (Previous_Direction == DirectionY_) then
         real, dimension(:,:), pointer               :: GaugeElevation, GaugeVelocity    
         integer                                     :: Evolution, Grid
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, k
+        integer                                     :: STAT_CALL
         
         
 
@@ -20264,6 +20269,10 @@ cd1:    if (Evolution == Solve_Equations_) then
         else if (Evolution == ImposedSolution_) then cd1
 
             call ReadImposedSolution
+
+            !Update the moving boundary (boundary of the tidal areas covered)
+            call UpdateComputeFaces3D(Me%ObjMap, Me%WaterLevel%New,                     &
+                                      Me%CurrentTime, STAT = STAT_CALL)               
 
             call Modify_HorizontalWaterFlow
             
@@ -23430,8 +23439,8 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
                  (Me%CyclicBoundary%ON .and. Me%CyclicBoundary%Direction == Me%Direction%YX))  then
 
 
-            if (Me%DomainDecomposition%ON) then
-                call THOMAS_2D_DomainDecomposition
+            if (Me%DDecomp%ON) then
+                call THOMAS_2D_DDecomp
             else
                 !griflet: old call
                 call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, DCoef_2D, ECoef_2D,       &
@@ -23488,7 +23497,7 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    subroutine THOMAS_2D_DomainDecomposition     
+    subroutine THOMAS_2D_DDecomp     
     
 #ifdef _USE_MPI
 
@@ -23510,27 +23519,27 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         di          =  Me%Direction%di
         dj          =  Me%Direction%dj
         
-if1:    if (Me%DomainDecomposition%MasterOrSlave) then
+if1:    if (Me%DDecomp%MasterOrSlave) then
             !Joins all the sub-domain coefficients in a global domain
             
             call AggregatesThomasCoefs
             
-if2:        if (Me%DomainDecomposition%Master) then
+if2:        if (Me%DDecomp%Master) then
             
-                IUB = Me%DomainDecomposition%Global%IUB
-                ILB = Me%DomainDecomposition%Global%ILB
-                JUB = Me%DomainDecomposition%Global%JUB
-                JLB = Me%DomainDecomposition%Global%JLB
+                IUB = Me%DDecomp%Global%IUB
+                ILB = Me%DDecomp%Global%ILB
+                JUB = Me%DDecomp%Global%JUB
+                JLB = Me%DDecomp%Global%JLB
 
-                DCoef_2D  => Me%DomainDecomposition%Coef%D
-                ECoef_2D  => Me%DomainDecomposition%Coef%E
-                FCoef_2D  => Me%DomainDecomposition%Coef%F
-                TiCoef_2D => Me%DomainDecomposition%Coef%Ti
+                DCoef_2D  => Me%DDecomp%Coef%D
+                ECoef_2D  => Me%DDecomp%Coef%E
+                FCoef_2D  => Me%DDecomp%Coef%F
+                TiCoef_2D => Me%DDecomp%Coef%Ti
                 
-                VECG      => Me%DomainDecomposition%VECG
-                VECW      => Me%DomainDecomposition%VECW
+                VECG      => Me%DDecomp%VECG
+                VECW      => Me%DDecomp%VECW
                 
-                WaterLevel_New  => Me%DomainDecomposition%WaterLevel_New
+                WaterLevel_New  => Me%DDecomp%WaterLevel_New
                 
                 IJmin = ILB * dj + JLB * di
                 IJmax = IUB * dj + JUB * di
@@ -23567,7 +23576,7 @@ if2:        if (Me%DomainDecomposition%Master) then
         
 #endif _USE_MPI
 
-    end subroutine THOMAS_2D_DomainDecomposition         
+    end subroutine THOMAS_2D_DDecomp         
 
     !------------------------------------------------------------------------------
     
@@ -23613,66 +23622,66 @@ if2:        if (Me%DomainDecomposition%Master) then
             iSize = 16
             allocate(Aux1D(iSize))
                     
-            if (Me%DomainDecomposition%Master) then
+            if (Me%DDecomp%Master) then
             
-                do i=1, Me%DomainDecomposition%Nslaves
+                do i=1, Me%DDecomp%Nslaves
 
                     Precision = MPI_INTEGER
-                    Source    = Me%DomainDecomposition%Slaves_MPI_ID(i)
+                    Source    = Me%DDecomp%Slaves_MPI_ID(i)
                     
-                    write(*,*) 'mpi_receive from to ', i, Me%DomainDecomposition%MPI_ID                    
+                    write(*,*) 'mpi_receive from to ', i, Me%DDecomp%MPI_ID                    
                     
                     call MPI_Recv (Aux1D(1:iSize), iSize, Precision,   Source, 30001, MPI_COMM_WORLD, status, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
                 
-                    Me%DomainDecomposition%Slaves_Inner  (i)%ILB = Aux1D(1)
-                    Me%DomainDecomposition%Slaves_Inner  (i)%IUB = Aux1D(2)
-                    Me%DomainDecomposition%Slaves_Inner  (i)%JLB = Aux1D(3)
-                    Me%DomainDecomposition%Slaves_Inner  (i)%JUB = Aux1D(4)
+                    Me%DDecomp%Slaves_Inner  (i)%ILB = Aux1D(1)
+                    Me%DDecomp%Slaves_Inner  (i)%IUB = Aux1D(2)
+                    Me%DDecomp%Slaves_Inner  (i)%JLB = Aux1D(3)
+                    Me%DDecomp%Slaves_Inner  (i)%JUB = Aux1D(4)
 
-                    Me%DomainDecomposition%Slaves_HaloMap(i)%ILB = Aux1D(5)
-                    Me%DomainDecomposition%Slaves_HaloMap(i)%IUB = Aux1D(6)
-                    Me%DomainDecomposition%Slaves_HaloMap(i)%JLB = Aux1D(7)
-                    Me%DomainDecomposition%Slaves_HaloMap(i)%JUB = Aux1D(8)
+                    Me%DDecomp%Slaves_HaloMap(i)%ILB = Aux1D(5)
+                    Me%DDecomp%Slaves_HaloMap(i)%IUB = Aux1D(6)
+                    Me%DDecomp%Slaves_HaloMap(i)%JLB = Aux1D(7)
+                    Me%DDecomp%Slaves_HaloMap(i)%JUB = Aux1D(8)
 
-                    Me%DomainDecomposition%Slaves_Size   (i)%ILB = Aux1D(9)
-                    Me%DomainDecomposition%Slaves_Size   (i)%IUB = Aux1D(10)
-                    Me%DomainDecomposition%Slaves_Size   (i)%JLB = Aux1D(11)
-                    Me%DomainDecomposition%Slaves_Size   (i)%JUB = Aux1D(12)
+                    Me%DDecomp%Slaves_Size   (i)%ILB = Aux1D(9)
+                    Me%DDecomp%Slaves_Size   (i)%IUB = Aux1D(10)
+                    Me%DDecomp%Slaves_Size   (i)%JLB = Aux1D(11)
+                    Me%DDecomp%Slaves_Size   (i)%JUB = Aux1D(12)
 
-                    Me%DomainDecomposition%Slaves_Mapping(i)%ILB = Aux1D(13)
-                    Me%DomainDecomposition%Slaves_Mapping(i)%IUB = Aux1D(14)
-                    Me%DomainDecomposition%Slaves_Mapping(i)%JLB = Aux1D(15)
-                    Me%DomainDecomposition%Slaves_Mapping(i)%JUB = Aux1D(16)
+                    Me%DDecomp%Slaves_Mapping(i)%ILB = Aux1D(13)
+                    Me%DDecomp%Slaves_Mapping(i)%IUB = Aux1D(14)
+                    Me%DDecomp%Slaves_Mapping(i)%JLB = Aux1D(15)
+                    Me%DDecomp%Slaves_Mapping(i)%JUB = Aux1D(16)
 
                 enddo
 
             else
             
-                Aux1D(1) = Me%DomainDecomposition%Inner%ILB
-                Aux1D(2) = Me%DomainDecomposition%Inner%IUB
-                Aux1D(3) = Me%DomainDecomposition%Inner%JLB
-                Aux1D(4) = Me%DomainDecomposition%Inner%JUB
+                Aux1D(1) = Me%DDecomp%Inner%ILB
+                Aux1D(2) = Me%DDecomp%Inner%IUB
+                Aux1D(3) = Me%DDecomp%Inner%JLB
+                Aux1D(4) = Me%DDecomp%Inner%JUB
                 
-                Aux1D(5) = Me%DomainDecomposition%HaloMap%ILB
-                Aux1D(6) = Me%DomainDecomposition%HaloMap%IUB
-                Aux1D(7) = Me%DomainDecomposition%HaloMap%JLB
-                Aux1D(8) = Me%DomainDecomposition%HaloMap%JUB
+                Aux1D(5) = Me%DDecomp%HaloMap%ILB
+                Aux1D(6) = Me%DDecomp%HaloMap%IUB
+                Aux1D(7) = Me%DDecomp%HaloMap%JLB
+                Aux1D(8) = Me%DDecomp%HaloMap%JUB
 
                 Aux1D(9) = Me%WorkSize2D%ILB
                 Aux1D(10)= Me%WorkSize2D%IUB
                 Aux1D(11)= Me%WorkSize2D%JLB
                 Aux1D(12)= Me%WorkSize2D%JUB            
 
-                Aux1D(13) = Me%DomainDecomposition%Mapping%ILB
-                Aux1D(14) = Me%DomainDecomposition%Mapping%IUB
-                Aux1D(15) = Me%DomainDecomposition%Mapping%JLB
-                Aux1D(16) = Me%DomainDecomposition%Mapping%JUB
+                Aux1D(13) = Me%DDecomp%Mapping%ILB
+                Aux1D(14) = Me%DDecomp%Mapping%IUB
+                Aux1D(15) = Me%DDecomp%Mapping%JLB
+                Aux1D(16) = Me%DDecomp%Mapping%JUB
            
                 Precision   = MPI_INTEGER
-                Destination = Me%DomainDecomposition%Master_MPI_ID
+                Destination = Me%DDecomp%Master_MPI_ID
                 
-                write(*,*) 'mpi_send', Me%DomainDecomposition%MPI_ID
+                write(*,*) 'mpi_send', Me%DDecomp%MPI_ID
                 
                 call MPI_Send (Aux1D(1:iSize), iSize, Precision, Destination, 30001, MPI_COMM_WORLD, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
@@ -23683,26 +23692,26 @@ if2:        if (Me%DomainDecomposition%Master) then
             
         endif            
 
-        IUB = Me%DomainDecomposition%Global%IUB
-        ILB = Me%DomainDecomposition%Global%ILB
-        JUB = Me%DomainDecomposition%Global%JUB
-        JLB = Me%DomainDecomposition%Global%JLB
+        IUB = Me%DDecomp%Global%IUB
+        ILB = Me%DDecomp%Global%ILB
+        JUB = Me%DDecomp%Global%JUB
+        JLB = Me%DDecomp%Global%JLB
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
  
-        if (Me%DomainDecomposition%Master) then
+        if (Me%DDecomp%Master) then
         
             call CopyThomasCoefs(D = Me%Coef%D2%D, E  = Me%Coef%D2%E,                   &
                                  F = Me%Coef%D2%F, Ti = Me%Coef%D2%Ti,                  &
-                                 Inner   = Me%DomainDecomposition%Inner,                &
-                                 Mapping = Me%DomainDecomposition%Mapping)
+                                 Inner   = Me%DDecomp%Inner,                &
+                                 Mapping = Me%DDecomp%Mapping)
                                  
-            do i=1, Me%DomainDecomposition%Nslaves
+            do i=1, Me%DDecomp%Nslaves
             
-                Inner   = Me%DomainDecomposition%Slaves_Inner  (i)
+                Inner   = Me%DDecomp%Slaves_Inner  (i)
                 
-                Mapping = Me%DomainDecomposition%Slaves_Mapping(i)
+                Mapping = Me%DDecomp%Slaves_Mapping(i)
 
                 allocate(D (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
                 allocate(E (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
@@ -23713,7 +23722,7 @@ if2:        if (Me%DomainDecomposition%Master) then
                 
                 Precision = MPIKind(D)
                 
-                Source    =  Me%DomainDecomposition%Slaves_MPI_ID(i)
+                Source    =  Me%DDecomp%Slaves_MPI_ID(i)
                 
                 call MPI_Recv (D(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
                                Source, 20001, MPI_COMM_WORLD, status, STAT_CALL)
@@ -23749,7 +23758,7 @@ if2:        if (Me%DomainDecomposition%Master) then
             
         else
 
-            Inner       = Me%DomainDecomposition%Inner   
+            Inner       = Me%DDecomp%Inner   
             
             allocate(D (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
             allocate(E (Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB))
@@ -23764,7 +23773,7 @@ if2:        if (Me%DomainDecomposition%Master) then
             
             iSize       = (Inner%IUB-Inner%ILB+1) * (Inner%JUB-Inner%JLB+1)
             Precision   = MPIKind(D)
-            Destination = Me%DomainDecomposition%Master_MPI_ID
+            Destination = Me%DDecomp%Master_MPI_ID
             
             call MPI_Send (D(Inner%ILB:Inner%IUB, Inner%JLB:Inner%JUB), iSize, Precision,   &
                            Destination, 20001, MPI_COMM_WORLD, STAT_CALL)
@@ -23834,38 +23843,38 @@ if2:        if (Me%DomainDecomposition%Master) then
         
         !Begin---------------------------------------------------------------
 
-        IUB = Me%DomainDecomposition%Global%IUB
-        ILB = Me%DomainDecomposition%Global%ILB
-        JUB = Me%DomainDecomposition%Global%JUB
-        JLB = Me%DomainDecomposition%Global%JLB
+        IUB = Me%DDecomp%Global%IUB
+        ILB = Me%DDecomp%Global%ILB
+        JUB = Me%DDecomp%Global%JUB
+        JLB = Me%DDecomp%Global%JLB
 
         di  =  Me%Direction%di
         dj  =  Me%Direction%dj
  
-        if (Me%DomainDecomposition%Master) then
+        if (Me%DDecomp%Master) then
         
             WorkSize = Me%WorkSize2D
-            HaloMap  = Me%DomainDecomposition%HaloMap
+            HaloMap  = Me%DDecomp%HaloMap
         
             Me%WaterLevel%New(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =   &
-                Me%DomainDecomposition%WaterLevel_New(HaloMap%ILB:HaloMap%IUB,          &
+                Me%DDecomp%WaterLevel_New(HaloMap%ILB:HaloMap%IUB,          &
                                                       HaloMap%JLB:HaloMap%JUB)
 
-            do i=1, Me%DomainDecomposition%Nslaves
+            do i=1, Me%DDecomp%Nslaves
             
-                WorkSize =  Me%DomainDecomposition%Slaves_Size   (i)
-                HaloMap  =  Me%DomainDecomposition%Slaves_HaloMap(i)
+                WorkSize =  Me%DDecomp%Slaves_Size   (i)
+                HaloMap  =  Me%DDecomp%Slaves_HaloMap(i)
                 
                 allocate(WL (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))
                 
                 WL(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =               &
-                    Me%DomainDecomposition%WaterLevel_New(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB)
+                    Me%DDecomp%WaterLevel_New(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB)
                     
                 iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
                 
                 Precision   = MPIKind(WL)
                 
-                Destination =  Me%DomainDecomposition%Slaves_MPI_ID(i)
+                Destination =  Me%DDecomp%Slaves_MPI_ID(i)
 
                 call MPI_Send (WL(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
                                Destination, 20006, MPI_COMM_WORLD, STAT_CALL)
@@ -23884,7 +23893,7 @@ if2:        if (Me%DomainDecomposition%Master) then
        
             iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
             Precision   = MPIKind(WL)
-            Source      = Me%DomainDecomposition%Master_MPI_ID
+            Source      = Me%DDecomp%Master_MPI_ID
             
             call MPI_Recv (WL(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
                            Source, 20006, MPI_COMM_WORLD, status, STAT_CALL)
@@ -23933,10 +23942,10 @@ if2:        if (Me%DomainDecomposition%Master) then
         nullify(FCoef_2D )
         nullify(TiCoef_2D)        
  
-        DCoef_2D  => Me%DomainDecomposition%Coef%D
-        ECoef_2D  => Me%DomainDecomposition%Coef%E
-        FCoef_2D  => Me%DomainDecomposition%Coef%F
-        TiCoef_2D => Me%DomainDecomposition%Coef%Ti
+        DCoef_2D  => Me%DDecomp%Coef%D
+        ECoef_2D  => Me%DDecomp%Coef%E
+        FCoef_2D  => Me%DDecomp%Coef%F
+        TiCoef_2D => Me%DDecomp%Coef%Ti
 
         
         Dcoef_2D(Mapping%ILB:Mapping%IUB, Mapping%JLB:Mapping%JUB) =                    &
@@ -23998,15 +24007,15 @@ if2:        if (Me%DomainDecomposition%Master) then
         
         !Begin---------------------------------------------------------------
             
-idd:    if (Me%DomainDecomposition%MasterOrSlave) then
+idd:    if (Me%DDecomp%MasterOrSlave) then
 
         
-            call GetDomainDecompositionParameters(HorizontalGridID = Me%ObjHorizontalGrid,  &
-                                                  Interfaces       = Me%DomainDecomposition%Interfaces,&
-                                                  STAT             = STAT_CALL)
+            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                      Interfaces       = Me%DDecomp%Interfaces,         &
+                                      STAT             = STAT_CALL)
 
 
-            Halo_Points = Me%DomainDecomposition%Halo_Points 
+            Halo_Points = Me%DDecomp%Halo_Points 
             
 
             IUB = Me%WorkSize%IUB
@@ -24030,16 +24039,16 @@ idd:    if (Me%DomainDecomposition%MasterOrSlave) then
             
             Precision   = MPIKind(Property3D)
             
-    difd:   do ifd = 1, Me%DomainDecomposition%NInterfaces
+    difd:   do ifd = 1, Me%DDecomp%NInterfaces
 
-                DomainA   = Me%DomainDecomposition%Interfaces(ifd,1) 
-                DomainB   = Me%DomainDecomposition%Interfaces(ifd,2) 
-                Direction = Me%DomainDecomposition%Interfaces(ifd,3)
+                DomainA   = Me%DDecomp%Interfaces(ifd,1) 
+                DomainB   = Me%DDecomp%Interfaces(ifd,2) 
+                Direction = Me%DDecomp%Interfaces(ifd,3)
             
     iSN:        if (Direction == SouthNorth_) then
             
                     !Then North border communication
-    iN:             if (Me%DomainDecomposition%MPI_ID == DomainA) then
+    iN:             if (Me%DDecomp%MPI_ID == DomainA) then
 
                         Bandwidth   = Halo_Points + di
                         iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
@@ -24064,7 +24073,7 @@ idd:    if (Me%DomainDecomposition%MasterOrSlave) then
                     endif iN
 
                     !Then South border communication
-    iS:             if (Me%DomainDecomposition%MPI_ID == DomainB) then
+    iS:             if (Me%DDecomp%MPI_ID == DomainB) then
 
                         Bandwidth   = Halo_Points + di
                         iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
@@ -24093,7 +24102,7 @@ idd:    if (Me%DomainDecomposition%MasterOrSlave) then
     iWE:        if (Direction == WestEast_) then
                 
                     !Then East border communication
-    iE:             if (Me%DomainDecomposition%MPI_ID == DomainA) then
+    iE:             if (Me%DDecomp%MPI_ID == DomainA) then
 
                         Bandwidth   = Halo_Points + dj
                         iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
@@ -24118,7 +24127,7 @@ idd:    if (Me%DomainDecomposition%MasterOrSlave) then
                     endif iE
 
                     !Then West border communication
-    iW:             if (Me%DomainDecomposition%MPI_ID == DomainB) then
+    iW:             if (Me%DDecomp%MPI_ID == DomainB) then
 
                         Bandwidth   = Halo_Points + dj
                         iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
@@ -24146,7 +24155,7 @@ idd:    if (Me%DomainDecomposition%MasterOrSlave) then
                    
             enddo difd
 
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%DomainDecomposition%Interfaces, STAT = STAT_CALL)
+            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%DDecomp%Interfaces, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendVelocity3DMPI - ModuleHydrodynamic - ERR100'         
             
         endif idd            
@@ -38238,14 +38247,6 @@ dok1:           do  k = Kbottom + 1, KUB
 
                     endif
                     
-                    !griflet: Falta esta linha! Sem esta linha os
-                    !griflet: resultados com e sem openmp não batem certo.
-                    !griflet: O problema é que com esta linha activa
-                    !griflet: o meu caso teste, o pcoms, rebenta logo :(
-                    !griflet: mudando o esquema de adv vertical para upwind1
-                    !griflet: já corre.
-                    !griflet: Podes confirmar isso Paulo? Obrigado.
-                    !griflet: 2011-08-08
                     NearBoundary = .false.
 
                     if (Face_Flux > 0) then
@@ -43878,7 +43879,7 @@ cd3:            if (Me%OutPut%hdf5ON) then
                 ! No need to give error yet, Module still has users
 #endif _ENABLE_CUDA        
 
-                call KillDomainDecomposition        
+                call KillDDecomp        
                 
                 call DeallocateVariables                 
                
@@ -45575,7 +45576,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
     !--------------------------------------------------------------------------
 
-    subroutine KillDomainDecomposition
+    subroutine KillDDecomp
 
 #ifdef _USE_MPI
 
@@ -45584,49 +45585,49 @@ ic1:    if (Me%CyclicBoundary%ON) then
         !Local-----------------------------------------------------------------
 
 
-        if (associated(Me%DomainDecomposition%Slaves_MPI_ID))    then
-            deallocate(Me%DomainDecomposition%Slaves_MPI_ID)
-            nullify   (Me%DomainDecomposition%Slaves_MPI_ID)
+        if (associated(Me%DDecomp%Slaves_MPI_ID))    then
+            deallocate(Me%DDecomp%Slaves_MPI_ID)
+            nullify   (Me%DDecomp%Slaves_MPI_ID)
         endif
         
-        if (associated(Me%DomainDecomposition%Slaves_Size))      then
-            deallocate(Me%DomainDecomposition%Slaves_Size)
-            nullify   (Me%DomainDecomposition%Slaves_Size)
+        if (associated(Me%DDecomp%Slaves_Size))      then
+            deallocate(Me%DDecomp%Slaves_Size)
+            nullify   (Me%DDecomp%Slaves_Size)
         endif
 
-        if (associated(Me%DomainDecomposition%Slaves_Inner))     then
-            deallocate(Me%DomainDecomposition%Slaves_Inner)
-            nullify   (Me%DomainDecomposition%Slaves_Inner)
+        if (associated(Me%DDecomp%Slaves_Inner))     then
+            deallocate(Me%DDecomp%Slaves_Inner)
+            nullify   (Me%DDecomp%Slaves_Inner)
         endif
         
-        if (associated(Me%DomainDecomposition%Slaves_Mapping))   then
-            deallocate(Me%DomainDecomposition%Slaves_Mapping)
-            nullify   (Me%DomainDecomposition%Slaves_Mapping)
+        if (associated(Me%DDecomp%Slaves_Mapping))   then
+            deallocate(Me%DDecomp%Slaves_Mapping)
+            nullify   (Me%DDecomp%Slaves_Mapping)
         endif
         
-        if (associated(Me%DomainDecomposition%Slaves_HaloMap))   then
-            deallocate(Me%DomainDecomposition%Slaves_HaloMap)
-            nullify   (Me%DomainDecomposition%Slaves_HaloMap)
+        if (associated(Me%DDecomp%Slaves_HaloMap))   then
+            deallocate(Me%DDecomp%Slaves_HaloMap)
+            nullify   (Me%DDecomp%Slaves_HaloMap)
         endif
         
-        if (associated(Me%DomainDecomposition%VECG))             then
-            deallocate(Me%DomainDecomposition%VECG)
-            nullify   (Me%DomainDecomposition%VECG)
+        if (associated(Me%DDecomp%VECG))             then
+            deallocate(Me%DDecomp%VECG)
+            nullify   (Me%DDecomp%VECG)
         endif                        
 
-        if (associated(Me%DomainDecomposition%VECW))             then
-            deallocate(Me%DomainDecomposition%VECW)
-            nullify   (Me%DomainDecomposition%VECW)
+        if (associated(Me%DDecomp%VECW))             then
+            deallocate(Me%DDecomp%VECW)
+            nullify   (Me%DDecomp%VECW)
         endif                        
 
-        if (associated(Me%DomainDecomposition%WaterLevel_New))   then
-            deallocate(Me%DomainDecomposition%WaterLevel_New)
-            nullify   (Me%DomainDecomposition%WaterLevel_New)
+        if (associated(Me%DDecomp%WaterLevel_New))   then
+            deallocate(Me%DDecomp%WaterLevel_New)
+            nullify   (Me%DDecomp%WaterLevel_New)
         endif                        
                    
-        if (associated(Me%DomainDecomposition%Coef))             then
-            deallocate(Me%DomainDecomposition%Coef)
-            nullify   (Me%DomainDecomposition%Coef)
+        if (associated(Me%DDecomp%Coef))             then
+            deallocate(Me%DDecomp%Coef)
+            nullify   (Me%DDecomp%Coef)
         endif                        
                    
         !----------------------------------------------------------------------
@@ -45634,7 +45635,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
         
 #endif _USE_MPI        
 
-    end subroutine KillDomainDecomposition
+    end subroutine KillDDecomp
 
     !End----------------------------------------------------------------
 
