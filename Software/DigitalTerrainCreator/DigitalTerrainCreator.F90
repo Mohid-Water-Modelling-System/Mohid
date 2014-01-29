@@ -38,6 +38,7 @@
 !   FILL_METHOD                 : 1/2              [1]          !1 - Average value, 2 - Minimum value
 !   NO_DATA_POINT               : real            [-99]         !Value to attribute to points with no value
 !   LAND_POINT                  : real            [-99]         !Value to attribute to land points
+!   INVALID_Z_VALUE             : real        [FillValueReal]   !Z value in points collection that will not be processed
 
 !   DEPTH_REFERENTIAL           : real            [ 1]          ! If the option is 1 the bathymetry referential is use if
                                                                 ! is -1 than is used the topographci referential. 
@@ -116,7 +117,9 @@
 !
 !   SECTION_COMPUTE            : 0/1               [0]           !1 - Compute sections from given xyz points 
 !                                                                   (pairs of section begin and end)
-!   SECTION_HEIGHT             : real              [0.]          !Section middle height (from first point Z)
+!   SECTION_MIDDLE_POINT_METHOD : int              [1]           !1 - use middle height; 2 - use Z in original xyz collection
+!   SECTION_HEIGHT             : real              [0.]          !Section middle height (from first point Z)  
+!                                                                   - read if SECTION_MIDDLE_POINT_METHOD : 1
 !   SECTION_INTERPOL_TYPE      : int               [1]           !1 - linear; 2 - power; 3 - root
 !   SECTION_INTERPOL_ORDER     : real              [1.]          !power or root order (2 - power of 2, squared root)
 !   SECTION_POINTS_TO_ADD      : int               [7.]          !points to add to each section (beside section end and start)
@@ -170,14 +173,20 @@ program DigitalTerrainCreator
     integer, parameter                              :: CellsType                    = 2
     
     integer, parameter                              :: Average_                     = 1
-    integer, parameter                              :: Minimum_                     = 2    
+    integer, parameter                              :: Minimum_                     = 2 
+    integer, parameter                              :: Maximum_                     = 3
     
     !Z interpolation
     integer, parameter                              :: LinearInterpol_              = 1
     integer, parameter                              :: PowerInterpol_               = 2
     integer, parameter                              :: RootInterpol_                = 3
+    
+    !MiddlePoint Definition
+    integer, parameter                              :: DefinedHeight_               = 1
+    integer, parameter                              :: DefinedLevel_                = 2
 
     !Globals-------------------------------------------------------------------
+   
     type     T_ExternalVar
         real, pointer, dimension(:,:)               :: XX_IE, YY_IE 
         real, pointer, dimension(:  )               :: XX, YY
@@ -238,7 +247,7 @@ program DigitalTerrainCreator
         integer                                     :: ObjEnterData                 = 0
         real,           dimension(:,:),    pointer  :: Depth
         type(T_Polygon),                   pointer  :: LandArea, Rect
-        type(T_XYZPoints),                 pointer  :: XYZPoints, CurrentXYZPoints
+        type(T_XYZPoints),                 pointer  :: XYZPoints, XYZPointsOriginal, CurrentXYZPoints
         type(T_PointF), dimension(:,:),    pointer  :: GridPoint 
         type(T_PointF),                    pointer  :: AuxPoint
         real,           dimension(:,:),    pointer  :: PointsWithData, PointsNoData
@@ -261,6 +270,7 @@ program DigitalTerrainCreator
         integer, dimension(8)                       :: F95Time
         integer                                     :: InterpolType
         real                                        :: NoDataPoint, LandPoint, DepthReferential
+        real                                        :: InvalidZValue
         integer                                     :: FilterRadiusI, FilterRadiusJ
         logical                                     :: Filter, FilterSpikes
         real                                        :: SpikesFactor
@@ -273,6 +283,7 @@ program DigitalTerrainCreator
         logical                                     :: ComputeSections
         integer                                     :: SectionPointsToAdd
         integer                                     :: SectionInterpolType
+        integer                                     :: SectionMiddlePointMethod
         real                                        :: SectionInterpolOrder
         real                                        :: SectionHeight
         character(len=line_length)                  :: SectionXYZFile
@@ -394,6 +405,11 @@ program DigitalTerrainCreator
 
             !Construct XYZ points collection
             call New(Me%XYZPoints, trim(XYZFilePath), DepthReferential = Factor, AddFactor = Me%AddFactor)
+            
+            !copy points so that Z is saved (will be middle point level)
+            if (Me%ComputeSections .and. Me%SectionMiddlePointMethod == DefinedLevel_) then
+                call New(Me%XYZPointsOriginal, trim(XYZFilePath), DepthReferential = Factor, AddFactor = Me%AddFactor)
+            endif
 
         end do
 
@@ -693,15 +709,39 @@ i2:         if      (trim(AuxChar) == 'j') then
                          STAT         = STAT_CALL)        
             if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66c3'
             
-            !height for middle point of section and it is measured in relation to first point Z of the pair
-            call GetData(Me%SectionHeight,                                                  &
+            !if the user will define a section depth for all (method 1) or a middle point level (in first point Z) - method 2
+            call GetData(Me%SectionMiddlePointMethod,                                       &
                          Me%ObjEnterData, flag,                                             &
                          SearchType   = FromFile_,                                          &
-                         keyword      ='SECTION_HEIGHT',                                    &
+                         keyword      ='SECTION_MIDDLE_POINT_METHOD',                       &
                          ClientModule ='DigitalTerrainCreator',                             &
-                         Default      = 0.,                                                 &
+                         Default      = DefinedHeight_,                                     &
                          STAT         = STAT_CALL)        
             if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66d'
+            
+            if (Me%SectionMiddlePointMethod .ne. DefinedHeight_ .and. Me%SectionMiddlePointMethod .ne. DefinedLevel_) then
+                write (*,*) 
+                write (*,*) 'SECTION_MIDDLE_POINT_METHOD can only be 1 (defined height) or 2 (defined level)'
+                stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66d2'            
+            endif
+            
+            if (Me%SectionMiddlePointMethod == DefinedHeight_) then
+                !height for middle point of section and it is measured in relation to first point Z of the pair
+                call GetData(Me%SectionHeight,                                                  &
+                             Me%ObjEnterData, flag,                                             &
+                             SearchType   = FromFile_,                                          &
+                             keyword      ='SECTION_HEIGHT',                                    &
+                             ClientModule ='DigitalTerrainCreator',                             &
+                             Default      = 0.,                                                 &
+                             STAT         = STAT_CALL)        
+                if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66d'
+                
+                if (Me%SectionHeight < 0.0) then
+                    write (*,*) 
+                    write (*,*) 'SECTION_HEIGHT negative. This value need to be positive.'
+                    stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66e'
+                endif
+            endif
             
             !How many points to add in the section beside the boundary ones (start and end)
             call GetData(Me%SectionPointsToAdd,                                             &
@@ -711,7 +751,7 @@ i2:         if      (trim(AuxChar) == 'j') then
                          ClientModule ='DigitalTerrainCreator',                             &
                          Default      = 7,                                                  &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66e'
+            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66f'
             
             !Output file with xyz from original file (but with z filled) and also the added points
             call GetData(Me%SectionXYZFile,                                                 &
@@ -720,13 +760,13 @@ i2:         if      (trim(AuxChar) == 'j') then
                          keyword      ='SECTION_XYZ_FILE',                                  &
                          ClientModule ='DigitalTerrainCreator',                             &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66f'    
+            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66g'    
             
             if (flag == 0) then
                 write (*,*)
                 write (*,*) 'Define the keyword SECTION_XYZ_FILE, defining the path to the file'
                 write (*,*) 'to place the original xyz points and the created by the section method'
-                stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66g'
+                stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66h'
             endif
             
             call ConstructSelectedArea
@@ -825,6 +865,15 @@ i2:         if      (trim(AuxChar) == 'j') then
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR110'
 
 
+        call GetData(Me%InvalidZValue,                                                  &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType   = FromFile_,                                          &
+                     keyword      ='INVALID_Z_VALUE',                                   &
+                     ClientModule ='DigitalTerrainCreator',                             &
+                     Default      = FillValueReal,                                      &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR115'
+        
         call GetData(Me%LandPoint,                                                      &
                      Me%ObjEnterData, flag,                                             &
                      SearchType   = FromFile_,                                          &
@@ -991,8 +1040,17 @@ i2:         if      (trim(AuxChar) == 'j') then
                      ClientModule ='DigitalTerrainCreator',                             &
                      STAT         = STAT_CALL)        
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR100'
-
-
+        
+        if (Me%FillMethod .ne. Average_ .and.   &
+            Me%FillMethod .ne. Minimum_ .and.   &
+            Me%FillMethod .ne. Maximum_) then
+            
+            write (*,*)
+            write (*,*) 'FILL_METHOD can only be 1 (average), 2 (minimum) or 3 (maximum)'
+            stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR110'
+            
+        endif
+        
 
     end subroutine ConstructGlobalOptions
 
@@ -1486,7 +1544,7 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
         real                                             :: MiddlePointX, MiddlePointY, HalfWidth
         real                                             :: DistanceToMiddle, Factor, StepX, StepY
         integer                                          :: STAT_CALL
-        type(T_XYZPoints),                 pointer       :: XYZPoints     !local temp storage 
+        type(T_XYZPoints),                 pointer       :: XYZPoints, XYZPointsOriginal  !local temp storage 
         real                                             :: Exponent, SectionHeight
         !Begin-----------------------------------------------------------------
         
@@ -1498,6 +1556,11 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
         !second, add new points and compute Z
         !loop through all xyz points
         Me%CurrentXYZPoints => Me%XYZPoints
+        
+        !get original z's (same point collections as Me%XYZPoints but original z's)
+        if (Me%SectionMiddlePointMethod == DefinedLevel_) then
+            XYZPointsOriginal => Me%XYZPointsOriginal
+        endif
 
          !Only the first collection for now. Because the New fucntion will add a new to the list
          !and then it is infinite adding a new one and analyzing it and adding
@@ -1508,7 +1571,7 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
                 write (*,*)
                 write (*,*) 'In section method need to provide even number of'
                 write (*,*) 'xyz points since they define section start and end.'
-                stop ' ComputeSections - DigitalTerrainCreator - ERR10'
+                stop ' ComputeSections - DigitalTerrainCreator - ERR01'
             endif
             
             !write the new points group
@@ -1573,20 +1636,50 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
                     
                     !if between first point and middle
                     if (CurrentSectionPoint .le. Me%SectionPointsToAdd / 2.) then
-                    
+                        
+                        if (Me%SectionMiddlePointMethod == DefinedLevel_) then
+                        
+                            SectionHeight = Me%CurrentXYZPoints%Z(CurrentPoint) -                  &
+                                            XYZPointsOriginal%Z(CurrentPoint)
+                            if (SectionHeight .lt. 0.0) then
+                                write(*,*) 'Negative section height. Make sure that the Z defined for the first point'
+                                write(*,*) '(middle point level) is not higher than the section boundaries levels'
+                                write(*,*) ' Occured in Pair: ',CurrentX, CurrentY, NextX, NextY
+                                stop 'ComputeSections - DigitalTerrainCreator - ERR005'
+                            endif
+                        
+                        elseif (Me%SectionMiddlePointMethod == DefinedHeight_) then
+                            SectionHeight = Me%SectionHeight
+                        endif
+                        
                         !Point Z is the first point (section begin) minus the height computed
-                        ZVector(ipoint) = Me%CurrentXYZPoints%Z(CurrentPoint) - Factor * Me%SectionHeight
+                        ZVector(ipoint) = Me%CurrentXYZPoints%Z(CurrentPoint) - Factor * SectionHeight
                     
                     else !if between middle and second point
+
+                        if (Me%SectionMiddlePointMethod == DefinedLevel_) then
                         
-                        SectionHeight = Me%CurrentXYZPoints%Z(NextPoint)      -   &
-                                        (Me%CurrentXYZPoints%Z(CurrentPoint)  -   &
-                                         Me%SectionHeight                   )
-                                        
-                        if (SectionHeight .lt. 0.0) then
-                            write(*,*) 'Negative section height. Make sure that the second point of the section'
-                            write(*,*) 'is not in an area lower than the middle point (height specified by the user)'
-                            stop 'ComputeSections - DigitalTerrainCreator - ERR010'
+                            SectionHeight = Me%CurrentXYZPoints%Z(NextPoint) -                      &
+                                            XYZPointsOriginal%Z(CurrentPoint)
+                            if (SectionHeight .lt. 0.0) then
+                                write(*,*) 'Negative section height. Make sure that the Z defined for the first point'
+                                write(*,*) '(middle point level) is not higher than the section boundaries levels'
+                                write(*,*) ' Occured in Pair: ',CurrentX, CurrentY, NextX, NextY
+                                stop 'ComputeSections - DigitalTerrainCreator - ERR006'
+                            endif
+                        
+                        elseif (Me%SectionMiddlePointMethod == DefinedHeight_) then
+                        
+                            SectionHeight = Me%CurrentXYZPoints%Z(NextPoint)      -   &
+                                            (Me%CurrentXYZPoints%Z(CurrentPoint)  -   &
+                                             Me%SectionHeight                   )
+                                            
+                            if (SectionHeight .lt. 0.0) then
+                                write(*,*) 'Negative section height. Make sure that the second point of the section'
+                                write(*,*) 'is not in an area lower than the middle point (height specified by the user)'
+                                write(*,*) ' Occured in Pair: ',CurrentX, CurrentY, NextX, NextY
+                                stop 'ComputeSections - DigitalTerrainCreator - ERR010'
+                            endif
                         endif
 
                         !Point Z is the second point (section end) minus the height computed
@@ -1619,7 +1712,10 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
             !Only the first collection for now. Because the New fucntion will add a new to the list
             !and then it is infinite adding a new one and analyzing it and adding
             Me%CurrentXYZPoints => Me%CurrentXYZPoints%Next
-        
+            if (Me%SectionMiddlePointMethod == DefinedLevel_) then
+                XYZPointsOriginal => XYZPointsOriginal%Next
+            endif
+            
         end do
         
         !close the xyz file
@@ -2360,7 +2456,7 @@ i2:         if      (Me%River%MainAxe == AlongLine  ) then
 
         !Local-----------------------------------------------------------------
         type (T_PointF),   pointer          :: GridPoint
-        real                                :: SumOfDepths, MinimumDepth
+        real                                :: SumOfDepths, MinimumDepth, MaximumDepth
         integer                             :: nPointsInside, CurrentPoint
         integer                             :: i, j
         real                                :: XSW, YSW, XSE, YSE, XNE, YNE, XNW, YNW
@@ -2407,7 +2503,8 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
 
                     SumOfDepths   = 0.
                     nPointsInside = 0
-                    MinimumDepth  = - FillValueReal                    
+                    MinimumDepth  = - FillValueReal 
+                    MaximumDepth  = FillValueReal                   
 
                     !loop through all xyz points
                     Me%CurrentXYZPoints => Me%XYZPoints
@@ -2424,12 +2521,18 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
                                 Me%AuxPoint%Y = Me%CurrentXYZPoints%Y(CurrentPoint)
     
                                 if(IsPointInsidePolygon(Me%AuxPoint, Me%Rect))then
-                                    SumOfDepths   = SumOfDepths + Me%CurrentXYZPoints%Z(CurrentPoint)
-                                    if (Me%CurrentXYZPoints%Z(CurrentPoint) < MinimumDepth) then
-                                        MinimumDepth = Me%CurrentXYZPoints%Z(CurrentPoint)
+                                    !avoid computation with points not defined
+                                    if (Me%CurrentXYZPoints%Z(CurrentPoint) /= Me%InvalidZValue) then
+                                        SumOfDepths   = SumOfDepths + Me%CurrentXYZPoints%Z(CurrentPoint)
+                                        if (Me%CurrentXYZPoints%Z(CurrentPoint) < MinimumDepth) then
+                                            MinimumDepth = Me%CurrentXYZPoints%Z(CurrentPoint)
+                                        endif
+                                        if (Me%CurrentXYZPoints%Z(CurrentPoint) > MaximumDepth) then
+                                            MaximumDepth = Me%CurrentXYZPoints%Z(CurrentPoint)
+                                        endif                                        
+                                        nPointsInside = nPointsInside + 1
+                                        Me%CurrentXYZPoints%Inside(CurrentPoint) = .true.
                                     endif
-                                    nPointsInside = nPointsInside + 1
-                                    Me%CurrentXYZPoints%Inside(CurrentPoint) = .true.
                                 end if
 
                             end if
@@ -2446,6 +2549,8 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
                             Me%Depth(i, j) = SumOfDepths / nPointsInside
                         elseif  (Me%FillMethod == Minimum_) then
                             Me%Depth(i, j) = MinimumDepth
+                        elseif   (Me%FillMethod == Maximum_) then
+                            Me%Depth(i, j) = MaximumDepth
                         endif
                     end if
 
@@ -2473,6 +2578,7 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
         type (T_PointF),         pointer    :: GridPoint
         real   , dimension(:,:), pointer    :: SumOfDepths  
         real   , dimension(:,:), pointer    :: MinimumDepth
+        real   , dimension(:,:), pointer    :: MaximumDepth
         integer, dimension(:,:), pointer    :: nPointsInside
         integer                             :: i, j, CurrentPoint
         integer                             :: ILB, IUB, JLB, JUB
@@ -2489,12 +2595,14 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
 
         allocate(SumOfDepths  (ILB:IUB, JLB:JUB))
         allocate(MinimumDepth (ILB:IUB, JLB:JUB))
+        allocate(MaximumDepth (ILB:IUB, JLB:JUB))
         allocate(nPointsInside(ILB:IUB, JLB:JUB))
 
         SumOfDepths  (:, :) = 0.
         nPointsInside(:, :) = 0
         
         MinimumDepth (:, :) = - FillValueReal
+        MaximumDepth (:, :) = FillValueReal
 
         !loop through all xyz points
         Me%CurrentXYZPoints => Me%XYZPoints
@@ -2526,12 +2634,18 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
                     
                     if (i .ne. null_int .and. j .ne. null_int)then
                         if (i <= IUB .and. i >= ILB .and. j <= JUB .and. j >= JLB) then
-                            SumOfDepths  (i, j) = SumOfDepths  (i, j) + Me%CurrentXYZPoints%Z(CurrentPoint)
-                            nPointsInside(i, j) = nPointsInside(i, j) + 1
-                            if (Me%CurrentXYZPoints%Z(CurrentPoint) < MinimumDepth (i, j)) then
-                                MinimumDepth (i, j) = Me%CurrentXYZPoints%Z(CurrentPoint)
+                            !avoid computation with points not defined
+                            if (Me%CurrentXYZPoints%Z(CurrentPoint) /= Me%InvalidZValue) then
+                                SumOfDepths  (i, j) = SumOfDepths  (i, j) + Me%CurrentXYZPoints%Z(CurrentPoint)
+                                nPointsInside(i, j) = nPointsInside(i, j) + 1
+                                if (Me%CurrentXYZPoints%Z(CurrentPoint) < MinimumDepth (i, j)) then
+                                    MinimumDepth (i, j) = Me%CurrentXYZPoints%Z(CurrentPoint)
+                                endif
+                                if (Me%CurrentXYZPoints%Z(CurrentPoint) > MaximumDepth (i, j)) then
+                                    MaximumDepth (i, j) = Me%CurrentXYZPoints%Z(CurrentPoint)
+                                endif                                
+                                Me%CurrentXYZPoints%Inside(CurrentPoint) = .true.
                             endif
-                            Me%CurrentXYZPoints%Inside(CurrentPoint) = .true.
                         endif
                     end if
 
@@ -2553,6 +2667,8 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
                     Me%Depth(i, j) = SumOfDepths(i,j) / nPointsInside(i, j)
                 elseif  (Me%FillMethod == Minimum_) then
                     Me%Depth(i, j) = MinimumDepth(i, j)
+                elseif  (Me%FillMethod == Maximum_) then
+                    Me%Depth(i, j) = MaximumDepth(i, j)
                 endif
             end if
             
@@ -3946,7 +4062,8 @@ i1:         if (Me%River%LocationMethod == DefinedDepths) then
 
         if(associated(Me%LandArea ))deallocate(Me%LandArea )
         if(associated(Me%XYZPoints))deallocate(Me%XYZPoints)
-
+        if(associated(Me%XYZPointsOriginal))deallocate(Me%XYZPointsOriginal)
+        
         if (Me%Overlapping%ON) call KillOverlapping
 
         call KillHorizontalGrid(HorizontalGridID= Me%ObjGrid, STAT = STAT_CALL)
