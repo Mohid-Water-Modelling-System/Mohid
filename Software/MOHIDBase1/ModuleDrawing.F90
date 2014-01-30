@@ -856,13 +856,38 @@ if2 :               if (BlockFound) then
         !Arguments-------------------------------------------------------------
         type (T_Polygon), pointer                   :: Polygon
         
+        !local-----------------------------------------------------------------
+        integer                                     :: i
+        
         !Begin-----------------------------------------------------------------
 
-        Polygon%Limits%Left   = minval(Polygon%VerticesF%X)
-        Polygon%Limits%Right  = maxval(Polygon%VerticesF%X)
-        Polygon%Limits%Bottom = minval(Polygon%VerticesF%Y)
-        Polygon%Limits%Top    = maxval(Polygon%VerticesF%Y)
+        Polygon%Limits%Left   = - FillValueReal
+        Polygon%Limits%Right  =   FillValueReal
+        Polygon%Limits%Bottom = - FillValueReal
+        Polygon%Limits%Top    =   FillValueReal
+        
+        !Big performance problems 
+        !Polygon%Limits%Left   = minval(Polygon%VerticesF%X)
+        !Polygon%Limits%Right  = maxval(Polygon%VerticesF%X)
+        !Polygon%Limits%Bottom = minval(Polygon%VerticesF%Y)
+        !Polygon%Limits%Top    = maxval(Polygon%VerticesF%Y)        
 
+d1:     do i=1, Polygon%Count
+
+            if (Polygon%VerticesF(i)%X < Polygon%Limits%Left)                           &
+                Polygon%Limits%Left    = Polygon%VerticesF(i)%X
+                
+            if (Polygon%VerticesF(i)%X > Polygon%Limits%Right)                          &
+                Polygon%Limits%Right   = Polygon%VerticesF(i)%X
+
+            if (Polygon%VerticesF(i)%Y < Polygon%Limits%Bottom)                         &
+                Polygon%Limits%Bottom  = Polygon%VerticesF(i)%Y
+                
+            if (Polygon%VerticesF(i)%Y > Polygon%Limits%Top)                            &
+                Polygon%Limits%Top     = Polygon%VerticesF(i)%Y
+                
+        enddo d1                
+                
     end subroutine SetLimitsPolygon
     
     !--------------------------------------------------------------------------

@@ -7639,15 +7639,16 @@ d1:     do em = 1, Me%EulerModelNumber
 
             do dn = 1, TimeSerieNumber
 
-                call GetTimeSerieLocation(Me%EulerModel(em)%ObjTimeSerie, dn,               &  
-                                          CoordX   = CoordX,                                &
-                                          CoordY   = CoordY,                                & 
-                                          CoordON  = CoordON,                               &
+                call GetTimeSerieLocation(Me%EulerModel(em)%ObjTimeSerie, dn,           &  
+                                          CoordX   = CoordX,                            &
+                                          CoordY   = CoordY,                            & 
+                                          CoordON  = CoordON,                           &
                                           STAT     = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleLagrangianGlobal - ERR70'
 
                 if (CoordON) then
-                    call GetXYCellZ(Me%EulerModel(em)%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+                    call GetXYCellZ(Me%EulerModel(em)%ObjHorizontalGrid, CoordX, CoordY,&
+                                    Id, Jd, STAT = STAT_CALL)
 
                     if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
                         stop 'ConstructTimeSerie - ModuleLagrangianGlobal - ERR80'
@@ -18769,7 +18770,11 @@ d1:     do em =1, Me%EulerModelNumber
         if   (Referential == GridCoord_) then
 
             call GetXYCellZ(EulerModel%ObjHorizontalGrid, Position%CoordX,              &
-                            Position%CoordY, Ipos, Jpos, PercI, PercJ,  Referential = GridCoord_, STAT = STAT_CALL)
+                            Position%CoordY, Ipos, Jpos, PercI, PercJ,                  &
+                            Referential = GridCoord_,                                   &
+                            Iold        = Position%I,                                   &
+                            Jold        = Position%J,                                   &
+                            STAT        = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR20'
 
@@ -18802,7 +18807,11 @@ d1:     do em =1, Me%EulerModelNumber
         else if (Referential == AlongGrid_) then
 
             call GetXYCellZ(EulerModel%ObjHorizontalGrid, Position%X, Position%Y,       &
-                            Ipos, Jpos, PercI, PercJ, Referential = AlongGrid_, STAT = STAT_CALL)
+                            Ipos, Jpos, PercI, PercJ,                                   &
+                            Referential = AlongGrid_,                                   &
+                            Iold        = Position%I,                                   &
+                            Jold        = Position%J,                                   &
+                            STAT        = STAT_CALL)
 
 sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
 
@@ -18848,9 +18857,12 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
        else if (Referential == Cartesian_) then
 
 
-            call GetXYCellZ(EulerModel%ObjHorizontalGrid, Position%CartX, Position%CartY,       &
-                            Ipos, Jpos, PercI, PercJ, Referential = Cartesian_, STAT = STAT_CALL)
-
+            call GetXYCellZ(EulerModel%ObjHorizontalGrid, Position%CartX, Position%CartY,&
+                            Ipos, Jpos, PercI, PercJ,                                   &
+                            Referential = Cartesian_,                                   &
+                            Iold        = Position%I,                                   &
+                            Jold        = Position%J,                                   &
+                            STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR90'
 
 
@@ -21983,9 +21995,13 @@ dg:         do ig = 1, Me%NGroups
 
                         if (PartInside) then
 
-                            call GetXYCellZ(Me%EulerModel(em)%ObjHorizontalGrid, CurrentPartic%Position%CoordX, &
-                                            CurrentPartic%Position%CoordY, i, j, Referential = GridCoord_, STAT = STAT_CALL)
-
+                            call GetXYCellZ(Me%EulerModel(em)%ObjHorizontalGrid,        &
+                                            CurrentPartic%Position%CoordX,              &
+                                            CurrentPartic%Position%CoordY, i, j,        &
+                                            Referential = GridCoord_,                   &
+                                            Iold        = CurrentPartic%Position%I,     &
+                                            Jold        = CurrentPartic%Position%J,     &
+                                            STAT        = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR10'
 
                         else
