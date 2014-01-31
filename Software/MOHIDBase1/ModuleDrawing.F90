@@ -99,11 +99,17 @@ Module ModuleDrawing
     private ::    SetLimitsPolygon
     private ::    SetLimitsXYZ
     private ::    SetLimitsLine    
+    private ::    SetLimitsArray1DR4_P
+    private ::    SetLimitsArray1DR8_P
+    private ::    SetLimitsArray1DI_C                
     
     interface     SetLimits
         module procedure SetLimitsPolygon
         module procedure SetLimitsXYZ
         module procedure SetLimitsLine
+        module procedure SetLimitsArray1DR4_P
+        module procedure SetLimitsArray1DR8_P
+        module procedure SetLimitsArray1DI_C        
     end interface SetLimits
 
     private ::    WriteItemPolygon
@@ -898,12 +904,32 @@ d1:     do i=1, Polygon%Count
         !Arguments-------------------------------------------------------------
         type (T_Lines), pointer                  :: Line
         
+        !local-----------------------------------------------------------------
+        integer                                     :: i
+        
         !Begin-----------------------------------------------------------------
+        
+        Line%Limits%Left   = - FillValueReal
+        Line%Limits%Right  =   FillValueReal
+        Line%Limits%Bottom = - FillValueReal
+        Line%Limits%Top    =   FillValueReal        
 
-        Line%Limits%Left   = minval(Line%X)
-        Line%Limits%Right  = maxval(Line%X)
-        Line%Limits%Bottom = minval(Line%Y)
-        Line%Limits%Top    = maxval(Line%Y)
+        !Line%Limits%Left   = minval(Line%X)
+        !Line%Limits%Right  = maxval(Line%X)
+        !Line%Limits%Bottom = minval(Line%Y)
+        !Line%Limits%Top    = maxval(Line%Y)
+        
+d1:     do i=1, Line%nNodes
+
+            if (Line%X(i) < Line%Limits%Left)  Line%Limits%Left    = Line%X(i)
+                
+            if (Line%X(i) > Line%Limits%Right) Line%Limits%Right   = Line%X(i)
+
+            if (Line%Y(i) < Line%Limits%Bottom)Line%Limits%Bottom  = Line%Y(i)
+                
+            if (Line%Y(i) > Line%Limits%Top)   Line%Limits%Top     = Line%Y(i)
+                
+        enddo d1          
 
     end subroutine SetLimitsLine
     
@@ -914,16 +940,123 @@ d1:     do i=1, Polygon%Count
         !Arguments-------------------------------------------------------------
         type (T_XYZPoints), pointer                 :: XYZ
         
+        !local-----------------------------------------------------------------
+        integer                                     :: i
+        
         !Begin-----------------------------------------------------------------
+        
+        XYZ%Limits%Left   = - FillValueReal
+        XYZ%Limits%Right  =   FillValueReal
+        XYZ%Limits%Bottom = - FillValueReal
+        XYZ%Limits%Top    =   FillValueReal        
 
-        XYZ%Limits%Left     = minval(XYZ%X)
-        XYZ%Limits%Right    = maxval(XYZ%X)
-        XYZ%Limits%Bottom   = minval(XYZ%Y)
-        XYZ%Limits%Top      = maxval(XYZ%Y)
+        !XYZ%Limits%Left     = minval(XYZ%X)
+        !XYZ%Limits%Right    = maxval(XYZ%X)
+        !XYZ%Limits%Bottom   = minval(XYZ%Y)
+        !XYZ%Limits%Top      = maxval(XYZ%Y)
+        
+d1:     do i=1, XYZ%Count
+
+            if (XYZ%X(i) < XYZ%Limits%Left)  XYZ%Limits%Left    = XYZ%X(i)
+                
+            if (XYZ%X(i) > XYZ%Limits%Right) XYZ%Limits%Right   = XYZ%X(i)
+
+            if (XYZ%Y(i) < XYZ%Limits%Bottom)XYZ%Limits%Bottom  = XYZ%Y(i)
+                
+            if (XYZ%Y(i) > XYZ%Limits%Top)   XYZ%Limits%Top     = XYZ%Y(i)
+                
+        enddo d1            
 
     end subroutine SetLimitsXYZ
 
     !--------------------------------------------------------------------------
+    
+    subroutine SetLimitsArray1DR4_P(X, Y, Count, Left, Right, Bottom, Top)
+
+        !Arguments-------------------------------------------------------------
+        real(4),   dimension(:),   pointer   :: X, Y
+        integer, intent(IN)                  :: Count
+        integer, intent(OUT)                 :: Left, Right,Bottom,Top
+        
+        !local-----------------------------------------------------------------
+        integer                                     :: i
+        
+        !Begin-----------------------------------------------------------------
+        
+d1:     do i=1, Count
+
+            if (X(i) < Left)  Left    = X(i)
+                
+            if (X(i) > Right) Right   = X(i)
+
+            if (Y(i) < Bottom)Bottom  = Y(i)
+                
+            if (Y(i) > Top)   Top     = Y(i)
+                
+        enddo d1            
+
+    end subroutine SetLimitsArray1DR4_P    
+
+    !--------------------------------------------------------------------------
+    
+    subroutine SetLimitsArray1DR8_P(X, Y, Count, Left, Right, Bottom, Top)
+
+        !Arguments-------------------------------------------------------------
+        real(8),   dimension(:),   pointer   :: X, Y
+        integer, intent(IN)                  :: Count
+        integer, intent(OUT)                 :: Left, Right,Bottom,Top
+        
+        !local-----------------------------------------------------------------
+        integer                                     :: i
+        
+        !Begin-----------------------------------------------------------------
+        
+d1:     do i=1, Count
+
+            if (X(i) < Left)  Left    = X(i)
+                
+            if (X(i) > Right) Right   = X(i)
+
+            if (Y(i) < Bottom)Bottom  = Y(i)
+                
+            if (Y(i) > Top)   Top     = Y(i)
+                
+        enddo d1            
+
+    end subroutine SetLimitsArray1DR8_P
+
+    !--------------------------------------------------------------------------
+    
+    
+    subroutine SetLimitsArray1DI_C(X, Y, Count, Left, Right, Bottom, Top)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                :: Count
+        integer, dimension(Count)          :: X, Y
+        integer, intent(OUT)               :: Left, Right,Bottom,Top
+        
+        !local-----------------------------------------------------------------
+        integer                                     :: i
+        
+        !Begin-----------------------------------------------------------------
+        
+d1:     do i=1, Count
+
+            if (X(i) < Left)  Left    = X(i)
+                
+            if (X(i) > Right) Right   = X(i)
+
+            if (Y(i) < Bottom)Bottom  = Y(i)
+                
+            if (Y(i) > Top)   Top     = Y(i)
+                
+        enddo d1            
+
+    end subroutine SetLimitsArray1DI_C   
+    
+    
+    !--------------------------------------------------------------------------    
+    
     
     logical function IsVisible(Polygons, Point)
         
@@ -2237,14 +2370,16 @@ i6:                         if (DirectionX.ne.0.) then
                         endif
                     enddo    
                     
-                    imin = minval(Yi(1:nCells))
-                    imax = maxval(Yi(1:nCells))
+                    !imin = minval(Yi(1:nCells))
+                    !imax = maxval(Yi(1:nCells))
 
-                    jmin = minval(Xj(1:nCells))
-                    jmax = maxval(Xj(1:nCells))
+                    !jmin = minval(Xj(1:nCells))
+                    !jmax = maxval(Xj(1:nCells))
                     
+                    call SetLimits(X = Xj(1:nCells), Y = Yi(1:nCells), Count = nCells,  &
+                                   Left = jmin, Right = jmax, Bottom = imin, Top = imax)
                     
-                else
+               else
                     NoOverlap = .false.
                     do i=1,4
                         if (WindowCornerInside(i) .and. GridCornerInside(i)) then
@@ -2300,11 +2435,14 @@ i6:                         if (DirectionX.ne.0.) then
             
                 endif
             
-                imin = minval(WindowInIndex(1,1:count))
-                imax = maxval(WindowInIndex(1,1:count))
+                !imin = minval(WindowInIndex(1,1:count))
+                !imax = maxval(WindowInIndex(1,1:count))
 
-                jmin = minval(WindowInIndex(2,1:count))
-                jmax = maxval(WindowInIndex(2,1:count))
+                !jmin = minval(WindowInIndex(2,1:count))
+                !jmax = maxval(WindowInIndex(2,1:count))
+                
+                call SetLimits(X = WindowInIndex(2,1:count), Y = WindowInIndex(1,1:count), &
+                               Count = count, Left = jmin, Right = jmax, Bottom = imin, Top = imax)
             
             endif
 
@@ -2440,12 +2578,9 @@ i6:                         if (DirectionX.ne.0.) then
                 !Close polygon
                 Polygon%VerticesF(Polygon%Count)%X  = Polygon%VerticesF(1)%X
                 Polygon%VerticesF(Polygon%Count)%Y  = Polygon%VerticesF(1)%Y
+                
+                call SetLimits(Polygon)
 
-                Polygon%Limits%Left   = minval(Polygon%VerticesF%X)
-                Polygon%Limits%Right  = maxval(Polygon%VerticesF%X)
-                Polygon%Limits%Bottom = minval(Polygon%VerticesF%Y)
-                Polygon%Limits%Top    = maxval(Polygon%VerticesF%Y)
-        
                 if (IsPointInsidePolygon(Point, Polygon)) exit
 
             enddo
@@ -2539,10 +2674,7 @@ i6:                         if (DirectionX.ne.0.) then
         
         PolygonDomain%Count = ip
 
-        PolygonDomain%Limits%Left   = minval(PolygonDomain%VerticesF%X)
-        PolygonDomain%Limits%Right  = maxval(PolygonDomain%VerticesF%X)
-        PolygonDomain%Limits%Bottom = minval(PolygonDomain%VerticesF%Y)
-        PolygonDomain%Limits%Top    = maxval(PolygonDomain%VerticesF%Y)
+        call SetLimits(PolygonDomain)
 
     end subroutine CreateDomainPolygon
     

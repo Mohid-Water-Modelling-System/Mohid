@@ -1274,16 +1274,16 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                     !Verifies if polygon is inside the domain
                     Inside = .true.
-                    if (maxval(TmpX) > Me%MaxX) then
+                    if (maxival(TmpX, nPoints + 1) > Me%MaxX) then
                         Inside = .false.
                     endif
-                    if (minval(TmpX) < Me%MinX) then
+                    if (minival(TmpX, nPoints + 1) < Me%MinX) then
                         Inside = .false.
                     endif
-                    if (maxval(TmpY) > Me%MaxY) then
+                    if (maxival(TmpY, nPoints + 1) > Me%MaxY) then
                         Inside = .false.
                     endif
-                    if (minval(TmpY) < Me%MinY) then
+                    if (minival(TmpY, nPoints + 1) < Me%MinY) then
                         Inside = .false.
                     endif
 
@@ -1336,6 +1336,48 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     end subroutine CalculateVoronoi
 
     !--------------------------------------------------------------------------
+    
+    real function minival (Array1D, NP)
+
+        !Arguments-----------------------------------------------------------------
+        real, dimension(:), allocatable             :: Array1D        
+        integer                                     :: NP
+        !Local---------------------------------------------------------------------
+        real                                        :: aux                                     
+        integer                                     :: i
+        !Begin---------------------------------------------------------------------
+        
+        aux = -FillValueReal
+        
+        do i=1, NP
+            if (aux < Array1D(i)) aux = Array1D(i)
+        enddo
+        
+        minival = aux
+    
+    end function minival
+
+    !--------------------------------------------------------------------------
+    
+    real function maxival (Array1D, NP)
+
+        !Arguments-----------------------------------------------------------------
+        real, dimension(:), allocatable             :: Array1D        
+        integer                                     :: NP
+        !Local---------------------------------------------------------------------
+        real                                        :: aux                                     
+        integer                                     :: i
+        !Begin---------------------------------------------------------------------
+        
+        aux = FillValueReal
+        
+        do i=1, NP
+            if (aux > Array1D(i)) aux = Array1D(i)
+        enddo
+        
+        maxival = aux
+    
+    end function maxival
 
     subroutine CalculateReaches (TriangulationID, RemovePits, STAT)
 
