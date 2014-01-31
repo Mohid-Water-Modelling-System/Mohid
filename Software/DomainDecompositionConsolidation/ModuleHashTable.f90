@@ -42,6 +42,8 @@ MODULE ModuleHashTable
     private ::      hash_getWindowPosition2
     PUBLIC  :: hash_getObjID
     private ::      hash_getObjID2
+    PUBLIC  :: hash_getWindowFrame
+    private ::      hash_getWindowFrame2
     
     PUBLIC  :: hash_set
     private ::      hash_set2
@@ -51,6 +53,8 @@ MODULE ModuleHashTable
     private ::      hash_setWindowPosition2
     PUBLIC  :: hash_setObjID
     private ::      hash_setObjID2
+    PUBLIC  :: hash_setWindowFrame
+    private ::      hash_setWindowFrame2
     
     PUBLIC  :: KillHash_map
 
@@ -69,6 +73,7 @@ MODULE ModuleHashTable
         
         integer, dimension(4)               :: DomainSize       = NULL_INT
         integer, dimension(4)               :: WindowPosition   = NULL_INT
+        integer, dimension(4)               :: WindowFrame      = NULL_INT
         integer                             :: ObjID            = NULL_INT
     end type  T_HashList
 
@@ -260,6 +265,50 @@ if1 :   if (TRIM(HashList%key) == TRIM(key)) then
         !------------------------------------------------------------------------
 
     END SUBROUTINE hash_setObjID2
+
+    !--------------------------------------------------------------------------
+
+    SUBROUTINE hash_setWindowFrame(Me, key, WindowFrame)
+
+        !External----------------------------------------------------------------
+        type (T_HashTable), pointer                     :: Me
+        CHARACTER(*), INTENT(IN)                        :: key
+        INTEGER, dimension(4)  , INTENT(IN)             :: WindowFrame
+
+        !Local-------------------------------------------------------------------
+        INTEGER                                         :: local_index
+        LOGICAL                                         :: found
+
+        !------------------------------------------------------------------------
+
+        call hash_setWindowFrame2(Me%HashList, key             = key,            &
+                                                  WindowFrame  = WindowFrame)
+
+        !------------------------------------------------------------------------
+
+    END SUBROUTINE hash_setWindowFrame
+
+    !--------------------------------------------------------------------------
+
+    recursive SUBROUTINE hash_setWindowFrame2(HashList, key, WindowFrame)
+
+        !External----------------------------------------------------------------
+        type (T_HashList), pointer                      :: HashList
+        CHARACTER(*), INTENT(IN)                        :: key
+        INTEGER, dimension(4)  , INTENT(IN)             :: WindowFrame
+
+        !------------------------------------------------------------------------
+
+if1 :   if (TRIM(HashList%key) == TRIM(key)) then
+                HashList%WindowFrame = WindowFrame
+        else if1
+            call hash_setWindowFrame2(HashList%Next, key             = key,              &
+                                                        WindowFrame  = WindowFrame)
+        endif if1
+   
+        !------------------------------------------------------------------------
+
+    END SUBROUTINE hash_setWindowFrame2
     
     !--------------------------------------------------------------------------
 
@@ -491,6 +540,56 @@ if2 :       if (associated(HashList%Next)) then
         !------------------------------------------------------------------------
 
     END function hash_getObjID2
+
+    !--------------------------------------------------------------------------
+
+    function hash_getWindowFrame(Me, key)
+
+        !Function----------------------------------------------------------------
+        integer, dimension(4)                           :: hash_getWindowFrame
+
+        !External----------------------------------------------------------------
+        type (T_HashTable), pointer                     :: Me
+        CHARACTER(*), INTENT(IN)                        :: key
+
+        !------------------------------------------------------------------------
+
+if2 :   if (associated(Me%HashList)) then
+            hash_getWindowFrame = hash_getWindowFrame2(Me%HashList, key = key)
+        else if2
+            hash_getWindowFrame =-1 * NOT_FOUND_ERR_
+        endif if2
+
+        !------------------------------------------------------------------------
+
+    END function hash_getWindowFrame
+    
+    !--------------------------------------------------------------------------
+
+    recursive function hash_getWindowFrame2(HashList, key)
+
+        !Function----------------------------------------------------------------
+        integer, dimension(4)                           :: hash_getWindowFrame2
+
+        !External----------------------------------------------------------------
+        type (T_HashList), pointer                      :: HashList
+        CHARACTER(*), INTENT(IN)                        :: key
+
+        !------------------------------------------------------------------------
+
+if1 :   if (adjustl(trim(HashList%key)) .EQ. adjustl(trim(key))) then
+            hash_getWindowFrame2 = HashList%WindowFrame
+        else if1
+if2 :       if (associated(HashList%Next)) then
+                hash_getWindowFrame2 = hash_getWindowFrame2(HashList%Next, key = key)
+            else if2
+                hash_getWindowFrame2 =-1 * NOT_FOUND_ERR_
+            endif if2
+        endif if1
+
+        !------------------------------------------------------------------------
+
+    END function hash_getWindowFrame2
 
     !--------------------------------------------------------------------------
 
