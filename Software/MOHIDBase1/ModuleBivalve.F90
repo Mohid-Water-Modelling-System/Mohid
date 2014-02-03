@@ -645,7 +645,7 @@
     end type T_PopulationProcesses        
      
     type     T_Output
-        integer                          :: Unit
+        integer, dimension(:), pointer   :: Unit                         => null()
         integer                          :: nParticles
         character(len=StringLength)      :: FileName    = '   '    
         real, dimension(:), pointer      :: Aux
@@ -735,7 +735,6 @@
         logical                              :: OutputON                 = OFF
         integer                              :: TotalOutputs, NextOutPut = null_int
         type (T_Time), pointer, dimension(:) :: BivalveOutputTimes
-        integer                              :: IndexOutput              = null_int
         integer, dimension(1:30)             :: IndexOutputs             = null_int 
         integer                              :: nIndexOutputs            = null_int              
         real                                 :: ConvertionFactor         = 1.0 !convertion from m2 to m3
@@ -886,7 +885,8 @@ cd1 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine ReadDataBivalve
     
         !Local----------------------------------------------------------------------
-        integer             :: i
+        integer                         :: i
+        type(T_Species), pointer        :: Species
 
         !Begin----------------------------------------------------------------------
 
@@ -895,8 +895,27 @@ cd1 :   if (ready_ .EQ. OFF_ERR_) then
         call ConstructSpecies
 
         if (Me%OutputON) then
+        
+            Species => Me%FirstSpecies
+            do while(associated(Species))
+            
+                if(Species%Population)then
+                    allocate(Species%PopulationOutput%Unit(1:Me%nIndexOutputs))
+                endif
+                
+                if (Species%BySizeOutput) then
+                    allocate(Species%SizeDistributionOutput%Unit(1:Me%nIndexOutputs))
+                endif
+                
+                Species => Species%Next
+            enddo
+            
+            if(Me%ComputeOptions%MassBalance) then
+                allocate(Me%MassOutput%Unit(1:Me%nIndexOutputs))
+            endif
+        
             do i=1, Me%nIndexOutputs
-                call ConstructOutputs(Me%IndexOutputs(i))
+                call ConstructOutputs(i)
             enddo
         end if
 
@@ -1378,8 +1397,11 @@ do1:        do while (associated(ObjSpecies))
         NewCohort%ID%Name = trim(adjustl(NewSpecies%ID%Name))//" cohort "//trim(adjustl(CohortIDStr))
 
         if (NewSpecies%CohortOutput) then
+        
+            allocate(NewCohort%CohortOutput%Unit(1:Me%nIndexOutputs))
+        
             do i=1, Me%nIndexOutputs
-                call ConstructCohortOutput (NewCohort, Me%IndexOutputs(i))
+                call ConstructCohortOutput (NewCohort, i)
             enddo
         end if
 
@@ -1450,15 +1472,14 @@ do1:        do while (associated(ObjCohort%Next))
         !Begin----------------------------------------------------------------------
         
         !call getarg(1,ArgumentInComand) 
+        write(IndexOutputStr, ('(I5)')) Me%IndexOutputs(iIndexOutput)
 
-        write(IndexOutputStr, ('(I5)')) iIndexOutput
-                 
         Species => Me%FirstSpecies
         do while(associated(Species))
         
             if (Species%Population) then
 
-                call UnitsManager(Species%PopulationOutput%Unit, OPEN_FILE, STAT = STAT_CALL)
+                call UnitsManager(Species%PopulationOutput%Unit(iIndexOutput), OPEN_FILE, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ConstructOutputs - ModuleBivalve - ERR20'
 
                 !OuputFileName = "Output/"//trim(ArgumentInComand)  !biocluster
@@ -1497,17 +1518,17 @@ do1:        do while (associated(ObjCohort%Next))
                 OuputFileName = trim(Me%PathFileName)// &
                                 trim(Species%PopulationOutput%FileName)//'_'//'population.srw'
 
-                open(Unit = Species%PopulationOutput%Unit, File = trim(OuputFileName), Status = 'REPLACE')
+                open(Unit = Species%PopulationOutput%Unit(iIndexOutput), File = trim(OuputFileName), Status = 'REPLACE')
 
 
                 !time serie format
-                call WriteDataLine(Species%PopulationOutput%Unit, "Time Serie Results File")
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "Time Serie Results File")
 
-                call WriteDataLine(Species%PopulationOutput%Unit, "NAME", 'Population File')
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "NAME", 'Population File')
 
-                call WriteDataLine(Species%PopulationOutput%Unit, 'SERIE_INITIAL_DATA', Me%InitialDate)
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'SERIE_INITIAL_DATA', Me%InitialDate)
 
-                call WriteDataLine(Species%PopulationOutput%Unit, 'TIME_UNITS', 'SECONDS')
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'TIME_UNITS', 'SECONDS')
 
 
                 102 format(A900)
@@ -1526,7 +1547,7 @@ do1:        do while (associated(ObjCohort%Next))
                                 "/d_61 /d_62 #/m2_63 mg/l_64 #/m2_65 "                                          // &
                                 "cm_66 #_67 #_68"
 
-                write(Species%PopulationOutput%Unit, 102) OuputHeader
+                write(Species%PopulationOutput%Unit(iIndexOutput), 102) OuputHeader
 
                 OuputHeader = "Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "                                        // &
                               "TN_8 NCoh_9 TBio_10 Cr_11 Fil_12 Ing_13 Ass_14 CO_15 "                           // &
@@ -1542,13 +1563,13 @@ do1:        do while (associated(ObjCohort%Next))
                               "GEOm_low_61 GEOm_settle_62 TNField_63 InitialPhyto_64 InitialShrimp_65 "         // &
                               "MaxLength_66 MaxTNField_67 SpawningEvents_68"
    
-                write(Species%PopulationOutput%Unit, 102) OuputHeader
+                write(Species%PopulationOutput%Unit(iIndexOutput), 102) OuputHeader
                 
-                call WriteDataLine(Species%PopulationOutput%Unit, '<BeginTimeSerie>')
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), '<BeginTimeSerie>')
                 
                 if (Species%BySizeOutput) then
                 
-                    call UnitsManager(Species%SizeDistributionOutput%Unit, OPEN_FILE, STAT = STAT_CALL)
+                    call UnitsManager(Species%SizeDistributionOutput%Unit(iIndexOutput), OPEN_FILE, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ConstructOutputs - ModuleBivalve - ERR21'
 
                     Species%SizeDistributionOutput%FileName = Species%PopulationOutput%FileName
@@ -1558,17 +1579,17 @@ do1:        do while (associated(ObjCohort%Next))
                                     '_'//'SizeDistribution.srw'
 
                     !Size Distribution output
-                    open(Unit = Species%SizeDistributionOutput%Unit, File = trim(OuputFileName), Status = 'REPLACE')
+                    open(Unit = Species%SizeDistributionOutput%Unit(iIndexOutput), File = trim(OuputFileName), Status = 'REPLACE')
 
 
                     !time serie format
-                    call WriteDataLine(Species%SizeDistributionOutput%Unit, "Time Serie Results File")
+                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "Time Serie Results File")
 
-                    call WriteDataLine(Species%SizeDistributionOutput%Unit, "NAME", 'Population File')
+                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "NAME", 'Population File')
 
-                    call WriteDataLine(Species%SizeDistributionOutput%Unit, 'SERIE_INITIAL_DATA', Me%InitialDate)
+                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), 'SERIE_INITIAL_DATA', Me%InitialDate)
 
-                    call WriteDataLine(Species%SizeDistributionOutput%Unit, 'TIME_UNITS', 'SECONDS')
+                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), 'TIME_UNITS', 'SECONDS')
 
                     SizeDistributionHeader = 'Seconds YY MM DD hh mm ss'
 
@@ -1580,7 +1601,7 @@ do1:        do while (associated(ObjCohort%Next))
 
                     end do
 
-                    write(Species%SizeDistributionOutput%Unit,102) SizeDistributionHeader
+                    write(Species%SizeDistributionOutput%Unit(iIndexOutput),102) SizeDistributionHeader
 
                     !write a dynamic format
                     if    (Species%nSizeClasses .lt. 10                                        )then
@@ -1595,7 +1616,7 @@ do1:        do while (associated(ObjCohort%Next))
                         stop 'Number of volumes limited to 9999.'
                     endif
 
-                call WriteDataLine(Species%SizeDistributionOutput%Unit, '<BeginTimeSerie>')
+                call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), '<BeginTimeSerie>')
 
                 end if
             
@@ -1609,23 +1630,23 @@ do1:        do while (associated(ObjCohort%Next))
         if (Me%ComputeOptions%MassBalance) then
 
             !mass balance results
-            call UnitsManager(Me%MassOutput%Unit, OPEN_FILE, STAT = STAT_CALL)
+            call UnitsManager(Me%MassOutput%Unit(iIndexOutput), OPEN_FILE, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ConstructOutputs - ModuleBivalve - ERR30'
 
-            open(Unit = Me%MassOutput%Unit, File = trim(Me%PathFileName)//trim(IndexOutputStr)// &
+            open(Unit = Me%MassOutput%Unit(iIndexOutput), File = trim(Me%PathFileName)//trim(IndexOutputStr)// &
                             '_MassBalance.dat',&
 
          Status = 'REPLACE')
 
             if (Me%ComputeOptions%PelagicModel .eq. LifeModel) then
 
-                write(Me%MassOutput%Unit, 103) "YY MM DD hh mm ss SumC_g SumN_g SumP_g"         
+                write(Me%MassOutput%Unit(iIndexOutput), 103) "YY MM DD hh mm ss SumC_g SumN_g SumP_g"         
 
             else
 
-                write(Me%MassOutput%Unit, 103) "Mass Balance only possible to estimate for N and P"         
-                write(Me%MassOutput%Unit, 103) "Carbon is not followed when using WaterQuality model"         
-                write(Me%MassOutput%Unit, 103) "YY MM DD hh mm ss SumN_g SumP_g"         
+                write(Me%MassOutput%Unit(iIndexOutput), 103) "Mass Balance only possible to estimate for N and P"         
+                write(Me%MassOutput%Unit(iIndexOutput), 103) "Carbon is not followed when using WaterQuality model"         
+                write(Me%MassOutput%Unit(iIndexOutput), 103) "YY MM DD hh mm ss SumN_g SumP_g"         
 
             end if
         end if 
@@ -1650,26 +1671,25 @@ do1:        do while (associated(ObjCohort%Next))
         
         !Begin----------------------------------------------------------------------
 
-        call UnitsManager(Cohort%CohortOutput%Unit, OPEN_FILE, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ConstructOutputs - ModuleBivalve - ERR01'
+        call UnitsManager(Cohort%CohortOutput%Unit(iIndexOutput), OPEN_FILE, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ConstructCohortOutput - ModuleBivalve - ERR01'
 
         !Bivalve processes, bivalve1.dat
         
-        write(IndexOutputStr, ('(I5)')) iIndexOutput
+        write(IndexOutputStr, ('(I5)')) Me%IndexOutputs(iIndexOutput)
         
         CohortFileName = trim(Me%PathFileName)//trim(IndexOutputStr)//'_'//trim(Cohort%ID%Name)//'.srw'
         
-        open(Unit = Cohort%CohortOutput%Unit, File = trim(CohortFileName), &
-                                              Status = 'REPLACE')
-
+        open(Unit = Cohort%CohortOutput%Unit(iIndexOutput), File = trim(CohortFileName), Status = 'REPLACE')
+                                              
         !time serie format
-        call WriteDataLine(Cohort%CohortOutput%Unit, "Time Serie Results File")
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "Time Serie Results File")
 
-        call WriteDataLine(Cohort%CohortOutput%Unit, "NAME", trim(IndexOutputStr)//'_'//trim(Cohort%ID%Name))
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "NAME", trim(IndexOutputStr)//'_'//trim(Cohort%ID%Name))
 
-        call WriteDataLine(Cohort%CohortOutput%Unit, 'SERIE_INITIAL_DATA', Me%InitialDate)
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), 'SERIE_INITIAL_DATA', Me%InitialDate)
         
-        call WriteDataLine(Cohort%CohortOutput%Unit, 'TIME_UNITS', 'SECONDS')
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), 'TIME_UNITS', 'SECONDS')
 
         101 format(A800)
 
@@ -1684,7 +1704,7 @@ do1:        do while (associated(ObjCohort%Next))
                        "#/d.m2_46 #/d.m2_47 #/d.m2_48 #/d.m2_49 #/d.m2_50 "           // &
                        "#/d.m2_51 #/d.m2_52 #/d.m2_53 #/d.m2_54 adim_55"
 
-        write(Cohort%CohortOutput%Unit, 101) OuputHeader
+        write(Cohort%CohortOutput%Unit(iIndexOutput), 101) OuputHeader
 
         OuputHeader = "Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "            // &
                       "Number_8 ME_9 MV_10 MH_11 MR_12 L_13 A_14 Cr_15 "    // &
@@ -1697,9 +1717,9 @@ do1:        do while (associated(ObjCohort%Next))
                       "m_cra_46 m_oys_47 m_duck_48 m_gull_49 m_low_50 "     // &
                       "m_self_51 m_others_52 m_vel_53 m_settle_54 ScaledE"
         
-        write(Cohort%CohortOutput%Unit, 101) OuputHeader
+        write(Cohort%CohortOutput%Unit(iIndexOutput), 101) OuputHeader
         
-        call WriteDataLine(Cohort%CohortOutput%Unit, '<BeginTimeSerie>')
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), '<BeginTimeSerie>')
 
     end subroutine ConstructCohortOutput
 
@@ -4789,7 +4809,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_)then
 
             enddo
             
-            if(Me%OutputON) Me%NextOutPut = Me%NextOutPut + 1
+            if(Me%OutputON) then
+                if (Me%ExternalVar%CurrentTime .ge. Me%BivalveOutputTimes(Me%NextOutPut)) then
+                    Me%NextOutPut = Me%NextOutPut + 1
+                endif
+            end if
             
             call UpdateListDeadAndNewBornIDs
                         
@@ -4864,6 +4888,7 @@ d2:         do while (associated(Cohort))
         !Arguments-------------------------------------------------------------
         integer, intent(IN)           :: Index
         integer, intent(IN)           :: CheckIfOpenPoint
+        integer                       :: i, iIndexOutput
 
         !Local-----------------------------------------------------------------
         !Begin-----------------------------------------------------------------
@@ -4894,8 +4919,15 @@ d2:         do while (associated(Cohort))
         if(Me%OutputThisIndex)then
 
             if (Me%ExternalVar%CurrentTime >= Me%BivalveOutputTimes(Me%NextOutPut)) then
+            
+                do i = 1, Me%nIndexOutputs
+                    if(Index == Me%IndexOutputs(i))then
+                        iIndexOutput = i
+                    endif
+                enddo
+            
         
-                call WriteOutput (Index)
+                call WriteOutput (Index, iIndexOutput)
             
             endif
             
@@ -8651,12 +8683,12 @@ d2:         do while(associated(Cohort))
 
     !--------------------------------------------------------------------------
 
-    subroutine WriteOutput (Index)
+    subroutine WriteOutput (Index, iIndexOutput)
 
         !Arguments-------------------------------------------------------------
         type(T_Species),      pointer   :: Species
         type(T_Cohort),       pointer   :: Cohort
-        integer, intent(IN)             :: Index
+        integer, intent(IN)             :: Index, iIndexOutput
 
         !Local-----------------------------------------------------------------
         integer                         :: M_V, M_E, M_H, M_R
@@ -8707,7 +8739,7 @@ d2:             do while(associated(Cohort))
                                 E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, &
                                 E20.13, 1x, E20.13, 1x)!50
 
-                    write(Cohort%CohortOutput%Unit, 102) TotalSeconds, int(Year), int(Month), int(Day)              ,& !1,2,3
+                    write(Cohort%CohortOutput%Unit(iIndexOutput), 102) TotalSeconds, int(Year), int(Month), int(Day),& !1,2,3
                                                          int(hour), int(minute), int(second)                        ,& !4,5,6
                                     Me%ExternalVar%Mass(Number,Index)    * 1.0/Me%ConvertionFactor                  ,& !7, #/m2
                                     Me%ExternalVar%Mass(M_E,Index)                                                  ,& !8
@@ -8778,7 +8810,7 @@ d2:             do while(associated(Cohort))
                             E20.13, 1x, E20.13, 1x                                           , &  !Phyto E Shrimp
                             E20.13, 1x, E20.13, 1x, I4, 1x)                                               !54,55
                                             
-                    write(Species%PopulationOutput%Unit, 103) TotalSeconds                               ,& !1
+                    write(Species%PopulationOutput%Unit(iIndexOutput), 103) TotalSeconds                 ,& !1
                         int(Year), int(Month), int(Day)                                                  ,& !2,3,4
                         int(hour), int(minute), int(second)                                              ,& !5,6,7
                         Species%PopulationProcesses%TN                            * 1.0/Me%ConvertionFactor ,& !7, #/m2
@@ -8841,7 +8873,7 @@ d2:             do while(associated(Cohort))
                                                                     
                 if (Species%BySizeOutput) then
 
-                    call WriteSizeDistribution (Index, Species)
+                    call WriteSizeDistribution (Index, Species, iIndexOutput)
 
                 end if
             
@@ -8850,18 +8882,18 @@ d2:             do while(associated(Cohort))
             Species => Species%Next
         end do d1
 
-        if (Me%ComputeOptions%MassBalance) call WriteMassBalance (Index)
+        if (Me%ComputeOptions%MassBalance) call WriteMassBalance (Index, iIndexOutput)
 
     end subroutine WriteOutput
 
     !--------------------------------------------------------------------------
 
-    subroutine WriteMassBalance (Index)
+    subroutine WriteMassBalance (Index, iIndexOutput)
 
         !Notes-----------------------------------------------------------------
 
         !Arguments-------------------------------------------------------------
-        integer, intent(IN)             :: Index
+        integer, intent(IN)             :: Index, iIndexOutput
 
         !Local-----------------------------------------------------------------
         type(T_Species),      pointer   :: Species
@@ -9159,13 +9191,13 @@ d2:             do while(associated(Cohort))
 
         if (Me%ComputeOptions%PelagicModel .eq. LifeModel) then
 
-            write(Me%MassOutput%Unit, 101)  int(Year), int(Month), int(Day)           ,& !1,2,3
-                                            int(hour), int(minute), int(second)       ,& !4,5,6
+            write(Me%MassOutput%Unit(iIndexOutput), 101)  int(Year), int(Month), int(Day)   ,& !1,2,3
+                                            int(hour), int(minute), int(second)             ,& !4,5,6
                                             SumC, SumN, SumP, Me%MassLoss
         else
 
-            write(Me%MassOutput%Unit, 102)  int(Year), int(Month), int(Day)           ,& !1,2,3
-                                            int(hour), int(minute), int(second)       ,& !4,5,6
+            write(Me%MassOutput%Unit(iIndexOutput), 102)  int(Year), int(Month), int(Day)   ,& !1,2,3
+                                            int(hour), int(minute), int(second)             ,& !4,5,6
                                             SumN, SumP, Me%MassLoss
         end if
 
@@ -9173,12 +9205,12 @@ d2:             do while(associated(Cohort))
 
     !--------------------------------------------------------------------------
 
-    subroutine WriteSizeDistribution(Index, Species)
+    subroutine WriteSizeDistribution(Index, Species, iIndexOutput)
 
         !Notes-----------------------------------------------------------------
 
         !Arguments-------------------------------------------------------------
-        integer, intent(IN)                 :: Index
+        integer, intent(IN)                 :: Index, iIndexOutput
         type(T_Species)          , pointer  :: Species
 
         !Local-----------------------------------------------------------------            
@@ -9225,22 +9257,22 @@ d2:             do while(associated(Cohort))
 
         end do
 
-        write(Species%SizeDistributionOutput%Unit, '(F16.2, 1x, I4,1x,I2,1x, I2,1x, I2,1x, I2,1x, I2, 1x ,'//&
-                                                    Species%SizeClassesCharFormat//'E16.8, 1x)')  &
-                                                    TotalSeconds, int(Year), int(Month), int(Day) , & !1,2,3
-                                                    int(hour), int(minute), int(second), & !4,5,6
-                                                    Species%SizeFrequency
+        write(Species%SizeDistributionOutput%Unit(iIndexOutput), '(F16.2, 1x, I4,1x,I2,1x, I2,1x, I2,1x, I2,1x, I2, 1x ,'//&
+                                                                Species%SizeClassesCharFormat//'E16.8, 1x)')  &
+                                                                TotalSeconds, int(Year), int(Month), int(Day) , & !1,2,3
+                                                                int(hour), int(minute), int(second), & !4,5,6
+                                                                Species%SizeFrequency
 
     end subroutine WriteSizeDistribution
 
     !--------------------------------------------------------------------------
 
-    subroutine WriteTestingFile(Index)
+    subroutine WriteTestingFile(Index, iIndexOutput)
 
         !Notes-----------------------------------------------------------------
 
         !Arguments-------------------------------------------------------------
-        integer, intent(IN)                 :: Index
+        integer, intent(IN)                 :: Index, iIndexOutput
 
         !Local-----------------------------------------------------------------            
         integer                             :: STAT_CALL
@@ -9263,11 +9295,11 @@ d2:             do while(associated(Cohort))
         Species => Me%FirstSpecies
         do while(associated(Species))
 
-            call UnitsManager(Species%TestingParametersOutput%Unit, OPEN_FILE, STAT = STAT_CALL)
+            call UnitsManager(Species%TestingParametersOutput%Unit(iIndexOutput), OPEN_FILE, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine WriteTestingFile - ModuleBivalve - ERR01'
             
             
-            open(Unit = Species%TestingParametersOutput%Unit, File = trim(Species%Testing_File)   , &
+            open(Unit = Species%TestingParametersOutput%Unit(iIndexOutput), File = trim(Species%Testing_File)   , &
                                                               Status = 'UNKNOWN', Access = 'APPEND' )
             
             TN = 0.0
@@ -9409,7 +9441,7 @@ d2:             do while(associated(Cohort))
 
             101 format(A1000)             
             
-            write(Species%TestingParametersOutput%Unit, 101) CompleteLineStr
+            write(Species%TestingParametersOutput%Unit(iIndexOutput), 101) CompleteLineStr
                  
             Species => Species%Next
         end do
@@ -9668,7 +9700,7 @@ d2:         do while (associated(Cohort))
         !Local-----------------------------------------------------------------
         type (T_Cohort), pointer      :: Cohort           => null()
         type (T_Cohort), pointer      :: PreviousCohort   => null()
-        integer                       :: STAT_CALL
+        integer                       :: STAT_CALL, iIndexOutput
         !----------------------------------------------------------------------
 
         nullify(Cohort, PreviousCohort)
@@ -9688,15 +9720,21 @@ d2:         do while (associated(Cohort))
                 
                 if (ObjSpecies%CohortOutput) then
                 
-                    call WriteDataLine(Cohort%CohortOutput%Unit, '<EndTimeSerie>')
+                    do iIndexOutput = 1, Me%nIndexOutputs
+                
+                        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), '<EndTimeSerie>')
 
-                    call UnitsManager(Cohort%CohortOutput%Unit, CLOSE_FILE, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine RemoveCohortFromList - ModuleBivalve - ERR01'
+                        call UnitsManager(Cohort%CohortOutput%Unit(iIndexOutput), CLOSE_FILE, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine RemoveCohortFromList - ModuleBivalve - ERR01'
+                    
+                    enddo
+                    
+                    deallocate(Cohort%CohortOutput%Unit)
 
                 end if
 
                 if(associated(Cohort%FeedingOn)) deallocate (Cohort%FeedingOn)
-
+                
                 deallocate    (Cohort)
                 nullify       (Cohort)
 
@@ -9761,9 +9799,9 @@ d1:     do while (associated(Species))
 
         !Local------------------------------------------------------------------------
         integer :: STAT_, nUsers           
-        type (T_Species)  , pointer     :: Species
-        type (T_Cohort)   , pointer     :: Cohort
-        integer                                   :: STAT_CALL
+        type (T_Species)  , pointer         :: Species
+        type (T_Cohort)   , pointer         :: Cohort
+        integer                             :: STAT_CALL, iIndexOutput
         !-----------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -9772,8 +9810,21 @@ d1:     do while (associated(Species))
         
         if (Me%Testing_Parameters) then
         
-            call WriteTestingFile (Me%Array%ILB)
+            Species => Me%FirstSpecies
+            do while(associated(Species))
+        
+                allocate(Species%TestingParametersOutput%Unit(1:Me%nIndexOutputs))
+                
+                Species => Species%Next
+                
+            enddo
+            
+            do iIndexOutput = 1, Me%nIndexOutputs
+        
+                call WriteTestingFile (Me%IndexOutputs(iIndexOutput), iIndexOutput)
 
+            enddo
+            
         end if
 
 cd1 :   if (ready_ .NE. OFF_ERR_) then
@@ -9825,8 +9876,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 enddo
                 
                 if (Me%ComputeOptions%MassBalance) then
-                    call UnitsManager(Me%MassOutput%Unit, CLOSE_FILE, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillBivalve - ModuleBivalve - ERR00'
+                
+                    do iIndexOutput = 1, Me%nIndexOutputs
+
+                        call UnitsManager(Me%MassOutput%Unit(iIndexOutput), CLOSE_FILE, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillBivalve - ModuleBivalve - ERR00'
+                    
+                    enddo
+                    
                 end if
                 
                 deallocate (Me%FirstSpecies)
@@ -9913,6 +9970,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         integer                                   :: STAT_CALL
         type (T_Species)         , pointer        :: Species
         type (T_Cohort )         , pointer        :: Cohort
+        integer                                   :: iIndexOutput
 
         !Begin----------------------------------------------------------------------
 
@@ -9922,35 +9980,62 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             if (Species%CohortOutput) then
             
-                call WriteDataLine(Cohort%CohortOutput%Unit, '<EndTimeSerie>')
+                do iIndexOutput = 1, Me%nIndexOutputs
+            
+                    call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), '<EndTimeSerie>')
 
-                call UnitsManager(Cohort%CohortOutput%Unit, CLOSE_FILE, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine CloseFiles - ModuleBivalve - ERR01'
-
+                    call UnitsManager(Cohort%CohortOutput%Unit(iIndexOutput), CLOSE_FILE, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine CloseFiles - ModuleBivalve - ERR01'
+                    
+                enddo
+                
+                deallocate(Cohort%CohortOutput%Unit)
+                
             end if
             Cohort  => Cohort%Next
 
         enddo 
                         
         if (Species%Population) then
-        
-            call WriteDataLine(Species%PopulationOutput%Unit, '<EndTimeSerie>')
+             
+            do iIndexOutput = 1, Me%nIndexOutputs
+
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), '<EndTimeSerie>')
+                
+                call UnitsManager(Species%PopulationOutput%Unit(iIndexOutput), CLOSE_FILE, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine CloseFiles - ModuleBivalve - ERR02'
             
-            call UnitsManager(Species%PopulationOutput%Unit, CLOSE_FILE, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine CloseFiles - ModuleBivalve - ERR02'
+            enddo
+            
+            deallocate(Species%PopulationOutput%Unit)
+            
         end if
 
         if (Species%BySizeOutput) then
         
-            call WriteDataLine(Species%SizeDistributionOutput%Unit, '<EndTimeSerie>')
+            do iIndexOutput = 1, Me%nIndexOutputs
+        
+                call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), '<EndTimeSerie>')
+                
+                call UnitsManager(Species%SizeDistributionOutput%Unit(iIndexOutput), CLOSE_FILE, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine CloseFiles - ModuleBivalve - ERR03'
             
-            call UnitsManager(Species%SizeDistributionOutput%Unit, CLOSE_FILE, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine CloseFiles - ModuleBivalve - ERR03'
+            enddo
+            
+            deallocate(Species%SizeDistributionOutput%Unit)
+
         end if
         
         if (Me%Testing_Parameters) then
-            call UnitsManager(Species%TestingParametersOutput%Unit, CLOSE_FILE, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine CloseFiles - ModuleBivalve - ERR03'
+        
+            do iIndexOutput = 1, Me%nIndexOutputs
+
+                call UnitsManager(Species%TestingParametersOutput%Unit(iIndexOutput), CLOSE_FILE, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine CloseFiles - ModuleBivalve - ERR03'
+            
+            enddo
+            
+            deallocate(Species%TestingParametersOutput%Unit)
 
 !                call UnitsManager(Species%MakeRplotsPopulation%Unit, CLOSE_FILE, STAT = STAT_CALL)
 !                if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine CloseFiles - ModuleBivalve - ERR04'

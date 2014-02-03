@@ -2176,7 +2176,7 @@ cd2 :           if (BlockFound) then
         logical                                     :: EXIST
         integer(4)                                  :: HDF5_READ
         integer                                     :: ObjHDF5 = 0, nProperties, iProp, ichar
-        character(len=StringLength)                 :: PropertyName, NewCohortName
+        character(len=StringLength)                 :: PropertyName
         integer                                     :: PropertyNameLength, SpeciesNameLength
         character(len=10)                           :: NewCohortIDChar
         character(len=1)                            :: one_char
@@ -3029,7 +3029,7 @@ do6 :                       do K = WKLB, WKUB
         NewProperty%Evolution%Advec_Difus_Parameters%NullDif             = .false.
         NewProperty%Evolution%Advec_Difus_Parameters%DecayTime           = 0.0
         NewProperty%Evolution%Advec_Difus_Parameters%BoundaryCondition   = NullGradient
-        NewProperty%Evolution%Advec_Difus_Parameters%AdvectionH_imp_exp  = 1.0
+        NewProperty%Evolution%Advec_Difus_Parameters%AdvectionH_imp_exp  = 0.0
         NewProperty%Evolution%Advec_Difus_Parameters%DiffusionH_imp_exp  = 0.
         NewProperty%Evolution%Advec_Difus_Parameters%ImplicitH_Direction = DirectionX
         
@@ -11307,6 +11307,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Coupled%Bivalve%Yes)                       &
                 call Bivalve_Processes
+                
+            if (Me%Coupled%MinimumConcentration%Yes .or.      &
+                Me%Coupled%MaximumConcentration%Yes)          &
+                call SetLimitsConcentration !('Bivalve Processes')
 
             if (Me%Coupled%Partition%Yes)                     &
                 call Partition_Processes
@@ -13946,14 +13950,17 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         
                             if(Me%ExternalVar%WaterPoints3D(i, j, k) == 1)then
                             
-                                !Total number of individuals in the cell, #/m3
-                                NewTotalN = Property_N%Concentration(i,j,k)        + & !new larvae values from advection diffusion
-                                            Cohort%AuxLarvaeN(i,j,k)               * & !non larvae values stored before adv diff
-                                            Me%ExternalVar%GridCellArea(i, j)      / &
-                                            Me%ExternalVar%VolumeZ (i, j, k)       
+                                NewTotalN = 0.0
+                            
+                                if(Property_N%Concentration(i,j,k) .ge. 1e-8)then
+                            
+                                    !Total number of individuals in the cell, #/m3
+                                    NewTotalN = Property_N%Concentration(i,j,k)     + & !new larvae values from advection diffusion
+                                                Cohort%AuxLarvaeN(i,j,k)            * & !non larvae values stored before adv diff
+                                                Me%ExternalVar%GridCellArea(i, j)   / &
+                                                Me%ExternalVar%VolumeZ (i, j, k)       
                                 
-                                if(NewTotalN > 0)then
-                                !Average properties based on number/m3 and RESTORE UNITS to biomass/ind and #/m2
+                                    !Average properties based on number/m3 and RESTORE UNITS to biomass/ind and #/m2
                             
                                     !molC/ind = [molC/m3 (from larvae) + molC/# * #/m2 * m2/m3] (from non larvae) / #/m3
                                     Property_ME%Concentration(i,j,k) = ( Property_ME%Concentration(i,j,k)                      + &
@@ -13989,6 +13996,16 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                                                                         Me%ExternalVar%GridCellArea(i, j)                     / &
                                                                         Me%ExternalVar%VolumeZ (i, j, k)) )                   / &
                                                                         NewTotalN
+                                
+                                else
+                                
+                                    Property_ME%Concentration(i,j,k) = 0.0
+                                    Property_MV%Concentration(i,j,k) = 0.0
+                                    Property_MH%Concentration(i,j,k) = 0.0
+                                    Property_MR%Concentration(i,j,k) = 0.0
+                                    Property_ME%Concentration(i,j,k) = 0.0
+                                    Property_L%Concentration (i,j,k) = 0.0
+                                
                                 end if
                                 
                                 !RESTORE UNITS, #/m2 = #/m3 * m3/m2
@@ -15859,56 +15876,57 @@ cd5:                if (TotalVolume > 0.) then
 
                 Cohort  => Species%FirstCohort
                 do while (associated(Cohort))
+                
+                    if(Cohort%AtLeastOneLarvae)then
                                
-                    !length
-                    PropertyName_L = trim(adjustl(Cohort%ID%Name))//" length"
-                
-                    call Search_Property(Property_L                                                , & 
-                                         PropertyXID = GetDynamicPropertyIDNumber(PropertyName_L)  , &
-                                         STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
+                        !length
+                        PropertyName_L = trim(adjustl(Cohort%ID%Name))//" length"
+                    
+                        call Search_Property(Property_L                                                , & 
+                                             PropertyXID = GetDynamicPropertyIDNumber(PropertyName_L)  , &
+                                             STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
 
-                    !number
-                    PropertyName_N = trim(adjustl(Cohort%ID%Name))//" number"
-                
-                    call Search_Property(Property_N                                                , &
-                                         PropertyXID = GetDynamicPropertyIDNumber(PropertyName_N)  , &
-                                         STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
+                        !number
+                        PropertyName_N = trim(adjustl(Cohort%ID%Name))//" number"
+                    
+                        call Search_Property(Property_N                                                , &
+                                             PropertyXID = GetDynamicPropertyIDNumber(PropertyName_N)  , &
+                                             STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
 
-                    !maturity
-                    PropertyName_MH = trim(adjustl(Cohort%ID%Name))//" maturity"
-                
-                    call Search_Property(Property_MH                                              , & 
-                                         PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MH), &
-                                         STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
+                        !maturity
+                        PropertyName_MH = trim(adjustl(Cohort%ID%Name))//" maturity"
+                    
+                        call Search_Property(Property_MH                                              , & 
+                                             PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MH), &
+                                             STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
 
-                    !structure
-                    PropertyName_MV = trim(adjustl(Cohort%ID%Name))//" structure"
-                
-                    call Search_Property(Property_MV                                              , & 
-                                         PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MV), &
-                                         STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
+                        !structure
+                        PropertyName_MV = trim(adjustl(Cohort%ID%Name))//" structure"
+                    
+                        call Search_Property(Property_MV                                              , & 
+                                             PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MV), &
+                                             STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
 
-                    !reserves
-                    PropertyName_ME = trim(adjustl(Cohort%ID%Name))//" reserves"
-                
-                    call Search_Property(Property_ME                                              , & 
-                                         PropertyXID = GetDynamicPropertyIDNumber(PropertyName_ME), &
-                                         STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
+                        !reserves
+                        PropertyName_ME = trim(adjustl(Cohort%ID%Name))//" reserves"
+                    
+                        call Search_Property(Property_ME                                              , & 
+                                             PropertyXID = GetDynamicPropertyIDNumber(PropertyName_ME), &
+                                             STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
 
-                    !reproduction
-                    PropertyName_MR = trim(adjustl(Cohort%ID%Name))//" reproduction"
-                
-                    call Search_Property(Property_MR                                              , & 
-                                         PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MR), &
-                                         STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
+                        !reproduction
+                        PropertyName_MR = trim(adjustl(Cohort%ID%Name))//" reproduction"
+                    
+                        call Search_Property(Property_MR                                              , & 
+                                             PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MR), &
+                                             STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'UpdateLarvaeDistribution - ModuleWaterProperties - ERR10' 
                         
-                    if (Cohort%AtLeastOneLarvae)then 
 
                         Property_L%Evolution%AdvectionDiffusion  = .true.
                         Property_MV%Evolution%AdvectionDiffusion = .true.
@@ -15917,18 +15935,20 @@ cd5:                if (TotalVolume > 0.) then
                         Property_MR%Evolution%AdvectionDiffusion = .true.
                         Property_N%Evolution%AdvectionDiffusion  = .true.
                         
-                        call ComputeCohortLarvaeDistribution(Cohort, Property_L, Species%LarvaeMaxSize)
-                    endif
+                        call ComputeCohortLarvaeDistribution(Cohort, Property_L, Property_N, Species%LarvaeMaxSize)
+                        
                     
-                    !this IF is separated because Cohort%AtLeastOneLarvae can change
-                    !after the call to sub ComputeCohortLarvaeDistribution
-                    if(.not. Cohort%AtLeastOneLarvae)then
-                        Property_L%Evolution%AdvectionDiffusion  = .false.
-                        Property_MV%Evolution%AdvectionDiffusion = .false.
-                        Property_ME%Evolution%AdvectionDiffusion = .false.
-                        Property_MH%Evolution%AdvectionDiffusion = .false.
-                        Property_MR%Evolution%AdvectionDiffusion = .false.
-                        Property_N%Evolution%AdvectionDiffusion  = .false.
+                        !this IF is separated because Cohort%AtLeastOneLarvae can change
+                        !after the call to sub ComputeCohortLarvaeDistribution
+                        if(.not. Cohort%AtLeastOneLarvae)then
+                            Property_L%Evolution%AdvectionDiffusion  = .false.
+                            Property_MV%Evolution%AdvectionDiffusion = .false.
+                            Property_ME%Evolution%AdvectionDiffusion = .false.
+                            Property_MH%Evolution%AdvectionDiffusion = .false.
+                            Property_MR%Evolution%AdvectionDiffusion = .false.
+                            Property_N%Evolution%AdvectionDiffusion  = .false.
+                        endif
+                    
                     endif
                         
                     Cohort  => Cohort%Next
@@ -15946,11 +15966,11 @@ cd5:                if (TotalVolume > 0.) then
     
     !--------------------------------------------------------------------------
     
-    subroutine ComputeCohortLarvaeDistribution(Cohort, Property_L, LarvaeMaxSize)
+    subroutine ComputeCohortLarvaeDistribution(Cohort, Property_L, Property_N, LarvaeMaxSize)
     
         !Arguments-------------------------------------------------------------
         type (T_Cohort)  , pointer         :: Cohort
-        type (T_Property), pointer         :: Property_L
+        type (T_Property), pointer         :: Property_L, Property_N
         real, intent(in)                   :: LarvaeMaxSize
         
         !External--------------------------------------------------------------
@@ -15981,9 +16001,9 @@ cd5:                if (TotalVolume > 0.) then
         do i = WorkILB, WorkIUB
         
             if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
-
-                if (Property_L%Concentration(i,j,k) .le. LarvaeMaxSize .and. &
-                    Property_L%Concentration(i,j,k) .gt. 0.) then 
+                if (Property_L%Concentration(i,j,k) .gt. 0.0           .and. &
+                    Property_L%Concentration(i,j,k) .le. LarvaeMaxSize .and. &
+                    Property_N%Concentration(i,j,k) .gt. 1e-8) then 
                     Cohort%Larvae(i,j,k) = 1
                 else
                     Cohort%Larvae(i,j,k) = 0
@@ -16095,7 +16115,7 @@ do2 :                do j = WorkJLB, WorkJUB
 do1 :                 do i = WorkILB, WorkIUB
 
 
-                    if (Property_MV%Concentration(i,j,k) .gt. 0.0) then !the cohort is not dead
+                    if (Property_N%Concentration(i,j,k) .gt. 0.0) then !the cohort is not dead
                     
                         Species%TotalDensity(i,j,k) = Species%TotalDensity(i,j,k) +            &
                                                       Property_N%Concentration(i,j,k)
@@ -16692,6 +16712,10 @@ TOut:   if (CurrentTime >= OutTime) then
             do while (associated(Property))
 
                 if (Property%ID%IDNumber .eq. PropDynamicID) then  !this is the cohort to be removed    
+                
+                    if(Property%Evolution%MinConcentration .or. Property%Evolution%MaxConcentration)then
+                        call ComputeAndLogTotalMassError(Property)
+                    endif
                 
                     Me%Bivalve%nPropertiesFromBivalve = Me%Bivalve%nPropertiesFromBivalve - 1        
                 
@@ -24605,8 +24629,6 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
         integer                                 :: WorkKLB, WorkKUB
         integer                                 :: STAT_CALL
         integer(4)                              :: HDF5_CREATE
-        real                                    :: Total_Mass_Created, Total_Mass_Destroid
-        character (Len = StringLength)          :: str_mass_created, string_to_be_written, str_mass_destroid
         character (Len = Pathlength)            :: filename
         !----------------------------------------------------------------------
 
@@ -24750,17 +24772,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                     if (STAT_CALL /= SUCCESS_)                                              &
                         stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR150'
 
-                    !g/1000 = kg, to avoid big numbers
-                    Total_Mass_Created = SUM(Property%Mass_Created)/1000.0
-
-                    write(str_mass_created, '(f20.8)') Total_Mass_Created
-          
-                    string_to_be_written = 'Total mass created on property '                //&
-                                            trim(adjustl(adjustr(Property%id%name)))//' = ' //&
-                                            trim(adjustl(adjustr(str_mass_created))) 
-                
-                    !Writes total mass created to "Error_and_Messages.log" file
-                    call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+                    call ComputeAndLogTotalMassError(Property)
                     
                 endif
 
@@ -24774,21 +24786,10 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                                         STAT    = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
                         stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR160'
-
-                    !g/1000 = kg, to avoid big numbers
-                    Total_Mass_Destroid = SUM(Property%Mass_Destroid)/1000.0
-
-                    write(str_mass_destroid, '(f20.8)') Total_Mass_destroid
-          
-                    string_to_be_written = 'Total mass destroid on property '               //&
-                                            trim(adjustl(adjustr(Property%id%name)))//' = ' //&
-                                            trim(adjustl(adjustr(str_mass_destroid))) 
-                
-                    !Writes total mass destroid to "Error_and_Messages.log" file
-                    call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
                     
-                endif
-                
+                    call ComputeAndLogTotalMassError(Property)
+
+                endif                
             end if
 
             if (associated(Property%Assimilation%Field))then
@@ -24865,6 +24866,52 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
 
     end subroutine Write_FinalWaterProperties_HDF
 
+    !--------------------------------------------------------------------------
+    
+    subroutine ComputeAndLogTotalMassError(Property)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_Property)                        :: Property
+
+        !Local-----------------------------------------------------------------
+        real                                    :: Total_Mass_Created, Total_Mass_Destroid
+        character (Len = StringLength)          :: str_mass_created, string_to_be_written, str_mass_destroid
+        !----------------------------------------------------------------------
+        
+        if (Property%Evolution%MinConcentration) then
+
+            !g/1000 = kg, to avoid big numbers
+            Total_Mass_Created = SUM(Property%Mass_Created)/1000.0
+
+            write(str_mass_created, '(f20.8)') Total_Mass_Created
+
+            string_to_be_written = 'Total mass created on property '                //&
+                                trim(adjustl(adjustr(Property%id%name)))//' = ' //&
+                                trim(adjustl(adjustr(str_mass_created))) 
+
+            !Writes total mass created to "Error_and_Messages.log" file
+            call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+
+        endif
+
+        if (Property%Evolution%MaxConcentration) then
+
+            !g/1000 = kg, to avoid big numbers
+            Total_Mass_Destroid = SUM(Property%Mass_Destroid)/1000.0
+
+            write(str_mass_destroid, '(f20.8)') Total_Mass_destroid
+
+            string_to_be_written = 'Total mass destroid on property '               //&
+                                trim(adjustl(adjustr(Property%id%name)))//' = ' //&
+                                trim(adjustl(adjustr(str_mass_destroid))) 
+
+            !Writes total mass destroid to "Error_and_Messages.log" file
+            call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+
+        endif
+    
+    end subroutine ComputeAndLogTotalMassError
+    
     !--------------------------------------------------------------------------
 
     subroutine KillDensity
