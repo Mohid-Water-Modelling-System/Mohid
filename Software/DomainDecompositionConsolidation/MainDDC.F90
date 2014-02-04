@@ -43,6 +43,10 @@ program MohidDDC
     
         !----------------------------------------------------------------------
 
+        !This Option Control the HDF5 instance Output visualization on cmd window
+        !Comment the next Nile to show HDF5 instante on cmd
+        call StartUpMohid("DomainDecompositionConsolidation")
+        
         call AllocateInstance
 
         call StartCPUTime
