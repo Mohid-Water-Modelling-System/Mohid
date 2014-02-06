@@ -317,7 +317,8 @@ Global
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug|x64.Build.0 = Debug|x64
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
-		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP|x64
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|x64.Build.0 = Release Double OpenMP PhreeqC|x64
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP|Win32.ActiveCfg = Release Double OpenMP|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP|Win32.Build.0 = Release Double OpenMP|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP|x64.ActiveCfg = Release Double OpenMP|x64
@@ -411,9 +412,11 @@ Global
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug|Win32.Build.0 = Debug|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug|x64.ActiveCfg = Debug|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
-		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|x64
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP PhreeqC|x64.Build.0 = Release Double OpenMP PhreeqC|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
-		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP|x64.ActiveCfg = Release Double|x64
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP|x64.ActiveCfg = Release Double OpenMP|x64
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP|x64.Build.0 = Release Double OpenMP|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double|x64.ActiveCfg = Release Double|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release OpenMP|Win32.ActiveCfg = Release|Win32
@@ -443,7 +446,6 @@ Global
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double OpenMP|Win32.ActiveCfg = Release Double|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double OpenMP|x64.ActiveCfg = Release Double|x64
-		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double OpenMP|x64.Build.0 = Release Double|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double|Win32.Build.0 = Release Double|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double|x64.ActiveCfg = Release Double|x64
@@ -594,8 +596,8 @@ Global
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug|x64.ActiveCfg = Debug Double Openmp|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double|Win32
-		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|x64
-		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|x64.Build.0 = Release Double|x64
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|x64.Build.0 = Release Double OpenMP PhreeqC|x64
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP|Win32.ActiveCfg = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP|x64.ActiveCfg = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double|Win32.ActiveCfg = Release Double|Win32
