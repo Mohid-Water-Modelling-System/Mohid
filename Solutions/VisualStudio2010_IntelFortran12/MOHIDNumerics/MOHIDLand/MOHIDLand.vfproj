@@ -195,8 +195,8 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release Double OpenMP PhreeqC|x64">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" InlineFunctionExpansion="expandOnlyInline" Parallelization="true" BufferedIO="true" HeapArrays="64" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\x64\Release Double OpenMP PhreeqC;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\x64\Release Double OpenMP PhreeqC" PreprocessorDefinitions="_PHREEQC_;_STACK_LIMITS_,_BIG_LINE_LENGTH" EnableEnhancedInstructionSet="codeArchSSE3" OpenMP="OpenMPParallelCode" F2003Semantics="true" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0"/>
-				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).double.omp.phreeqc.64.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\x64\Release Double OpenMP PhreeqC;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\x64\Release Double OpenMP PhreeqC;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\PhreeqC\x64\Release Double; ..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\lib" IgnoreDefaultLibraryNames="msvcrt" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib PhreeqC.lib"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" InlineFunctionExpansion="expandOnlyInline" Parallelization="true" AutoParallelThreshold="80" VectorizationThreshold="80" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase1\x64\Release Double OpenMP PhreeqC;..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase2\x64\Release Double OpenMP PhreeqC" PreprocessorDefinitions="_PHREEQC_;_STACK_LIMITS_" OpenMP="OpenMPParallelCode" F2003Semantics="true" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\mohid.land.double.omp.phreeqc.x64.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase1\x64\Release Double OpenMP PhreeqC;..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase2\x64\Release Double OpenMP PhreeqC;..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\PhreeqC\x64\Release Double;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\lib" IgnoreDefaultLibraryNames="msvcrt" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib PhreeqC.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -291,17 +291,17 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModuleBasin.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModulePorousMedia.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModulePorousMediaProperties.F90">
-			<FileConfiguration Name="Release Double|Win32">
-				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release Double|x64">
+				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
+			<FileConfiguration Name="Release Double|Win32">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|x64">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release OpenMP|x64">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
-			<FileConfiguration Name="Release OpenMP|Win32">
-				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release Double OpenMP|x64">
+				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
+			<FileConfiguration Name="Release OpenMP|Win32">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|Win32">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration></File>
