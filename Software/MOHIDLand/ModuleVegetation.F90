@@ -1958,7 +1958,7 @@ cd2 :           if (BlockFound) then
                     call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
 
                     if (STAT_CALL .NE. SUCCESS_)                                      &
-                        stop 'Subroutine ConstructPropertyList; ModuleVegetation. ERR01.'
+                        stop 'Subroutine ConstructPropertyList - ModuleVegetation. ERR01.'
 
                     exit do1    !No more blocks
                 end if cd2
@@ -7358,7 +7358,7 @@ cd0:    if (Exist) then
             
         else
             write(*,*)'Error in converting logical and integer'
-            stop 'ConvertLogicalInteger - Module Vegetation - ERR01'
+            stop 'ConvertLogicalInteger - ModuleVegetation - ERR01'
         
         endif
 
@@ -9359,7 +9359,7 @@ do4:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !                if (TreeMaximumBiomass .lt. 0.0) then
 !                    write(*,*) 'Tree years to maturity was defined but maximum tree biomass did not.'
 !                    write(*,*) 'Please check trees growth databases in vegetation file.'
-!                    stop 'CheckTreeAge - Module Vegetation - ERR01'
+!                    stop 'CheckTreeAge - ModuleVegetation - ERR01'
 !                endif
 !
 !                Me%Growth%TreeFractionToMaturity(i,j)   = float(Me%Growth%TreeCurrentYear(i,j)) / float(TreeYearsToMaturity)
@@ -9389,7 +9389,7 @@ do4:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (TreeMaximumBiomass .lt. 0.0) then
                     write(*,*) 'Tree years to maturity was defined but maximum tree biomass did not.'
                     write(*,*) 'Please check trees growth databases in vegetation file.'
-                    stop 'CheckTreeAge - Module Vegetation - ERR02'
+                    stop 'CheckTreeAge - ModuleVegetation - ERR02'
                 endif
 
                 Me%Growth%TreeFractionToMaturity(i,j)   = float(Me%Growth%TreeCurrentYear(i,j)) / float(TreeYearsToMaturity)
@@ -10424,7 +10424,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                     else
 
                                         write(*,*) 'Error in NutrientUptake method. Check vegetation options.'
-                                        stop 'NitrogenUptakeSWAT - Module Vegetation ERR01'
+                                        stop 'NitrogenUptakeSWAT - ModuleVegetation ERR01'
 
                                     endif
         
@@ -10642,7 +10642,7 @@ do3:                do k = KUB, KLB, -1
                                 else
 
                                     write(*,*) 'Error in NutrientUptake method. Check vegetation options.'
-                                    stop 'NitrogenUptakeSWAT - Module Vegetation ERR01'
+                                    stop 'NitrogenUptakeSWAT - ModuleVegetation ERR01'
 
                                 endif
     
@@ -10936,7 +10936,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                 else
 
                                     write(*,*) 'Error in NutrientUptake method. Check vegetation options.'
-                                    stop 'NitrogenUptakeSWAT - Module Vegetation ERR01'
+                                    stop 'NitrogenUptakeSWAT - ModuleVegetation ERR01'
 
                                 endif
     
@@ -11154,7 +11154,7 @@ do3 :               do k = KUB, KLB, -1
                                 else
 
                                     write(*,*) 'Error in NutrientUptake method. Check vegetation options.'
-                                    stop 'NitrogenUptakeSWAT - Module Vegetation ERR01'
+                                    stop 'NitrogenUptakeSWAT - ModuleVegetation ERR01'
 
                                 endif
     
@@ -15807,7 +15807,7 @@ cd1:    if (ObjVegetation_ID > 0) then
                                     VolumeZ    = Me%ExternalVar%CellVolume,                       &
                                     STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                            &
-                call SetError(FATAL_, INTERNAL_, "ReadLockExternalVar; ModuleVegetation - ERR0100")
+                call SetError(FATAL_, INTERNAL_, "ReadLockExternalVar - ModuleVegetation - ERR0100")
 
 !            !Gets a pointer to OpenPoints2D
 !            call GetOpenPoints2D  (Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
@@ -15864,7 +15864,7 @@ cd1:    if (ObjVegetation_ID > 0) then
 
             call UnGetGeometry( Me%ObjGeometry, Me%ExternalVar%CellVolume,   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                                   &
-                call SetError(FATAL_, INTERNAL_, "ReadUnLockExternalVar; ModuleVegetation - ERR060")
+                call SetError(FATAL_, INTERNAL_, "ReadUnLockExternalVar - ModuleVegetation - ERR060")
 
 !            call UngetHorizontalMap (Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
 !            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleVegetation - ERR70'

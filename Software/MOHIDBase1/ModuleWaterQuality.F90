@@ -3619,7 +3619,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadSilicaFileConstants - Module ModuleWaterQuality - ERRO1'
+            stop 'Subroutine WQReadSilicaFileConstants - ModuleModuleWaterQuality - ERRO1'
 
         !Biogenic Silica Dissolution temperature cefficient, adim
         call GetData(Me%SilicaCycle%BiogenicDissTCoef,                              &
@@ -3631,7 +3631,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadSilicaFileConstants - Module ModuleWaterQuality - ERRO1'
+            stop 'Subroutine WQReadSilicaFileConstants - ModuleModuleWaterQuality - ERRO1'
 
 
      end subroutine WQReadSilicaFileConstants
@@ -3661,7 +3661,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERRO1'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERRO1'
 
         !Diatoms Endogenous Respiration Constant, d-1
         call GetData(Me%Diatoms%DiaEndogRepConst,                                   &
@@ -3673,7 +3673,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERRO2'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERRO2'
 
         !Fraction of Diatoms photosynthesis which is oxidized by photorespiration, d-1
         call GetData(Me%Diatoms%DiaPhotorespFactor,                                 &
@@ -3685,7 +3685,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERRO3'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERRO3'
 
         !Diatoms Excretion Constant, adim
         call GetData(Me%Diatoms%DiaExcretionConstant,                               &
@@ -3697,7 +3697,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERRO4'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERRO4'
 
         !Diatoms Maximum Mortality Rate, d-1
         call GetData(Me%Diatoms%DiaMortMaxRate,                                     &
@@ -3709,7 +3709,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERRO5'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERRO5'
 
 
         !Diatoms half-saturation mortality rate, d-1
@@ -3722,7 +3722,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERRO6'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERRO6'
 
         !Zooplankton assimilation efficiency for diatoms, adim
         call GetData(Me%Diatoms%DiaE,                                               &
@@ -3734,7 +3734,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERRO7'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERRO7'
 
         !Nitrogen half-saturation constant for Diatoms, mgN/l
         call GetData(Me%Diatoms%DiaNSatConst,                                       &
@@ -3746,7 +3746,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERRO8'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERRO8'
 
         !Phosphorus half-saturation constant for Diatoms, mgP/l
         call GetData(Me%Diatoms%DiaPSatConst,                                       &
@@ -3758,7 +3758,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERRO9'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERRO9'
 
         !Silica half-saturation constant for Diatoms, mgSi/l
         call GetData(Me%Diatoms%DiaSiSatConst,                                      &
@@ -3770,7 +3770,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR10'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR10'
 
         !Optimum light intensity for Diatoms photosynthesis, W/m2
         
@@ -3783,7 +3783,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR11'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR11'
 
         
         !Minimum temperature of optimal interval for Diatoms photosynthesis, ºC
@@ -3796,7 +3796,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR12'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR12'
 
         !Maximum temperature of optimal interval for Diatoms photosynthesis, ºC
         call GetData(Me%Diatoms%DiaTOptMax,                                         &
@@ -3808,7 +3808,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR13'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR13'
 
         !Minimum tolerable temperature for Diatoms Growth, ºC
         call GetData(Me%Diatoms%DiaTMin,                                            &
@@ -3820,7 +3820,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR14'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR14'
 
         !Maximum tolerable temperature for Diatoms Growth, ºC
         call GetData(Me%Diatoms%DiaTMax,                                            &
@@ -3832,7 +3832,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR15'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR15'
 
         !Constant to control Diatoms temperature response curve shape, adim
         call GetData(Me%Diatoms%DiaK1,                                              &
@@ -3844,7 +3844,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR16'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR16'
 
         !Constant to control Diatoms temperature response curve shape, adim
         call GetData(Me%Diatoms%DiaK2,                                              &
@@ -3856,7 +3856,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR17'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR17'
 
     
         !Constant to control Diatoms temperature response curve shape, adim
@@ -3869,7 +3869,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR18'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR18'
 
         !Constant to control Diatoms temperature response curve shape, adim
         call GetData(Me%Diatoms%DiaK4,                                              &
@@ -3881,7 +3881,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR19'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR19'
 
         !Diatoms Nitrogen/Carbon Ratio, mg N/mgC
         call GetData(Me%Diatoms%DiaAlfaNC,                                          &
@@ -3893,7 +3893,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR20'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR20'
 
         !Diatoms Phosphorus/Carbon Ratio, mg P/mgC
         call GetData(Me%Diatoms%DiaAlfaPC,                                          &
@@ -3905,7 +3905,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR21'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR21'
 
         !Diatoms Silica/Carbon Ratio, mg Si/mgC
         call GetData(Me%Diatoms%DiaAlfaSiC,                                         &
@@ -3917,7 +3917,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR22'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR22'
 
 
         !Fraction of soluble inorganic material excreted by Diatoms, adim
@@ -3930,7 +3930,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR23'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR23'
 
         !Fraction of dissolved organic material excreted by Diatoms, adim
         call GetData(Me%Diatoms%DiaExcreDissOrgFraction,                            &
@@ -3942,7 +3942,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR24'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR24'
 
         !Diatoms minimum concentration for predation, mgC/l
         call GetData(Me%Diatoms%GrazDiaMin,                                         &
@@ -3954,7 +3954,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR25'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR25'
 
         !Proportion of diatoms in mesozooplankton ingestion, adim
         call GetData(Me%Diatoms%DiaRatioIngestionZoo,                               &
@@ -3966,7 +3966,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR26'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR26'
 
         !Assimilation Coefficient o Diatoms by mesozooplankton
         call GetData(Me%Diatoms%DiaZooAssimilationRate,                             &
@@ -3978,7 +3978,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR27'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR27'
 
         !Zooplankton Efficiency Capture of Diatoms
         call GetData(Me%Diatoms%ZooEfficiencyCaptureDiatoms,                        &
@@ -3990,7 +3990,7 @@ cd22 :      if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WQReadDiatomsFileConstants - Module ModuleWaterQuality - ERR28'
+            stop 'Subroutine WQReadDiatomsFileConstants - ModuleModuleWaterQuality - ERR28'
 
         
      end subroutine WQReadDiatomsFileConstants
@@ -7646,7 +7646,7 @@ cd3 :   if (Me%PropCalc%Silica) then
 
 
 cd4 :   if( Me%Diatoms%DiaGrossGrowRate .LT. 0.0) then
-            stop 'Subroutine WQDiatoms - Module ModuleWaterQuality - ERR01.'
+            stop 'Subroutine WQDiatoms - ModuleModuleWaterQuality - ERR01.'
          
          !No sense on this. David
 !        else if (Me%Diatoms%DiaGrossGrowRate .EQ. 0.0) then cd4

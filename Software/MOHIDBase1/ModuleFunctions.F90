@@ -2230,7 +2230,7 @@ do3 :       do JI=JImin+1,JImax+1
                     VEC%W(JI) = 0.
                     VEC%G(JI) = 0.
                     write(*,*) 'ModelName I, J: ', trim(ModelName), ' ', I, J
-                    write(*,*) 'Error: Instability in THOMAS2D - Module Functions - ERR10'
+                    write(*,*) 'Error: Instability in THOMAS2D - ModuleFunctions - ERR10'
                 end if
             end do do3
 
@@ -2300,7 +2300,7 @@ do1 :       do II = JImin+1, JImax+1
 
         else
             
-            stop 'THOMAS_3D - Module Functions - ERR01'
+            stop 'THOMAS_3D - ModuleFunctions - ERR01'
 
         endif
 
@@ -2470,7 +2470,7 @@ do1 :       do II = JImin+1, JImax+1
 
         else
 
-            stop 'THOMAS_3D - Module Functions - ERR01'
+            stop 'THOMAS_3D - ModuleFunctions - ERR01'
 
         endif
 
@@ -2534,7 +2534,7 @@ do3 :       do JI=JImin+1,JImax+1
                     VEC%G(JI) =  (Thomas%TI(IJ, JI, K) - Thomas%COEF3%D(IJ, JI, K) * VEC%G(JI-1))/ AUX
                 else
                     write(*,*) 'I, J, K: ', IJ, JI, K
-                    stop 'Error: Instability in THOMAS3D - Module Functions - ERR10'
+                    stop 'Error: Instability in THOMAS3D - ModuleFunctions - ERR10'
                 end if
                 
             end do do3
@@ -2598,7 +2598,7 @@ do3 :       do JI=JImin+1,JImax+1
                     VEC%G(JI) = (Thomas%TI(JI, IJ, K) - Thomas%COEF3%D(JI, IJ, K) * VEC%G(JI-1))/ AUX
                 else
                     write(*,*) 'I, J, K: ', JI, IJ, K
-                    stop 'ERROR: Instability in THOMAS3D - module Functions - ERR10'
+                    stop 'ERROR: Instability in THOMAS3D - ModuleFunctions - ERR10'
                 end if
             end do do3
 
@@ -9826,7 +9826,7 @@ D2:     do I=imax-1,2,-1
 
         !Make sure variable Position is below StringLength
         if (Position > Pathlength)                            &
-            stop 'ChangeSuffix - Module Functions - ERR01'
+            stop 'ChangeSuffix - ModuleFunctions - ERR01'
 
         ChangeSuffix = Filename(1:Position-1)//trim(NewSuffix)
         

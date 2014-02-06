@@ -3593,7 +3593,7 @@ cd33 :              if (Me%Grid_Angle .NE. 0.0) then
 
                         write(*,*) 'The Geographic coordinates can not have the bathymetry rotated'
                         write(*,*)'Please select SIMPLE GEOGRAPHIC coordinates.'
-                        stop  'Subroutine Mercator; module HorizontalGrid. ERR35'
+                        stop  'Subroutine Mercator; ModuleHorizontalGrid. ERR35'
 
                     endif cd33
 

@@ -362,7 +362,7 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
 
             else if ((STAT_CALL .NE. FILE_NOT_FOUND_ERR_) .AND.                &
                      (STAT_CALL .NE. SUCCESS_          )) then cd1
-                stop 'Subroutine Construct_Discharges; ModuleDischarges. ERR30.' 
+                stop 'Subroutine Construct_Discharges - ModuleDischarges. ERR30.' 
             end if cd1
 
             call GetData(Me%IgnoreON,                                           &
@@ -490,13 +490,13 @@ cd2 :           if (BlockFound) then
                     call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
 
                     if (STAT_CALL .NE. SUCCESS_)                               &
-                        stop 'Subroutine Construct_DischargeList; ModuleDischarges. ERR01.'
+                        stop 'Subroutine Construct_DischargeList - ModuleDischarges. ERR01.'
 
                     exit do1    !No more blocks
                 end if cd2
 
             else if (STAT_CALL .EQ. BLOCK_END_ERR_) then cd1
-                stop 'Subroutine Construct_DischargeList; ModuleDischarges. ERR02.'
+                stop 'Subroutine Construct_DischargeList - ModuleDischarges. ERR02.'
             end if cd1
         end do do1
 
@@ -1538,7 +1538,7 @@ cd2 :           if (BlockFound) then
                 end if cd2
 
             else if (STAT_CALL .EQ. BLOCK_END_ERR_) then cd1
-                stop 'Subroutine Construct_PropertyList; ModuleDischarges. ERR02.'
+                stop 'Subroutine Construct_PropertyList - ModuleDischarges. ERR02.'
             end if cd1
         end do do1
 
@@ -1934,10 +1934,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                 WorkSizeJUB = ubound(WaterColumnZ, dim = 2) - 1
 
                 if (IGrid < WorkSizeILB .or. IGrid > WorkSizeIUB)                       &
-                    stop  'GetDischargesGridLocalization; ModuleDischarges. ERR02.'
+                    stop  'GetDischargesGridLocalization - ModuleDischarges. ERR02.'
 
                 if (JGrid < WorkSizeJLB .or. JGrid > WorkSizeJUB)                       &
-                    stop  'GetDischargesGridLocalization; ModuleDischarges. ERR03.'
+                    stop  'GetDischargesGridLocalization - ModuleDischarges. ERR03.'
                 
                 if (WaterColumnZ(IGrid, JGrid) <                                        &
                     DischargeX%Localization%MinimumDischargeDepth .and.                 &

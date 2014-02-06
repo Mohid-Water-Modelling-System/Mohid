@@ -9,7 +9,7 @@
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
 ! DATE          : May 2003
 ! REVISION      : Frank Braunschweig - v4.0
-! DESCRIPTION   : Module Basin is the top level of Basin and Aquifer 
+! DESCRIPTION   : ModuleBasin is the top level of Basin and Aquifer 
 !
 !------------------------------------------------------------------------------
 !

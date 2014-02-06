@@ -1277,7 +1277,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     if (.not. Me%OverLandCoefficient(i,j) .gt. 0.0) then
                         write(*,*) 'Found Manning Overland coefficient zero or negative in input'
                         write(*,*) 'in cell', i, j
-                        stop 'ReadDataFile - Module Runoff - ERR0510'
+                        stop 'ReadDataFile - ModuleRunoff - ERR0510'
                     endif
                 
                 
@@ -1329,7 +1329,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     if (.not. (Me%OverLandCoefficient(i,j) - Me%OverLandCoefficientDelta(i,j)) .gt. 0.0) then
                         write(*,*) 'Manning Overland coefficient delta found zero or negative in input'
                         write(*,*) 'in cell', i, j
-                        stop 'ReadDataFile - Module Runoff - ERR0560'
+                        stop 'ReadDataFile - ModuleRunoff - ERR0560'
                     endif
                 
                 

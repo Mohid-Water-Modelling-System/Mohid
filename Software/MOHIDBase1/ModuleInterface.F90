@@ -1190,52 +1190,52 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
 
                 Message  = trim('SedimentQuality Data File')
                 call ReadFileName('SQ_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR03' 
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR03' 
             
 
             case(CEQUALW2Model)
                 
                 Message  = trim('CEQUALW2 Data File')
                 call ReadFileName('CEQUALW2_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR04' 
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR04' 
             
 
             case(LifeModel)
                 
                 Message  = trim('Life Data File')
                 call ReadFileName('LIFE_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR05' 
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR05' 
 #ifdef _BFM_    
             case(BFMModel)
                 
                 Message  = trim('BFM Data File')
                 call ReadFileName('BFM_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR05a' 
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR05a' 
 #endif   
 
             case(BenthicCEQUALW2Model)
 
                 Message  = trim('Benthic CEQUALW2 Data File')
                 call ReadFileName('BENTHIC_CEQUALW2_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR06' 
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR06' 
 
             case(BenthosModel)
 
                 Message  = trim('Benthos Data File')
                 call ReadFileName('BENTHOS_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR07' 
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR07' 
             
             case(MacroAlgaeModel)
 
                 Message  = trim('MacroAlgae Data File')
                 call ReadFileName('MACROALGAE_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR08' 
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR08' 
                 
            case(BenthicEcologyModel)
 
                 Message  = trim('Benthic Ecology Data File')
                 call ReadFileName('BENTHICECOLOGY_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR08.1'
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR08.1'
                 
 
 #ifdef _PHREEQC_
@@ -1244,7 +1244,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
             
                 Message = trim('PhreeqC Data File')
                 call ReadFileName('PHREEQC_DATA', Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR09' 
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR09' 
             
 #endif
             case (WWTPQModel)
@@ -1257,25 +1257,25 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
 
                 Message  = trim('SeagrassesRoots Data File')
                 call ReadFileName('SEAGRASSESROOTS_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR11'
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR11'
                 
             case(SeagrassWaterInteractionModel) ! Isabella
 
                 Message  = trim('SeagrassWaterInteraction Data File')
                 call ReadFileName('SEAGRASSESLEAVES_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR12'     
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR12'     
     
             case(BivalveModel) 
                 
                 Message  = trim('Bivalve Data File')
                 call ReadFileName('BIV_DAT',Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR13' 
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR13' 
                 
             case default
             
                 write(*,*) 
                 write(*,*) 'Defined sinks and sources model was not recognised.'
-                stop 'ReadInterfaceFilesName - Module Interface - ERR14' 
+                stop 'ReadInterfaceFilesName - ModuleInterface - ERR14' 
                 
         end select
 
@@ -8727,7 +8727,7 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
 
             write(*,*) 
             write(*,*) 'Defined sinks and sources model was not recognised.'
-            stop 'ReadInterfaceFilesName - Module Interface - ERR48' 
+            stop 'ReadInterfaceFilesName - ModuleInterface - ERR48' 
 
         end select
 

@@ -725,7 +725,7 @@ Module ModuleGlobalData
     integer, parameter :: ConsolidationFlux_                = 9000
     integer, parameter :: Porosity_                         = 9001
     
-    !Cohesive sediment fractions - Module Drainage Network
+    !Cohesive sediment fractions - ModuleDrainageNetwork
     integer, parameter ::  TSS_                             = 9101
     integer, parameter ::  COHSED_FINE_                     = 9102
     integer, parameter ::  COHSED_MEDIUM_                   = 9103

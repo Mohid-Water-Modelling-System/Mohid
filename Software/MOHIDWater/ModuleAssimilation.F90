@@ -3234,7 +3234,7 @@ do2 :   do j=JLB, JUB
           h=Depth(khi)-Depth(klo)
           if (h.eq.0.) then 
             write(*,*) 'Error: bad Depth input'
-            stop 'Splint - Module Assimilation - ERR33.'
+            stop 'Splint - ModuleAssimilation - ERR33.'
           end if
           a=(Depth(khi)-Z_n)/h
           b=(Z_n-Depth(klo))/h

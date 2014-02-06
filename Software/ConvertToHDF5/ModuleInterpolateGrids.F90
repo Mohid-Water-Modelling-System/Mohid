@@ -4022,7 +4022,7 @@ dk:     do k=KLB, KUB
 
             Me%StationaryMap%FillingCells(k)%MapN =Nmax
 
-            if (imap /= Nmax) stop 'ConstructFillingCells - Module Interpolation Grids - ERR50'
+            if (imap /= Nmax) stop 'ConstructFillingCells - ModuleInterpolationGrids - ERR50'
 
             allocate(Me%StationaryMap%FillingCells(k)%Mapping(1:Nmax))
 

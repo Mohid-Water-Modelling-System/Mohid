@@ -4887,7 +4887,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             if (present(PesticideIDNumber       )) then
                 call SearchProperty(PropertyX, PropertyXIDNumber = PesticideIDNumber, STAT = STAT_)
                 if (STAT_ == SUCCESS_) then
-                    if (.not. present(PesticideSoilFlux)) stop 'SetVegetationPMProperties - Module PorousMediaProperties - ERR10'
+                    if (.not. present(PesticideSoilFlux)) stop 'SetVegetationPMProperties - ModulePorousMediaProperties - ERR10'
                     if (.not. associated(PropertyX%PesticideFlux)) then
                         write(*,*) 'Property', GetPropertyName(PesticideIDNumber) 
                         write(*,*) 'is a pesticide and needs PESTICIDE keyword in Porous Media Properties'
@@ -6060,7 +6060,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                Z    = Me%ExtVar%KFloor,                                 &
                                STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, "InterfaceFluxes; ModulePorousMediaProperties. ERR10")
+            call SetError(FATAL_, INTERNAL_, "InterfaceFluxes - ModulePorousMediaProperties. ERR10")
 
         !s
         ModelDT         = Me%ExtVar%DT
@@ -6737,7 +6737,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         call UnGetGeometry( Me%ObjGeometry, Me%ExtVar%KFloor,       STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, "InterfaceFluxes; ModulePorousMediaProperties. ERR1080")
+            call SetError(FATAL_, INTERNAL_, "InterfaceFluxes - ModulePorousMediaProperties. ERR1080")
 
 
     end subroutine VegetationInterfaceFluxes
@@ -8825,7 +8825,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                    Z    = Me%ExtVar%KFloor,                                 &
                                    STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, "ModifyBoundaryCoefs; ModulePorousMediaProperties. ERR10")
+                call SetError(FATAL_, INTERNAL_, "ModifyBoundaryCoefs - ModulePorousMediaProperties. ERR10")
         
             CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
           
@@ -8861,7 +8861,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             call UnGetGeometry( Me%ObjGeometry, Me%ExtVar%KFloor,       STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, "ModifyBoundaryCoefs; ModulePorousMediaProperties. ERR20")
+                call SetError(FATAL_, INTERNAL_, "ModifyBoundaryCoefs - ModulePorousMediaProperties. ERR20")
         
             call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyBoundaryCoefs - ModulePorousMediaProperties - ERR030'         
@@ -11537,7 +11537,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR66'
         
         call GetPotentialInfiltration (Me%ObjPorousMedia, Me%ExtVar%InfiltrationColumn, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - Module ModulePorousMediaProperties. ERR10.'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleModulePorousMediaProperties. ERR10.'
 
 
         call GetGridCellArea    (Me%ObjHorizontalGrid,                                     & 
