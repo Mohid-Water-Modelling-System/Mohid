@@ -226,8 +226,9 @@ Module ModulePorousMedia
     real, parameter    :: MinUGThickness    = 0.10
     
     !Boundary Conditions interpolation methods
-    integer, parameter                          :: Triangulation_  = 1
-    integer, parameter                          :: InverseWeight_  = 2
+    integer, parameter                          :: Triangulation_   = 1
+    integer, parameter                          :: InverseWeight_   = 2
+    integer, parameter                          :: NoInterpolation_ = 3
     
     !Boundary Piezometers
     character(len=9 ),           parameter      :: FromTimeSerie        = 'TIMESERIE' 
@@ -2915,19 +2916,31 @@ doSP:           do
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModulePorousMedia - ERR80'
             
+            case (NoInterpolation_)  !one piezometer for all domain
+            
+                !do nothing
+            
             case default
                 write(*,*)'Invalid Interpolation Method for boundary condition'
                 write(*,*)'Use Keyword INTERPOLATION_METHOD  '
-                write(*,*)'[1 - Triangulation / 2 - IWD]'
+                write(*,*)'[1 - Triangulation / 2 - IWD / 3 - No interpolation]'
                 stop 'ReadBoundaryConditions - ModulePorousMedia - ERR90'
             end select
 
             call ConstructPiezometers(ClientNumber)
+            
+            !verify after piezometers build
+            if ((Me%Boundary%InterpolationMethod == NoInterpolation_) .and. (Me%Boundary%NumberOfPiezometers > 1)) then
+                write(*,*)'If using no interpolation for boundary method need'
+                write(*,*)'to define only one piezometer'
+                write(*,*)'Remove piezometers or change interpolation method for boundary condition'
+                stop 'ReadBoundaryConditions - ModulePorousMedia - ERR100'            
+            endif
 
         else
 
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadBoundaryConditions - ModulePorousMedia - ERR150'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadBoundaryConditions - ModulePorousMedia - ERR110'
             
         endif
         
@@ -2943,7 +2956,7 @@ doSP:           do
                          keyword    = 'BOUNDARY_VALUE',                             &
                          ClientModule ='ModulePorousMedia',                         &
                          STAT       = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR100' 
+            if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR120' 
 
             if (iflag == 0) then
                 write(*,*)'if using boundary, BOUNDARY_VALUE must be defined in module PorousMedia'
@@ -3059,7 +3072,7 @@ if2 :           if (BlockFound) then
             end if if1
         end do do1
 
-
+        
     end subroutine ConstructPiezometers
 
     !------------------------------------------------------------------    
@@ -3287,7 +3300,16 @@ DoPiezometers:      do while(associated(Piezometer))
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
 
-
+        case (NoInterpolation_)  !one piezometer (timeserie everywehre)
+        
+        
+            Piezometer => Me%Boundary%FirstPiezometer
+        
+            call UpDatePiezometerValue(Piezometer, Me%ExtVar%Now)
+            
+            !boundary values are given by the timeserie value everywhere
+            call SetMatrixValue (Me%Boundary%ImposedBoundaryLevel, Me%Size2D, Piezometer%DefaultValue, Me%Boundary%BoundaryCells)
+                    
         end select
 
     end subroutine ModifyBoundaryLevel

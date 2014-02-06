@@ -4857,7 +4857,6 @@ cd0:    if (Exist) then
             endif
             
             !Boundary fluxes need to be updated (e.g. for mass balance in the future)
-            !Effectively concentration does not change because water can only exit for now (useful in the future)
             if (Me%ExtVar%BoundaryImposed) then
                 call ModifyBoundaryInterface
             endif
@@ -6692,7 +6691,6 @@ doi4 :      do i = ILB, IUB
 
     !If river cells exist that are boundary than river flow has to be added/removed from
     !volume after transport to get water volume old
-    !Effectively there is no flux from outside (flow can only exit) and concentration does not change
     subroutine ModifyBoundaryInterface
     
         !Arguments-------------------------------------------------------------
@@ -6734,7 +6732,7 @@ doi4 :      do i = ILB, IUB
                             !this is conc after transport, just before going to outside
                             Prop =  CurrProperty%Concentration(i,j)
                        
-                        !mass coming from outsie currently does no happen
+                        !mass coming from outsie 
                         elseif (Me%ExtVar%BoundaryFlux(i,j) .gt. 0.0) then
                             
                             if (CurrProperty%Evolution%Boundary%BoundaryCondition == ImposedValue_) then

@@ -32,10 +32,12 @@ Module ModuleRunOff
 
     use ModuleGlobalData
     use ModuleTime
+    use ModuleTimeSerie         ,only : StartTimeSerieInput, KillTimeSerie,              &
+                                        GetTimeSerieInitialData, GetTimeSerieValue
     use ModuleEnterData
     use ModuleHDF5
     use ModuleFunctions         ,only : TimeToString, SetMatrixValue, ChangeSuffix,      &
-                                        CHUNK_J, LinearInterpolation
+                                        CHUNK_J, LinearInterpolation, InterpolateValueInTime
     use ModuleHorizontalGrid    ,only : GetHorizontalGridSize, GetHorizontalGrid,        &
                                         UnGetHorizontalGrid, WriteHorizontalGrid,        &
                                         GetGridCellArea, GetXYCellZ,                     &
@@ -203,6 +205,23 @@ Module ModuleRunOff
         real                                        :: MinimumValueToStabilize      = 0.001
         logical                                     :: CheckDecreaseOnly            = .false.        
     end type T_Converge
+
+    type     T_FromTimeSerie
+        integer                                     :: ObjTimeSerie         = 0
+        character(len=StringLength)                 :: FileName             = null_str
+        integer                                     :: DataColumn           = null_int
+    end type T_FromTimeSerie
+    
+    !level imposed as time serie
+    type     T_ImposedLevelTS
+        character(len=StringLength)                :: Name                 = null_str
+!        type(T_PointF)                             :: Location             
+        integer                                    :: ID                   = null_int
+        real                                       :: DefaultValue         = null_real
+        character(len=StringLength)                :: ValueType            = null_str
+        logical                                    :: TimeSerieHasData     = .false.
+        type(T_FromTimeSerie)                      :: TimeSerie
+    end type T_ImposedLevelTS
   
     type  T_RunOff
         integer                                     :: InstanceID               = 0
@@ -313,10 +332,13 @@ Module ModuleRunOff
 !        logical                                     :: LimitDTVariation     = .true.
 !        real                                        :: MaxCourant           = 1.0        
         logical                                     :: ImposeBoundaryValue  = .false.
+        logical                                     :: AllowBoundaryInflow  = .false.
+        logical                                     :: BoundaryImposedLevelInTime = .false.
         real                                        :: BoundaryValue        = null_real
         real                                        :: MaxDtmForBoundary    = null_real
         integer                                     :: BoundaryMethod       = null_int
         integer, dimension(:,:), pointer            :: BoundaryCells        => null()
+        type (T_ImposedLevelTS)                     :: ImposedLevelTS
 !        integer                                     :: MaxIterations        = 5
         logical                                     :: SimpleChannelInteraction = .false.
         logical                                     :: LimitToCriticalFlow  = .true.
@@ -473,6 +495,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Constructs Boundary Cells
             if (Me%ImposeBoundaryValue) then
                 call CheckBoundaryCells
+                if (Me%BoundaryImposedLevelInTime) call ModifyBoundaryLevel
             endif
             
             !Reads conditions from previous run
@@ -1009,46 +1032,34 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR350'        
         
         if (Me%ImposeBoundaryValue) then
-            call GetData(Me%BoundaryValue,                                      &
-                         Me%ObjEnterData, iflag,                                   &  
-                         keyword      = 'BOUNDARY_VALUE',                       &
-                         ClientModule = 'ModuleRunOff',                         &
-                         SearchType   = FromFile,                               &
+            !moved to after seeing if some station exists
+!            call GetData(Me%BoundaryValue,                                      &
+!                         Me%ObjEnterData, iflag,                                   &  
+!                         keyword      = 'BOUNDARY_VALUE',                       &
+!                         ClientModule = 'ModuleRunOff',                         &
+!                         SearchType   = FromFile,                               &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR360'        
+!
+!            if (iflag == 0) then
+!                write(*,*)'BOUNDARY_VALUE must be defined in module Runoff'
+!                stop 'ReadDataFile - ModuleRunOff - ERR0361'
+!            endif
+            
+            !verify if the user wants to allow water to go in the domain (true) if
+            !boundary level higher than water level or not (false) and the level imposed
+            !behaves like a wall, only exits if higher and does not allow to get inside
+            call GetData(Me%AllowBoundaryInflow,                                    &
+                         Me%ObjEnterData, iflag,                                    &  
+                         keyword      = 'ALLOW_BOUNDARY_INFLOW',                    &
+                         ClientModule = 'ModuleRunOff',                             &
+                         SearchType   = FromFile,                                   &
+                         Default      = .false.,                                    &
                          STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR360'        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR363'  
 
-            if (iflag == 0) then
-                write(*,*)'BOUNDARY_VALUE must be defined in module Runoff'
-                stop 'ReadDataFile - ModuleRunOff - ERR0361'
-            endif
-
-
-            call GetData(Me%MaxDtmForBoundary,                                  &
-                         Me%ObjEnterData, iflag,                                   &  
-                         keyword      = 'MAX_DTM_FOR_BOUNDARY',                 &
-                         ClientModule = 'ModuleRunOff',                         &
-                         SearchType   = FromFile,                               &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR362'        
-
-            if (iflag == 0) then
-                write(*,*)'MAX_DTM_FOR_BOUNDARY must be defined in module Runoff'
-                stop 'ReadDataFile - ModuleRunOff - ERR0363'
-            endif
-
-            call GetData(Me%BoundaryMethod,                                     &
-                         Me%ObjEnterData, iflag,                                &  
-                         keyword      = 'BOUNDARY_METHOD',                      &
-                         Default      = ComputeFlow_,                           &
-                         ClientModule = 'ModuleRunOff',                         &
-                         SearchType   = FromFile,                               &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR360'        
-
-            if (Me%BoundaryMethod /= ComputeFlow_ .and. Me%BoundaryMethod /= InstantaneousFlow_) then
-                write(*,*)'BOUNDARY_METHOD must be or 1 - Compute Flow or 2 - Instantaneous FlowOut'
-                stop 'ReadDataFile - ModuleRunOff - ERR0363.5'
-            endif
+           
+            call ReadBoundaryConditions(ClientNumber)
             
         endif
         
@@ -1522,7 +1533,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         end if
 
         call ReadConvergenceParameters
-
+        
         !Closes Data File
         call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR760'
@@ -1817,6 +1828,198 @@ do4:            do di = -1, 1
     end subroutine CheckBoundaryCells
     
     !--------------------------------------------------------------------------   
+
+    subroutine ReadBoundaryConditions(ClientNumber)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ClientNumber
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: iflag, STAT_CALL
+        logical                                     :: BlockFound
+        !Begin-----------------------------------------------------------------
+
+
+        call GetData(Me%MaxDtmForBoundary,                                  &
+                     Me%ObjEnterData, iflag,                                   &  
+                     keyword      = 'MAX_DTM_FOR_BOUNDARY',                 &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR362'        
+
+        if (iflag == 0) then
+            write(*,*)'MAX_DTM_FOR_BOUNDARY must be defined in module Runoff'
+            stop 'ReadDataFile - ModuleRunOff - ERR0363'
+        endif
+
+        call GetData(Me%BoundaryMethod,                                     &
+                     Me%ObjEnterData, iflag,                                &  
+                     keyword      = 'BOUNDARY_METHOD',                      &
+                     Default      = ComputeFlow_,                           &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR360'        
+
+        if (Me%BoundaryMethod /= ComputeFlow_ .and. Me%BoundaryMethod /= InstantaneousFlow_) then
+            write(*,*)'BOUNDARY_METHOD must be or 1 - Compute Flow or 2 - Instantaneous FlowOut'
+            stop 'ReadDataFile - ModuleRunOff - ERR0363.5'
+        endif
+       
+        !it will be changed to true if the block found
+        Me%BoundaryImposedLevelInTime = .false.
+        
+        !Search for boundary block
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModuleRunoff - ERR10'
+
+        !Constructs Impermeable Fraction
+        call ExtractBlockFromBuffer(Me%ObjEnterData,                                        &
+                                    ClientNumber    = ClientNumber,                         &
+                                    block_begin     = '<begin_boundary>',                   &
+                                    block_end       = '<end_boundary>',                     &
+                                    BlockFound      = BlockFound,                           &   
+                                    STAT            = STAT_CALL)
+        if (STAT_CALL == SUCCESS_ .and. BlockFound) then
+        
+            
+            call ReadLevelTimeSerie()
+
+            Me%BoundaryImposedLevelInTime = .true.
+            
+        else
+      
+            call GetData(Me%BoundaryValue,                                          &
+                         Me%ObjEnterData, iflag,                                    &
+                         SearchType = FromFile,                                     &
+                         keyword    = 'BOUNDARY_VALUE',                             &
+                         ClientModule ='ModulePorousMedia',                         &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModuleRunoff - ERR120' 
+
+            if (iflag == 0) then
+                write(*,*)'if using boundary, BOUNDARY_VALUE must be defined in ModuleRunoff'
+                stop 'ReadDataFile - ModulePorousMedia - ERR0110'
+            endif
+        
+        endif
+        
+    end subroutine ReadBoundaryConditions
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadLevelTimeSerie()   
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                        :: iflag, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+
+        call GetData(Me%ImposedLevelTS%TimeSerie%FileName,              &
+                     Me%ObjEnterData, iflag,                            &
+                     SearchType   = FromBlock,                          &
+                     keyword      = 'FILENAME',                         &
+                     ClientModule = 'FillMatrix',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPiezometerTimeSerie - ModuleRunoff - ERR01'
+
+
+        call GetData(Me%ImposedLevelTS%TimeSerie%DataColumn,            &
+                     Me%ObjEnterData, iflag,                            &
+                     SearchType   = FromBlock,                          &
+                     keyword      = 'DATA_COLUMN',                      &
+                     ClientModule = 'FillMatrix',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPiezometerTimeSerie - ModuleRunoff - ERR02'
+
+
+        call StartTimeSerieInput(Me%ImposedLevelTS%TimeSerie%ObjTimeSerie,  &
+                                 Me%ImposedLevelTS%TimeSerie%FileName,      &
+                                 Me%ObjTime,                            &
+                                 CheckDates = .false.,                  &
+                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPiezometerTimeSerie - ModuleRunoff - ERR03'
+
+
+
+    end subroutine ReadLevelTimeSerie
+    
+    !------------------------------------------------------------------
+
+    subroutine ModifyBoundaryLevel
+
+        !Local-----------------------------------------------------------------
+!        character(5)                                :: AuxChar
+        !Begin-----------------------------------------------------------------
+
+        call UpDateLevelValue(Me%ExtVar%Now)
+        
+        !boundary values are given by the timeserie value everywhere
+        Me%BoundaryValue = Me%ImposedLevelTS%DefaultValue
+
+
+    end subroutine ModifyBoundaryLevel
+
+    !--------------------------------------------------------------------------
+
+
+    subroutine UpDateLevelValue(CurrentTime)
+        
+        !Arguments-------------------------------------------------------------
+        type(T_Time)                                :: CurrentTime
+
+        !Local-----------------------------------------------------------------
+        logical                                     :: TimeCycle
+        type (T_Time)                               :: Time1, Time2, InitialDate
+        real                                        :: Value1, Value2
+!        real                                        :: dt1, dt2
+        integer                                     :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+        
+
+        call GetTimeSerieInitialData(Me%ImposedLevelTS%TimeSerie%ObjTimeSerie, InitialDate, &
+                                     STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'UpDateLeveTimeSerielValue - ModuleRunoff - ERR01'
+
+        
+        if (CurrentTime >= InitialDate) then
+
+            !Gets Value for current Time
+            call GetTimeSerieValue (Me%ImposedLevelTS%TimeSerie%ObjTimeSerie,         &
+                                    CurrentTime,                                      &
+                                    Me%ImposedLevelTS%TimeSerie%DataColumn,           &
+                                    Time1, Value1, Time2, Value2, TimeCycle,          &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'UpDateLeveTimeSerielValue - ModuleRunoff - ERR10'
+
+            if (TimeCycle) then
+                Me%ImposedLevelTS%DefaultValue     = Value1
+                !Piezometer%TimeSerieHasData = .true.
+            else
+                
+                !Interpolates Value for current instant
+                call InterpolateValueInTime(CurrentTime, Time1, Value1, Time2, Value2, Me%ImposedLevelTS%DefaultValue)
+                
+                                        
+            endif
+
+        else
+            write(*,*) 'Piezometer time serie does not have data' 
+            write(*,*) 'for the beggining of the simulation'
+            write(*,*) 'Piezometer name: ', Me%ImposedLevelTS%TimeSerie%FileName
+            stop 'UpDateLeveTimeSerielValue - ModuleRunoff - ERR20'
+            !Piezometer%TimeSerieHasData = .false.
+
+        endif
+
+    end subroutine UpDateLevelValue
+
+    !------------------------------------------------------------------
     
     subroutine CountDomainPoints (percent)
     
@@ -3768,6 +3971,7 @@ doIter:         do while (iter <= Niter)
             !but it was changed to compute flow (based on celerity) to be more consistent
             !with a free drop to boundary level (that can be much lower than topography)
             if (Me%ImposeBoundaryValue) then
+                if (Me%BoundaryImposedLevelInTime) call ModifyBoundaryLevel
                 if (Me%BoundaryMethod == ComputeFlow_) then
                     call ImposeBoundaryValue
                 elseif (Me%BoundaryMethod == InstantaneousFlow_) then
@@ -3842,7 +4046,7 @@ doIter:         do while (iter <= Niter)
                                                JGrid = j,                               &
                                                KGrid = k,                               &
                                                IByPass       = ib,                      &
-                                               JByPass       = jb,                      &                                               
+                                               JByPass       = jb,                      &  
                                                STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR02'
             
@@ -7213,6 +7417,124 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
     end subroutine IntegrateFlow
 
     !--------------------------------------------------------------------------
+    
+!    !New formulation: not instantaneous but flow computed based on celerity- updated to allow water in
+!    subroutine ImposeBoundaryValue_Old ()
+!    
+!        !Arguments-------------------------------------------------------------
+!        !real                                        :: LocalDT
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: i, j, di, dj
+!        integer                                     :: ILB, IUB, JLB, JUB
+!        real                                        :: dh, dVOl
+!        !logical                                     :: NearBoundary
+!        real                                        :: AreaZX, AreaZY !, Width
+!        real                                        :: WaveHeight, Celerity, MaxFlow
+!
+!        !Routes water outside the watershed if water is higher then a given treshold values
+!        ILB = Me%WorkSize%ILB
+!        IUB = Me%WorkSize%IUB
+!        JLB = Me%WorkSize%JLB
+!        JUB = Me%WorkSize%JUB
+!        
+!        !Default is zero
+!        Me%iFlowBoundary = 0.0
+!        
+!        !Sets Boundary values
+!        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+!        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+!            if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint .and.          &      !BasinPoint
+!                Me%BoundaryCells     (i,j)   == BasinPoint .and.          &      !BoundaryPoints
+!                Me%ExtVar%Topography (i, j)  < Me%MaxDtmForBoundary .and. &      !Low land point where to imposes BC
+!                Me%myWaterLevel      (i, j)  > Me%BoundaryValue) then            !Level higher then imposed level
+!
+!!                !Check if near a boundary point
+!!                NearBoundary = .false.
+!!                do dj = -1, 1
+!!                do di = -1, 1
+!!                    if (Me%ExtVar%BasinPoints(i+di, j+dj) == 0) then
+!!                        NearBoundary = .true.
+!!                    endif
+!!                enddo
+!!                enddo
+!!
+!!                if (NearBoundary) then
+!
+!                    !Necessary Variation in height - always positive because only evaluates cell as so
+!                    dh = Me%myWaterLevel (i, j) - Me%BoundaryValue
+!                    
+!                    if (dh > Me%MinimumWaterColumn) then
+!                        
+!!                        !Cell Width
+!!                        Width                  = (Me%ExtVar%DYY(i, j) + Me%ExtVar%DXX(i, j)) / 2.0
+!                        
+!                        !celerity is limited by water column size and not dh
+!                        WaveHeight = Me%myWaterColumn(i, j) 
+!
+!!                        !Area for Flow
+!!                        Area                   = Width * min(dh, WaveHeight)
+!                        
+!                        Celerity = sqrt(Gravity * WaveHeight)
+!
+!                        !Flow to set cell equal to Boundary Value
+!                        !m3/s                  = 
+!!                        Me%lFlowBoundary(i, j) = Min(0.5 * dh * Me%ExtVar%GridCellArea(i, j) / LocalDT,         &
+!!                                                     0.5 * Area * sqrt(Gravity * dh))
+!
+!                        !U direction - use middle area because in closed faces does not exist AreaU
+!                        !flow negative (exiting runoff)
+!                        AreaZX = Me%ExtVar%DVY(i,j) * Me%myWaterColumn(i,j)
+!                        do dj = 0, 1
+!                            if ((Me%ComputeFaceU(i,j+dj) == 0)) then
+!                                Me%iFlowBoundary(i, j) = Me%iFlowBoundary(i, j) - AreaZX * Celerity
+!                            endif
+!                        enddo
+!
+!                        !V direction - use middle area because in closed faces does not exist AreaV
+!                        AreaZY = Me%ExtVar%DUX(i,j) * Me%myWaterColumn(i,j)                      
+!                        do di = 0, 1
+!                            if ((Me%ComputeFaceV(i+di,j) == 0)) then
+!                                Me%iFlowBoundary(i, j) = Me%iFlowBoundary(i, j) - AreaZY * Celerity
+!                            endif
+!                        enddo
+!                        
+!                        !cant remove more than up to boundary or water column if boundary lower than topography 
+!                        !negative flow 
+!                        !m3/s = m * m2 / s
+!                        MaxFlow = - min(dh, WaveHeight) *  Me%ExtVar%GridCellArea(i, j) / Me%ExtVar%DT
+!                        
+!                        !m3/s = m2 * m/s 
+!                        Me%iFlowBoundary(i, j)  = max (Me%iFlowBoundary(i, j), MaxFlow)
+!                        
+!                        !dVol
+!                        dVol = Me%iFlowBoundary(i, j) * Me%ExtVar%DT
+!                            
+!                        !Updates Water Volume
+!                        Me%myWaterVolume (i, j)   = Me%myWaterVolume (i, j)   + dVol 
+!                            
+!                        !Updates Water Column
+!                        Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)  / Me%ExtVar%GridCellArea(i, j)
+!
+!                        !Updates Water Level
+!                        Me%myWaterLevel (i, j)     = Me%myWaterColumn (i, j)  + Me%ExtVar%Topography(i, j)
+!                        
+!                    else
+!                    
+!                        Me%iFlowBoundary(i, j) = 0.0
+!                    
+!                    endif
+!
+!!                endif
+!           
+!            endif
+!        enddo
+!        enddo
+!
+!    
+!    end subroutine ImposeBoundaryValue_Old
+    
+    !--------------------------------------------------------------------------
 
     subroutine ImposeBoundaryValue ()
     
@@ -7224,7 +7546,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: ILB, IUB, JLB, JUB
         real                                        :: dh, dVOl
         !logical                                     :: NearBoundary
-        real                                        :: AreaZX, AreaZY !, Width
+        !real                                        :: AreaZX, AreaZY !, Width
         real                                        :: WaveHeight, Celerity, MaxFlow
 
         !Routes water outside the watershed if water is higher then a given treshold values
@@ -7242,86 +7564,66 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint .and.          &      !BasinPoint
                 Me%BoundaryCells     (i,j)   == BasinPoint .and.          &      !BoundaryPoints
                 Me%ExtVar%Topography (i, j)  < Me%MaxDtmForBoundary .and. &      !Low land point where to imposes BC
-                Me%myWaterLevel      (i, j)  > Me%BoundaryValue) then            !Level higher then imposed level
+                (Me%AllowBoundaryInflow                    .or.           &
+                 Me%myWaterLevel      (i, j)  > Me%BoundaryValue)) then          !Level higher then imposed level
 
-!                !Check if near a boundary point
-!                NearBoundary = .false.
-!                do dj = -1, 1
-!                do di = -1, 1
-!                    if (Me%ExtVar%BasinPoints(i+di, j+dj) == 0) then
-!                        NearBoundary = .true.
-!                    endif
-!                enddo
-!                enddo
-!
-!                if (NearBoundary) then
-
-                    !Necessary Variation in height - always positive because only evaluates cell as so
-                    dh = Me%myWaterLevel (i, j) - Me%BoundaryValue
+                !Necessary Variation in height (negative if higher outside)
+                dh = Me%myWaterLevel (i, j) - Me%BoundaryValue
                     
-                    if (dh > Me%MinimumWaterColumn) then
-                        
-!                        !Cell Width
-!                        Width                  = (Me%ExtVar%DYY(i, j) + Me%ExtVar%DXX(i, j)) / 2.0
-                        
-                        !celerity is limited by water column size and not dh
-                        WaveHeight = Me%myWaterColumn(i, j) 
-
-!                        !Area for Flow
-!                        Area                   = Width * min(dh, WaveHeight)
-                        
-                        Celerity = sqrt(Gravity * WaveHeight)
-
-                        !Flow to set cell equal to Boundary Value
-                        !m3/s                  = 
-!                        Me%lFlowBoundary(i, j) = Min(0.5 * dh * Me%ExtVar%GridCellArea(i, j) / LocalDT,         &
-!                                                     0.5 * Area * sqrt(Gravity * dh))
-
-                        !U direction - use middle area because in closed faces does not exist AreaU
-                        !flow negative (exiting runoff)
-                        AreaZX = Me%ExtVar%DVY(i,j) * Me%myWaterColumn(i,j)
-                        do dj = 0, 1
-                            if ((Me%ComputeFaceU(i,j+dj) == 0)) then
-                                Me%iFlowBoundary(i, j) = Me%iFlowBoundary(i, j) - AreaZX * Celerity
-                            endif
-                        enddo
-
-                        !V direction - use middle area because in closed faces does not exist AreaV
-                        AreaZY = Me%ExtVar%DUX(i,j) * Me%myWaterColumn(i,j)                      
-                        do di = 0, 1
-                            if ((Me%ComputeFaceV(i+di,j) == 0)) then
-                                Me%iFlowBoundary(i, j) = Me%iFlowBoundary(i, j) - AreaZY * Celerity
-                            endif
-                        enddo
-                        
-                        !cant remove more than up to boundary or water column if boundary lower than topography 
-                        !negative flow 
-                        !m3/s = m * m2 / s
-                        MaxFlow = - min(dh, WaveHeight) *  Me%ExtVar%GridCellArea(i, j) / Me%ExtVar%DT
-                        
-                        !m3/s = m2 * m/s 
-                        Me%iFlowBoundary(i, j)  = max (Me%iFlowBoundary(i, j), MaxFlow)
-                        
-                        !dVol
-                        dVol = Me%iFlowBoundary(i, j) * Me%ExtVar%DT
-                            
-                        !Updates Water Volume
-                        Me%myWaterVolume (i, j)   = Me%myWaterVolume (i, j)   + dVol 
-                            
-                        !Updates Water Column
-                        Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)  / Me%ExtVar%GridCellArea(i, j)
-
-                        !Updates Water Level
-                        Me%myWaterLevel (i, j)     = Me%myWaterColumn (i, j)  + Me%ExtVar%Topography(i, j)
-                        
-                    else
+                if (abs(dh) > Me%MinimumWaterColumn) then
                     
-                        Me%iFlowBoundary(i, j) = 0.0
+                    !celerity is limited by water column on the flow direction (higher level)
+                    WaveHeight = max(Me%myWaterLevel(i, j), Me%BoundaryValue) - Me%ExtVar%Topography (i, j)
                     
-                    endif
+                    ![m/s] = [m/s2 * m]^1/2 = [m/s]
+                    Celerity = sqrt(Gravity * WaveHeight)
 
-!                endif
-           
+                    !U direction - use middle area because in closed faces does not exist AreaU
+                    !if dh negative, minimum is dh, if positive minimum is dh until boundary
+                    !level is lower than terrain and wave height is used (water column)
+                    !dh negative flow positive (entering runoff)
+                    do dj = 0, 1
+                        if ((Me%ComputeFaceU(i,j+dj) == 0)) then
+                            ![m3/s] = [m3/s] - [m] * [m] * [m/s]
+                            Me%iFlowBoundary(i, j) = Me%iFlowBoundary(i, j) - Me%ExtVar%DVY(i,j) *      &
+                                                     min(dh, WaveHeight) * Celerity
+                        endif
+                    enddo
+
+                    !V direction - use middle area because in closed faces does not exist AreaV
+                    do di = 0, 1
+                        if ((Me%ComputeFaceV(i+di,j) == 0)) then
+                            ![m3/s] = [m3/s] - [m] * [m] * [m/s]
+                            Me%iFlowBoundary(i, j) = Me%iFlowBoundary(i, j) - Me%ExtVar%DUX(i,j) *      &
+                                                     min(dh, WaveHeight) * Celerity
+                        endif
+                    enddo
+                    
+                    !cant remove more than up to boundary or water column if boundary lower than topography 
+                    !or add more up to boundary level if boundary level higher
+                    !m3/s = m * m2 / s
+                    MaxFlow = - min(dh, WaveHeight) *  Me%ExtVar%GridCellArea(i, j) / Me%ExtVar%DT
+                    
+                    Me%iFlowBoundary(i, j)  = max (Me%iFlowBoundary(i, j), MaxFlow)
+                    
+                    !dVol
+                    dVol = Me%iFlowBoundary(i, j) * Me%ExtVar%DT
+                        
+                    !Updates Water Volume
+                    Me%myWaterVolume (i, j)   = Me%myWaterVolume (i, j)   + dVol 
+                        
+                    !Updates Water Column
+                    Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)  / Me%ExtVar%GridCellArea(i, j)
+
+                    !Updates Water Level
+                    Me%myWaterLevel (i, j)     = Me%myWaterColumn (i, j)  + Me%ExtVar%Topography(i, j)
+                    
+                else
+                
+                    Me%iFlowBoundary(i, j) = 0.0
+                
+                endif
+
             endif
         enddo
         enddo
@@ -7330,7 +7632,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
     end subroutine ImposeBoundaryValue
     
     !--------------------------------------------------------------------------
-
+    
+    !old formulation with instantaneous going to boundary level
     subroutine ImposeBoundaryValue_v2
     
         !Arguments-------------------------------------------------------------
@@ -7355,7 +7658,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint       .and.    &   !BasinPoint
                 Me%BoundaryCells     (i,j)   == BasinPoint       .and.    &   !BoundaryPoints
                 Me%ExtVar%Topography (i, j)  < Me%MaxDtmForBoundary .and. &   !Low land point where to imposes BC
-                Me%myWaterLevel      (i, j)  > Me%BoundaryValue) then   !Level higher then imposed level
+                (Me%AllowBoundaryInflow                          .or.     &
+                 Me%myWaterLevel      (i, j)  > Me%BoundaryValue)) then        !Level higher then imposed level
 
 !                !Check if near a boundary point
 !                NearBoundary = .false.
@@ -8149,12 +8453,21 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 if (Me%OutPut%Yes) then
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR05'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR01'
                 endif
                 
                 if (Me%Discharges) then
                     call Kill_Discharges(Me%ObjDischarges, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR05a'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR02'
+                endif
+
+                if (Me%ImposeBoundaryValue .and. Me%BoundaryImposedLevelInTime) then
+                    
+                    if (Me%ImposedLevelTS%TimeSerie%ObjTimeSerie /= 0) then
+                        call KillTimeSerie(Me%ImposedLevelTS%TimeSerie%ObjTimeSerie, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModulePorousMedia - ERR03' 
+                    endif
+
                 endif
 
                 !Deassociates External Instances
