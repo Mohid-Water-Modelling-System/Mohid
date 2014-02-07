@@ -4997,7 +4997,7 @@ cd0:    if (Exist) then
                             else
                                 !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
                                 Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j)  &
-                                                                 * Me%ExtVar%DT * DischargesConc(i, j))
+                                                                 * Me%ExtVar%DT * DischargesConc(iDis, iProp))
                             
                             endif
                         endif
