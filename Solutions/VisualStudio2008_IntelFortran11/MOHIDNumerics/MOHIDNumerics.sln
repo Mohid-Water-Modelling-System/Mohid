@@ -598,7 +598,6 @@ Global
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release OpenMP|Win32.Build.0 = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release OpenMP|x64.ActiveCfg = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release|Win32.ActiveCfg = Release Double|Win32
-		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release|Win32.Build.0 = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release|x64.ActiveCfg = Release Double|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
