@@ -719,9 +719,10 @@ module ModuleDrawFluxesInHDF5
         type(T_HDFFile)                     :: HDF_IO_File
 
         !Local-----------------------------------------------------------------
-        integer(HID_T)                              :: gr_id, dset_id, class_id, size
+        integer(HID_T)                              :: gr_id, dset_id, class_id
         integer(HID_T)                              :: space_id, datatype_id
         integer(HID_T)                              :: rank
+        integer(HSIZE_T)                            :: size
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
 
         !Begin-----------------------------------------------------------------
