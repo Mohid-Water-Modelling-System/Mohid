@@ -8520,7 +8520,7 @@ cd2 :           if (BlockFound) then
         write(AuxString, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT), &
                                 min(AtmosfereDT, MaxDT), DTForNextEvent, time_string                                
         
-        10 format(f12.4, 1x, f12.4, 1x, f12.4, 1x, f12.4, 1x, f12.4, 1x, A26)
+        10 format(f12.4, 1x, f12.4, 1x, f12.4, 1x, f12.4, 1x, e20.12e3, 1x, A26)
 
         call WriteDTLog_ML ('ModuleBasin', ID_DT, NewDT, AuxString)
 

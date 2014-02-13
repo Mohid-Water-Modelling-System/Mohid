@@ -456,9 +456,9 @@ Module ModulePorousMediaProperties
         logical                                 :: Decay                = .false.
         logical                                 :: DecayEquationCoupled = .false.
         integer                                 :: DecayEquation        = null_int
-        real                                    :: DecayUnitsCoef       = null_real
         real                                    :: DecayHalfSaturation  = null_real
         real                                    :: DecayRate            = null_real !day-1
+        logical                                 :: DecayMass            = .false.
         logical                                 :: Discharges           = .false.        
         type (T_AdvectionDiffusion)             :: AdvDiff
         type (T_Partition)                      :: Partition
@@ -524,6 +524,7 @@ Module ModulePorousMediaProperties
         logical                                 :: OutputHDF                = .false. 
         logical                                 :: UseToCalcECw             = .false.
         real                                    :: ECwFactor                = 0.0
+        real, pointer, dimension(:,:,:)         :: PropertyDecay            => null()
     end type T_Property
 
     type       T_SedimentRate
@@ -1965,7 +1966,7 @@ cd2 :           if (BlockFound) then
         integer                                     :: STAT_CALL
         
         !Local-----------------------------------------------------------------
-        integer                                     :: iflag
+        integer                                     :: iflag, Decayflag
         real                                        :: ErrorAux, AuxFactor, DTAux
         real                                        :: ModelDT
         !----------------------------------------------------------------------
@@ -2191,29 +2192,20 @@ cd2 :           if (BlockFound) then
             Me%Coupled%Decay       = .true.
         endif
 
-
         if (NewProperty%Evolution%Decay) then
-           
-            NewProperty%Evolution%DecayEquationCoupled = .false. 
 
-            !Conversion of user units to PMP units (equations are in user units and mass computations need standard)
-            !This is done here just for now to allow different units
-            !In the future all the property modules need to be verified for user be able to use 
-            ! different units than standard. The properties need a IS_COEF so that are transformed all to IS
-            call GetData(NewProperty%Evolution%DecayUnitsCoef,                               &
-                         Me%ObjEnterData,iflag,                                              &
-                         SearchType   = FromBlock,                                           &
-                         keyword      = 'DECAY_UNITS_COEF',                                  &
-                         ClientModule = 'ModulePorousMediaProperties',                       &
-                         default      = 1.,                                                  &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                     &
-                stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR68'                   
+            !to output decay rate computed (g/m3.day-1 or mg/kg.day-1)
+            allocate(NewProperty%PropertyDecay(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB,              &
+                                               Me%Size%KLB:Me%Size%KUB), STAT = STAT_CALL)
+            if(STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModulePorousMediaProeprties - ERR68'
+
+           
+            NewProperty%Evolution%DecayEquationCoupled = .false.             
 
             !Decay equation. For now exists Peyrard model for denitrification but structure is created
             !for introducing other equations
             call GetData(NewProperty%Evolution%DecayEquation,                                &
-                         Me%ObjEnterData,iflag,                                              &
+                         Me%ObjEnterData,Decayflag,                                          &
                          SearchType   = FromBlock,                                           &
                          keyword      = 'DECAY_EQUATION',                                    &
                          ClientModule = 'ModulePorousMediaProperties',                       &
@@ -2223,7 +2215,7 @@ cd2 :           if (BlockFound) then
                 stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR65'            
             
             !if flag different from zero keyword is present
-            if (iflag /= 0) then
+            if (Decayflag /= 0) then
                 if (NewProperty%Evolution%DecayEquation /= Peyrard_) then
                     write(*,*)
                     write(*,*) 'In Porous Media Properties the DECAY_EQUATION in property block'
@@ -2232,18 +2224,29 @@ cd2 :           if (BlockFound) then
                 endif            
                 
                 NewProperty%Evolution%DecayEquationCoupled = .true.
+                                
+                !search for property half sauration
+                if (NewProperty%Evolution%DecayEquation == Peyrard_ .and. NewProperty%ID%IDNumber == Nitrate_) then
                 
-                !Property half saturation value for decay
-                call GetData(NewProperty%Evolution%DecayHalfSaturation,                          &
-                             Me%ObjEnterData,iflag,                                              &
-                             SearchType   = FromBlock,                                           &
-                             keyword      = 'DECAY_HALF_SATURATION',                             &
-                             ClientModule = 'ModulePorousMediaProperties',                       &
-                             default      = 0.,                                                  &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                                     &
-                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR69' 
-            
+                    !Property half saturation value for decay (same units as property)
+                    call GetData(NewProperty%Evolution%DecayHalfSaturation,                          &
+                                 Me%ObjEnterData,iflag,                                              &
+                                 SearchType   = FromBlock,                                           &
+                                 keyword      = 'DECAY_HALF_SATURATION',                             &
+                                 ClientModule = 'ModulePorousMediaProperties',                       &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                     &
+                        stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR69' 
+                    
+                    if (NewProperty%Evolution%DecayHalfSaturation .le. 0.) then
+                        write(*,*)
+                        write(*,*) 'In Porous Media Properties the DECAY_HALF_SATURATION in property block'
+                        write(*,*) 'for property', trim(NewProperty%ID%Name)
+                        write(*,*) 'needs to be defined and > 0'
+                        stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR70'                        
+                    endif
+                endif
+                
             else !flag = 0 -> keyword not present
                 !if decay equation keyword is not present for the property than search for the decay rate value
                 !and first order decay will be implemented
@@ -2257,7 +2260,18 @@ cd2 :           if (BlockFound) then
                              default      = 0.,                                                  &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                                     &
-                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR70'            
+                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR71'            
+
+                !Apply first order decay to mass or concentration?
+                call GetData(NewProperty%Evolution%DecayMass,                                    &
+                             Me%ObjEnterData,iflag,                                              &
+                             SearchType   = FromBlock,                                           &
+                             keyword      = 'DECAY_MASS',                                        &
+                             ClientModule = 'ModulePorousMediaProperties',                       &
+                             default      = .false.,                                             &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                                     &
+                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR72'   
             
             endif
             
@@ -3143,8 +3157,7 @@ do1 :   do
         allocate(NewProperty%ConcInBoundary(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR90'
         NewProperty%ConcInBoundary(:,:,:) = FillValueReal            
-
-        
+                
         call GetData(NewProperty%MinValue,                                                  &
                      Me%ObjEnterData,iflag,                                                 &
                      SearchType   = FromBlock,                                              &
@@ -3544,6 +3557,9 @@ do1:    do while(associated(Property))
                 else
                     nProperties = nProperties + 1
                 endif
+                if (PropertyX%Evolution%Decay) then
+                    nProperties = nProperties + 1
+                endif
             endif
             PropertyX => PropertyX%Next
         enddo
@@ -3572,6 +3588,10 @@ do1:    do while(associated(Property))
 !                    n=n+1
 !                    PropertyList(n)  = trim(PropertyX%ID%Name)//'_DiffusivitySurface[m2/s]'
 !                    n=n+1                
+                endif
+                if (PropertyX%Evolution%Decay) then
+                    PropertyList(n)  = trim(PropertyX%ID%Name)//'_DecayRate['//trim(PropertyX%ID%Units)//'.day-1]'
+                    n=n+1
                 endif
             endif
             PropertyX=>PropertyX%Next
@@ -10458,7 +10478,11 @@ do1 :   do while (associated(Property))
                     !    call DecaySomeEquation
                     endif
                 else
-                    call DecayFirstOrder(Property)
+                    if (Property%Evolution%DecayMass) then
+                        call DecayFirstOrder_Mass(Property)
+                    else
+                        call DecayFirstOrder_Conc(Property)
+                    endif
                 endif
                
             endif     
@@ -10472,8 +10496,8 @@ do1 :   do while (associated(Property))
     end subroutine DecayProcesses
 
     !-----------------------------------------------------------------------------
-    
-    subroutine DecayFirstOrder(Property)
+    !Decay applied to mass
+    subroutine DecayFirstOrder_Mass(Property)
         
         !Arguments----------------------------------------------------------------
         type (T_Property), pointer                         :: Property
@@ -10519,20 +10543,20 @@ do1 :   do while (associated(Property))
                         !kgsoil = kgsoil/m3cell * m3cell
                         SoilWeight = SoilDryDensity%Concentration(i,j,k) * Me%ExtVar%CellVolume(i,j,k)
                         
-                        !units coef now is for converting to PMP units but in the future should be to convert
-                        !to SI Units and all the Module should be revised to be consistent and let the user
-                        !use any units
                         !g =  mg/kgsoil  * kgsoil * 1E-3 g/mg
-                        OldMass = Property%Concentration(i,j,k) * Property%Evolution%DecayUnitsCoef * SoilWeight * 1E-3
-                                               
+                        OldMass = Property%Concentration(i,j,k) * SoilWeight * 1E-3
+
+                        !Particulate mg/kgsoil.day-1 = mg/kgsoil * day-1
+                        Property%PropertyDecay(i,j,k) = Property%Concentration(I,J,K) * Property%Evolution%DecayRate
+                                                                       
                         !P = P0*exp(-kt)
                         !g
                         MassSink = min (OldMass - OldMass * exp(-Property%Evolution%DecayRate * DT),  OldMass)
                         
                         NewMass = OldMass - MassSink
                         
-                        !Prop units = mg/kgsoil * UnitsCoef = g * 1E3 mg/g / kgsoil * UnitsCoef
-                        Property%Concentration(I,J,K) = NewMass * 1E3 / SoilWeight / Property%Evolution%DecayUnitsCoef
+                        !mg/kgsoil = g * 1E3 mg/g / kgsoil 
+                        Property%Concentration(I,J,K) = NewMass * 1E3 / SoilWeight 
                         
                     endif
                 
@@ -10559,16 +10583,19 @@ do1 :   do while (associated(Property))
                         WaterVolume = Me%ExtVar%WaterContent(i,j,k)* Me%ExtVar%CellVolume(i,j,k)
                         
                         !g  = g/m3 * m3
-                        OldMass = Property%Concentration(I,J,K) * Property%Evolution%DecayUnitsCoef * WaterVolume
+                        OldMass = Property%Concentration(I,J,K)  * WaterVolume
+
+                        !Dissolved g/m3.day-1 = g/m3 * day-1
+                        Property%PropertyDecay(i,j,k) = Property%Concentration(I,J,K) * Property%Evolution%DecayRate
                         
                         !P = P0*exp(-kt)
-                        !g
+                        !g limit the sink to the existing one (old)
                         MassSink = min (OldMass - OldMass * exp(-Property%Evolution%DecayRate * DT),  OldMass)
                         
                         NewMass = OldMass - MassSink
                         
-                        !Prop units = g/m3 / UnitsCoef = g / m3 / UnitsCoef
-                        Property%Concentration(I,J,K) = NewMass / WaterVolume / Property%Evolution%DecayUnitsCoef
+                        !g/m3 = g / m3 
+                        Property%Concentration(I,J,K) = NewMass / WaterVolume
                         
                     endif
                 
@@ -10583,31 +10610,18 @@ do1 :   do while (associated(Property))
         endif
                       
             
-    end subroutine DecayFirstOrder
+    end subroutine DecayFirstOrder_Mass
 
     !-----------------------------------------------------------------------------    
-    !Tolouse team adapted equation from Peyrard et al. 2011 - Longitudinal transformation of nitrogen and carbon 
-    !in the hyporheic zone of an N-rich stream: A combined modelling and field study. Physics and Chemistry of 
-    !the Earth 36 (2011) 599–611. 
-    !It is needed DOC and POC 
-    !This property (for now used for NO3) and DOC and POC are used in user input units (uM for DOC and NO3 and mg.g-1 for POC)
-    !To do mass computations is used a user defined conversion for PMP units
-    subroutine DecayPeyrard(Property)
+    !Decay applied to Concentration. Organisms usually repond to concentration
+    subroutine DecayFirstOrder_Conc(Property)
         
         !Arguments----------------------------------------------------------------
         type (T_Property), pointer                         :: Property
         
         !Local--------------------------------------------------------------------
-        type (T_Property), pointer                         :: SoilDryDensity, DOC, POC
-        real             , pointer, dimension(:,:,:)       :: Porosity, ThetaF
         real                                               :: DT
-        real(8)                                            :: WaterVolume
-        real(8)                                            :: OldMass
-        real(8)                                            :: NewMass
-        real(8)                                            :: MassSink
-        real                                               :: AdjustedDensity, PropFactor
-        real                                               :: AnaerobioseFactor, DecayRate
-        integer                                            :: i,j,k, CHUNK, STAT_CALL
+        integer                                            :: i,j,k, CHUNK
         !Begin--------------------------------------------------------------------
         
         
@@ -10620,22 +10634,10 @@ do1 :   do while (associated(Property))
             DT = Me%ExtVar%DT /86400.
         endif
                   
-        if(Me%ExtVar%Now .GE. Property%Evolution%NextCompute) then  
-        
-            call SearchProperty(SoilDryDensity, SoilDryDensity_, .false., STAT = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'DecayPeyrard - ModulePorousMediaProperties - ERR01'
-
-            call SearchProperty(DOC, DOC_, .false., STAT = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'DecayPeyrard - ModulePorousMediaProperties - ERR010'
-   
-            call SearchProperty(POC, POC_, .false., STAT = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'DecayPeyrard - ModulePorousMediaProperties - ERR020'
-            
-            Porosity => Me%ExtVar%ThetaS
-            ThetaF   => Me%ExtVar%ThetaF
-            
+        if(Me%ExtVar%Now .GE. Property%Evolution%NextCompute) then            
+    
             CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-            !$OMP PARALLEL PRIVATE(I,J,K,WaterVolume,OldMass,AdjustedDensity,PropFactor,AnaerobioseFactor,DecayRate,MassSink,NewMass)
+            !$OMP PARALLEL PRIVATE(I,J,K)
             
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -10644,38 +10646,13 @@ do1 :   do while (associated(Property))
             
                 if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
                     
-                    !WQ process without volume change. only mass change
-                    !m3 H20
-                    WaterVolume = Me%ExtVar%WaterContent(i,j,k)* Me%ExtVar%CellVolume(i,j,k)
+                    !Particulate mg/kgsoil.day-1 = mg/kgsoil * day-1
+                    !Dissolved g/m3.day-1 = g/m3 * day-1
+                    Property%PropertyDecay(i,j,k) = Property%Concentration(i,j,k) * Property%Evolution%DecayRate
                     
-                    !g  = g/m3 * m3
-                    OldMass = Property%Concentration(I,J,K) * Property%Evolution%DecayUnitsCoef * WaterVolume
-                    
-                    !kg/dm3 = kg/m3 * 1-3 m3/dm3 * -
-                    AdjustedDensity = SoilDryDensity%Concentration(i,j,k) * 1E-3 * ((1 - Porosity(i,j,k)) / Porosity(i,j,k))
-                    
-                    ! adimensional
-                    PropFactor = Property%Concentration(i,j,k) /                &
-                                 (Property%Evolution%DecayHalfSaturation + Property%Concentration(i,j,k))
-                    
-                    !From SedimentQuality model but without lower limit
-                    !adimensional
-                    AnaerobioseFactor = 0.000304*exp(0.0815*ThetaF(i,j,k)*100)
-                    
-                    !this expression adapted from Peyrard et al. 2011 used concentration in uM for DOC and NO3 and mg.g-1 for POC
-                    !The units need to be verified: it should be d-1 * Property original units
-                    DecayRate = 0.8 * (AdjustedDensity * POC%Evolution%DecayRate * POC%Concentration(i,j,k)  +    &
-                                 DOC%Evolution%DecayRate * DOC%Concentration(i,j,k)                        ) *    &
-                                 PropFactor * AnaerobioseFactor
-                    !First order
-                    !P = P0 -kt
-                    !g = g/m3.d-1 m3 . d
-                    MassSink = min (DecayRate * Property%Evolution%DecayUnitsCoef * WaterVolume * DT, OldMass)
-                    
-                    NewMass = OldMass - MassSink
-                    
-                    !Prop Units = g/m3 / UnitsCoef
-                    Property%Concentration(I,J,K) = (NewMass / WaterVolume) / Property%Evolution%DecayUnitsCoef
+                    !P = P0*exp(-kt). k is day-1
+                    !mg/kgsoil or g/m3
+                    Property%Concentration(i,j,k) = max(Property%Concentration(i,j,k)*exp(-Property%Evolution%DecayRate*DT),0.0)
                     
                 endif
             
@@ -10683,10 +10660,129 @@ do1 :   do while (associated(Property))
             enddo
             enddo
             !$OMP END DO
-            !$OMP END PARALLEL                    
-        
+            !$OMP END PARALLEL 
+    
         endif
                       
+            
+    end subroutine DecayFirstOrder_Conc
+
+    !-----------------------------------------------------------------------------    
+    !Tolouse team adapted equation from Peyrard et al. 2011 - Longitudinal transformation of nitrogen and carbon 
+    !in the hyporheic zone of an N-rich stream: A combined modelling and field study. Physics and Chemistry of 
+    !the Earth 36 (2011) 599–611. 
+    !It is needed DOC, POC, and Nitrate
+    !This property (for now used for NO3) and DOC and POC are used in the equation in uM for DOC and NO3 and mg.g-1 for POC
+    !so conversions were needed from mg/L (=g/m3) and mg/kg
+    subroutine DecayPeyrard(Property)
+        
+        !Arguments----------------------------------------------------------------
+        type (T_Property), pointer                         :: Property
+        
+        !Local--------------------------------------------------------------------
+        type (T_Property), pointer                         :: SoilDryDensity, DOC, POC
+        real             , pointer, dimension(:,:,:)       :: Porosity, ThetaF
+        real                                               :: DT
+        real                                               :: AdjustedDensity, PropFactor
+        real                                               :: AnaerobioseFactor, Decay
+        real(8)                                            :: NO3Conc, DOCConc, POCConc, NO3HalfSaturation
+        integer                                            :: i,j,k, CHUNK, STAT_CALL
+        !Begin--------------------------------------------------------------------
+        
+        !now is used Peyrard only for nitrate but in the future may be added other properties to transform
+        if (Property%ID%IDNumber == Nitrate_) then
+        
+            !days
+            !if DTInterval, only update at given time
+            if (Property%Evolution%DTIntervalAssociated) then
+                DT = Property%Evolution%DTInterval / 86400.
+            else !update every time
+                Property%Evolution%NextCompute = Me%ExtVar%Now
+                DT = Me%ExtVar%DT /86400.
+            endif
+                      
+            if(Me%ExtVar%Now .GE. Property%Evolution%NextCompute) then  
+            
+                call SearchProperty(SoilDryDensity, SoilDryDensity_, .false., STAT = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'DecayPeyrard - ModulePorousMediaProperties - ERR01'
+
+                call SearchProperty(DOC, DOC_, .false., STAT = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'DecayPeyrard - ModulePorousMediaProperties - ERR010'
+       
+                call SearchProperty(POC, POC_, .false., STAT = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'DecayPeyrard - ModulePorousMediaProperties - ERR020'
+                
+                !shorten variables
+                Porosity => Me%ExtVar%ThetaS
+                ThetaF   => Me%ExtVar%ThetaF
+                
+                CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                !$OMP PARALLEL PRIVATE(I,J,K,AdjustedDensity,NO3Conc,NO3HalfSaturation,  &
+                !$OMP& PropFactor,AnaerobioseFactor,POCConc,DOCConc,Decay)
+                
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                do J = Me%WorkSize%JLB, Me%WorkSize%JUB       
+                do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                    if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+                        
+                        !density for equation is in kg/dm3 and then is adjusted to porosity
+                        !kg/dm3 = kg/m3 * 1-3 m3/dm3 * -
+                        AdjustedDensity = SoilDryDensity%Concentration(i,j,k) * 1E-3 * ((1 - Porosity(i,j,k)) / Porosity(i,j,k))
+                        
+                        !Nitrate concentration for the equation is in uM
+                        !uM = 1e6uM/M * mol/L (M) = 1E6 * g/m3 * 1E-3m3/L / 14g/mol(molecular mass of N (NO3-N))
+                        NO3Conc = 1E6 * Property%Concentration(i,j,k) * 1E-3 / 14.
+                        NO3HalfSaturation = 1E6 * Property%Evolution%DecayHalfSaturation * 1E-3 / 14.
+                        
+                        ! adimensional
+                        PropFactor = NO3Conc / (NO3HalfSaturation + NO3Conc)
+                        
+                        !From SedimentQuality model but without lower limit
+                        !adimensional. factor goes > 1 so it is limited
+                        AnaerobioseFactor = min (0.000304*exp(0.0815*ThetaF(i,j,k)*100), 1.0)
+                        
+                        !POC concentration for the equation is mg/g
+                        !mg/g = mg/kg * 1E-3kg/g
+                        POCConc = POC%Concentration(i,j,k) * 1E-3
+                        
+                        !DOC concentration for the equation is uM
+                        !uM = 1E6uM/M * mol/L = 1E-6 * g/m3 * 1E-3 m3/L / 12g/mol(molecular mass of Carbon)
+                        DOCConc = 1E6 * DOC%Concentration(i,j,k) * 1E-3 / 12.
+                        
+                        !the  nitrate decay equation adapted from Peyrard et al. 2011 uses concentration in uM for DOC and NO3
+                        !and mg.g-1 for POC
+                        !uM.d-1 = (kg/dm3 * 1E3g/kg * d-1 * mg/g * 1E-3g/mg * 1E6uM/M / 12 g/mol) + uM.d-1
+                        !uM.d-1 =               uM.d-1                                            + uM.d-1
+                        Decay = 0.8 * (AdjustedDensity * POC%Evolution%DecayRate * POCConc * 1E6 / 12.  +       &
+                                       DOC%Evolution%DecayRate * DOCConc                                 ) *    &
+                                       PropFactor * AnaerobioseFactor
+                                                
+                        !Convert DecayRate in g/m3.d-1 (convert uM to g/m3 in Nitrate)
+                        !g/m3.d-1 = 1E-6M/uM * uM.d-1 * 1E3L/m3 * 14g/mol(molecular mass of N (NO3-N))
+                        Property%PropertyDecay(i,j,k) = 1E-6 * Decay * 1E3 * 14.
+                        
+                        !Zero order decay
+                        !P = P0 -kt. k is g/m3.day-1                      
+                        !g/m3 = g/m3 - g/m3.d-1  * d
+                        !decay can not be higher that OldConc
+                        Property%Concentration(I,J,K) = max (Property%Concentration(I,J,K)-(Property%PropertyDecay(i,j,k)*DT),0.0)
+                                               
+                    endif
+                
+                enddo
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL                    
+            
+            endif
+        
+        !elseif (Property%ID%IDNumber == OtherProperty) then
+        
+        
+        endif              
             
     end subroutine DecayPeyrard
 
@@ -10785,8 +10881,15 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
 !                        stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR040'
 !                        
 !                    deallocate(SurfaceDiffusivity)
-                    
                 endif
+                !output decay rate in case of decay (g/m3.day-1 for dissolved and mg/kg.day-1 in particulated)
+                if (PropertyX%Evolution%Decay) then
+                    call WriteTimeSerie(Me%ObjTimeSerie,                    &
+                                        Data3D = PropertyX%PropertyDecay,   &
+                                        STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                              &
+                        stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR045'                        
+                endif                
             endif
             PropertyX=>PropertyX%Next
         enddo
@@ -10900,7 +11003,17 @@ First:          if (LastTime.LT.Actual) then
                                               OutputNumber = OutPutNumber,                   &
                                               STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR070'
-
+                        
+                        if (PropertyX%Evolution%Decay) then
+                            call HDF5WriteData   (Me%ObjHDF5,                                          &
+                                                  "/Results/"//trim(PropertyX%ID%Name)//"_DecayRate",  &
+                                                  trim(PropertyX%ID%Name)//"_DecayRate",               &
+                                                  trim(PropertyX%ID%Units)//".day-1",                  &
+                                                  Array3D = PropertyX%PropertyDecay,                   &
+                                                  OutputNumber = OutPutNumber,                         &
+                                                  STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR075'
+                        endif
                     endif
 
                     PropertyX => PropertyX%Next
