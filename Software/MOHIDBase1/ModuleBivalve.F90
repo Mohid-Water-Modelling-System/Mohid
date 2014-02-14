@@ -4064,6 +4064,49 @@ do1:        do while (associated(ObjPredator%Next))
             Species%PopulationProcesses%TNStartTimeStep          = 0.0
             Species%PopulationProcesses%TNNonLarvaeStartTimeStep = 0.0
             
+            Species%PopulationProcesses%TN          = 0.0
+            Species%PopulationProcesses%NCoh        = 0.0
+            Species%PopulationProcesses%TBio        = 0.0
+            Species%PopulationProcesses%Cr          = 0.0
+            Species%PopulationProcesses%Fil         = 0.0
+            Species%PopulationProcesses%Ing         = 0.0
+            Species%PopulationProcesses%Ass         = 0.0
+            Species%PopulationProcesses%CO2         = 0.0
+            Species%PopulationProcesses%H2O         = 0.0
+            Species%PopulationProcesses%O           = 0.0
+            Species%PopulationProcesses%NH3         = 0.0
+            Species%PopulationProcesses%PO4         = 0.0
+            Species%PopulationProcesses%m_A         = 0.0
+            Species%PopulationProcesses%m_O         = 0.0
+            Species%PopulationProcesses%m_F         = 0.0
+            Species%PopulationProcesses%m_nat       = 0.0
+            Species%PopulationProcesses%m_shr       = 0.0
+            Species%PopulationProcesses%m_cra       = 0.0
+            Species%PopulationProcesses%m_oys       = 0.0
+            Species%PopulationProcesses%m_duck      = 0.0
+            Species%PopulationProcesses%m_gull      = 0.0
+            Species%PopulationProcesses%m_low       = 0.0
+            Species%PopulationProcesses%m_self      = 0.0
+            Species%PopulationProcesses%m_others    = 0.0
+            Species%PopulationProcesses%m_vel       = 0.0
+            Species%PopulationProcesses%m_settle    = 0.0
+            Species%PopulationProcesses%Massm_A     = 0.0
+            Species%PopulationProcesses%Massm_O     = 0.0
+            Species%PopulationProcesses%Massm_F     = 0.0
+            Species%PopulationProcesses%Massm_nat   = 0.0
+            Species%PopulationProcesses%Massm_shr   = 0.0
+            Species%PopulationProcesses%Massm_cra   = 0.0
+            Species%PopulationProcesses%Massm_oys   = 0.0
+            Species%PopulationProcesses%Massm_duck  = 0.0
+            Species%PopulationProcesses%Massm_gull  = 0.0
+            Species%PopulationProcesses%Massm_low   = 0.0
+            Species%PopulationProcesses%Massm_self  = 0.0
+            Species%PopulationProcesses%Massm_others= 0.0
+            Species%PopulationProcesses%Massm_vel   = 0.0
+            Species%PopulationProcesses%Massm_settle= 0.0
+            Species%PopulationProcesses%TNField     = 0.0
+            Species%PopulationProcesses%MaxLength   = 0.0
+            
             Cohort => Species%FirstCohort
             do while(associated(Cohort))
             
@@ -8428,50 +8471,6 @@ d6:                 do while(associated(Cohort))
 d1:     do while(associated(Species))
             
             PopulationProcesses => Species%PopulationProcesses
-
-            !all /m3
-            PopulationProcesses%TN          = 0.0
-            PopulationProcesses%NCoh        = 0.0
-            PopulationProcesses%TBio        = 0.0
-            PopulationProcesses%Cr          = 0.0
-            PopulationProcesses%Fil         = 0.0
-            PopulationProcesses%Ing         = 0.0
-            PopulationProcesses%Ass         = 0.0
-            PopulationProcesses%CO2         = 0.0
-            PopulationProcesses%H2O         = 0.0
-            PopulationProcesses%O           = 0.0
-            PopulationProcesses%NH3         = 0.0
-            PopulationProcesses%PO4         = 0.0
-            PopulationProcesses%m_A         = 0.0
-            PopulationProcesses%m_O         = 0.0
-            PopulationProcesses%m_F         = 0.0
-            PopulationProcesses%m_nat       = 0.0
-            PopulationProcesses%m_shr       = 0.0
-            PopulationProcesses%m_cra       = 0.0
-            PopulationProcesses%m_oys       = 0.0
-            PopulationProcesses%m_duck      = 0.0
-            PopulationProcesses%m_gull      = 0.0
-            PopulationProcesses%m_low       = 0.0
-            PopulationProcesses%m_self      = 0.0
-            PopulationProcesses%m_others    = 0.0
-            PopulationProcesses%m_vel       = 0.0
-            PopulationProcesses%m_settle    = 0.0
-            PopulationProcesses%Massm_A     = 0.0
-            PopulationProcesses%Massm_O     = 0.0
-            PopulationProcesses%Massm_F     = 0.0
-            PopulationProcesses%Massm_nat   = 0.0
-            PopulationProcesses%Massm_shr   = 0.0
-            PopulationProcesses%Massm_cra   = 0.0
-            PopulationProcesses%Massm_oys   = 0.0
-            PopulationProcesses%Massm_duck  = 0.0
-            PopulationProcesses%Massm_gull  = 0.0
-            PopulationProcesses%Massm_low   = 0.0
-            PopulationProcesses%Massm_self  = 0.0
-            PopulationProcesses%Massm_others= 0.0
-            PopulationProcesses%Massm_vel   = 0.0
-            PopulationProcesses%Massm_settle= 0.0
-            PopulationProcesses%TNField     = 0.0
-            PopulationProcesses%MaxLength   = 0.0
 
             Cohort => Species%FirstCohort
 d2:         do while(associated(Cohort))
