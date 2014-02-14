@@ -579,7 +579,8 @@
         real                             :: DeathByExtraStarvation         = 0.0  !#/d, extra mortality by starvation            
         real                             :: DeathByNatural                 = 0.0  !#/d, dead by natural            
         real                             :: DeathByVelocity                = 0.0  !#/d, dead by velocity            
-        real                             :: DeathByWrongSettlement         = 0.0  !#/d, dead by settle in the wrong place            
+        real                             :: DeathByWrongSettlement         = 0.0  !#/d, dead by settle in the wrong place  
+        real                             :: DeathByDensityLimit            = 0.0  !#/d, dead by settle in the wrong place  
         real                             :: PredationByShrimps             = 0.0  !#/d, dead by shrimp             
         real                             :: PredationByCrabs               = 0.0  !#/d, dead by crab             
         real                             :: PredationByOysterCatchers      = 0.0  !#/d, dead by oystercatcher             
@@ -593,6 +594,7 @@
 
     type   T_PopulationProcesses 
         real                             :: TNStartTimeStep              = 0.0  
+        real                             :: TNNonLarvaeStartTimeStep     = 0.0  
         real                             :: TN                           = 0.0  
         real                             :: NCoh                         = 0.0  
         real                             :: TBio                         = 0.0                 
@@ -661,6 +663,9 @@
         logical                          :: Larvae      = OFF
         integer                          :: Dead        = 0
         integer                          :: GlobalDeath = 1
+        !integer,  pointer, dimension(:)  :: LarvaeState => null()  
+        logical                          :: AtLeastOneLarvae         = .false.
+        logical                          :: PreviousAtLeastOneLarvae = .false.
         type(T_Cohort ), pointer         :: Next
     end type T_Cohort
 
@@ -1379,7 +1384,7 @@ do1:        do while (associated(ObjSpecies))
         !Local----------------------------------------------------------------------
         type(T_Cohort)          , pointer             :: NewCohort
         character(len=5)                              :: CohortIDStr
-        integer                                       :: i
+        integer                                       :: i !, Index
 
         !Begin----------------------------------------------------------------------
 
@@ -1404,7 +1409,13 @@ do1:        do while (associated(ObjSpecies))
                 call ConstructCohortOutput (NewCohort, i)
             enddo
         end if
-
+        
+!        allocate(NewCohort%LarvaeState(Me%Array%ILB:Me%Array%IUB))
+!        
+!        do Index = Me%Array%ILB, Me%Array%IUB 
+!            NewCohort%LarvaeState(Index) = -99
+!        enddo
+        
         nullify(NewCohort)
 
     end subroutine ConstructCohort
@@ -1451,6 +1462,31 @@ do1:        do while (associated(ObjCohort%Next))
 
     end subroutine AddCohort
 
+    !-------------------------------------------------------------------------------
+    
+    subroutine ComputeCohortLarvaeState(Cohort, Index, LarvaeMaxSize)
+    
+        !Arguments-------------------------------------------------------------
+        type (T_Cohort),            pointer             :: Cohort
+        integer                                         :: Index
+        real                                            :: LarvaeMaxSize
+        
+        !Local-----------------------------------------------------------------
+
+        if ((Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) .gt. 0.0) .and. &
+            (Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      .gt. 0.0) .and. &
+            (Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      .le. LarvaeMaxSize)) then
+                        
+            Cohort%Larvae = .true.
+                    
+        else
+                    
+            Cohort%Larvae = .false.
+                        
+        end if
+    
+    end subroutine ComputeCohortLarvaeState
+    
     !-------------------------------------------------------------------------------
 
     subroutine ConstructOutputs(iIndexOutput)
@@ -3965,6 +4001,20 @@ do1:        do while (associated(ObjPredator%Next))
         end if
         
         call ConvertUnits (Index)
+        
+        Species => Me%FirstSpecies
+        do while(associated(Species))
+        
+            Cohort => Species%FirstCohort
+            do while(associated(Cohort))
+                
+                call ComputeCohortLarvaeState(Cohort, Index, Species%LarvaeMaxSize)
+                    
+                Cohort => Cohort%Next
+            end do
+            Species => Species%Next
+        end do
+
                 
         Species => Me%FirstSpecies
         do while(associated(Species))
@@ -3979,18 +4029,7 @@ do1:        do while (associated(ObjPredator%Next))
 
                 Cohort => SpeciesAgain%FirstCohort
                 do while(associated(Cohort))
-                    
-                    if ((Me%ExternalVar%Mass(Cohort%StateIndex%M_V,Index) .gt. 0.0) .and. &
-                        (Me%ExternalVar%Mass(Cohort%StateIndex%L,Index) .le. Species%LarvaeMaxSize)) then
-                        
-                        Cohort%Larvae = .true.
-                    
-                    else
-                    
-                        Cohort%Larvae = .false.
-                        
-                    end if
-                    
+                
                     if (Species%FeedOnLarvae .and. Cohort%Larvae) then 
                         
                         !Add this cohort to the list of properties
@@ -4022,7 +4061,8 @@ do1:        do while (associated(ObjPredator%Next))
         do while(associated(Species))
 
             !/m3
-            Species%PopulationProcesses%TNStartTimeStep = 0.0
+            Species%PopulationProcesses%TNStartTimeStep          = 0.0
+            Species%PopulationProcesses%TNNonLarvaeStartTimeStep = 0.0
             
             Cohort => Species%FirstCohort
             do while(associated(Cohort))
@@ -4030,7 +4070,11 @@ do1:        do while (associated(ObjPredator%Next))
                 Number = Cohort%StateIndex%Number 
             
                 !in the begining of the simulation, the cohort is always alive
-                Cohort%Dead = 0
+                if(Me%ExternalVar%Mass(Number, Index) == 0.0)then
+                    Cohort%Dead = 1
+                else
+                    Cohort%Dead = 0
+                endif
 
                 Cohort%Processes%DeathByAge                   = 0.0
                 Cohort%Processes%DeathByOxygen                = 0.0
@@ -4046,15 +4090,21 @@ do1:        do while (associated(ObjPredator%Next))
                 Cohort%Processes%DeathByLarvaePredationByOthers = 0.0
                 Cohort%Processes%DeathByVelocity              = 0.0
                 Cohort%Processes%DeathByWrongSettlement       = 0.0
+                Cohort%Processes%DeathByDensityLimit          = 0.0
                 
                 Species%PopulationProcesses%TNStartTimeStep =  Species%PopulationProcesses%TNStartTimeStep        + &
                                                                Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index)
-
+                if(.not. Cohort%Larvae)then                           
+                    Species%PopulationProcesses%TNNonLarvaeStartTimeStep =  &
+                                                            Species%PopulationProcesses%TNNonLarvaeStartTimeStep + &
+                                                            Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index)
+                endif
                                                               
                 if(associated(Cohort%FeedingOn)) deallocate (Cohort%FeedingOn)
                 
                 allocate(Cohort%FeedingOn(Species%nParticles, 3)) !store values, Col = Filtered ingested assimilated 
-                                
+                Cohort%FeedingOn = 0.0  
+                      
                 Cohort => Cohort%Next
 
             end do
@@ -4126,6 +4176,7 @@ do1:        do while (associated(ObjPredator%Next))
                 Number = Cohort%StateIndex%Number 
 
                 Me%ExternalVar%Mass(Number,Index) = Me%ExternalVar%Mass(Number,Index) * Me%ConvertionFactor
+                
                               
                 Cohort => Cohort%Next
 
@@ -4257,8 +4308,12 @@ do1:        do while (associated(ObjPredator%Next))
         NewParticles%LarvaeSelfPredated     = 0.0
         
         NewParticles%LarvaePredatedByOthers = 0.0
-               
-        NewParticles%F_E              = Me%ExternalVar%Mass(Cohort%StateIndex%M_E,Index) / NewParticles%LarvaeBiomass
+        
+        if(NewParticles%LarvaeBiomass .gt. 0.0)then
+            NewParticles%F_E          = Me%ExternalVar%Mass(Cohort%StateIndex%M_E,Index) / NewParticles%LarvaeBiomass
+        else
+            NewParticles%F_E          = 0.0
+        endif
         
         NewParticles%Total_CR         = 0.0
                   
@@ -4837,7 +4892,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_)then
         !Local-----------------------------------------------------------------
         type(T_Species)         , pointer           :: Species
         type(T_Cohort)          , pointer           :: Cohort
-        integer                                     :: TotalNumberIndex
+        integer                                     :: TotalNumberIndex, Index
 
         !Begin-----------------------------------------------------------------
 
@@ -4850,6 +4905,37 @@ d1:     do while (associated(Species))
 d2:         do while (associated(Cohort))
 
                 Cohort%GlobalDeath = 1
+                
+                Cohort%PreviousAtLeastOneLarvae = Cohort%AtLeastOneLarvae
+                
+                Cohort%AtLeastOneLarvae = .false.
+                
+!                if ((Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) .le. Me%ConvertionFactor * 1e-8))then
+!                    
+!                    Me%ExternalVar%Mass(Cohort%StateIndex%L,    Index) = 0.0
+!                    Me%ExternalVar%Mass(Cohort%StateIndex%M_E,  Index) = 0.0
+!                    Me%ExternalVar%Mass(Cohort%StateIndex%M_V,  Index) = 0.0
+!                    Me%ExternalVar%Mass(Cohort%StateIndex%M_H,  Index) = 0.0
+!                    Me%ExternalVar%Mass(Cohort%StateIndex%M_R,  Index) = 0.0
+!                    
+!                endif
+                
+            
+                do Index = Me%Array%ILB, Me%Array%IUB
+
+                    if ((Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) .gt. 0.0) .and. &
+                        (Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      .gt. 0.0) .and. &
+                        (Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      .le. Species%LarvaeMaxSize)) then
+                                    
+                        Cohort%AtLeastOneLarvae = .true.
+                                
+                    end if
+
+                enddo
+                
+                if(Cohort%PreviousAtLeastOneLarvae .and. .not. Cohort%AtLeastOneLarvae)then 
+                    write(*,*)"BIVALVE : ", trim(Cohort%ID%Name), " is no longer larvae"
+                endif
 
                 Cohort  => Cohort%Next  
             end do  d2        
@@ -4963,73 +5049,76 @@ d2:         do while (associated(Cohort))
             Cohort => Species%FirstCohort
             do while(associated(Cohort))
             
-                if (.not. Cohort%Larvae) then
+                if(Cohort%Dead .eq. 0)then 
+            
+                    if (.not. Cohort%Larvae) then
 
-                    M_V     = Cohort%StateIndex%M_V
-                    M_E     = Cohort%StateIndex%M_E
-                    M_R     = Cohort%StateIndex%M_R
-                    Number  = Cohort%StateIndex%Number
-
-                    !Mortality by velocity, #/d.m3
-                    Cohort%Processes%DeathByVelocity = (Me%ExternalVar%Mass(Number,Index)             * &
-                                                      Species%IndividualParameters%m_velocity) / Me%DTDay
-                                                      
-
-                    !update the number of organisms in mass matrix
-                    Me%ExternalVar%Mass(Number,Index) = Me%ExternalVar%Mass(Number,Index)           - &
-                                                        (Cohort%Processes%DeathByVelocity * Me%DTDay)
-                                                        
-                    if (Me%ExternalVar%Mass(Number,Index) .eq. 0.0) then 
-                    
-                        call ImposeCohortDeath (Index, Species, Cohort) !sets all proc to zero, convert mass to OM, Deadlist
-                    
-                    else
-                    
-                        POC     = Me%PropIndex%POC
-                        PON     = Me%PropIndex%PON
-                        POP     = Me%PropIndex%POP
-
-                        !update POM again
-                        Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
-                                                        ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                        Species%SpeciesComposition%StructureComposition%nN                + &
-                                                        (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                        Species%SpeciesComposition%ReservesComposition%nN )               * &
-                                                        Species%AuxiliarParameters%N_AtomicMass                           * &
-                                                        Cohort%Processes%DeathByVelocity * Me%DTDay           
-
-                        if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
-
-
-                            if (Me%ComputeOptions%Phosphorus) then
-
-                                Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
-                                                        ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                        Species%SpeciesComposition%StructureComposition%nP                + &
-                                                        (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                        Species%SpeciesComposition%ReservesComposition%nP )               * &
-                                                        Species%AuxiliarParameters%P_AtomicMass                           * &
-                                                        Cohort%Processes%DeathByVelocity * Me%DTDay           
-
-                            end if
-
-                        else !(if life)
-
-
-                            Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
-                                                            ( Me%ExternalVar%Mass(M_V,Index)             + &
-                                                            Me%ExternalVar%Mass(M_E,Index)               + &
-                                                            Me%ExternalVar%Mass(M_R,Index) )             * &
-                                                            Cohort%Processes%DeathByVelocity * Me%DTDay
-
-                        end if !pelagic model
+                        M_V     = Cohort%StateIndex%M_V
+                        M_E     = Cohort%StateIndex%M_E
+                        M_R     = Cohort%StateIndex%M_R
+                        Number  = Cohort%StateIndex%Number
                         
-                    end if ! not (Me%ExternalVar%Mass(Number,Index) .eq. 0.0 
-                
-                else !if larvae 
-                    !Mortality by velocity, #/d.m3
-                    Cohort%Processes%DeathByVelocity = 0.0
-                end if                                   
+                        !Mortality by velocity, #/d.m3
+                        Cohort%Processes%DeathByVelocity = (Me%ExternalVar%Mass(Number,Index)             * &
+                                                          Species%IndividualParameters%m_velocity) / Me%DTDay
+                                                          
+
+                        !update the number of organisms in mass matrix
+                        Me%ExternalVar%Mass(Number,Index) = Me%ExternalVar%Mass(Number,Index)           - &
+                                                            (Cohort%Processes%DeathByVelocity * Me%DTDay)
+                                                            
+                        if (Me%ExternalVar%Mass(Number,Index) .eq. 0.0) then 
+                        
+                            call ImposeCohortDeath (Index, Species, Cohort) !sets all proc to zero, convert mass to OM, Deadlist
+                        
+                        else
+                        
+                            POC     = Me%PropIndex%POC
+                            PON     = Me%PropIndex%PON
+                            POP     = Me%PropIndex%POP
+
+                            !update POM again
+                            Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
+                                                            ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                            Species%SpeciesComposition%StructureComposition%nN                + &
+                                                            (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                            Species%SpeciesComposition%ReservesComposition%nN )               * &
+                                                            Species%AuxiliarParameters%N_AtomicMass                           * &
+                                                            Cohort%Processes%DeathByVelocity * Me%DTDay           
+
+                            if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
+
+
+                                if (Me%ComputeOptions%Phosphorus) then
+
+                                    Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
+                                                            ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                            Species%SpeciesComposition%StructureComposition%nP                + &
+                                                            (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                            Species%SpeciesComposition%ReservesComposition%nP )               * &
+                                                            Species%AuxiliarParameters%P_AtomicMass                           * &
+                                                            Cohort%Processes%DeathByVelocity * Me%DTDay           
+
+                                end if
+
+                            else !(if life)
+
+
+                                Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
+                                                                ( Me%ExternalVar%Mass(M_V,Index)             + &
+                                                                Me%ExternalVar%Mass(M_E,Index)               + &
+                                                                Me%ExternalVar%Mass(M_R,Index) )             * &
+                                                                Cohort%Processes%DeathByVelocity * Me%DTDay
+
+                            end if !pelagic model
+                            
+                        end if ! not (Me%ExternalVar%Mass(Number,Index) .eq. 0.0 
+                    
+                    else !if larvae 
+                        !Mortality by velocity, #/d.m3
+                        Cohort%Processes%DeathByVelocity = 0.0
+                    end if             
+                endif !Cohort%Dead = 0                      
 
             Cohort => Cohort%Next
             end do
@@ -5052,7 +5141,8 @@ d2:         do while (associated(Cohort))
         type(T_Cohort)     , pointer :: Cohort
         integer                      :: Number, M_V, M_E, M_R
         integer                      :: POC, PON, POP
-        real                         :: NumberToSettle, NumberToDieFromDensityLimit
+        real                         :: MaxNumberToSettle, NumberToDieFromDensityLimit
+        
 
         !Begin-----------------------------------------------------------------
         
@@ -5062,94 +5152,115 @@ d2:         do while (associated(Cohort))
             Cohort => Species%FirstCohort
             do while(associated(Cohort))
             
-                if (.not. Cohort%Larvae) then
+                if(Cohort%Dead .eq. 0)then 
                 
-                    M_V     = Cohort%StateIndex%M_V
-                    M_E     = Cohort%StateIndex%M_E
-                    M_R     = Cohort%StateIndex%M_R
-                    Number  = Cohort%StateIndex%Number
+                    !if the whole has just stopped being a larvae
+                    if(Cohort%PreviousAtLeastOneLarvae .and. .not. Cohort%AtLeastOneLarvae)then 
                     
-                    !Mortality by settlement, #/d.m3
-                    Cohort%Processes%DeathByWrongSettlement = Me%ExternalVar%Mass(Number,Index)          * &
-                                                              (1 - Species%SettlementProbability(Index)) / &
-                                                              Me%DTDay
-
-
-
-                    !Mortality by DensityLimitations, #/d.m3
-                    if(Species%IndividualParameters%DensityLimOption) then
-                    
-                        !#/m2
-                        NumberToSettle = Species%IndividualParameters%MAX_density - Species%PopulationProcesses%TNStartTimeStep
-
-                        !#/m2
-                        NumberToDieFromDensityLimit = Me%ExternalVar%Mass(Number,Index) - NumberToSettle
+                        M_V     = Cohort%StateIndex%M_V
+                        M_E     = Cohort%StateIndex%M_E
+                        M_R     = Cohort%StateIndex%M_R
+                        Number  = Cohort%StateIndex%Number
                         
-                    
-                        Cohort%Processes%DeathByWrongSettlement = Cohort%Processes%DeathByWrongSettlement + &
-                                                                  NumberToDieFromDensityLimit             / &
+                        !exclude current cohort number from the total number non larvae of individuals
+                        Species%PopulationProcesses%TNNonLarvaeStartTimeStep = &
+                                            Species%PopulationProcesses%TNNonLarvaeStartTimeStep - &
+                                            Me%ExternalVar%Mass(Number,Index)
+
+                        !Mortality by settlement, #/d.m3
+                        Cohort%Processes%DeathByWrongSettlement = Me%ExternalVar%Mass(Number,Index)          * &
+                                                                  (1 - Species%SettlementProbability(Index)) / &
                                                                   Me%DTDay
-                    end if
-                                                      
+                                                                  
+                        !update the number of organisms in mass matrix
+                        Me%ExternalVar%Mass(Number,Index) = Me%ExternalVar%Mass(Number,Index)           - &
+                                                            (Cohort%Processes%DeathByWrongSettlement * Me%DTDay)
+                                   
 
-                    !update the number of organisms in mass matrix
-                    Me%ExternalVar%Mass(Number,Index) = Me%ExternalVar%Mass(Number,Index)           - &
-                                                        (Cohort%Processes%DeathByWrongSettlement * Me%DTDay)
-                                         
-                    if (Me%ExternalVar%Mass(Number,Index) .eq. 0.0) then 
-                    !they all died
-                    
-                        call ImposeCohortDeath (Index, Species, Cohort) !sets all proc to zero, convert mass to OM, Deadlist
-                    
-                    else
-                    
-                        POC     = Me%PropIndex%POC
-                        PON     = Me%PropIndex%PON
-                        POP     = Me%PropIndex%POP
-
-                        !update POM again
-                        Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
-                                                        ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                        Species%SpeciesComposition%StructureComposition%nN                + &
-                                                        (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                        Species%SpeciesComposition%ReservesComposition%nN )               * &
-                                                        Species%AuxiliarParameters%N_AtomicMass                           * &
-                                                        Cohort%Processes%DeathByWrongSettlement * Me%DTDay           
-
-                        if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
-
-
-                            if (Me%ComputeOptions%Phosphorus) then
-
-                                Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
-                                                        ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                        Species%SpeciesComposition%StructureComposition%nP                + &
-                                                        (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                        Species%SpeciesComposition%ReservesComposition%nP )               * &
-                                                        Species%AuxiliarParameters%P_AtomicMass                           * &
-                                                        Cohort%Processes%DeathByWrongSettlement * Me%DTDay           
-
-                            end if
-
-                        else !(if life)
-
-
-                            Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
-                                                            ( Me%ExternalVar%Mass(M_V,Index)             + &
-                                                            Me%ExternalVar%Mass(M_E,Index)               + &
-                                                            Me%ExternalVar%Mass(M_R,Index) )             * &
-                                                            Cohort%Processes%DeathByWrongSettlement * Me%DTDay
-
-                        end if !pelagic model
+                        !Mortality by DensityLimitations, #/d.m3
+                        if(Species%IndividualParameters%DensityLimOption) then
+                            
+                            !#/m3
+                            MaxNumberToSettle = Species%IndividualParameters%MAX_density * Me%ConvertionFactor - &
+                                                Species%PopulationProcesses%TNNonLarvaeStartTimeStep
                         
-                    end if ! not (Me%ExternalVar%Mass(Number,Index) .eq. 0.0
-                
-                else ! if larvae 
-                
-                 Cohort%Processes%DeathByWrongSettlement  = 0.0
-                
-                end if                  
+                            !#/m3
+                            NumberToDieFromDensityLimit = Me%ExternalVar%Mass(Number,Index) - MaxNumberToSettle
+
+                            if(NumberToDieFromDensityLimit .lt. 0)then
+                                NumberToDieFromDensityLimit = 0.0
+                            endif
+                        
+                            Cohort%Processes%DeathByDensityLimit = NumberToDieFromDensityLimit / Me%DTDay
+                                                                      
+                            !update the number of organisms in mass matrix
+                            Me%ExternalVar%Mass(Number,Index) = Me%ExternalVar%Mass(Number,Index)           - &
+                                                                (Cohort%Processes%DeathByDensityLimit * Me%DTDay)
+                                                                
+                            !sum wrongsettlement with densitylimit just to simplify                                   
+                            Cohort%Processes%DeathByWrongSettlement = Cohort%Processes%DeathByWrongSettlement + &
+                                                                      Cohort%Processes%DeathByDensityLimit            
+
+                        end if
+                                                          
+
+                                             
+                        if (Me%ExternalVar%Mass(Number,Index) .eq. 0.0) then 
+                        !they all died
+                        
+                            call ImposeCohortDeath (Index, Species, Cohort) !sets all proc to zero, convert mass to OM, Deadlist
+                        
+                        else
+                        
+                            POC     = Me%PropIndex%POC
+                            PON     = Me%PropIndex%PON
+                            POP     = Me%PropIndex%POP
+
+                            !update POM again
+                            Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
+                                                            ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                            Species%SpeciesComposition%StructureComposition%nN                + &
+                                                            (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                            Species%SpeciesComposition%ReservesComposition%nN )               * &
+                                                            Species%AuxiliarParameters%N_AtomicMass                           * &
+                                                            Cohort%Processes%DeathByWrongSettlement * Me%DTDay           
+
+                            if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
+
+
+                                if (Me%ComputeOptions%Phosphorus) then
+
+                                    Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
+                                                            ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                            Species%SpeciesComposition%StructureComposition%nP                + &
+                                                            (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                            Species%SpeciesComposition%ReservesComposition%nP )               * &
+                                                            Species%AuxiliarParameters%P_AtomicMass                           * &
+                                                            Cohort%Processes%DeathByWrongSettlement * Me%DTDay           
+
+                                end if
+
+                            else !(if life)
+
+
+                                Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
+                                                                ( Me%ExternalVar%Mass(M_V,Index)             + &
+                                                                Me%ExternalVar%Mass(M_E,Index)               + &
+                                                                Me%ExternalVar%Mass(M_R,Index) )             * &
+                                                                Cohort%Processes%DeathByWrongSettlement * Me%DTDay
+
+                            end if !pelagic model
+                            
+                        end if ! not (Me%ExternalVar%Mass(Number,Index) .eq. 0.0
                     
+                    else ! if larvae 
+                    
+                     Cohort%Processes%DeathByWrongSettlement  = 0.0
+                    
+                    end if  
+                                    
+                endif !Cohort%Dead .eq. 0
+
                 Cohort => Cohort%Next
             end do
             
@@ -5200,26 +5311,26 @@ d1:         do while(associated(Species))
 
                 Cohort => Species%FirstCohort
     d3:         do while(associated(Cohort))
-
-                    call ComputeSomaticMaintenance (Species, Cohort)
-
-                    call ComputeMobilization       (Species, Cohort)
-
-                    call ComputeReservesDynamics   (Index, Cohort)
-
-                    call ComputeStructureDynamics  (Index, Species, Cohort)
-
-                    call ComputeMaturity           (Index, Species, Cohort)
-
-                    call ComputeLengthAgeDynamics  (Index, Species, Cohort)
-
+    
                     if (Cohort%Dead .eq. 0) then
 
-                    call ComputeSpawning (Index, Species, Cohort)
+                        call ComputeSomaticMaintenance (Species, Cohort)
 
-                    call ComputeReproductionDynamics (Index, Cohort)
+                        call ComputeMobilization       (Species, Cohort)
 
-                    call ComputeInorganicFluxes (Index, Species, Cohort)
+                        call ComputeReservesDynamics   (Index, Cohort)
+
+                        call ComputeStructureDynamics  (Index, Species, Cohort)
+
+                        call ComputeMaturity           (Index, Species, Cohort)
+
+                        call ComputeLengthAgeDynamics  (Index, Species, Cohort)
+
+                        call ComputeSpawning (Index, Species, Cohort)
+
+                        call ComputeReproductionDynamics (Index, Cohort)
+
+                        call ComputeInorganicFluxes (Index, Species, Cohort)
 
                     end  if
 
@@ -6219,76 +6330,81 @@ d2:         do while(associated(Cohort))
             !Compute filtration based on the concentration and Total_PossibleParticleFil found before
             Cohort => Species%FirstCohort
             do while(associated(Cohort))
+            
+                if (Cohort%Dead .eq. 0) then
 
-                Number = Cohort%StateIndex%Number    
-                L      = Cohort%StateIndex%L 
-                                    
-                if (Particles%Larvae .and. Cohort%Larvae) then 
-                !this cohort does not feed on larvae if it is a larvae
-                    
-                    FilteredByCohort = 0.0
-                    
-                else
-                
-                    if (Particles%Total_CR .ne. 0.0) then
 
-                        if (Me%ComputeOptions%CorrectFiltration) then
+                    Number = Cohort%StateIndex%Number    
+                    L      = Cohort%StateIndex%L 
+                                        
+                    if (Particles%Larvae .and. Cohort%Larvae) then 
+                    !this cohort does not feed on larvae if it is a larvae
                         
-                            if (Me%ExternalVar%Mass(Number,Index) .ne. 0.0) then
-                            
-                                !molC/d.ind
-                                FilteredByCohort = Cohort%Processes%ClearanceRate                         * &
-                                                   Me%ExternalVar%Mass(Number,Index) / Particles%Total_CR * &
-                                                   Total_PossibleParticleFil                              / &
-                                                   Me%ExternalVar%Mass(Number,Index)
-                            
-                            else
-                            
-                                FilteredByCohort = 0.0
-                                
-                            end if
-                            
-                        else 
-                        !molC/d.ind
-                            FilteredByCohort = Cohort%Processes%ClearanceRate * ParticleConcentration 
-
-                        end if ! if (Me%ComputeOptions%CorrectFiltration)
-                        
-                    else !(Total_CR .ne. 0.0) 
-                    
                         FilteredByCohort = 0.0
+                        
+                    else
                     
-                    end if !(Total_CR_Forlarvae .ne. 0.0)
+                        if (Particles%Total_CR .ne. 0.0) then
 
-                end if
+                            if (Me%ComputeOptions%CorrectFiltration) then
+                            
+                                if (Me%ExternalVar%Mass(Number,Index) .ne. 0.0) then
+                                
+                                    !molC/d.ind
+                                    FilteredByCohort = Cohort%Processes%ClearanceRate                         * &
+                                                       Me%ExternalVar%Mass(Number,Index) / Particles%Total_CR * &
+                                                       Total_PossibleParticleFil                              / &
+                                                       Me%ExternalVar%Mass(Number,Index)
+                                
+                                else
+                                
+                                    FilteredByCohort = 0.0
+                                    
+                                end if
+                                
+                            else 
+                            !molC/d.ind
+                                FilteredByCohort = Cohort%Processes%ClearanceRate * ParticleConcentration 
 
-                !store value in the Filtered column, in molC or molC/d.ind
-                Cohort%FeedingOn(par,1) = FilteredByCohort
+                            end if ! if (Me%ComputeOptions%CorrectFiltration)
+                            
+                        else !(Total_CR .ne. 0.0) 
+                        
+                            FilteredByCohort = 0.0
+                        
+                        end if !(Total_CR_Forlarvae .ne. 0.0)
 
-                !Compute the sum of properties for each cohort
-                if (Particles%Organic .eq. 1) then
+                    end if
 
-                    !Total filtration from organic material, molC/d
-                    Cohort%Processes%FilteredFood%C = Cohort%Processes%FilteredFood%C + FilteredByCohort
+                    !store value in the Filtered column, in molC or molC/d.ind
+                    Cohort%FeedingOn(par,1) = FilteredByCohort
 
-                    Cohort%Processes%FilteredFood%H = Cohort%Processes%FilteredFood%H +                  &
-                                                      FilteredByCohort * Particles%Composition%nH
-                                                      
-                    Cohort%Processes%FilteredFood%O = Cohort%Processes%FilteredFood%O +                  &
-                                                      FilteredByCohort * Particles%Composition%nO
-                                                      
-                    Cohort%Processes%FilteredFood%N = Cohort%Processes%FilteredFood%N +                  &
-                                                      FilteredByCohort * Particles%Composition%nN
-                                                      
-                    Cohort%Processes%FilteredFood%P = Cohort%Processes%FilteredFood%P +                  &
-                                                      FilteredByCohort * Particles%Composition%nP
+                    !Compute the sum of properties for each cohort
+                    if (Particles%Organic .eq. 1) then
 
-                else !inorganic
+                        !Total filtration from organic material, molC/d
+                        Cohort%Processes%FilteredFood%C = Cohort%Processes%FilteredFood%C + FilteredByCohort
 
-                    !Total filtration from inorganic material, g/d
-                    Cohort%Processes%FilteredInorganic = Cohort%Processes%FilteredInorganic + FilteredByCohort
+                        Cohort%Processes%FilteredFood%H = Cohort%Processes%FilteredFood%H +                  &
+                                                          FilteredByCohort * Particles%Composition%nH
+                                                          
+                        Cohort%Processes%FilteredFood%O = Cohort%Processes%FilteredFood%O +                  &
+                                                          FilteredByCohort * Particles%Composition%nO
+                                                          
+                        Cohort%Processes%FilteredFood%N = Cohort%Processes%FilteredFood%N +                  &
+                                                          FilteredByCohort * Particles%Composition%nN
+                                                          
+                        Cohort%Processes%FilteredFood%P = Cohort%Processes%FilteredFood%P +                  &
+                                                          FilteredByCohort * Particles%Composition%nP
 
-                end if
+                    else !inorganic
+
+                        !Total filtration from inorganic material, g/d
+                        Cohort%Processes%FilteredInorganic = Cohort%Processes%FilteredInorganic + FilteredByCohort
+
+                    end if
+                    
+                endif !Cohort%Dead
 
                 Cohort => Cohort%Next
             end do 
@@ -6325,178 +6441,180 @@ d2:         do while(associated(Cohort))
         !Compute ingestion and assimilation, molC/d/individual
         Cohort => Species%FirstCohort
         do while(associated(Cohort))
+        
+            if (Cohort%Dead .eq. 0) then
 
-            !Because ro_Xi and JXiIm are the same for all organic particles
-            IngDenominator = 1 + (ro_X1 * Cohort%Processes%FilteredFood%C)    / JX1Im    + &
-                                 (ro_X0 * Cohort%Processes%FilteredInorganic) / JX0Im
+                !Because ro_Xi and JXiIm are the same for all organic particles
+                IngDenominator = 1 + (ro_X1 * Cohort%Processes%FilteredFood%C)    / JX1Im    + &
+                                     (ro_X0 * Cohort%Processes%FilteredInorganic) / JX0Im
 
-            par = 0
+                par = 0
 
-            Particles => Species%FirstParticles
-            do while(associated(Particles)) !round to compute IngestedByCohort (second column of FeedingOn)
+                Particles => Species%FirstParticles
+                do while(associated(Particles)) !round to compute IngestedByCohort (second column of FeedingOn)
 
-                par = par + 1
+                    par = par + 1
 
-                FilteredByCohort = Cohort%FeedingOn(par,1)
+                    FilteredByCohort = Cohort%FeedingOn(par,1)
 
-                if (Particles%Organic .eq. 1) then
+                    if (Particles%Organic .eq. 1) then
 
-                    !Ingestion from each food item, molC/d(.m3) 
-                    IngestedByCohort = ro_X1 * FilteredByCohort / IngDenominator 
+                        !Ingestion from each food item, molC/d(.m3) 
+                        IngestedByCohort = ro_X1 * FilteredByCohort / IngDenominator 
 
-                    !Ingestion: sum of all ingested carbon form the different food itens, mol/d
-                    Cohort%Processes%IngestionFood%C = Cohort%Processes%IngestionFood%C + IngestedByCohort
+                        !Ingestion: sum of all ingested carbon form the different food itens, mol/d
+                        Cohort%Processes%IngestionFood%C = Cohort%Processes%IngestionFood%C + IngestedByCohort
 
-                    Cohort%Processes%IngestionFood%H = Cohort%Processes%IngestionFood%H                 + &
-                                                        IngestedByCohort * Particles%Composition%nH
+                        Cohort%Processes%IngestionFood%H = Cohort%Processes%IngestionFood%H                 + &
+                                                            IngestedByCohort * Particles%Composition%nH
 
-                    Cohort%Processes%IngestionFood%O = Cohort%Processes%IngestionFood%O                 + &
-                                                        IngestedByCohort * Particles%Composition%nO
+                        Cohort%Processes%IngestionFood%O = Cohort%Processes%IngestionFood%O                 + &
+                                                            IngestedByCohort * Particles%Composition%nO
 
-                    Cohort%Processes%IngestionFood%N = Cohort%Processes%IngestionFood%N                 + &
-                                                        IngestedByCohort * Particles%Composition%nN
+                        Cohort%Processes%IngestionFood%N = Cohort%Processes%IngestionFood%N                 + &
+                                                            IngestedByCohort * Particles%Composition%nN
 
-                    Cohort%Processes%IngestionFood%P = Cohort%Processes%IngestionFood%P                 + &
-                                                        IngestedByCohort * Particles%Composition%nP
+                        Cohort%Processes%IngestionFood%P = Cohort%Processes%IngestionFood%P                 + &
+                                                            IngestedByCohort * Particles%Composition%nP
 
-                    !Pseudofaeces: sum of all contributions form all the different food itens, mol/d(.ind)
-                    Cohort%Processes%PFContributionFood%C = Cohort%Processes%PFContributionFood%C       + &
-                                                        (FilteredByCohort - IngestedByCohort)
+                        !Pseudofaeces: sum of all contributions form all the different food itens, mol/d(.ind)
+                        Cohort%Processes%PFContributionFood%C = Cohort%Processes%PFContributionFood%C       + &
+                                                            (FilteredByCohort - IngestedByCohort)
 
-                    Cohort%Processes%PFContributionFood%H = Cohort%Processes%PFContributionFood%H       + &
-                                                        (FilteredByCohort - IngestedByCohort) * Particles%Composition%nH
+                        Cohort%Processes%PFContributionFood%H = Cohort%Processes%PFContributionFood%H       + &
+                                                            (FilteredByCohort - IngestedByCohort) * Particles%Composition%nH
 
-                    Cohort%Processes%PFContributionFood%O = Cohort%Processes%PFContributionFood%O       + &
-                                                        (FilteredByCohort - IngestedByCohort) * Particles%Composition%nO
+                        Cohort%Processes%PFContributionFood%O = Cohort%Processes%PFContributionFood%O       + &
+                                                            (FilteredByCohort - IngestedByCohort) * Particles%Composition%nO
 
-                    Cohort%Processes%PFContributionFood%N = Cohort%Processes%PFContributionFood%N       + &
-                                                        (FilteredByCohort - IngestedByCohort) * Particles%Composition%nN 
+                        Cohort%Processes%PFContributionFood%N = Cohort%Processes%PFContributionFood%N       + &
+                                                            (FilteredByCohort - IngestedByCohort) * Particles%Composition%nN 
 
-                    Cohort%Processes%PFContributionFood%P = Cohort%Processes%PFContributionFood%P       + &
-                                                        (FilteredByCohort - IngestedByCohort) * Particles%Composition%nP
+                        Cohort%Processes%PFContributionFood%P = Cohort%Processes%PFContributionFood%P       + &
+                                                            (FilteredByCohort - IngestedByCohort) * Particles%Composition%nP
 
-                    if (Species%IndividualParameters%SIMPLE_ASSI .eq. 1) then !simple assimilation model
+                        if (Species%IndividualParameters%SIMPLE_ASSI .eq. 1) then !simple assimilation model
 
-                        !Assimilation, molC/d
-                        AssimilatedByCohort = IngestedByCohort * YEX
+                            !Assimilation, molC/d
+                            AssimilatedByCohort = IngestedByCohort * YEX
 
-                    else !not SIMPLE_ASSI
+                        else !not SIMPLE_ASSI
 
-                        if (IngestedByCohort .gt. 1e-20) then
+                            if (IngestedByCohort .gt. 1e-20) then
 
-                            if ((Particles%ID%Name .eq. 'particulate organic matter')) then 
+                                if ((Particles%ID%Name .eq. 'particulate organic matter')) then 
 
-                                Particles%F_E = 1
+                                    Particles%F_E = 1
 
-                            end if 
+                                end if 
 
-                            !Assimilation: Structure, simple relation using the yield coefficient
-                            AssimilatedStructure = IngestedByCohort * (1-Particles%F_E) * YEX
+                                !Assimilation: Structure, simple relation using the yield coefficient
+                                AssimilatedStructure = IngestedByCohort * (1-Particles%F_E) * YEX
 
-                            !Assimilation: Reserves, Parallel and complementary SU's for three elements, molC/d
-                            r_C = IngestedByCohort * Particles%F_E
+                                !Assimilation: Reserves, Parallel and complementary SU's for three elements, molC/d
+                                r_C = IngestedByCohort * Particles%F_E
 
-                            r_N = IngestedByCohort * Particles%F_E                    * &
-                                    Particles%Composition%nN                          / &
-                                    Species%SpeciesComposition%ReservesComposition%nN
+                                r_N = IngestedByCohort * Particles%F_E                    * &
+                                        Particles%Composition%nN                          / &
+                                        Species%SpeciesComposition%ReservesComposition%nN
 
-                            r_P = IngestedByCohort * Particles%F_E                     * &
-                                    Particles%Composition%nP                           / &
-                                    Species%SpeciesComposition%ReservesComposition%nP
+                                r_P = IngestedByCohort * Particles%F_E                     * &
+                                        Particles%Composition%nP                           / &
+                                        Species%SpeciesComposition%ReservesComposition%nP
 
-                            AssimilatedReserves = ( 1/r_C                       + &
-                                                    1/r_N                       + &
-                                                    1/r_P                       - &
-                                                    1/(r_C + r_N)               - &
-                                                    1/(r_C + r_P)               - &
-                                                    1/(r_N + r_P)               + &
-                                                    1/(r_C + r_N + r_P))          &
-                                                    **(-1)
+                                AssimilatedReserves = ( 1/r_C                       + &
+                                                        1/r_N                       + &
+                                                        1/r_P                       - &
+                                                        1/(r_C + r_N)               - &
+                                                        1/(r_C + r_P)               - &
+                                                        1/(r_N + r_P)               + &
+                                                        1/(r_C + r_N + r_P))          &
+                                                        **(-1)
 
-                            !Assimilation: Reserves + Structure, molC/d       
-                            AssimilatedByCohort = AssimilatedStructure + AssimilatedReserves       
+                                !Assimilation: Reserves + Structure, molC/d       
+                                AssimilatedByCohort = AssimilatedStructure + AssimilatedReserves       
 
-                        else
-                        !Assimilation: Reserves + Structure, molC/d(.m3)       
-                        AssimilatedByCohort = 0.0       
+                            else
+                            !Assimilation: Reserves + Structure, molC/d(.m3)       
+                            AssimilatedByCohort = 0.0       
 
-                        end if !if ingestion !=0.0
+                            end if !if ingestion !=0.0
 
-                    end if !if SIMPLE_ASSI
+                        end if !if SIMPLE_ASSI
 
-                    !ComputedYEX = Cohort%Processes%Assimilation%C / Cohort%Processes%IngestionFood%C 
-                    
-                    !Total Assimilation in C, mol/d(.m3)
-                    Cohort%Processes%Assimilation%C = Cohort%Processes%Assimilation%C + AssimilatedByCohort
+                        !ComputedYEX = Cohort%Processes%Assimilation%C / Cohort%Processes%IngestionFood%C 
+                        
+                        !Total Assimilation in C, mol/d(.m3)
+                        Cohort%Processes%Assimilation%C = Cohort%Processes%Assimilation%C + AssimilatedByCohort
 
-                    Cohort%Processes%Assimilation%H = Cohort%Processes%Assimilation%C                  * &
-                                                      Species%SpeciesComposition%ReservesComposition%nH
+                        Cohort%Processes%Assimilation%H = Cohort%Processes%Assimilation%C                  * &
+                                                          Species%SpeciesComposition%ReservesComposition%nH
 
-                    Cohort%Processes%Assimilation%O = Cohort%Processes%Assimilation%C                  * &
-                                                      Species%SpeciesComposition%ReservesComposition%nO
+                        Cohort%Processes%Assimilation%O = Cohort%Processes%Assimilation%C                  * &
+                                                          Species%SpeciesComposition%ReservesComposition%nO
 
-                    Cohort%Processes%Assimilation%N = Cohort%Processes%Assimilation%C                  * &
-                                                      Species%SpeciesComposition%ReservesComposition%nN
+                        Cohort%Processes%Assimilation%N = Cohort%Processes%Assimilation%C                  * &
+                                                          Species%SpeciesComposition%ReservesComposition%nN
 
-                    Cohort%Processes%Assimilation%P = Cohort%Processes%Assimilation%C                  * &
-                                                      Species%SpeciesComposition%ReservesComposition%nP
+                        Cohort%Processes%Assimilation%P = Cohort%Processes%Assimilation%C                  * &
+                                                          Species%SpeciesComposition%ReservesComposition%nP
 
-                    !Total Faeces Contribution in C, mol/d
-                    Cohort%Processes%FaecesContributionFood%C = Cohort%Processes%FaecesContributionFood%C + &
-                                                                (IngestedByCohort - AssimilatedByCohort) 
-                    
-                    !Total Faeces production for the other elements, mol/d
-                    Cohort%Processes%FaecesContributionFood%H = Cohort%Processes%FaecesContributionFood%H  + &
-                                                           (IngestedByCohort * Particles%Composition%nN    - & 
-                                                            AssimilatedByCohort                            * &
-                                                            Species%SpeciesComposition%ReservesComposition%nN)
-                                                                
-                    Cohort%Processes%FaecesContributionFood%O = Cohort%Processes%FaecesContributionFood%O  + &
-                                                           (IngestedByCohort * Particles%Composition%nO    - & 
-                                                            AssimilatedByCohort                            * &
-                                                            Species%SpeciesComposition%ReservesComposition%nO)
+                        !Total Faeces Contribution in C, mol/d
+                        Cohort%Processes%FaecesContributionFood%C = Cohort%Processes%FaecesContributionFood%C + &
+                                                                    (IngestedByCohort - AssimilatedByCohort) 
+                        
+                        !Total Faeces production for the other elements, mol/d
+                        Cohort%Processes%FaecesContributionFood%H = Cohort%Processes%FaecesContributionFood%H  + &
+                                                               (IngestedByCohort * Particles%Composition%nN    - & 
+                                                                AssimilatedByCohort                            * &
+                                                                Species%SpeciesComposition%ReservesComposition%nN)
+                                                                    
+                        Cohort%Processes%FaecesContributionFood%O = Cohort%Processes%FaecesContributionFood%O  + &
+                                                               (IngestedByCohort * Particles%Composition%nO    - & 
+                                                                AssimilatedByCohort                            * &
+                                                                Species%SpeciesComposition%ReservesComposition%nO)
 
-                    Cohort%Processes%FaecesContributionFood%N = Cohort%Processes%FaecesContributionFood%N  + &
-                                                           (IngestedByCohort * Particles%Composition%nN    - & 
-                                                            AssimilatedByCohort                            * &
-                                                            Species%SpeciesComposition%ReservesComposition%nN)
+                        Cohort%Processes%FaecesContributionFood%N = Cohort%Processes%FaecesContributionFood%N  + &
+                                                               (IngestedByCohort * Particles%Composition%nN    - & 
+                                                                AssimilatedByCohort                            * &
+                                                                Species%SpeciesComposition%ReservesComposition%nN)
 
-                    Cohort%Processes%FaecesContributionFood%P = Cohort%Processes%FaecesContributionFood%P  + &
-                                                           (IngestedByCohort * Particles%Composition%nP    - & 
-                                                            AssimilatedByCohort                            * &
-                                                            Species%SpeciesComposition%ReservesComposition%nP)
+                        Cohort%Processes%FaecesContributionFood%P = Cohort%Processes%FaecesContributionFood%P  + &
+                                                               (IngestedByCohort * Particles%Composition%nP    - & 
+                                                                AssimilatedByCohort                            * &
+                                                                Species%SpeciesComposition%ReservesComposition%nP)
 
-                else !not organic
+                    else !not organic
 
-                    !Ingestion, g/d
-                    IngestedByCohort = ro_X0 * FilteredByCohort / IngDenominator  
+                        !Ingestion, g/d
+                        IngestedByCohort = ro_X0 * FilteredByCohort / IngDenominator  
 
-                    !Ingestion: sum of all ingested mass of inorganic material that the mussel is able to ingest, g/d
-                    Cohort%Processes%IngestionInorganic = Cohort%Processes%IngestionInorganic + IngestedByCohort
+                        !Ingestion: sum of all ingested mass of inorganic material that the mussel is able to ingest, g/d
+                        Cohort%Processes%IngestionInorganic = Cohort%Processes%IngestionInorganic + IngestedByCohort
 
-                    !Pseudofaeces: sum of all pseudofaeces from inorganic material, g/d
-                    Cohort%Processes%PFContributionInorganic = Cohort%Processes%PFContributionInorganic  + &
-                                                               (FilteredByCohort - IngestedByCohort)
+                        !Pseudofaeces: sum of all pseudofaeces from inorganic material, g/d
+                        Cohort%Processes%PFContributionInorganic = Cohort%Processes%PFContributionInorganic  + &
+                                                                   (FilteredByCohort - IngestedByCohort)
 
-                    !Assimilation: inorganic material can not be assimilated
-                    AssimilatedByCohort = 0.0
+                        !Assimilation: inorganic material can not be assimilated
+                        AssimilatedByCohort = 0.0
 
-                    !Faeces: sum of all faeces from inorganic material, g/d
-                    Cohort%Processes%FaecesContributionInorganic = Cohort%Processes%FaecesContributionInorganic +   &
-                                                                   (IngestedByCohort - AssimilatedByCohort)
+                        !Faeces: sum of all faeces from inorganic material, g/d
+                        Cohort%Processes%FaecesContributionInorganic = Cohort%Processes%FaecesContributionInorganic +   &
+                                                                       (IngestedByCohort - AssimilatedByCohort)
 
-                end if !organic
+                    end if !organic
 
-                !store value in the ingested column
-                Cohort%FeedingOn(par,2) = IngestedByCohort
+                    !store value in the ingested column
+                    Cohort%FeedingOn(par,2) = IngestedByCohort
 
-                !store value in the assimilated column
-                Cohort%FeedingOn(par,3) = AssimilatedByCohort
+                    !store value in the assimilated column
+                    Cohort%FeedingOn(par,3) = AssimilatedByCohort
 
-                Particles => Particles%Next
+                    Particles => Particles%Next
 
-            end do     
-
+                end do     
+            endif !Cohort%Dead
             Cohort => Cohort%Next
         end do 
         
@@ -7129,8 +7247,8 @@ d2:         do while(associated(Cohort))
                 end if
                 
                 !set the state of the dead cohort to zero
-                Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
-                Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
+                !Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
+                !Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
 
             end if
 
@@ -7239,8 +7357,8 @@ d2:         do while(associated(Cohort))
                 end if
                 
                 !set the state of the dead cohort to zero
-                Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
-                Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
+                !Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
+                !Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
 
             end if
 
@@ -7294,8 +7412,8 @@ d2:         do while(associated(Cohort))
                 end if
                 
                 !set the state of the dead cohort to zero
-                Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
-                Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
+                !Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
+                !Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
 
             end if
 
@@ -7528,12 +7646,12 @@ d2:         do while(associated(Cohort))
 
         
         !Me%ExternalVar%Mass(L,Index)                   = 0.0
-        Me%ExternalVar%Mass(M_V,Index)                 = 0.0
-        Me%ExternalVar%Mass(M_E,Index)                 = 0.0
-        Me%ExternalVar%Mass(M_H,Index)                 = 0.0
-        Me%ExternalVar%Mass(M_R,Index)                 = 0.0
-        Me%ExternalVar%Mass(Age,Index)                 = 0.0
-        !Me%ExternalVar%Mass(Number,Index)              = 0.0        
+        !Me%ExternalVar%Mass(M_V,Index)                 = 0.0
+        !Me%ExternalVar%Mass(M_E,Index)                 = 0.0
+        !Me%ExternalVar%Mass(M_H,Index)                 = 0.0
+        !Me%ExternalVar%Mass(M_R,Index)                 = 0.0
+        !Me%ExternalVar%Mass(Age,Index)                 = 0.0
+        Me%ExternalVar%Mass(Number,Index)              = 0.0        
 
         !Make all the processes zero       
         Cohort%Processes%ClearanceRate                 = 0.0
@@ -7800,14 +7918,14 @@ d1:     do while(associated(Species))
                  Cohort => Species%FirstCohort
                  do while(associated(Cohort))
 
-                        M_V     = Cohort%StateIndex%M_V
-                        M_E     = Cohort%StateIndex%M_E
-                        M_R     = Cohort%StateIndex%M_R
-                        Number  = Cohort%StateIndex%Number
-
                         if ((Cohort%Dead .eq. 0 ) .and. (Cohort%BivalveCondition%ScaledE .le. 0.1))then
+
+                            M_V     = Cohort%StateIndex%M_V
+                            M_E     = Cohort%StateIndex%M_E
+                            M_R     = Cohort%StateIndex%M_R
+                            Number  = Cohort%StateIndex%Number
                         
-                            StarvationMortality = 1-(1+100*exp(-70*Cohort%BivalveCondition%ScaledE))**(-1)
+                            StarvationMortality = 1.-(1.+100.*exp(-70.*Cohort%BivalveCondition%ScaledE))**(-1.)
 
                             !Extra mortality depending on the bivalve condition, #/d.m3
                             Cohort%Processes%DeathByExtraStarvation = Me%ExternalVar%Mass(Number,Index)     * &
@@ -7880,9 +7998,6 @@ d1:     do while(associated(Species))
 
         !Begin-----------------------------------------------------------------
 
-        POC     = Me%PropIndex%POC
-        PON     = Me%PropIndex%PON
-        POP     = Me%PropIndex%POP
 
         Species => Me%FirstSpecies
 d1:     do while(associated(Species))
@@ -7890,12 +8005,16 @@ d1:     do while(associated(Species))
             Cohort => Species%FirstCohort
 d2:         do while(associated(Cohort))
 
-                M_V     = Cohort%StateIndex%M_V
-                M_E     = Cohort%StateIndex%M_E
-                M_R     = Cohort%StateIndex%M_R
-                Number  = Cohort%StateIndex%Number
-
                 if (Cohort%Dead .eq. 0 ) then
+                
+                    POC     = Me%PropIndex%POC
+                    PON     = Me%PropIndex%PON
+                    POP     = Me%PropIndex%POP
+                
+                    M_V     = Cohort%StateIndex%M_V
+                    M_E     = Cohort%StateIndex%M_E
+                    M_R     = Cohort%StateIndex%M_R
+                    Number  = Cohort%StateIndex%Number
 
                     !Natural mortality, #/d.m3
                     Cohort%Processes%DeathByNatural = Me%ExternalVar%Mass(Number,Index)             * &
@@ -8011,8 +8130,8 @@ d2:         do while(associated(Cohort))
                         end if
                         
                         !set the state of the dead cohort to zero
-                        Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
-                        Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
+                        !Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
+                        !Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
                         
                     end if
 
@@ -8357,181 +8476,184 @@ d1:     do while(associated(Species))
             Cohort => Species%FirstCohort
 d2:         do while(associated(Cohort))
 
-                Number = Cohort%StateIndex%Number    
-                L      = Cohort%StateIndex%L
-                        
-                !#/m3
-                PopulationProcesses%TN        = PopulationProcesses%TN             + &
-                                              Me%ExternalVar%Mass(Number,Index)
-                                                
-                !#/m3
-                PopulationProcesses%NCoh      = PopulationProcesses%NCoh           + 1
-                      
-                !molC/m3
-                PopulationProcesses%TBio      = PopulationProcesses%TBio           + &
-                                              Cohort%BivalveCondition%TotalmolC    * &
-                                              Me%ExternalVar%Mass(Number,Index)
-                                                
-                !m3/d.m3
-                PopulationProcesses%Cr        = PopulationProcesses%Cr             + &
-                                              Cohort%Processes%ClearanceRate       * &
-                                              Me%ExternalVar%Mass(Number,Index)
-                                                
-                !molC/m3
-                PopulationProcesses%Fil       = PopulationProcesses%Fil            + &
-                                              Cohort%Processes%FilteredFood%C      * &
-                                              Me%ExternalVar%Mass(Number,Index) 
-                                                   
-                !molC//m3
-                PopulationProcesses%Ing       = PopulationProcesses%Ing            + &
-                                              Cohort%Processes%IngestionFood%C     * &
-                                              Me%ExternalVar%Mass(Number,Index)
+                if(Cohort%Dead .eq. 0)then
+
+                    Number = Cohort%StateIndex%Number    
+                    L      = Cohort%StateIndex%L
+                            
+                    !#/m3
+                    PopulationProcesses%TN        = PopulationProcesses%TN             + &
+                                                  Me%ExternalVar%Mass(Number,Index)
                                                     
-                !molC/m3
-                PopulationProcesses%Ass       = PopulationProcesses%Ass            + &
-                                              Cohort%Processes%Assimilation%C      * &
-                                              Me%ExternalVar%Mass(Number,Index) 
-                                                   
-                !molCO2/m3
-                PopulationProcesses%CO2       = PopulationProcesses%CO2            + &
-                                              Cohort%Processes%InorganicFluxes%CO2 * &
-                                              Me%ExternalVar%Mass(Number,Index) 
-                                                   
-                !molH2O/m3
-                PopulationProcesses%H2O       = PopulationProcesses%H2O            + &
-                                              Cohort%Processes%InorganicFluxes%H2O * &
-                                              Me%ExternalVar%Mass(Number,Index) 
-                                                     
-                !O2/m3
-                PopulationProcesses%O         = PopulationProcesses%O              + &
-                                              Cohort%Processes%InorganicFluxes%O2  * &
-                                              Me%ExternalVar%Mass(Number,Index)  
+                    !#/m3
+                    PopulationProcesses%NCoh      = PopulationProcesses%NCoh           + 1
+                          
+                    !molC/m3
+                    PopulationProcesses%TBio      = PopulationProcesses%TBio           + &
+                                                  Cohort%BivalveCondition%TotalmolC    * &
+                                                  Me%ExternalVar%Mass(Number,Index)
                                                     
-                !NH3/m3
-                PopulationProcesses%NH3       = PopulationProcesses%NH3            + &
-                                              Cohort%Processes%InorganicFluxes%NH3 * &
-                                              Me%ExternalVar%Mass(Number,Index)
+                    !m3/d.m3
+                    PopulationProcesses%Cr        = PopulationProcesses%Cr             + &
+                                                  Cohort%Processes%ClearanceRate       * &
+                                                  Me%ExternalVar%Mass(Number,Index)
+                                                    
+                    !molC/m3
+                    PopulationProcesses%Fil       = PopulationProcesses%Fil            + &
+                                                  Cohort%Processes%FilteredFood%C      * &
+                                                  Me%ExternalVar%Mass(Number,Index) 
+                                                       
+                    !molC//m3
+                    PopulationProcesses%Ing       = PopulationProcesses%Ing            + &
+                                                  Cohort%Processes%IngestionFood%C     * &
+                                                  Me%ExternalVar%Mass(Number,Index)
+                                                        
+                    !molC/m3
+                    PopulationProcesses%Ass       = PopulationProcesses%Ass            + &
+                                                  Cohort%Processes%Assimilation%C      * &
+                                                  Me%ExternalVar%Mass(Number,Index) 
+                                                       
+                    !molCO2/m3
+                    PopulationProcesses%CO2       = PopulationProcesses%CO2            + &
+                                                  Cohort%Processes%InorganicFluxes%CO2 * &
+                                                  Me%ExternalVar%Mass(Number,Index) 
+                                                       
+                    !molH2O/m3
+                    PopulationProcesses%H2O       = PopulationProcesses%H2O            + &
+                                                  Cohort%Processes%InorganicFluxes%H2O * &
+                                                  Me%ExternalVar%Mass(Number,Index) 
+                                                         
+                    !O2/m3
+                    PopulationProcesses%O         = PopulationProcesses%O              + &
+                                                  Cohort%Processes%InorganicFluxes%O2  * &
+                                                  Me%ExternalVar%Mass(Number,Index)  
+                                                        
+                    !NH3/m3
+                    PopulationProcesses%NH3       = PopulationProcesses%NH3            + &
+                                                  Cohort%Processes%InorganicFluxes%NH3 * &
+                                                  Me%ExternalVar%Mass(Number,Index)
+                                                          
+                    !PO4/m3
+                    PopulationProcesses%PO4       = PopulationProcesses%PO4            + &
+                                                  Cohort%Processes%InorganicFluxes%PO4 * &
+                                                  Me%ExternalVar%Mass(Number,Index) 
+                                                             
+                    !#/m3
+                    PopulationProcesses%m_A       = PopulationProcesses%m_A                            + &
+                                                  Cohort%Processes%DeathByAge * Me%DTday
+                                                             
+                    !#/m3
+                    PopulationProcesses%m_O       = PopulationProcesses%m_O                            + &
+                                                  Cohort%Processes%DeathByOxygen * Me%DTday
                                                       
-                !PO4/m3
-                PopulationProcesses%PO4       = PopulationProcesses%PO4            + &
-                                              Cohort%Processes%InorganicFluxes%PO4 * &
-                                              Me%ExternalVar%Mass(Number,Index) 
-                                                         
-                !#/m3
-                PopulationProcesses%m_A       = PopulationProcesses%m_A                            + &
-                                              Cohort%Processes%DeathByAge * Me%DTday
-                                                         
-                !#/m3
-                PopulationProcesses%m_O       = PopulationProcesses%m_O                            + &
-                                              Cohort%Processes%DeathByOxygen * Me%DTday
-                                                  
-                PopulationProcesses%m_F       = PopulationProcesses%m_F                             + &
-                                              Cohort%Processes%DeathByStarvation * Me%DTday         + &
-                                              Cohort%Processes%DeathByExtraStarvation * Me%DTday 
-                                                  
-                PopulationProcesses%m_nat     = PopulationProcesses%m_nat                           + &
-                                              Cohort%Processes%DeathByNatural * Me%DTday
-                                                  
-                PopulationProcesses%m_shr     = PopulationProcesses%m_shr                           + &
-                                              Cohort%Processes%PredationByShrimps * Me%DTday
-                                                  
-                PopulationProcesses%m_cra     = PopulationProcesses%m_cra                           + &
-                                              Cohort%Processes%PredationByCrabs * Me%DTday
-                                                  
-                PopulationProcesses%m_oys     = PopulationProcesses%m_oys                           + &
-                                              Cohort%Processes%PredationByOysterCatchers * Me%DTday
-                                                  
-                PopulationProcesses%m_duck    = PopulationProcesses%m_duck                          + &
-                                              Cohort%Processes%PredationByEiderDucks  * Me%DTday 
-                                                  
-                PopulationProcesses%m_gull    = PopulationProcesses%m_gull                          + &
-                                              Cohort%Processes%PredationByHerringGull * Me%DTday
-                                                  
-                PopulationProcesses%m_low     = PopulationProcesses%m_low                           + &
-                                              Cohort%Processes%DeathByLowNumbers * Me%DTday
-                                                                                               
-                PopulationProcesses%m_self    = PopulationProcesses%m_self                           + &
-                                              Cohort%Processes%DeathBySelfPredation * Me%DTday
+                    PopulationProcesses%m_F       = PopulationProcesses%m_F                             + &
+                                                  Cohort%Processes%DeathByStarvation * Me%DTday         + &
+                                                  Cohort%Processes%DeathByExtraStarvation * Me%DTday 
+                                                      
+                    PopulationProcesses%m_nat     = PopulationProcesses%m_nat                           + &
+                                                  Cohort%Processes%DeathByNatural * Me%DTday
+                                                      
+                    PopulationProcesses%m_shr     = PopulationProcesses%m_shr                           + &
+                                                  Cohort%Processes%PredationByShrimps * Me%DTday
+                                                      
+                    PopulationProcesses%m_cra     = PopulationProcesses%m_cra                           + &
+                                                  Cohort%Processes%PredationByCrabs * Me%DTday
+                                                      
+                    PopulationProcesses%m_oys     = PopulationProcesses%m_oys                           + &
+                                                  Cohort%Processes%PredationByOysterCatchers * Me%DTday
+                                                      
+                    PopulationProcesses%m_duck    = PopulationProcesses%m_duck                          + &
+                                                  Cohort%Processes%PredationByEiderDucks  * Me%DTday 
+                                                      
+                    PopulationProcesses%m_gull    = PopulationProcesses%m_gull                          + &
+                                                  Cohort%Processes%PredationByHerringGull * Me%DTday
+                                                      
+                    PopulationProcesses%m_low     = PopulationProcesses%m_low                           + &
+                                                  Cohort%Processes%DeathByLowNumbers * Me%DTday
+                                                                                                   
+                    PopulationProcesses%m_self    = PopulationProcesses%m_self                           + &
+                                                  Cohort%Processes%DeathBySelfPredation * Me%DTday
 
-                PopulationProcesses%m_others  = PopulationProcesses%m_others                         + &
-                                              Cohort%Processes%DeathByLarvaePredationByOthers * Me%DTday
+                    PopulationProcesses%m_others  = PopulationProcesses%m_others                         + &
+                                                  Cohort%Processes%DeathByLarvaePredationByOthers * Me%DTday
 
-                PopulationProcesses%m_vel    = PopulationProcesses%m_vel                             + &
-                                              Cohort%Processes%DeathByVelocity * Me%DTday
+                    PopulationProcesses%m_vel    = PopulationProcesses%m_vel                             + &
+                                                  Cohort%Processes%DeathByVelocity * Me%DTday
 
-                PopulationProcesses%m_settle    = PopulationProcesses%m_settle                       + &
-                                              Cohort%Processes%DeathByWrongSettlement * Me%DTday
+                    PopulationProcesses%m_settle    = PopulationProcesses%m_settle                       + &
+                                                  Cohort%Processes%DeathByWrongSettlement * Me%DTday
 
-                !molC/m3
-                PopulationProcesses%Massm_A   = PopulationProcesses%Massm_A                         + &
-                                              Cohort%Processes%DeathByAge * Me%DTday                * &
-                                              Cohort%BivalveCondition%TotalmolC
-                                                          
-                PopulationProcesses%Massm_O   = PopulationProcesses%Massm_O                         + &
-                                              Cohort%Processes%DeathByOxygen * Me%DTday             * &
-                                              Cohort%BivalveCondition%TotalmolC
-                                                          
-                PopulationProcesses%Massm_F   = PopulationProcesses%Massm_F                         + &
-                                              (Cohort%Processes%DeathByStarvation                   + &
-                                               Cohort%Processes%DeathByExtraStarvation)* Me%DTday   * &
-                                              Cohort%BivalveCondition%TotalmolC
-                                                          
-                PopulationProcesses%Massm_nat = PopulationProcesses%Massm_nat                       + &
-                                              Cohort%Processes%DeathByNatural * Me%DTday            * &
-                                              Cohort%BivalveCondition%TotalmolC
-                                                          
-                PopulationProcesses%Massm_shr = PopulationProcesses%Massm_shr                       + &
-                                              Cohort%Processes%PredationByShrimps * Me%DTday        * &
-                                              Cohort%BivalveCondition%TotalmolC 
-                                                         
-                PopulationProcesses%Massm_cra = PopulationProcesses%Massm_cra                       + &
-                                              Cohort%Processes%PredationByCrabs * Me%DTday          * &
-                                              Cohort%BivalveCondition%TotalmolC
-                                                          
-                PopulationProcesses%Massm_oys = PopulationProcesses%Massm_oys                       + &
-                                              Cohort%Processes%PredationByOysterCatchers * Me%DTday * &
-                                              Cohort%BivalveCondition%TotalmolC 
-                                                         
-                PopulationProcesses%Massm_duck= PopulationProcesses%Massm_duck                      + &
-                                              Cohort%Processes%PredationByEiderDucks * Me%DTday     * &
-                                              Cohort%BivalveCondition%TotalmolC
-                                                          
-                PopulationProcesses%Massm_gull= PopulationProcesses%Massm_gull                      + &
-                                              Cohort%Processes%PredationByHerringGull * Me%DTday    * &
-                                              Cohort%BivalveCondition%TotalmolC
-                                                          
-                PopulationProcesses%Massm_low = PopulationProcesses%Massm_low                       + &
-                                              Cohort%Processes%DeathByLowNumbers * Me%DTday         * &
-                                              Cohort%BivalveCondition%TotalmolC
+                    !molC/m3
+                    PopulationProcesses%Massm_A   = PopulationProcesses%Massm_A                         + &
+                                                  Cohort%Processes%DeathByAge * Me%DTday                * &
+                                                  Cohort%BivalveCondition%TotalmolC
+                                                              
+                    PopulationProcesses%Massm_O   = PopulationProcesses%Massm_O                         + &
+                                                  Cohort%Processes%DeathByOxygen * Me%DTday             * &
+                                                  Cohort%BivalveCondition%TotalmolC
+                                                              
+                    PopulationProcesses%Massm_F   = PopulationProcesses%Massm_F                         + &
+                                                  (Cohort%Processes%DeathByStarvation                   + &
+                                                   Cohort%Processes%DeathByExtraStarvation)* Me%DTday   * &
+                                                  Cohort%BivalveCondition%TotalmolC
+                                                              
+                    PopulationProcesses%Massm_nat = PopulationProcesses%Massm_nat                       + &
+                                                  Cohort%Processes%DeathByNatural * Me%DTday            * &
+                                                  Cohort%BivalveCondition%TotalmolC
+                                                              
+                    PopulationProcesses%Massm_shr = PopulationProcesses%Massm_shr                       + &
+                                                  Cohort%Processes%PredationByShrimps * Me%DTday        * &
+                                                  Cohort%BivalveCondition%TotalmolC 
+                                                             
+                    PopulationProcesses%Massm_cra = PopulationProcesses%Massm_cra                       + &
+                                                  Cohort%Processes%PredationByCrabs * Me%DTday          * &
+                                                  Cohort%BivalveCondition%TotalmolC
+                                                              
+                    PopulationProcesses%Massm_oys = PopulationProcesses%Massm_oys                       + &
+                                                  Cohort%Processes%PredationByOysterCatchers * Me%DTday * &
+                                                  Cohort%BivalveCondition%TotalmolC 
+                                                             
+                    PopulationProcesses%Massm_duck= PopulationProcesses%Massm_duck                      + &
+                                                  Cohort%Processes%PredationByEiderDucks * Me%DTday     * &
+                                                  Cohort%BivalveCondition%TotalmolC
+                                                              
+                    PopulationProcesses%Massm_gull= PopulationProcesses%Massm_gull                      + &
+                                                  Cohort%Processes%PredationByHerringGull * Me%DTday    * &
+                                                  Cohort%BivalveCondition%TotalmolC
+                                                              
+                    PopulationProcesses%Massm_low = PopulationProcesses%Massm_low                       + &
+                                                  Cohort%Processes%DeathByLowNumbers * Me%DTday         * &
+                                                  Cohort%BivalveCondition%TotalmolC
 
-                PopulationProcesses%Massm_self = PopulationProcesses%Massm_self                     + &
-                                              Cohort%Processes%DeathBySelfPredation * Me%DTday      * &
-                                              Cohort%BivalveCondition%TotalmolC
-                                              
-                PopulationProcesses%Massm_vel = PopulationProcesses%Massm_vel                       + &
-                                              Cohort%Processes%DeathByVelocity * Me%DTday           * &
-                                              Cohort%BivalveCondition%TotalmolC
-                                              
-                PopulationProcesses%Massm_others = PopulationProcesses%Massm_others                 + &
-                                              Cohort%Processes%DeathByLarvaePredationByOthers * Me%DTday   * &
-                                              Cohort%BivalveCondition%TotalmolC
+                    PopulationProcesses%Massm_self = PopulationProcesses%Massm_self                     + &
+                                                  Cohort%Processes%DeathBySelfPredation * Me%DTday      * &
+                                                  Cohort%BivalveCondition%TotalmolC
+                                                  
+                    PopulationProcesses%Massm_vel = PopulationProcesses%Massm_vel                       + &
+                                                  Cohort%Processes%DeathByVelocity * Me%DTday           * &
+                                                  Cohort%BivalveCondition%TotalmolC
+                                                  
+                    PopulationProcesses%Massm_others = PopulationProcesses%Massm_others                 + &
+                                                  Cohort%Processes%DeathByLarvaePredationByOthers * Me%DTday   * &
+                                                  Cohort%BivalveCondition%TotalmolC
 
-                PopulationProcesses%Massm_settle = PopulationProcesses%Massm_settle                 + &
-                                              Cohort%Processes%DeathByWrongSettlement * Me%DTday    * &
-                                              Cohort%BivalveCondition%TotalmolC
-                
-                if (Me%ExternalVar%Mass(L,Index) .ge. 0.1) then
-                    !#/m3               
-                    PopulationProcesses%TNField = PopulationProcesses%TNField + Me%ExternalVar%Mass(Number,Index)
-                end if
-                
-                PopulationProcesses%MaxLength = max(PopulationProcesses%MaxLength,Me%ExternalVar%Mass(L,Index))
+                    PopulationProcesses%Massm_settle = PopulationProcesses%Massm_settle                 + &
+                                                  Cohort%Processes%DeathByWrongSettlement * Me%DTday    * &
+                                                  Cohort%BivalveCondition%TotalmolC
+                    
+                    if (Me%ExternalVar%Mass(L,Index) .ge. 0.1) then
+                        !#/m3               
+                        PopulationProcesses%TNField = PopulationProcesses%TNField + Me%ExternalVar%Mass(Number,Index)
+                    end if
+                    
+                    PopulationProcesses%MaxLength = max(PopulationProcesses%MaxLength,Me%ExternalVar%Mass(L,Index))
 
-                if (Me%OutputThisIndex) then
-                           
-                    Me%MaxTNField = max(Me%MaxTNField,PopulationProcesses%TNField)
+                    if (Me%OutputThisIndex) then
+                               
+                        Me%MaxTNField = max(Me%MaxTNField,PopulationProcesses%TNField)
 
-                end if
+                    end if
+                end if ! if(Cohort%Dead .eq. 0)then
                 
                 Cohort => Cohort%Next
             end do d2            
@@ -9844,6 +9966,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                         !soffs
                         if(associated(Cohort%FeedingOn)) deallocate (Cohort%FeedingOn)
+                        
+                        !deallocate(Cohort%LarvaeState)
 
                         !deallocate(Cohort%FeedingOn)
 
