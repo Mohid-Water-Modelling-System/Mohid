@@ -1,5 +1,5 @@
     !-----------------------------------------------------------------------------------
-    !        IST/MARETEC, Water Modelling Group, Mohid modelling system
+    !        IST/MARETEC, Water Modelling Group, Mohid modelling system 
     !-----------------------------------------------------------------------------------
     !
     ! TITLE         : Mohid Model
