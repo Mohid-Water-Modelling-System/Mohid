@@ -4200,8 +4200,7 @@ do1:        do while (associated(ObjPredator%Next))
         if (Me%DensityUnits .eq. 0) then
 
             !From m2  to m3
-            Me%ConvertionFactor = Me%ExternalVar%CellArea(Index)         * &
-                                  1.0/Me%ExternalVar%CellVolume(Index)
+            Me%ConvertionFactor = Me%ExternalVar%CellArea(Index)/Me%ExternalVar%CellVolume(Index)
                     
         else
         
@@ -8862,7 +8861,7 @@ d2:             do while(associated(Cohort))
 
                     write(Cohort%CohortOutput%Unit(iIndexOutput), 102) TotalSeconds, int(Year), int(Month), int(Day),& !1,2,3
                                                          int(hour), int(minute), int(second)                        ,& !4,5,6
-                                    Me%ExternalVar%Mass(Number,Index)    * 1.0/Me%ConvertionFactor                  ,& !7, #/m2
+                                    Me%ExternalVar%Mass(Number,Index)    /Me%ConvertionFactor                       ,& !7, #/m2
                                     Me%ExternalVar%Mass(M_E,Index)                                                  ,& !8
                                     Me%ExternalVar%Mass(M_V,Index)       , Me%ExternalVar%Mass(M_H,Index)           ,& !9,10    
                                     Me%ExternalVar%Mass(M_R,Index)       , Me%ExternalVar%Mass(L,Index)             ,& !11,12    
@@ -8881,20 +8880,20 @@ d2:             do while(associated(Cohort))
                                     Cohort%Processes%ReproductionDynamics, Cohort%Processes%InorganicFluxes%CO2     ,& !34,35
                                     Cohort%Processes%InorganicFluxes%H2O , Cohort%Processes%InorganicFluxes%O2      ,& !36,37
                                     Cohort%Processes%InorganicFluxes%NH3 , Cohort%Processes%InorganicFluxes%PO4     ,& !38,39
-                                    Cohort%Processes%DeathByAge                * 1.0/Me%ConvertionFactor            ,& !40, #.d/m2
-                                    Cohort%Processes%DeathByOxygen             * 1.0/Me%ConvertionFactor            ,& !41, #.d/m2   
-                                    Cohort%Processes%DeathByStarvation         * 1.0/Me%ConvertionFactor            ,& !42, #.d/m2
-                                    Cohort%Processes%DeathByNatural            * 1.0/Me%ConvertionFactor            ,& !43, #.d/m2
-                                    Cohort%Processes%PredationByShrimps        * 1.0/Me%ConvertionFactor            ,& !44, #.d/m2
-                                    Cohort%Processes%PredationByCrabs          * 1.0/Me%ConvertionFactor            ,& !45, #.d/m2
-                                    Cohort%Processes%PredationByOysterCatchers * 1.0/Me%ConvertionFactor            ,& !46, #.d/m2
-                                    Cohort%Processes%PredationByEiderDucks     * 1.0/Me%ConvertionFactor            ,& !47, #.d/m2
-                                    Cohort%Processes%PredationByHerringGull    * 1.0/Me%ConvertionFactor            ,& !48, #.d/m2
-                                    Cohort%Processes%DeathByLowNumbers         * 1.0/Me%ConvertionFactor            ,& !49, #.d/m2
-                                    Cohort%Processes%DeathBySelfPredation      * 1.0/Me%ConvertionFactor            ,& !50, #.d/m2
-                                    Cohort%Processes%DeathByLarvaePredationByOthers      * 1.0/Me%ConvertionFactor   ,& !50, #.d/m2
-                                    Cohort%Processes%DeathByVelocity           * 1.0/Me%ConvertionFactor            ,& !49, #.d/m2
-                                    Cohort%Processes%DeathByWrongSettlement    * 1.0/Me%ConvertionFactor            ,& !50, #.d/m2
+                                    Cohort%Processes%DeathByAge                /Me%ConvertionFactor            ,& !40, #.d/m2
+                                    Cohort%Processes%DeathByOxygen             /Me%ConvertionFactor            ,& !41, #.d/m2   
+                                    Cohort%Processes%DeathByStarvation         /Me%ConvertionFactor            ,& !42, #.d/m2
+                                    Cohort%Processes%DeathByNatural            /Me%ConvertionFactor            ,& !43, #.d/m2
+                                    Cohort%Processes%PredationByShrimps        /Me%ConvertionFactor            ,& !44, #.d/m2
+                                    Cohort%Processes%PredationByCrabs          /Me%ConvertionFactor            ,& !45, #.d/m2
+                                    Cohort%Processes%PredationByOysterCatchers /Me%ConvertionFactor            ,& !46, #.d/m2
+                                    Cohort%Processes%PredationByEiderDucks     /Me%ConvertionFactor            ,& !47, #.d/m2
+                                    Cohort%Processes%PredationByHerringGull    /Me%ConvertionFactor            ,& !48, #.d/m2
+                                    Cohort%Processes%DeathByLowNumbers         /Me%ConvertionFactor            ,& !49, #.d/m2
+                                    Cohort%Processes%DeathBySelfPredation      /Me%ConvertionFactor            ,& !50, #.d/m2
+                                    Cohort%Processes%DeathByLarvaePredationByOthers      /Me%ConvertionFactor   ,& !50, #.d/m2
+                                    Cohort%Processes%DeathByVelocity           /Me%ConvertionFactor            ,& !49, #.d/m2
+                                    Cohort%Processes%DeathByWrongSettlement    /Me%ConvertionFactor            ,& !50, #.d/m2
                                     Cohort%BivalveCondition%ScaledE                 !50, #.d/m2
 
                     Cohort => Cohort%Next
@@ -8934,62 +8933,62 @@ d2:             do while(associated(Cohort))
                     write(Species%PopulationOutput%Unit(iIndexOutput), 103) TotalSeconds                 ,& !1
                         int(Year), int(Month), int(Day)                                                  ,& !2,3,4
                         int(hour), int(minute), int(second)                                              ,& !5,6,7
-                        Species%PopulationProcesses%TN                            * 1.0/Me%ConvertionFactor ,& !7, #/m2
+                        Species%PopulationProcesses%TN                            /Me%ConvertionFactor ,& !7, #/m2
                         Species%PopulationProcesses%NCoh                                                 ,& !8
-                        Species%PopulationProcesses%TBio                          * 1.0/Me%ConvertionFactor ,& !9, molC/m2
-                        Species%PopulationProcesses%Cr                            * 1.0/Me%ConvertionFactor ,& !10, molC/m2
+                        Species%PopulationProcesses%TBio                          /Me%ConvertionFactor ,& !9, molC/m2
+                        Species%PopulationProcesses%Cr                            /Me%ConvertionFactor ,& !10, molC/m2
                         Species%PopulationProcesses%Fil,   Species%PopulationProcesses%Ing               ,& !11,12, molC/m3
                         Species%PopulationProcesses%Ass                                                  ,& !13, molC/m3
                         Species%PopulationProcesses%CO2,   Species%PopulationProcesses%H2O               ,& !14,15, mol/m3
                         Species%PopulationProcesses%O  ,   Species%PopulationProcesses%NH3               ,& !16,17, mol/m3
                         Species%PopulationProcesses%PO4                                                  ,& !18, mol/m3
                         Me%LackOfFood                                                                    ,& !19
-                        Species%PopulationProcesses%m_A                           * 1.0/Me%ConvertionFactor ,& !20,#/d.m2
-                        Species%PopulationProcesses%m_O                           * 1.0/Me%ConvertionFactor ,& !21,#/d.m2
-                        Species%PopulationProcesses%m_F                           * 1.0/Me%ConvertionFactor ,& !22,#/d.m2
-                        Species%PopulationProcesses%m_nat                         * 1.0/Me%ConvertionFactor ,& !23,#/d.m2
-                        Species%PopulationProcesses%m_shr                         * 1.0/Me%ConvertionFactor ,& !24,#/d.m2
-                        Species%PopulationProcesses%m_cra                         * 1.0/Me%ConvertionFactor ,& !25,#/d.m2
-                        Species%PopulationProcesses%m_oys                         * 1.0/Me%ConvertionFactor ,& !26,#/d.m2
-                        Species%PopulationProcesses%m_duck                        * 1.0/Me%ConvertionFactor ,& !27,#/d.m2
-                        Species%PopulationProcesses%m_gull                        * 1.0/Me%ConvertionFactor ,& !28,#/d.m2
-                        Species%PopulationProcesses%m_low                         * 1.0/Me%ConvertionFactor ,& !29,#/d.m2    
-                        Species%PopulationProcesses%m_self                         * 1.0/Me%ConvertionFactor ,& !29,#/d.m2    
-                        Species%PopulationProcesses%m_vel                         * 1.0/Me%ConvertionFactor ,& !29,#/d.m2    
-                        Species%PopulationProcesses%m_settle                         * 1.0/Me%ConvertionFactor ,& !29,#/d.m2    
-                        Species%PopulationProcesses%m_others                         * 1.0/Me%ConvertionFactor ,& !29,#/d.m2    
-                        Species%PopulationProcesses%SumAllMortalityInMass(1)      * 1.0/Me%ConvertionFactor ,& !30,#/d.m2    
-                        Species%PopulationProcesses%SumAllMortalityInMass(2)      * 1.0/Me%ConvertionFactor ,& !31,#/d.m2    
-                        Species%PopulationProcesses%SumAllMortalityInMass(3)      * 1.0/Me%ConvertionFactor ,& !32,#/d.m2    
-                        Species%PopulationProcesses%SumAllMortalityInMass(4)      * 1.0/Me%ConvertionFactor ,& !33
-                        Species%PopulationProcesses%SumAllMortalityInMass(5)      * 1.0/Me%ConvertionFactor ,& !34    
-                        Species%PopulationProcesses%SumAllMortalityInMass(6)      * 1.0/Me%ConvertionFactor ,& !35    
-                        Species%PopulationProcesses%SumAllMortalityInMass(7)      * 1.0/Me%ConvertionFactor ,& !36
-                        Species%PopulationProcesses%SumAllMortalityInMass(8)      * 1.0/Me%ConvertionFactor ,& !37
-                        Species%PopulationProcesses%SumAllMortalityInMass(9)      * 1.0/Me%ConvertionFactor ,& !38
-                        Species%PopulationProcesses%SumAllMortalityInMass(10)     * 1.0/Me%ConvertionFactor ,& !39
-                        Species%PopulationProcesses%SumAllMortalityInMass(11)     * 1.0/Me%ConvertionFactor ,& !39
-                        Species%PopulationProcesses%SumAllMortalityInMass(12)     * 1.0/Me%ConvertionFactor ,& !39
-                        Species%PopulationProcesses%SumAllMortalityInMass(13)     * 1.0/Me%ConvertionFactor ,& !39
-                        Species%PopulationProcesses%SumAllMortalityInMass(14)     * 1.0/Me%ConvertionFactor ,& !39
-                        Species%PopulationProcesses%AverageMortalityInNumbers(1)  * 1.0/Me%ConvertionFactor ,& !40    
-                        Species%PopulationProcesses%AverageMortalityInNumbers(2)  * 1.0/Me%ConvertionFactor ,& !41    
-                        Species%PopulationProcesses%AverageMortalityInNumbers(3)  * 1.0/Me%ConvertionFactor ,& !42    
-                        Species%PopulationProcesses%AverageMortalityInNumbers(4)  * 1.0/Me%ConvertionFactor ,& !43
-                        Species%PopulationProcesses%AverageMortalityInNumbers(5)  * 1.0/Me%ConvertionFactor ,& !44    
-                        Species%PopulationProcesses%AverageMortalityInNumbers(6)  * 1.0/Me%ConvertionFactor ,& !45    
-                        Species%PopulationProcesses%AverageMortalityInNumbers(7)  * 1.0/Me%ConvertionFactor ,& !46
-                        Species%PopulationProcesses%AverageMortalityInNumbers(8)  * 1.0/Me%ConvertionFactor ,& !47
-                        Species%PopulationProcesses%AverageMortalityInNumbers(9)  * 1.0/Me%ConvertionFactor ,& !48
-                        Species%PopulationProcesses%AverageMortalityInNumbers(10) * 1.0/Me%ConvertionFactor ,& !49
-                        Species%PopulationProcesses%AverageMortalityInNumbers(11) * 1.0/Me%ConvertionFactor ,& !49
-                        Species%PopulationProcesses%AverageMortalityInNumbers(12) * 1.0/Me%ConvertionFactor ,& !49
-                        Species%PopulationProcesses%AverageMortalityInNumbers(13) * 1.0/Me%ConvertionFactor ,& !49
-                        Species%PopulationProcesses%AverageMortalityInNumbers(14) * 1.0/Me%ConvertionFactor ,& !49
-                        Species%PopulationProcesses%TNField                       * 1.0/Me%ConvertionFactor ,& !50,#/d.m2
+                        Species%PopulationProcesses%m_A                           /Me%ConvertionFactor ,& !20,#/d.m2
+                        Species%PopulationProcesses%m_O                           /Me%ConvertionFactor ,& !21,#/d.m2
+                        Species%PopulationProcesses%m_F                           /Me%ConvertionFactor ,& !22,#/d.m2
+                        Species%PopulationProcesses%m_nat                         /Me%ConvertionFactor ,& !23,#/d.m2
+                        Species%PopulationProcesses%m_shr                         /Me%ConvertionFactor ,& !24,#/d.m2
+                        Species%PopulationProcesses%m_cra                         /Me%ConvertionFactor ,& !25,#/d.m2
+                        Species%PopulationProcesses%m_oys                         /Me%ConvertionFactor ,& !26,#/d.m2
+                        Species%PopulationProcesses%m_duck                        /Me%ConvertionFactor ,& !27,#/d.m2
+                        Species%PopulationProcesses%m_gull                        /Me%ConvertionFactor ,& !28,#/d.m2
+                        Species%PopulationProcesses%m_low                         /Me%ConvertionFactor ,& !29,#/d.m2    
+                        Species%PopulationProcesses%m_self                        /Me%ConvertionFactor ,& !29,#/d.m2    
+                        Species%PopulationProcesses%m_vel                         /Me%ConvertionFactor ,& !29,#/d.m2    
+                        Species%PopulationProcesses%m_settle                      /Me%ConvertionFactor ,& !29,#/d.m2    
+                        Species%PopulationProcesses%m_others                      /Me%ConvertionFactor ,& !29,#/d.m2    
+                        Species%PopulationProcesses%SumAllMortalityInMass(1)      /Me%ConvertionFactor ,& !30,#/d.m2    
+                        Species%PopulationProcesses%SumAllMortalityInMass(2)      /Me%ConvertionFactor ,& !31,#/d.m2    
+                        Species%PopulationProcesses%SumAllMortalityInMass(3)      /Me%ConvertionFactor ,& !32,#/d.m2    
+                        Species%PopulationProcesses%SumAllMortalityInMass(4)      /Me%ConvertionFactor ,& !33
+                        Species%PopulationProcesses%SumAllMortalityInMass(5)      /Me%ConvertionFactor ,& !34    
+                        Species%PopulationProcesses%SumAllMortalityInMass(6)      /Me%ConvertionFactor ,& !35    
+                        Species%PopulationProcesses%SumAllMortalityInMass(7)      /Me%ConvertionFactor ,& !36
+                        Species%PopulationProcesses%SumAllMortalityInMass(8)      /Me%ConvertionFactor ,& !37
+                        Species%PopulationProcesses%SumAllMortalityInMass(9)      /Me%ConvertionFactor ,& !38
+                        Species%PopulationProcesses%SumAllMortalityInMass(10)     /Me%ConvertionFactor ,& !39
+                        Species%PopulationProcesses%SumAllMortalityInMass(11)     /Me%ConvertionFactor ,& !39
+                        Species%PopulationProcesses%SumAllMortalityInMass(12)     /Me%ConvertionFactor ,& !39
+                        Species%PopulationProcesses%SumAllMortalityInMass(13)     /Me%ConvertionFactor ,& !39
+                        Species%PopulationProcesses%SumAllMortalityInMass(14)     /Me%ConvertionFactor ,& !39
+                        Species%PopulationProcesses%AverageMortalityInNumbers(1)  /Me%ConvertionFactor ,& !40    
+                        Species%PopulationProcesses%AverageMortalityInNumbers(2)  /Me%ConvertionFactor ,& !41    
+                        Species%PopulationProcesses%AverageMortalityInNumbers(3)  /Me%ConvertionFactor ,& !42    
+                        Species%PopulationProcesses%AverageMortalityInNumbers(4)  /Me%ConvertionFactor ,& !43
+                        Species%PopulationProcesses%AverageMortalityInNumbers(5)  /Me%ConvertionFactor ,& !44    
+                        Species%PopulationProcesses%AverageMortalityInNumbers(6)  /Me%ConvertionFactor ,& !45    
+                        Species%PopulationProcesses%AverageMortalityInNumbers(7)  /Me%ConvertionFactor ,& !46
+                        Species%PopulationProcesses%AverageMortalityInNumbers(8)  /Me%ConvertionFactor ,& !47
+                        Species%PopulationProcesses%AverageMortalityInNumbers(9)  /Me%ConvertionFactor ,& !48
+                        Species%PopulationProcesses%AverageMortalityInNumbers(10) /Me%ConvertionFactor ,& !49
+                        Species%PopulationProcesses%AverageMortalityInNumbers(11) /Me%ConvertionFactor ,& !49
+                        Species%PopulationProcesses%AverageMortalityInNumbers(12) /Me%ConvertionFactor ,& !49
+                        Species%PopulationProcesses%AverageMortalityInNumbers(13) /Me%ConvertionFactor ,& !49
+                        Species%PopulationProcesses%AverageMortalityInNumbers(14) /Me%ConvertionFactor ,& !49
+                        Species%PopulationProcesses%TNField                       /Me%ConvertionFactor ,& !50,#/d.m2
                         Me%ExternalVar%InitialPhyto(Index), Me%ExternalVar%InitialShrimp(Index)             ,& !Phyto e Shrimp
                         Species%PopulationProcesses%MaxLength                                               ,& !51
-                        Me%MaxTNField                                             * 1.0/Me%ConvertionFactor ,& !51
+                        Me%MaxTNField                                             /Me%ConvertionFactor ,& !51
                         Species%PopulationProcesses%nSpawning                                                !52
                                                                     
                 if (Species%BySizeOutput) then
@@ -9369,7 +9368,9 @@ d2:             do while(associated(Cohort))
 
                 if ((Me%ExternalVar%Mass(L,Index) .ge. lowsize) .and. (Me%ExternalVar%Mass(L,Index) .lt. highsize)) then
 
-                    Species%SizeFrequency(iSizeClass) = Species%SizeFrequency(iSizeClass) + Me%ExternalVar%Mass(Number,Index)
+                    !m2
+                    Species%SizeFrequency(iSizeClass) = Species%SizeFrequency(iSizeClass) + Me%ExternalVar%Mass(Number,Index) &
+                                                                                            /Me%ConvertionFactor
 
                 end if
 
@@ -9490,42 +9491,42 @@ d2:             do while(associated(Cohort))
                        E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x,E20.13, 1x,   &
                        E20.13, 1x, E20.13, 1x,E20.13, 1x,I5, 1x,E20.13, 1x)        !6
             
-            write(ParameterValueStr, 150) Me%DT                                                   , &   
-                                          Species%IndividualParameters%m_spat  * 1.0/Me%ConvertionFactor , &
-                                          Species%IndividualParameters%m_natural * 1.0/Me%ConvertionFactor , &
-                                          TN                                     * 1.0/Me%ConvertionFactor , &
-                                          Maxlength                                               , &
-                                          TC                                                      , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(1) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(2) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(3)  * 1.0/Me%ConvertionFactor ,&
-                                          Species%PopulationProcesses%SumAllMortalityInMass(4) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(5)  * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(6)  * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(7)  * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(8)  * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(9)  * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(10) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(11) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(12) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(13) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%SumAllMortalityInMass(14) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(1) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(2) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(3)  * 1.0/Me%ConvertionFactor ,&
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(4) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(5)  * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(6)  * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(7)  * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(8)  * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(9)  * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(10) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(11) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(12) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(13) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%AverageMortalityInNumbers(14) * 1.0/Me%ConvertionFactor , &
-                                          Species%PopulationProcesses%nSpawning                                , &
-                                          Me%MaxTNField   * 1.0/Me%ConvertionFactor                  
+            write(ParameterValueStr, 150) Me%DT                                                                          , &   
+                                          Species%IndividualParameters%m_spat                      /Me%ConvertionFactor  , &
+                                          Species%IndividualParameters%m_natural                   /Me%ConvertionFactor  , &
+                                          TN                                                       /Me%ConvertionFactor  , &
+                                          Maxlength                                                                      , &
+                                          TC                                                                             , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(1)      /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(2)      /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(3)      /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(4)      /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(5)      /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(6)      /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(7)      /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(8)      /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(9)      /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(10)     /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(11)     /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(12)     /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(13)     /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%SumAllMortalityInMass(14)     /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(1)  /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(2)  /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(3)  /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(4)  /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(5)  /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(6)  /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(7)  /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(8)  /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(9)  /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(10) /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(11) /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(12) /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(13) /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%AverageMortalityInNumbers(14) /Me%ConvertionFactor , &
+                                          Species%PopulationProcesses%nSpawning                                          , &
+                                          Me%MaxTNField                                             /Me%ConvertionFactor
                                          
             CompleteLineStr = trim(CompleteLineStr)//' '//trim(ParameterValueStr)
 
@@ -9626,8 +9627,7 @@ d2:         do while (associated(Cohort))
                          
                 !Reconvert the mussels organisms density by applying 1.0/ConvertionFactor
                 
-                    Me%ExternalVar%Mass(Number,Index) = Me%ExternalVar%Mass(Number,Index)       * &
-                                                        1./Me%ConvertionFactor
+                    Me%ExternalVar%Mass(Number,Index) = Me%ExternalVar%Mass(Number,Index)/Me%ConvertionFactor
                 
                 Cohort => Cohort%Next
 
