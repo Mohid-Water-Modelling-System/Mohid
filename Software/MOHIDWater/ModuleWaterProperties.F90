@@ -2466,6 +2466,10 @@ do1:        do while (associated(ObjCohort%Next))
                 
         call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
         
+        Me%Coupled%MinimumConcentration%Yes            = ON
+        NewProperty%Evolution%MinConcentration         = ON
+        NewProperty%MinValue                           = 0.0
+        
         nullify(NewProperty)
         
     end subroutine ConstructCohort
@@ -2611,7 +2615,6 @@ do1:        do while (associated(ObjCohort%Next))
         if (NewProperty%evolution%AdvectionDiffusion)         &
             call Read_Advec_Difus_Parameters(NewProperty)
 
-        Me%Coupled%MinimumConcentration%Yes            = ON
         NewProperty%Evolution%MinConcentration         = .false.
         NewProperty%Evolution%MaxConcentration         = .false.
         NewProperty%MinValue                           = FillValueReal
@@ -2931,6 +2934,10 @@ do6 :                       do K = WKLB, WKUB
         
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
         
+        Me%Coupled%MinimumConcentration%Yes            = ON
+        NewProperty%Evolution%MinConcentration         = ON
+        NewProperty%MinValue                           = 0.0
+
         Property_N => NewProperty
         
         nullify(NewProperty)
@@ -3049,7 +3056,6 @@ do6 :                       do K = WKLB, WKUB
         NewProperty%Evolution%Advec_Difus_Parameters%VolumeRelMax        = 1.5
         NewProperty%Evolution%Advec_Difus_Parameters%AdvectionNudging    = .false.
         
-        Me%Coupled%MinimumConcentration%Yes                              = ON
         NewProperty%Evolution%MinConcentration                           = .false.
         NewProperty%Evolution%MaxConcentration                           = .false.
         NewProperty%MinValue                                             = FillValueReal

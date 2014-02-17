@@ -8474,8 +8474,6 @@ d1:     do while(associated(Species))
             Cohort => Species%FirstCohort
 d2:         do while(associated(Cohort))
 
-                if(Cohort%Dead .eq. 0)then
-
                     Number = Cohort%StateIndex%Number    
                     L      = Cohort%StateIndex%L
                             
@@ -8651,7 +8649,6 @@ d2:         do while(associated(Cohort))
                         Me%MaxTNField = max(Me%MaxTNField,PopulationProcesses%TNField)
 
                     end if
-                end if ! if(Cohort%Dead .eq. 0)then
                 
                 Cohort => Cohort%Next
             end do d2            
