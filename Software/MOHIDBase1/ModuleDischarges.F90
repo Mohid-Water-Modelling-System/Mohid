@@ -246,11 +246,11 @@ Module ModuleDischarges
     end type  T_FromIntake
 
     type      T_ByPass 
-         integer                                :: i = null_int, & !initialization: Jauch
-                                                   j = null_int    !initialization: Jauch
-         logical                                :: ON     = .false., & !initialization: Jauch 
-                                                   OneWay = .false.    !initialization: Jauch 
-         integer                                :: Side = null_int !initialization: Jauch 
+         integer                                :: i = null_int, & 
+                                                   j = null_int    
+         logical                                :: ON     = .false., & 
+                                                   OneWay = .false.    
+         integer                                :: Side = null_int 
     end  type T_ByPass
 
 
@@ -1657,6 +1657,11 @@ ifvar:  if (NewProperty%Variable) then
                 stop      'Construct_PropertyValues - ModuleDischarges - ERR30'
 
             end if
+            
+
+        endif
+        
+        if (NewProperty%FromIntake .and. NewDischarge%ByPass%ON) then
 
             call GetData(NewProperty%IncreaseValue,                                     &
                          Me%ObjEnterData, flag,                                         &
@@ -1667,7 +1672,7 @@ ifvar:  if (NewProperty%Variable) then
                          STAT         = STAT_CALL)
             if(STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR40'
             
-            if(flag .eq. 0)then
+            if(flag .eq. 0 .and. NewProperty%FromIntake)then
 
                 write(*,*)"Discharge from intake property. Please define INCREASE_VALUE for :"
                 write(*,*)trim(NewProperty%ID%Name)
@@ -1695,7 +1700,6 @@ ifvar:  if (NewProperty%Variable) then
             stop 'Construct_PropertyValues - ModuleDischarges -  ERR60'
 
         end if
-
 
         !----------------------------------------------------------------------
 
@@ -3082,8 +3086,9 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine GetDischargeConcentration(DischargesID, TimeX,DischargeIDNumber,          &
-                                         Concentration, PropertyIDNumber, STAT)
+    subroutine GetDischargeConcentration(DischargesID, TimeX,DischargeIDNumber,         &
+                                         Concentration, PropertyIDNumber,               &
+                                         STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
@@ -3165,7 +3170,7 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
 
                 endif
 
-                if(PropertyFromIntake)then
+                if(PropertyFromIntake .or. DischargeX%ByPass%ON)then
                     Concentration = Concentration + PropertyIncreaseValue
                 end if
              

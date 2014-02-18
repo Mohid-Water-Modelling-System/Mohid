@@ -4772,7 +4772,7 @@ cd21:   if (Baroclinic) then
             call SetError(FATAL_, KEYWORD_, 'Construct_Numerical_Options - Hydrodynamic - ERR420')
 
         endif
-
+        
         Me%ComputeOptions%VelTangentialBoundary = VelTangentialBoundary
 
 
@@ -21286,7 +21286,9 @@ cd2:        if      (Num_Discretization == Abbott    ) then
 
         if (Me%ComputeOptions%WaterDischarges) call NonHydroDischarges
         
-        !call NonHydroWallBoundary(      )        
+        !call NonHydroWallBoundary(      )    
+        
+            
 
         !
         !----Solve the syste
@@ -21328,6 +21330,10 @@ cd2:        if      (Num_Discretization == Abbott    ) then
             do k = KLB,KUB
         !------------Correct NH pressure correction (itself!)
                 Me%NonHydroStatic%PressureCorrect(i,j,k) = pc(i, j, k) - pc(i, j, KUB) 
+                !---------------- Impose null correction in the open boundary-------------
+                if(Me%External_Var%BoundaryPoints(i, j)==Boundary) then
+                    Me%NonHydroStatic%PressureCorrect(i,j,k) =  0
+                endif                    
             enddo !do k             
         enddo !do i
         enddo !do j
@@ -34278,7 +34284,7 @@ cd4:    if (ColdPeriod <= DT_RunPeriod) then
 do1:    do  J = JLB, JUB
 do2:    do  I = ILB, IUB
             
-cd5:        if (OpenPoints3D(I, J, KUB) == Covered ) then 
+cd5:        if (OpenPoints3D(I, J, KUB) == Covered .or. Me%External_Var%BoundaryPoints(i, j) == Boundary) then 
 
                 kbottom = KFloor_Z(I, J)                            
                        

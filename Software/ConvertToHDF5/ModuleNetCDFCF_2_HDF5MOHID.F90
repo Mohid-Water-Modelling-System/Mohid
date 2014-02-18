@@ -4574,6 +4574,11 @@ i2:                 if (Me%Depth%Interpolate) then
             status = nf90_inquire_variable(ncid, pn, ndims = numDims)
             if (status /= nf90_noerr) stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
             Me%Field(iP)%ValueIn%Dim = numDims
+        else 
+            write(*,*) 'possible error causes:'
+            write(*,*) '  Variable not found.=', trim(Me%Field(iP)%NetCDFName)
+            write(*,*) '  The specified netCDF ID does not refer to an open netCDF dataset.'
+            stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
         endif
         
         !Read number of layers and their depth

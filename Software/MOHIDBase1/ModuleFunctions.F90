@@ -251,11 +251,15 @@ Module ModuleFunctions
     public  :: maxival
     public  :: minival
     
+    
+    
     public  :: WGS84toGoogleMaps    
     interface  WGS84toGoogleMaps
         module procedure WGS84toGoogleMaps1D
         module procedure WGS84toGoogleMaps2D
     end interface  WGS84toGoogleMaps
+    
+    public :: GreatCircleDistance
     
     !sea state functions    
     public :: WindBeaufortScale    
@@ -9803,6 +9807,33 @@ D2:     do I=imax-1,2,-1
     end subroutine WGS84toGoogleMaps1D
   
 !------------------------------------------------------------------------------  
+
+    real function GreatCircleDistance(Long1, Lat1, Long2, Lat2)
+    
+        !arguments                  :: 
+        real, intent(IN)            :: Long1, Lat1, Long2, Lat2
+        
+        !local
+        real                        :: RLong1, RLat1, RLong2, RLat2        
+        real                        :: Dlong, Dlat, Dsigma, AuxRoot
+        
+        !Begin----------------------------------------------------------------
+        
+        RLong1  = Long1 * Pi / 180.
+        RLat1   = Lat1  * Pi / 180.
+        RLong2  = Long2 * Pi / 180.
+        RLat2   = Lat2  * Pi / 180.
+        
+        Dlong   = RLong2 - RLong1
+        Dlat    = RLat2  - RLat1
+        
+        AuxRoot = sqrt((cos(Rlat2)*sin(DLong))**2. + (cos(Rlat1)*sin(Rlat2)         &
+                      - sin(Rlat1)*cos(Rlat2)*cos(Dlong))**2.)
+        Dsigma  = atan2(AuxRoot, (sin(Rlat1)*sin(Rlat2)+cos(Rlat1)*cos(Rlat2)*cos(Dlong))) 
+
+        GreatCircleDistance = EqRadius_ * Dsigma
+    
+    end  function GreatCircleDistance
 
     !--------------------------------------------------------------------------
 
