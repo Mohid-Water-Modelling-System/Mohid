@@ -8358,8 +8358,8 @@ d6:                 do while(associated(Cohort))
 
                                     case (2) !AFDW/d.ind, birds
 
-                                        !molC/d.m3 = gAFDW/d.ind * gdw/gafdw * gC/gdw * molC/gC * ind/m3  
-                                        Predator%TotalFeeding_Rate = Predator%Feeding_Rate/Predator%AfdwToC/Predator%AfdwToC/12 * &
+                                        !molC/d.m3 = gAFDW/d.ind / gAFDW/molC  
+                                        Predator%TotalFeeding_Rate = Predator%Feeding_Rate/Species%AuxiliarParameters%WV * &
                                                                      Me%ExternalVar%Mass(PredatorIndex,Index)
 
                                         !molC/d.m3
