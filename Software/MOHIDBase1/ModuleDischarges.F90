@@ -74,6 +74,7 @@ Module ModuleDischarges
     public  :: GetDischargeParameters
     public  :: GetDischargeConcentration
     public  :: GetByPassON
+    public  :: GetByPassConcIncrease    
     public  :: GetDischargeFromIntakeON
     public  :: GetIntakeConcentration
     private ::    Search_Discharge
@@ -87,6 +88,7 @@ Module ModuleDischarges
     public  :: UngetDischarges
     !Modifier
     public  :: CorrectsCellsDischarges
+    public  :: CorrectsByPassCellsDischarges
     public  :: TryIgnoreDischarge
     !Destructor
     public  :: Kill_Discharges
@@ -246,11 +248,14 @@ Module ModuleDischarges
     end type  T_FromIntake
 
     type      T_ByPass 
-         integer                                :: i = null_int, & 
-                                                   j = null_int    
-         logical                                :: ON     = .false., & 
-                                                   OneWay = .false.    
-         integer                                :: Side = null_int 
+         integer                                :: i        = null_int
+         integer                                :: j        = null_int    
+         integer                                :: k        = null_int
+         real                                   :: X        = null_real
+         real                                   :: Y        = null_real
+         logical                                :: ON       = .false.
+         logical                                :: OneWay   = .false.    
+         integer                                :: Side     = null_int 
     end  type T_ByPass
 
 
@@ -1238,34 +1243,83 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
 
 i3:     if (NewDischarge%ByPass%ON) then
 
-            call GetData(NewDischarge%ByPass%i,                                         &
+i4:         if (NewDischarge%Localization%CoordinatesON) then
+
+                call GetData(NewDischarge%ByPass%X,                                     &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             FromBlock,                                                 &
+                             keyword      ='BYPASS_X',                                  &
+                             ClientModule = 'ModuleDischarges',                         &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR150'
+
+                if (flag /= 1) then
+                    write(*,*) 'Bypass I cell missing'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR160'
+                endif
+
+                call GetData(NewDischarge%ByPass%Y,                                     &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             FromBlock,                                                 &
+                             keyword      ='BYPASS_Y',                                  &
+                             ClientModule = 'ModuleDischarges',                         &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR160'
+
+                if (flag /= 1) then
+                    write(*,*) 'Bypass J cell missing'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR170'
+                endif
+
+
+            else i4
+            
+                call GetData(NewDischarge%ByPass%i,                                     &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             FromBlock,                                                 &
+                             keyword      ='BYPASS_I',                                  &
+                             ClientModule = 'ModuleDischarges',                         &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR180'
+
+                if (flag /= 1) then
+                    write(*,*) 'Bypass I cell missing'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR190'
+                endif
+
+                call GetData(NewDischarge%ByPass%j,                                     &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             FromBlock,                                                 &
+                             keyword      ='BYPASS_J',                                  &
+                             ClientModule = 'ModuleDischarges',                         &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR160'
+
+                if (flag /= 1) then
+                    write(*,*) 'Bypass J cell missing'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR200'
+                endif
+
+            endif i4
+            
+            
+            call GetData(NewDischarge%ByPass%k,                                         &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
                          FromBlock,                                                     &
-                         keyword      ='BYPASS_I',                                      &
+                         keyword      ='BYPASS_K',                                      &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR150'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR210'
 
             if (flag /= 1) then
-                write(*,*) 'Bypass I cell missing'
-                stop ' Construct_FlowValues - ModuleDischarges - ERR160'
+                write(*,*) 'Bypass K cell missing'
+                stop ' Construct_FlowValues - ModuleDischarges - ERR220'
             endif
-
-            call GetData(NewDischarge%ByPass%j,                                         &
-                         Me%ObjEnterData,                                               &
-                         flag,                                                          &
-                         FromBlock,                                                     &
-                         keyword      ='BYPASS_J',                                      &
-                         ClientModule = 'ModuleDischarges',                             &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR160'
-
-            if (flag /= 1) then
-                write(*,*) 'Bypass J cell missing'
-                stop ' Construct_FlowValues - ModuleDischarges - ERR170'
-            endif
-
 
             call GetData(NewDischarge%ByPass%Side,                                      &
                          Me%ObjEnterData,                                               &
@@ -1274,16 +1328,16 @@ i3:     if (NewDischarge%ByPass%ON) then
                          keyword      ='BYPASS_SIDE',                                   &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR180'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR230'
 
             if (flag /= 1) then
                 write(*,*) 'Bypass side missing'
-                stop ' Construct_FlowValues - ModuleDischarges - ERR190'
+                stop ' Construct_FlowValues - ModuleDischarges - ERR240'
             endif
 
             if      (NewDischarge%ByPass%Side /= SideA   .and.                          &
                      NewDischarge%ByPass%Side /= SideB) then
-                     stop 'Construct_FlowValues - ModuleDischarges - ERR200'
+                     stop 'Construct_FlowValues - ModuleDischarges - ERR250'
             endif
 
             call GetData(NewDischarge%ByPass%OneWay,                                    &
@@ -1294,7 +1348,7 @@ i3:     if (NewDischarge%ByPass%ON) then
                          default      = .false.,                                        &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR210'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR260'
 
         endif i3         
 
@@ -1305,7 +1359,7 @@ i3:     if (NewDischarge%ByPass%ON) then
                      default      = .false.,                                            &
                      ClientModule = 'ModuleDischarges',                                 &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR220'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR270'
 
         if(NewDischarge%FromIntake%ON)then
 
@@ -1315,12 +1369,12 @@ i3:     if (NewDischarge%ByPass%ON) then
                          keyword      = 'INTAKE_NAME',                                  &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR230'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR280'
 
             if(flag == 0)then
                 write(*,*)"Must define INTAKE_NAME"
                 write(*,*)"in discharge ", trim(adjustl(NewDischarge%ID%Name))
-                stop 'Construct_FlowValues - ModuleDischarges - ERR240'
+                stop 'Construct_FlowValues - ModuleDischarges - ERR290'
             endif
 
             call GetData(NewDischarge%FromIntake%AssociateFlow,                         &
@@ -1330,7 +1384,7 @@ i3:     if (NewDischarge%ByPass%ON) then
                          default      = .false.,                                        &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR250'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR300'
 
 
             if(NewDischarge%FromIntake%AssociateFlow)then
@@ -1342,7 +1396,7 @@ i3:     if (NewDischarge%ByPass%ON) then
                              default      = 1.0,                                        &
                              ClientModule = 'ModuleDischarges',                         &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR260'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR310'
 
                 if(NewDischarge%FromIntake%FlowFraction < 0)then
 
@@ -1661,7 +1715,7 @@ ifvar:  if (NewProperty%Variable) then
 
         endif
         
-        if (NewProperty%FromIntake .and. NewDischarge%ByPass%ON) then
+        if (NewProperty%FromIntake .or. NewDischarge%ByPass%ON) then
 
             call GetData(NewProperty%IncreaseValue,                                     &
                          Me%ObjEnterData, flag,                                         &
@@ -1846,16 +1900,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetDischargesGridLocalization(DischargesID, DischargeIDNumber, Igrid,        &
-                                             JGrid, KGrid, IByPass, JByPass, DischVertical, &
-                                             KDepth, WaterColumnZ, Bathymetry, OpenPoints3D, &
-                                             CoordinateX, CoordinateY, CoordinatesON, TimeX, STAT)
+    subroutine GetDischargesGridLocalization(DischargesID, DischargeIDNumber, Igrid,    &
+                                             JGrid, KGrid, IByPass, JByPass, KByPass,   &
+                                             DischVertical, KDepth, WaterColumnZ,       &
+                                             Bathymetry, OpenPoints3D, CoordinateX,     &
+                                             CoordinateY, CoordinatesON, TimeX,         &
+                                             XByPass, YByPass, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: DischargesID
         integer,           intent(IN )                  :: DischargeIDNumber
         integer, optional, intent(OUT)                  :: IGrid, JGrid, KGrid
-        integer, optional, intent(OUT)                  :: IByPass, JByPass
+        integer, optional, intent(OUT)                  :: IByPass, JByPass, KByPass
         integer, optional, intent(OUT)                  :: DischVertical
         integer, optional, dimension(:, :, :), pointer  :: OpenPoints3D
         real   , optional, dimension(:, :   ), pointer  :: WaterColumnZ
@@ -1864,6 +1920,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         real,    optional, intent(OUT)                  :: CoordinateX, CoordinateY, Kdepth
         logical, optional, intent(OUT)                  :: CoordinatesON        
         type (T_Time), optional, intent (IN)            :: TimeX
+        real,    optional, intent(OUT)                  :: XByPass, YByPass
                 
         integer, optional, intent(OUT)                  :: STAT
 
@@ -1925,6 +1982,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
             if (present(IByPass         )) IByPass            = DischargeX%ByPass%I
             if (present(JByPass         )) JByPass            = DischargeX%ByPass%J
+            if (present(KByPass         )) KByPass            = DischargeX%ByPass%K
+            if (present(XByPass         )) XByPass            = DischargeX%ByPass%X
+            if (present(YByPass         )) YByPass            = DischargeX%ByPass%Y
 
 
             !If OpenPoints is present an DischargeX have alternative locations, 
@@ -3170,7 +3230,7 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
 
                 endif
 
-                if(PropertyFromIntake .or. DischargeX%ByPass%ON)then
+                if(PropertyFromIntake)then
                     Concentration = Concentration + PropertyIncreaseValue
                 end if
              
@@ -3296,6 +3356,91 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         !----------------------------------------------------------------------
 
     end Subroutine GetIntakeConcentration
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetByPassConcIncrease(DischargesID, DischargeIDNumber,                   &
+                                     PropertyIDNumber, ConcIncrease, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargesID
+        integer,           intent(IN)               :: DischargeIDNumber
+        integer,           intent(IN)               :: PropertyIDNumber
+        real,              intent(OUT)              :: ConcIncrease        
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        type(T_Property),            pointer        :: PropertyX
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        integer                                     :: STAT_CALL
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) ' can not find discharge number ',DischargeIDNumber
+                stop  'GetDischargeConcentration - ModuleDischarges - ERR01'
+            endif
+             
+            call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                !If the proeprty is not found the program don't stop is return a error 
+                !not found
+                if (STAT_CALL /= NOT_FOUND_ERR_) then 
+                    stop  'GetDischargeConcentration - ModuleDischarges - ERR02'
+                endif
+            endif
+            
+cd2 :       if (STAT_CALL == SUCCESS_) then
+
+                if (DischargeX%ByPass%ON) then
+                    ConcIncrease   = PropertyX%IncreaseValue
+                else
+                    ConcIncrease   = 0.
+                endif                    
+
+                nullify(PropertyX)
+
+                nullify(DischargeX)
+
+                STAT_ = SUCCESS_
+
+            else if (STAT_CALL == NOT_FOUND_ERR_) then cd2
+
+
+                nullify(PropertyX)
+
+                nullify(DischargeX)
+
+                STAT_ = NOT_FOUND_ERR_
+
+
+            end if cd2
+            
+
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end Subroutine GetByPassConcIncrease
 
     !--------------------------------------------------------------------------
 
@@ -3639,6 +3784,50 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     end subroutine CorrectsCellsDischarges
 
     !--------------------------------------------------------------------------
+    subroutine CorrectsByPassCellsDischarges(DischargesID, NDischarge, i, j, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: DischargesID
+        integer,           intent(IN )              :: NDischarge, i, j
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        type(T_IndividualDischarge),  pointer       :: DischargeX
+        integer                                     :: ready_, STAT_, STAT2_ 
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)
+
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            call Search_Discharge(DischargeX, STAT2_, NDischarge)
+
+                if (STAT2_ == SUCCESS_) then
+
+                    DischargeX%ByPass%I = i
+                    DischargeX%ByPass%J = j
+          
+                    STAT_ = SUCCESS_
+
+                endif
+        else              
+         
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                               &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine CorrectsByPassCellsDischarges
+
+    !--------------------------------------------------------------------------
+
 
     subroutine TryIgnoreDischarge(DischargesID, NDischarge, IgnoreOK, STAT)
 

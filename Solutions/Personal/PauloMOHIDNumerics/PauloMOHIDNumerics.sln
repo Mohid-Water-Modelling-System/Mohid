@@ -1,0 +1,94 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MohidWater", "MohidWater\MohidWater.vfproj", "{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323} = {5B9DC9D4-2641-4422-B6DC-988CA58D9323}
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C} = {B186E0E8-1704-4EB0-A0C5-85AFB52A069C}
+	EndProjectSection
+EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MohidBase1", "MohidBase1\MohidBase1.vfproj", "{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}"
+EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MohidBase2", "MohidBase2\MohidBase2.vfproj", "{5B9DC9D4-2641-4422-B6DC-988CA58D9323}"
+	ProjectSection(ProjectDependencies) = postProject
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C} = {B186E0E8-1704-4EB0-A0C5-85AFB52A069C}
+	EndProjectSection
+EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "Convert2Hdf5", "Convert2Hdf5\Convert2Hdf5.vfproj", "{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release MPI|Win32 = Release MPI|Win32
+		Release MPI|x64 = Release MPI|x64
+		Release OpenMP|Win32 = Release OpenMP|Win32
+		Release OpenMP|x64 = Release OpenMP|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Debug|Win32.Build.0 = Debug|Win32
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Debug|x64.ActiveCfg = Debug|x64
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Debug|x64.Build.0 = Debug|x64
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release MPI|Win32.ActiveCfg = Release MPI|Win32
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release MPI|Win32.Build.0 = Release MPI|Win32
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release MPI|x64.ActiveCfg = Release MPI|x64
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release MPI|x64.Build.0 = Release MPI|x64
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release OpenMP|Win32.ActiveCfg = Release OpenMP|Win32
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release OpenMP|Win32.Build.0 = Release OpenMP|Win32
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release OpenMP|x64.ActiveCfg = Release OpenMP|x64
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release OpenMP|x64.Build.0 = Release OpenMP|x64
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release|Win32.ActiveCfg = Release|Win32
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release|Win32.Build.0 = Release|Win32
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release|x64.ActiveCfg = Release|x64
+		{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}.Release|x64.Build.0 = Release|x64
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Debug|Win32.Build.0 = Debug|Win32
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Debug|x64.ActiveCfg = Debug|x64
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Debug|x64.Build.0 = Debug|x64
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release MPI|Win32.ActiveCfg = Release MPI|Win32
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release MPI|Win32.Build.0 = Release MPI|Win32
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release MPI|x64.ActiveCfg = Release MPI|x64
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release MPI|x64.Build.0 = Release MPI|x64
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release OpenMP|Win32.ActiveCfg = Release OpenMP|Win32
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release OpenMP|Win32.Build.0 = Release OpenMP|Win32
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release OpenMP|x64.ActiveCfg = Release OpenMP|x64
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release OpenMP|x64.Build.0 = Release OpenMP|x64
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release|Win32.ActiveCfg = Release|Win32
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release|Win32.Build.0 = Release|Win32
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release|x64.ActiveCfg = Release|x64
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}.Release|x64.Build.0 = Release|x64
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Debug|Win32.Build.0 = Debug|Win32
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Debug|x64.ActiveCfg = Debug|x64
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Debug|x64.Build.0 = Debug|x64
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release MPI|Win32.ActiveCfg = Release MPI|Win32
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release MPI|Win32.Build.0 = Release MPI|Win32
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release MPI|x64.ActiveCfg = Release MPI|x64
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release MPI|x64.Build.0 = Release MPI|x64
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release OpenMP|Win32.ActiveCfg = Release OpenMP|Win32
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release OpenMP|Win32.Build.0 = Release OpenMP|Win32
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release OpenMP|x64.ActiveCfg = Release OpenMP|x64
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release OpenMP|x64.Build.0 = Release OpenMP|x64
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release|Win32.ActiveCfg = Release|Win32
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release|Win32.Build.0 = Release|Win32
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release|x64.ActiveCfg = Release|x64
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323}.Release|x64.Build.0 = Release|x64
+		{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}.Debug|Win32.Build.0 = Debug|Win32
+		{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}.Debug|x64.ActiveCfg = Debug|x64
+		{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}.Debug|x64.Build.0 = Debug|x64
+		{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}.Release MPI|Win32.ActiveCfg = Release MPI|Win32
+		{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}.Release MPI|x64.ActiveCfg = Release MPI|x64
+		{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}.Release OpenMP|Win32.ActiveCfg = Release|x64
+		{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}.Release OpenMP|x64.ActiveCfg = Release|x64
+		{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}.Release|Win32.ActiveCfg = Release|Win32
+		{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}.Release|Win32.Build.0 = Release|Win32
+		{A6EDD202-5330-47B5-8E1E-5A98D14AD51A}.Release|x64.ActiveCfg = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

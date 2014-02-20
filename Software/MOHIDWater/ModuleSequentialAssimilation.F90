@@ -437,7 +437,7 @@ Module ModuleSequentialAssimilation
         type(T_Property), pointer                   :: FirstProperty  => null()  !initialization: Carina
         type(T_Property), pointer                   :: LastProperty  => null()  !initialization: Carina
         integer                                     :: PropertiesNumber     = FillValueInt
-        integer                                     :: StateVarNumber       = 0 a
+        integer                                     :: StateVarNumber       = 0 
         logical                                     :: PropertiesInFaces    = .false.
 
         !Measurement list

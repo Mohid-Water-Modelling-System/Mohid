@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<VisualStudioUserFile ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{216CC80F-8FC2-4C1D-BE4F-15C010D710DC}">
-	<Configurations>
-		<Configuration Name="Debug|Win32" WorkingDirectory="X:\Proj_396_Muscat\simula\TimeSeriesOperator\test6"/>
-		<Configuration Name="Release|Win32"/></Configurations></VisualStudioUserFile>

@@ -115,7 +115,7 @@ Module ModuleHydrodynamic
                                        GetDischargeSpatialEmission, SetLayer,            &
                                        TryIgnoreDischarge,                               &
                                        GetDischargeFlowDistribuiton, UnGetDischarges,    &
-                                       Kill_Discharges
+                                       Kill_Discharges, CorrectsBypassCellsDischarges
     use ModuleTimeSerie,        only : StartTimeSerie, StartTimeSerieInput,              &
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,     &
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie,        &
@@ -5172,16 +5172,16 @@ cd21:   if (Baroclinic) then
                 !Search Type      : From File
             !<EndKeyword>
 
-            call GetData(ComputeAtmPressureType,                                       &
-                         Me%ObjEnterData, iflag,                      &
+            call GetData(ComputeAtmPressureType,                                        &
+                         Me%ObjEnterData, iflag,                                        &
                          Keyword    = 'ATM_PRESSURE_TYPE',                              &
                         !By default the user wants the Atmospheric Pressure type
-                         Default    = 1,                                     &
-                         SearchType = FromFile,                                    &
-                         ClientModule ='ModuleHydrodynamic',                       &
+                         Default    = 1,                                                &
+                         SearchType = FromFile,                                         &
+                         ClientModule ='ModuleHydrodynamic',                            &
                          STAT       = STAT_CALL)            
 
-            if (STAT_CALL /= SUCCESS_)                                            &
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR550')
 
             Me%ComputeOptions%AtmPressureType = ComputeAtmPressureType
@@ -32628,7 +32628,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         real(8)                            :: MomentumDischarge
         real                               :: DischargeFlow, DischargeVelocity, AuxFlowK, AuxFlowIJ, SectionHeight
         real                               :: WaterLevelByPass !, Depth
-        real                               :: CoordinateX, CoordinateY
+        real                               :: CoordinateX, CoordinateY, XBypass, YBypass
 
         integer                            :: DirectionXY, DischargesNumber, DischargeID
         integer                            :: i, j, k, kd, kmin, kmax, di, dj, STAT_CALL, iNorth, jEast, KUB, n
@@ -32692,22 +32692,34 @@ do1:    do DischargeID = 1, DischargesNumber
                                                CoordinateY   = CoordinateY,             & 
                                                CoordinatesON = CoordinatesON,           &
                                                TimeX         = Me%CurrentTime,          &
+                                               XBypass       = XBypass,                 &
+                                               YBypass       = YBypass,                 &
                                                STAT = STAT_CALL)   
 
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR30'
+            
+            !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
+            call GetByPassON(Me%ObjDischarges, DischargeID, ByPassON, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR50'
         
             if (CoordinatesON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, I, J, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR40'
 
                 call CorrectsCellsDischarges(Me%ObjDischarges, DischargeID, I, J, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR45'                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR45'    
+                
+                if (ByPassON) then
+
+                    call GetXYCellZ(Me%ObjHorizontalGrid, XBypass, YBypass, Ib, Jb, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR400'
+
+                    call CorrectsBypassCellsDischarges(Me%ObjDischarges, DischargeID, Ib, Jb, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR450'
+
+                endif
+                                            
             endif                   
-
-
-            !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
-            call GetByPassON(Me%ObjDischarges, DischargeID, ByPassON, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR50'
 
             if (ByPassON) then
                 WaterLevelByPass = Me%WaterLevel%Old(ib, jb)
@@ -33011,6 +33023,7 @@ Subroutine ModifyMomentumDischargeVert
         real(8)                            :: MomentumDischarge
         real                               :: DischargeFlow, DischargeVelocity, AuxFlowK, AuxFlowIJ, SectionHeight
         real                               :: WaterLevelByPass, CoordinateX, CoordinateY
+        real                               :: XBypass, YBypass
         
         integer                            :: DischargesNumber, DischargeID
         integer                            :: i, j, k, kd, kmin, kmax, STAT_CALL, KUB, n
@@ -33073,10 +33086,15 @@ do1:    do DischargeID = 1, DischargesNumber
                                                CoordinateY   = CoordinateY,             & 
                                                CoordinatesON = CoordinatesON,           &
                                                TimeX         = Me%CurrentTime,          &
+                                               XBypass       = XBypass,                 &
+                                               YBypass       = YBypass,                 &
                                                STAT = STAT_CALL)   
 
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR30'
 
+            !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
+            call GetByPassON(Me%ObjDischarges, DischargeID, ByPassON, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR50'
 
             if (CoordinatesON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, I, J, STAT = STAT_CALL)
@@ -33084,11 +33102,18 @@ do1:    do DischargeID = 1, DischargesNumber
 
                 call CorrectsCellsDischarges(Me%ObjDischarges, DischargeID, I, J, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR45'                
-            endif            
 
-            !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
-            call GetByPassON(Me%ObjDischarges, DischargeID, ByPassON, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR50'
+                if (ByPassON) then
+
+                    call GetXYCellZ(Me%ObjHorizontalGrid, XBypass, YBypass, Ib, Jb, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR400'
+
+                    call CorrectsBypassCellsDischarges(Me%ObjDischarges, DischargeID, Ib, Jb, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR450'
+
+                endif
+
+            endif            
 
             if (ByPassON) then
                 WaterLevelByPass = Me%WaterLevel%Old(ib, jb)
@@ -41062,6 +41087,7 @@ subroutine ModifyWaterDischarges
         integer, dimension(:    ), pointer :: VectorI, VectorJ, VectorK
         real                               :: AuxFlowIJ, SectionHeight
         real                               :: CoordinateX, CoordinateY
+        real                               :: XBypass, YBypass
         logical                            :: CoordinatesON
         integer                            :: nCells, n
         integer                            :: FlowDistribution 
@@ -41122,8 +41148,15 @@ do1:        do DischargeID = 1, DischargesNumber
                                                    CoordinateY   = CoordinateY,         & 
                                                    CoordinatesON = CoordinatesON,       &
                                                    TimeX         = Me%CurrentTime,      &
+                                                   XBypass       = XBypass,             &
+                                                   YBypass       = YBypass,             &
                                                    STAT          = STAT_CALL)   
                 if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR30'
+                
+
+                !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
+                call GetByPassON(Me%ObjDischarges, DischargeID, ByPassON, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR50'                
             
                 if (CoordinatesON) then
                     call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, I, J, STAT = STAT_CALL)
@@ -41131,11 +41164,18 @@ do1:        do DischargeID = 1, DischargesNumber
 
                     call CorrectsCellsDischarges(Me%ObjDischarges, DischargeID, I, J, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR45'                
-                endif                        
+                    
+                    if (ByPassON) then
 
-                !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
-                call GetByPassON(Me%ObjDischarges, DischargeID, ByPassON, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR50'
+                        call GetXYCellZ(Me%ObjHorizontalGrid, XBypass, YBypass, Ib, Jb, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR400'
+
+                        call CorrectsBypassCellsDischarges(Me%ObjDischarges, DischargeID, Ib, Jb, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR450'
+
+                    endif
+                    
+                endif                        
 
                 if (ByPassON) then
                     WaterLevelByPass = Me%WaterLevel%Old(ib, jb)

@@ -189,7 +189,7 @@ Module ModuleWaterProperties
                                           GetDischargeWaterFlow, GetDischargeConcentration,     &
                                           GetByPassON, GetDischargesIDName,                     &
                                           GetDischargeFlowDistribuiton, UnGetDischarges,        &
-                                          GetDischargeON,                                       &
+                                          GetDischargeON, GetByPassConcIncrease,                &
                                           GetDischargeFromIntakeON,GetIntakeConcentration,      &
                                           Kill_Discharges
     use ModuleTimeSerie,            only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerie,  &
@@ -18720,7 +18720,7 @@ do3:            do k = kbottom, KUB
         type (T_DischargeTimeSerie), pointer        :: DischargesTimeSerie
         integer                                     :: DischVertical
         real                                        :: WaterLevelByPass
-        integer                                     :: ib, jb
+        integer                                     :: ib, jb, kb
         logical                                     :: ByPassON, IgnoreOK, DischargeFromIntakeON
 
         real,    dimension(:    ), pointer          :: DistributionCoef
@@ -18728,7 +18728,7 @@ do3:            do k = kbottom, KUB
         real                                        :: AuxFlowIJ
         integer                                     :: nCells, n, AuxCell
         integer                                     :: FlowDistribution
-        real                                        :: ConcentrationIncrease
+        real                                        :: ConcentrationIncrease, ByPassConcIncrease
         integer                                     :: IntakeI, IntakeJ, IntakeK, kmin, kmax
 
                  
@@ -18794,6 +18794,7 @@ dd:     do dis = 1, Me%Discharge%Number
                                                KGrid         = k,                       &
                                                IByPass       = Ib,                      &
                                                JByPass       = Jb,                      &
+                                               KByPass       = Kb,                      &                                               
                                                DischVertical = DischVertical,           &
                                                WaterColumnZ  = WaterColumnZ,            &
                                                Bathymetry    = Me%ExternalVar%Bathymetry,&
@@ -18907,9 +18908,17 @@ dn:         do n=1, nCells
                         if (PropertyX%Evolution%DischargesTracking) nProperties = nProperties + 1
                     
  iby:                   if (ByPassON) then
-                                
+ 
                             if (AuxFlowIJ >= 0.) then                                
-                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(ib, jb, k)                        
+
+                                call GetByPassConcIncrease(Me%ObjDischarges, dis,       &
+                                                           PropertyX%ID%IDNumber,       &
+                                                           ByPassConcIncrease,          &
+                                                           STAT = STAT_CALL)
+                                if (STAT_CALL/=SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR88'
+                                
+                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(ib, jb, kb) + ByPassConcIncrease  
+                                                     
                             else
                                 PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i , j , k)                        
                             endif

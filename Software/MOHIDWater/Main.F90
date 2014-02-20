@@ -818,7 +818,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                     
             
             endif
-                CurrentModel => CurrentModel%Next
+            CurrentModel => CurrentModel%Next
             enddo do1
         endif if1
 
@@ -1002,6 +1002,19 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
             !Send the information to the submodels
             if (CurrentModel%MPI_ID == myMPI_ID) then
 
+                if (associated(CurrentModel%FatherModel)) then
+                    if (CurrentModel%FatherLink%Hydro) then
+                        call RecvHydrodynamicMPI (CurrentModel%HydrodynamicID,              &
+                                                  CurrentModel%FatherModel%MPI_ID,          &
+                                                  CurrentModel%FatherLink%Window,           &
+                                                  InitialField = .true.,                    &
+                                                  FatherGridID = CurrentModel%FatherGridID, &
+                                                  STAT = STAT_CALL)                
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR520'
+                    endif
+                endif
+                
+
                 do iSub = 1, CurrentModel%nSubModels
                     
                     if (CurrentModel%SubmodelLink(iSub)%Hydro) then
@@ -1019,30 +1032,19 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR510'
                     end if
 
-                enddo
-
-                if (associated(CurrentModel%FatherModel)) then
-                    if (CurrentModel%FatherLink%Hydro) then
-                        call RecvHydrodynamicMPI (CurrentModel%HydrodynamicID,              &
-                                                  CurrentModel%FatherModel%MPI_ID,          &
-                                                  CurrentModel%FatherLink%Window,           &
-                                                  InitialField = .true.,                    &
-                                                  FatherGridID = CurrentModel%FatherGridID, &
-                                                  STAT = STAT_CALL)                
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR520'
-                    endif
-                endif
+                enddo                
 
             endif            
 
             CurrentModel => CurrentModel%Next
-
+            
         enddo
-
+        
         !Waits for all processes
         call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR530'
-
+        
+        
         !Sends Initial Water Information.
         CurrentModel => FirstModel
         do while (associated(CurrentModel))
@@ -1050,34 +1052,18 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
             !Send the information to the submodels
             if (CurrentModel%MPI_ID == myMPI_ID) then
 
-                do iSub = 1, CurrentModel%nSubModels
-
-                    if (CurrentModel%SubmodelLink(iSub)%Water) then
-
-                        do iProp = 1, CurrentModel%SubmodelLink(iSub)%nProp
-                            
-                            call SendWaterPropertiesMPI (CurrentModel%WaterPropertiesID,                                    &
-                                             CurrentModel%SubMPIID(iSub),                                       &
-                                             CurrentModel%SubmodelLink(iSub)%Window,                            &
-                                             InitialField = .true.,                                             &
-                                             PropIDNumber = CurrentModel%SubmodelLink(iSub)%PropertyIDNumbers(iProp),   &
-                                             STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR540'
-                        enddo
-
-                    endif
-                enddo
-
                 if (associated(CurrentModel%FatherModel)) then
 
                     if (CurrentModel%FatherLink%Water) then
+                    
+                        write(*,*) 'Son model', CurrentModel%MPI_ID , ' receive from ',CurrentModel%FatherModel%MPI_ID                   
                         
                         do iProp = 1, CurrentModel%FatherLink%nProp
 
-                            call RecvWaterPropertiesMPI (CurrentModel%WaterPropertiesID,           &
-                                                         CurrentModel%FatherModel%MPI_ID,          &
-                                                         CurrentModel%FatherLink%Window,           &
-                                                         InitialField = .true.,                    &
+                            call RecvWaterPropertiesMPI (CurrentModel%WaterPropertiesID, &
+                                                         CurrentModel%FatherModel%MPI_ID,&
+                                                         CurrentModel%FatherLink%Window, &
+                                                         InitialField = .true.,          &
                                                          FatherGridID = CurrentModel%FatherGridID, &
                                                          PropIDNumber = CurrentModel%FatherLink%PropertyIDNumbers(iProp), &
                                                          STAT = STAT_CALL)
@@ -1087,6 +1073,26 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                     end if
 
                 endif
+                
+                do iSub = 1, CurrentModel%nSubModels
+
+                    if (CurrentModel%SubmodelLink(iSub)%Water) then
+                    
+                        write(*,*) 'From father model ', CurrentModel%MPI_ID , ' to ',CurrentModel%SubMPIID(iSub)
+
+                        do iProp = 1, CurrentModel%SubmodelLink(iSub)%nProp
+                            
+                            call SendWaterPropertiesMPI (CurrentModel%WaterPropertiesID,&
+                                             CurrentModel%SubMPIID(iSub),               &
+                                             CurrentModel%SubmodelLink(iSub)%Window,    &
+                                             InitialField = .true.,                     &
+                                             PropIDNumber = CurrentModel%SubmodelLink(iSub)%PropertyIDNumbers(iProp),   &
+                                             STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR540'
+                        enddo
+
+                    endif
+                enddo                
 
 
             endif            
@@ -1410,7 +1416,7 @@ doNext:     do while (associated(NextModel))
                         !Gets the Intital Time of the Iteration
                         call GetModelCurrentTime (CurrentModel%ModelID, CurrentModel%StartIteration, &
                                                   STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR40'
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR40'
 
                         if (CurrentModel%SubOn) then
                             !send information from father to son
