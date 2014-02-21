@@ -57,6 +57,7 @@ Module ModuleDDC
     private ::              CreateGlobalSize
     private ::              WriteHDFDataSet
     private ::              WriteTimeValues
+    private ::              ArrayDeallocate
     
     !Destructor
     public  :: KillDDC
@@ -539,6 +540,16 @@ if1 :   if (hash_get_next_exists(hash_map_in, HDFFile)) then
         idx             = NULL_INT
         LimitsArray     = 1
 
+        nullify(IArray1D)
+        nullify(IArray2D)
+        nullify(IArray3D)
+        nullify(R4Array1D)
+        nullify(R4Array2D)
+        nullify(R4Array3D)
+        nullify(R8Array1D)
+        nullify(R8Array2D)
+        nullify(R8Array3D)
+
         !Get the number of members in the Group  
         call GetHDF5GroupNumberOfItems (HDF5ID = ObjHDF5_In,                         &
                                         GroupName = adjustl(trim(GroupName))//"/",   &
@@ -648,6 +659,10 @@ if5 :           if(Exist .AND. adjustl(trim(GroupName)) .NE. "/Time") then
                                             IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
                                             R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
                                             R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
+                                            
+                    call ArrayDeallocate   (IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
+                                            R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
+                                            R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
 
                 elseif (adjustl(trim(GroupName)) .NE. "/Time") then if5
                     
@@ -676,9 +691,13 @@ if5 :           if(Exist .AND. adjustl(trim(GroupName)) .NE. "/Time") then
                                             obj_name   = adjustl(trim(Name)),                                           &
                                             Rank       = Rank,                                                          &
                                             DataType   = DataType,                                                      &
-                                            Minimum    = Minimum,                                                          &
-                                            Maximum    = Maximum,                                                          &
+                                            Minimum    = Minimum,                                                       &
+                                            Maximum    = Maximum,                                                       &
                                             IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
+                                            R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
+                                            R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
+                                            
+                    call ArrayDeallocate   (IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
                                             R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
                                             R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
                     
@@ -689,6 +708,10 @@ if5 :           if(Exist .AND. adjustl(trim(GroupName)) .NE. "/Time") then
                                             GroupName = GroupName, Name = adjustl(trim(Name)), Minimum = Minimum,   &
                                             Maximum = Maximum, Units  = Units, IArray1D = IArray1D,                 &
                                             R4Array1D = R4Array1D, R8Array1D = R8Array1D)
+                                            
+                    call ArrayDeallocate   (IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
+                                            R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
+                                            R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
 
                 end if if5
                
@@ -707,6 +730,11 @@ if3 :           if(adjustl(trim(GroupName)) .EQ. "/") then
                 
 if2 :           if (adjustl(trim(GroupName))//"/"//adjustl(trim(Name)) .NE. &
                     "/Grid/Decomposition") then
+                    
+!                    call ArrayDeallocate   (IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
+!                                            R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
+!                                            R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
+
                     
                     call WriteConsolidatedHDF  (IDOut           = IDOut,                                                    &
                                                 ObjHDF5_Out     = ObjHDF5_Out,                                              &
@@ -727,6 +755,74 @@ if2 :           if (adjustl(trim(GroupName))//"/"//adjustl(trim(Name)) .NE. &
         !------------------------------------------------------------------------
 
     end subroutine WriteConsolidatedHDF
+
+        !--------------------------------------------------------------------------
+
+    subroutine ArrayDeallocate( IArray1D, IArray2D, IArray3D,                  &
+                                R4Array1D, R4Array2D, R4Array3D,               &
+                                R8Array1D, R8Array2D, R8Array3D)
+
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:),       pointer                    :: IArray1D
+        integer, dimension(:, :),    pointer                    :: IArray2D
+        integer, dimension(:, :, :), pointer                    :: IArray3D
+        real(4), dimension(:),       pointer                    :: R4Array1D
+        real(4), dimension(:, :),    pointer                    :: R4Array2D
+        real(4), dimension(:, :, :), pointer                    :: R4Array3D
+        real(8), dimension(:),       pointer                    :: R8Array1D
+        real(8), dimension(:, :),    pointer                    :: R8Array2D
+        real(8), dimension(:, :, :), pointer                    :: R8Array3D
+        
+        !Local-------------------------------------------------------------------
+        integer                                                 :: STAT_CALL
+        
+        !------------------------------------------------------------------------
+        
+if1 :   if(associated(IArray1D) .EQ. .TRUE.)   then
+
+            deallocate(IArray1D)
+            
+        elseif (associated(IArray2D) .EQ. .TRUE.) then if1
+        
+            deallocate(IArray2D)
+
+        elseif (associated(IArray3D) .EQ. .TRUE.) then if1
+
+            deallocate(IArray3D)
+            
+        end if if1
+
+if2 :   if(associated(R4Array1D) .EQ. .TRUE.) then 
+
+            deallocate(R4Array1D)
+            
+        elseif (associated(R4Array2D) .EQ. .TRUE.) then if2
+
+            deallocate(R4Array2D)
+
+        elseif (associated(R4Array3D) .EQ. .TRUE.) then if2
+
+            deallocate(R4Array3D)
+            
+        end if if2  
+
+if3 :   if(associated(R8Array1D) .EQ. .TRUE.) then 
+
+            deallocate(R8Array1D)
+
+        elseif (associated(R8Array2D) .EQ. .TRUE.) then if3
+
+            deallocate(R8Array2D)
+
+        elseif (associated(R8Array3D) .EQ. .TRUE.) then if3
+
+            deallocate(R8Array3D)
+
+        end if if3
+          
+        !------------------------------------------------------------------------
+    
+    end subroutine ArrayDeallocate  
 
         !--------------------------------------------------------------------------
 
@@ -1183,15 +1279,15 @@ if1 :   if (DomainSize(1) .GT. 1) then
         character(*), intent(IN)                                :: Units   
         
         !Local-------------------------------------------------------------------
-        integer, dimension(:),       pointer                    :: IArray1D
-        integer, dimension(:, :),    pointer                    :: IArray2D
-        integer, dimension(:, :, :), pointer                    :: IArray3D
-        real(4), dimension(:),       pointer                    :: R4Array1D
-        real(4), dimension(:, :),    pointer                    :: R4Array2D
-        real(4), dimension(:, :, :), pointer                    :: R4Array3D
-        real(8), dimension(:),       pointer                    :: R8Array1D
-        real(8), dimension(:, :),    pointer                    :: R8Array2D
-        real(8), dimension(:, :, :), pointer                    :: R8Array3D
+        integer, dimension(:),       pointer                    :: CIArray1D
+        integer, dimension(:, :),    pointer                    :: CIArray2D
+        integer, dimension(:, :, :), pointer                    :: CIArray3D
+        real(4), dimension(:),       pointer                    :: CR4Array1D
+        real(4), dimension(:, :),    pointer                    :: CR4Array2D
+        real(4), dimension(:, :, :), pointer                    :: CR4Array3D
+        real(8), dimension(:),       pointer                    :: CR8Array1D
+        real(8), dimension(:, :),    pointer                    :: CR8Array2D
+        real(8), dimension(:, :, :), pointer                    :: CR8Array3D
         integer                                                 :: STAT_CALL    
         integer                                                 :: LimitsArrayFactor
         integer                                                 :: ILB
@@ -1292,36 +1388,36 @@ if1 :   if (Rank .EQ. 1) then
 
 if12 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
 
-                allocate (IArray1D(ILB:IUB))
-                IArray1D(:) = null_int
+                allocate (CIArray1D(ILB:IUB))
+                CIArray1D(:) = null_int
             
                 call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array1D = IArray1D, STAT = STAT_CALL)
+                                   Units, Array1D = CIArray1D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR02'
 
-                deallocate(IArray1D)
+                deallocate(CIArray1D)
             
             elseif (DataType .EQ. H5T_NATIVE_REAL) then if12
             
-                allocate (R4Array1D(ILB:IUB))
-                R4Array1D(:) = null_real
+                allocate (CR4Array1D(ILB:IUB))
+                CR4Array1D(:) = null_real
                 
                 call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array1D = R4Array1D, STAT = STAT_CALL)
+                                   Units, Array1D = CR4Array1D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR03'
 
-                deallocate(R4Array1D)
+                deallocate(CR4Array1D)
             
             elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if12
             
-                allocate (R8Array1D(ILB:IUB))
-                R8Array1D(:) = null_real
+                allocate (CR8Array1D(ILB:IUB))
+                CR8Array1D(:) = null_real
              
                 call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array1D = R8Array1D, STAT = STAT_CALL)
+                                   Units, Array1D = CR8Array1D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR04'
 
-                deallocate(R8Array1D)
+                deallocate(CR8Array1D)
             
             endif if12
 
@@ -1329,39 +1425,39 @@ if12 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then
         
 if13 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
 
-                allocate (IArray2D (ILB:IUB,                                        &
+                allocate (CIArray2D (ILB:IUB,                                        &
                                     JLB:JUB))
-                IArray2D(:,:) = null_int
+                CIArray2D(:,:) = null_int
                          
                 call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                  Units, Array2D = IArray2D, STAT = STAT_CALL)
+                                  Units, Array2D = CIArray2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR05'
 
-                deallocate(IArray2D)
+                deallocate(CIArray2D)
             
             elseif (DataType .EQ. H5T_NATIVE_REAL) then if13
             
-                allocate (R4Array2D(ILB:IUB,                                        &
+                allocate (CR4Array2D(ILB:IUB,                                        &
                                     JLB:JUB))
-                R4Array2D(:,:) = null_real
+                CR4Array2D(:,:) = null_real
                           
                 call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                  Units, Array2D = R4Array2D, STAT = STAT_CALL)
+                                  Units, Array2D = CR4Array2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR06'
 
-                deallocate(R4Array2D)                          
+                deallocate(CR4Array2D)                          
 
             elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if13
             
-                allocate (R8Array2D(ILB:IUB,                                       &
+                allocate (CR8Array2D(ILB:IUB,                                       &
                                     JLB:JUB))
-                R8Array2D(:,:) = null_real
+                CR8Array2D(:,:) = null_real
                           
                 call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                  Units, Array2D = R8Array2D, STAT = STAT_CALL)
+                                  Units, Array2D = CR8Array2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR07'
 
-                deallocate(R8Array2D) 
+                deallocate(CR8Array2D) 
             
             endif if13
         
@@ -1369,42 +1465,42 @@ if13 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then
         
 if14 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
 
-                allocate (IArray3D (ILB:IUB,                                         &
+                allocate (CIArray3D (ILB:IUB,                                         &
                                     JLB:JUB,                                         &
                                     kLB:kUB))
-                IArray3D(:,:,:) = null_int
+                CIArray3D(:,:,:) = null_int
                           
                 call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array3D = IArray3D, STAT = STAT_CALL)
+                                   Units, Array3D = CIArray3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR08'
                             
-                deallocate(IArray3D)
+                deallocate(CIArray3D)
             
             elseif (DataType .EQ. H5T_NATIVE_REAL) then if14
             
-                allocate (R4Array3D(ILB:IUB,                                         &
+                allocate (CR4Array3D(ILB:IUB,                                         &
                                     JLB:JUB,                                         &
                                     kLB:kUB))
-                R4Array3D(:,:,:) = null_real
+                CR4Array3D(:,:,:) = null_real
                           
                 call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array3D = R4Array3D, STAT = STAT_CALL)
+                                   Units, Array3D = CR4Array3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR09'
                             
-                deallocate(R4Array3D)                          
+                deallocate(CR4Array3D)                          
             
             elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if14
             
-                allocate (R8Array3D(ILB:IUB,                                         &
+                allocate (CR8Array3D(ILB:IUB,                                         &
                                     JLB:JUB,                                         &
                                     kLB:kUB))
-                R8Array3D(:,:,:) = null_real
+                CR8Array3D(:,:,:) = null_real
                           
                 call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array3D = R8Array3D, STAT = STAT_CALL)
+                                   Units, Array3D = CR8Array3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR10'
                             
-                deallocate(R8Array3D)                             
+                deallocate(CR8Array3D)                             
             
             endif if14
         
@@ -1709,6 +1805,7 @@ if4 :               if (IDOut <0) then
         ObjHDF5_In = NULL_INT
         Group      = NULL_INT
         GroupName  = NULL_STR
+        allocate(DataVal1D(1:4))
 
 if1 :   if(FirstTime .EQ. 1) then
             DecompositionGroup = "/Grid/Decomposition/Global/"            
@@ -1756,10 +1853,16 @@ if2 :   if(FirstTime .EQ. 1) then
         
 if3 :   if (FirstTime .LE. 2) then
 
+            deallocate(DataVal1D)
+    
             call GetDomainDecomposition(HDFFile = HDFFile,   &
                                             hash_map_in = hash_map_in,                                &
                                             FirstTime = FirstTime+1)
         endif if3
+        
+if4 :   if (associated (DataVal1D)) then 
+            deallocate(DataVal1D) 
+        endif if4
         
         !------------------------------------------------------------------------
 
@@ -1793,8 +1896,6 @@ if3 :   if (FirstTime .LE. 2) then
 
 if1 :   if (GroupType == H5G_DATASET_F) then
 
-            allocate(DataVal1D(1:4))
-                
             call HDF5SetLimits  (HDF5ID = ObjHDF5_In, ILB = 1, IUB = 4, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'GetMappingValues - ModuleDDC - ERR02'
                 
