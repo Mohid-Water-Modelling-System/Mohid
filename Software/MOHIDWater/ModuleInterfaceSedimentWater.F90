@@ -2464,24 +2464,29 @@ cd2 :           if (BlockFound) then
                               STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
            stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR04'
-
+           
+        call HDF5WriteData  (Me%ObjHDF5, "/Grid/CellArea", "CellArea",           &
+                                 'm2', Array2D = Me%ExternalVar%GridCellArea,    &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+           stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR05'
         
         call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB,                          &
                              WorkJLB, WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
-           stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR05'
+           stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR06'
 
         call HDF5WriteData  (Me%ObjHDF5, "/Grid", "WaterPoints3D",                    &
                              "-", Array3D = Me%ExtWater%WaterPoints3D,              &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
-           stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR06'
+           stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR07'
 
         
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
-           stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR07'
+           stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR08'
        
         !----------------------------------------------------------------------
 
@@ -8407,13 +8412,7 @@ PropX:      do while (associated(PropertyX))
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) &
                             stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR07'
-                            
-                        call HDF5WriteData  (Me%ObjHDF5, "/Grid/CellArea", "CellArea",           &
-                                 'm2', Array2D = Me%ExternalVar%GridCellArea,                    &
-                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) &
-                            stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR07a'
-                            
+                                                        
                     end if
                     
                     if(PropertyX%Evolution%SedimentWaterFluxes)then

@@ -6075,7 +6075,7 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         !Arguments-------------------------------------------------------------
         real                                        :: WindSpeed
 
-        WindFunction = 4.18e-9 + 0.95e-9 * WindSpeed
+        WindFunction = 3.6e-9 + 0.95e-9 * WindSpeed
 
     end function WindFunction
 
