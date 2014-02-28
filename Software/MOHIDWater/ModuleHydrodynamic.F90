@@ -2513,7 +2513,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                        Matrix3D             = Matrix3D,                         &
                                        TypeZUV              = Me%Velocity%Horizontal%U%InTypeZUV,&
                                        FillMatrix           = 0.,                               &
-                                       ClientID             = ClientNumber,                     &                                        
+                                       ClientID             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR150'
 

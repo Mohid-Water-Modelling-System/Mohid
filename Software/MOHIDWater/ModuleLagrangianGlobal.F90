@@ -6262,10 +6262,10 @@ SP:             if (NewProperty%SedimentPartition%ON) then
 
             if (.not. NewOrigin%Default) then
                 if (NewOrigin%State%Oil) then
-                    call ConstructParticOil (NewOrigin, ClientNumber)
+                call ConstructParticOil (NewOrigin, ClientNumber)
                 elseif (NewOrigin%State%HNS) then
                     call ConstructParticHNS (NewOrigin, ClientNumber)
-                endif
+            endif
             endif
 
             call GetData(NewOrigin%CDispOilOff,                                  &
@@ -9350,9 +9350,9 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                     call GetOilAPI (CurrentOrigin%ObjOil, API = Density, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'EmissionAccident - ModuleLagrangianGlobal - ERR01'
 
-                    AreaTotal = F_FayArea(VolInic          = CurrentOrigin%PointVolume,        & 
+            AreaTotal = F_FayArea(VolInic          = CurrentOrigin%PointVolume,        & 
                                           Density          = Density,                          & 
-                                          WaterDensity     = GetFirstParticDens(CurrentOrigin),& 
+                                  WaterDensity     = GetFirstParticDens(CurrentOrigin),& 
                                           WaterTemperature = GetFirstParticTemp(CurrentOrigin),&
                                           DensityInAPI     = DensityInAPI)
 
@@ -12335,7 +12335,7 @@ iON:        if (CurrentOrigin%EmissionON) then
                                    ! if particles are emitted below the surface, they will not have initial area
                                     call EmissionPoint         (CurrentOrigin)
                                 else
-                                    call EmissionAccident      (CurrentOrigin)
+                                call EmissionAccident      (CurrentOrigin)
                                 endif
     
                             end select
@@ -13057,7 +13057,7 @@ i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) th
 
   !--------------------------------------------------------------------------
 
-       subroutine ParticleDensity () 
+     subroutine ParticleDensity () 
     
         !Arguments-------------------------------------------------------------
 
@@ -14241,7 +14241,7 @@ CurrOr: do while (associated(CurrentOrigin))
                                 !also if there are no particles at surface, there is no spreading process;
                                 CurrentPartic%HNSSpreadingDiffCoef  = 0.0
                                 CurrentPartic%HNSSpreadingDiffVel   = 0.0
-                            endif
+            endif
                         else
                             !ROD: underwater spill disconnets spreading; this can be reviewed in the future
                             CurrentPartic%HNSSpreadingDiffCoef  = 0.0
@@ -14728,7 +14728,7 @@ if_stm:                     If (CurrentOrigin%Movement%StokesDriftMethod == Long
 
                     UOil  = 0.0
                     VOil  = 0.0
-                    
+                        
                     UHNS  = 0.0
                     VHNS  = 0.0
                         
@@ -19080,7 +19080,7 @@ CurrOr: do while (associated(CurrentOrigin))
     subroutine HNSInitialValues ()
 
         !Arguments-------------------------------------------------------------
-   
+    
 
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
@@ -21115,14 +21115,14 @@ i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTempo
                     call WriteHNSGridConc2D (em, OutputNumber)
                 endif
 
+                if (em /= emMax) cycle
+
+                allocate (TotParticle(Me%nGroups))
+                TotParticle(:) = 0
+
+                JetTotalParticles = 0
+                
 i1:             if (nP>0) then
-
-                    if (em /= emMax) cycle
-
-                    allocate (TotParticle(Me%nGroups))
-                    TotParticle(:) = 0
-
-                    JetTotalParticles = 0
 
                     !Writes Data for every origin
                     CurrentOrigin => Me%FirstOrigin
@@ -21884,14 +21884,26 @@ i1:             if (nP>0) then
                         CurrentOrigin => CurrentOrigin%Next
 
                     enddo CurrOr
+                    
+                endif i1
 
 
                     !Writes 1D data for every group
 
 dig:                do ig = 1, Me%nGroups
-iTP:                if (TotParticle(ig) > 0) then
+iTP:                    if (TotParticle(ig) == 0) then
+                            TotParticle(ig) = 1
+                        endif iTP
+
+
                         allocate    (Matrix1DX(TotParticle(ig)))
                         allocate    (Matrix1DY(TotParticle(ig)))
+                        
+                        call HDF5SetLimits  (Me%ObjHDF5(em), 1, TotParticle(ig),  &
+                                             STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR430'
+                        
+                                                
                                                                         
                         Matrix1DX(:) = FillValueReal
                         Matrix1DY(:) = FillValueReal
@@ -21899,10 +21911,6 @@ iTP:                if (TotParticle(ig) > 0) then
                         write (AuxChar, fmt='(i3)') Me%GroupIDs(ig)
                         
                         GroupName = "Group_"//trim(adjustl(AuxChar))//"/Data_1D"
-
-                        call HDF5SetLimits  (Me%ObjHDF5(em), 1, TotParticle(ig),  &
-                                             STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR430'
 
 
                         !(XPosition)
@@ -22693,7 +22701,6 @@ thick:                      do while (associated(CurrentOrigin))
 
                         deallocate  (Matrix1D)
 
-                    endif iTP
                     enddo dig
                 
                     if (Me%State%Monitor) then
@@ -22708,7 +22715,6 @@ thick:                      do while (associated(CurrentOrigin))
                     
                     deallocate(TotParticle)
 
-                endif i1
 
                 enddo de
 

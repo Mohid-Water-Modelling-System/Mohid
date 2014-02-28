@@ -645,6 +645,13 @@ BF:         if (BlockFound) then
 
                 enddo                
                 
+                if (Me%Field4D) then
+                    do  iP = 1, Me%PropNumber                
+                        allocate(Me%Properties(iP)%Field(1:Me%HDF5Number))
+                    enddo
+                endif                    
+                    
+                
                 iH = 0
 
                 do line = FirstLine + 1, LastLine - 1
@@ -676,8 +683,6 @@ i1:                 if (exist) then
                         
                             do  iP = 1, Me%PropNumber
                                 
-                                allocate(Me%Properties(iP)%Field(1:Me%HDF5Number))
-
                                 call ConstructField4D(Field4DID     = Me%Properties(iP)%Field(iH)%ID,&
                                                       EnterDataID   = Me%ObjEnterData,      &
                                                       ExtractType   = FromFile,             &
@@ -1434,7 +1439,9 @@ do4:                do iH = 1, Me%HDF5Number
                                               Field                 = Prop1D,           &
                                               NoData                = NoData,           &
                                               STAT                  = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'GenerateNewTableField4D - ModuleValida4D - ERR10' 
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'GenerateNewTableField4D - ModuleValida4D - ERR10' 
+                        endif                            
                     
                         do nP = 1, nPoints
                             if (.not. NoData(nP)) then
