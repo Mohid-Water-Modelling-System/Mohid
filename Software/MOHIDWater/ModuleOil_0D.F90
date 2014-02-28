@@ -61,7 +61,7 @@ Module ModuleOil_0D
 !       <<BeginOil>>
 !       OIL_TIMESERIE         : char                                    [-]         !Name of the Output results file
 !       DT_OUTPUT_TIME        : real                                    [-]         !Time between output results
-!        DT_OIL_INTPROCESSES!  : real                                    [DT_PARTIC] ! Time step for oil internal processes
+!       DT_OIL_INTPROCESSES!  : real                               [DT_PARTIC] ! Time step for oil internal processes
 !       
 !       OILTYPE               : Crude/Refined                           [Crude]     !Oil Type
 !       API                   : real                                    [-]         !American Petroleum Institute (API) Gravity
@@ -89,10 +89,10 @@ Module ModuleOil_0D
 !       (the following 5 keywords are only necessary when Evaporation Method = Fingas)
 !       FINGAS_EVAP_EQTYPE    : Logarithmic / SquareRoot                []          !Evaporation Equation Type
 !       FINGAS_EVAP_EMP_DATA  : 0/1                                     [0]         !Knowledge of Empirical Data for Evaporation 
-!        following 2 kewords are necessary if FINGAS_EVAP_EMP_DATA = 1
+!       following 2 kewords are necessary if FINGAS_EVAP_EMP_DATA = 1
 !       FINGAS_EVAP_CONST1    : real                                    [-]         !Empirical Constant 1 
 !       FINGAS_EVAP_CONST2    : real                                    [-]         !Empirical Constant 2 
-!        following keword is needed if FINGAS_EVAP_EMP_DATA = 0
+!       following keword is needed if FINGAS_EVAP_EMP_DATA = 0
 !       PERC_MASSDIST180      : real (%)                                [-]         !%(Wheight) of Oil Evaporated until 180ºC 
 !
 !       OIL_DISPERSION        : 0/1                                     [0]         !Oil Dispersion Process
@@ -224,6 +224,7 @@ Module ModuleOil_0D
     private ::      AreaTeoric
     public  ::      GetDropletDiameterParameters
     public  ::      GetEntrainedClasses
+    public  ::      GetDropletDiameterOrQdTotal     
     private ::      F_CVisc_E               !Function
     private ::      F_ThicknessLimit        !Function
     public  ::      F_FayArea               !Function
@@ -1515,7 +1516,13 @@ cd13:       if (Me%Var%SpreadingMethod  .EQ. ThicknessGradient_) then
                      STAT           = STAT_CALL) 
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             call SetError(FATAL_, INTERNAL_, "Subroutine OilOptions - ModuleOil_0D. ERR410")
-
+        if (Me%Var%OilSedimentation) then
+            if (.not. Me%Var%OilDispersion) then
+                write(*,*) 'Oil Sedimentation needs Dispersion connected.'
+                stop "Subroutine OilOptions - ModuleOil_0D. ERR415"
+            endif
+        endif
+            
 
         call GetData(Me%Var%OilDissolution,                                             &
                      Me%ObjEnterData,                                                   &
@@ -2450,7 +2457,7 @@ cd2 :       if (LagrangianTime .GE. Me%NextInternalComputeTime) then
 
                         if ( ((Me%Var%OilDispersion) .AND. (Me%Var%DispersionMethod .EQ. Delvigne)) &
                             .OR. (Me%Var%OilSedimentation) )                                            &
-                            Me%Var%Cdisp      = F_Cdisp ()
+                            Me%Var%Cdisp      = F_Cdisp (Me%Var%ViscCin)
 
                         !Integrated Values
                         if ((Me%Var%OilEmulsification) .and. (Me%Var%OilIsFloating))                    &
@@ -2821,7 +2828,7 @@ cd4:   if  (Me%Var%MassOil - (Me%Var%MEvaporatedDT) * Me%Var%DTOilInternalProces
 !        real            :: Fwc
         integer         :: n
         real            :: QdTotal
-        real            :: DropletDiameter(5), Qd(5)
+        real            :: Qd(5) ! Entrainment rate per size class
         !------------------------------------------------------------------------
 
 
@@ -2845,7 +2852,15 @@ cd1:    if (Me%Var%DispersionMethod .EQ. Delvigne)  then
 !
 !            end if  cd2
 
-            Call GetEntrainedClasses(Me%Var%Viscosity, 5, QdTotal, Qd, DropletDiameter)
+
+            Call GetEntrainedClasses(Me%Var%ViscCin,                                            &
+                                     Me%ExternalVar%WaveHeight,                                 &
+                                     Me%ExternalVar%WaterDensity,                               &
+                                     Me%ExternalVar%Wind,                                       &
+                                     Me%ExternalVar%WavePeriod,                                 &
+                                     5,                                                         &
+                                     QdTotal,                                                   &
+                                     Qd)
 
 
             Me%Var%MDispersedDT           = (1-Me%Var%MWaterContent) * QdTotal    &
@@ -2856,7 +2871,7 @@ cd1:    if (Me%Var%DispersionMethod .EQ. Delvigne)  then
         
         else if (Me%Var%DispersionMethod .EQ. Mackay)  then   cd1
    
-            Me%Var%MDispersedDT           = (0.11/3600) * Me%Var%MassOil                    &
+            Me%Var%MDispersedDT           = (0.11/3600) * Me%Var%MassOil                        &
                                                 * ( Me%ExternalVar%Wind + 1 )**2                &
                                                 / ( 1 + 50 * sqrt(Me%Var%Viscosity) *           &
                                                 (100.0 * Me%Var%SlickThickness) &
@@ -2923,7 +2938,91 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
         !------------------------------------------------------------------------
 
     end subroutine Dispersion
-        !------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    subroutine GetDropletDiameterOrQdTotal(MethodBWDropletsDiameter,                    &
+                                           D50,                                         &
+                                           ParticleViscCin,                             &
+                                           WaveHeight,                                  &
+                                           WaterDensity,                                &
+                                           Wind,                                        &
+                                           WavePeriod,                                  &
+                                           DropletDiameter,                             &
+                                           QdTotal)
+    
+        !Arguments----------------------------------------------------------------------
+        integer, intent(IN)            :: MethodBWDropletsDiameter
+        real,    intent(IN)            :: D50, ParticleViscCin
+        real,    intent(IN)            :: WaveHeight, WaterDensity, Wind, WavePeriod
+        real, optional, intent(OUT)    :: DropletDiameter
+        real, optional, intent(OUT)    :: QdTotal ! Total entrainment rate
+
+        !Local--------------------------------------------------------------------------
+        !type (T_Origin), pointer                    :: CurrentOrigin
+        real            :: ComputedD50
+        integer         :: i
+        !real, parameter :: EWave = 5000. ! energy dissipation rate per unit volume (J/m3-s) between 1000 and 10000 - Delvigne 1988
+        real            :: DropletDiameterList(5) ! mean droplet diameter per size class
+        real            :: Qd(5) ! Entrainment rate per size class
+        real            :: QdTotal_ ! Total entrainment rate
+        real            :: RandVal
+        real            :: CumulativeFraction(5)
+        !Begin--------------------------------------------------------------------------
+        select case (MethodBWDropletsDiameter)
+        
+        case (UserDefined_)
+            DropletDiameter = D50
+
+        case (Computed_Half_D50_)
+            call GetDropletDiameterParameters(ParticleViscCin      = ParticleViscCin, &
+                                              ComputedD50          = ComputedD50)
+            DropletDiameter  = 0.5 * ComputedD50 
+                  
+        case (Computed_Classes_Random_)
+          
+            call GetEntrainedClasses(ParticleViscCin,                                   &
+                                     WaveHeight,                                        &
+                                     WaterDensity,                                      &
+                                     Wind,                                              &
+                                     WavePeriod,                                        &
+                                     5,                                                 &
+                                     QdTotal_,                                          &
+                                     Qd,                                                &
+                                     DropletDiameterList)
+                                  
+            if (QdTotal_ .EQ. 0.0) then
+                !no diameter class (minimum diameter = maximum diameter)
+                ! in this case, half computed D50 will be used as alternative
+                call GetDropletDiameterParameters(ParticleViscCin      = ParticleViscCin, &
+                                                  ComputedD50          = ComputedD50)
+                DropletDiameter  = 0.5 * ComputedD50 
+                
+            else
+                call random_number(RandVal)
+
+                CumulativeFraction(1) = (Qd(1) / QdTotal_)
+                do i = 2,5
+                    CumulativeFraction(i) =  CumulativeFraction(i-1) + (Qd(i) / QdTotal_)
+                end do
+
+                If (RandVal <= CumulativeFraction(1)) then
+                        DropletDiameter = DropletDiameterList(1)
+                else
+                    do i = 2,5 
+                        if ((RandVal <= CumulativeFraction(i)) .and. (RandVal > CumulativeFraction(i-1))) then
+                            DropletDiameter = DropletDiameterList(i)
+                            exit
+                        endif        
+                    end do             
+                Endif
+            endif
+            
+            if (present(QdTotal)) QdTotal = QdTotal_ 
+        
+        end select       
+       
+        
+    end subroutine GetDropletDiameterOrQdTotal
 
 
         !------------------------------------------------------------------------
@@ -2940,20 +3039,20 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
         real            :: ViscCin
         real            :: MinDropletDiameter_
         real            :: MaxDropletDiameter_
-        real            :: ComputedD50_
+        real            :: ComputedD502_
         !------------------------------------------------------------------------
             !ViscCin             = 1000. * ParticleViscosity / ParticleDensity
             ViscCin             = ParticleViscCin 
-            ComputedD50_         = 1818. * (EWave**(-0.5)) * (ViscCin**0.34) ! in microns
-            ComputedD50_         = ComputedD50_ * 1E-06 ! in meters
-        if (present(ComputedD50))                                                      &
-            ComputedD50 = ComputedD50_
+            ComputedD502_         = 1818. * (EWave**(-0.5)) * (ViscCin**0.34) ! in microns
+            ComputedD502_         = ComputedD502_ * 1E-06 ! in meters
+        if (present(ComputedD50))                                                             &
+            ComputedD50 = ComputedD502_
 
-            MinDropletDiameter_  = 0.1 * ComputedD50_
+            MinDropletDiameter_  = 0.1 * ComputedD502_
         if (present(MinDropletDiameter))                                                      &
             MinDropletDiameter = MinDropletDiameter_
 
-            MaxDropletDiameter_  = min(ComputedD50_, 70.E-06)
+            MaxDropletDiameter_  = min(ComputedD502_, 70.E-06)
         if (present(MaxDropletDiameter))                                                      &
             MaxDropletDiameter = MaxDropletDiameter_
 
@@ -2961,14 +3060,26 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
 
         !------------------------------------------------------------------------
 
-    subroutine GetEntrainedClasses(ParticleViscCin, ClassesNbr, QdTotal, Qd, DropletDiameter)
+    subroutine GetEntrainedClasses(ParticleViscCin,                                            &
+                                   WaveHeight,                                                 &
+                                   WaterDensity,                                               &
+                                   Wind,                                                       &
+                                   WavePeriod,                                                 &
+                                   ClassesNbr,                                                 &
+                                   QdTotal,                                                    &
+                                   Qd,                                                         &
+                                   DropletDiameterList)
 
         !Arguments---------------------------------------------------------------
         real,              intent(IN )               :: ParticleViscCin
+        real,              intent(IN )               :: WaveHeight
+        real,              intent(IN )               :: WaterDensity
+        real,              intent(IN )               :: Wind
+        real,              intent(IN )               :: WavePeriod
         integer,           intent(IN )               :: ClassesNbr
         real,              intent(OUT )              :: QdTotal
         real, dimension(ClassesNbr), intent(OUT )    :: Qd
-        real, dimension(ClassesNbr), intent(OUT )    :: DropletDiameter
+        real, dimension(ClassesNbr), optional, intent(OUT )    :: DropletDiameterList
 
         !Internal----------------------------------------------------------------
         !real, parameter :: EWave = 5000.0 ! energy dissipation rate per unit volume (J/m3-s) between 1000 and 10000 - Delvigne 1988
@@ -2979,31 +3090,33 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
         real            :: Fwc
         real            :: Cdisp
         integer         :: i
+        real, dimension(ClassesNbr) :: DropletDiameterList_
         !------------------------------------------------------------------------
 
-        Dba = F_Dba ()
-        Fwc = F_Fwc ()
+        Dba = F_Dba (WaveHeight, WaterDensity)
+        Fwc = F_Fwc (Wind, WavePeriod)
+        Cdisp = F_CDisp (ParticleViscCin)
         
-        If (Me%Var%Cdisp == null_real) then
-                Cdisp = F_CDisp ()
-        Else
-                Cdisp = Me%Var%Cdisp
-        End If
-        
+        MinDropletDiameter = 0.
+        MaxDropletDiameter = 0.
+
+
         call GetDropletDiameterParameters(ParticleViscCin      = ParticleViscCin, &
                                           MinDropletDiameter   = MinDropletDiameter, &
                                           MaxDropletDiameter   = MaxDropletDiameter)
 
-        DeltaDiameter       = (MaxDropletDiameter - MinDropletDiameter) / ClassesNbr
-                             
+            DeltaDiameter       = (MaxDropletDiameter - MinDropletDiameter) / ClassesNbr
+            
+                                     
         QdTotal = 0.
         do i = 1,ClassesNbr
             ! Calculate mean droplet diameter for each oil droplet interval
-            DropletDiameter(i) = MinDropletDiameter + DeltaDiameter * (i-1) + 0.5 * DeltaDiameter
-            Qd(i) = Cdisp  * (Dba**0.57) * Fwc * (DropletDiameter(i) **0.7)* DeltaDiameter
-            QdTotal = QdTotal + Qd(i)
-            
+            DropletDiameterList_(i) = MinDropletDiameter + DeltaDiameter * (i-1) + 0.5 * DeltaDiameter
+            Qd(i) = Cdisp  * (Dba**0.57) * Fwc * (DropletDiameterList_(i) **0.7)* DeltaDiameter
+            QdTotal = QdTotal + Qd(i)           
         end do
+
+        If (present(DropletDiameterList)) DropletDiameterList = DropletDiameterList_
 
     end subroutine GetEntrainedClasses
 
@@ -3017,7 +3130,6 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
         !Internal----------------------------------------------------------------
         !real            :: Hrms
         real            :: Dba                      !J/m2
-        real            :: Fwc
         real            :: IntrusionDepth
         real            :: DissipationRate          !J/(m3.s)
         real            :: OilConcentrationDT       !Kg/(m3.s)
@@ -3028,8 +3140,8 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
 !        Hrms                              = Me%ExternalVar%WaveHeight / sqrt(2.0)
 !        Dba                               = 0.0034 * Me%ExternalVar%WaterDensity                &
 !                                            * Gravity * Hrms**2
-        Dba = F_Dba ()
-        Fwc = F_Fwc ()
+        Dba = F_Dba (Me%ExternalVar%WaveHeight, Me%ExternalVar%WaterDensity)
+!        Fwc = F_Fwc (Me%ExternalVar%Wind, Me%ExternalVar%WavePeriod)
 !cd1:    if (CDisp_Uvi .GT. Me%ExternalVar%Wind) then
 !            Fwc                           = 0
 !        else
@@ -3039,23 +3151,24 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
 
         IntrusionDepth                    = 1.5 * Me%ExternalVar%WaveHeight
 
+!        OilConcentrationDT                = (1-Me%Var%MWaterContent)* (Me%Var%Cdisp         &
+!                                            * Dba**0.57 * Fwc * CSed_d0**0.7  * CSed_Deltad)        &
+!                                            / IntrusionDepth 
 
-        OilConcentrationDT                = (1-Me%Var%MWaterContent)* (Me%Var%Cdisp         &
-                                            * Dba**0.57 * Fwc * CSed_d0**0.7  * CSed_Deltad)        &
-                                            / IntrusionDepth 
-
-        OilConcentration                  = OilConcentrationDT * Me%Var%DTOilInternalProcesses
-
-        DissipationRate                   = Dba / (IntrusionDepth * Me%ExternalVar%WavePeriod)
+        If (IntrusionDepth .EQ. 0.) then
+            Me%Var%MSedimentedDT              = 0.
+            Me%Var%VSedimentedDT              = 0.
+        Else
+            OilConcentrationDT                = Me%Var%MDispersedDT / (IntrusionDepth * Me%ExternalVar%Area)
+            OilConcentration                  = OilConcentrationDT * Me%Var%DTOilInternalProcesses
+            DissipationRate                   = Dba / (IntrusionDepth * Me%ExternalVar%WavePeriod)
+            Me%Var%MSedimentedDT              = 1.3 * sqrt(DissipationRate/WaterDynamicVisc)            &
+                                                * CSed_Sticking * OilConcentration                      &
+                                                * Me%ExternalVar%SPM * (IntrusionDepth              &
+                                                *Me%ExternalVar%Area)
+            Me%Var%VSedimentedDT              = Me%Var%MSedimentedDT / Me%Var%Density
+        EndIf
         
-        Me%Var%MSedimentedDT          = 1.3 * sqrt(DissipationRate/WaterDynamicVisc)            &
-                                            * CSed_Sticking * OilConcentration                      &
-                                            * Me%ExternalVar%SPM * (IntrusionDepth              &
-                                            *Me%ExternalVar%Area)
-
-        Me%Var%VSedimentedDT          = Me%Var%MSedimentedDT / Me%Var%Density
-        
-
 ifPC:   if ((Me%Var%OilEvaporation) .AND. (Me%Var%EvaporationMethod  .EQ. PseudoComponents)) then
 
 do1:        do n=1,Me%Var%NbrPC 
@@ -3653,10 +3766,10 @@ cd2 :       if (Me%Var%OilType .EQ. refined) then
  
     !------------------------------------------------------------------------
 
-    real function F_Cdisp ()
+    real function F_Cdisp (ViscCin)
 
         !Arguments---------------------------------------------------------------
-
+            real, intent(IN) :: ViscCin
         !------------------------------------------------------------------------
 
 !        F_Cdisp = max(0.0 , -390.07*log(Me%Var%ViscCin/1.0e6) - 2779.4 )
@@ -3665,7 +3778,7 @@ cd2 :       if (Me%Var%OilType .EQ. refined) then
 !         ELSE 
 !            F_Cdisp = exp( (-1.8927 * log(Me%Var%ViscCin)) + 16.313) 
 !         ENDIF
-         F_Cdisp = max(0.0 , -312.25*log(Me%Var%ViscCin) + 2509.8 )
+         F_Cdisp = max(0.0 , -312.25*log(ViscCin) + 2509.8 )
 
         !------------------------------------------------------------------------
 
@@ -3673,19 +3786,20 @@ cd2 :       if (Me%Var%OilType .EQ. refined) then
 
     !----------------------------------------------------------------------------
 
-    real function F_Fwc ()
+    real function F_Fwc (Wind, WavePeriod)
 
         !Arguments---------------------------------------------------------------
-
+            real, INTENT(IN)                :: Wind
+            real, INTENT(IN)                :: WavePeriod
         !------------------------------------------------------------------------
 
-        if (CDisp_Uvi .GT. Me%ExternalVar%Wind) then
+        if (CDisp_Uvi .GT. Wind) then
 
-            F_Fwc = 3E-06 * (Me%ExternalVar%Wind**3.5 / Me%ExternalVar%WavePeriod)
+            F_Fwc = 3E-06 * (Wind**3.5 / WavePeriod)
 
         else    
 
-            F_Fwc = CDisp_b*(Me%ExternalVar%Wind - CDisp_Uvi) / Me%ExternalVar%WavePeriod
+            F_Fwc = CDisp_b*(Wind - CDisp_Uvi) / WavePeriod
 
         end if  
 
@@ -3695,15 +3809,16 @@ cd2 :       if (Me%Var%OilType .EQ. refined) then
 
     !----------------------------------------------------------------------------
     
-    real function F_Dba ()
+    real function F_Dba (WaveHeight, WaterDensity)
 
         !Arguments---------------------------------------------------------------
-
+            real, INTENT(IN)                :: WaveHeight
+            real, INTENT(IN)                :: WaterDensity
         !Local-------------------------------------------------------------------
             real                :: Hrms
 
-            Hrms                = Me%ExternalVar%WaveHeight / sqrt(2.0)
-            F_Dba               = 0.0034 * Me%ExternalVar%WaterDensity            &
+            Hrms                = WaveHeight / sqrt(2.0)
+            F_Dba               = 0.0034 * WaterDensity            &
                                 * Gravity * Hrms**2
 
         !------------------------------------------------------------------------
@@ -4160,10 +4275,11 @@ cd4:                if (present(AreaTotal)) then
                     
                     else    cd4
                     
-                        Me%ExternalVar%Area          = F_FayArea (VolInic          = Me%Var%VolInic, &
-                                                                  API              = Me%Var%API,     &
-                                                                  WaterDensity     = WaterDensity,   &
-                                                                  WaterTemperature = WaterTemperature)                
+                        Me%ExternalVar%Area          = F_FayArea (VolInic          = Me%Var%VolInic,  &
+                                                                  Density          = Me%Var%API,      &
+                                                                  WaterDensity     = WaterDensity,    &
+                                                                  WaterTemperature = WaterTemperature,&
+                                                                  DensityInAPI     = .true.      )                
 
                     end if  cd4
 
@@ -4218,7 +4334,7 @@ cd11:                        if (Me%State%FirstStepAP) then
                             end if  cd11
 
 
-                            Me%Var%DiffVelocity = sqrt(2.0 * Me%Var%DiffCoef / DT)
+                            Me%Var%DiffVelocity = sqrt(6.0 * Me%Var%DiffCoef / DT)
 
                         else    cd10 
                             
@@ -4417,12 +4533,13 @@ cd2:        if (Me%State%FirstStepAP) then
     ! The initial area, A0, at the end of this gravity-inertial phase and the beginning
     ! of the weathering processes is computed to be
 
-    function F_FayArea(VolInic, API, WaterDensity, WaterTemperature, ObjEnterData)
+    function F_FayArea(VolInic, Density, WaterDensity, WaterTemperature, DensityInAPI, ObjEnterData)
     real ::  F_FayArea
 
         !Arguments---------------------------------------------------------------
         real, intent (IN)                           :: VolInic, WaterDensity, WaterTemperature
-        real, intent (IN), optional                 :: API
+        logical, intent (IN)                        :: DensityInAPI
+        real, intent (IN), optional                 :: Density
         integer, optional                           :: ObjEnterData
 
         !External----------------------------------------------------------------
@@ -4435,35 +4552,42 @@ cd2:        if (Me%State%FirstStepAP) then
 
         real            :: Delta
         real            :: Density15
-        real            :: Density
+        real            :: DensityLocal
         !------------------------------------------------------------------------
 
-
-        if (present(API)) then
-
-            lAPI = API
-
-        else if (present(ObjEnterData)) then
-            call GetExtractType(FromFile = FromFile)
-            ExtractType = FromFile
-
-            call OilOptionsAPI(ObjEnterData, ExtractType = ExtractType, API = lAPI)
-        else
-            call SetError(FATAL_, INTERNAL_, "Function  F_FayArea - ModuleOil_0D. ERR00") 
-        endif    
-
-
-        Density15 = FreshWaterDensity15 * 141.5 / (131.5 + lAPI)
+        if (DensityInAPI) then
         
-        Density   = Density15 * (1 - CDens_DT * (WaterTemperature - Temp15)) 
+            if (present(Density)) then
+
+                lAPI = Density
+
+            else if (present(ObjEnterData)) then
+                call GetExtractType(FromFile = FromFile)
+                ExtractType = FromFile
+
+                call OilOptionsAPI(ObjEnterData, ExtractType = ExtractType, API = lAPI)
+            else
+                call SetError(FATAL_, INTERNAL_, "Function  F_FayArea - ModuleOil_0D. ERR00") 
+            endif    
+ 
+            Density15 = FreshWaterDensity15 * 141.5 / (131.5 + lAPI)
+        else   
+            if (present(Density)) then
+
+                Density15 = Density
+            else
+                call SetError(FATAL_, INTERNAL_, "Function  F_FayArea - ModuleOil_0D. ERR01") 
+            endif
+        end if
+        DensityLocal   = Density15 * (1 - CDens_DT * (WaterTemperature - Temp15)) 
 
         !when oil is denser than surrounding water, oil will sink (in this case                     & 
         !oil is denser than an aproximation of surrounding water density
-        if (Density .GT. WaterDensity) then
+        if (DensityLocal .GT. WaterDensity) then
             call SetError(FATAL_, INTERNAL_,                                                          &
-                          "Function  F_FayArea - ModuleOil_0D. ERR01 ") 
+                          "Function  F_FayArea - ModuleOil_0D. ERR02 ") 
         endif
-        Delta     = (WaterDensity - Density) / WaterDensity
+        Delta     = (WaterDensity - DensityLocal) / WaterDensity
 
         
         F_FayArea = TheoricArea(VolInic, Delta)
@@ -4532,7 +4656,6 @@ cd2:        if (Me%State%FirstStepAP) then
         
         !Begin-------------------------------------------------------------------    
 
-
                                        !Light, Medium, Heavy
         BeachThicknessMatrix =reshape((/0.5,    2.,    2.,  &   !1
                                         0.5,    2.,    2.,  &   !2
@@ -4547,16 +4670,16 @@ cd2:        if (Me%State%FirstStepAP) then
                                          2.,    4.,    6./), &   !11                                      
                                         shape(BeachThicknessMatrix))
 
-        select case(ParticleOilType)
-        case (1)
-            BeachedVolType1 = BeachedVolType1 + ParticleVolume
-        case (2)
-            BeachedVolType2 = BeachedVolType2 + ParticleVolume
-        case (3)
-            BeachedVolType3 = BeachedVolType3 + ParticleVolume
-        end select
-
         If  (BeachedVolTotal > 0) then
+
+            select case(ParticleOilType)
+            case (1)
+                BeachedVolType1 = BeachedVolType1In + ParticleVolume
+            case (2)
+                BeachedVolType2 = BeachedVolType1In + ParticleVolume
+            case (3)
+                BeachedVolType3 = BeachedVolType1In + ParticleVolume
+            end select
         
             BeachedVolFractionType1 =  BeachedVolType1In / (BeachedVolTotal + ParticleVolume)
             BeachedVolFractionType2 =  BeachedVolType2In / (BeachedVolTotal + ParticleVolume)

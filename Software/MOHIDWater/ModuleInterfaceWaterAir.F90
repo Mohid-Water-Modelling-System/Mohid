@@ -64,7 +64,8 @@ Module ModuleInterfaceWaterAir
 #ifndef _LAGRANGIAN_                                         
 #ifdef  _LAGRANGIAN_GLOBAL_                                         
     use ModuleLagrangianGlobal,     only: SetLagrangianShearGlobal, GetLagrangianAirOptionsGlobal,   &
-                                          SetLagrangianWindGlobal, SetLagSolarRadiationGlobal,  &
+                                          SetLagrangianWindGlobal, SetLagrangianAirTemperature,      &
+                                          SetLagSolarRadiationGlobal,  &
                                           SetLagrangianAtmPressureGlobal   
 #else
     use ModuleLagrangian,           only: SetLagrangianShear, GetLagrangianAirOptions,          &
@@ -214,6 +215,7 @@ Module ModuleInterfaceWaterAir
         logical                                     :: HydrodynamicWindYes          = .false.
         logical                                     :: HydrodynamicAtmPressureYes   = .false.
         logical                                     :: OilYes                       = .false.
+        logical                                     :: HNSYes                       = .false.
         logical                                     :: WavesWindYes                 = .false.
         logical                                     :: GOTMWindShearVelocityYes     = .false.
         logical                                     :: Irrigation                   = .false.
@@ -1874,6 +1876,7 @@ do1 :   do while (associated(PropertyX))
             !Checks Lagrangian 
             call GetLagrangianAirOptionsGlobal(LagrangianID  = Me%ObjLagrangian,         &
                                          Oil           = Me%ExtOptions%OilYes,           &
+                                         HNS           = Me%ExtOptions%HNSYes,           &
                                          Wind          = Me%ExtOptions%LagrangianWindYes,&
                                          WaterQuality  = Me%ExtOptions%LagrangianWQMYes, &
                                          T90Variable   = Me%ExtOptions%LagrangianT90Yes, &
@@ -2007,7 +2010,7 @@ do1 :   do while (associated(PropertyX))
 
         endif
 
-        if (Me%ExtOptions%OilYes) then
+        if (Me%ExtOptions%OilYes .or. Me%ExtOptions%HNSYes) then
 
             !TO_DO Waves
             !Checks if one of the following Atmospheric properties exist:
@@ -4653,6 +4656,7 @@ i22:    if (Me%ObjLagrangian /= 0) then
             !Checks Lagrangian 
             call GetLagrangianAirOptionsGlobal(LagrangianID  = Me%ObjLagrangian,                &
                                          Oil           = Me%ExtOptions%OilYes,                  &
+                                         HNS           = Me%ExtOptions%HNSYes,                  &
                                          Wind          = Me%ExtOptions%LagrangianWindYes,       &
                                          WaterQuality  = Me%ExtOptions%LagrangianWQMYes,        &
                                          T90Variable   = Me%ExtOptions%LagrangianT90Yes,        &
@@ -4665,6 +4669,26 @@ i22:    if (Me%ObjLagrangian /= 0) then
         if(Me%ExtOptions%LagrangianWindYes)then     
 #ifdef  _LAGRANGIAN_GLOBAL_        
             !Checks Lagrangian 
+
+            if (Me%ExtOptions%HNSYes) then
+
+                call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,                 &
+                                           Scalar       = Me%ExtAtm%AirTemperature%Field,   &
+                                           ID           = AirTemperature_,                  &
+                                           STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR121'
+
+                call SetLagrangianAirTemperature(LagrangianID = Me%ObjLagrangian,                   &
+                                       ModelName              = Me%ModelName,                       &
+                                       AirTemperature         = Me%ExtAtm%AirTemperature%Field,     &
+                                       STAT                   = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                          &
+                    stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR122'
+            
+                call UnGetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%AirTemperature%Field, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR123'
+            endif
+            
             call SetLagrangianWindGlobal(LagrangianID = Me%ObjLagrangian,                       &
                                    ModelName    = Me%ModelName,                                 &
                                    WindX        = Me%LocalAtm%WindVelocityX%Field,              &
@@ -4703,7 +4727,7 @@ i22:    if (Me%ObjLagrangian /= 0) then
         
         endif
 
-        if(Me%ExtOptions%OilYes)then
+        if(Me%ExtOptions%OilYes .or. Me%ExtOptions%HNSYes)then
 
             !In this situation, if both Atmospheric Pressure and Mean Sea
             !Level Pressure are present, then MSLP will take precedence over

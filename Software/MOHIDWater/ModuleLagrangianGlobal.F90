@@ -100,7 +100,8 @@ Module ModuleLagrangianGlobal
 !                                                                               !each tracer (extension .tro)
 !
 !
-!   OUTPUT_MASS_TRACER      : 0/1                       [0]                     !Checks if the users wants to output the mass per cell
+!   OUTPUT_MASS_TRACER      : 0/1                       [0]                     !Checks if the users wants to output 
+                                                                                ! the mass per cell
 !   OUTPUT_ORIGIN_ENVELOPE  : 0/1                       [0]                     !output origin envelope
 !   WRITE_DUMMY_PART        : 0/1                       [0]                     !Write dummy particle in the start date if 
 !                                                                               !start emission > start date
@@ -113,7 +114,8 @@ Module ModuleLagrangianGlobal
 !                                                                                average position and the radius of influence of     
 !                                                                                of the tracers of each origin                
 !   (next keyword is read if COMPUTE_AVERAGE_POSITION = 1)
-!   COEF_RADIUS                : real                    [1.645]                ! multiplying factor of particles radius of influence 
+!   COEF_RADIUS                : real                    [1.645]                ! multiplying factor of particles radius of 
+                                                                                ! influence 
 !   STOP_WITH_NO_PART       : 0/1                        [0]                    ! stop model if particles number is zero
 !
 !
@@ -153,8 +155,10 @@ Module ModuleLagrangianGlobal
 !   (following 5 keywords are read if MOVING_ORIGIN = 1)
 !   MOVING_ORIGIN_FILE        : char                    []                      !FileName with Trajectory of origin
 !   MOVING_ORIGIN_UNITS        : char                   [Cells]                 !Time Serie given in meters or in cells
-!   MOVING_ORIGIN_COLUMN_X  : int                       []                      !Column to read X coordinate values in Moving Origin file
-!   MOVING_ORIGIN_COLUMN_Y  : int                       []                      !Column to read Y coordinate values in Moving Origin file
+!   MOVING_ORIGIN_COLUMN_X  : int                       []                      !Column to read X coordinate values 
+                                                                                !in Moving Origin file
+!   MOVING_ORIGIN_COLUMN_Y  : int                       []                      !Column to read Y coordinate values 
+                                                                                !in Moving Origin file
 !MOVING_ORIGIN_CLOUD_EMISSION:0/1                       [0]                     !Moving Origin Cloud Emission
 !   POINT_VOLUME            : real                      [-]                     !Volume of instantanous emission
 !                                                                                (point or accident)
@@ -262,11 +266,12 @@ Module ModuleLagrangianGlobal
                                                                                 ! 1 - GridCells_, 2-VoronoiArea_, 3-FayMethod_
 !   CDISP_OIL_OFF           : real                      [1.]                    ! maximum fraction of submerged oil where oil 
                                                                                 ! internal processes are computed
-!   OIL_DROPLETS_D50        : real (m)                  [50e-6]                 ! default median oil droplet diameter
-!   METHOD_BW_DROPLETS_DIAMETER: int                    [1]                     ! method to obtain oil droplets diameter
+!   DROPLETS_D50            : real (m)                  [50e-6]                 ! default median oil or HNS droplet diameter
+!   METHOD_BW_DROPLETS_DIAMETER: int                    [1]                     ! method to obtain oil or HNS droplets diameter
                                                                                 ! 1-UserDefined_; 2-Computed_Half_D50_; 
                                                                                 ! 3-Computed_Classes_Random_
-!   METHOD_FLOAT_VEL        : int                       [1]                        ! method to compute rising velocity of submerged droplets
+!   METHOD_FLOAT_VEL        : int                       [1]                     ! method to compute rising velocity of 
+                                                                                ! submerged droplets
                                                                                 ! 1-SoaresDosSantos_; 2-PADM_; 3-Zheng_
 !   COMPUTE_AGE             : 0/1                       [0]                     ! compute the age of particles        
 !   AGE_LIMIT               : real (days)               []                      ! particle age limit before killing particle
@@ -279,7 +284,8 @@ Module ModuleLagrangianGlobal
 !   BEACHING                : 0/1                       [0]                     !Beaching Process                 
 !   BEACH_REMOVAL            : 0/1                      [0]                     !include the process of "unbeach" oil
 
-!   FLOATING_OBJECT         : 0/1                       [0]                     ! model the tracers as if they were solid floating objects
+!   FLOATING_OBJECT         : 0/1                       [0]                     ! model the tracers as if they were 
+                                                                                ! solid floating objects
                                                                                 ! e.g. containers, etc.
 !   (following 3 keywords are read when simulating floating objects mif FLOATING_OBJECT = 1)
 !   AIR_DRAG_COEF           : real                      [1.0]                   !Air drag coefficient
@@ -465,6 +471,9 @@ Module ModuleLagrangianGlobal
                                        GetPlumeDensity, GetPlumeMixingHorLength,            &
                                        GetPlumeThickness, GetPlumeSalinity, ModifyJet,      &
                                        UnGetJet, KillJet
+    use ModuleAtmosphere,       only : GetAtmosphereProperty, AtmospherePropertyExists, UngetAtmosphere
+    use ModuleHNS
+    
 #ifndef _WAVES_
     use ModuleWaves
 #endif
@@ -550,6 +559,8 @@ Module ModuleLagrangianGlobal
     private ::          ComputeT90
     private ::      PartitionDecay
     private ::      ComputeAreaVolume
+    private ::      UpdateHNSAreaVolume
+    private ::      UpdateHNSMass
     private ::      InternalParticOil
     private ::          OilGridConcentration
     private ::          OilGridConcentration3D
@@ -585,6 +596,7 @@ Module ModuleLagrangianGlobal
     public  :: SetLagrangianShearGlobal
     public  :: SetLagrangianAtmPressureGlobal
     public  :: SetLagrangianWindGlobal
+    public  :: SetLagrangianAirTemperature
     public  :: GetLagrangianAirOptionsGlobal
     public  :: SetLagSolarRadiationGlobal
 
@@ -663,11 +675,6 @@ Module ModuleLagrangianGlobal
     
     !Odours
     real, parameter                             :: PeakFactor               = 0.005833      ! = (60./3600.)^0.35
-
-    !Methods to compute Oil D50
-    integer, parameter                          :: UserDefined_             = 1
-    integer, parameter                          :: Computed_Half_D50_       = 2
-    integer, parameter                          :: Computed_Classes_Random_ = 3
     
     !Methods to compute buoyancy / floating velocity
     !2-equation approach - Soares dos Santos and Daniel, 2000:
@@ -710,6 +717,8 @@ Module ModuleLagrangianGlobal
     character(LEN = StringLength), parameter    :: individual_boom_begin    = '<<BeginIndividualBoom>>'
     character(LEN = StringLength), parameter    :: individual_boom_end      = '<<EndIndividualBoom>>'
 
+    character(LEN = StringLength), parameter    :: hns_begin                = '<<BeginHNS>>'
+    character(LEN = StringLength), parameter    :: hns_end                  = '<<EndHNS>>'
 
     character(LEN = StringLength), parameter    :: block_begin_clone        = '<BeginOrigin_Clone>'
     character(LEN = StringLength), parameter    :: block_end_clone          = '<EndOrigin_Clone>'
@@ -867,6 +876,43 @@ Module ModuleLagrangianGlobal
         
     end type T_OilSpreading
 
+    type T_HNS
+
+                          !i, j, k 
+        real,    dimension(:, :, :),    pointer  :: GridDissolvedMass3D                  => null()
+        real,    dimension(:, :),       pointer  :: GridDissolvedMass2D                  => null()
+        real,    dimension(:, :, :),    pointer  :: GridDissolvedConc3D                   => null()
+        real,    dimension(:, :),       pointer  :: GridDissolvedConc2D                   => null()
+        real,    dimension(:, :),       pointer  :: GridDissolvedMaxConc2D                => null()
+        
+        real,    dimension(:, :),       pointer  :: GridAirMass2D                   => null()
+        real,    dimension(:, :, :),    pointer  :: GridAirConc3D                   => null()
+        real,    dimension(:, :),       pointer  :: GridAirConc2D                   => null()
+        real,    dimension(:, :),       pointer  :: GridAirMaxConc2D                => null()
+
+        real,    dimension(:, :),       pointer  :: GridSurfaceFloatingMass2D            => null()
+
+        real,    dimension(:, :, :),    pointer  :: GridDropletsMass3D                   => null()
+        real,    dimension(:, :),       pointer  :: GridDropletsMass2D                   => null()
+        real,    dimension(:, :, :),    pointer  :: GridDropletsConc3D                   => null()
+        real,    dimension(:, :),       pointer  :: GridDropletsConc2D                   => null()
+        real,    dimension(:, :),       pointer  :: GridDropletsMaxConc2D                => null()
+
+        real,    dimension(:, :, :),    pointer  :: GridSuspendedParticulateMass3D        => null()
+        real,    dimension(:, :),       pointer  :: GridSuspendedParticulateMass2D        => null()
+        real,    dimension(:, :, :),    pointer  :: GridSuspendedParticulateConc3D        => null()
+        real,    dimension(:, :),       pointer  :: GridSuspendedParticulateConc2D        => null()
+        real,    dimension(:, :),       pointer  :: GridSuspendedParticulateMaxConc2D     => null()
+
+        real,    dimension(:, :),       pointer  :: GridDepositedParticulateMass2D        => null()
+        real,    dimension(:, :),       pointer  :: GridDepositedParticulateMassPerArea2D => null()
+
+
+!        real,    dimension(:, :, :), pointer    :: OilGridDissolution3D                 => null()
+
+        logical, dimension(:,:),     pointer    :: AreaFlag                             => null()
+       
+    end type T_HNS
 
     type     T_EulerModel
 
@@ -930,7 +976,7 @@ Module ModuleLagrangianGlobal
         !ObjInterfaceSedimentWater
         real,    pointer, dimension(:,:  )      :: ShearVelocity                        => null()
         real,    pointer, dimension(:,:  )      :: BottomStress                         => null()    
-
+        real,    pointer, dimension(:,:  )      :: AirTemperature2D                     => null()
 
 
         !ObjAssimilation
@@ -944,6 +990,7 @@ Module ModuleLagrangianGlobal
         real,    pointer, dimension(:,:,:)      :: Salinity3D                           => null()
         real,    pointer, dimension(:,:,:)      :: FishFood3D                           => null()
         real,    pointer, dimension(:,:,:)      :: SPM3D                                => null()
+        
         
         !ObjWaves
         real,    pointer, dimension(:,:  )      :: WaveHeight2D                         => null()
@@ -977,6 +1024,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: ObjBeachingProbBox   = 0
         integer                                 :: ObjShoreTypeBox      = 0
         integer                                 :: ObjAssimilation      = 0
+        integer                                 :: ObjAtmosphere        = 0
 
 
         type(T_ParticleGrid)                    :: Grid
@@ -995,6 +1043,8 @@ Module ModuleLagrangianGlobal
         type(T_PropStatistic  ), dimension(:),pointer :: PropStatistic  => null()
                                           !ig  
         type(T_OilSpreading   ), dimension(:),pointer :: OilSpreading   => null()
+
+        type(T_HNS   ), dimension(:),pointer          :: HNS            => null()
 
     end type T_EulerModel
 !----------------------------------------------------------------------------
@@ -1045,6 +1095,10 @@ Module ModuleLagrangianGlobal
         logical                                 :: OutputTracerInfo     = OFF
         logical                                 :: OilSedimentation     = OFF        
         logical                                 :: Odour                = OFF
+        logical                                 :: HNS                  = OFF
+        logical                                 :: HNSSedimentation     = OFF
+        logical                                 :: HNSEntrainment       = OFF
+        logical                                 :: HNSSpreading         = OFF
     end type T_State
 
     !IO
@@ -1212,7 +1266,8 @@ Module ModuleLagrangianGlobal
         real                                    :: VolVar                   = null_real
         real                                    :: Thickness                = null_real
         real                                    :: VoronoiArea              = null_real
-        real                                    :: OilDropletsDiameter      = null_real
+        real                                    :: DropletsDiameter         = null_real
+        real                                    :: Area                     = null_real
     end type T_ParticleGeometry
 
     !Defines the parameters necessary to compute the fluxes associated to a 
@@ -1349,6 +1404,13 @@ Module ModuleLagrangianGlobal
         integer                                 :: SolutionT                = FillValueInt        
         integer                                 :: BeachingOilType          = 2
         integer                                 :: ParticleState            = FillValueInt
+        integer                                 :: HNSParticleState         = null_int
+        real                                    :: HNSDensity               = null_real
+        real                                    :: HNSMass                  = null_real
+        real                                    :: HNSInitialMass           = null_real
+        real                                    :: HNSSpreadingDiffVel      = null_real
+        real                                    :: HNSSpreadingDiffCoef      = null_real
+        real                                    :: MDegraded                = null_real
     end type T_Partic
 
     !Particle deposition
@@ -1433,6 +1495,7 @@ Module ModuleLagrangianGlobal
         type (T_Time)                           :: NextWQMCompute
         real                                    :: DTWQM                    = null_real
         integer                                 :: ObjOil                   = 0
+        integer                                 :: ObjHNS                   = 0
         logical                                 :: ComputeAge               = .false.
         type (T_Property), pointer              :: FirstProperty            => null()
         type (T_Partic), pointer                :: FirstPartic              => null()
@@ -1457,10 +1520,31 @@ Module ModuleLagrangianGlobal
         real                                    :: Fdisp                    = 0
         real                                    :: Fblowout                 = 1
         real                                    :: CDispOilOff              = null_real
-        real                                    :: OilDropletsD50           = null_real
+        real                                    :: DropletsD50              = null_real
         integer                                 :: MethodBWDropletsDiameter = null_int
         integer                                 :: MethodFloatVel           = null_int
         logical                                 :: BeachRemoval             = OFF
+        integer                                 :: HNSInitialState          = null_int
+        real                                    :: HNSMass                  = null_real
+        real                                    :: HNSTotalMass             = null_real
+        real                                    :: HNSFractionEvaporated    = null_real
+        real                                    :: HNSFractionVolatilized   = null_real
+        real                                    :: HNSFractionDissolved     = null_real
+        real                                    :: HNSFractionEntrained     = null_real
+        real                                    :: HNSFractionSedimented    = null_real
+        real                                    :: HNSFractionDeposited     = null_real
+        real                                    :: HNSFractionAtSurface     = null_real
+        real                                    :: HNSFractionBeached       = null_real
+        real                                    :: HNSFractionDegraded      = null_real
+        real                                    :: MBeached                 = null_real
+        real                                    :: MEvaporated              = null_real
+        real                                    :: MVolatilized             = null_real
+        real                                    :: MEntrained               = null_real
+        real                                    :: MDissolved               = null_real
+        real                                    :: MSedimented              = null_real
+        real                                    :: MDeposited               = null_real
+        real                                    :: MSurface                 = null_real
+        real                                    :: MDegraded                = null_real
 
     end type T_Origin
 
@@ -1886,10 +1970,10 @@ em2:            do em =1, Me%EulerModelNumber
                 call ConstructTimeSeries  
             endif
 
-            ! Opens Output Tracer Info File, if Needed
-            if (Me%State%OutputTracerInfo) then
-                call ConstructOutputTracerTimeSeries
-            end if
+!            ! Opens Output Tracer Info File, if Needed
+!            if (Me%State%OutputTracerInfo) then
+!                call ConstructOutputTracerTimeSeries
+!            end if
 
             call ReadParticStatisticOptions   
 
@@ -1909,6 +1993,13 @@ em2:            do em =1, Me%EulerModelNumber
 
             !Moves Moving origins
             call MoveOrigin               
+
+            if (Me%State%HNS) then
+                call AllocateHNS
+                call HNSOptions
+                call HNSInitialValues
+                call ConstructHNSTimeSerie
+            endif
 
             !Constructs Emission for every origin
             call ConstructEmission 
@@ -1935,6 +2026,10 @@ em2:            do em =1, Me%EulerModelNumber
                 call ConstructParticStatistic   
             endif
 
+            if (Me%State%HNS) then
+                call HNSInitializeParticleValues
+            endif
+
             if (Me%State%Oil) then
                 call AllocateOil
                 call FillGridThickness
@@ -1942,6 +2037,11 @@ em2:            do em =1, Me%EulerModelNumber
                 call GetOilOptions
             endif
             
+            ! Opens Output Tracer Info File, if Needed
+            if (Me%State%OutputTracerInfo) then
+                call ConstructOutputTracerTimeSeries
+            end if
+
             call LagrangianOutput            
 
             !Message to the User
@@ -2000,6 +2100,51 @@ CurrOr: do while (associated(CurrentOrigin))
         enddo CurrOr
 
 end subroutine GetOilOptions
+
+    !--------------------------------------------------------------------------
+
+    subroutine HNSOptions
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: STAT_CALL                          
+        logical                                     :: HNSSedimentation, HNSEntrainment, HNSSpreading
+        !Begin-----------------------------------------------------------------
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+             Call GetHNSSpreading(CurrentOrigin%ObjHNS,                              &
+                                      HNSSpreading            = HNSSpreading,        & 
+                                      STAT                    = STAT_CALL)
+            
+            CurrentOrigin%State%HNSSpreading = HNSSpreading
+
+             Call GetHNSEntrainment(CurrentOrigin%ObjHNS,                              &
+                                      HNSEntrainment          = HNSEntrainment,        & 
+                                      STAT                    = STAT_CALL)
+            
+            CurrentOrigin%State%HNSEntrainment = HNSEntrainment
+
+             Call GetHNSSedimentation(CurrentOrigin%ObjHNS,                              &
+                                      HNSSedimentation        = HNSSedimentation,        & 
+                                      STAT                    = STAT_CALL)
+            
+            CurrentOrigin%State%HNSSedimentation = HNSSedimentation
+
+            call ExportDropletOptions(CurrentOrigin%ObjHNS,                                              &
+                                      MethodBWDropletsDiameter = CurrentOrigin%MethodBWDropletsDiameter, &
+                                      DropletsD50              = CurrentOrigin%DropletsD50,              &
+                                      STAT = STAT_CALL)
+
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+end subroutine HNSOptions
 
     !--------------------------------------------------------------------------
 
@@ -2178,7 +2323,197 @@ d2:         do ig = 1, Me%NGroups
 
     end subroutine AllocateOil
 
-    !------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------  
+    
+    subroutine AllocateHNS
+
+        !Local---------------------------------------------------------------------
+        integer                     :: em, ig, STAT_CALL                          
+        integer                     :: IUB, ILB, JLB, JUB, KLB, KUB
+        
+        !Begin---------------------------------------------------------------------
+
+d1:     do em =1, Me%EulerModelNumber 
+
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+            KLB = Me%EulerModel(em)%WorkSize%KLB
+            KUB = Me%EulerModel(em)%WorkSize%KUB
+
+            allocate (Me%EulerModel(em)%HNS(1: Me%NGroups), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR10'
+
+d2:         do ig = 1, Me%NGroups
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D(ILB:IUB,          &
+                                                                       JLB: JUB,         &
+                                                                       KLB: KUB),         &
+                                                                       STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR10'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D(:,:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDissolvedConc2D(ILB:IUB,          &
+                                                                       JLB: JUB),         &
+                                                                       STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR20'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDissolvedConc2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(ILB:IUB,          &
+                                                                           JLB: JUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR30'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridAirConc3D(ILB:IUB,          &
+                                                                       JLB: JUB,         &
+                                                                       KLB: KUB),         &
+                                                                       STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR40'
+                
+                Me%EulerModel(em)%HNS(ig)%GridAirConc3D(:,:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridAirConc2D(ILB:IUB,          &
+                                                                       JLB: JUB),         &
+                                                                       STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR50'
+                
+                Me%EulerModel(em)%HNS(ig)%GridAirConc2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridAirMaxConc2D(ILB:IUB,          &
+                                                                           JLB: JUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR60'
+                
+                Me%EulerModel(em)%HNS(ig)%GridAirMaxConc2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(ILB:IUB,          &
+                                                                       JLB: JUB,         &
+                                                                       KLB: KUB),         &
+                                                                       STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR70'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(:,:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDropletsConc2D(ILB:IUB,          &
+                                                                       JLB: JUB),         &
+                                                                       STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR80'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDropletsConc2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(ILB:IUB,          &
+                                                                           JLB: JUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR90'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(:,:)=0.
+
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D(ILB:IUB,          &
+                                                                                  JLB: JUB,         &
+                                                                                  KLB: KUB),         &
+                                                                                 STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR100'
+                
+                Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D(:,:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc2D(ILB:IUB,          &
+                                                                       JLB: JUB),         &
+                                                                       STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR110'
+                
+                Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(ILB:IUB,          &
+                                                                           JLB: JUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR120'
+                
+                Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridAirMass2D(ILB:IUB,          &
+                                                                           JLB: JUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR130'
+                
+                Me%EulerModel(em)%HNS(ig)%GridAirMass2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridSurfaceFloatingMass2D(ILB:IUB,          &
+                                                                           JLB: JUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR140'
+                
+                Me%EulerModel(em)%HNS(ig)%GridSurfaceFloatingMass2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(ILB:IUB,          &
+                                                                           JLB: JUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR150'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(:,:)=0.
+                
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(ILB:IUB,          &
+                                                                           JLB: JUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR160'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(ILB:IUB,          &
+                                                                           JLB: JUB,         &
+                                                                           KLB: KUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR170'
+
+                Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(:,:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(ILB:IUB,          &
+                                                                           JLB: JUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR180'
+                
+                Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(ILB:IUB,          &
+                                                                           JLB: JUB,         &
+                                                                           KLB: KUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR190'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(:,:,:)=0.
+                
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(ILB:IUB,          &
+                                                                           JLB: JUB,         &
+                                                                           KLB: KUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR200'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(:,:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMass2D(ILB:IUB,          &
+                                                                           JLB: JUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR210'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMass2D(:,:)=0.
+
+                allocate (Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMassPerArea2D(ILB:IUB,          &
+                                                                           JLB: JUB),         &
+                                                                           STAT = STAT_CALL   )
+                if (STAT_CALL /= SUCCESS_) stop 'AllocateHNS - ModuleLagrangianGlobal - ERR220'
+                
+                Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMassPerArea2D(:,:)=0.
+
+            enddo d2
+
+        enddo d1
+
+    end subroutine AllocateHNS
 
     !------------------------------------------------------------------------------
 
@@ -3882,6 +4217,7 @@ IT:     if (NewOrigin%EmissionTemporal == Instantaneous_) then
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR320'
             
+            NewOrigin%StartEmission = NewOrigin%InstantEmission
 
         endif IT
         !
@@ -4808,8 +5144,19 @@ DE:     if (NewOrigin%State%Deposition) then
                          Default      = 1,                                       &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1000'
-        
-        !Reads parameter specific to cada Spatial emission type
+
+            !checks if it is a surface emission        
+            call GetData(NewOrigin%Position%SurfaceEmission,                               &
+                         Me%ObjEnterData,                                        &
+                         flag,                                                   &
+                         SearchType   = FromBlock,                               &
+                         keyword      ='SURFACE_EMISSION',                       &
+                         Default      = OFF,                                     &
+                         ClientModule ='ModuleLagrangian',                       &
+                         STAT         = STAT_CALL)             
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR1010'
+
+        !Reads parameter specific to each Spatial emission type
 PA:         if (NewOrigin%EmissionSpatial == Point_ .or.                             &
                 NewOrigin%EmissionSpatial == Accident_ ) then
 
@@ -4876,15 +5223,6 @@ NDF:        if (.not. NewOrigin%Default) then
                 !Vertical position
                 Depth      = null_real
                 HaveOrigin = .false.
-                call GetData(NewOrigin%Position%SurfaceEmission,                               &
-                             Me%ObjEnterData,                                        &
-                             flag,                                                   &
-                             SearchType   = FromBlock,                               &
-                             keyword      ='SURFACE_EMISSION',                       &
-                             Default      = OFF,                                     &
-                             ClientModule ='ModuleLagrangian',                       &
-                             STAT         = STAT_CALL)             
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR1035'
 
                 if (NewOrigin%Position%SurfaceEmission) then
 
@@ -4967,6 +5305,13 @@ NDF:        if (.not. NewOrigin%Default) then
 
                         endif
                     endif
+                endif
+
+                if (NewOrigin%Position%Z .EQ. Me%EulerModel(em)%SZZ(i, j, k)) then
+                    NewOrigin%Position%Surface          = .true.
+                    NewOrigin%Position%SurfaceEmission  = .true.
+                else
+                    NewOrigin%Position%Surface = .false.                
                 endif
 
                 call GetData(NewOrigin%Position%MaintainDepth,                    &
@@ -5902,8 +6247,8 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             
         endif
 
-        !If neceassary Starts The Oil module for this origin
-        if (NewOrigin%State%Oil) then
+        !If neceassary Starts The Oil or HNS module for this origin
+        if ((NewOrigin%State%Oil) .OR. (NewOrigin%State%HNS)) then
 
             call GetData(NewOrigin%AreaMethod,                                   &
                          Me%ObjEnterData,                                        &
@@ -5916,7 +6261,11 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1510'
 
             if (.not. NewOrigin%Default) then
-                call ConstructParticOil (NewOrigin, ClientNumber)
+                if (NewOrigin%State%Oil) then
+                    call ConstructParticOil (NewOrigin, ClientNumber)
+                elseif (NewOrigin%State%HNS) then
+                    call ConstructParticHNS (NewOrigin, ClientNumber)
+                endif
             endif
 
             call GetData(NewOrigin%CDispOilOff,                                  &
@@ -5929,11 +6278,11 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1511'
 
-            call GetData(NewOrigin%OilDropletsD50,                               &
+            call GetData(NewOrigin%DropletsD50,                                  &
                          Me%ObjEnterData,                                        &
                          flag,                                                   &
                          SearchType   = FromBlock,                               &
-                         keyword      ='OIL_DROPLETS_D50',                       &
+                         keyword      ='DROPLETS_D50',                           &
                          ClientModule ='ModuleLagrangianGlobal',                 &
                          !50 microns
                          Default      = 50e-6,                                   &
@@ -6106,7 +6455,8 @@ SP:             if (NewProperty%SedimentPartition%ON) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1630'
 
         
-        if (NewOrigin%State%Oil .or. NewOrigin%State%StokesDrift .or. NewOrigin%State%AccidentProbability) then
+        if (NewOrigin%State%Oil .or. NewOrigin%State%StokesDrift .or. NewOrigin%State%AccidentProbability .or. &
+            NewOrigin%State%HNS) then
             NewOrigin%State%Waves = .true.
             Me%State%Waves        = .true.
         endif
@@ -7544,6 +7894,62 @@ d1:     do em =1, Me%EulerModelNumber
 
     !--------------------------------------------------------------------------
 
+    subroutine ConstructHNSTimeSerie 
+
+        !Arguments-------------------------------------------------------------
+
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                        :: CurrentOrigin
+        integer                                         :: STAT_CALL
+        character(StringLength), dimension(:), pointer  :: PropertyList
+
+        !Begin-----------------------------------------------------------------
+
+        allocate(PropertyList(21))
+        PropertyList(1)  = "Area at Surface"
+        PropertyList(2)  = "Total Mass"
+        PropertyList(3)  = "Mass"
+        PropertyList(4)  = "Mass Degraded"
+        PropertyList(5)  = "Mass Beached"
+        PropertyList(6)  = "Mass Surface"
+        PropertyList(7)  = "Mass Evaporated"
+        PropertyList(8)  = "Mass Volatilized"
+        PropertyList(9)  = "Mass Entrained"
+        PropertyList(10)  = "Mass Dissolved"
+        PropertyList(11) = "Mass Sedimented"
+        PropertyList(12) = "Mass Deposited"
+        PropertyList(13) = "Fraction Degraded"
+        PropertyList(14) = "Fraction Beached"
+        PropertyList(15) = "Fraction Surface"
+        PropertyList(16) = "Fraction Evaporated"
+        PropertyList(17) = "Fraction Volatilized"
+        PropertyList(18) = "Fraction Entrained"
+        PropertyList(19) = "Fraction Dissolved"
+        PropertyList(20) = "Fraction Sedimented"
+        PropertyList(21) = "Fraction Deposited"
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+               
+            call StartTimeSerie (CurrentOrigin%ObjTimeSerie,                            &
+                                 Me%ExternalVar%ObjTime,                                &
+                                 Me%Files%ConstructData,                                &
+                                 PropertyList,                                          &
+                                 Extension   = "hns",                                   &
+                                 ResultFileName = "MassBalance_"//trim(CurrentOrigin%Name), &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructMonitoring - ModuleLagrangianGlobal - ERR02'
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+        nullify(PropertyList)
+        
+    end subroutine ConstructHNSTimeSerie
+
+    !--------------------------------------------------------------------------
+
     subroutine ConstructTimeSeries
 
         !Arguments-------------------------------------------------------------
@@ -8049,7 +8455,7 @@ OldOrigin:      do while (associated(CurrentOldOrigin))
         if (STAT_CALL /= SUCCESS_) stop 'EmissionBox - ModuleLagrangianGlobal - ERR20'
         
         !Compute box area
-        if (CurrentOrigin%Movement%Float) then
+        if (CurrentOrigin%Movement%Float .OR. CurrentOrigin%Position%SurfaceEmission) then
         
             CurrentOrigin%AreaTotal = 0.
         
@@ -8072,11 +8478,13 @@ OldOrigin:      do while (associated(CurrentOldOrigin))
 
                        
         !Distribui Floating particle
-FLOAT:  if (CurrentOrigin%Movement%Float .or. CurrentOrigin%Deposition%BottomEmission) then
+FLOAT:  if (CurrentOrigin%Movement%Float            .or.    &
+            CurrentOrigin%Deposition%BottomEmission .or.    &
+            CurrentOrigin%Position%SurfaceEmission) then
 
             FACTOR = 0.0
 
-            if (CurrentOrigin%Movement%Float) then
+            if (CurrentOrigin%Movement%Float .or. CurrentOrigin%Position%SurfaceEmission) then
 
                 if (CurrentOrigin%AreaTotal > 0.) then
                     BoxThickness = CurrentOrigin%PointVolume / CurrentOrigin%AreaTotal
@@ -8096,7 +8504,7 @@ FLOAT:  if (CurrentOrigin%Movement%Float .or. CurrentOrigin%Deposition%BottomEmi
 
 OP1:            if (EulerModel%OpenPoints3D(i, j, KUB) == OpenPoint) then
 
-                if (CurrentOrigin%Movement%Float) then
+                if (CurrentOrigin%Movement%Float .or. CurrentOrigin%Position%SurfaceEmission) then
                 
                     BoxCell     = Boxes(i, j, KUB)
 
@@ -8116,7 +8524,7 @@ BOX2D:          if (BoxCell == CurrentOrigin%BoxNumber) then
 
                 if (CurrentOrigin%ParticleBoxVolume > 0.0) then
 
-                    if (CurrentOrigin%Movement%Float) then
+                    if (CurrentOrigin%Movement%Float .or. CurrentOrigin%Position%SurfaceEmission) then
 
                         AreaCel = EulerModel%GridCellArea(i, j) + FACTOR
 
@@ -8311,6 +8719,10 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         integer                                     :: nP, emp
         type (T_Partic), pointer                    :: NewParticle
         real                                        :: ParticleVolume, random
+        integer                                     :: STAT_CALL
+        real                                        :: AreaTotal, AreaParticle
+        logical                                     :: DensityInAPI
+        real                                        :: Density
 
         !Begin-----------------------------------------------------------------
 
@@ -8419,6 +8831,35 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
 
             if (CurrentOrigin%State%Oil)                                                 &
                NewParticle%Geometry%VolumeOil     = NewParticle%Geometry%Volume
+
+            if (CurrentOrigin%State%HNS) then   
+                DensityInAPI = .false.
+                call GetHNSDensity(CurrentOrigin%ObjHNS, Density = Density, STAT = STAT_CALL)
+                
+                ! just one of the next methods for compute initial area must be used
+                call GetInitialArea(CurrentOrigin%ObjHNS,                                   &
+                                     VolInic                = CurrentOrigin%PointVolume,    &
+                                     AreaTotal              = AreaTotal,                    &
+                                     STAT = STAT_CALL)
+
+!                    AreaTotal = F_FayArea(VolInic          = CurrentOrigin%PointVolume,        & 
+!                                          Density          = Density,                          & 
+!                                          WaterDensity     = GetFirstParticDens(CurrentOrigin),& 
+!                                          WaterTemperature = GetFirstParticTemp(CurrentOrigin),&
+!                    
+                !Calcula a area ocupada por cada tracador
+                AreaParticle = AreaTotal / float(CurrentOrigin%NbrParticlesIteration)
+
+                NewParticle%Geometry%Area       = AreaParticle
+
+                !next step is needed since ModuleHNS is all controlled by mass variation                             
+                call GetHNSInitialMass(CurrentOrigin%ObjHNS,                        &
+                                       Volume = NewParticle%Geometry%InitialVolume, & 
+                                       InitialMass = NewParticle%HNSInitialMass,    &
+                                       STAT = STAT_CALL)
+               
+                NewParticle%HNSMass = NewParticle%HNSInitialMass
+            endif
 
             !Inserts Particle to list
             call InsertParticleToList (CurrentOrigin, NewParticle, .true.)
@@ -8874,12 +9315,13 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         integer                                     :: II, JJ
         real                                        :: aux, ang
         real                                        :: Dist, XDif, YDif
-        real                                        :: API
+        real                                        :: Density
         integer                                     :: STAT_CALL
         integer                                     :: i, j, k, KUB, em
         logical                                     :: Emited, OutsideWalls
         type (T_Position)                           :: NewPosition
         type (T_PointF),                pointer     :: Point        
+        logical                                     :: DensityInAPI
         
         !Begin-----------------------------------------------------------------
 
@@ -8897,21 +9339,37 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         case (Fay_)
 
             !Total Area given by the F_Fay Method
-            if (CurrentOrigin%ObjOil == 0) then
+            if ((CurrentOrigin%ObjOil == 0) .AND. (CurrentOrigin%ObjHNS == 0)) then
                 write(*,*)'Origin : ', trim(CurrentOrigin%Name)
                 write(*,*)'The Fay Method can only be used with Oil Accident'
                 write(*,*)'Use ACCIDENT_METHOD : Thickness'
                 write(*,*)'or intialize the oil property'
+            else
+                if (CurrentOrigin%ObjOil /= 0) then
+                    DensityInAPI = .true.
+                    call GetOilAPI (CurrentOrigin%ObjOil, API = Density, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'EmissionAccident - ModuleLagrangianGlobal - ERR01'
+
+                    AreaTotal = F_FayArea(VolInic          = CurrentOrigin%PointVolume,        & 
+                                          Density          = Density,                          & 
+                                          WaterDensity     = GetFirstParticDens(CurrentOrigin),& 
+                                          WaterTemperature = GetFirstParticTemp(CurrentOrigin),&
+                                          DensityInAPI     = DensityInAPI)
+
+                elseif (CurrentOrigin%ObjHNS/= 0) then
+                    DensityInAPI = .false.
+                    call GetHNSDensity(CurrentOrigin%ObjHNS, Density = Density, STAT = STAT_CALL)
+                    
+                    ! just one of the next methods for compute initial area must be used
+                    call GetInitialArea(CurrentOrigin%ObjHNS,                                   &
+                                         VolInic                = CurrentOrigin%PointVolume,    &
+                                         AreaTotal              = AreaTotal,                    &
+                                         STAT = STAT_CALL)
+                endif
             endif
 
-            call GetOilAPI (CurrentOrigin%ObjOil, API = API, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'EmissionAccident - ModuleLagrangianGlobal - ERR01'
             
-            AreaTotal = F_FayArea(VolInic          = CurrentOrigin%PointVolume,        & 
-                                  API              = API,                              & 
-                                  WaterDensity     = GetFirstParticDens(CurrentOrigin),& 
-                                  WaterTemperature = GetFirstParticTemp(CurrentOrigin))
-
+            
         case (Thickness_)
 
             AreaTotal = CurrentOrigin%PointVolume / CurrentOrigin%Movement%ThicknessMeters
@@ -8939,6 +9397,17 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         if (CurrentOrigin%State%Oil)                                    &
             NewParticle%Geometry%VolumeOil     = NewParticle%Geometry%Volume
 
+        if (CurrentOrigin%State%HNS) then   
+            NewParticle%Geometry%Area       = AreaParticle
+            !next step is needed since ModuleHNS is all controlled by mass variation                             
+            call GetHNSInitialMass(CurrentOrigin%ObjHNS,                        &
+                                   Volume = NewParticle%Geometry%Volume,        & 
+                                   InitialMass = NewParticle%HNSInitialMass,    &
+                                   STAT = STAT_CALL)
+           
+            NewParticle%HNSMass = NewParticle%HNSInitialMass
+        endif
+        
         !Inserts Particle to list
         call InsertParticleToList (CurrentOrigin, NewParticle, .true.)
 
@@ -9029,6 +9498,16 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                     if (CurrentOrigin%State%Oil)                                    &
                         NewParticle%Geometry%VolumeOil     = NewParticle%Geometry%Volume
 
+                    if (CurrentOrigin%State%HNS) then
+                        NewParticle%Geometry%Area       = AreaParticle
+                                    
+                        call GetHNSInitialMass(CurrentOrigin%ObjHNS,                        &
+                                               Volume = NewParticle%Geometry%Volume,        & 
+                                               InitialMass = NewParticle%HNSInitialMass,    &
+                                               STAT = STAT_CALL)
+                        NewParticle%HNSMass = NewParticle%HNSInitialMass
+                    endif
+
                     !Inserts Particle to List
                     call InsertParticleToList (CurrentOrigin, NewParticle, .true.)
 
@@ -9118,6 +9597,50 @@ i1:     if (OilSectionFound .and. .not. NewOrigin%Old) then
         endif i1
   
     end subroutine ConstructParticOil
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructParticHNS (NewOrigin, ClientNumber)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Origin),     pointer                :: NewOrigin
+        integer                                     :: ClientNumber
+
+        !Local-----------------------------------------------------------------
+        logical                                     :: HNSSectionFound
+        integer                                     :: STAT_CALL, em
+
+
+        !Extracts the Oil Section from the Origin
+        call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                       &
+                                   hns_begin, hns_end,                                  &
+                                   HNSSectionFound, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructParticHNS - ModuleLagrangianGlobal - ERR10'
+
+
+i1:     if (HNSSectionFound .and. .not. NewOrigin%Old) then
+
+            em = NewOrigin%Position%ModelID
+            
+
+            !Starts HNS
+            call StartHNS(HNSID             = NewOrigin%ObjHNS,                     &     
+                          TimeID            = Me%EulerModel(em)%ObjTime,            &     
+                          EnterDataID       = Me%ObjEnterData,                      &
+                          DT                = Me%DT_PARTIC,                         &     
+                          ContCalc          = NewOrigin%Old,                        &
+                          ExtractType       = FromBlockInBlock,                     &
+                          STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructParticHNS - ModuleLagrangianGlobal - ERR10'
+
+        elseif (.not. HNSSectionFound) then i1
+
+            write (*,*)'HNS Section not defined for Origin : ', trim(NewOrigin%Name)
+            stop       'ConstructParticHNS - ModuleLagrangianGlobal - ERR40'
+
+        endif i1
+  
+    end subroutine ConstructParticHNS
 
     !--------------------------------------------------------------------------
 
@@ -9985,6 +10508,14 @@ CurrOr: do while (associated(CurrentOrigin))
                     if (STAT_CALL /= SUCCESS_) stop 'DeleteOrigin - ModuleLagrangianGlobal - ERR10'
                 endif
 
+                !Kill HNS
+                if (OriginToDelete%ObjHNS /= 0) then
+                    call KillHNS (OriginToDelete%ObjHNS, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'DeleteOrigin - ModuleLagrangianGlobal - ERR15'
+                    call KillTimeSerie(OriginToDelete%ObjTimeSerie, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'DeleteOrigin - ModuleLagrangianGlobal - ERR30'
+                endif
+
                 !Kill WaterQuality
                 if (OriginToDelete%State%WQM) then
                     call KillWaterQuality (OriginToDelete%WaterQualityID, STAT = STAT_CALL)
@@ -10210,6 +10741,13 @@ CurrOr: do while (associated(CurrentOrigin))
                 Origin%State%Density    = ON
                 Me%State%Wind           = ON
                 
+            case (HNS_                            )
+                Origin%State%HNS        = ON
+                Me%State%HNS            = ON
+                Me%State%Wind           = ON
+                Me%State%Density        = ON
+                Origin%State%Density    = ON
+
             case (FloatingObject_                 )
                 Me%State%FloatingObject = ON
                 Origin%State%FloatingObject    = ON
@@ -10654,6 +11192,44 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
 
     !----------------------------------------------------------------------
 
+!----------------------------------------------------------------------------
+    
+    subroutine SetLagrangianAirTemperature(LagrangianID, ModelName, AirTemperature, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: LagrangianID
+        character(len=*)                            :: ModelName
+        real, pointer, dimension(:,:)               :: AirTemperature
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_, ModelID          
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(LagrangianID, ready_) 
+        
+        if (ready_ .EQ. IDLE_ERR_)then
+
+                ModelID = ReturnModelIndex (ModelName)
+
+                Me%EulerModel(ModelID)%AirTemperature2D => AirTemperature
+
+            STAT_ = SUCCESS_  
+
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine SetLagrangianAirTemperature
+
+    !----------------------------------------------------------------------
     subroutine SetLagrangianShearGlobal(LagrangianID, ModelName, ShearStress, ShearVelocity, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -10698,11 +11274,11 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
     !----------------------------------------------------------------------
 
-    subroutine GetLagrangianAirOptionsGlobal(LagrangianID, Oil, Wind, WaterQuality, T90Variable, STAT)
+    subroutine GetLagrangianAirOptionsGlobal(LagrangianID, Oil, HNS, Wind, WaterQuality, T90Variable, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: LagrangianID
-        logical, optional, intent(OUT)              :: Oil, Wind, WaterQuality, T90Variable
+        logical, optional, intent(OUT)              :: Oil, HNS, Wind, WaterQuality, T90Variable
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -10719,6 +11295,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             Oil             = Me%State%Oil
+            HNS             = Me%State%HNS
             Wind            = Me%State%Wind
             WaterQuality    = Me%State%WQM
             T90Variable     = Me%State%T90Variable
@@ -10798,9 +11375,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 !Moves the Origins
                 call MoveOrigin             ()
 
+                if (Me%State%HNS) then
+                    call SubmergeSurfaceHeavyParticles()
+                    call UpdateHNSAreaVolume(UpdateParticleAreas = .false.)
+                    call InternalParticHNS()
+                endif
+
                 !Moves the Particles
                 call MovePartic             ()
+                call CheckSurfaceParticles  ()
+                call UpdateParticleState    ()
                
+                if (Me%State%HNS) then
+                    call UpdateHNSAreaVolume(UpdateParticleAreas = .true.)
+                    call UpdateHNSMass      ()
+                    call ComputeHNSGridProperties() 
+                endif
+
                 !Removes Particles in intertidal areas
                 call VerifyLandParticles    ()  
 
@@ -10813,7 +11404,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 !Eliminates Particles
                 call PurgeParticles         ()
                 
-                call CheckSurfaceParticles  ()
+!                call CheckSurfaceParticles  ()
 
 !                !Verifies is a particle is beached
 !                if (Me%State%AssociateBeachProb) then
@@ -10908,7 +11499,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                     call ActualizesTauErosionGrid()
                 endif
                 
-                call UpdateParticleState()
+!                call UpdateParticleState()
                 !Writes Time Series
                 if (Me%State%OutputTracerInfo) then
                     call WriteIndividualTracerOutput()
@@ -10946,7 +11537,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !Local-----------------------------------------------------------------        
         type (T_Origin), pointer                    :: CurrentOrigin 
         type (T_Partic), pointer                    :: CurrentPartic 
-        integer                                     :: i, j, WS_KUB, emp
+        integer                                     :: i, j, k, WS_KUB, emp
+        real                                        :: WaterDensity, ParticleDensity
+        integer                                     :: STAT_CALL
         !Begin-----------------------------------------------------------------    
 
 
@@ -10965,6 +11558,7 @@ d2:         do while (associated (CurrentPartic))
                 !Grid Cell of the particle
                 i        = CurrentPartic%Position%I
                 j        = CurrentPartic%Position%J
+                k        = CurrentPartic%Position%K
                 
                 !check if the particle is near the surface
                 if (CurrentOrigin%Movement%Float) then 
@@ -10988,6 +11582,26 @@ d2:         do while (associated (CurrentPartic))
                     
                 endif  
                 
+                if (CurrentOrigin%State%HNS) then
+                    !only previously floating or entrained particles lighter than water are allowed 
+                    !to stay at surface slick
+                    
+                    if (CurrentPartic%Position%Surface) then
+                        if ((CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) .OR.  &
+                            (CurrentPartic%HNSParticleState .EQ. Surface_) &
+                           ) then
+                            WaterDensity        = Me%EulerModel(emp)%Density (i, j, k)
+
+                            call GetHNSDensity(CurrentOrigin%ObjHNS, ParticleDensity, STAT = STAT_CALL)
+
+                            if (ParticleDensity .LT. WaterDensity) then 
+                                CurrentPartic%HNSParticleState = Surface_
+                            else
+                                CurrentPartic%HNSParticleState = WaterColumn_Droplet_
+                            endif
+                        endif
+                    endif
+                endif
                 CurrentPartic => CurrentPartic%Next              
 
             enddo d2
@@ -11561,7 +12175,11 @@ d1:     do while (associated(CurrentOrigin))
         
             !Writes Particle Output
             call ParticleOutput         ()
-
+    
+            if (Me%State%HNS) then
+                call OutPut_HNSTimeSerie
+            endif
+            
             !Writes Time Series !FM
             if (Me%WritesTimeSerie) then
                call OutPut_TimeSeries   ()
@@ -11678,12 +12296,10 @@ iON:        if (CurrentOrigin%EmissionON) then
 
                         case (Point_)
 
-                            CurrentOrigin%StartEmission = Me%Now
                             call EmissionPoint      (CurrentOrigin)
 
                         case (Box_)
 
-                            CurrentOrigin%StartEmission = Me%Now
                             call EmissionBox        (CurrentOrigin)
 
                         end select
@@ -11713,8 +12329,15 @@ iON:        if (CurrentOrigin%EmissionON) then
 
                             case (Accident_)
 
-                                call EmissionAccident      (CurrentOrigin)
-
+                                If ((CurrentOrigin%ObjHNS/= 0) .AND. &
+                                    (CurrentOrigin%HNSInitialState .EQ. WaterColumn_Droplet_) &
+                                   )  then
+                                   ! if particles are emitted below the surface, they will not have initial area
+                                    call EmissionPoint         (CurrentOrigin)
+                                else
+                                    call EmissionAccident      (CurrentOrigin)
+                                endif
+    
                             end select
 
                             CurrentOrigin%OnlyOnceEmit = .false.
@@ -12014,7 +12637,427 @@ i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) th
 
     !--------------------------------------------------------------------------
 
-     subroutine ParticleDensity () 
+    !--------------------------------------------------------------------------
+    
+    subroutine HNSGridConc3D (CurrentOrigin)
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: i, j, k, em, ig
+        !Begin-----------------------------------------------------------------
+        
+        em = CurrentOrigin%Position%ModelID
+        ig = CurrentOrigin%GroupID
+
+        ILB = Me%EulerModel(em)%WorkSize%ILB
+        JLB = Me%EulerModel(em)%WorkSize%JLB
+        KLB = Me%EulerModel(em)%WorkSize%KLB
+        IUB = Me%EulerModel(em)%WorkSize%IUB
+        JUB = Me%EulerModel(em)%WorkSize%JUB
+        KUB = Me%EulerModel(em)%WorkSize%KUB
+
+!        allocate (Droplets_MassSumParticCell (ILB:IUB,                &
+!                                     JLB:JUB,                &
+!                                     KLB:KUB),               &
+!                                     STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR02'
+!
+!        allocate (Dissolved_MassSumParticCell (ILB:IUB,                &
+!                                     JLB:JUB,                &
+!                                     KLB:KUB),               &
+!                                     STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR03'
+!
+!        allocate (SuspendedParticulates_MassSumParticCell (ILB:IUB,                &
+!                                     JLB:JUB,                &
+!                                     KLB:KUB),               &
+!                                     STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR04'
+
+        Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(:,:,:)            = 0.
+        Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(:,:,:)             = 0.
+        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(:,:,:) = 0.
+        Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D(:,:,:)            = 0.
+        Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(:,:,:)             = 0.
+        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D(:,:,:) = 0.
+        
+!        Dissolved_MassSumParticCell             = 0.
+!        Droplets_MassSumParticCell              = 0.
+!        SuspendedParticulates_MassSumParticCell  = 0.
+        
+        !Adds the mass of all particles in the every cell
+        CurrentPartic => CurrentOrigin%FirstPartic
+        do while (associated(CurrentPartic))
+
+            i = CurrentPartic%Position%I
+            j = CurrentPartic%Position%J
+            k = CurrentPartic%Position%k
+
+            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Dissolved_) then
+                Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) = &
+                Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D (i,j,k)+ CurrentPartic%HNSMass
+!                Dissolved_MassSumParticCell(i, j, k) = Dissolved_MassSumParticCell(i, j, k) +              & 
+!                                             CurrentPartic%HNSMass
+                
+            end if                                             
+            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
+                Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) =  & 
+                Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) + CurrentPartic%HNSMass
+!                Droplets_MassSumParticCell(i, j, k) = Droplets_MassSumParticCell(i, j, k) +              & 
+!                                             CurrentPartic%HNSMass
+            end if                                             
+            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
+                Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) =  &
+                Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) + CurrentPartic%HNSMass
+!                SuspendedParticulates_MassSumParticCell(i, j, k) =      &
+!                                        SuspendedParticulates_MassSumParticCell(i, j, k) + CurrentPartic%HNSMass
+            end if                                             
+
+            CurrentPartic => CurrentPartic%Next
+        enddo
+
+!       Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D = Dissolved_MassSumParticCell
+!       Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D = Droplets_MassSumParticCell
+!       Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D = SuspendedParticulates_MassSumParticCell
+
+        !Calculates the HNS Grid Concentration (3D)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+           if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+                 if (Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) > 0.) then
+                     Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D (i, j,k) = 1.E6 *  &
+                     Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
+                 endif
+                 if (Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) > 0.) then
+                     Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(i,j,k) = 1.E6 *  &
+                     Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
+                 endif
+                 if (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) > 0.) then
+                     Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D (i, j,k) = 1.E6 *  &
+                     Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
+                 endif
+            end if
+        enddo
+        enddo
+        enddo
+
+!        deallocate (Dissolved_MassSumParticCell, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR21'
+!        deallocate (Droplets_MassSumParticCell, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR22'
+!        deallocate (SuspendedParticulates_MassSumParticCell, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR23'
+
+    end subroutine HNSGridConc3D
+
+  !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    
+    subroutine HNSGridConc2D (CurrentOrigin)
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic
+        real, dimension(:,:), pointer               :: Air_MassSumParticCell, Droplets_MassSumParticCell
+        real, dimension(:,:), pointer               :: SurfaceFloating_MassSumParticCell, DepositedParticulates_MassSumParticCell
+        real, dimension(:,:), pointer               :: Dissolved_MassSumParticCell, SuspendedParticulates_MassSumParticCell
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: i, j, k, STAT_CALL, em, ig
+        real                                        :: IntegratedVolume
+
+        !Begin-----------------------------------------------------------------
+        
+        em = CurrentOrigin%Position%ModelID
+        ig = CurrentOrigin%GroupID
+
+        ILB = Me%EulerModel(em)%WorkSize%ILB
+        JLB = Me%EulerModel(em)%WorkSize%JLB
+        KLB = Me%EulerModel(em)%WorkSize%KLB
+        IUB = Me%EulerModel(em)%WorkSize%IUB
+        JUB = Me%EulerModel(em)%WorkSize%JUB
+        KUB = Me%EulerModel(em)%WorkSize%KUB
+
+        allocate (Air_MassSumParticCell (ILB:IUB,                &
+                                     JLB:JUB),                &
+                                     STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR01'
+
+        allocate (SurfaceFloating_MassSumParticCell (ILB:IUB,                &
+                                     JLB:JUB),                &
+                                     STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR02'
+
+        allocate (Droplets_MassSumParticCell (ILB:IUB,                &
+                                     JLB:JUB),                &
+                                     STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR03'
+
+        allocate (Dissolved_MassSumParticCell (ILB:IUB,                &
+                                     JLB:JUB),                &
+                                     STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR04'
+
+        allocate (SuspendedParticulates_MassSumParticCell (ILB:IUB,                &
+                                     JLB:JUB),                &
+                                     STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR05'
+
+        allocate (DepositedParticulates_MassSumParticCell (ILB:IUB,                &
+                                     JLB:JUB),                &
+                                     STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR06'
+
+        Air_MassSumParticCell                   = 0.
+        SurfaceFloating_MassSumParticCell       = 0.
+        Dissolved_MassSumParticCell             = 0.
+        Droplets_MassSumParticCell              = 0.
+        SuspendedParticulates_MassSumParticCell = 0.
+        DepositedParticulates_MassSumParticCell = 0.
+               
+
+        !Adds the mass of all particles in the every cell
+        CurrentPartic => CurrentOrigin%FirstPartic
+        do while (associated(CurrentPartic))
+
+            i = CurrentPartic%Position%I
+            j = CurrentPartic%Position%J
+
+            if ( (CurrentPartic%HNSParticleState .EQ. Air_Evaporated_) .OR. &
+                 (CurrentPartic%HNSParticleState .EQ. Air_Volatilized_) ) then
+                Air_MassSumParticCell(i, j) = Air_MassSumParticCell(i, j) +              & 
+                                             CurrentPartic%HNSMass
+            end if                                             
+
+            if (CurrentPartic%HNSParticleState .EQ. Surface_) then
+                SurfaceFloating_MassSumParticCell(i, j) = SurfaceFloating_MassSumParticCell(i, j) +              & 
+                                             CurrentPartic%HNSMass
+            end if                                             
+
+            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Dissolved_) then
+                Dissolved_MassSumParticCell(i, j) = Dissolved_MassSumParticCell(i, j) +              & 
+                                             CurrentPartic%HNSMass
+            end if                                             
+            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
+                Droplets_MassSumParticCell(i, j) = Droplets_MassSumParticCell(i, j) +              & 
+                                             CurrentPartic%HNSMass
+            end if                                             
+            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
+                SuspendedParticulates_MassSumParticCell(i, j) = SuspendedParticulates_MassSumParticCell(i, j) +  & 
+                                             CurrentPartic%HNSMass
+            end if                                             
+            if (CurrentPartic%HNSParticleState .EQ. Bottom_Deposited_) then
+                DepositedParticulates_MassSumParticCell(i, j) = DepositedParticulates_MassSumParticCell(i, j) +  & 
+                                             CurrentPartic%HNSMass
+            end if                                             
+
+            CurrentPartic => CurrentPartic%Next
+        enddo
+
+       Me%EulerModel(em)%HNS(ig)%GridAirMass2D                              = Air_MassSumParticCell
+       Me%EulerModel(em)%HNS(ig)%GridSurfaceFloatingMass2D                  = SurfaceFloating_MassSumParticCell
+       Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D                        = Dissolved_MassSumParticCell
+       Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D                         = Droplets_MassSumParticCell
+       Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D             = SuspendedParticulates_MassSumParticCell
+       Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMass2D             = DepositedParticulates_MassSumParticCell
+
+        !Calculates the HNS Grid Concentration (2D)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            IntegratedVolume = 0.
+            do k = KLB, KUB
+                IntegratedVolume = IntegratedVolume + Me%EulerModel(em)%VolumeZ(i,j,k)
+            enddo
+
+           if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+                 if (Air_MassSumParticCell(i, j) > 0.) then
+                     Me%EulerModel(em)%HNS(ig)%GridAirConc2D (i, j) = 1.E6 *  &
+                     Air_MassSumParticCell(i,j) / (Me%EulerModel(em)%GridCellArea (i, j) * 2.)  
+                     ! the value of 2(m) above is the surface layer where there would be exposure 
+                     ! to humans and wildlife 
+                 endif
+                 if (Dissolved_MassSumParticCell(i, j) > 0.) then
+                     Me%EulerModel(em)%HNS(ig)%GridDissolvedConc2D (i, j) = 1.E6 *  &
+                     Dissolved_MassSumParticCell(i,j) / IntegratedVolume  
+                 endif
+                 if (Droplets_MassSumParticCell(i, j) > 0.) then
+                     Me%EulerModel(em)%HNS(ig)%GridDropletsConc2D (i, j) = 1.E6 *  &
+                     Droplets_MassSumParticCell(i,j) / IntegratedVolume  
+                 endif
+                 if (SuspendedParticulates_MassSumParticCell(i, j) > 0.) then
+                     Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc2D (i, j) = 1.E6 *  &
+                     SuspendedParticulates_MassSumParticCell(i,j) / IntegratedVolume    
+                 endif
+                 if (DepositedParticulates_MassSumParticCell(i, j) > 0.) then
+                     Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMassPerArea2D (i, j) = 1.E6 *  &
+                     DepositedParticulates_MassSumParticCell(i,j) / Me%EulerModel(em)%GridCellArea (i, j)    
+                 endif
+            end if
+
+        enddo
+        enddo
+
+        deallocate (Air_MassSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR20'
+        nullify(Air_MassSumParticCell)
+        deallocate (SurfaceFloating_MassSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR21'
+        nullify(SurfaceFloating_MassSumParticCell)
+        deallocate (Dissolved_MassSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR22'
+        nullify(Dissolved_MassSumParticCell)
+        deallocate (Droplets_MassSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR23'
+        nullify(Droplets_MassSumParticCell)
+        deallocate (SuspendedParticulates_MassSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR24'
+        nullify(SuspendedParticulates_MassSumParticCell)
+        deallocate (DepositedParticulates_MassSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR25'
+        nullify(DepositedParticulates_MassSumParticCell)
+
+
+    end subroutine HNSGridConc2D
+
+    !--------------------------------------------------------------------------
+    
+    subroutine HNSGridMaxConc2D (CurrentOrigin)
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        real, dimension(:, :), pointer           :: MaxDissolvedMassSumParticCell
+        real, dimension(:, :), pointer           :: MaxDropletsMassSumParticCell
+        real, dimension(:, :), pointer           :: MaxSuspendedParticulateMassSumParticCell
+        integer, dimension(:, :), pointer           :: KMax_Dissolved,KMax_Droplets 
+        integer, dimension(:, :), pointer           :: KMax_SuspendedParticulates
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: i, j, k, STAT_CALL, em, ig
+
+        !Begin-----------------------------------------------------------------
+        
+        em = CurrentOrigin%Position%ModelID
+        ig = CurrentOrigin%GroupID
+
+        ILB = Me%EulerModel(em)%WorkSize%ILB
+        JLB = Me%EulerModel(em)%WorkSize%JLB
+        KLB = Me%EulerModel(em)%WorkSize%KLB
+        IUB = Me%EulerModel(em)%WorkSize%IUB
+        JUB = Me%EulerModel(em)%WorkSize%JUB
+        KUB = Me%EulerModel(em)%WorkSize%KUB
+
+        allocate (MaxDissolvedMassSumParticCell (ILB:IUB,             &
+                                        JLB:JUB),            &
+                                        STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR01'
+
+        allocate (MaxDropletsMassSumParticCell (ILB:IUB,             &
+                                        JLB:JUB),            &
+                                        STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR02'
+
+        allocate (MaxSuspendedParticulateMassSumParticCell (ILB:IUB,             &
+                                        JLB:JUB),            &
+                                        STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR03'
+
+        allocate (KMax_Dissolved(ILB:IUB,             &
+                                        JLB:JUB),             &
+                                        STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR04'
+
+        allocate (KMax_Droplets(ILB:IUB,             &
+                                        JLB:JUB),             &
+                                        STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR05'
+
+        allocate (KMax_SuspendedParticulates(ILB:IUB,             &
+                                        JLB:JUB),             &
+                                        STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR06'
+
+              
+        MaxDissolvedMassSumParticCell(:,:) = 0.
+        MaxDropletsMassSumParticCell(:,:) = 0.
+        MaxSuspendedParticulateMassSumParticCell(:,:) = 0.
+        do j = JLB, JUB
+        do i = ILB, IUB
+            do k = KLB, KUB
+                if (MaxDissolvedMassSumParticCell(i, j) < Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(i, j)) then
+                    MaxDissolvedMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(i, j)
+                    KMax_Dissolved(i,j) = k
+                end if
+                if (MaxDropletsMassSumParticCell(i, j) < Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(i, j)) then
+                    MaxDropletsMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(i, j)
+                    KMax_Droplets(i,j) = k
+                end if
+                if (MaxSuspendedParticulateMassSumParticCell(i, j) <    &
+                    Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(i, j)) then
+                    MaxSuspendedParticulateMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(i, j)
+                    KMax_SuspendedParticulates(i,j) = k
+                end if
+            enddo
+        enddo
+        enddo
+
+        !Calculates the HNS Grid Max Concentration (2D)
+        do j = JLB, JUB
+        do i = ILB, IUB
+               if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+                    if (MaxDissolvedMassSumParticCell(i, j) > 0.) then
+                         Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) = 1.E6 * &
+                         MaxDissolvedMassSumParticCell(i, j) / Me%EulerModel(em)%VolumeZ(i,j,KMax_Dissolved(i,j))  
+                    endif
+                    if (MaxDropletsMassSumParticCell(i, j) > 0.) then
+                         Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) = 1.E6 * &
+                         MaxDropletsMassSumParticCell(i, j) / Me%EulerModel(em)%VolumeZ(i,j,KMax_Droplets(i,j))  
+                    endif
+                    if (MaxSuspendedParticulateMassSumParticCell(i, j) > 0.) then
+                         Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) = 1.E6 * &
+                         MaxSuspendedParticulateMassSumParticCell(i, j) /           &
+                         Me%EulerModel(em)%VolumeZ(i,j,KMax_SuspendedParticulates(i,j))  
+                    endif
+               end if
+        enddo
+        enddo
+
+        deallocate (MaxDissolvedMassSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR10'
+        nullify(MaxDissolvedMassSumParticCell)
+
+        deallocate (MaxDropletsMassSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR11'
+        nullify(MaxDropletsMassSumParticCell)
+
+        deallocate (MaxSuspendedParticulateMassSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR12'
+        nullify(MaxSuspendedParticulateMassSumParticCell)
+
+        deallocate (KMax_Dissolved, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR13'
+        nullify(KMax_Dissolved)
+
+        deallocate (KMax_Droplets, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR14'
+        nullify(KMax_Droplets)
+
+        deallocate (KMax_SuspendedParticulates, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR15'
+        nullify(KMax_SuspendedParticulates)
+
+    end subroutine HNSGridMaxConc2D
+
+  !--------------------------------------------------------------------------
+
+       subroutine ParticleDensity () 
     
         !Arguments-------------------------------------------------------------
 
@@ -12734,6 +13777,10 @@ CurrPart:       do while (associated(CurrentPartic))
                     j     = CurrentPartic%Position%J
                                       
                     emp    = CurrentPartic%Position%ModelID
+                    ILB   = Me%EulerModel(emp)%WorkSize%ILB
+                    IUB   = Me%EulerModel(emp)%WorkSize%IUB
+                    JLB   = Me%EulerModel(emp)%WorkSize%JLB
+                    JUB   = Me%EulerModel(emp)%WorkSize%JUB
                     KUB   = Me%EulerModel(emp)%WorkSize%KUB
 
                     TheoricBeachedVolAfterRemoval = Me%EulerModel(emp)%Lag2Euler%TheoricBeachedVolAfterRemoval(i,j, ig)
@@ -12829,7 +13876,6 @@ Group:      do ig = 1, Me%nGroups
         real, dimension(:, :), pointer              :: DXX, DYY               
         integer                                     :: ILB, IUB, JLB, JUB, KUB
         integer                                     :: i,j, ShoreType
-        real, dimension(:), pointer                 :: BeachWidth
         integer                                     :: STAT_CALL
         real                                        :: WidthFractionX1, WidthFractionX2, WidthFractionX
         real                                        :: WidthFractionY1, WidthFractionY2, WidthFractionY
@@ -12838,7 +13884,6 @@ Group:      do ig = 1, Me%nGroups
         
         !Begin---------------------------------------------------------------------
 
-        allocate (BeachWidth(1:10))
         
 d1:     do em =1, Me%EulerModelNumber 
             ILB = Me%EulerModel(em)%WorkSize%ILB
@@ -13023,6 +14068,7 @@ CurrOr: do while (associated(CurrentOrigin))
 
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic
         real, dimension(:, :, :), pointer           :: Temperature3D
         real                                        :: TemperatureX, DensityX
         real                                        :: VolInic, CoefVelMancha
@@ -13169,6 +14215,45 @@ CurrOr: do while (associated(CurrentOrigin))
                          STAT           = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'MovePartic - ModuleLagrangianGlobal - ERR40'
                 end if
+            
+            elseif (CurrentOrigin%State%HNS .and. CurrentOrigin%nParticle > 0) then
+
+                call UpdateHNSAreaVolume(UpdateParticleAreas = .false.)
+         
+
+                
+                CurrentPartic => CurrentOrigin%FirstPartic
+                do while (associated(CurrentPartic))
+                    if (CurrentOrigin%State%HNSSpreading) then
+                        if (CurrentOrigin%Position%SurfaceEmission) then
+                            if ((CurrentOrigin%AreaTotal > 0.) .AND. (CurrentPartic%HNSParticleState .EQ. Surface_)) then
+                                call GetHNSSpreadingDiffVel (CurrentOrigin%ObjHNS,                        &
+                                     DT                     = Me%DT_Partic,                               &
+                                     AreaTotal              = CurrentOrigin%AreaTotal,                    &
+                                     AreaParticle           = CurrentPartic%Geometry%Area,                &
+                                     VolumeParticle         = CurrentPartic%Geometry%Volume,              &
+                                     SpreadingDiffCoef      = CurrentPartic%HNSSpreadingDiffCoef,         &
+                                     SpreadingDiffVel       = CurrentPartic%HNSSpreadingDiffVel,          &
+                                     STAT                   = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'MovePartic - ModuleLagrangianGlobal - ERR41'
+                            else
+                                !if particle is currently underwater, spreading is disabled;
+                                !also if there are no particles at surface, there is no spreading process;
+                                CurrentPartic%HNSSpreadingDiffCoef  = 0.0
+                                CurrentPartic%HNSSpreadingDiffVel   = 0.0
+                            endif
+                        else
+                            !ROD: underwater spill disconnets spreading; this can be reviewed in the future
+                            CurrentPartic%HNSSpreadingDiffCoef  = 0.0
+                            CurrentPartic%HNSSpreadingDiffVel   = 0.0
+                        endif
+                    else
+                        CurrentPartic%HNSSpreadingDiffCoef  = 0.0
+                        CurrentPartic%HNSSpreadingDiffVel   = 0.0
+                    endif
+                CurrentPartic => CurrentPartic%Next
+            enddo
+            
             endif
 
             !Moves the particles horizontaly
@@ -13215,6 +14300,9 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: UOil     = 0.
         real                                        :: VOil     = 0.
         real                                        :: VelOil   = 0.
+        real                                        :: UHNS     = 0.
+        real                                        :: VHNS     = 0.
+        real                                        :: VelHNS   = 0.
         real                                        :: UPlume   = 0.
         real                                        :: VPlume   = 0.
         integer                                     :: Layers
@@ -13310,7 +14398,8 @@ CT:         do while (ComputeTrajectory)
                     Velocity_V => Me%EulerModel(emp)%Velocity_V
                 endif
 
-BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited .or. CurrentPartic%AtTheBottom) then
+BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited .or. CurrentPartic%AtTheBottom &
+                    .or. (CurrentPartic%HNSParticleState .EQ. Bottom_Deposited_)) then
 
                     if (CurrentPartic%Deposited) then
 
@@ -13498,8 +14587,9 @@ MF:             if (CurrentPartic%Position%Surface) then
                         Else
 if_stm:                     If (CurrentOrigin%Movement%StokesDriftMethod == LonguetHigginsGeneric) then 
                                 If (WaterDepth > (WaveLength / 2.)) then
-                                    write(*,*) 'Can not compute Stokes Drift with generic formulation (potential floating overflow)'
-                                    write(*,*) 'Since (WaterDepth > WaveLength / 2), deep water approach is adequate'
+                                    write(*,*) 'Can not compute Stokes Drift with generic formulation '
+                                    write(*,*) '(potential floating overflow).'
+                                    write(*,*) 'Since (WaterDepth > WaveLength / 2), deep water approach is adequate '
                                     write(*,*) '- change Stokes Drift Method to LonguetHigginsDeep'
                                     stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR11'
                                 endif
@@ -13570,7 +14660,7 @@ if_stm:                     If (CurrentOrigin%Movement%StokesDriftMethod == Long
                             call RANDOM_NUMBER(R1)
                             if (CurrentPartic%Position%SpreadingAngle == null_real) then
                                 call RANDOM_NUMBER(R2)
-                                R2 = 2*Pi*R2
+                                R2 = 2.0*Pi*R2
                                 VelOil  = Me%ExternalVar%DiffVelocity
                             else                                
                                 R2 = CurrentPartic%Position%SpreadingAngle
@@ -13589,6 +14679,17 @@ if_stm:                     If (CurrentOrigin%Movement%StokesDriftMethod == Long
 
                     end if
                     
+                    UHNS = 0.
+                    VHNS = 0.
+                    if (CurrentOrigin%State%HNS) then
+                        call RANDOM_NUMBER(R1)
+                        call RANDOM_NUMBER(R2)
+                        !uniform Distribution (Al-Rabeh, 2000)
+                        VelHNS = CurrentPartic%HNSSpreadingDiffVel
+                        UHNS = R1 * cos(2.0*Pi*R2) * VelHNS
+                        VHNS = R1 * sin(2.0*Pi*R2) * VelHNS                   
+                    endif
+
                     if (CurrentOrigin%State%FloatingObject) then
                     
                         WaterDensity        = Me%EulerModel(emp)%Density(i, j, k)
@@ -13627,6 +14728,9 @@ if_stm:                     If (CurrentOrigin%Movement%StokesDriftMethod == Long
 
                     UOil  = 0.0
                     VOil  = 0.0
+                    
+                    UHNS  = 0.0
+                    VHNS  = 0.0
                         
                     if (CurrentPartic%CurrentX == FillValueReal .or. CurrentPartic%CurrentY == FillValueReal) then
                         InterpolVel3D = .true.
@@ -13846,8 +14950,8 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         DX = (UDrift + UD) * Me%DT_Partic
                         DY = (VDrift + VD) * Me%DT_Partic
                     else
-                        DX = (UINT + UD + UWIND + UOIL + UStokesDrift) * Me%DT_Partic
-                        DY = (VINT + VD + VWIND + VOIL + VStokesDrift) * Me%DT_Partic
+                        DX = (UINT + UD + UWIND + UOIL + UHNS + UStokesDrift) * Me%DT_Partic
+                        DY = (VINT + VD + VWIND + VOIL + VHNS + VStokesDrift) * Me%DT_Partic
                     endif
                 else
                     DX         =  UD           * Me%DT_Partic
@@ -13924,6 +15028,7 @@ iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(CurrentPartic%Positi
             if (CurrentPartic%Beached           .or.                                    &
                 CurrentPartic%Deposited         .or.                                    &
                 CurrentPartic%AtTheBottom       .or.                                    &
+                (CurrentPartic%HNSParticleState .EQ. Bottom_Deposited_)      .or.       &
                 CurrentPartic%KillPartic) then
                 MovePartic = .false.
             endif 
@@ -14452,18 +15557,19 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         real                                        :: CompZ1_Up, CompZ1_Down
         real                                        :: AuxCompMisturaZ_Up, AuxCompMisturaZ_Down
         real                                        :: EspSup, Esp, EspInf
-        real                                        :: VELQZ, D50M, VQ1, VELFLOAT, VELLARVAE, VELBODY
+        real                                        :: VELQZ, D50M, VQ1, VELFLOAT, VELLARVAE, VELBODY, VELHNS
         real                                        :: WStandardDeviation
         real                                        :: W, WD
         real                                        :: Radius, Area, VolOld, VolNew, dVol
         real                                        :: ai, dw, Cd, DeltaD, AuxW
         real                                        :: r1, r2, correction
-        real                                        :: WaveHeight
+        real                                        :: WaveHeight, WavePeriod, Wind
         real                                        :: DT_Vert        
         integer                                     :: Light_Index 
         real                                        :: BottomDepth, SurfaceDepth
         real                                        :: BreakingWaveHeight
         type(T_Larvae), pointer                     :: LarvaePtr
+        real                                        :: SPMDensity, WaterDensity
         integer                                     :: STAT_CALL
 
         !------------------------------------------------------------------------
@@ -14481,7 +15587,7 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         DT_Vert = Me%DT_Partic / real(Me%Vert_Steps)
 
         kFloor          =   Me%EulerModel(emp)%kFloor(i, j)
-        BottomDepth     =   Me%EulerModel(emp)%SZZ(I, J, kFloor-1)
+        BottomDepth     =   Me%EulerModel(emp)%WaterColumn(i, j)
         SurfaceDepth    =   Me%EulerModel(emp)%SZZ(i, j, KUB)
 
 MD:     if (CurrentOrigin%Position%MaintainDepth) then
@@ -14750,7 +15856,7 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                 VELFLOAT      = 0
 
 
-                if (CurrentOrigin%State%Oil) then    
+OIL:            if (CurrentOrigin%State%Oil) then    
                
                     !correction number of particle submerged
                     CurrentOrigin%Fdisp = dble(CurrentOrigin%Nbrsubmerged) / dble(CurrentOrigin%NbrParticlesIteration);
@@ -14761,7 +15867,8 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
     !                                CurrentPartic%Position%Z = SurfaceDepth
                                 
                                 WaveHeight       = Me%EulerModel(emp)%WaveHeight2D(i, j)
-
+                                WavePeriod       = Me%EulerModel(emp)%WavePeriod2D(i, j)
+                                Wind             = abs(cmplx(Me%EulerModel(emp)%WindX(i,j), Me%EulerModel(emp)%WindY(i,j)))
 
                                 !It is assumed that there is no vertical advection for surface oil particles
                                 W = 0.0
@@ -14777,11 +15884,15 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                                     
                                     !CurrentPartic%Geometry%OilDropletsD50 = CurrentOrigin%OilDropletsD50
 
-                                    CurrentPartic%Geometry%OilDropletsDiameter = OilDropletDiameter(&
+                                    call GetDropletDiameterOrQdTotal(&
                                                   MethodBWDropletsDiameter    = CurrentOrigin%MethodBWDropletsDiameter, &
-                                                  D50                         = CurrentOrigin%OilDropletsD50, &
-                                                  ParticleViscCin             = CurrentPartic%OilViscCin)
-
+                                                  D50                         = CurrentOrigin%DropletsD50, &
+                                                  ParticleViscCin             = CurrentPartic%OilViscCin, &
+                                                  WaveHeight                  = WaveHeight, &
+                                                  WaterDensity                = Me%EulerModel(emp)%Density(i, j, k), &
+                                                  Wind                        = Wind, &
+                                                  WavePeriod                  = WavePeriod, &
+                                                  DropletDiameter             = CurrentPartic%Geometry%DropletsDiameter)
 
                                     !VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 & 
                                     !           * CurrentPartic%Geometry%OilDropletsD50 & 
@@ -14791,13 +15902,19 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
                                     VELFLOAT = DropletsFloatVel(ParticleDensity = CurrentPartic%OilDensity, &
                                                                 WaterDensity    = Me%EulerModel(emp)%Density (i, j, k), &
-                                                                Diameter        = CurrentPartic%Geometry%OilDropletsDiameter, &
+                                                                Diameter        = CurrentPartic%Geometry%DropletsDiameter, &
                                                                 MethodFloatVel  = CurrentOrigin%MethodFloatVel, &
                                                                 InterfTension   = CurrentPartic%OWInterfacialTension)
                                     
                                 else
                                      NewPosition%Z = SurfaceDepth
-                                     VELFLOAT      = 0
+                                     VELFLOAT      = 0.0
+                                     ! Surface Oil particles with density lower than water
+                                     ! will not submerge by turbulence; they will float
+                                     if (CurrentPartic%OilDensity .LT. Me%EulerModel(emp)%Density (i, j, k)) then
+                                         WD            = 0.0
+                                     endif
+
                                end if
                                CurrentPartic%Position%Z = NewPosition%Z
                            
@@ -14809,8 +15926,8 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                             !           / (18. * WaterCinematicVisc)
 
                             !This situation can be verified in the case of a underwater release of oil
-                            if (CurrentPartic%Geometry%OilDropletsDiameter < 0.) then
-                                CurrentPartic%Geometry%OilDropletsDiameter = CurrentOrigin%OilDropletsD50
+                            if (CurrentPartic%Geometry%DropletsDiameter < 0.) then
+                                CurrentPartic%Geometry%DropletsDiameter = CurrentOrigin%DropletsD50
                             endif
                             
                             !This situation can be verified in the case of a underwater release of oil
@@ -14824,21 +15941,49 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
                             VELFLOAT = DropletsFloatVel(ParticleDensity = CurrentPartic%OilDensity, &
                                                         WaterDensity    = Me%EulerModel(emp)%Density (i, j, k), &
-                                                        Diameter        = CurrentPartic%Geometry%OilDropletsDiameter, &
+                                                        Diameter        = CurrentPartic%Geometry%DropletsDiameter, &
                                                         MethodFloatVel  = CurrentOrigin%MethodFloatVel, &
                                                         InterfTension   = CurrentPartic%OWInterfacialTension)
                                       
                         endif SU1                       
                                       
-                endif
-                
+                endif OIL
                 
                 VELBODY = 0.0
-                
                 if(CurrentOrigin%State%HumanBody)then
                 
                     VELBODY = CurrentPartic%HumanBodySinkingVel
 
+                endif
+
+                VELHNS = 0.0
+                if (CurrentOrigin%State%HNS)  then
+                    if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
+                        If (CurrentOrigin%MethodFloatVel .EQ. Zheng_) then
+                            write(*,*)'Zheng method not available for HNS yet. Change METHOD_FLOAT_VEL to other option.'
+                            stop      'MoveParticVertical - ModuleLagrangianGlobal - ERR15'
+                        
+                        endif
+                        VELHNS = DropletsFloatVel(ParticleDensity = CurrentPartic%HNSDensity, &
+                                                        WaterDensity    = Me%EulerModel(emp)%Density (i, j, k), &
+                                                        Diameter        = CurrentPartic%Geometry%DropletsDiameter, &
+                                                        MethodFloatVel  = CurrentOrigin%MethodFloatVel, &
+                                                        InterfTension   = CurrentPartic%OWInterfacialTension)
+                    elseif (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
+                    !ROD: futurely this should be adapted to compute as sedimentation
+                    
+                        !median diameter of SPM (m)
+                        D50M = 50.e-6
+                        
+                        !median density of SPM (kg/m3)
+                        SPMDensity      = 1051.2
+                        
+                        WaterDensity    = Me%EulerModel(emp)%Density (i, j, k)
+                        
+                        VELHNS = -1. * (Gravity * (D50M**2.) * (SPMDensity - WaterDensity)) &
+                                 / (18. * WaterDynamicVisc)
+                        
+                    endif
                 endif
 
                 !Velocity due plume
@@ -14917,9 +16062,22 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                         VELLARVAE = - VELLARVAE
                     endif
 
-                    NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT + VELLARVAE + VELBODY) *  DT_Vert
+                    NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT + VELLARVAE + VELBODY + VELHNS) *  DT_Vert
                 endif PL
 
+                !verify HNS deposition
+                if (CurrentOrigin%State%HNS)  then
+                        i       = NewPosition%I
+                        j       = NewPosition%J
+                        kFloor  = Me%EulerModel(emp)%kFloor(i, j)
+
+                    if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
+                        if (NewPosition%Z >= Me%EulerModel(emp)%SZZ(i, j, kFloor-1)) then
+                            NewPosition%Z = Me%EulerModel(emp)%SZZ(I, J, KFloor-1) -  0.1 / 2.
+                            CurrentPartic%HNSParticleState = Bottom_Deposited_
+                        endif
+                    endif
+                endif
             endif MF
 
         endif MD
@@ -14967,8 +16125,11 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                 endif   
             
             else
+                ! in this case, particles will sink
+                DropletsFloatVel = -1. * (Gravity * (Diameter**2.) * (ParticleDensity - WaterDensity)) &
+                         / (18. * WaterDynamicVisc)
 
-                DropletsFloatVel = 0.
+!                DropletsFloatVel = 0.
                 
             endif
         elseif (MethodFloatVel == Zheng_) then
@@ -15049,60 +16210,61 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
         
     end function F_Reynolds                         
 
-    !--------------------------------------------------------------------------
-    real function OilDropletDiameter(MethodBWDropletsDiameter, D50, ParticleViscCin)
-    
-        !Arguments----------------------------------------------------------------------
-        integer, intent(IN)            :: MethodBWDropletsDiameter
-        real,    intent(IN)            :: D50, ParticleViscCin
-
-        !Local--------------------------------------------------------------------------
-        !type (T_Origin), pointer                    :: CurrentOrigin
-        real            :: ComputedD50
-        integer         :: i
-        real, parameter :: EWave = 5000. ! energy dissipation rate per unit volume (J/m3-s) between 1000 and 10000 - Delvigne 1988
-        real            :: DropletDiameter(5) ! mean droplet diameter per size class
-        real            :: Qd(5) ! Entrainment rate per size class
-        real            :: QdTotal ! Total entrainment rate
-        real            :: RandVal
-        real            :: CumulativeFraction(5)
-        !Begin--------------------------------------------------------------------------
-        select case (MethodBWDropletsDiameter)
-        
-        case (UserDefined_)
-            OilDropletDiameter = D50
-            
-        case (Computed_Half_D50_)
-            call GetDropletDiameterParameters(ParticleViscCin      = ParticleViscCin, &
-                                              ComputedD50          = ComputedD50)
-            OilDropletDiameter  = 0.5 * ComputedD50 
-                  
-        case (Computed_Classes_Random_)
-          
-            call GetEntrainedClasses(ParticleViscCin, 5, QdTotal, Qd, DropletDiameter)
-                                  
-        call random_number(RandVal)
-
-        CumulativeFraction(1) = (Qd(1) / QdTotal)
-        do i = 2,5
-            CumulativeFraction(i) =  CumulativeFraction(i-1) + (Qd(i) / QdTotal)
-        end do
-
-        If (RandVal <= CumulativeFraction(1)) then
-                OilDropletDiameter = DropletDiameter(1)
-        else
-            do i = 2,5 
-                if ((RandVal <= CumulativeFraction(i)) .and. (RandVal > CumulativeFraction(i-1))) then
-                    OilDropletDiameter = DropletDiameter(i)
-                    exit
-                endif        
-            end do             
-        Endif
-        
-        end select       
-       
-        
-    end function OilDropletDiameter                         
+!    !--------------------------------------------------------------------------
+!    real function OilDropletDiameter(MethodBWDropletsDiameter, D50, ParticleViscCin, WaveHeight, WaterDensity, Wind, WavePeriod)
+!    
+!        !Arguments----------------------------------------------------------------------
+!        integer, intent(IN)            :: MethodBWDropletsDiameter
+!        real,    intent(IN)            :: D50, ParticleViscCin
+!        real,    intent(IN)            :: WaveHeight, WaterDensity, Wind, WavePeriod
+!
+!        !Local--------------------------------------------------------------------------
+!        !type (T_Origin), pointer                    :: CurrentOrigin
+!        real            :: ComputedD50
+!        integer         :: i
+!        real, parameter :: EWave = 5000. ! energy dissipation rate per unit volume (J/m3-s) between 1000 and 10000 - Delvigne 1988
+!        real            :: DropletDiameter(5) ! mean droplet diameter per size class
+!        real            :: Qd(5) ! Entrainment rate per size class
+!        real            :: QdTotal ! Total entrainment rate
+!        real            :: RandVal
+!        real            :: CumulativeFraction(5)
+!        !Begin--------------------------------------------------------------------------
+!        select case (MethodBWDropletsDiameter)
+!        
+!        case (UserDefined_)
+!            OilDropletDiameter = D50
+!            
+!        case (Computed_Half_D50_)
+!            call GetDropletDiameterParameters(ParticleViscCin      = ParticleViscCin, &
+!                                              ComputedD50          = ComputedD50)
+!            OilDropletDiameter  = 0.5 * ComputedD50 
+!                  
+!        case (Computed_Classes_Random_)
+!          
+!            call GetEntrainedClasses(ParticleViscCin, WaveHeight, WaterDensity, Wind, WavePeriod, 5, QdTotal, Qd, DropletDiameter)
+!                                  
+!            call random_number(RandVal)
+!
+!            CumulativeFraction(1) = (Qd(1) / QdTotal)
+!            do i = 2,5
+!                CumulativeFraction(i) =  CumulativeFraction(i-1) + (Qd(i) / QdTotal)
+!            end do
+!
+!            If (RandVal <= CumulativeFraction(1)) then
+!                    OilDropletDiameter = DropletDiameter(1)
+!            else
+!                do i = 2,5 
+!                    if ((RandVal <= CumulativeFraction(i)) .and. (RandVal > CumulativeFraction(i-1))) then
+!                        OilDropletDiameter = DropletDiameter(i)
+!                        exit
+!                    endif        
+!                end do             
+!            Endif
+!        
+!        end select       
+!       
+!        
+!    end function OilDropletDiameter                         
 
     !--------------------------------------------------------------------------
 
@@ -16746,6 +17908,146 @@ CurrProp:       do while (associated(CurrentProperty))
 
     !--------------------------------------------------------------------------
 
+    subroutine SubmergeSurfaceHeavyParticles()
+    
+        !Arguments-------------------------------------------------------------
+!        logical, intent(IN)                         :: UpdateParticleAreas
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin),    pointer                 :: CurrentOrigin
+        type (T_Partic),    pointer                 :: CurrentPartic
+        integer                                     :: i, j, k, emp
+        real                                        :: WaterDensity
+        real                                        :: ParticleDensity
+        integer                                     :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+            CurrentPartic => CurrentOrigin%FirstPartic
+            do while (associated(CurrentPartic))
+
+                i   = CurrentPartic%Position%I
+                j   = CurrentPartic%Position%J
+                k   = CurrentPartic%Position%K
+                emp = CurrentPartic%Position%ModelID
+
+                WaterDensity        = Me%EulerModel(emp)%Density (i, j, k)
+
+                call GetHNSDensity(CurrentOrigin%ObjHNS, ParticleDensity, STAT = STAT_CALL)
+                
+                if (CurrentPartic%HNSParticleState .EQ. Surface_) then
+                    if (ParticleDensity .GE. WaterDensity) then
+                        CurrentPartic%HNSParticleState = WaterColumn_Droplet_
+                    endif
+                endif
+                
+                CurrentPartic => CurrentPartic%Next
+            enddo
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+    end subroutine SubmergeSurfaceHeavyParticles
+
+    !--------------------------------------------------------------------------
+
+    subroutine UpdateHNSAreaVolume(UpdateParticleAreas)
+    
+        !Arguments-------------------------------------------------------------
+        logical, intent(IN)                         :: UpdateParticleAreas
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin),    pointer                 :: CurrentOrigin
+        type (T_Partic),    pointer                 :: CurrentPartic
+        integer                                     :: i, j
+
+        !Begin-----------------------------------------------------------------
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+            CurrentOrigin%AreaTotal        = 0.
+            CurrentOrigin%VolumeTotal      = 0.
+
+            CurrentPartic => CurrentOrigin%FirstPartic
+            do while (associated(CurrentPartic))
+
+                i = CurrentPartic%Position%I
+                j = CurrentPartic%Position%J
+                
+                if (.NOT. CurrentPartic%Beached) then
+                    if (UpdateParticleAreas) then
+                        CurrentPartic%Geometry%Area = CurrentPartic%Geometry%Area + &
+                                                      CurrentPartic%HNSSpreadingDiffCoef * Me%DT_Partic
+                    endif
+
+                    CurrentOrigin%VolumeTotal   = CurrentOrigin%VolumeTotal +                &
+                                                  CurrentPartic%Geometry%Volume
+
+                    !total area at surface (which is used for spreading) only from surface particles
+                    if (CurrentPartic%Position%Surface) then
+                        CurrentOrigin%AreaTotal     = CurrentOrigin%AreaTotal  +                &
+                                                      CurrentPartic%Geometry%Area
+                    endif
+                end if
+                
+                CurrentPartic => CurrentPartic%Next
+            enddo
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+    end subroutine UpdateHNSAreaVolume
+
+    !--------------------------------------------------------------------------
+
+    subroutine HNSInitializeParticleValues
+        
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin),    pointer                 :: CurrentOrigin
+        type (T_Partic),    pointer                 :: CurrentPartic
+        integer                                     :: i, j
+
+        !Begin-----------------------------------------------------------------
+
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+            CurrentOrigin%AreaTotal        = 0.
+            CurrentOrigin%VolumeTotal      = 0.
+
+            CurrentPartic => CurrentOrigin%FirstPartic
+            do while (associated(CurrentPartic))
+
+                i = CurrentPartic%Position%I
+                j = CurrentPartic%Position%J
+                
+                CurrentPartic%HNSParticleState   = CurrentOrigin%HNSInitialState
+                CurrentPartic%MDegraded          = 0.
+               
+                CurrentOrigin%HNSMass = CurrentOrigin%HNSMass + CurrentPartic%HNSMass
+
+                CurrentPartic => CurrentPartic%Next
+            enddo
+
+                CurrentOrigin%HNSTotalMass = CurrentOrigin%HNSMass +  CurrentOrigin%MDegraded
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+    end subroutine HNSInitializeParticleValues
+
+    !--------------------------------------------------------------------------
+
     subroutine ComputeAreaVolume ()
 
         !Arguments-------------------------------------------------------------
@@ -16758,7 +18060,7 @@ CurrProp:       do while (associated(CurrentProperty))
         integer, dimension(:), pointer              :: BoundaryNodes
 
         real                                        :: VolInic, AverageThickness, TotalArea
-        real                                        :: API
+        real                                        :: Density
         integer, dimension(:), pointer              :: NeighborNodesIndex
         integer                                     :: i, j, em, ig, emp, ObjTriangulation, ip, NumberOfNodes, iN, iT        
         integer                                     :: STAT_CALL, NNi, NeighborNodesNumber, ni, ic, NumberOfBoundaryNodes
@@ -16830,7 +18132,7 @@ CurrOr: do while (associated(CurrentOrigin))
 iAM:        if (CurrentOrigin%AreaMethod == FayMethod_ .or.                             &
                (CurrentOrigin%AreaMethod == VoronoiArea_ .and. NumberOfNodes < 20)) then
 
-                call GetOilAPI (CurrentOrigin%ObjOil, API = API, STAT = STAT_CALL)
+                call GetOilAPI (CurrentOrigin%ObjOil, API = Density, STAT = STAT_CALL)
 
                 select case (CurrentOrigin%EmissionTemporal)
                 case (Continuous_)
@@ -16840,9 +18142,10 @@ iAM:        if (CurrentOrigin%AreaMethod == FayMethod_ .or.                     
                 end select            
 
                 CurrentOrigin%AreaTotal = F_FayArea(VolInic          = VolInic,                          & 
-                                                    API              = API,                              & 
+                                                    Density          = Density,                          & 
                                                     WaterDensity     = GetFirstParticDens(CurrentOrigin),& 
-                                                    WaterTemperature = GetFirstParticTemp(CurrentOrigin))
+                                                    WaterTemperature = GetFirstParticTemp(CurrentOrigin),&
+                                                    DensityInAPI     = .true.)
 
                 if (.not. CurrentOrigin%StartWithTriang) then
 
@@ -17085,6 +18388,364 @@ ib2:                if (.not. CurrentPartic%Beached) then
 
     !--------------------------------------------------------------------------
 
+    subroutine InternalParticHNS ()
+
+        !Arguments-------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic    
+        real, dimension(:, :, :), pointer           :: Temperature3D
+        real, dimension(:, :, :), pointer           :: SPM3D
+        integer                                     :: i, j, k, emp, KUB
+        real                                        :: WaterTemperature, WaterDensity, SPM 
+        real                                        :: UWIND, VWIND, Wind, AirTemperature, AtmPressure, WaveHeight, WavePeriod
+        real                                        :: UCURRENT, VCURRENT, Currents
+        type (T_Time)                               :: LagrangianTime
+        integer                                     :: STAT_CALL
+        integer                                     :: old_emp
+        real                                        :: MassIn, MassOUT
+        integer                                     :: HNSParticleStateNew, HNSParticleStateOld
+
+
+        !Local-----------------------------------------------------------------
+
+
+        LagrangianTime = Me%Now
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+i1:         if (CurrentOrigin%nParticle > 0)  then
+                CurrentOrigin%MEvaporated   = 0.
+                CurrentOrigin%MVolatilized  = 0.
+                CurrentOrigin%MEntrained    = 0.
+                CurrentOrigin%MDissolved    = 0.
+                CurrentOrigin%MSedimented   = 0.
+                CurrentOrigin%MDeposited    = 0.
+                CurrentOrigin%MSurface      = 0.
+                CurrentOrigin%MDegraded     = 0.
+                CurrentOrigin%HNSMass       = 0.
+                CurrentOrigin%HNSTotalMass  = 0.
+                CurrentPartic                           => CurrentOrigin%FirstPartic
+
+                emp         = null_int
+                old_emp     = null_int
+                do while (associated(CurrentPartic))
+
+                    i       = CurrentPartic%Position%I
+                    j       = CurrentPartic%Position%J
+                    k       = CurrentPartic%Position%K
+                    emp     = CurrentPartic%Position%ModelID
+                         
+!                    if (emp /= old_emp) then
+                        !Gets the temperature, the Density and the SPM from the Eulerian model
+                        call GetConcentration(Me%EulerModel(emp)%ObjWaterProperties,             &
+                                              ConcentrationX    = Temperature3D,                &
+                                              PropertyXIDNumber = Temperature_,                 &
+                                              STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'InternalParticHNS - ModuleLagrangianGlobal - ERR01'
+
+                        if (CurrentOrigin%State%HNSSedimentation) then
+                            call GetSPM          (Me%EulerModel(emp)%ObjWaterProperties,             &
+                                                  SPM               = SPM3D,                        &
+                                                  STAT              = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'InternalParticHNS - ModuleLagrangianGlobal - ERR02'
+                        end if                 
+!                    endif
+                    
+                    if (CurrentOrigin%State%HNSSedimentation) then
+                        SPM                 = SPM3D(i,j,k)
+                    else
+                        SPM                 = FillValueReal
+                    endif
+
+                    WaterTemperature    = Temperature3D(i,j,k)
+                    WaterDensity        = Me%EulerModel(emp)%Density (i, j, k)
+                    
+!                    if (emp /= old_emp) then
+                        !Ungets Concentration from the eulerian module
+                        call UngetWaterProperties (Me%EulerModel(emp)%ObjWaterProperties, Temperature3D, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'InternalParticHNS - ModuleLagrangianGlobal - ERR10'
+
+                        if (CurrentOrigin%State%HNSSedimentation) then
+                            call UngetWaterProperties (Me%EulerModel(emp)%ObjWaterProperties,  SPM3D, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'InternalParticHNS - ModuleLagrangianGlobal - ERR11'
+                        end if
+!                    endif
+                   
+
+                   if (CurrentPartic%WindX == FillValueReal) then
+                            if (associated(Me%EulerModel(emp)%WindX)) then
+                                CurrentPartic%WindX = Me%EulerModel(emp)%WindX(i,j)
+                            else
+                                CurrentPartic%WindX = 0.
+                            end if
+                    endif
+
+                   if (CurrentPartic%WindY == FillValueReal) then
+                            if (associated(Me%EulerModel(emp)%WindY)) then
+                                CurrentPartic%WindY = Me%EulerModel(emp)%WindY(i,j)
+                            else
+                                CurrentPartic%WindY = 0.
+                            end if
+                    endif
+
+                    UWIND = CurrentPartic%WindX
+                    VWIND = CurrentPartic%WindY
+
+                    Wind    = abs(cmplx(UWIND, VWIND))
+                    
+                    UCURRENT = CurrentPartic%CurrentX
+                    VCURRENT = CurrentPartic%CurrentY
+                    
+                    Currents = abs(cmplx(UCURRENT, VCURRENT))
+                    
+                    !Adios do not support values larger than 35 m/s. The same methodology is followed in MOHID.
+                    Wind    = min(35.,Wind) 
+                    
+                    AirTemperature      = Me%EulerModel(emp)%AirTemperature2D(i, j)
+
+                    AtmPressure         = Me%EulerModel(emp)%AtmPressure(i, j)
+
+                    if (CurrentPartic%WaveHeight == FillValueReal) then
+                        CurrentPartic%WaveHeight = Me%EulerModel(emp)%WaveHeight2D (i, j)  
+                    endif
+                    
+                    WaveHeight = CurrentOrigin%FirstPartic%WaveHeight
+
+                    if (CurrentPartic%WavePeriod == FillValueReal) then
+                        CurrentPartic%WavePeriod = Me%EulerModel(emp)%WavePeriod2D (i, j)  
+                    endif
+                    
+                    WavePeriod = CurrentOrigin%FirstPartic%WavePeriod
+                    
+                     HNSParticleStateOld = CurrentPartic%HNSParticleState
+
+                     MassIn = CurrentPartic%HNSMass
+                     call HNSInternalProcesses(CurrentOrigin%ObjHNS,                              &
+                                          Wind                  = Wind,                           &
+                                          Currents              = Currents,                       &
+                                          WaterTemperature      = WaterTemperature,               &
+                                          WaterDensity          = WaterDensity,                   &
+                                          SPM                   = SPM,                            &
+                                          AirTemperature        = AirTemperature,                 &
+                                          AtmPressure           = AtmPressure,                    &
+                                          WaveHeight            = CurrentPartic%WaveHeight,       &
+                                          WavePeriod            = CurrentPartic%WavePeriod,       &
+                                          Area                  = CurrentPartic%Geometry%Area,    &
+                                          InitialMass           = CurrentPartic%HNSInitialMass,   &
+                                          MassIn                = MassIn,                         &
+                                          DropletsDiameterIN    = CurrentPartic%Geometry%DropletsDiameter, &
+                                          HNSParticleStateIN    = HNSParticleStateOld,            &
+                                          Density               = CurrentPartic%HNSDensity,       &
+                                          MassOUT               = MassOUT,                        &
+                                          VolumeOUT             = CurrentPartic%Geometry%Volume,  &
+                                          DropletsDiameterOUT   = CurrentPartic%Geometry%DropletsDiameter, &  
+                                          HNSParticleStateOUT   = HNSParticleStateNew, &
+                                          STAT                  = STAT_CALL)                    
+                    CurrentPartic%HNSMass = MassOUT 
+                    
+                    if (CurrentOrigin%State%HNSEntrainment) then
+                         KUB     = Me%EulerModel(emp)%WorkSize%KUB
+                        !verifiy if particle is entrained
+                        call VerifyEntrainment(HNSParticleStateOld = HNSParticleStateOld,                   &
+                                              HNSParticleStateNew = HNSParticleStateNew,                    &
+                                              WaveHeight          = WaveHeight,                             &
+                                              BottomDepth         = Me%EulerModel(emp)%WaterColumn(i, j),   &
+                                              SurfaceDepth        = Me%EulerModel(emp)%SZZ(i, j, KUB),      &
+                                              ParticlePositionZ   = CurrentPartic%Position%Z)
+                    endif
+                                        
+
+                    CurrentPartic%MDegraded        = CurrentPartic%MDegraded + MassIn - MassOut
+                    CurrentPartic%HNSParticleState = HNSParticleStateNew
+                    
+                    old_emp = emp
+
+                    !Update Mass Balances
+                    CurrentOrigin%HNSMass           = CurrentOrigin%HNSMass +  CurrentPartic%HNSMass
+                    CurrentOrigin%MDegraded = CurrentOrigin%MDegraded + CurrentPartic%MDegraded
+                    Select Case (CurrentPartic%HNSParticleState)
+                    Case(Air_Evaporated_)
+                        CurrentOrigin%MEvaporated    = CurrentOrigin%MEvaporated + CurrentPartic%HNSMass
+                    Case(Air_Volatilized_)
+                        CurrentOrigin%MVolatilized   = CurrentOrigin%MVolatilized + CurrentPartic%HNSMass
+                    case(Surface_)
+                        CurrentOrigin%MSurface   = CurrentOrigin%MSurface + CurrentPartic%HNSMass
+                    Case(WaterColumn_Droplet_)
+                        CurrentOrigin%MEntrained     = CurrentOrigin%MEntrained + CurrentPartic%HNSMass
+                    Case(WaterColumn_Dissolved_)
+                        CurrentOrigin%MDissolved     = CurrentOrigin%MDissolved + CurrentPartic%HNSMass
+                    Case(WaterColumn_Sedimented_)
+                        CurrentOrigin%MSedimented    = CurrentOrigin%MSedimented + CurrentPartic%HNSMass
+                    Case(Bottom_Deposited_)
+                        CurrentOrigin%MDeposited     = CurrentOrigin%MDeposited + CurrentPartic%HNSMass
+                    End Select
+                    
+
+                    CurrentPartic => CurrentPartic%Next
+
+                enddo
+
+                CurrentOrigin%HNSTotalMass = CurrentOrigin%HNSMass +  CurrentOrigin%MDegraded
+
+            endif i1
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+    end subroutine InternalParticHNS
+
+    !--------------------------------------------------------------------------
+
+    subroutine UpdateHNSMass
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin),    pointer                 :: CurrentOrigin
+        type (T_Partic),    pointer                 :: CurrentPartic
+
+        !Begin-----------------------------------------------------------------
+       
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+            CurrentOrigin%MEvaporated = 0.
+            CurrentOrigin%MVolatilized = 0.
+            CurrentOrigin%MDissolved = 0.
+            CurrentOrigin%MEntrained = 0.
+            CurrentOrigin%MSedimented = 0.
+            CurrentOrigin%MDeposited = 0.
+            CurrentOrigin%MSurface = 0.
+            CurrentOrigin%HNSFractionEvaporated = 0.
+            CurrentOrigin%HNSFractionVolatilized = 0.
+            CurrentOrigin%HNSFractionDissolved = 0.
+            CurrentOrigin%HNSFractionEntrained = 0.
+            CurrentOrigin%HNSFractionSedimented = 0.
+            CurrentOrigin%HNSFractionDeposited = 0.
+            CurrentOrigin%HNSFractionAtSurface = 0.
+            CurrentOrigin%HNSFractionBeached = 0.
+            CurrentOrigin%HNSFractionDegraded = 0.
+            CurrentOrigin%MBeached = 0.
+            CurrentOrigin%HNSTotalMass = 0.
+            CurrentOrigin%HNSMass   = 0.
+            CurrentOrigin%MDegraded = 0.
+
+            CurrentPartic => CurrentOrigin%FirstPartic
+            do while (associated(CurrentPartic))
+                if (.NOT. CurrentPartic%Beached) then
+
+                    select case(CurrentPartic%HNSParticleState)
+
+                    case(Air_Evaporated_)
+                        CurrentOrigin%MEvaporated = CurrentOrigin%MEvaporated + CurrentPartic%HNSMass
+                    
+                    case(Air_Volatilized_)
+                        CurrentOrigin%MVolatilized = CurrentOrigin%MVolatilized + CurrentPartic%HNSMass
+
+                    case(Surface_)
+                        CurrentOrigin%MSurface = CurrentOrigin%MSurface + CurrentPartic%HNSMass
+                    
+                    case (WaterColumn_Droplet_) 
+                        CurrentOrigin%MEntrained = CurrentOrigin%MEntrained + CurrentPartic%HNSMass
+
+                    case (WaterColumn_Dissolved_) 
+                        CurrentOrigin%MDissolved = CurrentOrigin%MDissolved + CurrentPartic%HNSMass
+
+                    case (WaterColumn_Sedimented_)
+                        CurrentOrigin%MSedimented = CurrentOrigin%MSedimented + CurrentPartic%HNSMass
+
+                    case (Bottom_Deposited_)
+                        CurrentOrigin%MDeposited = CurrentOrigin%MDeposited + CurrentPartic%HNSMass
+                    end select
+                    
+                elseif (CurrentPartic%Beached) then
+
+                    CurrentOrigin%MBeached = CurrentOrigin%MBeached +  CurrentPartic%HNSMass
+
+                end if
+
+                CurrentOrigin%HNSMass   = CurrentOrigin%HNSMass +  CurrentPartic%HNSMass
+                CurrentOrigin%MDegraded = CurrentOrigin%MDegraded + CurrentPartic%MDegraded
+                
+                CurrentPartic => CurrentPartic%Next
+            enddo
+            
+            CurrentOrigin%HNSTotalMass = CurrentOrigin%HNSMass +  CurrentOrigin%MDegraded
+            
+            if (CurrentOrigin%HNSTotalMass .GT. 0.) then
+                CurrentOrigin%HNSFractionEvaporated = CurrentOrigin%MEvaporated / CurrentOrigin%HNSTotalMass
+                CurrentOrigin%HNSFractionVolatilized = CurrentOrigin%MVolatilized / CurrentOrigin%HNSTotalMass
+                CurrentOrigin%HNSFractionDissolved = CurrentOrigin%MDissolved / CurrentOrigin%HNSTotalMass
+                CurrentOrigin%HNSFractionEntrained = CurrentOrigin%MEntrained / CurrentOrigin%HNSTotalMass
+                CurrentOrigin%HNSFractionSedimented = CurrentOrigin%MSedimented / CurrentOrigin%HNSTotalMass
+                CurrentOrigin%HNSFractionDeposited = CurrentOrigin%MDeposited / CurrentOrigin%HNSTotalMass
+                CurrentOrigin%HNSFractionAtSurface = CurrentOrigin%MSurface / CurrentOrigin%HNSTotalMass
+                CurrentOrigin%HNSFractionBeached = CurrentOrigin%MBeached / CurrentOrigin%HNSTotalMass
+                CurrentOrigin%HNSFractionDegraded = CurrentOrigin%MDegraded / CurrentOrigin%HNSTotalMass
+            endif
+            
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+       
+    end subroutine UpdateHNSMass
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ComputeHNSGridProperties()
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin),    pointer                 :: CurrentOrigin
+        !Begin-----------------------------------------------------------------
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+            call HNSGridConc3D(CurrentOrigin)
+            call HNSGridConc2D(CurrentOrigin)
+            call HNSGridMaxConc2D(CurrentOrigin)
+
+!            !Deposited
+!            call HNSGridConc3D(CurrentOrigin, "SedimentParticulates")
+!            call HNSGridConc2D(CurrentOrigin, "SedimentParticulates")
+!            call HNSGridDissolvedMaxConc2D(CurrentOrigin, "SedimentParticulates")
+
+            CurrentOrigin => CurrentOrigin%Next
+        enddo CurrOr
+        
+    end subroutine ComputeHNSGridProperties    
+
+    !--------------------------------------------------------------------------
+
+    subroutine  VerifyEntrainment(HNSParticleStateOld, HNSParticleStateNew, WaveHeight, BottomDepth, &
+                                  SurfaceDepth, ParticlePositionZ)
+    
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: HNSParticleStateOld
+        integer,           intent(IN )              :: HNSParticleStateNew
+        real,              intent(IN )              :: WaveHeight
+        real,              intent(IN)               :: SurfaceDepth
+        real,              intent(IN)               :: BottomDepth
+        real,              intent(OUT )             :: ParticlePositionZ
+
+        !Local-----------------------------------------------------------------
+        real                                        :: r2
+        real                                        :: BreakingWaveHeight
+        !----------------------------------------------------------------------
+        
+        if ((HNSParticleStateOld .EQ. Surface_) .AND. (HNSParticleStateNew .EQ. WaterColumn_Droplet_)) then
+            call random_number(r2)
+            BreakingWaveHeight = 1.5 * WaveHeight
+            ParticlePositionZ = min(r2 * 1.5 * BreakingWaveHeight + SurfaceDepth, BottomDepth)          
+        endif
+           
+    end subroutine VerifyEntrainment
+    
+    !--------------------------------------------------------------------------
+
     subroutine InternalParticOil ()
 
         !Arguments-------------------------------------------------------------
@@ -17098,7 +18759,7 @@ ib2:                if (.not. CurrentPartic%Beached) then
         integer                                     :: i, j, k, emp 
         real                                        :: WaterTemperature, WaterDensity, SPM
         real                                        :: UWIND, VWIND, Wind
-        real                                        :: AtmPressure
+        real                                        :: AtmPressure 
         real                                        :: WaveHeight, WavePeriod
         real(8)                                     :: Factor
         real                                        :: VWaterContent, MWaterContent
@@ -17198,6 +18859,14 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                     CurrentOrigin%AreaTotal = -1.
                 endif
                 
+                if (CurrentOrigin%VolTotBeached == null_real) then
+                    CurrentOrigin%VolTotBeached     = 0.
+                endif
+                
+                if (CurrentOrigin%VolTotOilBeached == null_real) then
+                    CurrentOrigin%VolTotOilBeached  = 0.
+                endif
+
                 !Runs Oil Internal Processes
                 call OilInternalProcesses(CurrentOrigin%ObjOil,                                   &
                                           LagrangianTime        = LagrangianTime,                 & 
@@ -17405,6 +19074,68 @@ CurrOr: do while (associated(CurrentOrigin))
     
     
     end subroutine ComputeOdourGridConcentration
+
+    !--------------------------------------------------------------------------
+
+    subroutine HNSInitialValues ()
+
+        !Arguments-------------------------------------------------------------
+   
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: HNSBehaviourClass
+        integer                                     :: HNSInitialState
+        integer                                     :: STAT_CALL
+        
+        
+                
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+            if (CurrentOrigin%nProperties >= 1) then
+
+                call GetHNSBehaviourClass(HNSID = CurrentOrigin%ObjHNS, HNSBehaviourClass = HNSBehaviourClass, STAT = STAT_CALL)
+
+              
+                call GetHNSInitialState(HNSID             = CurrentOrigin%ObjHNS,           &
+                                        HNSBehaviourClass = HNSBehaviourClass,              &
+                                        EmissionAtSurface = CurrentOrigin%Position%Surface, &
+                                        HNSInitialState   = HNSInitialState,                &
+                                        STAT              = STAT_CALL)
+                          
+
+                CurrentOrigin%HNSInitialState = HNSInitialState
+                
+                !Initialized Global Values
+                CurrentOrigin%MEvaporated               = 0.
+                CurrentOrigin%MVolatilized              = 0.
+                CurrentOrigin%MDissolved                = 0.
+                CurrentOrigin%MEntrained                = 0.
+                CurrentOrigin%MSedimented               = 0.
+                CurrentOrigin%MDeposited                = 0.
+                CurrentOrigin%MSurface                  = 0.
+                CurrentOrigin%HNSFractionEvaporated     = 0.
+                CurrentOrigin%HNSFractionVolatilized    = 0.
+                CurrentOrigin%HNSFractionDissolved      = 0.
+                CurrentOrigin%HNSFractionEntrained      = 0.
+                CurrentOrigin%HNSFractionSedimented     = 0.
+                CurrentOrigin%HNSFractionDeposited      = 0.
+                CurrentOrigin%HNSFractionAtSurface      = 0.
+                CurrentOrigin%HNSFractionBeached        = 0.
+                CurrentOrigin%HNSFractionDegraded       = 0.
+                CurrentOrigin%MDegraded                 = 0.
+                CurrentOrigin%MBeached                  = 0.
+                CurrentOrigin%HNSMass                   = 0.
+                CurrentOrigin%HNSTotalMass              = 0.
+
+            endif
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+    end subroutine HNSInitialValues
 
     !--------------------------------------------------------------------------
     
@@ -19379,6 +21110,11 @@ i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTempo
                     call WriteOilPresence            (em, OutputNumber)
                 endif
 
+                if (Me%State%HNS) then
+                    call WriteHNSGridConc3D (em, OutputNumber)
+                    call WriteHNSGridConc2D (em, OutputNumber)
+                endif
+
 i1:             if (nP>0) then
 
                     if (em /= emMax) cycle
@@ -19957,6 +21693,26 @@ i1:             if (nP>0) then
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR240'
                         endif
 
+                        !HNS
+                        if (CurrentOrigin%State%HNS) then
+
+                            CurrentPartic   => CurrentOrigin%FirstPartic
+                            nP = 0
+                            do while (associated(CurrentPartic))
+                                nP = nP + 1
+                                Matrix1D(nP)  =  CurrentPartic%HNSParticleState
+                                CurrentPartic => CurrentPartic%Next
+                            enddo            
+                            if (nP > 0) then
+                                !HDF 5
+                                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//&
+                                                    "/HNS Particle State", "HNS Particle State",  "-",      &
+                                                    Array1D = Matrix1D, OutputNumber = OutPutNumber,        &
+                                                    STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR240'
+                            endif
+                        endif                        
+                        
                         CurrentProperty => CurrentOrigin%FirstProperty
                         do while (associated(CurrentProperty))
 
@@ -21780,6 +23536,55 @@ CurrOr:     do while (associated(CurrentOrigin))
     
     !--------------------------------------------------------------------------
 
+    subroutine OutPut_HNSTimeSerie
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                        :: CurrentOrigin
+        real, dimension (:), pointer                    :: DataLine
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+        allocate(DataLine(21))
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+    
+            DataLine(1)  = CurrentOrigin%AreaTotal
+            DataLine(2)  = CurrentOrigin%HNSTotalMass
+            DataLine(3)  = CurrentOrigin%HNSMass
+            DataLine(4)  = CurrentOrigin%MDegraded
+            DataLine(5)  = CurrentOrigin%MBeached
+            DataLine(6)  = CurrentOrigin%MSurface
+            DataLine(7)  = CurrentOrigin%MEvaporated
+            DataLine(8)  = CurrentOrigin%MVolatilized
+            DataLine(9)  = CurrentOrigin%MEntrained
+            DataLine(10)  = CurrentOrigin%MDissolved
+            DataLine(11) = CurrentOrigin%MSedimented
+            DataLine(12) = CurrentOrigin%MDeposited
+            DataLine(13) = CurrentOrigin%HNSFractionDegraded
+            DataLine(14) = CurrentOrigin%HNSFractionBeached
+            DataLine(15) = CurrentOrigin%HNSFractionAtSurface
+            DataLine(16) = CurrentOrigin%HNSFractionEvaporated
+            DataLine(17) = CurrentOrigin%HNSFractionVolatilized
+            DataLine(18) = CurrentOrigin%HNSFractionEntrained
+            DataLine(19) = CurrentOrigin%HNSFractionDissolved
+            DataLine(20) = CurrentOrigin%HNSFractionSedimented
+            DataLine(21) = CurrentOrigin%HNSFractionDeposited
+
+            call WriteTimeSerieLine(CurrentOrigin%ObjTimeSerie,                         &
+                                    ExternalCurrentTime = Me%Now,                       &
+                                    DataLine = DataLine,                                &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleLagrangianGlobal - ERR01'
+
+            CurrentOrigin => CurrentOrigin%Next
+        enddo CurrOr
+        nullify(DataLine)
+    end subroutine OutPut_HNSTimeSerie
+
+    !--------------------------------------------------------------------------
+
     subroutine OutPut_TimeSeries
 
         !Arguments-------------------------------------------------------------
@@ -22002,6 +23807,7 @@ dg:         do ig = 1, Me%NGroups
                                             Iold        = CurrentPartic%Position%I,     &
                                             Jold        = CurrentPartic%Position%J,     &
                                             STAT        = STAT_CALL)
+
                             if (STAT_CALL /= SUCCESS_) stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR10'
 
                         else
@@ -22571,13 +24377,17 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                     
         endif
 
-        nullify(GridConc3D  )
-        nullify(WaterPoints3D)
-        nullify(GridConc2D  )  
+        deallocate  (GridConc3D     )
+        nullify     (GridConc3D     )
+        nullify     (WaterPoints3D  )
+        if (Me%State%Deposition) deallocate  (GridConc2D     )
+        nullify     (GridConc2D     )  
 
         if (Me%State%Odour) then
-            nullify(GridGroupSum3D  )
-            nullify(GridTotalSum3D  )
+            deallocate  (GridGroupSum3D )
+            nullify     (GridGroupSum3D )
+            deallocate  (GridTotalSum3D )
+            nullify     (GridTotalSum3D )
         endif
         
 
@@ -22911,8 +24721,170 @@ CurrOr:     do while (associated(CurrentOrigin))
     end subroutine WriteOilGridConcentration
 
     !--------------------------------------------------------------------------
+   
+    subroutine WriteHNSGridConc2D (em, OutputNumber)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: em, OutputNumber
+  
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: ig
+        character(StringLength)                     :: AuxChar
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
+        integer                                     :: WS_KLB, WS_KUB
+
+        !Shorten
+        ILB    = Me%EulerModel(em)%Size%ILB
+        IUB    = Me%EulerModel(em)%Size%IUB
+        JLB    = Me%EulerModel(em)%Size%JLB
+        JUB    = Me%EulerModel(em)%Size%JUB
+
+        WS_ILB = Me%EulerModel(em)%WorkSize%ILB
+        WS_IUB = Me%EulerModel(em)%WorkSize%IUB
+        WS_JLB = Me%EulerModel(em)%WorkSize%JLB
+        WS_JUB = Me%EulerModel(em)%WorkSize%JUB
+        WS_KLB = Me%EulerModel(em)%WorkSize%KLB
+        WS_KUB = Me%EulerModel(em)%WorkSize%KUB
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (Me%ObjHDF5(em), WS_ILB, WS_IUB, WS_JLB, WS_JUB,     &
+                              WS_KLB, WS_KUB)
+
+Group:  do ig = 1, Me%nGroups
+
+            !Writes the Group to an auxiliar string
+            write (AuxChar, fmt='(i3)') ig
+
+            CurrentOrigin => Me%FirstOrigin
+CurrOr:     do while (associated(CurrentOrigin))
+
+                if (CurrentOrigin%GroupID /= ig) then
+                    CurrentOrigin => CurrentOrigin%Next
+                    cycle
+                endif
+
+                !Just writes the output if there are particle
+!               if (CurrentOrigin%nParticle > 0) then
+
+                    !HDF 5
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/AirConcentration_2D",         &
+                                               "Air Concentration in surface",                      &
+                                               "mg/m3",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridAirConc2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/SurfaceFloatingMass_2D",         &
+                                               "Surface Floating Mass",                      &
+                                               "kg",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridSurfaceFloatingMass2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/DissolvedMass_2D",         &
+                                               "Dissolved Mass in Water Column",                      &
+                                               "kg",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/DissolvedConcentration_2D",         &
+                                               "Dissolved Concentration in Water Column",                      &
+                                               "mg/m3",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridDissolvedConc2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/DissolvedMaximumConcentration_2D",         &
+                                               "Dissolved Maximum Concentration in Water Column",      &
+                                               "mg/m3",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/DropletsMass_2D",         &
+                                               "Suspended Droplets Mass in Water Column",                      &
+                                               "kg",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/DropletsConcentration_2D",         &
+                                               "Droplets Concentration in Water Column",                  &
+                                               "mg/m3",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridDropletsConc2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/DropletsMaximumConcentration_2D",         &
+                                               "Droplets Maximum Concentration in Water Column",     &
+                                               "mg/m3",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/SuspendedParticulateMass_2D",         &
+                                               "Suspended Particulate Mass in Water Column",                &
+                                               "kg",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/SuspendedParticulateConcentration_2D",         &
+                                               "Suspended Particulate Concentration in Water Column",          &
+                                               "mg/m3",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/SuspendedParticulateMaximumConcentration_2D",         &
+                                               "Suspended Particulate Maximum Concentration in Water Column",                      &
+                                               "mg/m3",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/DepositedParticulateMass_2D",         &
+                                               "Deposited Particulate Mass",                      &
+                                               "kg",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMass2D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_2D/DepositedParticulateMassPerArea_2D",         &
+                                               "Deposited Particulate Mass Per Unit Area",                      &
+                                               "mg/m3",                     &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMassPerArea2D, &
+                                               OutputNumber = OutputNumber)
+
+!                endif
+
+            CurrentOrigin => CurrentOrigin%Next
+            enddo CurrOr
+
+        enddo Group
+
+    end subroutine WriteHNSGridConc2D
 
     !--------------------------------------------------------------------------
+
     subroutine WriteOilGridConcentration3D (em, OutputNumber)
 
         !Arguments-------------------------------------------------------------
@@ -23073,6 +25045,111 @@ CurrOr:     do while (associated(CurrentOrigin))
     end subroutine WriteOilGridDissolution3D
 
     !--------------------------------------------------------------------------
+   
+    subroutine WriteHNSGridConc3D (em, OutputNumber)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: em, OutputNumber
+  
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: ig
+        character(StringLength)                     :: AuxChar
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
+        integer                                     :: WS_KLB, WS_KUB
+        !Shorten
+        ILB    = Me%EulerModel(em)%Size%ILB
+        IUB    = Me%EulerModel(em)%Size%IUB
+        JLB    = Me%EulerModel(em)%Size%JLB
+        JUB    = Me%EulerModel(em)%Size%JUB
+        KLB    = Me%EulerModel(em)%Size%KLB
+        KUB    = Me%EulerModel(em)%Size%KUB
+
+        WS_ILB = Me%EulerModel(em)%WorkSize%ILB
+        WS_IUB = Me%EulerModel(em)%WorkSize%IUB
+        WS_JLB = Me%EulerModel(em)%WorkSize%JLB
+        WS_JUB = Me%EulerModel(em)%WorkSize%JUB
+        WS_KLB = Me%EulerModel(em)%WorkSize%KLB
+        WS_KUB = Me%EulerModel(em)%WorkSize%KUB
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (Me%ObjHDF5(em), WS_ILB, WS_IUB, WS_JLB, WS_JUB,     &
+                              WS_KLB, WS_KUB)
+
+Group:  do ig = 1, Me%nGroups
+
+            !Writes the Group to an auxiliar string
+            write (AuxChar, fmt='(i3)') ig
+
+            CurrentOrigin => Me%FirstOrigin
+CurrOr:     do while (associated(CurrentOrigin))
+
+                if (CurrentOrigin%GroupID /= ig) then
+                    CurrentOrigin => CurrentOrigin%Next
+                    cycle
+                endif
+
+                !Just writes the output if there are particle
+!               if (CurrentOrigin%nParticle > 0) then
+
+                    !HDF 5
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_3D/DissolvedMass_3D",         &
+                                               "Dissolved Mass",                      &
+                                               "kg",                     &
+                                               Array3D = Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_3D/DissolvedConcentration_3D",         &
+                                               "Dissolved Concentration",                      &
+                                               "mg/m3",                                        &
+                                               Array3D = Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_3D/DropletsMass_3D",         &
+                                               "Suspended Droplets Mass",                      &
+                                               "kg",                     &
+                                               Array3D = Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_3D/DropletsConcentration_3D",         &
+                                               "Droplets Concentration",                      &
+                                               "mg/m3",                     &
+                                               Array3D = Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_3D/SuspendedParticulateMass_3D",         &
+                                               "Suspended Particulate Mass",                      &
+                                               "kg",                     &
+                                               Array3D = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D, &
+                                               OutputNumber = OutputNumber)
+
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_3D/SuspendedParticulateConcentration_3D",         &
+                                               "Suspended Particulate Concentration",                      &
+                                               "mg/m3",                     &
+                                               Array3D = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D, &
+                                               OutputNumber = OutputNumber)
+!                endif
+
+            CurrentOrigin => CurrentOrigin%Next
+            enddo CurrOr
+
+        enddo Group
+
+    end subroutine WriteHNSGridConc3D
 
     !--------------------------------------------------------------------------
 
@@ -23454,7 +25531,7 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
         end if
 
     end function F_BLimit
-
+    
     !--------------------------------------------------------------------------
 
     subroutine WriteMonitorOutput(OutputNumber)
@@ -23912,6 +25989,11 @@ d1:         do em = 1, Me%EulerModelNumber
                 call DeAllocateOil
             endif
 
+            if (Me%State%HNS) then
+                call DeAllocateHNS
+!                call KillTimeSerie(OriginToDelete%ObjTimeSerie, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'DeallocateLagrangianGlobal - ModuleLagrangianGlobal - ERR70'
+            endif
             if (associated(Me%OriginDefault)) then
                 CurrentProperty => Me%OriginDefault%FirstProperty
                 do while (associated(CurrentProperty))
@@ -24657,6 +26739,119 @@ d2:         do ig = 1, Me%NGroups
         
 
     end subroutine DeAllocateOil
+
+    !------------------------------------------------------------------------------
+
+    !------------------------------------------------------------------------------
+
+    subroutine DeAllocateHNS
+
+        !Local---------------------------------------------------------------------
+        integer                     :: em, ig, STAT_CALL                          
+
+        !Begin---------------------------------------------------------------------
+
+d1:     do em =1, Me%EulerModelNumber 
+d2:         do ig =1, Me%NGroups 
+
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR10'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D)
+                
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDissolvedConc2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR20'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDissolvedConc2D)
+                
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR30'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D)
+                
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridAirConc3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR40'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridAirConc3D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridAirConc2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR50'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridAirConc2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridAirMaxConc2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR60'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridAirMaxConc2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR70'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDropletsConc2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR80'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDropletsConc2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR90'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR100'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR110'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR120'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridAirMass2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR130'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridAirMass2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridSurfaceFloatingMass2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR140'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridSurfaceFloatingMass2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR150'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR160'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR170'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR180'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR190'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR200'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMass2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR210'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMass2D)
+
+                deallocate (Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMassPerArea2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR220'
+                nullify(Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMassPerArea2D)
+
+            end do d2
+
+            deallocate (Me%EulerModel(em)%HNS, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DeAllocateHNS - ModuleLagrangianGlobal - ERR200'
+
+        enddo d1
+        
+
+    end subroutine DeAllocateHNS
 
     !------------------------------------------------------------------------------
 

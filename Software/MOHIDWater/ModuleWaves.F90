@@ -563,7 +563,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(Me%WaveLength%ON,                                                  &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword    = 'WAVE_LENGTH',                                        &
-                     Default    = .True.,                                               &
+                     Default    = .False.,                                              &
                      SearchType = FromFile,                                             &
                      ClientModule ='ModuleWave',                                        &
                      STAT       = STAT_CALL)            

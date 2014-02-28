@@ -75,7 +75,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  88
+    integer, parameter  :: MaxModules           =  89
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -822,6 +822,10 @@ Module ModuleGlobalData
     integer, parameter :: FloatingObject_                   = 20001
     integer, parameter :: HumanBody_                        = 20002
 
+    !HNS
+    integer, parameter :: HNS_                              = 20003
+    
+
     !Spatial emission discharge
     integer, parameter :: DischPoint_                       = 1
     integer, parameter :: DischLine_                        = 2
@@ -999,6 +1003,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_FloatingObject       = 'floating object'
     character(StringLength), private, parameter :: Char_HumanBody            = 'human body'
     character(StringLength), private, parameter :: Char_OilThickness         = 'oil thickness'
+    character(StringLength), private, parameter :: Char_HNS                  = 'hns'
     character(StringLength), private, parameter :: Char_Ciliate              = 'ciliate'
     character(StringLength), private, parameter :: Char_Bacteria             = 'bacteria'
     character(StringLength), private, parameter :: Char_ParticulateArsenic   = 'particulate arsenic'
@@ -1589,6 +1594,21 @@ Module ModuleGlobalData
     integer, parameter                          :: TotalLagInst_            = 11    
 
 
+    ! HNS Particle State
+    integer, parameter :: Air_Volatilized_            = 1
+    integer, parameter :: Air_Evaporated_             = 2
+    integer, parameter :: Surface_                    = 3
+    integer, parameter :: WaterColumn_Droplet_        = 4
+    integer, parameter :: WaterColumn_Dissolved_      = 5
+    integer, parameter :: WaterColumn_Sedimented_     = 6
+    integer, parameter :: Bottom_Deposited_           = 7
+    integer, parameter :: Beached_                    = 8
+
+    !Methods to compute Droplets D50
+    integer, parameter  :: UserDefined_             = 1
+    integer, parameter  :: Computed_Half_D50_       = 2
+    integer, parameter  :: Computed_Classes_Random_ = 3
+
     !Module IDs
     integer, parameter ::  mGLOBALDATA_             =  1        
     integer, parameter ::  mTIME_                   =  2 
@@ -1678,6 +1698,7 @@ Module ModuleGlobalData
     integer, parameter ::  mTimeSeriesOperator_     = 86
     integer, parameter ::  mPressureDifferences_    = 87
     integer, parameter ::  mAnalytical_LDS_         = 88
+    integer, parameter ::  mHNS_                    = 89
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -1791,7 +1812,7 @@ Module ModuleGlobalData
         T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
         T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics"),     &
         T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     ,  T_Module(mAnalytical_LDS_      , "Analytical_LDS"),        &  
-        T_Module(mPressureDifferences_   , "PressureDifferences") /)
+        T_Module(mPressureDifferences_   , "PressureDifferences"),   T_Module(mHNS_                    , "HNS") /)
         
 
     !Variables
@@ -2326,6 +2347,7 @@ Module ModuleGlobalData
             call AddPropList (FloatingObject_,          Char_FloatingObject,            ListNumber)
             call AddPropList (HumanBody_,               Char_HumanBody,                 ListNumber)
             call AddPropList (OilThickness_,            Char_OilThickness,              ListNumber)            
+            call AddPropList (HNS_,                     Char_HNS,                       ListNumber)
             call AddPropList (Ciliate_,                 Char_Ciliate,                   ListNumber)
             call AddPropList (Bacteria_,                Char_Bacteria,                  ListNumber)
             call AddPropList (ParticulateArsenic_,      Char_ParticulateArsenic,        ListNumber)
