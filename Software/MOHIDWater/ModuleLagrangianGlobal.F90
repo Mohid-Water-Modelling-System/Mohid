@@ -12419,33 +12419,36 @@ i1:                 if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint
                 
         if (Me%State%Oil) then
 
-            em = CurrentOrigin%Position%ModelID
-            ig = CurrentOrigin%GroupID
+            !em = CurrentOrigin%Position%ModelID
+d1:         do em = 1, Me%EulerModelNumber                         
+                ig = CurrentOrigin%GroupID
 
-            ILB = Me%EulerModel(em)%WorkSize%ILB
-            JLB = Me%EulerModel(em)%WorkSize%JLB
-            IUB = Me%EulerModel(em)%WorkSize%IUB
-            JUB = Me%EulerModel(em)%WorkSize%JUB
-            KUB = Me%EulerModel(em)%WorkSize%KUB
-            
-            do j  = JLB, JUB
-            do i  = ILB, IUB
-            
+                ILB = Me%EulerModel(em)%WorkSize%ILB
+                JLB = Me%EulerModel(em)%WorkSize%JLB
+                IUB = Me%EulerModel(em)%WorkSize%IUB
+                JUB = Me%EulerModel(em)%WorkSize%JUB
+                KUB = Me%EulerModel(em)%WorkSize%KUB
                 
-                if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then
+                do j  = JLB, JUB
+                do i  = ILB, IUB
                 
-                    if(Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime(i, j) == 0.)then
+                    
+                    if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then
+                    
+                        if(Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime(i, j) == 0.)then
 
-                        if(Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D(i, j, KUB) > 0.)then
+                            if(Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D(i, j, KUB) > 0.)then
 
-                            Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime(i, j) =  Me%Now - CurrentOrigin%StartEmission
-                            
-                        end if
+                                Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime(i, j) =  Me%Now - CurrentOrigin%StartEmission
+                                
+                            end if
+                        endif
                     endif
-                endif
 
-            enddo
-            enddo
+                enddo
+                enddo
+
+            enddo d1
 
         endif
 
@@ -12469,34 +12472,37 @@ i1:                 if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint
                 !Fills Grid concentration
 i1:     if (Me%State%Oil) then
 
-            em = CurrentOrigin%Position%ModelID
-            ig = CurrentOrigin%GroupID
+            !em = CurrentOrigin%Position%ModelID
+d1:         do em = 1, Me%EulerModelNumber                         
+                ig = CurrentOrigin%GroupID
 
-            ILB = Me%EulerModel(em)%WorkSize%ILB
-            JLB = Me%EulerModel(em)%WorkSize%JLB
-            IUB = Me%EulerModel(em)%WorkSize%IUB
-            JUB = Me%EulerModel(em)%WorkSize%JUB
-            KUB = Me%EulerModel(em)%WorkSize%KUB
+                ILB = Me%EulerModel(em)%WorkSize%ILB
+                JLB = Me%EulerModel(em)%WorkSize%JLB
+                IUB = Me%EulerModel(em)%WorkSize%IUB
+                JUB = Me%EulerModel(em)%WorkSize%JUB
+                KUB = Me%EulerModel(em)%WorkSize%KUB
 
-d3:         do j  = JLB, JUB
-d4:         do i  = ILB, IUB
+d3:             do j  = JLB, JUB
+d4:             do i  = ILB, IUB
                          
-i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+i2:                 if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
 
-                WaveHeightAux = max(WaveHeight, 0.01)
+                        WaveHeightAux = max(WaveHeight, 0.01)
 
-                !Calculates the Concentration
-                ! CurrentOrigin%OilGridConcentration = (Specific_MSurface + Specific_MDispersed) / (MixingDepth * WaterDensity)
-                    Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration(i, j) =                     &
-                                  1.e6 * ((Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j) * &
-                                  Me%ExternalVar%OilDensity) + & 
-                                  (Me%ExternalVar%MDispersed / max(AllmostZero,Me%ExternalVar%AreaTotal))) / & 
-                                  (1.5 * WaveHeightAux * WaterDensity)                      
+                        !Calculates the Concentration
+                        ! CurrentOrigin%OilGridConcentration = (Specific_MSurface + Specific_MDispersed) / (MixingDepth * WaterDensity)
+                        Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration(i, j) =                     &
+                                      1.e6 * ((Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j) * &
+                                      Me%ExternalVar%OilDensity) + & 
+                                      (Me%ExternalVar%MDispersed / max(AllmostZero,Me%ExternalVar%AreaTotal))) / & 
+                                      (1.5 * WaveHeightAux * WaterDensity)                      
 
-                endif i2
+                    endif i2
 
-            enddo d4
-            enddo d3
+                enddo d4
+                enddo d3
+
+            enddo d1
 
         endif i1
 
@@ -12518,53 +12524,57 @@ i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) th
 
         !Begin-----------------------------------------------------------------
         
-        em = CurrentOrigin%Position%ModelID
-        ig = CurrentOrigin%GroupID
+        !em = CurrentOrigin%Position%ModelID
+d1:     do em = 1, Me%EulerModelNumber                         
+        
+            ig = CurrentOrigin%GroupID
 
-        ILB = Me%EulerModel(em)%WorkSize%ILB
-        JLB = Me%EulerModel(em)%WorkSize%JLB
-        KLB = Me%EulerModel(em)%WorkSize%KLB
-        IUB = Me%EulerModel(em)%WorkSize%IUB
-        JUB = Me%EulerModel(em)%WorkSize%JUB
-        KUB = Me%EulerModel(em)%WorkSize%KUB
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            KLB = Me%EulerModel(em)%WorkSize%KLB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+            KUB = Me%EulerModel(em)%WorkSize%KUB
 
-        allocate (MassSumParticCell (ILB:IUB,                &
-                                     JLB:JUB,                &
-                                     KLB:KUB),               &                                 
-                                     STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR01'
+            allocate (MassSumParticCell (ILB:IUB,                &
+                                         JLB:JUB,                &
+                                         KLB:KUB),               &                                 
+                                         STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR01'
 
-               
-        !Adds the mass of all particles in the every cell
-        MassSumParticCell = 0.
-        CurrentPartic => CurrentOrigin%FirstPartic
-        do while (associated(CurrentPartic))
+                   
+            !Adds the mass of all particles in the every cell
+            MassSumParticCell = 0.
+            CurrentPartic => CurrentOrigin%FirstPartic
+            do while (associated(CurrentPartic))
 
-            i = CurrentPartic%Position%I
-            j = CurrentPartic%Position%J
-            k = CurrentPartic%Position%k
+                i = CurrentPartic%Position%I
+                j = CurrentPartic%Position%J
+                k = CurrentPartic%Position%k
 
-            MassSumParticCell(i, j, k) = MassSumParticCell(i, j, k) +              & 
-                                               CurrentPartic%OilMass
+                MassSumParticCell(i, j, k) = MassSumParticCell(i, j, k) +              & 
+                                                   CurrentPartic%OilMass
 
-            CurrentPartic => CurrentPartic%Next
-        enddo
+                CurrentPartic => CurrentPartic%Next
+            enddo
 
-        !Calculates the OilGridConcentration3D
-        do k = KLB, KUB
-        do j = JLB, JUB
-        do i = ILB, IUB
-           if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
-                 Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D(i, j,k) =     &
-                 MassSumParticCell(i,j,k) / Me%EulerModel(em)%VolumeZ(i,j,k)  
-            end if
-        enddo
-        enddo
-        enddo
+            !Calculates the OilGridConcentration3D
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+               if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+                     Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D(i, j,k) =     &
+                     MassSumParticCell(i,j,k) / Me%EulerModel(em)%VolumeZ(i,j,k)  
+                end if
+            enddo
+            enddo
+            enddo
 
 
-        deallocate (MassSumParticCell, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR02'
+            deallocate (MassSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR02'
+
+        enddo d1
 
     end subroutine OilGridConcentration3D
 
@@ -12583,55 +12593,58 @@ i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) th
         
         !Begin-----------------------------------------------------------------
         
-        em = CurrentOrigin%Position%ModelID
-        ig = CurrentOrigin%GroupID
-
-        ILB = Me%EulerModel(em)%WorkSize%ILB
-        JLB = Me%EulerModel(em)%WorkSize%JLB
-        KLB = Me%EulerModel(em)%WorkSize%KLB
-        IUB = Me%EulerModel(em)%WorkSize%IUB
-        JUB = Me%EulerModel(em)%WorkSize%JUB
-        KUB = Me%EulerModel(em)%WorkSize%KUB
+        !em = CurrentOrigin%Position%ModelID
+d1:     do em = 1, Me%EulerModelNumber                         
         
-        allocate (MassDissolvedSumParticCell (ILB:IUB,                &
-                                              JLB:JUB,                &
-                                              KLB:KUB),               &                                 
-                                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR01'
+            ig = CurrentOrigin%GroupID
+
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            KLB = Me%EulerModel(em)%WorkSize%KLB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+            KUB = Me%EulerModel(em)%WorkSize%KUB
+            
+            allocate (MassDissolvedSumParticCell (ILB:IUB,                &
+                                                  JLB:JUB,                &
+                                                  KLB:KUB),               &                                 
+                                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR01'
 
 
-        !Adds the mass of all particles in the every cell
-        MassDissolvedSumParticCell = 0.
-        CurrentPartic => CurrentOrigin%FirstPartic
-        do while (associated(CurrentPartic))
+            !Adds the mass of all particles in the every cell
+            MassDissolvedSumParticCell = 0.
+            CurrentPartic => CurrentOrigin%FirstPartic
+            do while (associated(CurrentPartic))
 
-            i = CurrentPartic%Position%I
-            j = CurrentPartic%Position%J
-            k = CurrentPartic%Position%k
+                i = CurrentPartic%Position%I
+                j = CurrentPartic%Position%J
+                k = CurrentPartic%Position%k
 
-            MassDissolvedSumParticCell(i, j, k) = MassDissolvedSumParticCell(i, j, k) +              & 
-                                               CurrentPartic%OilDissolvedMass
+                MassDissolvedSumParticCell(i, j, k) = MassDissolvedSumParticCell(i, j, k) +              & 
+                                                   CurrentPartic%OilDissolvedMass
 
-            CurrentPartic => CurrentPartic%Next
-        enddo
-        
-        !Calculates the OilGridDissolution3D
-        do k = KLB, KUB
-        do j = JLB, JUB
-        do i = ILB, IUB               
-           if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
-                Me%EulerModel(em)%OilSpreading(ig)%OilGridDissolution3D(i,j,k) =                &
-                MassDissolvedSumParticCell(i,j,k) /     &
-                Me%EulerModel(em)%VolumeZ(i,j,k) 
-            end if
-        enddo
-        enddo
-        enddo
+                CurrentPartic => CurrentPartic%Next
+            enddo
+            
+            !Calculates the OilGridDissolution3D
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB               
+               if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+                    Me%EulerModel(em)%OilSpreading(ig)%OilGridDissolution3D(i,j,k) =                &
+                    MassDissolvedSumParticCell(i,j,k) /     &
+                    Me%EulerModel(em)%VolumeZ(i,j,k) 
+                end if
+            enddo
+            enddo
+            enddo
 
 
-        deallocate (MassDissolvedSumParticCell, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR02'
+            deallocate (MassDissolvedSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR02'
 
+        enddo d1
 
     end subroutine OilGridDissolution3D
 
@@ -12650,109 +12663,113 @@ i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) th
         integer                                     :: i, j, k, em, ig
         !Begin-----------------------------------------------------------------
         
-        em = CurrentOrigin%Position%ModelID
-        ig = CurrentOrigin%GroupID
-
-        ILB = Me%EulerModel(em)%WorkSize%ILB
-        JLB = Me%EulerModel(em)%WorkSize%JLB
-        KLB = Me%EulerModel(em)%WorkSize%KLB
-        IUB = Me%EulerModel(em)%WorkSize%IUB
-        JUB = Me%EulerModel(em)%WorkSize%JUB
-        KUB = Me%EulerModel(em)%WorkSize%KUB
-
-!        allocate (Droplets_MassSumParticCell (ILB:IUB,                &
-!                                     JLB:JUB,                &
-!                                     KLB:KUB),               &
-!                                     STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR02'
-!
-!        allocate (Dissolved_MassSumParticCell (ILB:IUB,                &
-!                                     JLB:JUB,                &
-!                                     KLB:KUB),               &
-!                                     STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR03'
-!
-!        allocate (SuspendedParticulates_MassSumParticCell (ILB:IUB,                &
-!                                     JLB:JUB,                &
-!                                     KLB:KUB),               &
-!                                     STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR04'
-
-        Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(:,:,:)            = 0.
-        Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(:,:,:)             = 0.
-        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(:,:,:) = 0.
-        Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D(:,:,:)            = 0.
-        Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(:,:,:)             = 0.
-        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D(:,:,:) = 0.
+        !em = CurrentOrigin%Position%ModelID
+d1:     do em = 1, Me%EulerModelNumber                         
         
-!        Dissolved_MassSumParticCell             = 0.
-!        Droplets_MassSumParticCell              = 0.
-!        SuspendedParticulates_MassSumParticCell  = 0.
+            ig = CurrentOrigin%GroupID
+
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            KLB = Me%EulerModel(em)%WorkSize%KLB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+            KUB = Me%EulerModel(em)%WorkSize%KUB
+
+    !        allocate (Droplets_MassSumParticCell (ILB:IUB,                &
+    !                                     JLB:JUB,                &
+    !                                     KLB:KUB),               &
+    !                                     STAT = STAT_CALL)
+    !        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR02'
+    !
+    !        allocate (Dissolved_MassSumParticCell (ILB:IUB,                &
+    !                                     JLB:JUB,                &
+    !                                     KLB:KUB),               &
+    !                                     STAT = STAT_CALL)
+    !        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR03'
+    !
+    !        allocate (SuspendedParticulates_MassSumParticCell (ILB:IUB,                &
+    !                                     JLB:JUB,                &
+    !                                     KLB:KUB),               &
+    !                                     STAT = STAT_CALL)
+    !        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR04'
+
+            Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(:,:,:)            = 0.
+            Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(:,:,:)             = 0.
+            Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(:,:,:) = 0.
+            Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D(:,:,:)            = 0.
+            Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(:,:,:)             = 0.
+            Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D(:,:,:) = 0.
+            
+    !        Dissolved_MassSumParticCell             = 0.
+    !        Droplets_MassSumParticCell              = 0.
+    !        SuspendedParticulates_MassSumParticCell  = 0.
+            
+            !Adds the mass of all particles in the every cell
+            CurrentPartic => CurrentOrigin%FirstPartic
+            do while (associated(CurrentPartic))
+
+                i = CurrentPartic%Position%I
+                j = CurrentPartic%Position%J
+                k = CurrentPartic%Position%k
+
+                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Dissolved_) then
+                    Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) = &
+                    Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D (i,j,k)+ CurrentPartic%HNSMass
+    !                Dissolved_MassSumParticCell(i, j, k) = Dissolved_MassSumParticCell(i, j, k) +              & 
+    !                                             CurrentPartic%HNSMass
+                    
+                end if                                             
+                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
+                    Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) =  & 
+                    Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) + CurrentPartic%HNSMass
+    !                Droplets_MassSumParticCell(i, j, k) = Droplets_MassSumParticCell(i, j, k) +              & 
+    !                                             CurrentPartic%HNSMass
+                end if                                             
+                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
+                    Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) =  &
+                    Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) + CurrentPartic%HNSMass
+    !                SuspendedParticulates_MassSumParticCell(i, j, k) =      &
+    !                                        SuspendedParticulates_MassSumParticCell(i, j, k) + CurrentPartic%HNSMass
+                end if                                             
+
+                CurrentPartic => CurrentPartic%Next
+            enddo
+
+    !       Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D = Dissolved_MassSumParticCell
+    !       Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D = Droplets_MassSumParticCell
+    !       Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D = SuspendedParticulates_MassSumParticCell
+
+            !Calculates the HNS Grid Concentration (3D)
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+               if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+                     if (Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) > 0.) then
+                         Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D (i, j,k) = 1.E6 *  &
+                         Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
+                     endif
+                     if (Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) > 0.) then
+                         Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(i,j,k) = 1.E6 *  &
+                         Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
+                     endif
+                     if (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) > 0.) then
+                         Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D (i, j,k) = 1.E6 *  &
+                         Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
+                     endif
+                end if
+            enddo
+            enddo
+            enddo
+
+    !        deallocate (Dissolved_MassSumParticCell, STAT = STAT_CALL)
+    !        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR21'
+    !        deallocate (Droplets_MassSumParticCell, STAT = STAT_CALL)
+    !        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR22'
+    !        deallocate (SuspendedParticulates_MassSumParticCell, STAT = STAT_CALL)
+    !        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR23'
+
+        enddo d1
         
-        !Adds the mass of all particles in the every cell
-        CurrentPartic => CurrentOrigin%FirstPartic
-        do while (associated(CurrentPartic))
-
-            i = CurrentPartic%Position%I
-            j = CurrentPartic%Position%J
-            k = CurrentPartic%Position%k
-
-            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Dissolved_) then
-                Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) = &
-                Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D (i,j,k)+ CurrentPartic%HNSMass
-!                Dissolved_MassSumParticCell(i, j, k) = Dissolved_MassSumParticCell(i, j, k) +              & 
-!                                             CurrentPartic%HNSMass
-                
-            end if                                             
-            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
-                Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) =  & 
-                Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) + CurrentPartic%HNSMass
-!                Droplets_MassSumParticCell(i, j, k) = Droplets_MassSumParticCell(i, j, k) +              & 
-!                                             CurrentPartic%HNSMass
-            end if                                             
-            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
-                Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) =  &
-                Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) + CurrentPartic%HNSMass
-!                SuspendedParticulates_MassSumParticCell(i, j, k) =      &
-!                                        SuspendedParticulates_MassSumParticCell(i, j, k) + CurrentPartic%HNSMass
-            end if                                             
-
-            CurrentPartic => CurrentPartic%Next
-        enddo
-
-!       Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D = Dissolved_MassSumParticCell
-!       Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D = Droplets_MassSumParticCell
-!       Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D = SuspendedParticulates_MassSumParticCell
-
-        !Calculates the HNS Grid Concentration (3D)
-        do k = KLB, KUB
-        do j = JLB, JUB
-        do i = ILB, IUB
-           if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
-                 if (Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) > 0.) then
-                     Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D (i, j,k) = 1.E6 *  &
-                     Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
-                 endif
-                 if (Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) > 0.) then
-                     Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(i,j,k) = 1.E6 *  &
-                     Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
-                 endif
-                 if (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) > 0.) then
-                     Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D (i, j,k) = 1.E6 *  &
-                     Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
-                 endif
-            end if
-        enddo
-        enddo
-        enddo
-
-!        deallocate (Dissolved_MassSumParticCell, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR21'
-!        deallocate (Droplets_MassSumParticCell, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR22'
-!        deallocate (SuspendedParticulates_MassSumParticCell, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR23'
-
     end subroutine HNSGridConc3D
 
   !--------------------------------------------------------------------------
@@ -12775,154 +12792,157 @@ i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) th
 
         !Begin-----------------------------------------------------------------
         
-        em = CurrentOrigin%Position%ModelID
-        ig = CurrentOrigin%GroupID
+        !em = CurrentOrigin%Position%ModelID
+d1:     do em = 1, Me%EulerModelNumber                         
+        
+            ig = CurrentOrigin%GroupID
 
-        ILB = Me%EulerModel(em)%WorkSize%ILB
-        JLB = Me%EulerModel(em)%WorkSize%JLB
-        KLB = Me%EulerModel(em)%WorkSize%KLB
-        IUB = Me%EulerModel(em)%WorkSize%IUB
-        JUB = Me%EulerModel(em)%WorkSize%JUB
-        KUB = Me%EulerModel(em)%WorkSize%KUB
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            KLB = Me%EulerModel(em)%WorkSize%KLB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+            KUB = Me%EulerModel(em)%WorkSize%KUB
 
-        allocate (Air_MassSumParticCell (ILB:IUB,                &
-                                     JLB:JUB),                &
-                                     STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR01'
+            allocate (Air_MassSumParticCell (ILB:IUB,                &
+                                         JLB:JUB),                &
+                                         STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR01'
 
-        allocate (SurfaceFloating_MassSumParticCell (ILB:IUB,                &
-                                     JLB:JUB),                &
-                                     STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR02'
+            allocate (SurfaceFloating_MassSumParticCell (ILB:IUB,                &
+                                         JLB:JUB),                &
+                                         STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR02'
 
-        allocate (Droplets_MassSumParticCell (ILB:IUB,                &
-                                     JLB:JUB),                &
-                                     STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR03'
+            allocate (Droplets_MassSumParticCell (ILB:IUB,                &
+                                         JLB:JUB),                &
+                                         STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR03'
 
-        allocate (Dissolved_MassSumParticCell (ILB:IUB,                &
-                                     JLB:JUB),                &
-                                     STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR04'
+            allocate (Dissolved_MassSumParticCell (ILB:IUB,                &
+                                         JLB:JUB),                &
+                                         STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR04'
 
-        allocate (SuspendedParticulates_MassSumParticCell (ILB:IUB,                &
-                                     JLB:JUB),                &
-                                     STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR05'
+            allocate (SuspendedParticulates_MassSumParticCell (ILB:IUB,                &
+                                         JLB:JUB),                &
+                                         STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR05'
 
-        allocate (DepositedParticulates_MassSumParticCell (ILB:IUB,                &
-                                     JLB:JUB),                &
-                                     STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR06'
+            allocate (DepositedParticulates_MassSumParticCell (ILB:IUB,                &
+                                         JLB:JUB),                &
+                                         STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR06'
 
-        Air_MassSumParticCell                   = 0.
-        SurfaceFloating_MassSumParticCell       = 0.
-        Dissolved_MassSumParticCell             = 0.
-        Droplets_MassSumParticCell              = 0.
-        SuspendedParticulates_MassSumParticCell = 0.
-        DepositedParticulates_MassSumParticCell = 0.
-               
+            Air_MassSumParticCell                   = 0.
+            SurfaceFloating_MassSumParticCell       = 0.
+            Dissolved_MassSumParticCell             = 0.
+            Droplets_MassSumParticCell              = 0.
+            SuspendedParticulates_MassSumParticCell = 0.
+            DepositedParticulates_MassSumParticCell = 0.
+                   
 
-        !Adds the mass of all particles in the every cell
-        CurrentPartic => CurrentOrigin%FirstPartic
-        do while (associated(CurrentPartic))
+            !Adds the mass of all particles in the every cell
+            CurrentPartic => CurrentOrigin%FirstPartic
+            do while (associated(CurrentPartic))
 
-            i = CurrentPartic%Position%I
-            j = CurrentPartic%Position%J
+                i = CurrentPartic%Position%I
+                j = CurrentPartic%Position%J
 
-            if ( (CurrentPartic%HNSParticleState .EQ. Air_Evaporated_) .OR. &
-                 (CurrentPartic%HNSParticleState .EQ. Air_Volatilized_) ) then
-                Air_MassSumParticCell(i, j) = Air_MassSumParticCell(i, j) +              & 
-                                             CurrentPartic%HNSMass
-            end if                                             
+                if ( (CurrentPartic%HNSParticleState .EQ. Air_Evaporated_) .OR. &
+                     (CurrentPartic%HNSParticleState .EQ. Air_Volatilized_) ) then
+                    Air_MassSumParticCell(i, j) = Air_MassSumParticCell(i, j) +              & 
+                                                 CurrentPartic%HNSMass
+                end if                                             
 
-            if (CurrentPartic%HNSParticleState .EQ. Surface_) then
-                SurfaceFloating_MassSumParticCell(i, j) = SurfaceFloating_MassSumParticCell(i, j) +              & 
-                                             CurrentPartic%HNSMass
-            end if                                             
+                if (CurrentPartic%HNSParticleState .EQ. Surface_) then
+                    SurfaceFloating_MassSumParticCell(i, j) = SurfaceFloating_MassSumParticCell(i, j) +              & 
+                                                 CurrentPartic%HNSMass
+                end if                                             
 
-            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Dissolved_) then
-                Dissolved_MassSumParticCell(i, j) = Dissolved_MassSumParticCell(i, j) +              & 
-                                             CurrentPartic%HNSMass
-            end if                                             
-            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
-                Droplets_MassSumParticCell(i, j) = Droplets_MassSumParticCell(i, j) +              & 
-                                             CurrentPartic%HNSMass
-            end if                                             
-            if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
-                SuspendedParticulates_MassSumParticCell(i, j) = SuspendedParticulates_MassSumParticCell(i, j) +  & 
-                                             CurrentPartic%HNSMass
-            end if                                             
-            if (CurrentPartic%HNSParticleState .EQ. Bottom_Deposited_) then
-                DepositedParticulates_MassSumParticCell(i, j) = DepositedParticulates_MassSumParticCell(i, j) +  & 
-                                             CurrentPartic%HNSMass
-            end if                                             
+                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Dissolved_) then
+                    Dissolved_MassSumParticCell(i, j) = Dissolved_MassSumParticCell(i, j) +              & 
+                                                 CurrentPartic%HNSMass
+                end if                                             
+                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
+                    Droplets_MassSumParticCell(i, j) = Droplets_MassSumParticCell(i, j) +              & 
+                                                 CurrentPartic%HNSMass
+                end if                                             
+                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
+                    SuspendedParticulates_MassSumParticCell(i, j) = SuspendedParticulates_MassSumParticCell(i, j) +  & 
+                                                 CurrentPartic%HNSMass
+                end if                                             
+                if (CurrentPartic%HNSParticleState .EQ. Bottom_Deposited_) then
+                    DepositedParticulates_MassSumParticCell(i, j) = DepositedParticulates_MassSumParticCell(i, j) +  & 
+                                                 CurrentPartic%HNSMass
+                end if                                             
 
-            CurrentPartic => CurrentPartic%Next
-        enddo
-
-       Me%EulerModel(em)%HNS(ig)%GridAirMass2D                              = Air_MassSumParticCell
-       Me%EulerModel(em)%HNS(ig)%GridSurfaceFloatingMass2D                  = SurfaceFloating_MassSumParticCell
-       Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D                        = Dissolved_MassSumParticCell
-       Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D                         = Droplets_MassSumParticCell
-       Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D             = SuspendedParticulates_MassSumParticCell
-       Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMass2D             = DepositedParticulates_MassSumParticCell
-
-        !Calculates the HNS Grid Concentration (2D)
-        do j = JLB, JUB
-        do i = ILB, IUB
-            IntegratedVolume = 0.
-            do k = KLB, KUB
-                IntegratedVolume = IntegratedVolume + Me%EulerModel(em)%VolumeZ(i,j,k)
+                CurrentPartic => CurrentPartic%Next
             enddo
 
-           if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
-                 if (Air_MassSumParticCell(i, j) > 0.) then
-                     Me%EulerModel(em)%HNS(ig)%GridAirConc2D (i, j) = 1.E6 *  &
-                     Air_MassSumParticCell(i,j) / (Me%EulerModel(em)%GridCellArea (i, j) * 2.)  
-                     ! the value of 2(m) above is the surface layer where there would be exposure 
-                     ! to humans and wildlife 
-                 endif
-                 if (Dissolved_MassSumParticCell(i, j) > 0.) then
-                     Me%EulerModel(em)%HNS(ig)%GridDissolvedConc2D (i, j) = 1.E6 *  &
-                     Dissolved_MassSumParticCell(i,j) / IntegratedVolume  
-                 endif
-                 if (Droplets_MassSumParticCell(i, j) > 0.) then
-                     Me%EulerModel(em)%HNS(ig)%GridDropletsConc2D (i, j) = 1.E6 *  &
-                     Droplets_MassSumParticCell(i,j) / IntegratedVolume  
-                 endif
-                 if (SuspendedParticulates_MassSumParticCell(i, j) > 0.) then
-                     Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc2D (i, j) = 1.E6 *  &
-                     SuspendedParticulates_MassSumParticCell(i,j) / IntegratedVolume    
-                 endif
-                 if (DepositedParticulates_MassSumParticCell(i, j) > 0.) then
-                     Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMassPerArea2D (i, j) = 1.E6 *  &
-                     DepositedParticulates_MassSumParticCell(i,j) / Me%EulerModel(em)%GridCellArea (i, j)    
-                 endif
-            end if
+           Me%EulerModel(em)%HNS(ig)%GridAirMass2D                              = Air_MassSumParticCell
+           Me%EulerModel(em)%HNS(ig)%GridSurfaceFloatingMass2D                  = SurfaceFloating_MassSumParticCell
+           Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D                        = Dissolved_MassSumParticCell
+           Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D                         = Droplets_MassSumParticCell
+           Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D             = SuspendedParticulates_MassSumParticCell
+           Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMass2D             = DepositedParticulates_MassSumParticCell
 
-        enddo
-        enddo
+            !Calculates the HNS Grid Concentration (2D)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                IntegratedVolume = 0.
+                do k = KLB, KUB
+                    IntegratedVolume = IntegratedVolume + Me%EulerModel(em)%VolumeZ(i,j,k)
+                enddo
 
-        deallocate (Air_MassSumParticCell, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR20'
-        nullify(Air_MassSumParticCell)
-        deallocate (SurfaceFloating_MassSumParticCell, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR21'
-        nullify(SurfaceFloating_MassSumParticCell)
-        deallocate (Dissolved_MassSumParticCell, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR22'
-        nullify(Dissolved_MassSumParticCell)
-        deallocate (Droplets_MassSumParticCell, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR23'
-        nullify(Droplets_MassSumParticCell)
-        deallocate (SuspendedParticulates_MassSumParticCell, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR24'
-        nullify(SuspendedParticulates_MassSumParticCell)
-        deallocate (DepositedParticulates_MassSumParticCell, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR25'
-        nullify(DepositedParticulates_MassSumParticCell)
+               if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+                     if (Air_MassSumParticCell(i, j) > 0.) then
+                         Me%EulerModel(em)%HNS(ig)%GridAirConc2D (i, j) = 1.E6 *  &
+                         Air_MassSumParticCell(i,j) / (Me%EulerModel(em)%GridCellArea (i, j) * 2.)  
+                         ! the value of 2(m) above is the surface layer where there would be exposure 
+                         ! to humans and wildlife 
+                     endif
+                     if (Dissolved_MassSumParticCell(i, j) > 0.) then
+                         Me%EulerModel(em)%HNS(ig)%GridDissolvedConc2D (i, j) = 1.E6 *  &
+                         Dissolved_MassSumParticCell(i,j) / IntegratedVolume  
+                     endif
+                     if (Droplets_MassSumParticCell(i, j) > 0.) then
+                         Me%EulerModel(em)%HNS(ig)%GridDropletsConc2D (i, j) = 1.E6 *  &
+                         Droplets_MassSumParticCell(i,j) / IntegratedVolume  
+                     endif
+                     if (SuspendedParticulates_MassSumParticCell(i, j) > 0.) then
+                         Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc2D (i, j) = 1.E6 *  &
+                         SuspendedParticulates_MassSumParticCell(i,j) / IntegratedVolume    
+                     endif
+                     if (DepositedParticulates_MassSumParticCell(i, j) > 0.) then
+                         Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMassPerArea2D (i, j) = 1.E6 *  &
+                         DepositedParticulates_MassSumParticCell(i,j) / Me%EulerModel(em)%GridCellArea (i, j)    
+                     endif
+                end if
 
+            enddo
+            enddo
+
+            deallocate (Air_MassSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR20'
+            nullify(Air_MassSumParticCell)
+            deallocate (SurfaceFloating_MassSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR21'
+            nullify(SurfaceFloating_MassSumParticCell)
+            deallocate (Dissolved_MassSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR22'
+            nullify(Dissolved_MassSumParticCell)
+            deallocate (Droplets_MassSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR23'
+            nullify(Droplets_MassSumParticCell)
+            deallocate (SuspendedParticulates_MassSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR24'
+            nullify(SuspendedParticulates_MassSumParticCell)
+            deallocate (DepositedParticulates_MassSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR25'
+            nullify(DepositedParticulates_MassSumParticCell)
+        
+        enddo d1
 
     end subroutine HNSGridConc2D
 
@@ -12944,114 +12964,121 @@ i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) th
 
         !Begin-----------------------------------------------------------------
         
-        em = CurrentOrigin%Position%ModelID
-        ig = CurrentOrigin%GroupID
+        !em = CurrentOrigin%Position%ModelID
 
-        ILB = Me%EulerModel(em)%WorkSize%ILB
-        JLB = Me%EulerModel(em)%WorkSize%JLB
-        KLB = Me%EulerModel(em)%WorkSize%KLB
-        IUB = Me%EulerModel(em)%WorkSize%IUB
-        JUB = Me%EulerModel(em)%WorkSize%JUB
-        KUB = Me%EulerModel(em)%WorkSize%KUB
+d1:     do em = 1, Me%EulerModelNumber                         
 
-        allocate (MaxDissolvedMassSumParticCell (ILB:IUB,             &
-                                        JLB:JUB),            &
-                                        STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR01'
+        
+            ig = CurrentOrigin%GroupID
 
-        allocate (MaxDropletsMassSumParticCell (ILB:IUB,             &
-                                        JLB:JUB),            &
-                                        STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR02'
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            KLB = Me%EulerModel(em)%WorkSize%KLB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+            KUB = Me%EulerModel(em)%WorkSize%KUB
 
-        allocate (MaxSuspendedParticulateMassSumParticCell (ILB:IUB,             &
-                                        JLB:JUB),            &
-                                        STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR03'
+            allocate (MaxDissolvedMassSumParticCell (ILB:IUB,             &
+                                            JLB:JUB),            &
+                                            STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR01'
 
-        allocate (KMax_Dissolved(ILB:IUB,             &
-                                        JLB:JUB),             &
-                                        STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR04'
+            allocate (MaxDropletsMassSumParticCell (ILB:IUB,             &
+                                            JLB:JUB),            &
+                                            STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR02'
 
-        allocate (KMax_Droplets(ILB:IUB,             &
-                                        JLB:JUB),             &
-                                        STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR05'
+            allocate (MaxSuspendedParticulateMassSumParticCell (ILB:IUB,             &
+                                            JLB:JUB),            &
+                                            STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR03'
 
-        allocate (KMax_SuspendedParticulates(ILB:IUB,             &
-                                        JLB:JUB),             &
-                                        STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR06'
+            allocate (KMax_Dissolved(ILB:IUB,             &
+                                            JLB:JUB),             &
+                                            STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR04'
 
-              
-        MaxDissolvedMassSumParticCell(:,:) = 0.
-        MaxDropletsMassSumParticCell(:,:) = 0.
-        MaxSuspendedParticulateMassSumParticCell(:,:) = 0.
-        do j = JLB, JUB
-        do i = ILB, IUB
-            do k = KLB, KUB
-                if (MaxDissolvedMassSumParticCell(i, j) < Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(i, j)) then
-                    MaxDissolvedMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(i, j)
-                    KMax_Dissolved(i,j) = k
-                end if
-                if (MaxDropletsMassSumParticCell(i, j) < Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(i, j)) then
-                    MaxDropletsMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(i, j)
-                    KMax_Droplets(i,j) = k
-                end if
-                if (MaxSuspendedParticulateMassSumParticCell(i, j) <    &
-                    Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(i, j)) then
-                    MaxSuspendedParticulateMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(i, j)
-                    KMax_SuspendedParticulates(i,j) = k
-                end if
+            allocate (KMax_Droplets(ILB:IUB,             &
+                                            JLB:JUB),             &
+                                            STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR05'
+
+            allocate (KMax_SuspendedParticulates(ILB:IUB,             &
+                                            JLB:JUB),             &
+                                            STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR06'
+
+                  
+            MaxDissolvedMassSumParticCell(:,:) = 0.
+            MaxDropletsMassSumParticCell(:,:) = 0.
+            MaxSuspendedParticulateMassSumParticCell(:,:) = 0.
+            do j = JLB, JUB
+            do i = ILB, IUB
+                do k = KLB, KUB
+                    if (MaxDissolvedMassSumParticCell(i, j) < Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(i, j)) then
+                        MaxDissolvedMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(i, j)
+                        KMax_Dissolved(i,j) = k
+                    end if
+                    if (MaxDropletsMassSumParticCell(i, j) < Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(i, j)) then
+                        MaxDropletsMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(i, j)
+                        KMax_Droplets(i,j) = k
+                    end if
+                    if (MaxSuspendedParticulateMassSumParticCell(i, j) <    &
+                        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(i, j)) then
+                        MaxSuspendedParticulateMassSumParticCell(i, j) =                &
+                            Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(i, j)
+                        KMax_SuspendedParticulates(i,j) = k
+                    end if
+                enddo
             enddo
-        enddo
-        enddo
+            enddo
 
-        !Calculates the HNS Grid Max Concentration (2D)
-        do j = JLB, JUB
-        do i = ILB, IUB
-               if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
-                    if (MaxDissolvedMassSumParticCell(i, j) > 0.) then
-                         Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) = 1.E6 * &
-                         MaxDissolvedMassSumParticCell(i, j) / Me%EulerModel(em)%VolumeZ(i,j,KMax_Dissolved(i,j))  
-                    endif
-                    if (MaxDropletsMassSumParticCell(i, j) > 0.) then
-                         Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) = 1.E6 * &
-                         MaxDropletsMassSumParticCell(i, j) / Me%EulerModel(em)%VolumeZ(i,j,KMax_Droplets(i,j))  
-                    endif
-                    if (MaxSuspendedParticulateMassSumParticCell(i, j) > 0.) then
-                         Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) = 1.E6 * &
-                         MaxSuspendedParticulateMassSumParticCell(i, j) /           &
-                         Me%EulerModel(em)%VolumeZ(i,j,KMax_SuspendedParticulates(i,j))  
-                    endif
-               end if
-        enddo
-        enddo
+            !Calculates the HNS Grid Max Concentration (2D)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                   if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+                        if (MaxDissolvedMassSumParticCell(i, j) > 0.) then
+                             Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) = 1.E6 * &
+                             MaxDissolvedMassSumParticCell(i, j) / Me%EulerModel(em)%VolumeZ(i,j,KMax_Dissolved(i,j))  
+                        endif
+                        if (MaxDropletsMassSumParticCell(i, j) > 0.) then
+                             Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) = 1.E6 * &
+                             MaxDropletsMassSumParticCell(i, j) / Me%EulerModel(em)%VolumeZ(i,j,KMax_Droplets(i,j))  
+                        endif
+                        if (MaxSuspendedParticulateMassSumParticCell(i, j) > 0.) then
+                             Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) = 1.E6 * &
+                             MaxSuspendedParticulateMassSumParticCell(i, j) /           &
+                             Me%EulerModel(em)%VolumeZ(i,j,KMax_SuspendedParticulates(i,j))  
+                        endif
+                   end if
+            enddo
+            enddo
 
-        deallocate (MaxDissolvedMassSumParticCell, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR10'
-        nullify(MaxDissolvedMassSumParticCell)
+            deallocate (MaxDissolvedMassSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR10'
+            nullify(MaxDissolvedMassSumParticCell)
 
-        deallocate (MaxDropletsMassSumParticCell, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR11'
-        nullify(MaxDropletsMassSumParticCell)
+            deallocate (MaxDropletsMassSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR11'
+            nullify(MaxDropletsMassSumParticCell)
 
-        deallocate (MaxSuspendedParticulateMassSumParticCell, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR12'
-        nullify(MaxSuspendedParticulateMassSumParticCell)
+            deallocate (MaxSuspendedParticulateMassSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR12'
+            nullify(MaxSuspendedParticulateMassSumParticCell)
 
-        deallocate (KMax_Dissolved, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR13'
-        nullify(KMax_Dissolved)
+            deallocate (KMax_Dissolved, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR13'
+            nullify(KMax_Dissolved)
 
-        deallocate (KMax_Droplets, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR14'
-        nullify(KMax_Droplets)
+            deallocate (KMax_Droplets, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR14'
+            nullify(KMax_Droplets)
 
-        deallocate (KMax_SuspendedParticulates, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR15'
-        nullify(KMax_SuspendedParticulates)
+            deallocate (KMax_SuspendedParticulates, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangian- ERR15'
+            nullify(KMax_SuspendedParticulates)
+
+        enddo d1
 
     end subroutine HNSGridMaxConc2D
 
