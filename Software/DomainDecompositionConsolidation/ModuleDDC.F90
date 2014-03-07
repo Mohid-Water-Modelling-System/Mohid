@@ -50,14 +50,16 @@ Module ModuleDDC
     private ::                              GetHDF5ReadFileAccessCode
     private ::                                 GetMappingValues
     private ::          WriteConsolidatedHDF
-    private ::              SetArrayLimits
-    private ::              ReadHDFDataSetHyperslab
     private ::              ReadHDFDataSet
-    private ::              DefineHDF5Limits
-    private ::              CreateGlobalSize
+    private ::              AuxArrayAllocation
+    private ::              GetLimitsHDF
+    private ::              GetIndexMPIHDF
+    private ::              GetIndexAUXHDF
+    private ::              MergeArraysMPI
+    private ::              MPIArrayDeallocate
+    private ::              WriteHDFDataSetLimits
     private ::              WriteHDFDataSet
-    private ::              WriteTimeValues
-    private ::              ArrayDeallocate
+    private ::              AuxArrayDeallocate
     
     !Destructor
     public  :: KillDDC
@@ -76,21 +78,47 @@ Module ModuleDDC
 
     !Types---------------------------------------------------------------------
 
+    type T_MPIMatrixes
+        real(4),    dimension(:    ), pointer :: MPIDataR4_1D
+        real(4),    dimension(:,:  ), pointer :: MPIDataR4_2D
+        real(4),    dimension(:,:,:), pointer :: MPIDataR4_3D
+        real(8),    dimension(:    ), pointer :: MPIDataR8_1D
+        real(8),    dimension(:,:  ), pointer :: MPIDataR8_2D
+        real(8),    dimension(:,:,:), pointer :: MPIDataR8_3D
+        integer,    dimension(:    ), pointer :: MPIDataI4_1D
+        integer,    dimension(:,:  ), pointer :: MPIDataI4_2D
+        integer,    dimension(:,:,:), pointer :: MPIDataI4_3D        
+    end type T_MPIMatrixes
+    
+    type T_AuxMatrixes
+        real(4),    dimension(:    ), pointer :: AuxDataR4_1D
+        real(4),    dimension(:,:  ), pointer :: AuxDataR4_2D
+        real(4),    dimension(:,:,:), pointer :: AuxDataR4_3D
+        real(8),    dimension(:    ), pointer :: AuxDataR8_1D
+        real(8),    dimension(:,:  ), pointer :: AuxDataR8_2D
+        real(8),    dimension(:,:,:), pointer :: AuxDataR8_3D
+        integer,    dimension(:    ), pointer :: AuxDataI4_1D
+        integer,    dimension(:,:  ), pointer :: AuxDataI4_2D
+        integer,    dimension(:,:,:), pointer :: AuxDataI4_3D        
+    end type T_AuxMatrixes 
+    
     public  :: T_DDC
     type       T_DDC
         private
 
         !nbrModels stores total number of models
-        integer                                     :: nbrModels        = NULL_INT
-        type(T_DirectoryList), pointer              :: DirectoryList
+        integer                                         :: nbrModels        = NULL_INT
+        type(T_DirectoryList), pointer                  :: DirectoryList
     end type  T_DDC
 
     private :: T_DirectoryList
     type       T_DirectoryList
-        character(PathLength)                       :: Directory        = NULL_STR
-        type(T_HashTable), pointer                  :: hash_map_out !consolidated HDF5 output files
-        type(T_HashTable), pointer                  :: hash_map_in  !decomposed HDF5 input files
-        type(T_DirectoryList), pointer              :: Next
+        character(PathLength)                           :: Directory        = NULL_STR
+        type (T_HashTable), pointer                     :: hash_map_out !consolidated HDF5 output files
+        type (T_HashTable), pointer                     :: hash_map_in  !decomposed HDF5 input files
+        type (T_DirectoryList), pointer                 :: Next
+        type (T_AuxMatrixes), pointer                   :: AuxMatrixes
+        type (T_MPIMatrixes), pointer                   :: MPIMatrixes
     end type  T_DirectoryList
 
     !--------------------------------------------------------------------------
@@ -124,6 +152,8 @@ Module ModuleDDC
         NewObjDDC%nbrModels = 0         !Initializes model count
 
         Me => NewObjDDC
+        
+        nullify (Me%DirectoryList)
 
         STAT_CALL = ReadTreeFile(Me)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructDDC - ModuleDDC - ERR01'
@@ -316,7 +346,29 @@ if3 :           if (iMPI > 0) then
         NewDirectoryList%hash_map_out => hash_init()
         NewDirectoryList%hash_map_in => hash_init()
         nullify(NewDirectoryList%Next)
-
+        
+        allocate(NewDirectoryList%AuxMatrixes)
+        allocate(NewDirectoryList%MPIMatrixes)
+        
+        nullify(NewDirectoryList%AuxMatrixes%AuxDataR4_1D)
+        nullify(NewDirectoryList%AuxMatrixes%AuxDataR4_2D)
+        nullify(NewDirectoryList%AuxMatrixes%AuxDataR4_3D)
+        nullify(NewDirectoryList%AuxMatrixes%AuxDataR8_1D)
+        nullify(NewDirectoryList%AuxMatrixes%AuxDataR8_2D)
+        nullify(NewDirectoryList%AuxMatrixes%AuxDataR8_3D)
+        nullify(NewDirectoryList%AuxMatrixes%AuxDataI4_1D)
+        nullify(NewDirectoryList%AuxMatrixes%AuxDataI4_2D)
+        nullify(NewDirectoryList%AuxMatrixes%AuxDataI4_3D)
+        
+        nullify(NewDirectoryList%MPIMatrixes%MPIDataR4_1D)
+        nullify(NewDirectoryList%MPIMatrixes%MPIDataR4_2D)
+        nullify(NewDirectoryList%MPIMatrixes%MPIDataR4_3D)
+        nullify(NewDirectoryList%MPIMatrixes%MPIDataR8_1D)
+        nullify(NewDirectoryList%MPIMatrixes%MPIDataR8_2D)
+        nullify(NewDirectoryList%MPIMatrixes%MPIDataR8_3D)
+        nullify(NewDirectoryList%MPIMatrixes%MPIDataI4_1D)
+        nullify(NewDirectoryList%MPIMatrixes%MPIDataI4_2D)
+        nullify(NewDirectoryList%MPIMatrixes%MPIDataI4_3D)
         AllocateDirectoryList => NewDirectoryList
 
         !------------------------------------------------------------------------
@@ -385,7 +437,8 @@ if1 :       if (associated(Me%DirectoryList)) then
         !Local--------------------------------------------------------------
 
         !External--------------------------------------------------------------
-        CHARACTER(PathLength)                   :: FirstHDFFile
+        CHARACTER(PathLength)                   :: FirstHDFFileIn
+        CHARACTER(PathLength)                   :: FirstHDFFileOut
         INTEGER                                 :: TID
         INTEGER                                 :: OMP_GET_THREAD_NUM  , i, j, k
 
@@ -406,9 +459,15 @@ if1 :       if (associated(Me%DirectoryList)) then
 
 if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
 
-            FirstHDFFile = hash_get_first_key(DirectoryList%hash_map_in)
-            call ScanFileList (HDFFile     = FirstHDFFile,                          &
-                               hash_map_in = DirectoryList%hash_map_in)
+            FirstHDFFileIn = hash_get_first_key(DirectoryList%hash_map_in)
+            FirstHDFFileOut = hash_get_first_key(DirectoryList%hash_map_out)
+            
+            call ScanFileList (HDFFileIn    = FirstHDFFileIn,                   &
+                               hash_map_in  = DirectoryList%hash_map_in,        &
+                               HDFFileOut   = FirstHDFFileOut,                  &
+                               hash_map_out = DirectoryList%hash_map_out,       &
+                               AuxMatrixes  = DirectoryList%AuxMatrixes,       &
+                               MPIMatrixes  = DirectoryList%MPIMatrixes)
         endif if1
 
         if (associated(DirectoryList%Next)) call ScanDirectoryList(DirectoryList = DirectoryList%Next,  &
@@ -423,66 +482,147 @@ if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
 
     !--------------------------------------------------------------------------
 
-    recursive subroutine ScanFileList(HDFFile,                                  &
-                                      hash_map_in)
+    recursive subroutine ScanFileList(HDFFileIn, hash_map_in, HDFFileOut,       &
+                                      hash_map_out, AuxMatrixes, MPIMatrixes)
 
         !Arguments-------------------------------------------------------------
-        CHARACTER(PathLength), intent(IN)                       :: HDFFile
+        CHARACTER(PathLength), intent(IN)                       :: HDFFileIn
+        CHARACTER(PathLength), intent(IN)                       :: HDFFileOut
         type(T_HashTable), pointer                              :: hash_map_in 
+        type(T_HashTable), pointer                              :: hash_map_out
+        type(T_AuxMatrixes), pointer                            :: AuxMatrixes
+        type(T_MPIMatrixes), pointer                            :: MPIMatrixes
          
         !Local--------------------------------------------------------------
-        character(StringLength)                                 :: GroupName    
-        integer                                                 :: IDIn              
-        integer                                                 :: ObjHDF5_In
-        integer                                                 :: IDOut           
-        integer                                                 :: ObjHDF5_Out  
         integer                                                 :: STAT_CALL 
-        CHARACTER(PathLength)                                   :: HDFFileNext 
-        integer, dimension(4)                                   :: DomainSize
-        integer, dimension(4)                                   :: WindowPosition
-        integer, dimension(4)                                   :: WindowFrame
-
+        CHARACTER(PathLength)                                   :: HDFFileNext
+        CHARACTER(PathLength)                                   :: HDFFileNextOut
+        integer                                                 :: IDOut                   
+        integer                                                 :: ObjHDF5_Out
+        integer                                                 :: CountInFiles                   
+        integer                                                 :: TotalFiles
+        integer                                                 :: IDin                   
+        integer                                                 :: ObjHDF5_In
+        integer                                                 :: AuxIDOut                            
+        integer                                                 :: AuxObjHDF5_Out
+        CHARACTER(PathLength), dimension(:), pointer            :: FileArrayIn
+        integer, dimension(:), pointer                          :: IdInArray
+        integer, dimension(:), pointer                          :: ObjHDF5_InArray
+        integer                                                 :: TotalFilesIn                   
+        integer                                                 :: AuxLoop                   
+        integer                                                 :: i
+        character(StringLength)                                 :: GroupName  
+        
         !------------------------------------------------------------------------
-
+        
+        allocate(FileArrayIn(1000))
+        allocate(IdInArray(1000))
+        allocate(ObjHDF5_InArray(1000))
+        
+        FileArrayIn     = null_str
+        IdInArray       = null_int
+        ObjHDF5_InArray = null_int
+        TotalFilesIn    = null_int
+        
         GroupName    = ""
-        IDIn         = NULL_INT
-        ObjHDF5_In   = NULL_INT 
-        IDOut        = NULL_INT      
-        ObjHDF5_Out  = NULL_INT
-        STAT_CALL    = NULL_INT
-        HDFFileNext  = NULL_STR       
-    
-        IDOut       = hash_get     (hash_map_in, HDFFile)
-        ObjHDF5_Out = hash_getObjID(hash_map_in, HDFFile)
-                    
-        call GetHDF5ReadFileAccessCode(HDFFile    = HDFFile,                        &
-                                       IDIn       = IDIn,                           &
-                                       ObjHDF5_In = ObjHDF5_In)
+        CountInFiles=1.
+        TotalFiles = 0.
+        AuxLoop = 0.
+        HDFFileNext=HDFFileIn
         
-        DomainSize     = hash_getDomainSize(hash_map_in, HDFFile)
-        WindowPosition = hash_getWindowPosition(hash_map_in, HDFFile)
-        WindowFrame = hash_getWindowFrame(hash_map_in, HDFFile)
+        IDOut       = hash_get     (hash_map_out, HDFFileOut)
+        ObjHDF5_Out = hash_getObjID(hash_map_out, HDFFileOut)
         
-        call WriteConsolidatedHDF ( IDOut           = IDOut,                         &
-                                    ObjHDF5_Out     = ObjHDF5_Out,                   &
-                                    IDIn            = IDIn,                          &
-                                    ObjHDF5_In      = ObjHDF5_In,                    &
-                                    GroupName       =  adjustl(trim(GroupName)),     &
-                                    DomainSize      = DomainSize,                    &
-                                    WindowPosition  = WindowPosition,                &
-                                    WindowFrame     = WindowFrame,                   &
-                                    HDFFile         = HDFFile)
-        
-        call KillHDF5(  HDF5ID   = ObjHDF5_In,                                      &
-                        STAT     = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ScanFileList - ModuleDDC - ERR01'
-        
-if1 :   if (hash_get_next_exists(hash_map_in, HDFFile)) then
+        AuxIDOut       = hash_get     (hash_map_in, HDFFileNext)
+        AuxObjHDF5_Out = hash_getObjID(hash_map_in, HDFFileNext)
+                                        
+if1 :   if (AuxObjHDF5_Out == ObjHDF5_Out) then
 
-            HDFFileNext = hash_get_next_key(hash_map_in, HDFFile)
-            call ScanFileList(HDFFileNext, hash_map_in)
+            TotalFiles = TotalFiles + 1. 
+        
+            !Get access to first MPI file 
+            call GetHDF5ReadFileAccessCode( HDFFile    = HDFFileNext,                       &
+                                            IDIn       = IDIn,                              &
+                                            ObjHDF5_In = ObjHDF5_In)
+            
+            FileArrayIn(TotalFiles)     = HDFFileNext
+            IdInArray(TotalFiles)       = IDIn
+            ObjHDF5_InArray(TotalFiles) = ObjHDF5_In
+            TotalFilesIn                = TotalFiles
             
         endif if1
+        
+do1 :   do while(AuxLoop == 0)
+            
+if2 :       if (hash_get_next_exists(hash_map_in, HDFFileNext)) then
+
+                HDFFileNext = hash_get_next_key(hash_map_in, HDFFileNext)
+                
+                AuxIDOut       = hash_get     (hash_map_in, HDFFileNext)
+                AuxObjHDF5_Out = hash_getObjID(hash_map_in, HDFFileNext)
+                                                
+if3 :           if (AuxObjHDF5_Out == ObjHDF5_Out) then 
+                
+                    !Get access to the MPI file 
+                    call GetHDF5ReadFileAccessCode( HDFFile    = HDFFileNext,               &
+                                                    IDIn       = IDIn,                      &
+                                                    ObjHDF5_In = ObjHDF5_In)
+                
+                    TotalFiles = TotalFiles + 1.
+                    
+                    FileArrayIn(TotalFiles)     = HDFFileNext
+                    IdInArray(TotalFiles)       = IDIn
+                    ObjHDF5_InArray(TotalFiles) = ObjHDF5_In
+                    TotalFilesIn                = TotalFiles
+                    
+                endif if3
+                
+            else if2
+            
+                AuxLoop = 1
+            
+            endif if2
+            
+        enddo do1
+        
+        print *, adjustl(trim(HDFFileOut))
+        print *, ""
+        
+        call WriteConsolidatedHDF(  IDOut           = IDOut,                            &
+                                    ObjHDF5_Out     = ObjHDF5_Out,                      & 
+                                    GroupName       = adjustl(trim(GroupName)),         &
+                                    IdInArray       = IdInArray,                        &
+                                    ObjHDF5_InArray = ObjHDF5_InArray,                  &
+                                    FileArrayIn     = FileArrayIn,                      &
+                                    NumberOfFiles   = TotalFilesIn,                     &
+                                    hash_map_in     = hash_map_in,                      &
+                                    AuxMatrixes     = AuxMatrixes,                      &
+                                    MPIMatrixes     = MPIMatrixes)
+                        
+do2 :   do i=1,TotalFilesIn
+
+            call KillHDF5(  HDF5ID   = ObjHDF5_InArray(i),              &
+                            STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ScanFileList - ModuleDDC - ERR01'
+
+
+        enddo do2 
+        
+        deallocate(FileArrayIn)
+        deallocate(IdInArray)
+        deallocate(ObjHDF5_InArray)      
+
+if4 :   if (hash_get_next_exists(hash_map_out, HDFFileOut)) then
+
+            HDFFileNextOut = hash_get_next_key(hash_map_out, HDFFileOut)
+            call ScanFileList(  HDFFileIn    = HDFFileIn,                   &
+                                hash_map_in  = hash_map_in,                 &
+                                HDFFileOut   = HDFFileNextOut,              &
+                                hash_map_out = hash_map_out,                &
+                                AuxMatrixes  = AuxMatrixes,                 &
+                                MPIMatrixes  = MPIMatrixes)
+            
+        endif if4
         
         !------------------------------------------------------------------------
 
@@ -490,112 +630,95 @@ if1 :   if (hash_get_next_exists(hash_map_in, HDFFile)) then
 
     !--------------------------------------------------------------------------
 
-    recursive subroutine WriteConsolidatedHDF(IDOut, ObjHDF5_Out, IDIn,     &
-                                              ObjHDF5_In, GroupName,        &
-                                              DomainSize, WindowPosition,   &
-                                              WindowFrame, HDFFile)
+    recursive subroutine WriteConsolidatedHDF(  IDOut, ObjHDF5_Out, GroupName,              &
+                                                IdInArray, ObjHDF5_InArray, FileArrayIn,    &
+                                                NumberOfFiles, hash_map_in, AuxMatrixes,    &
+                                                MPIMatrixes)
 
         !Arguments-------------------------------------------------------------
-        character(*), intent(IN)                                :: GroupName  
-        integer, intent(IN)                                     :: IDIn               
-        integer, intent(IN)                                     :: ObjHDF5_In    
         integer, intent(IN)                                     :: IDOut              
         integer, intent(IN)                                     :: ObjHDF5_Out
-        integer, dimension(4), intent(IN)                       :: DomainSize
-        integer, dimension(4), intent(IN)                       :: WindowPosition
-        integer, dimension(4), intent(IN)                       :: WindowFrame
-        character(*), intent(IN)                                :: HDFFile
+        character(*), intent(IN)                                :: GroupName  
+        CHARACTER(*), dimension(:), pointer                     :: FileArrayIn
+        integer, dimension(:), pointer                          :: IdInArray
+        integer, dimension(:), pointer                          :: ObjHDF5_InArray
+        integer                                                 :: NumberOfFiles
+        type(T_HashTable), pointer                              :: hash_map_in
+        type(T_AuxMatrixes), pointer                            :: AuxMatrixes        
+        type(T_MPIMatrixes), pointer                            :: MPIMatrixes
         
         !Local-------------------------------------------------------------------
-        logical                                                 :: Exist
-        integer, dimension(:),       pointer                    :: IArray1D
-        integer, dimension(:, :),    pointer                    :: IArray2D
-        integer, dimension(:, :, :), pointer                    :: IArray3D
-        real(4), dimension(:),       pointer                    :: R4Array1D
-        real(4), dimension(:, :),    pointer                    :: R4Array2D
-        real(4), dimension(:, :, :), pointer                    :: R4Array3D
-        real(8), dimension(:),       pointer                    :: R8Array1D
-        real(8), dimension(:, :),    pointer                    :: R8Array2D
-        real(8), dimension(:, :, :), pointer                    :: R8Array3D
-        character(StringLength)                                 :: Name       
-        character(StringLength)                                 :: Units
+        integer                                                 :: nItems
+        integer                                                 :: idx  
+        integer                                                 :: STAT_CALL
+        character(StringLength)                                 :: Name 
         character(StringLength)                                 :: NewGroupName 
         integer(HID_T)                                          :: GroupType
-        integer(HID_T)                                          :: DataType
-        integer(HSIZE_T), dimension(7)                          :: dims  
-        integer                                                 :: nItems       
-        integer                                                 :: Rank
-        integer                                                 :: idx 
-        integer                                                 :: STAT_CALL         
-        integer, dimension(7)                                   :: Dimensions
-        integer, dimension(6)                                   :: LimitsArray
+        integer                                                 :: i       
+        integer                                                 :: Rank       
+        character(StringLength)                                 :: Units
+        integer, dimension(7)                                   :: Dimensions 
+        integer, dimension(4)                                   :: DomainSize
+        integer, dimension(4)                                   :: WindowPosition
+        integer, dimension(4)                                   :: WindowFrame
         integer                                                 :: LimitsArrayFactor
-        real                                                    :: Minimum
-        real                                                    :: Maximum
-        
+        integer, dimension(6)                                   :: LimitsArray
+        integer(HID_T)                                          :: DataType
+        integer                                                 :: ILB_MPI
+        integer                                                 :: IUB_MPI  
+        integer                                                 :: JLB_MPI
+        integer                                                 :: JUB_MPI  
+        integer                                                 :: KLB_MPI
+        integer                                                 :: KUB_MPI 
+        integer                                                 :: ILB
+        integer                                                 :: IUB  
+        integer                                                 :: JLB
+        integer                                                 :: JUB  
+        integer                                                 :: KLB
+        integer                                                 :: KUB 
+               
         !------------------------------------------------------------------------
             
-        DataType        = NULL_INT
-        NewGroupName    = NULL_STR
-        idx             = NULL_INT
-        LimitsArray     = 1
-
-        nullify(IArray1D)
-        nullify(IArray2D)
-        nullify(IArray3D)
-        nullify(R4Array1D)
-        nullify(R4Array2D)
-        nullify(R4Array3D)
-        nullify(R8Array1D)
-        nullify(R8Array2D)
-        nullify(R8Array3D)
+        DataType            = NULL_INT
+        NewGroupName        = NULL_STR
+        Name                = NULL_STR
+        idx                 = NULL_INT
+        nItems              = NULL_INT
+        GroupType           = NULL_INT
+        Dimensions          = NULL_INT
+        ILB_MPI             = NULL_INT
+        IUB_MPI             = NULL_INT  
+        JLB_MPI             = NULL_INT
+        JUB_MPI             = NULL_INT  
+        KLB_MPI             = NULL_INT
+        KUB_MPI             = NULL_INT 
+        ILB                 = NULL_INT
+        IUB                 = NULL_INT  
+        JLB                 = NULL_INT
+        JUB                 = NULL_INT  
+        KLB                 = NULL_INT
+        KUB                 = NULL_INT 
+        LimitsArrayFactor   = 0
+        LimitsArray         = 1
 
         !Get the number of members in the Group  
-        call GetHDF5GroupNumberOfItems (HDF5ID = ObjHDF5_In,                         &
+        call GetHDF5GroupNumberOfItems (HDF5ID = ObjHDF5_InArray(1),                         &
                                         GroupName = adjustl(trim(GroupName))//"/",   &
                                         nItems = nItems, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteConsolidatedHDF - ModuleDDC - ERR01'
 
 do1 :   do idx = 1, nItems
 
-            LimitsArrayFactor = 0
-        
             !Gets information about the group
-            call GetHDF5ObjectInfo (HDF5ID = ObjHDF5_In, FatherGroupName = adjustl(trim(GroupName))//"/",           &
+            call GetHDF5ObjectInfo (HDF5ID = ObjHDF5_InArray(1), FatherGroupName = adjustl(trim(GroupName))//"/",           &
                                     GroupPosition = idx, GroupName = Name,GroupType = GroupType,                    &
                                     STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteConsolidatedHDF - ModuleDDC - ERR02'
-                          
-if1 :       if (GroupType == H5G_DATASET_F) then
 
-                !Check if Dataset Exists
-                call GetHDF5DataSetExist(   ObjHDF5_Out, adjustl(trim(GroupName))//"/"//adjustl(trim(Name)),        &
-                                            Exist, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteConsolidatedHDF - ModuleDDC - ERR03'
-                
-                !Get Dataset Exists
-                call GetHDF5GroupID(    HDF5ID = ObjHDF5_In, FatherGroupName = adjustl(trim(GroupName))//"/",       &
-                                        GroupPosition = idx, GroupName = Name,                                      &
-                                        Units = Units, Rank = Rank, Dimensions = Dimensions,                        &
-                                        STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteConsolidatedHDF - ModuleDDC - ERR04'                       
-                
-                !Get Dataset DataType
-                call GetHDF5DataTypeID( HDF5ID = ObjHDF5_In, FatherGroupName = adjustl(trim(GroupName))//"/",       &
-                                        GroupPosition = idx, GroupName = Name,                                      &
-                                        DataType = DataType, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteConsolidatedHDF - ModuleDDC - ERR05'                                               
-                
-                !Get Dataset Value Real Minimum Attribute
-                call HDF5ReadGenericRealAttribute(  ObjHDF5_In, adjustl(trim(GroupName)), adjustl(trim(Name)), 3,   &
-                                                    "Minimum", Minimum, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteConsolidatedHDF - ModuleDDC - ERR06'
-                
-                !Get Dataset Value Real Maximum Attribute
-                call HDF5ReadGenericRealAttribute(  ObjHDF5_In, adjustl(trim(GroupName)), adjustl(trim(Name)), 3,   &
-                                                    "Maximum", Maximum, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteConsolidatedHDF - ModuleDDC - ERR07'
-         
+                          
+if1 :       if (GroupType == H5G_DATASET_F.AND.adjustl(trim(GroupName))//"/"//adjustl(trim(Name)) .NE. &
+                    "/Grid/Decomposition") then
+
                 !Check if it is Coordenates Feature 
 if12 :          if (adjustl(trim(Name)) .EQ. "ConnectionX" .OR. adjustl(trim(Name)) .EQ. "ConnectionY" .OR.         &
                     adjustl(trim(Name)) .EQ. "Latitude" .OR. adjustl(trim(Name)) .EQ. "Longitude") then
@@ -604,117 +727,101 @@ if12 :          if (adjustl(trim(Name)) .EQ. "ConnectionX" .OR. adjustl(trim(Nam
                     
                 endif if12
                 
-                !Set Array Limits
-                call SetArrayLimits(    Rank = Rank, GroupName = adjustl(trim(GroupName)),                          &
-                                        WindowPosition = WindowPosition, Dimensions = Dimensions,                   &
-                                        LimitsArrayFactor = LimitsArrayFactor, LimitsArray = LimitsArray)
-                
-                !Read Array 
-if17 :          if(adjustl(trim(GroupName)) .NE. "/Time") then
-                
-                    call ReadHDFDataSetHyperslab(   ObjHDF5_In = ObjHDF5_In,                       &
-                                                    GroupName   = adjustl(trim(GroupName)),                                 &
-                                                    obj_name    = adjustl(trim(Name)),                                      &
-                                                    Rank        = Rank,                                                     &
-                                                    InnerWindow = LimitsArray,                                              &
-                                                    WindowFrame = WindowFrame,                                              &
-                                                    DataType    = DataType,                                                 &
-                                                    IArray1D    = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,   &
-                                                    R4Array1D   = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,  &
-                                                    R8Array1D   = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
-                
-                else if17
-                
-                    call ReadHDFDataSet(ObjHDF5_In = ObjHDF5_In,                  &
-                                        GroupName  = adjustl(trim(GroupName)),    &
-                                        obj_name   = adjustl(trim(Name)),         &
-                                        Rank       = Rank,                        &
-                                        dims       = Dimensions,                  &
-                                        DataType   = DataType,                    &
-                                        IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,            &
-                                        R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,           &
-                                        R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)      
-                endif if17
-                
-if5 :           if(Exist .AND. adjustl(trim(GroupName)) .NE. "/Time") then
+do2 :           do i=1,NumberOfFiles
 
-                    !HDF5 SetLimits 
-                    call DefineHDF5Limits  (ObjHDF5_Out = ObjHDF5_Out,                                                  &
-                                            GroupName   = adjustl(trim(GroupName)),                                     &
-                                            obj_name    = adjustl(trim(Name)),                                          &
-                                            Rank        = Rank,                                                         &
-                                            LimitsArray = LimitsArray,                                                  &
-                                            WindowFrame = WindowFrame,                                                  &
-                                            DomainSize  = DomainSize,                                                   &
-                                            InnerWindow = WindowPosition,                                               &
-                                            LimitsArrayFactor = LimitsArrayFactor)
-                    !HDF5 Write
-                    call WriteHDFDataSet   (ObjHDF5_Out = ObjHDF5_Out,                                                  &
-                                            GroupName  = adjustl(trim(GroupName)),                                      &
-                                            obj_name   = adjustl(trim(Name)),                                           &
-                                            Rank       = Rank,                                                          &
-                                            DataType   = DataType,                                                      &
-                                            Minimum    = Minimum,                                                       &
-                                            Maximum    = Maximum,                                                       &
-                                            IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
-                                            R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
-                                            R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
-                                            
-                    call ArrayDeallocate   (IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
-                                            R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
-                                            R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
-
-                elseif (adjustl(trim(GroupName)) .NE. "/Time") then if5
+                    Dimensions          = NULL_INT
+                    ILB_MPI             = NULL_INT
+                    IUB_MPI             = NULL_INT  
+                    JLB_MPI             = NULL_INT
+                    JUB_MPI             = NULL_INT  
+                    KLB_MPI             = NULL_INT
+                    KUB_MPI             = NULL_INT 
+                    ILB                 = NULL_INT
+                    IUB                 = NULL_INT  
+                    JLB                 = NULL_INT
+                    JUB                 = NULL_INT  
+                    KLB                 = NULL_INT
+                    KUB                 = NULL_INT 
+                    LimitsArrayFactor   = 0
+                    LimitsArray         = NULL_INT
                     
-                    !Create Global HDF5
-                    call CreateGlobalSize  (ObjHDF5_Out  = ObjHDF5_Out,                                                 &
-                                            GroupName  = adjustl(trim(GroupName)),                                      &
-                                            obj_name   = adjustl(trim(Name)),                                           &
-                                            Units      = Units,                                                         &
-                                            Rank       = Rank,                                                          &
-                                            DomainSize = DomainSize,                                                    &
-                                            dims       = Dimensions,                                                    &
-                                            DataType   = DataType)
-                    !HDF5 SetLimits 
-                    call DefineHDF5Limits  (ObjHDF5_Out = ObjHDF5_Out,                                                  &
-                                            GroupName   = adjustl(trim(GroupName)),                                     &
-                                            obj_name    = adjustl(trim(Name)),                                          &
-                                            Rank        = Rank,                                                         &
-                                            LimitsArray = LimitsArray,                                                  &
-                                            WindowFrame = WindowFrame,                                                  &
-                                            DomainSize  = DomainSize,                                                   &
-                                            InnerWindow = WindowPosition,                                               &
-                                            LimitsArrayFactor = LimitsArrayFactor)
-                    !HDF5 Write                        
-                    call WriteHDFDataSet   (ObjHDF5_Out = ObjHDF5_Out,                                                  &
-                                            GroupName  = adjustl(trim(GroupName)),                                      &
-                                            obj_name   = adjustl(trim(Name)),                                           &
-                                            Rank       = Rank,                                                          &
-                                            DataType   = DataType,                                                      &
-                                            Minimum    = Minimum,                                                       &
-                                            Maximum    = Maximum,                                                       &
-                                            IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
-                                            R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
-                                            R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
-                                            
-                    call ArrayDeallocate   (IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
-                                            R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
-                                            R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
+                    DomainSize      = hash_getDomainSize(hash_map_in, FileArrayIn(i))
+                    WindowPosition  = hash_getWindowPosition(hash_map_in, FileArrayIn(i))
+                    WindowFrame     = hash_getWindowFrame(hash_map_in, FileArrayIn(i))
                     
-                elseif (adjustl(trim(GroupName)) .EQ. "/Time" .AND. Exist .EQ. .FALSE.) then if5
-                
-                    !HDF5 Write Time
-                    call WriteTimeValues(   HDF5ID = ObjHDF5_Out, Dimensions = Dimensions, DataType = DataType,     &
-                                            GroupName = GroupName, Name = adjustl(trim(Name)), Minimum = Minimum,   &
-                                            Maximum = Maximum, Units  = Units, IArray1D = IArray1D,                 &
-                                            R4Array1D = R4Array1D, R8Array1D = R8Array1D)
-                                            
-                    call ArrayDeallocate   (IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
-                                            R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
-                                            R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
+                    !Get Dataset Information
+                    call GetHDF5GroupID(HDF5ID = ObjHDF5_InArray(i), FatherGroupName = adjustl(trim(GroupName))//"/",       &
+                                        GroupPosition = idx, GroupName = Name,                                              &
+                                        Units = Units, Rank = Rank, Dimensions = Dimensions,                                &
+                                        STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteConsolidatedHDF - ModuleDDC - ERR03'
+                    
+                    !Get Dataset DataType
+                    call GetHDF5DataTypeID( HDF5ID = ObjHDF5_InArray(i), FatherGroupName = adjustl(trim(GroupName))//"/",   &
+                                            GroupPosition = idx, GroupName = Name,                                          &
+                                            DataType = DataType, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteConsolidatedHDF - ModuleDDC - ERR04'  
+                    
+                    call ReadHDFDataSet(ObjHDF5_In  = ObjHDF5_InArray(i),   GroupName   = adjustl(trim(GroupName)),           &
+                                        obj_name    = adjustl(trim(Name)),  Rank        = Rank,                               &
+                                        dims        = Dimensions,           DataType    = DataType,                           & 
+                                        MPIMatrixes = MPIMatrixes)
+                                        
+if13 :              if(i == 1) then
 
-                end if if5
+                        call AuxArrayAllocation(DomainSize  = DomainSize,   Dimensions          = Dimensions,           &
+                                                AuxMatrixes = AuxMatrixes,  LimitsArrayFactor   = LimitsArrayFactor,    & 
+                                                MPIMatrixes = MPIMatrixes)
+
+                    endif if13
+                    
+                    call GetLimitsHDF(  WindowPosition      = WindowPosition,           &
+                                        Dimensions          = Dimensions,               &
+                                        Rank                = Rank,                     &
+                                        LimitsArrayFactor   = LimitsArrayFactor,        &
+                                        GroupName           = GroupName,                & 
+                                        LimitsArray         = LimitsArray)
+                                        
+                    call GetIndexMPIHDF(WindowFrame = WindowFrame,                      &
+                                        LimitsArray = LimitsArray,                      &
+                                        GroupName   = GroupName,                        &
+                                        ILB_MPI     = ILB_MPI, IUB_MPI = IUB_MPI,       &
+                                        JLB_MPI     = JLB_MPI, JUB_MPI = JUB_MPI,       &
+                                        KLB_MPI     = KLB_MPI, KUB_MPI = KUB_MPI)
+!                                        
+                    call GetIndexAUXHDF(WindowPosition      = WindowPosition,          &
+                                        DomainSize          = DomainSize,               &
+                                        LimitsArray         = LimitsArray,              &
+                                        LimitsArrayFactor   = LimitsArrayFactor,        &
+                                        GroupName           = GroupName,                &
+                                        ILB                 = ILB , IUB  = IUB,         &
+                                        JLB                 = JLB , JUB  = JUB,         &
+                                        KLB                 = KLB , KUB  = KUB)
+                    
+                    call MergeArraysMPI(ILB_MPI = ILB_MPI, IUB_MPI = IUB_MPI,                       &
+                                        JLB_MPI = JLB_MPI, JUB_MPI = JUB_MPI,                       &
+                                        KLB_MPI = KLB_MPI, KUB_MPI = KUB_MPI,                       &
+                                        ILB = ILB, IUB = IUB,                                       &
+                                        JLB = JLB, JUB = JUB,                                       &
+                                        KLB = KLB, KUB = KUB,                                       &
+                                        AuxMatrixes = AuxMatrixes,                                  &
+                                        MPIMatrixes = MPIMatrixes)
+                
+                    call MPIArrayDeallocate(MPIMatrixes= MPIMatrixes)
+                
+                enddo do2
                
+                call WriteHDFDataSetLimits( HDF5ID      = ObjHDF5_Out,  Rank        = Rank,         &
+                                            DomainSize  = DomainSize,   Dimensions  = Dimensions,   &
+                                            LimitsArrayFactor = LimitsArrayFactor,  GroupName   = GroupName)
+                
+                call WriteHDFDataSet(   HDF5ID      = ObjHDF5_Out,  GroupName   = GroupName,        &
+                                        Name        = Name,         Units       = Units,            &
+                                        Rank        = Rank,         DataType    = DataType,         &
+                                        AuxMatrixes = AuxMatrixes)
+                
+                call AuxArrayDeallocate( AuxMatrixes= AuxMatrixes)
+                                        
             elseif (GroupType ==H5G_GROUP_F) then if1
              
 if3 :           if(adjustl(trim(GroupName)) .EQ. "/") then
@@ -731,20 +838,16 @@ if3 :           if(adjustl(trim(GroupName)) .EQ. "/") then
 if2 :           if (adjustl(trim(GroupName))//"/"//adjustl(trim(Name)) .NE. &
                     "/Grid/Decomposition") then
                     
-!                    call ArrayDeallocate   (IArray1D   = IArray1D,  IArray2D  = IArray2D,  IArray3D  = IArray3D,        &
-!                                            R4Array1D  = R4Array1D, R4Array2D = R4Array2D, R4Array3D = R4Array3D,       &
-!                                            R8Array1D  = R8Array1D, R8Array2D = R8Array2D, R8Array3D = R8Array3D)
-
-                    
-                    call WriteConsolidatedHDF  (IDOut           = IDOut,                                                    &
-                                                ObjHDF5_Out     = ObjHDF5_Out,                                              &
-                                                IDIn            = IDIn,                                                     &
-                                                ObjHDF5_In      = ObjHDF5_In,                                               &
-                                                GroupName       = NewGroupName,                                             &
-                                                DomainSize      = DomainSize,                                               &
-                                                WindowPosition  = WindowPosition,                                           &
-                                                WindowFrame     = WindowFrame,                                              &
-                                                HDFFile         = HDFFile)
+                    call WriteConsolidatedHDF(  IDOut           = IDOut,                            &
+                                                ObjHDF5_Out     = ObjHDF5_Out,                      & 
+                                                GroupName       = adjustl(trim(NewGroupName)),      &
+                                                IdInArray       = IdInArray,                        &
+                                                ObjHDF5_InArray = ObjHDF5_InArray,                  &
+                                                FileArrayIn     = FileArrayIn,                      &
+                                                NumberOfFiles   = NumberOfFiles,                    &
+                                                hash_map_in     = hash_map_in,                      &
+                                                AuxMatrixes     = AuxMatrixes,                      &
+                                                MPIMatrixes     = MPIMatrixes)
                                   
                 endif if2
 
@@ -755,492 +858,43 @@ if2 :           if (adjustl(trim(GroupName))//"/"//adjustl(trim(Name)) .NE. &
         !------------------------------------------------------------------------
 
     end subroutine WriteConsolidatedHDF
-
+        
         !--------------------------------------------------------------------------
-
-    subroutine ArrayDeallocate( IArray1D, IArray2D, IArray3D,                  &
-                                R4Array1D, R4Array2D, R4Array3D,               &
-                                R8Array1D, R8Array2D, R8Array3D)
-
-        !Arguments-------------------------------------------------------------
-        integer, dimension(:),       pointer                    :: IArray1D
-        integer, dimension(:, :),    pointer                    :: IArray2D
-        integer, dimension(:, :, :), pointer                    :: IArray3D
-        real(4), dimension(:),       pointer                    :: R4Array1D
-        real(4), dimension(:, :),    pointer                    :: R4Array2D
-        real(4), dimension(:, :, :), pointer                    :: R4Array3D
-        real(8), dimension(:),       pointer                    :: R8Array1D
-        real(8), dimension(:, :),    pointer                    :: R8Array2D
-        real(8), dimension(:, :, :), pointer                    :: R8Array3D
-        
-        !Local-------------------------------------------------------------------
-        integer                                                 :: STAT_CALL
-        
-        !------------------------------------------------------------------------
-        
-if1 :   if(associated(IArray1D) .EQ. .TRUE.)   then
-
-            deallocate(IArray1D)
-            
-        elseif (associated(IArray2D) .EQ. .TRUE.) then if1
-        
-            deallocate(IArray2D)
-
-        elseif (associated(IArray3D) .EQ. .TRUE.) then if1
-
-            deallocate(IArray3D)
-            
-        end if if1
-
-if2 :   if(associated(R4Array1D) .EQ. .TRUE.) then 
-
-            deallocate(R4Array1D)
-            
-        elseif (associated(R4Array2D) .EQ. .TRUE.) then if2
-
-            deallocate(R4Array2D)
-
-        elseif (associated(R4Array3D) .EQ. .TRUE.) then if2
-
-            deallocate(R4Array3D)
-            
-        end if if2  
-
-if3 :   if(associated(R8Array1D) .EQ. .TRUE.) then 
-
-            deallocate(R8Array1D)
-
-        elseif (associated(R8Array2D) .EQ. .TRUE.) then if3
-
-            deallocate(R8Array2D)
-
-        elseif (associated(R8Array3D) .EQ. .TRUE.) then if3
-
-            deallocate(R8Array3D)
-
-        end if if3
-          
-        !------------------------------------------------------------------------
     
-    end subroutine ArrayDeallocate  
-
-        !--------------------------------------------------------------------------
-
-    subroutine WriteTimeValues( HDF5ID, Dimensions, DataType, GroupName, Name,  & 
-                                Minimum, Maximum, Units, IArray1D, R4Array1D,   &
-                                R8Array1D)
+    subroutine GetIndexAuxHDF(  WindowPosition, DomainSize, LimitsArray,        &
+                                LimitsArrayFactor, GroupName,                   &
+                                ILB, IUB,                                       &
+                                JLB, JUB,                                       &
+                                KLB, KUB)
 
         !Arguments-------------------------------------------------------------
-        integer, intent(IN)                                     :: HDF5ID
-        integer, dimension(7), intent(IN)                       :: Dimensions
-        integer(HID_T), intent(IN)                              :: DataType
+        integer, dimension(4),intent(IN)                        :: WindowPosition
+        integer, dimension(4),intent(IN)                        :: DomainSize 
+        integer, dimension(6),intent(IN)                        :: LimitsArray
+        integer,intent(IN)                                      :: LimitsArrayFactor
         character(*), intent(IN)                                :: GroupName
-        character(*), intent(IN)                                :: Name
-        character(*), intent(IN)                                :: Units
-        real, intent(IN)                                        :: Minimum
-        real, intent(IN)                                        :: Maximum
-        integer, dimension(:), pointer, intent(IN), optional    :: IArray1D
-        real(4), dimension(:), pointer, intent(IN), optional    :: R4Array1D
-        real(8), dimension(:), pointer, intent(IN), optional    :: R8Array1D
-        
-        !Local-------------------------------------------------------------------
-        integer                                                 :: STAT_CALL
-        
-        !------------------------------------------------------------------------
-                    
-        call HDF5SetLimits  (HDF5ID = HDF5ID, ILB = 1, IUB = Dimensions(1), STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteTimeValues - ModuleDDC - ERR01'
-                    
-if1 :   if(DataType .EQ. H5T_NATIVE_INTEGER)   then
-
-            call HDF5WriteData(HDF5ID = HDF5ID, GroupName = GroupName, Name = adjustl(trim(Name)),     & 
-                               Units  = Units, Array1D   = IArray1D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteTimeValues - ModuleDDC - ERR02'
-
-       else if (DataType .EQ. H5T_NATIVE_REAL) then if1
-        
-            call HDF5WriteData( HDF5ID = HDF5ID, GroupName = GroupName, Name = adjustl(trim(Name)),    & 
-                                Units  = Units, Array1D   = R4Array1D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteTimeValues - ModuleDDC - ERR03'
-
-       else if (DataType .EQ. H5T_NATIVE_DOUBLE) then if1
-
-            call HDF5WriteData( HDF5ID = HDF5ID, GroupName = GroupName, Name = adjustl(trim(Name)),    & 
-                                Units  = Units, Array1D   = R8Array1D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteTimeValues - ModuleDDC - ERR04'
-
-       end if if1
-       
-       call HDF5UpdateGenericRealAttribute(HDF5ID = HDF5ID, GroupName = GroupName,    &
-                                            ItemName = adjustl(trim(Name)),                             &
-                                            ItemType = H5G_DATASET_F,                                   &
-                                            AttributeName = "Minimum" ,                                 &
-                                            ValueReal = Minimum, STAT = STAT_CALL)
-                                            
-       call HDF5UpdateGenericRealAttribute(HDF5ID = HDF5ID, GroupName = GroupName,    &
-                                            ItemName = adjustl(trim(Name)),                             &
-                                            ItemType = H5G_DATASET_F,                                   &
-                                            AttributeName = "Maximum" ,                                 &
-                                            ValueReal = Maximum, STAT = STAT_CALL)
-
-       !Writes everything to disk
-       call HDF5FlushMemory (HDF5ID = HDF5ID, STAT = STAT_CALL)
-       if (STAT_CALL /= SUCCESS_) stop 'WriteTimeValues - ModuleDDC - ERR05'
-
+        integer,intent(out)                                     :: ILB
+        integer,intent(out)                                     :: IUB  
+        integer,intent(out)                                     :: JLB
+        integer,intent(out)                                     :: JUB  
+        integer,intent(out)                                     :: KLB
+        integer,intent(out)                                     :: KUB 
           
-        !------------------------------------------------------------------------
-    
-    end subroutine WriteTimeValues  
-
-        !--------------------------------------------------------------------------
-
-    subroutine SetArrayLimits(  Rank, GroupName, WindowPosition, Dimensions,    &
-                                LimitsArrayFactor, LimitsArray)
-
-        !Arguments-------------------------------------------------------------
-        character(*), intent(IN)                                :: GroupName
-        integer, intent(IN)                                     :: Rank
-        integer, dimension(4), intent(IN)                       :: WindowPosition
-        integer, dimension(4), intent(IN)                       :: Dimensions
-        integer, intent(IN)                                     :: LimitsArrayFactor
-        integer, dimension(6), intent(OUT)                      :: LimitsArray
-        
         !Local-------------------------------------------------------------------
-        
-        
-        !------------------------------------------------------------------------
-                
-if1 :   if (Rank .EQ. 1 .AND. adjustl(trim(GroupName)) .NE. "/Time") then
-                    
-            LimitsArray(1)= WindowPosition(1)
-            LimitsArray(2)= WindowPosition(2)
-                
-        elseif (Rank .EQ. 2) then if1
 
-            LimitsArray(1)= WindowPosition(1)
-            LimitsArray(2)= WindowPosition(2)+LimitsArrayFactor
-            LimitsArray(3)= WindowPosition(3)
-            LimitsArray(4)= WindowPosition(4)+LimitsArrayFactor
-                        
-        elseif (Rank .EQ. 3) then if1
-    
-            LimitsArray(1)= WindowPosition(1)
-            LimitsArray(2)= WindowPosition(2)
-            LimitsArray(3)= WindowPosition(3)
-            LimitsArray(4)= WindowPosition(4)
-            LimitsArray(5)= 1
-            LimitsArray(6)= Dimensions(3)
-    
-        endif if1
-          
-        !------------------------------------------------------------------------
-    
-    end subroutine SetArrayLimits  
-
-    !--------------------------------------------------------------------------
-
-    subroutine ReadHDFDataSetHyperslab(ObjHDF5_In, GroupName, obj_name,      &
-                              Rank, InnerWindow, WindowFrame, DataType,      &
-                              IArray1D, IArray2D, IArray3D,                  &
-                              R4Array1D, R4Array2D, R4Array3D,               &
-                              R8Array1D, R8Array2D, R8Array3D)
-
-        !Arguments-------------------------------------------------------------
-        integer, intent(IN)                                     :: ObjHDF5_In
-        character(*), intent(IN)                                :: GroupName
-        character(*), intent(IN)                                :: obj_name 
-        integer, intent(IN)                                     :: Rank
-        integer, dimension(6), intent(IN)                       :: InnerWindow 
-        integer, dimension(4), intent(IN)                       :: WindowFrame 
-        integer(HID_T), intent(IN)                              :: DataType
-        integer, dimension(:),       pointer, intent(OUT)       :: IArray1D
-        integer, dimension(:, :),    pointer, intent(OUT)       :: IArray2D
-        integer, dimension(:, :, :), pointer, intent(OUT)       :: IArray3D
-        real(4), dimension(:),       pointer, intent(OUT)       :: R4Array1D
-        real(4), dimension(:, :),    pointer, intent(OUT)       :: R4Array2D
-        real(4), dimension(:, :, :), pointer, intent(OUT)       :: R4Array3D
-        real(8), dimension(:),       pointer, intent(OUT)       :: R8Array1D
-        real(8), dimension(:, :),    pointer, intent(OUT)       :: R8Array2D
-        real(8), dimension(:, :, :), pointer, intent(OUT)       :: R8Array3D
-        
-        !Local-------------------------------------------------------------------
-        integer                                                 :: STAT_CALL  
-        integer                                                 :: ILB
-        integer                                                 :: IUB  
-        integer                                                 :: JLB
-        integer                                                 :: JUB  
-        integer                                                 :: KLB
-        integer                                                 :: KUB     
-        
-        !------------------------------------------------------------------------
-
-        STAT_CALL    = NULL_INT
-        
-        ILB = InnerWindow(1) - WindowFrame(1) + 1 
-        IUB = InnerWindow(2) - WindowFrame(1) + 1
-        JLB = InnerWindow(3) - WindowFrame(3) + 1
-        JUB = InnerWindow(4) - WindowFrame(3) + 1
-        KLB = InnerWindow(5)
-        KUB = InnerWindow(6)
-
-if1 :   if (Rank .EQ. 1) then
-
-            call HDF5SetLimits  (ObjHDF5_In, ILB, IUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR01'
-
-if12 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
-
-                allocate (IArray1D(ILB:IUB))
-                
-                call HDF5ReadWindow(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                    Array1D = IArray1D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR02'
-            
-            elseif (DataType .EQ. H5T_NATIVE_REAL) then if12
-            
-                allocate (R4Array1D(ILB:IUB))
-                
-                call HDF5ReadWindow(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                    Array1D = R4Array1D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR03'
-            
-            elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if12
-            
-                allocate (R8Array1D(ILB:IUB))
-              
-                call HDF5ReadWindow(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                    Array1D = R8Array1D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR04'
-            
-            endif if12
-
-        elseif (Rank .EQ. 2) then if1
-        
-            call HDF5SetLimits  (ObjHDF5_In, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR05'
-        
-if13 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
-
-                allocate (IArray2D(ILB:IUB,JLB:JUB))
-                          
-                call HDF5ReadWindow(ObjHDF5_In, GroupName, adjustl(trim(obj_name)),  & 
-                                    Array2D = IArray2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR06'
-                
-            elseif (DataType .EQ. H5T_NATIVE_REAL) then if13
-            
-                allocate (R4Array2D(ILB:IUB,JLB:JUB))
-                
-                call HDF5ReadWindow(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                    Array2D = R4Array2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR07'
-
-            elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if13
-            
-                allocate (R8Array2D(ILB:IUB,JLB:JUB))
-                          
-                call HDF5ReadWindow(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                    Array2D = R8Array2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR08'
-
-            endif if13
-        
-        elseif (Rank .EQ. 3) then if1
-        
-            call HDF5SetLimits  (ObjHDF5_In, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR09'
-        
-if14 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
-
-                allocate (IArray3D(ILB:IUB,JLB:JUB,KLB:KUB))
-                
-                call HDF5ReadWindow(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                    Array3D = IArray3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR10'
-                
-            elseif (DataType .EQ. H5T_NATIVE_REAL) then if14
-            
-                allocate (R4Array3D(ILB:IUB,JLB:JUB,KLB:KUB))
-                          
-                call HDF5ReadWindow(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                    Array3D = R4Array3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR11'
-                
-            elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if14
-            
-                allocate (R8Array3D(ILB:IUB,JLB:JUB,KLB:KUB))
-                          
-                call HDF5ReadWindow(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                    Array3D = R8Array3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSetHyperslab - ModuleDDC - ERR12'
-                
-            endif if14
-        
-        endif if1
-          
-        !------------------------------------------------------------------------
-    
-    end subroutine ReadHDFDataSetHyperslab  
-      
-        !--------------------------------------------------------------------------
-
-    subroutine WriteHDFDataSet (ObjHDF5_Out, GroupName, obj_name,                   &
-                                Rank, DataType, Minimum, Maximum,                   &
-                                IArray1D, IArray2D, IArray3D,                       &
-                                R4Array1D, R4Array2D, R4Array3D,                    &
-                                R8Array1D, R8Array2D, R8Array3D)
-
-        !Arguments-------------------------------------------------------------
-        integer, intent(IN)                                     :: ObjHDF5_Out
-        character(*), intent(IN)                                :: GroupName
-        character(*), intent(IN)                                :: obj_name 
-        integer, intent(IN)                                     :: Rank
-        integer(HID_T), intent(IN)                              :: DataType
-        real, intent(IN)                                        :: Minimum
-        real, intent(IN)                                        :: Maximum
-        
-        !Local-------------------------------------------------------------------
-        integer, dimension(:),       pointer                    :: IArray1D
-        integer, dimension(:, :),    pointer                    :: IArray2D
-        integer, dimension(:, :, :), pointer                    :: IArray3D
-        real(4), dimension(:),       pointer                    :: R4Array1D
-        real(4), dimension(:, :),    pointer                    :: R4Array2D
-        real(4), dimension(:, :, :), pointer                    :: R4Array3D
-        real(8), dimension(:),       pointer                    :: R8Array1D
-        real(8), dimension(:, :),    pointer                    :: R8Array2D
-        real(8), dimension(:, :, :), pointer                    :: R8Array3D
-        integer                                                 :: STAT_CALL    
         
         !------------------------------------------------------------------------
         
-        STAT_CALL = NULL_INT
-        
-if1 :   if (Rank .EQ. 1) then
+if16 :  if (DomainSize(1) .GT. 1 .AND. adjustl(trim(GroupName)) .NE. "/Time") then
 
-if12 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
-
-                call HDF5WriteWindow(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                     Array1D = IArray1D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR01'
-                
-            elseif (DataType .EQ. H5T_NATIVE_REAL) then if12
-            
-                call HDF5WriteWindow(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                     Array1D = R4Array1D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR02'
-
-            elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if12
-            
-                call HDF5WriteWindow(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                     Array1D = R8Array1D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR03'
-
-            endif if12
-
-        elseif (Rank .EQ. 2) then if1
-        
-if13 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
-                          
-                call HDF5WriteWindow(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                     Array2D = IArray2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR04'
-
-            elseif (DataType .EQ. H5T_NATIVE_REAL) then if13
-            
-                call HDF5WriteWindow(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                     Array2D = R4Array2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR05'
-
-            elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if13
-            
-                call HDF5WriteWindow(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                     Array2D = R8Array2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR06'
-            
-            endif if13
-        
-        elseif (Rank .EQ. 3) then if1
-        
-if14 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
-                 
-                call HDF5WriteWindow(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                     Array3D = IArray3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR07'
-            
-            elseif (DataType .EQ. H5T_NATIVE_REAL) then if14
-            
-                call HDF5WriteWindow(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                     Array3D = R4Array3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR08'
-
-            elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if14
-            
-                call HDF5WriteWindow(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                     Array3D = R8Array3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR09'
-            
-            endif if14
-        
-        endif if1
-        
-        call HDF5UpdateGenericRealAttribute(HDF5ID = ObjHDF5_Out, GroupName = GroupName,    &
-                                            ItemName = adjustl(trim(obj_name)),                             &
-                                            ItemType = H5G_DATASET_F,                                   &
-                                            AttributeName = "Minimum" ,                                 &
-                                            ValueReal = Minimum, STAT = STAT_CALL)
-                                            
-        call HDF5UpdateGenericRealAttribute(HDF5ID = ObjHDF5_Out, GroupName = GroupName,    &
-                                            ItemName = adjustl(trim(obj_name)),                             &
-                                            ItemType = H5G_DATASET_F,                                   &
-                                            AttributeName = "Maximum" ,                                 &
-                                            ValueReal = Maximum, STAT = STAT_CALL)
-        
-        !Writes everything to disk
-        call HDF5FlushMemory (ObjHDF5_Out, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR10'
-          
-        !------------------------------------------------------------------------
-    
-    end subroutine WriteHDFDataSet
-    
-        !--------------------------------------------------------------------------
-
-    recursive subroutine DefineHDF5Limits  (ObjHDF5_Out, GroupName, obj_name,           &
-                                            Rank, LimitsArray, WindowFrame, DomainSize, &
-                                            InnerWindow, LimitsArrayFactor)
-
-        !Arguments-------------------------------------------------------------
-        integer, intent(IN)                                     :: ObjHDF5_Out
-        character(*), intent(IN)                                :: GroupName
-        character(*), intent(IN)                                :: obj_name 
-        integer, intent(IN)                                     :: Rank
-        integer, intent(IN)                                     :: LimitsArrayFactor
-        integer, dimension(6), intent(IN)                       :: LimitsArray
-        integer, dimension(4), intent(IN)                       :: WindowFrame
-        integer, dimension(4), intent(IN)                       :: DomainSize
-        integer, dimension(4), intent(IN)                       :: InnerWindow
-        
-        !Local-------------------------------------------------------------------
-        integer                                                 :: STAT_CALL
-        integer                                                 :: ILB
-        integer                                                 :: IUB  
-        integer                                                 :: JLB
-        integer                                                 :: JUB  
-        integer                                                 :: KLB
-        integer                                                 :: KUB    
-        
-        !------------------------------------------------------------------------
-        
-if1 :   if (DomainSize(1) .GT. 1) then
-
-            ILB = InnerWindow(1)-DomainSize(1)+1
-            IUB = InnerWindow(2)-DomainSize(1)+1+LimitsArrayFactor
-            JLB = InnerWindow(3)-DomainSize(3)+1
-            JUB = InnerWindow(4)-DomainSize(3)+1+LimitsArrayFactor
+            ILB = WindowPosition(1)-DomainSize(1)+1
+            IUB = WindowPosition(2)-DomainSize(1)+1+LimitsArrayFactor
+            JLB = WindowPosition(3)-DomainSize(3)+1
+            JUB = WindowPosition(4)-DomainSize(3)+1+LimitsArrayFactor
             KLB = LimitsArray(5)
             KUB = LimitsArray(6)
             
-        else if1
+        else if16
         
             ILB = LimitsArray(1)
             IUB = LimitsArray(2)  
@@ -1249,47 +903,272 @@ if1 :   if (DomainSize(1) .GT. 1) then
             KLB = LimitsArray(5) 
             KUB = LimitsArray(6)
         
-        endif if1
-      
-        call HDF5SetLimits( HDF5ID = ObjHDF5_Out,       & 
-                            ILB = ILB,   IUB = IUB,     &
-                            JLB = JLB,   JUB = JUB,     &
-                            KLB = KLB,   KUB = KUB,     &
-                            STAT   = STAT_CALL) 
-       if (STAT_CALL /= SUCCESS_) stop 'DefineHDF5Limits - ModuleDDC - ERR01'
-        
+        endif if16
+               
         !------------------------------------------------------------------------
-
-    end subroutine DefineHDF5Limits
     
+    end subroutine GetIndexAuxHDF
+        
         !--------------------------------------------------------------------------
-
-    recursive subroutine CreateGlobalSize  (ObjHDF5_Out, GroupName, obj_name,     &
-                                            Units, Rank, DomainSize,              &
-                                            dims, DataType)
+    
+    subroutine GetIndexMPIHDF(  WindowFrame, LimitsArray, GroupName,        &
+                                ILB_MPI, IUB_MPI,                           &
+                                JLB_MPI, JUB_MPI,                           &
+                                KLB_MPI, KUB_MPI)
 
         !Arguments-------------------------------------------------------------
-        integer, intent(IN)                                     :: ObjHDF5_Out
+        integer, dimension(4),intent(IN)                        :: WindowFrame   
+        integer, dimension(6),intent(IN)                        :: LimitsArray
         character(*), intent(IN)                                :: GroupName
-        character(*), intent(IN)                                :: obj_name 
+        integer,intent(out)                                     :: ILB_MPI
+        integer,intent(out)                                     :: IUB_MPI  
+        integer,intent(out)                                     :: JLB_MPI
+        integer,intent(out)                                     :: JUB_MPI  
+        integer,intent(out)                                     :: KLB_MPI
+        integer,intent(out)                                     :: KUB_MPI 
+          
+        !Local-------------------------------------------------------------------
+
+        
+        !------------------------------------------------------------------------
+        
+if15 :  if (adjustl(trim(GroupName)) .NE. "/Time") then 
+       
+            ILB_MPI = LimitsArray(1) - WindowFrame(1) + 1 
+            IUB_MPI = LimitsArray(2) - WindowFrame(1) + 1
+            JLB_MPI = LimitsArray(3) - WindowFrame(3) + 1
+            JUB_MPI = LimitsArray(4) - WindowFrame(3) + 1
+            KLB_MPI = LimitsArray(5)
+            KUB_MPI = LimitsArray(6)
+        
+        else if15
+        
+            ILB_MPI = LimitsArray(1)  
+            IUB_MPI = LimitsArray(2) 
+            JLB_MPI = LimitsArray(3) 
+            JUB_MPI = LimitsArray(4) 
+            KLB_MPI = LimitsArray(5)
+            KUB_MPI = LimitsArray(6)
+        
+        endif if15
+          
+        !------------------------------------------------------------------------
+    
+    end subroutine GetIndexMPIHDF
+        
+        !--------------------------------------------------------------------------
+    
+    subroutine GetLimitsHDF(WindowPosition, Dimensions, Rank,                     &
+                            LimitsArrayFactor, GroupName, LimitsArray)
+
+        !Arguments-------------------------------------------------------------
+        integer, dimension(4),intent(IN)                        :: WindowPosition
+        integer, dimension(7),intent(IN)                        :: Dimensions 
+        integer,intent(IN)                                      :: Rank
+        integer,intent(IN)                                      :: LimitsArrayFactor
+        character(*), intent(IN)                                :: GroupName   
+        integer, dimension(6),intent(out)                       :: LimitsArray
+          
+        !Local-------------------------------------------------------------------
+
+        
+        !------------------------------------------------------------------------
+        
+        LimitsArray = 1
+        
+if14 :  if (Rank .EQ. 1 .AND. adjustl(trim(GroupName)) .NE. "/Time") then
+                    
+            LimitsArray(1)= WindowPosition(1)
+            LimitsArray(2)= WindowPosition(2)
+            
+        elseif (Rank .EQ. 1 .AND. adjustl(trim(GroupName)) .EQ. "/Time") then if14
+        
+            LimitsArray(1)= 1
+            LimitsArray(2)= Dimensions(1)    
+                
+        elseif (Rank .EQ. 2) then if14
+
+            LimitsArray(1)= WindowPosition(1)
+            LimitsArray(2)= WindowPosition(2)+LimitsArrayFactor
+            LimitsArray(3)= WindowPosition(3)
+            LimitsArray(4)= WindowPosition(4)+LimitsArrayFactor
+                        
+        elseif (Rank .EQ. 3) then if14
+    
+            LimitsArray(1)= WindowPosition(1)
+            LimitsArray(2)= WindowPosition(2)
+            LimitsArray(3)= WindowPosition(3)
+            LimitsArray(4)= WindowPosition(4)
+            LimitsArray(5)= 1
+            LimitsArray(6)= Dimensions(3)
+    
+        endif if14
+          
+        !------------------------------------------------------------------------
+    
+    end subroutine GetLimitsHDF
+    
+        !------------------------------------------------------------------------
+    
+    subroutine MergeArraysMPI(ILB_MPI, IUB_MPI, JLB_MPI, JUB_MPI, KLB_MPI, KUB_MPI,     &
+                              ILB, IUB, JLB, JUB, KLB, KUB,                             &
+                              AuxMatrixes, MPIMatrixes)
+
+        !Arguments-------------------------------------------------------------
+        type(T_AuxMatrixes), pointer                            :: AuxMatrixes
+        type(T_MPIMatrixes), pointer                            :: MPIMatrixes
+        integer,intent(IN)                                      :: ILB_MPI
+        integer,intent(IN)                                      :: IUB_MPI  
+        integer,intent(IN)                                      :: JLB_MPI
+        integer,intent(IN)                                      :: JUB_MPI  
+        integer,intent(IN)                                      :: KLB_MPI
+        integer,intent(IN)                                      :: KUB_MPI 
+        integer,intent(IN)                                      :: ILB
+        integer,intent(IN)                                      :: IUB  
+        integer,intent(IN)                                      :: JLB
+        integer,intent(IN)                                      :: JUB  
+        integer,intent(IN)                                      :: KLB
+        integer,intent(IN)                                      :: KUB 
+           
+        !Local-------------------------------------------------------------------
+
+        
+        !------------------------------------------------------------------------
+        
+if1 :   if(associated(MPIMatrixes%MPIDataI4_1D) .EQ. .TRUE.)   then
+
+            AuxMatrixes%AuxDataI4_1D(ILB:IUB)=MPIMatrixes%MPIDataI4_1D(ILB_MPI:IUB_MPI)
+            
+        elseif (associated(MPIMatrixes%MPIDataI4_2D) .EQ. .TRUE.) then if1
+        
+            AuxMatrixes%AuxDataI4_2D(ILB:IUB,JLB:JUB)=MPIMatrixes%MPIDataI4_2D(ILB_MPI:IUB_MPI,JLB_MPI:JUB_MPI)
+
+        elseif (associated(MPIMatrixes%MPIDataI4_3D) .EQ. .TRUE.) then if1
+
+            AuxMatrixes%AuxDataI4_3D(ILB:IUB,JLB:JUB,KLB:KUB)=MPIMatrixes%MPIDataI4_3D(ILB_MPI:IUB_MPI,JLB_MPI:JUB_MPI,KLB_MPI:KUB_MPI)
+            
+        end if if1
+
+if2 :   if(associated(MPIMatrixes%MPIDataR4_1D) .EQ. .TRUE.) then 
+
+            AuxMatrixes%AuxDataR4_1D(ILB:IUB)=MPIMatrixes%MPIDataR4_1D(ILB_MPI:IUB_MPI)
+            
+        elseif (associated(MPIMatrixes%MPIDataR4_2D) .EQ. .TRUE.) then if2
+
+            AuxMatrixes%AuxDataR4_2D(ILB:IUB,JLB:JUB)=MPIMatrixes%MPIDataR4_2D(ILB_MPI:IUB_MPI,JLB_MPI:JUB_MPI)
+
+        elseif (associated(MPIMatrixes%MPIDataR4_3D) .EQ. .TRUE.) then if2
+
+            AuxMatrixes%AuxDataR4_3D(ILB:IUB,JLB:JUB,KLB:KUB)=MPIMatrixes%MPIDataR4_3D(ILB_MPI:IUB_MPI,JLB_MPI:JUB_MPI,KLB_MPI:KUB_MPI)
+            
+        end if if2  
+
+if3 :   if(associated(MPIMatrixes%MPIDataR8_1D) .EQ. .TRUE.) then 
+
+            AuxMatrixes%AuxDataR8_1D(ILB:IUB)=MPIMatrixes%MPIDataR8_1D(ILB_MPI:IUB_MPI)
+
+        elseif (associated(MPIMatrixes%MPIDataR8_2D) .EQ. .TRUE.) then if3
+
+            AuxMatrixes%AuxDataR8_2D(ILB:IUB,JLB:JUB)=MPIMatrixes%MPIDataR8_2D(ILB_MPI:IUB_MPI,JLB_MPI:JUB_MPI)
+
+        elseif (associated(MPIMatrixes%MPIDataR8_3D) .EQ. .TRUE.) then if3
+
+            AuxMatrixes%AuxDataR8_3D(ILB:IUB,JLB:JUB,KLB:KUB)=MPIMatrixes%MPIDataR8_3D(ILB_MPI:IUB_MPI,JLB_MPI:JUB_MPI,KLB_MPI:KUB_MPI)
+            
+        end if if3
+          
+        !------------------------------------------------------------------------
+    
+    end subroutine MergeArraysMPI  
+
+        !--------------------------------------------------------------------------
+    
+    subroutine AuxArrayAllocation(  DomainSize, Dimensions, AuxMatrixes,        &
+                                    LimitsArrayFactor, MPIMatrixes)
+
+        !Arguments-------------------------------------------------------------
+        integer, dimension(7)                                   :: Dimensions 
+        integer, dimension(4)                                   :: DomainSize
+        type(T_AuxMatrixes), pointer                            :: AuxMatrixes
+        integer                                                 :: LimitsArrayFactor
+        type(T_MPIMatrixes), pointer                            :: MPIMatrixes
+           
+        !Local-------------------------------------------------------------------
+
+        
+        !------------------------------------------------------------------------
+        
+if1 :   if(associated(MPIMatrixes%MPIDataI4_1D) .EQ. .TRUE.)   then
+
+            allocate(AuxMatrixes%AuxDataI4_1D(  Dimensions(1) + LimitsArrayFactor))
+            
+        elseif (associated(MPIMatrixes%MPIDataI4_2D) .EQ. .TRUE.) then if1
+        
+            allocate(AuxMatrixes%AuxDataI4_2D(  DomainSize(2) + LimitsArrayFactor,          &
+                                                DomainSize(4) + LimitsArrayFactor))
+
+        elseif (associated(MPIMatrixes%MPIDataI4_3D) .EQ. .TRUE.) then if1
+
+            allocate(AuxMatrixes%AuxDataI4_3D(  DomainSize(2) + LimitsArrayFactor,          &
+                                                DomainSize(4) + LimitsArrayFactor,          &
+                                                Dimensions(3)))
+            
+        end if if1
+
+if2 :   if(associated(MPIMatrixes%MPIDataR4_1D) .EQ. .TRUE.) then 
+
+            allocate(AuxMatrixes%AuxDataR4_1D(  Dimensions(1) + LimitsArrayFactor))
+            
+        elseif (associated(MPIMatrixes%MPIDataR4_2D) .EQ. .TRUE.) then if2
+
+            allocate(AuxMatrixes%AuxDataR4_2D(  DomainSize(2) + LimitsArrayFactor,          &
+                                                DomainSize(4) + LimitsArrayFactor))
+
+        elseif (associated(MPIMatrixes%MPIDataR4_3D) .EQ. .TRUE.) then if2
+
+            allocate(AuxMatrixes%AuxDataR4_3D(  DomainSize(2) + LimitsArrayFactor,          &
+                                                DomainSize(4) + LimitsArrayFactor,          &
+                                                Dimensions(3)))
+            
+        end if if2  
+
+if3 :   if(associated(MPIMatrixes%MPIDataR8_1D) .EQ. .TRUE.) then 
+
+            allocate(AuxMatrixes%AuxDataR8_1D(  Dimensions(1) + LimitsArrayFactor))
+
+        elseif (associated(MPIMatrixes%MPIDataR8_2D) .EQ. .TRUE.) then if3
+
+            allocate(AuxMatrixes%AuxDataR8_2D(  DomainSize(2) + LimitsArrayFactor,          &
+                                                DomainSize(4) + LimitsArrayFactor))
+
+        elseif (associated(MPIMatrixes%MPIDataR8_3D) .EQ. .TRUE.) then if3
+
+            allocate(AuxMatrixes%AuxDataR8_3D(  DomainSize(2) + LimitsArrayFactor,          &
+                                                DomainSize(4) + LimitsArrayFactor,          &
+                                                Dimensions(3)))
+
+        end if if3
+          
+        !------------------------------------------------------------------------
+    
+    end subroutine AuxArrayAllocation  
+
+        !--------------------------------------------------------------------------
+
+    recursive subroutine WriteHDFDataSetLimits( HDF5ID, Rank, DomainSize,               &
+                                                Dimensions, LimitsArrayFactor,          &  
+                                                GroupName)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                                     :: HDF5ID
         integer, intent(IN)                                     :: Rank
         integer, dimension(4), intent(IN)                       :: DomainSize
-        integer, dimension(7), intent(IN)                       :: dims 
-        integer(HID_T), intent(IN)                              :: DataType
-        character(*), intent(IN)                                :: Units   
+        integer, dimension(7), intent(IN)                       :: Dimensions    
+        integer, intent(IN)                                     :: LimitsArrayFactor
+        CHARACTER(*), intent(IN)                                :: GroupName
         
         !Local-------------------------------------------------------------------
-        integer, dimension(:),       pointer                    :: CIArray1D
-        integer, dimension(:, :),    pointer                    :: CIArray2D
-        integer, dimension(:, :, :), pointer                    :: CIArray3D
-        real(4), dimension(:),       pointer                    :: CR4Array1D
-        real(4), dimension(:, :),    pointer                    :: CR4Array2D
-        real(4), dimension(:, :, :), pointer                    :: CR4Array3D
-        real(8), dimension(:),       pointer                    :: CR8Array1D
-        real(8), dimension(:, :),    pointer                    :: CR8Array2D
-        real(8), dimension(:, :, :), pointer                    :: CR8Array3D
-        integer                                                 :: STAT_CALL    
-        integer                                                 :: LimitsArrayFactor
+        integer                                                 :: STAT_CALL
         integer                                                 :: ILB
         integer                                                 :: IUB  
         integer                                                 :: JLB
@@ -1299,19 +1178,11 @@ if1 :   if (DomainSize(1) .GT. 1) then
         
         !------------------------------------------------------------------------
         
-        LimitsArrayFactor   = 0
         STAT_CALL           = NULL_INT
-        
-if11 :  if (adjustl(trim(obj_name)) .EQ. "ConnectionX" .OR. adjustl(trim(obj_name)) .EQ. "ConnectionY" .OR.  &
-            adjustl(trim(obj_name)) .EQ. "Latitude" .OR. adjustl(trim(obj_name)) .EQ. "Longitude") then
-                    
-            LimitsArrayFactor = 1
-                    
-        endif if11
-        
+
 if21 :  if (Rank .EQ. 1) then
 
-if22 :      if (DomainSize(1) .GT. 1) then
+if22 :      if (DomainSize(1) .GT. 1 .AND. adjustl(trim(GroupName)) .NE. "/Time") then
             
                 ILB = DomainSize(1)-DomainSize(1)+1
                 IUB = DomainSize(2)-DomainSize(1)+1
@@ -1319,6 +1190,15 @@ if22 :      if (DomainSize(1) .GT. 1) then
                 JUB = 1  
                 KLB = 1 
                 KUB = 1
+            
+            elseif (adjustl(trim(GroupName)) .EQ. "/Time") then if22
+                      
+                ILB= 1
+                IUB= Dimensions(1)
+                JLB = 1
+                JUB = 1  
+                KLB = 1 
+                KUB = 1 
             
             else if22
                       
@@ -1362,7 +1242,7 @@ if24 :      if (DomainSize(1) .GT. 1) then
                 JLB = DomainSize(3)-DomainSize(3)+1
                 JUB = DomainSize(4)-DomainSize(3)+1+LimitsArrayFactor 
                 KLB = 1 
-                KUB = dims(3)
+                KUB = Dimensions(3)
             
             else if24  
                 
@@ -1371,156 +1251,249 @@ if24 :      if (DomainSize(1) .GT. 1) then
                 JLB = DomainSize(3)
                 JUB = DomainSize(4)
                 KLB = 1
-                KUB = dims(3)
+                KUB = Dimensions(3)
             
             endif if24
                 
         endif if21
         
-        call HDF5SetLimits (HDF5ID = ObjHDF5_Out,                                   & 
+        call HDF5SetLimits (HDF5ID = HDF5ID,                                        & 
                             ILB = ILB,   IUB = IUB,                                 &
                             JLB = JLB,   JUB = JUB,                                 &
                             KLB = KLB,   KUB = KUB,                                 &
                             STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSetLimits - ModuleDDC - ERR01'
+        
+        !------------------------------------------------------------------------
+
+    end subroutine WriteHDFDataSetLimits
+
+        !--------------------------------------------------------------------------
+    
+    subroutine AuxArrayDeallocate(AuxMatrixes)
+
+        !Arguments-------------------------------------------------------------
+        type(T_AuxMatrixes), pointer                            :: AuxMatrixes
+        
+        !Local-------------------------------------------------------------------
+        integer                                                 :: STAT_CALL
+        
+        !------------------------------------------------------------------------
+        
+if1 :   if(associated(AuxMatrixes%AuxDataI4_1D) .EQ. .TRUE.)   then
+
+            deallocate(AuxMatrixes%AuxDataI4_1D)
+            
+        elseif (associated(AuxMatrixes%AuxDataI4_2D) .EQ. .TRUE.) then if1
+        
+            deallocate(AuxMatrixes%AuxDataI4_2D)
+
+        elseif (associated(AuxMatrixes%AuxDataI4_3D) .EQ. .TRUE.) then if1
+
+            deallocate(AuxMatrixes%AuxDataI4_3D)
+            
+        end if if1
+
+if2 :   if(associated(AuxMatrixes%AuxDataR4_1D) .EQ. .TRUE.) then 
+
+            deallocate(AuxMatrixes%AuxDataR4_1D)
+            
+        elseif (associated(AuxMatrixes%AuxDataR4_2D) .EQ. .TRUE.) then if2
+
+            deallocate(AuxMatrixes%AuxDataR4_2D)
+
+        elseif (associated(AuxMatrixes%AuxDataR4_3D) .EQ. .TRUE.) then if2
+
+            deallocate(AuxMatrixes%AuxDataR4_3D)
+            
+        end if if2  
+
+if3 :   if(associated(AuxMatrixes%AuxDataR8_1D) .EQ. .TRUE.) then 
+
+            deallocate(AuxMatrixes%AuxDataR8_1D)
+
+        elseif (associated(AuxMatrixes%AuxDataR8_2D) .EQ. .TRUE.) then if3
+
+            deallocate(AuxMatrixes%AuxDataR8_2D)
+
+        elseif (associated(AuxMatrixes%AuxDataR8_3D) .EQ. .TRUE.) then if3
+
+            deallocate(AuxMatrixes%AuxDataR8_3D)
+
+        end if if3
+          
+        !------------------------------------------------------------------------
+    
+    end subroutine AuxArrayDeallocate  
+
+        !--------------------------------------------------------------------------
+        
+    subroutine MPIArrayDeallocate(MPIMatrixes)
+
+        !Arguments-------------------------------------------------------------
+        type(T_MPIMatrixes), pointer                            :: MPIMatrixes
+        
+        !Local-------------------------------------------------------------------
+        integer                                                 :: STAT_CALL
+        
+        !------------------------------------------------------------------------
+        
+if1 :   if(associated(MPIMatrixes%MPIDataI4_1D) .EQ. .TRUE.)   then
+
+            deallocate(MPIMatrixes%MPIDataI4_1D)
+            
+        elseif (associated(MPIMatrixes%MPIDataI4_2D) .EQ. .TRUE.) then if1
+        
+            deallocate(MPIMatrixes%MPIDataI4_2D)
+
+        elseif (associated(MPIMatrixes%MPIDataI4_3D) .EQ. .TRUE.) then if1
+
+            deallocate(MPIMatrixes%MPIDataI4_3D)
+            
+        end if if1
+
+if2 :   if(associated(MPIMatrixes%MPIDataR4_1D) .EQ. .TRUE.) then 
+
+            deallocate(MPIMatrixes%MPIDataR4_1D)
+            
+        elseif (associated(MPIMatrixes%MPIDataR4_2D) .EQ. .TRUE.) then if2
+
+            deallocate(MPIMatrixes%MPIDataR4_2D)
+
+        elseif (associated(MPIMatrixes%MPIDataR4_3D) .EQ. .TRUE.) then if2
+
+            deallocate(MPIMatrixes%MPIDataR4_3D)
+            
+        end if if2  
+
+if3 :   if(associated(MPIMatrixes%MPIDataR8_1D) .EQ. .TRUE.) then 
+
+            deallocate(MPIMatrixes%MPIDataR8_1D)
+
+        elseif (associated(MPIMatrixes%MPIDataR8_2D) .EQ. .TRUE.) then if3
+
+            deallocate(MPIMatrixes%MPIDataR8_2D)
+
+        elseif (associated(MPIMatrixes%MPIDataR8_3D) .EQ. .TRUE.) then if3
+
+            deallocate(MPIMatrixes%MPIDataR8_3D)
+
+        end if if3
+          
+        !------------------------------------------------------------------------
+    
+    end subroutine MPIArrayDeallocate  
+
+        !--------------------------------------------------------------------------
+
+    subroutine WriteHDFDataSet( HDF5ID, GroupName, Name, Units,            &
+                                Rank, DataType, AuxMatrixes)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                                     :: HDF5ID
+        character(*), intent(IN)                                :: GroupName
+        character(*), intent(IN)                                :: Name
+        character(*), intent(IN)                                :: Units  
+        integer, intent(IN)                                     :: Rank
+        integer(HID_T), intent(IN)                              :: DataType
+        type(T_AuxMatrixes), pointer                            :: AuxMatrixes
+        
+        !Local-------------------------------------------------------------------
+        integer                                                 :: STAT_CALL    
+        
+        !------------------------------------------------------------------------
+        
+        STAT_CALL = NULL_INT
         
 if1 :   if (Rank .EQ. 1) then
 
 if12 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
 
-                allocate (CIArray1D(ILB:IUB))
-                CIArray1D(:) = null_int
-            
-                call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array1D = CIArray1D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR02'
-
-                deallocate(CIArray1D)
-            
+                call HDF5WriteData( HDF5ID  = HDF5ID,                   GroupName   = adjustl(trim(GroupName)),     & 
+                                    Name    = adjustl(trim(Name)),      Units       = adjustl(trim(Units)),         &
+                                    Array1D = AuxMatrixes%AuxDataI4_1D, STAT        = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR01'
+                
             elseif (DataType .EQ. H5T_NATIVE_REAL) then if12
             
-                allocate (CR4Array1D(ILB:IUB))
-                CR4Array1D(:) = null_real
-                
-                call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array1D = CR4Array1D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR03'
+                call HDF5WriteData( HDF5ID  = HDF5ID,                   GroupName   = adjustl(trim(GroupName)),     & 
+                                    Name    = adjustl(trim(Name)),      Units       = adjustl(trim(Units)),         &
+                                    Array1D = AuxMatrixes%AuxDataR4_1D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR02'
 
-                deallocate(CR4Array1D)
-            
             elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if12
             
-                allocate (CR8Array1D(ILB:IUB))
-                CR8Array1D(:) = null_real
-             
-                call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array1D = CR8Array1D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR04'
+                call HDF5WriteData( HDF5ID  = HDF5ID,                   GroupName   = adjustl(trim(GroupName)),     & 
+                                    Name    = adjustl(trim(Name)),      Units       = adjustl(trim(Units)),         &
+                                    Array1D = AuxMatrixes%AuxDataR8_1D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR03'
 
-                deallocate(CR8Array1D)
-            
             endif if12
 
         elseif (Rank .EQ. 2) then if1
         
 if13 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
+                          
+                call HDF5WriteData( HDF5ID  = HDF5ID,                   GroupName   = adjustl(trim(GroupName)),     & 
+                                    Name    = adjustl(trim(Name)),      Units       = adjustl(trim(Units)),         &
+                                    Array2D = AuxMatrixes%AuxDataI4_2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR04'
 
-                allocate (CIArray2D (ILB:IUB,                                        &
-                                    JLB:JUB))
-                CIArray2D(:,:) = null_int
-                         
-                call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                  Units, Array2D = CIArray2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR05'
-
-                deallocate(CIArray2D)
-            
             elseif (DataType .EQ. H5T_NATIVE_REAL) then if13
             
-                allocate (CR4Array2D(ILB:IUB,                                        &
-                                    JLB:JUB))
-                CR4Array2D(:,:) = null_real
-                          
-                call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                  Units, Array2D = CR4Array2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR06'
-
-                deallocate(CR4Array2D)                          
+                call HDF5WriteData(HDF5ID  = HDF5ID,                   GroupName   = adjustl(trim(GroupName)),     & 
+                                    Name    = adjustl(trim(Name)),      Units       = adjustl(trim(Units)),         &
+                                    Array2D = AuxMatrixes%AuxDataR4_2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR05'
 
             elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if13
             
-                allocate (CR8Array2D(ILB:IUB,                                       &
-                                    JLB:JUB))
-                CR8Array2D(:,:) = null_real
-                          
-                call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                  Units, Array2D = CR8Array2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR07'
-
-                deallocate(CR8Array2D) 
+                call HDF5WriteData( HDF5ID  = HDF5ID,                   GroupName   = adjustl(trim(GroupName)),     & 
+                                    Name    = adjustl(trim(Name)),      Units       = adjustl(trim(Units)),         &
+                                    Array2D = AuxMatrixes%AuxDataR8_2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR06'
             
             endif if13
         
         elseif (Rank .EQ. 3) then if1
         
 if14 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
-
-                allocate (CIArray3D (ILB:IUB,                                         &
-                                    JLB:JUB,                                         &
-                                    kLB:kUB))
-                CIArray3D(:,:,:) = null_int
-                          
-                call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array3D = CIArray3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR08'
-                            
-                deallocate(CIArray3D)
+                 
+                call HDF5WriteData( HDF5ID  = HDF5ID,                   GroupName   = adjustl(trim(GroupName)),     & 
+                                    Name    = adjustl(trim(Name)),      Units       = adjustl(trim(Units)),         &
+                                    Array3D = AuxMatrixes%AuxDataI4_3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR07'
             
             elseif (DataType .EQ. H5T_NATIVE_REAL) then if14
             
-                allocate (CR4Array3D(ILB:IUB,                                         &
-                                    JLB:JUB,                                         &
-                                    kLB:kUB))
-                CR4Array3D(:,:,:) = null_real
-                          
-                call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array3D = CR4Array3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR09'
-                            
-                deallocate(CR4Array3D)                          
-            
+                call HDF5WriteData( HDF5ID  = HDF5ID,                   GroupName   = adjustl(trim(GroupName)),     & 
+                                    Name    = adjustl(trim(Name)),      Units       = adjustl(trim(Units)),         &
+                                    Array3D = AuxMatrixes%AuxDataR4_3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR08'
+
             elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if14
             
-                allocate (CR8Array3D(ILB:IUB,                                         &
-                                    JLB:JUB,                                         &
-                                    kLB:kUB))
-                CR8Array3D(:,:,:) = null_real
-                          
-                call HDF5WriteData(ObjHDF5_Out, GroupName, adjustl(trim(obj_name)), & 
-                                   Units, Array3D = CR8Array3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR10'
-                            
-                deallocate(CR8Array3D)                             
+                call HDF5WriteData( HDF5ID  = HDF5ID,                   GroupName   = adjustl(trim(GroupName)),     & 
+                                    Name    = adjustl(trim(Name)),      Units       = adjustl(trim(Units)),         &
+                                    Array3D = AuxMatrixes%AuxDataR8_3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR09'
             
             endif if14
         
         endif if1
         
         !Writes everything to disk
-        call HDF5FlushMemory (ObjHDF5_Out, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CreateGlobalSize - ModuleDDC - ERR11'
+        call HDF5FlushMemory (HDF5ID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR10'
           
         !------------------------------------------------------------------------
-
-    end subroutine CreateGlobalSize
     
+    end subroutine WriteHDFDataSet
+
     !--------------------------------------------------------------------------
 
     subroutine ReadHDFDataSet(ObjHDF5_In, GroupName, obj_name,               &
-                              Rank, dims, DataType,                          &
-                              IArray1D, IArray2D, IArray3D,                  &
-                              R4Array1D, R4Array2D, R4Array3D,               &
-                              R8Array1D, R8Array2D, R8Array3D)
+                              Rank, dims, DataType, MPIMatrixes)
 
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                                     :: ObjHDF5_In
@@ -1528,16 +1501,8 @@ if14 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then
         character(*), intent(IN)                                :: obj_name 
         integer, intent(IN)                                     :: Rank
         integer, dimension(7), intent(IN)                       :: dims 
-        integer(HID_T), intent(IN)                              :: DataType
-        integer, dimension(:),       pointer, intent(OUT)       :: IArray1D
-        integer, dimension(:, :),    pointer, intent(OUT)       :: IArray2D
-        integer, dimension(:, :, :), pointer, intent(OUT)       :: IArray3D
-        real(4), dimension(:),       pointer, intent(OUT)       :: R4Array1D
-        real(4), dimension(:, :),    pointer, intent(OUT)       :: R4Array2D
-        real(4), dimension(:, :, :), pointer, intent(OUT)       :: R4Array3D
-        real(8), dimension(:),       pointer, intent(OUT)       :: R8Array1D
-        real(8), dimension(:, :),    pointer, intent(OUT)       :: R8Array2D
-        real(8), dimension(:, :, :), pointer, intent(OUT)       :: R8Array3D
+        integer(HID_T), intent(IN)                              :: DataType        
+        type(T_MPIMatrixes), pointer                            :: MPIMatrixes
         
         !Local-------------------------------------------------------------------
         integer                                                 :: STAT_CALL   
@@ -1553,26 +1518,26 @@ if1 :   if (Rank .EQ. 1) then
 
 if12 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
 
-                allocate (IArray1D(1:dims(1)))
+                allocate (MPIMatrixes%MPIDataI4_1D(1:dims(1)))
                 
                 call HDF5ReadData(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                  Array1D = IArray1D, STAT = STAT_CALL)
+                                  Array1D = MPIMatrixes%MPIDataI4_1D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSet - ModuleDDC - ERR02'
             
             elseif (DataType .EQ. H5T_NATIVE_REAL) then if12
             
-                allocate (R4Array1D(1:dims(1)))
+                allocate (MPIMatrixes%MPIDataR4_1D(1:dims(1)))
                 
                 call HDF5ReadData(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                  Array1D = R4Array1D, STAT = STAT_CALL)
+                                  Array1D = MPIMatrixes%MPIDataR4_1D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSet - ModuleDDC - ERR03'
             
             elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if12
             
-                allocate (R8Array1D(1:dims(1)))
+                allocate (MPIMatrixes%MPIDataR8_1D(1:dims(1)))
               
                 call HDF5ReadData(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                  Array1D = R8Array1D, STAT = STAT_CALL)
+                                  Array1D = MPIMatrixes%MPIDataR8_1D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSet - ModuleDDC - ERR04'
             
             endif if12
@@ -1584,26 +1549,26 @@ if12 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then
         
 if13 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
 
-                allocate (IArray2D(1:dims(1),1:dims(2)))
+                allocate (MPIMatrixes%MPIDataI4_2D(1:dims(1),1:dims(2)))
                           
                 call HDF5ReadData(ObjHDF5_In, GroupName, adjustl(trim(obj_name)),  & 
-                                  Array2D = IArray2D, STAT = STAT_CALL)
+                                  Array2D = MPIMatrixes%MPIDataI4_2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSet - ModuleDDC - ERR06'
                 
             elseif (DataType .EQ. H5T_NATIVE_REAL) then if13
             
-                allocate (R4Array2D(1:dims(1),1:dims(2)))
+                allocate (MPIMatrixes%MPIDataR4_2D(1:dims(1),1:dims(2)))
                 
                 call HDF5ReadData(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                  Array2D = R4Array2D, STAT = STAT_CALL)
+                                  Array2D = MPIMatrixes%MPIDataR4_2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSet - ModuleDDC - ERR07'
 
             elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if13
             
-                allocate (R8Array2D(1:dims(1),1:dims(2)))
+                allocate (MPIMatrixes%MPIDataR8_2D(1:dims(1),1:dims(2)))
                           
                 call HDF5ReadData(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                  Array2D = R8Array2D, STAT = STAT_CALL)
+                                  Array2D = MPIMatrixes%MPIDataR8_2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSet - ModuleDDC - ERR08'
 
             endif if13
@@ -1615,26 +1580,26 @@ if13 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then
         
 if14 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then 
 
-                allocate (IArray3D(1:dims(1),1:dims(2),1:dims(3)))
+                allocate (MPIMatrixes%MPIDataI4_3D(1:dims(1),1:dims(2),1:dims(3)))
                 
                 call HDF5ReadData(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                  Array3D = IArray3D, STAT = STAT_CALL)
+                                  Array3D = MPIMatrixes%MPIDataI4_3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSet - ModuleDDC - ERR10'
                 
             elseif (DataType .EQ. H5T_NATIVE_REAL) then if14
             
-                allocate (R4Array3D(1:dims(1),1:dims(2),1:dims(3)))
+                allocate (MPIMatrixes%MPIDataR4_3D(1:dims(1),1:dims(2),1:dims(3)))
                           
                 call HDF5ReadData(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                  Array3D = R4Array3D, STAT = STAT_CALL)
+                                  Array3D = MPIMatrixes%MPIDataR4_3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSet - ModuleDDC - ERR11'
                 
             elseif (DataType .EQ. H5T_NATIVE_DOUBLE) then if14
             
-                allocate (R8Array3D(1:dims(1),1:dims(2),1:dims(3)))
+                allocate (MPIMatrixes%MPIDataR8_3D(1:dims(1),1:dims(2),1:dims(3)))
                           
                 call HDF5ReadData(ObjHDF5_In, GroupName, adjustl(trim(obj_name)), & 
-                                  Array3D = R8Array3D, STAT = STAT_CALL)
+                                  Array3D = MPIMatrixes%MPIDataR8_3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadHDFDataSet - ModuleDDC - ERR12'
                 
             endif if14
