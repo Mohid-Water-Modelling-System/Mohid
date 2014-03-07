@@ -7218,47 +7218,47 @@ if11 :              if (size == 8) then
 
                 !Opens the group
                 call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR10'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR10'
 
                 !Opens the Dataset
                 call h5dopen_f          (gr_id, ItemName, dset_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR20'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR20'
 
                 !Opens attribute
                 call h5aopen_name_f     (dset_id, trim(AttributeName), attr_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR30'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR30'
                 
                 !Reads OldValue
                 call h5aread_f      (attr_id, H5T_NATIVE_REAL, OldValue, dims, STAT_CALL) 
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR40'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR40'
                 
                 if (trim(AttributeName) .EQ."Minimum") then
                 
                     if (ValueReal < OldValue .OR. OldValue .EQ. null_real .OR. OldValue .EQ. null_int) then
                         call h5awrite_f (attr_id, H5T_NATIVE_REAL, ValueReal, dims, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR50a'
+                        if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR50a'
                     endif
                     
                 elseif (trim(AttributeName) .EQ."Maximum") then
                 
                     if (ValueReal > OldValue .OR. OldValue .EQ. null_real .OR. OldValue .EQ. null_int) then
                         call h5awrite_f (attr_id, H5T_NATIVE_REAL, ValueReal, dims, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR50b'
+                        if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR50b'
                     endif
                 
                 endif
 
                 !Closes attribute 
                 call h5aclose_f         (attr_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR60'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR60'
 
                 !Closes the Dataset
                 call h5dclose_f        (dset_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR70'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR70'
                 
                 !Closes the Group
                 call h5gclose_f         (gr_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR80'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR80'
 
             endif
 
@@ -7266,43 +7266,43 @@ if11 :              if (size == 8) then
 
                 !Opens the group
                 call h5gopen_f (Me%FileID, trim(GroupName)//"/"//trim(ItemName), gr_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR90'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR90'
 
                 !Opens attribute
                 call h5aopen_name_f     (dset_id, trim(AttributeName), attr_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR100'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR100'
                 
                 !Reads OldValue
                 call h5aread_f      (attr_id, H5T_NATIVE_REAL, OldValue, dims, STAT_CALL) 
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR110'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR110'
                 
                 if (trim(AttributeName) .EQ."Minimum") then
                 
                     if (ValueReal < OldValue .OR. OldValue .EQ. null_real .OR. OldValue .EQ. null_int) then
                         call h5awrite_f (attr_id, H5T_NATIVE_REAL, ValueReal, dims, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR50a'
+                        if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR50a'
                     endif
                     
                 elseif (trim(AttributeName) .EQ."Maximum") then
                 
                     if (ValueReal > OldValue .OR. OldValue .EQ. null_real .OR. OldValue .EQ. null_int) then
                         call h5awrite_f (attr_id, H5T_NATIVE_REAL, ValueReal, dims, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR50b'
+                        if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR50b'
                     endif
                 
                 endif
 
                 !Closes attribute 
                 call h5aclose_f         (attr_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR130'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR130'
 
                 !Closes the Dataset
                 call h5aclose_f         (attr_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR140'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR140'
 
                 !Closes the Group
                 call h5gclose_f         (gr_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR150'
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5UpdateGenericRealAttribute - ModuleHDF5 - ERR150'
 
             endif
  
