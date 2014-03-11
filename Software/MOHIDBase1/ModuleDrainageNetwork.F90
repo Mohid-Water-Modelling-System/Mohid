@@ -14572,14 +14572,16 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                 do NodeID = 1, Me%TotalNodes
                     CurrNode => Me%Nodes (NodeID)
                     if (CurrNode%nDownstreamReaches .NE. 0) then      
-                        OutputMatrix (iReach) = Property%Concentration (iReach)            !MO: IReach or NodeID???                           
+                        OutputMatrix (iReach) = Property%Concentration (NodeID)            !MO: IReach or NodeID???
+                                                                                           !FB: NodeID !!!! 
+                                                                                           !FB: Who is MO?
 
                         if(Property%ComputeOptions%BottomFluxes) then  
-                            OutputMatrix_bottom (iReach) = Property%BottomConc (iReach)    !MO: IReach or NodeID???          
+                            OutputMatrix_bottom (iReach) = Property%BottomConc (NodeID)    !MO: IReach or NodeID???          
                         endif
 
                         if(Property%ComputeOptions%SumTotalConc) then
-                            OutputMatrix_totalconc (iReach) = Property%TotalConc (iReach)  !MO: IReach or NodeID???
+                            OutputMatrix_totalconc (iReach) = Property%TotalConc (NodeID)  !MO: IReach or NodeID???
                         endif
 
                         iReach = iReach + 1
