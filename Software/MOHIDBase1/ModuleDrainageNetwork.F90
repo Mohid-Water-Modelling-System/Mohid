@@ -1122,6 +1122,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Opens Output files
             call ConstructOutput
             
+            !first TimeSeries Output
+            if (Me%TimeSerie%nNodes .GT.0) call WriteTimeSeries (0.)
+            
             !First HDF Output
             if (Me%Output%Yes) &
                 call HDF5Output
