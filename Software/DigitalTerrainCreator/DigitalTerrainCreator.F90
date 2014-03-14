@@ -121,14 +121,18 @@
 !   SECTION_HEIGHT             : real              [0.]          !Section middle height (from first point Z)  
 !                                                                   - read if SECTION_MIDDLE_POINT_METHOD : 1
 !   SECTION_INTERPOL_TYPE      : int               [1]           !1 - linear; 2 - power; 3 - root
-!   SECTION_INTERPOL_ORDER     : real              [1.]          !power or root order (2 - power of 2, squared root)
-!   SECTION_POINTS_TO_ADD      : int               [7.]          !points to add to each section (beside section end and start)
-!   SECTION_XYZ_FILE           : char               -            !output file with original points (section boundaries) 
-!                                                                  and created points
+!   SECTION_INTERPOL_ORDER     : real              [1]           !power or root order (2 - power of 2, squared root)
+!   SECTION_POINTS_TO_ADD      : int               [7]           !points to add to each section (beside section end and start)
+!   SECTION_XYZ_FILE           : char               -            !output file with original points (section margins) 
+!                                                                  and created section points
+!   CREATE_MARGIN_POINTS       : 0/1               [0]           !1 - add more points to margins to make the trinagulation smoother
+!                                                                 and only need the user to define main river changes 0 - don't add
+!         MARGIN_POINTS_TO_ADD : int               [7]           !how many points do add between defined points (read if 
+!                                                                  CREATE_MARGIN_POINTS : 1)
 !
-!       !areas to select where to triangulate (if active)
-!       <BeginAreaFiles>
-!       <EndAreaFiles>
+!   !areas to select where to triangulate (if active)
+!   <BeginAreaFiles>
+!   <EndAreaFiles>
 
 program DigitalTerrainCreator
     
@@ -288,6 +292,8 @@ program DigitalTerrainCreator
         real                                        :: SectionHeight
         character(len=line_length)                  :: SectionXYZFile
         type(T_Polygon),pointer                     :: SectionAreas
+        logical                                     :: CreateMarginPoints
+        integer                                     :: MarginPointsToAdd
 
         type(T_ExternalVar)                         :: ExtVar
         type(T_Triang     )                         :: Triang
@@ -406,10 +412,10 @@ program DigitalTerrainCreator
             !Construct XYZ points collection
             call New(Me%XYZPoints, trim(XYZFilePath), DepthReferential = Factor, AddFactor = Me%AddFactor)
             
-            !copy points so that Z is saved (will be middle point level)
-            if (Me%ComputeSections .and. Me%SectionMiddlePointMethod == DefinedLevel_) then
-                call New(Me%XYZPointsOriginal, trim(XYZFilePath), DepthReferential = Factor, AddFactor = Me%AddFactor)
-            endif
+!            !copy points so that Z is saved (will be middle point level)
+!            if (Me%ComputeSections .and. Me%SectionMiddlePointMethod == DefinedLevel_) then
+!                call New(Me%XYZPointsOriginal, trim(XYZFilePath), DepthReferential = Factor, AddFactor = Me%AddFactor)
+!            endif
 
         end do
 
@@ -589,7 +595,7 @@ program DigitalTerrainCreator
 
         
         !Could not understand how to use this with river sections to dredge so created a new way
-        !to define section by creating it from section boundaries (XYZ file) and middle depth
+        !to define section by creating it from section margin (XYZ file) and middle depth
         !David 12-2013
 i1:     if (Me%River%CanonicSpace) then
 
@@ -674,7 +680,7 @@ i2:         if      (trim(AuxChar) == 'j') then
             if (.not. Me%BatimInON) then
                 write (*,*)
                 write (*,*) 'Define the keyword BATIM_INI, defining the path to the bathymetry file'
-                write (*,*) 'to be able to compute sections boundaries elevations'
+                write (*,*) 'to be able to compute sections margin elevations'
                 stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66b'                
             endif
             
@@ -743,7 +749,7 @@ i2:         if      (trim(AuxChar) == 'j') then
                 endif
             endif
             
-            !How many points to add in the section beside the boundary ones (start and end)
+            !How many points to add in the section beside the margin ones (start and end)
             call GetData(Me%SectionPointsToAdd,                                             &
                          Me%ObjEnterData, flag,                                             &
                          SearchType   = FromFile_,                                          &
@@ -767,6 +773,29 @@ i2:         if      (trim(AuxChar) == 'j') then
                 write (*,*) 'Define the keyword SECTION_XYZ_FILE, defining the path to the file'
                 write (*,*) 'to place the original xyz points and the created by the section method'
                 stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66h'
+            endif
+
+            !Create more margin points? to be able to give only the main river changes and the
+            !program creates the remaining so that the the interpolation is smooth
+            call GetData(Me%CreateMarginPoints,                                             &
+                         Me%ObjEnterData, flag,                                             &
+                         SearchType   = FromFile_,                                          &
+                         keyword      ='CREATE_MARGIN_POINTS',                              &
+                         ClientModule ='DigitalTerrainCreator',                             &
+                         Default      = .false.,                                            &
+                         STAT         = STAT_CALL)        
+            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66i'
+            
+            if (Me%CreateMarginPoints) then
+                !How many points to add in the margin beside the original ones (start and end)
+                call GetData(Me%MarginPointsToAdd,                                              &
+                             Me%ObjEnterData, flag,                                             &
+                             SearchType   = FromFile_,                                          &
+                             keyword      ='MARGIN_POINTS_TO_ADD',                              &
+                             ClientModule ='DigitalTerrainCreator',                             &
+                             Default      = 7,                                                  &
+                             STAT         = STAT_CALL)        
+                if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR66j'
             endif
             
             call ConstructSelectedArea
@@ -1453,15 +1482,30 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
 
         call DefineGridPoints
 
-        !if true, XYZ data incomplete (only sections boundaries). 
+        !if true, XYZ data incomplete (only original section margins). 
         !Need to add more points XY to define section and compute Z.
-        !Needs to be after BatimInON to fill bathum
+        !Needs to be after BatimInON to fill bathim
         if (Me%ComputeSections) then
             
-            !first, fill points Z (section boundaries) with known grid data
+            !first, check if user wants to increase the number of margin points (interpolating between original)
+            if (Me%CreateMarginPoints) then
+                call AddMarginPoints
+            endif
+            
+            !copy the original Z's (mid point Z's) because they will be changed in FillingPoints
+            !to the DTM values and this info needs to be saved (after adding Margins or not)
+            if (Me%SectionMiddlePointMethod == DefinedLevel_) then
+                Me%CurrentXYZPoints => Me%XYZPoints
+                do while(associated(Me%CurrentXYZPoints))
+                    call New(Me%XYZPointsOriginal, Me%CurrentXYZPoints)
+                    Me%CurrentXYZPoints => Me%CurrentXYZPoints%Next
+                end do
+            endif
+            
+            !second, fill margin points Z with known grid data
             call FillingPoints        
             
-            !second, compute new section points
+            !third, compute section points (position and Z)
             call ComputeSections
             
             !if interpolation is next needs to have no data points
@@ -1531,6 +1575,140 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
     end subroutine RunProject
 
     !--------------------------------------------------------------------------
+
+    subroutine AddMarginPoints
+    
+        !Local-----------------------------------------------------------------
+        integer                                          :: NumberOfPoints
+        real,    dimension(:  ), pointer                 :: XVector, YVector, ZVector
+        integer                                          :: ipoint, CurrentPoint, NextPoint
+        integer                                          :: CurrentMarginPoint
+        real                                             :: CurrentX_M1, CurrentY_M1, NextX_M1, NextY_M1
+        real                                             :: CurrentX_M2, CurrentY_M2, NextX_M2, NextY_M2
+        real                                             :: TotalLength_M1, CurrentLength_M1, StepX_M1, StepY_M1
+        real                                             :: TotalLength_M2, CurrentLength_M2, StepX_M2, StepY_M2        
+        type(T_XYZPoints),                 pointer       :: XYZPoints
+        !Begin-----------------------------------------------------------------
+               
+        !second, add new points 
+        !loop through all xyz points
+        Me%CurrentXYZPoints => Me%XYZPoints
+        
+        write (*,*)
+        write (*,*) 'Warning: Using the method to create more margin points' 
+        write (*,*) 'between given points. The point collection need to assure'
+        write (*,*) 'that the first points of each pair belong to same margin'
+        write (*,*) 'and same for the second points of each pair in opposite margin'
+        write (*,*) 'WARNING 001 - DigitalTerrainCreator - AddMarginPoints - WARNING 001'
+        write (*,*)
+        
+        !loop trough point collections
+        do while(associated(Me%CurrentXYZPoints))
+            
+            !points to add (number of points defined by the user in the intervals between points)
+            NumberOfPoints = ((Me%CurrentXYZPoints%Count / 2.) - 1) * Me%MarginPointsToAdd * 2
+            
+            allocate(XVector(NumberOfPoints))
+            allocate(YVector(NumberOfPoints))                       
+            allocate(ZVector(NumberOfPoints))
+            
+            ipoint = 1
+            
+            !Need to do the pair on each margin on the same time so that the location in the 
+            !new list the points mantained consecutive
+            !jump every two points because the original points are always in pairs     
+            do CurrentPoint = 1, (Me%CurrentXYZPoints%Count - 3), 2
+                
+                !Need to duplicate variables for M1 (Margin 1) and M2 (Margin 2)
+                !define margin beggin (current point). 
+                !and margin end (next point + 1 or currentPoint + 2 to be in the same margin)
+                NextPoint   = CurrentPoint + 2
+                CurrentX_M1 = Me%CurrentXYZPoints%X(CurrentPoint)
+                CurrentX_M2 = Me%CurrentXYZPoints%X(CurrentPoint + 1)
+                CurrentY_M1 = Me%CurrentXYZPoints%Y(CurrentPoint)
+                CurrentY_M2 = Me%CurrentXYZPoints%Y(CurrentPoint + 1)
+                NextX_M1    = Me%CurrentXYZPoints%X(NextPoint)
+                NextX_M2    = Me%CurrentXYZPoints%X(NextPoint + 1)
+                NextY_M1    = Me%CurrentXYZPoints%Y(NextPoint)
+                NextY_M2    = Me%CurrentXYZPoints%Y(NextPoint + 1)
+                
+                !define length of margin
+                TotalLength_M1 = sqrt((NextX_M1 - CurrentX_M1)**2 + (NextY_M1 - CurrentY_M1)**2)
+                TotalLength_M2 = sqrt((NextX_M2 - CurrentX_M2)**2 + (NextY_M2 - CurrentY_M2)**2)
+                
+                !define step to compute new xyz points (same number as points needed - always odd
+                StepX_M1 = (NextX_M1 - CurrentX_M1) / (Me%MarginPointsToAdd + 1)
+                StepX_M2 = (NextX_M2 - CurrentX_M2) / (Me%MarginPointsToAdd + 1)
+                StepY_M1 = (NextY_M1 - CurrentY_M1) / (Me%MarginPointsToAdd + 1)
+                StepY_M2 = (NextY_M2 - CurrentY_M2) / (Me%MarginPointsToAdd + 1)
+                
+                !go trough all new points to define their coordinates
+                do CurrentMarginPoint = 1, Me%MarginPointsToAdd
+                    
+                    !new point coordinates
+                    XVector (ipoint)     = CurrentX_M1 + StepX_M1 * CurrentMarginPoint
+                    XVector (ipoint + 1) = CurrentX_M2 + StepX_M2 * CurrentMarginPoint
+                    YVector (ipoint)     = CurrentY_M1 + StepY_M1 * CurrentMarginPoint
+                    YVector (ipoint + 1) = CurrentY_M2 + StepY_M2 * CurrentMarginPoint
+                    
+                    !Define Z if middle point Z is given by user
+                    if (Me%SectionMiddlePointMethod == DefinedLevel_) then
+                        
+                        CurrentLength_M1 = sqrt((XVector (ipoint) - CurrentX_M1)**2 + (YVector (ipoint) - CurrentY_M1)**2)
+                        if (CurrentLength_M1 > TotalLength_M1) stop 'DigitalTerrainCreator - AddMarginPoints - ERR01'
+                        
+                        CurrentLength_M2 = sqrt((XVector (ipoint + 1) - CurrentX_M2)**2 + (YVector (ipoint + 1) - CurrentY_M2)**2)
+                        if (CurrentLength_M2 > TotalLength_M2) stop 'DigitalTerrainCreator - AddMarginPoints - ERR02'
+                       
+                        ZVector (ipoint)     = LinearInterpolation (0., Me%CurrentXYZPoints%Z(CurrentPoint),          &
+                                                                    TotalLength_M1, Me%CurrentXYZPoints%Z(NextPoint), &
+                                                                    CurrentLength_M1)
+                        
+                        ZVector (ipoint + 1) = LinearInterpolation (0., Me%CurrentXYZPoints%Z(CurrentPoint + 1),          &
+                                                                    TotalLength_M2, Me%CurrentXYZPoints%Z(NextPoint + 1), &
+                                                                    CurrentLength_M2)     
+                    else
+                        ZVector (ipoint)     = 0.0
+                        ZVector (ipoint + 1) = 0.0
+                    endif
+                    
+                    !go for next point (two points were just made)
+                    ipoint = ipoint + 2
+                    
+                enddo
+                
+            end do
+            
+            !Construct XYZ points collection. For now only local so that this process is not inifinite
+            !if the collection was added to Me%XYZPoints it would be next evaluated again
+            call New(XYZPoints, XVector, YVector, ZVector)
+
+            deallocate(XVector)
+            deallocate(YVector)                       
+            deallocate(ZVector)
+            
+            Me%CurrentXYZPoints => Me%CurrentXYZPoints%Next
+            
+        end do
+        
+        !only after the computation add to the Me%XYZPoints or the previous cycle would be infinite
+        !and the margin points added will be in pairs so that the section creation is correct
+        Me%CurrentXYZPoints => XYZPoints
+        do while(associated(Me%CurrentXYZPoints))
+        
+            call New(Me%XYZPoints, Me%CurrentXYZPoints)
+            
+            Me%CurrentXYZPoints => Me%CurrentXYZPoints%Next
+            
+        enddo
+        
+        !nullify    (CurrentXYZPoints)
+        deallocate (XYZPoints)
+        
+    
+    end subroutine AddMarginPoints
+    
+    !--------------------------------------------------------------------------
     
     subroutine ComputeSections
     
@@ -1544,7 +1722,7 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
         real                                             :: MiddlePointX, MiddlePointY, HalfWidth
         real                                             :: DistanceToMiddle, Factor, StepX, StepY
         integer                                          :: STAT_CALL
-        type(T_XYZPoints),                 pointer       :: XYZPoints, XYZPointsOriginal  !local temp storage 
+        type(T_XYZPoints),                 pointer       :: XYZPoints !, XYZPointsOriginal  !local temp storage 
         real                                             :: Exponent, SectionHeight
         !Begin-----------------------------------------------------------------
         
@@ -1552,15 +1730,18 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
         !open the file to write down the points
         call UnitsManager (UnitNumber, OPEN_FILE, STAT = STAT_CALL)
         open (unit=UnitNumber, status = 'unknown', file = trim(adjustl(Me%SectionXYZFile)))
+
+        !write the new points group
+        write(UnitNumber,*)'<begin_xyz>'
         
         !second, add new points and compute Z
         !loop through all xyz points
         Me%CurrentXYZPoints => Me%XYZPoints
         
-        !get original z's (same point collections as Me%XYZPoints but original z's)
-        if (Me%SectionMiddlePointMethod == DefinedLevel_) then
-            XYZPointsOriginal => Me%XYZPointsOriginal
-        endif
+!        !get original z's (same point collections as Me%XYZPoints but original z's)
+!        if (Me%SectionMiddlePointMethod == DefinedLevel_) then
+!            XYZPointsOriginal => Me%XYZPointsOriginal
+!        endif
 
          !Only the first collection for now. Because the New fucntion will add a new to the list
          !and then it is infinite adding a new one and analyzing it and adding
@@ -1573,9 +1754,7 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
                 write (*,*) 'xyz points since they define section start and end.'
                 stop ' ComputeSections - DigitalTerrainCreator - ERR01'
             endif
-            
-            !write the new points group
-            write(UnitNumber,*)'<begin_xyz>'
+           
             
             !points to add (number of points defined bt the user per pair of xyz points)
             NumberOfPoints = (Me%CurrentXYZPoints%Count / 2.) * Me%SectionPointsToAdd
@@ -1640,10 +1819,10 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
                         if (Me%SectionMiddlePointMethod == DefinedLevel_) then
                         
                             SectionHeight = Me%CurrentXYZPoints%Z(CurrentPoint) -                  &
-                                            XYZPointsOriginal%Z(CurrentPoint)
+                                            Me%XYZPointsOriginal%Z(CurrentPoint)
                             if (SectionHeight .lt. 0.0) then
                                 write(*,*) 'Negative section height. Make sure that the Z defined for the first point'
-                                write(*,*) '(middle point level) is not higher than the section boundaries levels'
+                                write(*,*) '(middle point level) is not higher than the section margin levels'
                                 write(*,*) ' Occured in Pair: ',CurrentX, CurrentY, NextX, NextY
                                 stop 'ComputeSections - DigitalTerrainCreator - ERR005'
                             endif
@@ -1660,10 +1839,10 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
                         if (Me%SectionMiddlePointMethod == DefinedLevel_) then
                         
                             SectionHeight = Me%CurrentXYZPoints%Z(NextPoint) -                      &
-                                            XYZPointsOriginal%Z(CurrentPoint)
+                                            Me%XYZPointsOriginal%Z(CurrentPoint)
                             if (SectionHeight .lt. 0.0) then
                                 write(*,*) 'Negative section height. Make sure that the Z defined for the first point'
-                                write(*,*) '(middle point level) is not higher than the section boundaries levels'
+                                write(*,*) '(middle point level) is not higher than the section margin levels'
                                 write(*,*) ' Occured in Pair: ',CurrentX, CurrentY, NextX, NextY
                                 stop 'ComputeSections - DigitalTerrainCreator - ERR006'
                             endif
@@ -1706,17 +1885,17 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
             deallocate(XVector)
             deallocate(YVector)                       
             deallocate(ZVector)
-            
-            write(UnitNumber,*)'<end_xyz>'
-            
-            !Only the first collection for now. Because the New fucntion will add a new to the list
-            !and then it is infinite adding a new one and analyzing it and adding
+                        
             Me%CurrentXYZPoints => Me%CurrentXYZPoints%Next
+            
             if (Me%SectionMiddlePointMethod == DefinedLevel_) then
-                XYZPointsOriginal => XYZPointsOriginal%Next
+                Me%XYZPointsOriginal => Me%XYZPointsOriginal%Next
             endif
             
         end do
+
+
+        write(UnitNumber,*)'<end_xyz>'
         
         !close the xyz file
         call UnitsManager (UnitNumber, CLOSE_FILE, STAT = STAT_CALL)        
