@@ -711,7 +711,7 @@ ifdegr:  if  (Me%Var%HNSDegradation) then
     !            Me%Var%OilMecCleanup            = .false.
                 
                 write(*,*) "Backtracking option is ON all oil processes were disconnected"
-                write(*,*) "Subroutine HNSOptions; Module ModuleHNS. WRN010"  
+                write(*,*) "Subroutine HNSOptions - ModuleHNS - WRN010"  
             endif
         
 !            call HNSOptionsDensity(Me%ObjEnterData,                                             &

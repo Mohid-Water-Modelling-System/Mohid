@@ -4309,54 +4309,49 @@ cd2 :           if (BlockFound) then
         !Local---------------------------------------------------------------------
         real :: LAI, PotLAI, Kc
         
-        !Begin---------------------------------------------------------------------
-        LAI = max(Me%ExtVar%LeafAreaIndex(I, J), 0.0)
+        !Begin--------------------------------------------------------------------- 
+        LAI = Me%ExtVar%LeafAreaIndex(I, J)       
         PotLAI = Me%ExtVar%PotLeafAreaIndex(I, J)
         Kc = Me%ExtVar%CropCoefficient(I, J)
+                
+        if (LAI <= 0.0) then
+            !If LAI is lower than zero, it's considered as a missing value and is treated as if NO LAI existed.
         
-        if (LAI .EQ. 0) then
-            if (Me%UseKcMin) then
-                AdjustCropCoefficient = Me%KcMin                
-            else
-                AdjustCropCoefficient = 0.0
-            endif
-        else
-        
-            !From 'Necessidades de Água e Métodos de Rega', Luis Santos Pereira, 2004
-            !Publicações Europa-América, pg 85-86
-            if ((Me%UseDefaultKcWhenLAI0) .AND. (LAI .EQ. 0.0)) then
+            if (Me%UseDefaultKcWhenLAI0) then
                 if (Me%UseKcMin) then
                     AdjustCropCoefficient = max(Me%DefaultKcWhenLAI0, Me%KcMin)
                 else
                     AdjustCropCoefficient = Me%DefaultKcWhenLAI0
                 endif
-            else if ((PotLAI > LAI) .AND. (PotLAI > 0.0)) then           
-                if (Me%UseKcMin) then
-                    AdjustCropCoefficient = max(Kc - (1 - (LAI / PotLAI)**0.5), Me%KcMin)                
-                else
-                    AdjustCropCoefficient = max(Kc - (1 - (LAI / PotLAI)**0.5), 0.0)
-                endif
             else
                 if (Me%UseKcMin) then
-                    AdjustCropCoefficient = max(Kc, Me%KcMin)
+                    AdjustCropCoefficient = Me%KcMin
                 else
-                    AdjustCropCoefficient = max(Kc, 0.0)
-                endif
+                    AdjustCropCoefficient = 0.0
+                endif            
             endif
-            
-        endif
+        else if (PotLAI > LAI) then
+            !(Jauch)
+            !Kc is adjusted using Potential LAI only if the Potential LAI is HIGHER than the actual LAI, and only if it's HIGHER than zero
+              
+            !(Jauch)
+            !The equation 'Kc_adj = Kc - (1 - (LAI / PotLAI)**0.5)' is
+            !from 'Necessidades de Água e Métodos de Rega', Luis Santos Pereira, 2004
+            !Publicações Europa-América, pg 85-86                
+                 
+            !(Jauch)
+            !In case no KcMin is provided, the minimun value for Kc will be ZERO.
+            !If an adjusted Kc of ZERO is defined, no EVAPOTRANSPIRATION will occour.
+            if (Me%UseKcMin) then
+                AdjustCropCoefficient = max(Kc - (1 - (LAI / PotLAI)**0.5), Me%KcMin)                
+            else
+                AdjustCropCoefficient = max(Kc - (1 - (LAI / PotLAI)**0.5), 0.0)
+            endif
+        else
+            !If LAI is higher than zero and PotLAI is Higher or Equal to LAI, no changes in Kc will be made
         
-!        if (AdjustCropCoefficient < 0.0) then
-!            write (*,*) 'I: ', I, ', J: ', J
-!            write (*,*) 'LAI: ', LAI
-!            write (*,*) 'PotLAI: ', PotLAI
-!            write (*,*) 'CropCoefficient: ', Me%ExtVar%CropCoefficient(I, J) 
-!            if (Me%UseKcMin) then
-!                write (*,*) 'Uses Kc Min. Value: ', Me%KcMin
-!            endif
-!            write (*,*) 'Kc: ', kc
-!            stop
-!        endif
+            AdjustCropCoefficient = Kc
+        endif                
         
         !--------------------------------------------------------------------------
     
