@@ -725,6 +725,10 @@ if12 :          if (adjustl(trim(Name)) .EQ. "ConnectionX" .OR. adjustl(trim(Nam
                     
                     LimitsArrayFactor = 1
                     
+                else
+                
+                    LimitsArrayFactor = 0.    
+                    
                 endif if12
                 
 do2 :           do i=1,NumberOfFiles
@@ -741,8 +745,7 @@ do2 :           do i=1,NumberOfFiles
                     JLB                 = NULL_INT
                     JUB                 = NULL_INT  
                     KLB                 = NULL_INT
-                    KUB                 = NULL_INT 
-                    LimitsArrayFactor   = 0
+                    KUB                 = NULL_INT
                     LimitsArray         = NULL_INT
                     
                     DomainSize      = hash_getDomainSize(hash_map_in, FileArrayIn(i))
