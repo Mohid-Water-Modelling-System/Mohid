@@ -510,6 +510,13 @@ Module ModuleHydrodynamic
 
 
     !Interfaces----------------------------------------------------------------
+
+    private :: NullGradProp3D_W_R4
+    private :: NullGradProp3D_W_R8
+    interface  NullGradProp3D_W
+        module procedure NullGradProp3D_W_R4
+        module procedure NullGradProp3D_W_R8
+    end interface NullGradProp3D_W
     
     private :: UngetHydrodynamic2Dinteger
     private :: UngetHydrodynamic2Dreal4
@@ -21129,10 +21136,10 @@ cd2:        if      (Num_Discretization == Abbott    ) then
     ! e-mail : paulo.chambel@hidromod.com                                                      
     !                                                                                      
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Subroutine NullGradProp3D_W(Prop)
+    Subroutine NullGradProp3D_W_R4(Prop)
         !Local----------------------------------------------------------------------
         integer                                :: ilb, iub, jlb, jub, k_up, klb, k_bottom, k_first !bounds
-        real,       dimension(:,:,:), pointer  :: Prop
+        real(4),    dimension(:,:,:), pointer  :: Prop
         integer                                :: i, j, k, iy, jx !counters
         ! integer                                 :: CHUNK
         
@@ -21201,8 +21208,83 @@ cd2:        if      (Num_Discretization == Abbott    ) then
        
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "VerticalMomentumBoundary")
         
-    endsubroutine NullGradProp3D_W
-    !End----------------------------------------------------------------------    
+    endsubroutine NullGradProp3D_W_R4
+    !End---------------------------------------------------------------------- 
+    
+    Subroutine NullGradProp3D_W_R8(Prop)
+        !Local----------------------------------------------------------------------
+        integer                                :: ilb, iub, jlb, jub, k_up, klb, k_bottom, k_first !bounds
+        real(8),    dimension(:,:,:), pointer  :: Prop
+        integer                                :: i, j, k, iy, jx !counters
+        ! integer                                 :: CHUNK
+        
+        !Begin----------------------------------------------------------------------
+        ilb = Me%WorkSize%ILB
+        iub = Me%WorkSize%IUB
+        jlb = Me%WorkSize%JLB
+        jub = Me%WorkSize%JUB
+        k_up= Me%WorkSize%KUB + 1
+        klb = Me%WorkSize%KLB 
+        
+        ! CHUNK = CHUNK_I(ilb,iub)
+        !ACanas(2010): Parallelization for the non hydrostatic case wasn't tested
+        !ACanas(2010): because a working configuration was not provided.
+
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "VerticalMomentumBoundary")
+        
+        !explicit horizontal null gradient
+        
+        ! !! $OMP PARALLEL PRIVATE(i,j,k,count)
+        do i = ilb, iub
+        do j = jlb, jub
+            if  (Me%External_Var%BoundaryPoints(i, j) == Boundary) then
+                !initalization
+                k_bottom = Me%External_Var%KFloor_Z(i,j)
+                do k= k_bottom, k_up
+                    Prop(i, j, k) = 0.
+                enddo         
+                !null gradient horizontal open boundary condition
+                if       (Me%External_Var%BoundaryFacesU(i,j  ) == Boundary) then
+                    
+                    iy      = i  
+                    jx      = j - 1
+                    k_first = Me%External_Var%KFloor_U(i,j)
+                
+                else if  (Me%External_Var%BoundaryFacesU(i,j+1) == Boundary) then
+                    
+                    iy      = i  
+                    jx      = j + 1
+                    k_first = Me%External_Var%KFloor_U(i,j + 1)
+                    
+                else if  (Me%External_Var%BoundaryFacesV(i,j  ) == Boundary) then
+                    
+                    iy      = i - 1 
+                    jx      = j
+                    k_first = Me%External_Var%KFloor_V(i,j)
+                
+                else if  (Me%External_Var%BoundaryFacesV(i+1,j) == Boundary) then
+
+                    iy      = i + 1 
+                    jx      = j
+                    k_first = Me%External_Var%KFloor_V(i + 1, j)
+                    
+                endif
+                
+                do k= k_first, k_up                
+                    Prop(i, j, k) = Prop(iy, jx, k)
+                enddo                                    
+                                          
+            endif        
+        enddo    
+        enddo
+        ! !! $OMP END DO
+        ! !! $OMP END PARALLEL
+        
+       
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "VerticalMomentumBoundary")
+        
+    endsubroutine NullGradProp3D_W_R8
+    !End----------------------------------------------------------------------      
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      
     ! Non-HydroStatic Correction
