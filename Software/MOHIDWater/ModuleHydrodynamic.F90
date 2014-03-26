@@ -310,7 +310,6 @@ Module ModuleHydrodynamic
     private ::              VerticalMomentum
     private ::              NonHydroStaticCorrection
     private ::                  NonHydroOpenBoundary
-    private ::                  NonHydroWallBoundary    
 
     private ::          ReadHydrodynamicFile
     !private ::          ModifyBackgroundVelocity
@@ -20899,13 +20898,13 @@ cd2:        if      (Num_Discretization == Abbott    ) then
             az = Me%External_Var%DXX(i,j) * Me%External_Var%DYY(i,j)
             do k = klb, kub
                 !X
-                if((Me%External_Var%WaterPoints3D(i,j,k)==OpenPoint).and.        &
-                   (Me%External_Var%WaterPoints3D(i,j-1,k)==OpenPoint).and.       &
-                   (Me%External_Var%WaterPoints3D(i,j,k-1)==OpenPoint).and.       &
+                if((Me%External_Var%WaterPoints3D(i,j  ,k  )==OpenPoint).and.           &
+                   (Me%External_Var%WaterPoints3D(i,j-1,k  )==OpenPoint).and.           &
+                   (Me%External_Var%WaterPoints3D(i,j  ,k-1)==OpenPoint).and.           &
                    (Me%External_Var%WaterPoints3D(i,j-1,k-1)==OpenPoint)) then
                     axy = Me%External_Var%DUZ(i,j,k) * Me%External_Var%DYY(i,j)
-                    kv = interpolate3D(Me%External_Var%Visc_H_Center,            &  
-                                       Me%External_Var%DUX, Me%External_Var%DVY, &
+                    kv = interpolate3D(Me%External_Var%Visc_H_Center,                   &  
+                                       Me%External_Var%DUX, Me%External_Var%DVY,        &
                                        Me%External_Var%DWZ, i, j, k, 0, -1, -1)
                     fx(i,j,k) = kv * axy
                 else
@@ -21011,7 +21010,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                     Me%ComputeOptions%TVD_LimV,                                          &
                     Me%ComputeOptions%VolumeRelMax,                                      &
                     Me%ComputeOptions%Upwind2H,                                          &
-                     Me%ComputeOptions%Upwind2V) 
+                    Me%ComputeOptions%Upwind2V) 
 
         !Compute the momentum discharge 
         if (Me%ComputeOptions%MomentumDischarge)                            &
@@ -21023,11 +21022,8 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         !Adds a force that relax the velocity field to a reference field
         if (Me%Relaxation%Force)                                                &
             call ModifyRelaxAcelerationVert        
+
         !----Solve
-        !griflet: old call
-        !call THOMASZ(ilb, iub, jlb, jub, klb, kub, dCoef, eCoef, fCoef, tiCoef,        &
-        !              Me%Velocity%Vertical%Cartesian, Me%VECG_3D, Me%VECW_3D)
-        !griflet: new call
         call THOMASZ(ilb, iub, jlb, jub, klb, kub, Me%THOMAS,       &
                       Me%Velocity%Vertical%Cartesian                &
 #ifdef _ENABLE_CUDA
@@ -21036,6 +21032,10 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                          .FALSE.                                    &
 #endif _ENABLE_CUDA
                          )
+                         
+        !null gradient in the open boundary.
+        call NullGradProp3D_W(Me%Velocity%Vertical%Cartesian)
+                         
 
         !----DeAllocate...
         deallocate(fx)
@@ -21116,6 +21116,93 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         
     endsubroutine VerticalMomentumBoundary
     !End----------------------------------------------------------------------
+    
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                       
+    ! Vertical Open Boundary Condition                                                                      
+    !                                                                           
+    ! ----------------------------
+    !
+    ! author : Paulo Leitão
+    ! last modified  : 03/2014 
+    ! e-mail : paulo.chambel@hidromod.com                                                      
+    !                                                                                      
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    Subroutine NullGradProp3D_W(Prop)
+        !Local----------------------------------------------------------------------
+        integer                                :: ilb, iub, jlb, jub, k_up, klb, k_bottom, k_first !bounds
+        real,       dimension(:,:,:), pointer  :: Prop
+        integer                                :: i, j, k, iy, jx !counters
+        ! integer                                 :: CHUNK
+        
+        !Begin----------------------------------------------------------------------
+        ilb = Me%WorkSize%ILB
+        iub = Me%WorkSize%IUB
+        jlb = Me%WorkSize%JLB
+        jub = Me%WorkSize%JUB
+        k_up= Me%WorkSize%KUB + 1
+        klb = Me%WorkSize%KLB 
+        
+        ! CHUNK = CHUNK_I(ilb,iub)
+        !ACanas(2010): Parallelization for the non hydrostatic case wasn't tested
+        !ACanas(2010): because a working configuration was not provided.
+
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "VerticalMomentumBoundary")
+        
+        !explicit horizontal null gradient
+        
+        ! !! $OMP PARALLEL PRIVATE(i,j,k,count)
+        do i = ilb, iub
+        do j = jlb, jub
+            if  (Me%External_Var%BoundaryPoints(i, j) == Boundary) then
+                !initalization
+                k_bottom = Me%External_Var%KFloor_Z(i,j)
+                do k= k_bottom, k_up
+                    Prop(i, j, k) = 0.
+                enddo         
+                !null gradient horizontal open boundary condition
+                if       (Me%External_Var%BoundaryFacesU(i,j  ) == Boundary) then
+                    
+                    iy      = i  
+                    jx      = j - 1
+                    k_first = Me%External_Var%KFloor_U(i,j)
+                
+                else if  (Me%External_Var%BoundaryFacesU(i,j+1) == Boundary) then
+                    
+                    iy      = i  
+                    jx      = j + 1
+                    k_first = Me%External_Var%KFloor_U(i,j + 1)
+                    
+                else if  (Me%External_Var%BoundaryFacesV(i,j  ) == Boundary) then
+                    
+                    iy      = i - 1 
+                    jx      = j
+                    k_first = Me%External_Var%KFloor_V(i,j)
+                
+                else if  (Me%External_Var%BoundaryFacesV(i+1,j) == Boundary) then
+
+                    iy      = i + 1 
+                    jx      = j
+                    k_first = Me%External_Var%KFloor_V(i + 1, j)
+                    
+                endif
+                
+                do k= k_first, k_up                
+                    Prop(i, j, k) = Prop(iy, jx, k)
+                enddo                                    
+                                          
+            endif        
+        enddo    
+        enddo
+        ! !! $OMP END DO
+        ! !! $OMP END PARALLEL
+        
+       
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "VerticalMomentumBoundary")
+        
+    endsubroutine NullGradProp3D_W
+    !End----------------------------------------------------------------------    
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      
     ! Non-HydroStatic Correction
@@ -21282,13 +21369,10 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         enddo ! do i
         !
         !----Boundary Condition - Before Solving System
-        !call NonHydroOpenBoundary(.True.)
 
         if (Me%ComputeOptions%WaterDischarges) call NonHydroDischarges
         
-        !call NonHydroWallBoundary(      )    
-        
-            
+        call NonHydroOpenBoundary()
 
         !
         !----Solve the syste
@@ -21303,9 +21387,6 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         !
         !----Correction (of velocity and water level accordingly to 'pc')
         !
-        !----Boundary Condition - After Solving System
-        !call NonHydroOpenBoundary(.False.)
-        !
         ! CHUNK = CHUNK_J(JLB, JUB)
         !ACanas(2010): Parallelization for the non hydrostatic case wasn't tested
         !ACanas(2010): because a working configuration was not provided.
@@ -21319,8 +21400,10 @@ cd2:        if      (Num_Discretization == Abbott    ) then
             ![m^2] = [m]*[m]
             az = Me%External_Var%DUX(i,j) * Me%External_Var%DVY(i,j)
         !--------Correct water level
-            if((.not.Me%ComputeOptions%Compute_Tide).or. &
-              (Me%External_Var%BoundaryPoints(i, j)/=Boundary)) then
+!            if((.not.Me%ComputeOptions%Compute_Tide).or. &
+!              (Me%External_Var%BoundaryPoints(i, j)/=Boundary)) then
+
+            if(Me%External_Var%OpenPoints3D(i, j, KUB) == OpenPoint) then 
                 ![m]= [m^2/s^2]     / [m/s^2]
                 pcl = pc(i, j, KUB) / Gravity
                 if(abs(pcl)<AllmostZero) pcl = 0. ! only correct after level if pc is something
@@ -21330,10 +21413,6 @@ cd2:        if      (Num_Discretization == Abbott    ) then
             do k = KLB,KUB
         !------------Correct NH pressure correction (itself!)
                 Me%NonHydroStatic%PressureCorrect(i,j,k) = pc(i, j, k) - pc(i, j, KUB) 
-                !---------------- Impose null correction in the open boundary-------------
-                if(Me%External_Var%BoundaryPoints(i, j)==Boundary) then
-                    Me%NonHydroStatic%PressureCorrect(i,j,k) =  0
-                endif                    
             enddo !do k             
         enddo !do i
         enddo !do j
@@ -21385,15 +21464,13 @@ cd2:        if      (Num_Discretization == Abbott    ) then
     ! e-mail : hernanitheias@netcabo.pt                                                       !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Subroutine NonHydroOpenBoundary(PreSolve)
+    Subroutine NonHydroOpenBoundary()
         !Local----------------------------------------------------------------------
         real,    dimension (:,:,:), pointer  :: e,w,s,n   ! coefficient matrix (non-diagonals elements)
-        real,    dimension (:,:,:), pointer  :: pc        ! previsional pressure correction
         real(8), dimension (:,:,:), pointer  :: p         ! coefficient matrix (diagonal elements)
         real,    dimension (:,:,:), pointer  :: q         ! independdent term
         integer                              :: i, j, k   ! counters
         integer                              :: ILB, IUB, JLB, JUB, KUB ! bounds
-        logical                              :: PreSolve
         ! integer                              :: CHUNK
         
         !Begin----------------------------------------------------------------------
@@ -21404,7 +21481,6 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         q => Me%Coef%D3%TI
         w => Me%NonHydroStatic%CCoef
         e => Me%NonHydroStatic%GCoef
-        pc => Me%NonHydroStatic%PrevisionalQ
         
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -21435,59 +21511,39 @@ Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
 
                     if      (Me%External_Var%BoundaryPoints(i-1, j) == Boundary) then
                         
-                        if      ((Me%Direction%XY == DirectionY_).and.(PreSolve)) then
-                            
+                        if      (Me%Direction%XY == DirectionY_) then
                             e(i-1, j, k) =  0.
                             w(i-1, j, k) =  0.
                             p(i-1, j, k) =  1.  
                             s(i-1, j, k) =  0.
                             n(i-1, j, k) = -1.
                             q(i-1, j, k) =  0.
-                        
-                        else if (Me%Direction%XY == DirectionX_) then
-                             
-                            if(PreSolve) then ! keep previous value
-                              
-                                e(i-1, j, k) =  0.
-                                w(i-1, j, k) =  0.
-                                p(i-1, j, k) =  1.
-                                s(i-1, j, k) =  0.
-                                n(i-1, j, k) =  0.
-                                q(i-1, j, k) =  pc(i - 1, j, k)
-                            else ! equal to current neighbour
-                                pc(i - 1, j, k) = pc(i, j, k)
-                            endif
-
+                        elseif  (Me%Direction%XY == DirectionX_) then
+                            e(i-1, j, k) = e(i, j, k)
+                            w(i-1, j, k) = w(i, j, k)
+                            p(i-1, j, k) = p(i, j, k)
+                            s(i-1, j, k) = s(i, j, k)
+                            n(i-1, j, k) = n(i, j, k)
+                            q(i-1, j, k) = q(i, j, k)
                         endif
-
-                    else if (Me%External_Var%BoundaryPoints(i, j) == Boundary) then
-                  
-
-                        if      ((Me%Direction%XY == DirectionY_).and.(PreSolve))  then
                         
+                    else if (Me%External_Var%BoundaryPoints(i, j) == Boundary) then
+
+                        if      (Me%Direction%XY == DirectionY_) then                  
                             e(i, j, k) =  0.
                             w(i, j, k) =  0.
                             p(i, j, k) =  1.
                             s(i, j, k) = -1.
                             n(i, j, k) =  0.
                             q(i, j, k) =  0.
-
-                        else if (Me%Direction%XY == DirectionX_) then
-        
-                            if(PreSolve) then
-                                
-                                e(i, j, k) =  0.
-                                w(i, j, k) =  0.
-                                p(i, j, k) =  1.
-                                s(i, j, k) =  0.
-                                n(i, j, k) =  0.
-                                q(i, j, k) =  pc(i, j, k)
-                            else
-                                pc(i, j, k) = pc(i - 1, j, k)
-                            endif
-
+                        elseif  (Me%Direction%XY == DirectionX_) then
+                            e(i, j, k) = e(i-1, j, k)
+                            w(i, j, k) = w(i-1, j, k)
+                            p(i, j, k) = p(i-1, j, k)
+                            s(i, j, k) = s(i-1, j, k)
+                            n(i, j, k) = n(i-1, j, k)
+                            q(i, j, k) = q(i-1, j, k)
                         endif
-                    
                     endif
 
                 enddo ! do k
@@ -21506,44 +21562,38 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
 
                     if      (Me%External_Var%BoundaryPoints(i, j - 1) == Boundary) then
 
-                        if((Me%Direction%XY == DirectionX_).and.PreSolve) then
+                        if      (Me%Direction%XY == DirectionX_) then
                             e(i, j-1, k) =  0.
                             w(i, j-1, k) =  0.
                             p(i, j-1, k) =  1.
                             s(i, j-1, k) =  0.
                             n(i, j-1, k) = -1.
                             q(i, j-1, k) =  0.
-                        else if (Me%Direction%XY == DirectionY_) then
-                            if(PreSolve) then
-                                e(i, j-1, k) =  0.
-                                w(i, j-1, k) =  0.
-                                p(i, j-1, k) =  1.
-                                s(i, j-1, k) =  0.
-                                n(i, j-1, k) =  0.
-                                q(i, j-1, k) =  pc(i, j-1, k)
-                            else
-                                pc(i, j-1, k) = pc(i, j, k)
-                            endif
+                        elseif  (Me%Direction%XY == DirectionY_) then
+                            e(i, j-1, k) = e(i, j, k)
+                            w(i, j-1, k) = w(i, j, k)
+                            p(i, j-1, k) = p(i, j, k)
+                            s(i, j-1, k) = s(i, j, k)
+                            n(i, j-1, k) = n(i, j, k)
+                            q(i, j-1, k) = q(i, j, k)
                         endif
+
                     else if (Me%External_Var%BoundaryPoints(i, j) == Boundary) then
-                        if((Me%Direction%XY == DirectionX_).and.PreSolve) then
+
+                        if      (Me%Direction%XY == DirectionX_) then                    
                             e(i, j, k) =  0.
                             w(i, j, k) =  0.
                             p(i, j, k) =  1.
                             s(i, j, k) = -1.
                             n(i, j, k) =  0.
                             q(i, j, k) =  0.
-                        else if (Me%Direction%XY == DirectionY_) then
-                            if(PreSolve) then
-                                e(i, j, k) =  0.
-                                w(i, j, k) =  0.
-                                p(i, j, k) =  1.
-                                s(i, j, k) =  0.
-                                n(i, j, k) =  0.
-                                q(i, j, k) =  pc(i, j, k)
-                            else
-                                pc(i, j, k) = pc(i, j-1, k)
-                            endif
+                        elseif  (Me%Direction%XY == DirectionY_) then
+                            e(i, j, k) = e(i, j-1, k)
+                            w(i, j, k) = w(i, j-1, k)
+                            p(i, j, k) = p(i, j-1, k)
+                            s(i, j, k) = s(i, j-1, k)
+                            n(i, j, k) = n(i, j-1, k)
+                            q(i, j, k) = q(i, j-1, k)
                         endif
                     endif
 
@@ -21558,7 +21608,6 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "NonHydroOpenBoundary")
 
         nullify(p)
-        nullify(pc)
         nullify(q)
         nullify(e)
         nullify(w)
@@ -21567,152 +21616,6 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
     end subroutine NonHydroOpenBoundary
     !End------------------------------------------------------------
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !
-    ! NonHydroWallBoundary (null gradient)     
-    ! 
-    ! ----------------------------
-    !
-    ! author : Paulo Leitão
-    ! last modified  : 04/2012 
-    ! e-mail : paulo.chambel@hidromod.com
-    !                                                                                      !
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Subroutine NonHydroWallBoundary()
-        !Local----------------------------------------------------------------------
-        real,    dimension (:,:,:), pointer  :: e,w,s,n   ! coefficient matrix (non-diagonals elements)
-        real,    dimension (:,:,:), pointer  :: pc        ! previsional pressure correction
-        real(8), dimension (:,:,:), pointer  :: p         ! coefficient matrix (diagonal elements)
-        real,    dimension (:,:,:), pointer  :: q         ! independdent term
-        integer                              :: i, j, k, nb   ! counters
-        integer                              :: ILB, IUB, JLB, JUB, KUB ! bounds
-        ! integer                              :: CHUNK
-        
-        !Begin----------------------------------------------------------------------
-        !----Shorten variables names
-        s => Me%Coef%D3%D
-        p => Me%Coef%D3%E
-        n => Me%Coef%D3%F
-        q => Me%Coef%D3%TI
-        w => Me%NonHydroStatic%CCoef
-        e => Me%NonHydroStatic%GCoef
-        pc => Me%NonHydroStatic%PrevisionalQ
-        
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KUB = Me%WorkSize%KUB
-
-        !Null gradient
-
-        !if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "NonHydroWallBoundary")
-
-        ! !!$OMP PARALLEL PRIVATE(i,j,k,nb)
-        !ACanas(2010): Parallelization for the non hydrostatic case wasn't tested
-        !ACanas(2010): because a working configuration was not provided.
-
-        do i = ILB, IUB
-        do j = JLB, JUB
-            !check all open points
-X1:         if (Me%External_Var%OpenPoints3D(i, j,KUB) == OpenPoint) then
-
-                ! !!$OMP MASTER
-                ! CHUNK = CHUNK_K(Me%External_Var%KFloor_V(i, j), KUB)
-                ! !!$OMP END MASTER
-                ! !!$OMP BARRIER
-                
-                ! !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do k = Me%External_Var%KFloor_Z(i, j), KUB
-                
-                    nb = Me%External_Var%OpenPoints3D(i-1,  j,k  ) + Me%External_Var%OpenPoints3D(i+1,  j,k  ) + &
-                         Me%External_Var%OpenPoints3D(i  ,j-1,k  ) + Me%External_Var%OpenPoints3D(i  ,j+1,k  ) + &
-                         Me%External_Var%OpenPoints3D(i  ,j  ,k-1) 
-                         
-                    if (nb == 5) cycle
-                    
-                    if (Me%ComputeOptions%WaterDischarges) then
-                    
-                        if (abs(Me%WaterFluxes%Discharges(i, j, k))>1e-15) then
-                            cycle
-                        endif
-                        
-                    endif                    
-                    
-                    !by default pressure correction is nule
-                    e(i, j, k) =  0.
-                    w(i, j, k) =  0.
-                    p(i, j, k) =  1.
-                    s(i, j, k) =  0.
-                    n(i, j, k) =  0.
-                    q(i, j, k) =  0.                    
-
-                    !South wall boundary
-                    if      (Me%External_Var%OpenPoints3D(i-1, j,k) /=OpenPoint .and.   &
-                             Me%External_Var%OpenPoints3D(i+1, j,k) ==OpenPoint) then
-                    
-                        if      (Me%Direction%XY == DirectionY_) then
-                            n(i, j, k) =  -1.
-                        else if (Me%Direction%XY == DirectionX_) then
-                            q(i, j, k) =  q(i+1, j, k)
-                        endif
-                    
-                    !North wall boundary
-                    elseif  (Me%External_Var%OpenPoints3D(i-1, j,k) ==OpenPoint .and.   &
-                             Me%External_Var%OpenPoints3D(i+1, j,k) /=OpenPoint) then
-                    
-                        if      (Me%Direction%XY == DirectionY_) then
-                            s(i, j, k) =  -1.
-                        else if (Me%Direction%XY == DirectionX_) then
-                            q(i, j, k) =  q(i-1, j, k)
-                        endif
-                    
-                    !West wall boundary
-                    elseif  (Me%External_Var%OpenPoints3D(i,j-1,k) /=OpenPoint .and.   &
-                             Me%External_Var%OpenPoints3D(i,j+1,k) ==OpenPoint) then
-                    
-                        if      (Me%Direction%XY == DirectionX_) then
-                            n(i, j, k) =  -1.
-                        else if (Me%Direction%XY == DirectionY_) then
-                            q(i, j, k) =  q(i,j+1, k)
-                        endif
-                    
-                    !East wall boundary
-                    elseif  (Me%External_Var%OpenPoints3D(i,j-1,k) ==OpenPoint .and.   &
-                             Me%External_Var%OpenPoints3D(i,j+1,k) /=OpenPoint) then
-                    
-                        if      (Me%Direction%XY == DirectionX_) then
-                            s(i, j, k) =  -1.
-                        else if (Me%Direction%XY == DirectionY_) then
-                            q(i, j, k) =  q(i,j-1, k)
-                        endif
-
-                    !bottom wall boundary
-                    elseif  (k == Me%External_Var%KFloor_Z(i, j)) then
-                        
-                        e(i, j, k) =  -1.
-                    
-                    endif
-
-                                    
-                enddo ! do k
-                ! !!$OMP END DO
-                
-            endif X1
-        enddo ! do j
-        enddo ! do i
-        ! !!$OMP END PARALLEL
-
-        !if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "NonHydroWallBoundary")
-
-        nullify(p)
-        nullify(pc)
-        nullify(q)
-        nullify(e)
-        nullify(w)
-        nullify(s)
-        nullify(n)
-    end subroutine NonHydroWallBoundary
-    !End------------------------------------------------------------
 
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !
@@ -21881,11 +21784,14 @@ X1:         if (Me%External_Var%OpenPoints3D(i, j,KUB) == OpenPoint) then
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ComputeCartesianNH")
         
+        !null gradient in the open boundary.
+        call NullGradProp3D_W(Me%Velocity%Vertical%Cartesian)
+        
         if (Me%CyclicBoundary%ON) then !in case of cyclic boundary
             call CyclicBoundVertical (Vector = Me%Velocity%Vertical%Cartesian)
         endif
     
-    End Subroutine
+    End Subroutine ComputeCartesianNH
     !End------------------------------------------------------------
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -22191,11 +22097,12 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         if(Me%NonHydroStatic%ON) then
             call ComputeCartesianNH
+           !null gradient in the open boundary.
+            call NullGradProp3D_W(Me%WaterFluxes%Z)
         else
             call ComputeCartesianVertVelocity(Grid = Grid)
+            call Boundary_VerticalFlow (Grid)
         endif
-
-        call Boundary_VerticalFlow (Grid)
 
         if (Me%CyclicBoundary%ON) then
 

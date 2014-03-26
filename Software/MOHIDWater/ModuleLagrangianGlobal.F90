@@ -4103,6 +4103,7 @@ BF:         if (BlockFound) then
         logical                                     :: SalOK = .false., TempOK = .false., PressureCorrection
         integer                                     :: em
         real                                        :: OdourConcThreshold
+        logical                                     :: FindWaterLocation, FoundWater
 
         !Begin-----------------------------------------------------------------
 
@@ -5200,6 +5201,17 @@ NDF:        if (.not. NewOrigin%Default) then
                     stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR66'
 
                 endif
+                
+                !Check if the model tries to find automaticly alternative locations if the origin position is located in land
+                call GetData(FindWaterLocation,                                         &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='FIND_WATER_LOCATION',                       &
+                             default      = .false.,                                    &
+                             ClientModule ='ModuleLagrangianGlobal',                    &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1025'                
 
                 !Verifies the horizontal location of the origin
                 i = NewOrigin%Position%I
@@ -5207,15 +5219,24 @@ NDF:        if (.not. NewOrigin%Default) then
                 k = Me%EulerModel(em)%WorkSize%KUB
 
                 if (Me%EulerModel(em)%Waterpoints3D(i, j, k) /= WaterPoint) then
-                    write(*,*) 'Discharge in a land cell I=',i,' J=',j,'Model name=',trim(Me%EulerModel(em)%Name)
+                
+                    if (FindWaterLocation) then
+                        call OriginLocationInWater(NewOrigin%Position,Me%EulerModel(em),FoundWater)
+                    else
+                        FoundWater = .false.
+                    endif                        
+                                                
+                    if (.not. FoundWater) then                        
+                        write(*,*) 'Discharge in a land cell I=',i,' J=',j,'Model name=',trim(Me%EulerModel(em)%Name)
 
-                    write(*,*)'Invalid Location defined for ',trim(adjustl(NewOrigin%Name))
-                    write(*,*)'Point [i]:', NewOrigin%Position%I
-                    write(*,*)'Point [j]:', NewOrigin%Position%J
-                    
-                    write(*,*)'Is not a WaterPoint'
-                    
-                    stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1030'
+                        write(*,*)'Invalid Location defined for ',trim(adjustl(NewOrigin%Name))
+                        write(*,*)'Point [i]:', NewOrigin%Position%I
+                        write(*,*)'Point [j]:', NewOrigin%Position%J
+                        
+                        write(*,*)'Is not a WaterPoint'
+                        
+                        stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1030'
+                    endif                        
                 endif                    
  
                 NewOrigin%Position%ModelID =  em
@@ -6456,7 +6477,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
 
         
         if (NewOrigin%State%Oil .or. NewOrigin%State%StokesDrift .or. NewOrigin%State%AccidentProbability .or. &
-            NewOrigin%State%HNS) then
+            NewOrigin%State%HNS .or. Me%Booms%ON) then
             NewOrigin%State%Waves = .true.
             Me%State%Waves        = .true.
         endif
@@ -6574,6 +6595,94 @@ SP:             if (NewProperty%SedimentPartition%ON) then
     end subroutine ConstructOneOrigin
 
     !--------------------------------------------------------------------------
+    
+    subroutine OriginLocationInWater(Position,EulerModel,FoundWater)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_Position)                :: Position
+        type(T_EulerModel)              :: EulerModel  
+        logical                         :: FoundWater   
+        
+        !Local-----------------------------------------------------------------    
+        real                            :: distmin, dist, xw, yw, xc, yc, xnew, ynew
+        integer                         :: ILB, IUB, JLB, JUB, KUB
+        integer                         :: ic, jc, inew, jnew, dij, i, j
+        integer                         :: imin, imax, jmin, jmax 
+        !Begin-----------------------------------------------------------------
+
+        ILB = EulerModel%WorkSize%ILB
+        IUB = EulerModel%WorkSize%IUB
+        JLB = EulerModel%WorkSize%JLB
+        JUB = EulerModel%WorkSize%JUB
+        KUB = EulerModel%WorkSize%KUB
+        
+        ic  = Position%i
+        jc  = Position%j
+        xc  = Position%CoordX
+        yc  = Position%CoordY
+        
+        distmin = - FillValueReal
+
+        FoundWater = .false.
+        
+d1:     do dij = 1, 10
+
+            imin = max(ic-dij, ILB)
+            imax = min(ic+dij, IUB)
+            jmin = max(jc-dij, JLB)
+            jmax = min(jc+dij, JUB)
+                        
+d2:         do i=imin, imax
+d3:         do j=jmin, jmax
+                if (EulerModel%Waterpoints3D(i, j, KUB) == WaterPoint) then    
+                    FoundWater = .true.
+                    xw = FillValueReal
+                    yw = FillValueReal
+                    if (i==imin) then 
+                        xw = (EulerModel%XX_IE(i+1,j) + EulerModel%XX_IE(i+1,j+1))/2.
+                        yw = (EulerModel%YY_IE(i+1,j) + EulerModel%YY_IE(i+1,j+1))/2. - 1e-5
+                    endif    
+                    if (i==imax) then 
+                        xw = (EulerModel%XX_IE(i,j) + EulerModel%XX_IE(i,j+1))/2.
+                        yw = (EulerModel%YY_IE(i,j) + EulerModel%YY_IE(i,j+1))/2.     + 1e-5
+                    endif    
+                    if (j==jmin) then 
+                        xw = (EulerModel%XX_IE(i,j+1) + EulerModel%XX_IE(i+1,j+1))/2. - 1e-5
+                        yw = (EulerModel%YY_IE(i,j+1) + EulerModel%YY_IE(i+1,j+1))/2. 
+                    endif    
+                    if (j==jmax) then 
+                        xw = (EulerModel%XX_IE(i,j) + EulerModel%XX_IE(i+1,j))/2.     + 1e-5
+                        yw = (EulerModel%YY_IE(i,j) + EulerModel%YY_IE(i+1,j))/2.     
+                    endif                                                           
+                    
+                    dist = sqrt((xw-xc)**2+(yw-yc)**2)
+                    
+                    if (dist < distmin) then
+                        distmin = dist
+                        xnew    = xw
+                        ynew    = yw
+                        inew    = i
+                        jnew    = j
+                    endif
+                    
+                endif    
+                                            
+            enddo d3
+            enddo d2 
+            
+            if (FoundWater) exit               
+            
+        enddo d1
+        
+        if (FoundWater) then
+            Position%i      = inew
+            Position%j      = jnew
+            Position%CoordX = xnew
+            Position%CoordY = ynew
+        endif
+    
+    end subroutine OriginLocationInWater
+    
 
     logical function CheckOriginInLandCell ()
 
@@ -6587,6 +6696,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
         integer                                     :: STAT_CALL
         integer                                     :: i, j, k, em
         logical                                     :: Default, HaveOrigin, NoDomain
+
 
         !Begin-----------------------------------------------------------------
 
@@ -12521,6 +12631,7 @@ i2:                 if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint
         real, dimension(:, :, :), pointer           :: MassSumParticCell
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: i, j, k, STAT_CALL, em, ig
+        logical                                     :: HaveDomain
 
         !Begin-----------------------------------------------------------------
         
@@ -12540,7 +12651,7 @@ d1:     do em = 1, Me%EulerModelNumber
                                          JLB:JUB,                &
                                          KLB:KUB),               &                                 
                                          STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR10'
 
                    
             !Adds the mass of all particles in the every cell
@@ -12548,12 +12659,45 @@ d1:     do em = 1, Me%EulerModelNumber
             CurrentPartic => CurrentOrigin%FirstPartic
             do while (associated(CurrentPartic))
 
-                i = CurrentPartic%Position%I
-                j = CurrentPartic%Position%J
-                k = CurrentPartic%Position%k
+                if (em == CurrentPartic%Position%ModelID) then
+                    i = CurrentPartic%Position%I
+                    j = CurrentPartic%Position%J
+                    k = CurrentPartic%Position%k
+                    
+                    HaveDomain = .true.
+                else
+                
+                    HaveDomain = GetXYInsideDomain(Me%EulerModel(em)%ObjHorizontalGrid,     &
+                                                   CurrentPartic%Position%CoordX,           &
+                                                   CurrentPartic%Position%CoordY,           &
+                                                   Referential= GridCoord_,                 &
+                                                   STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangianGlobal - ERR20'
+                
+                    if (HaveDomain) then
 
-                MassSumParticCell(i, j, k) = MassSumParticCell(i, j, k) +              & 
-                                                   CurrentPartic%OilMass
+                        call GetXYCellZ(HorizontalGridID = Me%EulerModel(em)%ObjHorizontalGrid,&
+                                        XPoint           = CurrentPartic%Position%CoordX,      &
+                                        YPoint           = CurrentPartic%Position%CoordY,      &
+                                        I                = I,                                  &
+                                        J                = J,                                  &
+                                        Referential      = GridCoord_,                         &
+                                        STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR30'  
+                        
+                        k = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, i, j,         &
+                                           CurrentPartic%Position%Z, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR40'  
+
+                    endif
+                                        
+                endif                
+                
+                if (HaveDomain) then
+
+                    MassSumParticCell(i, j, k) = MassSumParticCell(i, j, k) + CurrentPartic%OilMass
+
+                endif                    
 
                 CurrentPartic => CurrentPartic%Next
             enddo
@@ -12572,7 +12716,7 @@ d1:     do em = 1, Me%EulerModelNumber
 
 
             deallocate (MassSumParticCell, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR50'
 
         enddo d1
 
@@ -12590,6 +12734,7 @@ d1:     do em = 1, Me%EulerModelNumber
         real, dimension(:, :, :), pointer           :: MassDissolvedSumParticCell
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: i, j, k, STAT_CALL, em, ig
+        logical                                     :: HaveDomain
         
         !Begin-----------------------------------------------------------------
         
@@ -12609,7 +12754,7 @@ d1:     do em = 1, Me%EulerModelNumber
                                                   JLB:JUB,                &
                                                   KLB:KUB),               &                                 
                                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR10'
 
 
             !Adds the mass of all particles in the every cell
@@ -12617,13 +12762,45 @@ d1:     do em = 1, Me%EulerModelNumber
             CurrentPartic => CurrentOrigin%FirstPartic
             do while (associated(CurrentPartic))
 
-                i = CurrentPartic%Position%I
-                j = CurrentPartic%Position%J
-                k = CurrentPartic%Position%k
+                if (em == CurrentPartic%Position%ModelID) then
+                    i = CurrentPartic%Position%I
+                    j = CurrentPartic%Position%J
+                    k = CurrentPartic%Position%k
+                    
+                    HaveDomain = .true.
+                else
+                
+                    HaveDomain = GetXYInsideDomain(Me%EulerModel(em)%ObjHorizontalGrid,     &
+                                                   CurrentPartic%Position%CoordX,           &
+                                                   CurrentPartic%Position%CoordY,           &
+                                                   Referential= GridCoord_,                 &
+                                                   STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangianGlobal - ERR20'
+                
+                    if (HaveDomain) then
 
-                MassDissolvedSumParticCell(i, j, k) = MassDissolvedSumParticCell(i, j, k) +              & 
-                                                   CurrentPartic%OilDissolvedMass
+                        call GetXYCellZ(HorizontalGridID = Me%EulerModel(em)%ObjHorizontalGrid,&
+                                        XPoint           = CurrentPartic%Position%CoordX,      &
+                                        YPoint           = CurrentPartic%Position%CoordY,      &
+                                        I                = I,                                  &
+                                        J                = J,                                  &
+                                        Referential      = GridCoord_,                         &
+                                        STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR30'  
+                        
+                        k = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, i, j,         &
+                                           CurrentPartic%Position%Z, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR40'  
 
+                    endif
+                                        
+                endif                
+                
+                if (HaveDomain) then
+                    MassDissolvedSumParticCell(i, j, k) = MassDissolvedSumParticCell(i, j, k) + & 
+                                                       CurrentPartic%OilDissolvedMass
+                endif
+                
                 CurrentPartic => CurrentPartic%Next
             enddo
             
@@ -12642,7 +12819,7 @@ d1:     do em = 1, Me%EulerModelNumber
 
 
             deallocate (MassDissolvedSumParticCell, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR50'
 
         enddo d1
 
@@ -12660,7 +12837,8 @@ d1:     do em = 1, Me%EulerModelNumber
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Partic), pointer                    :: CurrentPartic
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                     :: i, j, k, em, ig
+        integer                                     :: i, j, k, em, ig, STAT_CALL
+        logical                                     :: HaveDomain
         !Begin-----------------------------------------------------------------
         
         !em = CurrentOrigin%Position%ModelID
@@ -12708,30 +12886,61 @@ d1:     do em = 1, Me%EulerModelNumber
             CurrentPartic => CurrentOrigin%FirstPartic
             do while (associated(CurrentPartic))
 
-                i = CurrentPartic%Position%I
-                j = CurrentPartic%Position%J
-                k = CurrentPartic%Position%k
-
-                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Dissolved_) then
-                    Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) = &
-                    Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D (i,j,k)+ CurrentPartic%HNSMass
-    !                Dissolved_MassSumParticCell(i, j, k) = Dissolved_MassSumParticCell(i, j, k) +              & 
-    !                                             CurrentPartic%HNSMass
+                if (em == CurrentPartic%Position%ModelID) then
+                    i = CurrentPartic%Position%I
+                    j = CurrentPartic%Position%J
+                    k = CurrentPartic%Position%k
                     
-                end if                                             
-                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
-                    Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) =  & 
-                    Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) + CurrentPartic%HNSMass
-    !                Droplets_MassSumParticCell(i, j, k) = Droplets_MassSumParticCell(i, j, k) +              & 
-    !                                             CurrentPartic%HNSMass
-                end if                                             
-                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
-                    Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) =  &
-                    Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) + CurrentPartic%HNSMass
-    !                SuspendedParticulates_MassSumParticCell(i, j, k) =      &
-    !                                        SuspendedParticulates_MassSumParticCell(i, j, k) + CurrentPartic%HNSMass
-                end if                                             
+                    HaveDomain = .true.
+                else
+                
+                    HaveDomain = GetXYInsideDomain(Me%EulerModel(em)%ObjHorizontalGrid,     &
+                                                   CurrentPartic%Position%CoordX,           &
+                                                   CurrentPartic%Position%CoordY,           &
+                                                   Referential= GridCoord_,                 &
+                                                   STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangianGlobal - ERR20'
+                
+                    if (HaveDomain) then
 
+                        call GetXYCellZ(HorizontalGridID = Me%EulerModel(em)%ObjHorizontalGrid,&
+                                        XPoint           = CurrentPartic%Position%CoordX,      &
+                                        YPoint           = CurrentPartic%Position%CoordY,      &
+                                        I                = I,                                  &
+                                        J                = J,                                  &
+                                        Referential      = GridCoord_,                         &
+                                        STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR30'  
+                        
+                        k = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, i, j,         &
+                                           CurrentPartic%Position%Z, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc3D - ModuleLagrangian- ERR40'  
+
+                    endif
+                                        
+                endif                
+                
+                if (HaveDomain) then
+                    if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Dissolved_) then
+                        Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) = &
+                        Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D (i,j,k)+ CurrentPartic%HNSMass
+        !                Dissolved_MassSumParticCell(i, j, k) = Dissolved_MassSumParticCell(i, j, k) +              & 
+        !                                             CurrentPartic%HNSMass
+                        
+                    end if                                             
+                    if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
+                        Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) =  & 
+                        Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) + CurrentPartic%HNSMass
+        !                Droplets_MassSumParticCell(i, j, k) = Droplets_MassSumParticCell(i, j, k) +              & 
+        !                                             CurrentPartic%HNSMass
+                    end if                                             
+                    if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
+                        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) =  &
+                        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) + CurrentPartic%HNSMass
+        !                SuspendedParticulates_MassSumParticCell(i, j, k) =      &
+        !                                        SuspendedParticulates_MassSumParticCell(i, j, k) + CurrentPartic%HNSMass
+                    end if                                             
+                endif
                 CurrentPartic => CurrentPartic%Next
             enddo
 
@@ -12789,6 +12998,7 @@ d1:     do em = 1, Me%EulerModelNumber
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: i, j, k, STAT_CALL, em, ig
         real                                        :: IntegratedVolume
+        logical                                     :: HaveDomain
 
         !Begin-----------------------------------------------------------------
         
@@ -12846,37 +13056,67 @@ d1:     do em = 1, Me%EulerModelNumber
             CurrentPartic => CurrentOrigin%FirstPartic
             do while (associated(CurrentPartic))
 
-                i = CurrentPartic%Position%I
-                j = CurrentPartic%Position%J
+                if (em == CurrentPartic%Position%ModelID) then
+                    i = CurrentPartic%Position%I
+                    j = CurrentPartic%Position%J
+                   
+                    HaveDomain = .true.
+                else
+                
+                    HaveDomain = GetXYInsideDomain(Me%EulerModel(em)%ObjHorizontalGrid,     &
+                                                   CurrentPartic%Position%CoordX,           &
+                                                   CurrentPartic%Position%CoordY,           &
+                                                   Referential= GridCoord_,                 &
+                                                   STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangianGlobal - ERR07'
+                
+                    if (HaveDomain) then
 
-                if ( (CurrentPartic%HNSParticleState .EQ. Air_Evaporated_) .OR. &
-                     (CurrentPartic%HNSParticleState .EQ. Air_Volatilized_) ) then
-                    Air_MassSumParticCell(i, j) = Air_MassSumParticCell(i, j) +              & 
-                                                 CurrentPartic%HNSMass
-                end if                                             
+                        call GetXYCellZ(HorizontalGridID = Me%EulerModel(em)%ObjHorizontalGrid,&
+                                        XPoint           = CurrentPartic%Position%CoordX,      &
+                                        YPoint           = CurrentPartic%Position%CoordY,      &
+                                        I                = I,                                  &
+                                        J                = J,                                  &
+                                        Referential      = GridCoord_,                         &
+                                        STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'HNSGridConc2D - ModuleLagrangian- ERR08'  
+                        
+                    endif
+                                        
+                endif                
+                
+                if (HaveDomain) then
 
-                if (CurrentPartic%HNSParticleState .EQ. Surface_) then
-                    SurfaceFloating_MassSumParticCell(i, j) = SurfaceFloating_MassSumParticCell(i, j) +              & 
-                                                 CurrentPartic%HNSMass
-                end if                                             
+                    if ( (CurrentPartic%HNSParticleState .EQ. Air_Evaporated_) .OR. &
+                         (CurrentPartic%HNSParticleState .EQ. Air_Volatilized_) ) then
+                        Air_MassSumParticCell(i, j) = Air_MassSumParticCell(i, j) +              & 
+                                                     CurrentPartic%HNSMass
+                    end if                                             
 
-                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Dissolved_) then
-                    Dissolved_MassSumParticCell(i, j) = Dissolved_MassSumParticCell(i, j) +              & 
-                                                 CurrentPartic%HNSMass
-                end if                                             
-                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
-                    Droplets_MassSumParticCell(i, j) = Droplets_MassSumParticCell(i, j) +              & 
-                                                 CurrentPartic%HNSMass
-                end if                                             
-                if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
-                    SuspendedParticulates_MassSumParticCell(i, j) = SuspendedParticulates_MassSumParticCell(i, j) +  & 
-                                                 CurrentPartic%HNSMass
-                end if                                             
-                if (CurrentPartic%HNSParticleState .EQ. Bottom_Deposited_) then
-                    DepositedParticulates_MassSumParticCell(i, j) = DepositedParticulates_MassSumParticCell(i, j) +  & 
-                                                 CurrentPartic%HNSMass
-                end if                                             
+                    if (CurrentPartic%HNSParticleState .EQ. Surface_) then
+                        SurfaceFloating_MassSumParticCell(i, j) = SurfaceFloating_MassSumParticCell(i, j) +              & 
+                                                     CurrentPartic%HNSMass
+                    end if                                             
 
+                    if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Dissolved_) then
+                        Dissolved_MassSumParticCell(i, j) = Dissolved_MassSumParticCell(i, j) +              & 
+                                                     CurrentPartic%HNSMass
+                    end if                                             
+                    if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
+                        Droplets_MassSumParticCell(i, j) = Droplets_MassSumParticCell(i, j) +              & 
+                                                     CurrentPartic%HNSMass
+                    end if                                             
+                    if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Sedimented_) then
+                        SuspendedParticulates_MassSumParticCell(i, j) = SuspendedParticulates_MassSumParticCell(i, j) +  & 
+                                                     CurrentPartic%HNSMass
+                    end if                                             
+                    if (CurrentPartic%HNSParticleState .EQ. Bottom_Deposited_) then
+                        DepositedParticulates_MassSumParticCell(i, j) = DepositedParticulates_MassSumParticCell(i, j) +  & 
+                                                     CurrentPartic%HNSMass
+                    end if                                             
+
+                endif
+                
                 CurrentPartic => CurrentPartic%Next
             enddo
 
@@ -21309,8 +21549,11 @@ i1:             if (nP>0) then
                             Aux1DX(:) = FillValueReal
                             Aux1DY(:) = FillValueReal
 
-
-                            call WGS84toGoogleMaps (Matrix1DX, Matrix1DY, CurrentOrigin%nParticle, Aux1DX, Aux1DY)
+                            if (.not. (nP == 1 .and. Matrix1DX(1) == FillValueReal)) then
+    
+                                call WGS84toGoogleMaps (Matrix1DX, Matrix1DY, CurrentOrigin%nParticle, Aux1DX, Aux1DY)
+                                
+                            endif                                
 
                             if (Me%AveragePositionON) then
                                 AverageX = sum(Aux1DX(1:nP)) / real(nP)
@@ -22123,8 +22366,12 @@ iTP:                    if (TotParticle(ig) == 0) then
                         allocate   (Aux1DY(TotParticle(ig)))
                         Aux1DX(:) = FillValueReal
                         Aux1DY(:) = FillValueReal
+                        
+                        if (.not. (nP == 1 .and. Matrix1DX(1) == FillValueReal)) then
 
-                        call WGS84toGoogleMaps (Matrix1DX, Matrix1DY, TotParticle(ig), Aux1DX, Aux1DY)
+                            call WGS84toGoogleMaps (Matrix1DX, Matrix1DY, TotParticle(ig), Aux1DX, Aux1DY)
+                            
+                        endif                            
                         
                         nP = TotParticle(ig)
                         
