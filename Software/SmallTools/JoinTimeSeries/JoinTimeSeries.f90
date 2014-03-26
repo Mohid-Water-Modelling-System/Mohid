@@ -51,7 +51,6 @@ program MohidJoinTimeSeries
         integer                                             :: nTimeSeries          = 0
         character(len=PathLength)                           :: OutputFileName
         type(T_Time), dimension(:), pointer                 :: InitialTimes, OrganizedTimes
-        real                                                :: DT, AddModelDT
         integer                                             :: LocationI, LocationJ, LocationK
         logical                                             :: WriteResiduals
         logical                                             :: FirstEqualsLast
@@ -98,6 +97,7 @@ program MohidJoinTimeSeries
         character(len=4)                            :: CharFormat = '   '
         integer                                     :: n_columns
         character(len=line_length)                  :: Header
+        type(T_Time)                                :: TimeOfDataset
 
         !Begin-----------------------------------------------------------------
 
@@ -125,17 +125,14 @@ program MohidJoinTimeSeries
 
 
         call WriteDataLine(OutputUnit, "SERIE_INITIAL_DATA", Me%OrganizedTimes(1))
-        call WriteDataLine(OutputUnit, "TIME_UNITS", Me%FirstTimeSeriesFile%TimeUnits)
+        call WriteDataLine(OutputUnit, "TIME_UNITS", "SECONDS")
 
         call WriteDataLine(OutputUnit, "LOCALIZATION_I", Me%LocationI)
         call WriteDataLine(OutputUnit, "LOCALIZATION_J", Me%LocationJ)
         call WriteDataLine(OutputUnit, "LOCALIZATION_K", Me%LocationK)
 
-
         call WriteDataLine(OutputUnit, Header)
         call WriteDataLine(OutputUnit, "<BeginTimeSerie>")
-
-        SecondsSinceFirst = Me%AddModelDT 
 
         do i = 1, Me%nTimeSeries
 
@@ -152,14 +149,15 @@ program MohidJoinTimeSeries
                         if(j == 1 .and. i > 1 .and. Me%FirstEqualsLast)then
 
                         else
+                        
+                            call GetTimeSerieTimeOfDataset(TimeSeriesFile%ObjTimeSerie, j, TimeOfDataset, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidJoinTimeSeries - MohidJoinTimeSeries - ERR20'
+                        
+                            SecondsSinceFirst = TimeOfDataset - Me%OrganizedTimes(1)
 
                             write(OutputUnit, '('//CharFormat//'f25.5, 1x)') SecondsSinceFirst, TimeSeriesFile%DataMatrix(j, 2:)
 
-                            SecondsSinceFirst = SecondsSinceFirst + Me%DT
-
                         endif
-
-
 
                     enddo
 
@@ -202,7 +200,6 @@ program MohidJoinTimeSeries
     end subroutine ModifyMohidJoinTimeSeries
 
     !--------------------------------------------------------------------------
-    
 
     subroutine ReadGlobalData
 
@@ -222,23 +219,6 @@ program MohidJoinTimeSeries
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidJoinTimeSeries - ERR02'
 
-            
-        call GetData(Me%DT,                                             &
-                     Me%ObjEnterData, iflag,                            &
-                     SearchType   = FromFile,                           &
-                     keyword      = 'DT',                               &
-                     ClientModule = 'MohidJoinTimeSeries',              &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidJoinTimeSeries - ERR03'
-
-        call GetData(Me%AddModelDT,                                     &
-                     Me%ObjEnterData, iflag,                            &
-                     SearchType   = FromFile,                           &
-                     keyword      = 'ADD_MODEL_DT',                     &
-                     ClientModule = 'MohidJoinTimeSeries',              &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidJoinTimeSeries - ERR04'
-        
         call GetData(Me%WriteResiduals,                                 &
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromFile,                           &
@@ -452,6 +432,7 @@ cd2 :           if (BlockFound) then
             end if
 
             j = j + 1
+            
 
         end do
 
