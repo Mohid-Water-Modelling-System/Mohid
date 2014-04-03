@@ -1523,8 +1523,8 @@ dok7 :  do k = KLB, KUB
 doj7 :  do j = JLB, JUB
 doi7 :  do i = ILB, IUB
 
-            if (k == KUB .or. Me%ExternalVar%LandPoints3D(i,j,k) == 1) then
-                Me%TICOEF3(i,j,KUB)= Null_Real
+            if (Me%ExternalVar%LandPoints3D(i,j,k) == 1) then
+                Me%TICOEF3(i,j,k) = Null_Real
 !            else
 !                Me%TICOEF3(i,j,k) = Me%TICOEF3(i,j,k)                                       &
 !                     * (1 - Me%ExternalVar%LandPoints3D(i,j,k))                             &
@@ -1700,9 +1700,8 @@ cd5 :   if (Me%State%CellFluxes) then
 
         CHUNK = CHUNK_J(JLB,JUB)
 
-        !$OMP PARALLEL PRIVATE(j,i,k,KLB,BoundaryProp,Found)
-
-        !$OMP DO SCHEDULE(GUIDED,CHUNK)
+        !!$OMP PARALLEL PRIVATE(j,i,k,KLB,BoundaryProp,Found)
+        !!$OMP DO SCHEDULE(GUIDED,CHUNK)
 do3 :   do  j = JLB, JUB
 do2 :   do  i = ILB, IUB
 
@@ -1730,9 +1729,8 @@ do1 :           do  k = KLB, KUB
 
         enddo do2
         enddo do3
-        !$OMP END DO
-
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "ImposeNullGradient")
 
