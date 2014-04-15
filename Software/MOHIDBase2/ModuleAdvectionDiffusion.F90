@@ -1524,11 +1524,7 @@ doj7 :  do j = JLB, JUB
 doi7 :  do i = ILB, IUB
 
             if (Me%ExternalVar%LandPoints3D(i,j,k) == 1) then
-                Me%TICOEF3(i,j,k) = Null_Real
-!            else
-!                Me%TICOEF3(i,j,k) = Me%TICOEF3(i,j,k)                                       &
-!                     * (1 - Me%ExternalVar%LandPoints3D(i,j,k))                             &
-!                     +      Me%ExternalVar%LandPoints3D(i,j,k) * Null_Real
+                Me%TICOEF3(i,j,k)= Null_Real
             endif
 
                  
@@ -1548,19 +1544,6 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
             di = 0
             dj = 1
 
-            !griflet: old call
-            !call THOMAS_3D(ILBWS, IUBWS,                                                &
-            !               JLBWS, JUBWS,                                                &
-            !               KLBWS, KUBWS,                                                &
-            !               di, dj,                                                      &
-            !               Me%COEF3%D,                                                  &
-            !               Me%COEF3%E,                                                  &
-            !               Me%COEF3%F,                                                  &
-            !               Me%TICOEF3,                                                  &
-            !               Me%ExternalVar%PROP,                                         &
-            !               Me%VECG,                                                     &
-            !               Me%VECW)      
-            !griflet: new  call
             call THOMAS_3D(ILBWS, IUBWS,                                                &
                            JLBWS, JUBWS,                                                &
                            KLBWS, KUBWS,                                                &
@@ -1577,20 +1560,7 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
 
             di = 1
             dj = 0
-            
-            !griflet: old call
-            !call THOMAS_3D(JLBWS, JUBWS,                                                &
-            !               ILBWS, IUBWS,                                                &
-            !               KLBWS, KUBWS,                                                &
-            !               di, dj,                                                      &
-            !               Me%COEF3%D,                                                  &
-            !               Me%COEF3%E,                                                  &
-            !               Me%COEF3%F,                                                  &
-            !               Me%TICOEF3,                                                  &
-            !               Me%ExternalVar%PROP,                                         &
-            !               Me%VECG,                                                     &
-            !               Me%VECW)      
-            !griflet: new call                           
+
             call THOMAS_3D(JLBWS, JUBWS,                                                &
                            ILBWS, IUBWS,                                                &
                            KLBWS, KUBWS,                                                &
@@ -1607,19 +1577,6 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
             ! If the model is 3D the vertical diffusion must be implicit so is necessary to 
             ! compute the vertical diffusion  implicitly
             
-            !griflet: old call   
-            !CALL THOMASZ(ILBWS, IUBWS,                                                  &
-            !             JLBWS, JUBWS,                                                  &
-            !             KLBWS, KUBWS,                                                  &
-            !             Me%COEF3%D,                                                    &
-            !             Me%COEF3%E,                                                    &
-            !             Me%COEF3%F,                                                    &
-            !             Me%TICOEF3,                                                    &
-            !             Me%ExternalVar%PROP,                                           &
-            !             Me%VECG,                                                       &
-            !             Me%VECW)      
-        
-            !griflet: new call
             call THOMASZ(ILBWS, IUBWS,                                                  &
                          JLBWS, JUBWS,                                                  &
                          KLBWS, KUBWS,                                                  &

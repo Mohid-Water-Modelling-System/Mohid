@@ -44,38 +44,25 @@ Module ModuleModel
                                                UpdateComputeFaces3D
     use ModuleTurbulence,               only : ConstructTurbulence, Turbulence,          &
                                                KillTurbulence
-#ifndef _USE_SEQASSIMILATION
+                                               
     use ModuleHydrodynamic,             only : StartHydrodynamic, GetWaterLevel,         &
                                                GetHorizontalVelocity, GetChezy,          &
                                                GetVerticalVelocity,                      &
                                                Modify_Hydrodynamic, UnGetHydrodynamic,   &
-                                               KillHydrodynamic          
-#else
-    use ModuleHydrodynamic,             only : StartHydrodynamic, GetWaterLevel,         &
-                                               GetHorizontalVelocity, GetChezy,          &
-                                               GetVerticalVelocity,                      &
-                                               Modify_Hydrodynamic, UnGetHydrodynamic,   &
-                                               KillHydrodynamic,                         &
-                                               GetHydroSeqAssimilation,                  &
-                                               SetHydroVirtualRun          
-#endif _USE_SEQASSIMILATION
-#ifndef _USE_SEQASSIMILATION
+                                               KillHydrodynamic
+
     use ModuleWaterProperties,          only : Construct_WaterProperties,                &
                                                GetDensity, GetSigmaNoPressure, GetSigma, &
                                                GetDensityOptions, GetConcentration,      &
                                                UnGetWaterProperties,                     &
                                                WaterProperties_Evolution,                &
                                                KillWaterProperties
-#else
-    use ModuleWaterProperties,          only : Construct_WaterProperties,                &
-                                               GetDensity, GetSigmaNoPressure, GetSigma, &
-                                               GetDensityOptions, GetConcentration,      &
-                                               UnGetWaterProperties,                     &
-                                               WaterProperties_Evolution,                &
-                                               KillWaterProperties,                      &
-                                               GetWaterSeqAssimilation,                  &
-                                               SetWaterPropVirtualRun
-#endif
+
+#ifdef _USE_SEQASSIMILATION
+   use ModuleHydrodynamic,             only :  GetHydroSeqAssimilation, SetHydroVirtualRun          
+   use ModuleWaterProperties,          only :  GetWaterSeqAssimilation, SetWaterPropVirtualRun
+#endif _USE_SEQASSIMILATION
+
 
 #ifndef _LAGRANGIAN_
 #ifdef _LAGRANGIAN_GLOBAL_  

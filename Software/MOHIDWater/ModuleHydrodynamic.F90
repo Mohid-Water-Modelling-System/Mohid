@@ -673,7 +673,7 @@ Module ModuleHydrodynamic
 
     !Ways of computing the tide potential phase of each constituint using the doodson numbers
     integer, parameter     :: Kantha = 1, Lefevre=2
-
+    
 
     !Types---------------------------------------------------------------------
 
@@ -20273,6 +20273,9 @@ cd1:    if (Evolution == Solve_Equations_) then
             call Bottom_Boundary 
 
         else if (Evolution == ImposedSolution_) then cd1
+        
+            !use always the most recent data. Not centered in time always forward in time
+            Me%WaterFluxes%New_Old = 1.
 
             call ReadImposedSolution
 
@@ -20939,7 +20942,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                 !Z
                 if((Me%External_Var%ComputeFaces3D_W(i,j,k)==Compute).and. &
                    (Me%External_Var%ComputeFaces3D_W(i,j,k-1)==Compute)) then
-                    kv = ( Me%External_Var%Vertical_Viscosity(i, j, k-1) +             &
+                    kv = ( Me%External_Var%Vertical_Viscosity(i, j, k-1) +              &
                            Me%External_Var%Vertical_Viscosity(i, j, k  ) ) / 2.
                     fz(i,j,k) = kv * az
                 else
@@ -20952,25 +20955,25 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         enddo !do i
         enddo !do j
         !----Diffusion          
-         call ComputeDiffusion3D (ilb, iub, jlb, jub, klb, kub,                          &
-                dx, dy, dz,                                                              &
-                Me%External_Var%ComputeFaces3D_W,                                        &
-                fx, fy, fz,                                                              &
-                Me%WaterLevel%DT, Me%Velocity%Vertical%Cartesian,                        &
-                Me%External_Var%Volume_W,                                                &
-                Ticoef, Ecoef, DCoef, Fcoef,                                             &
-                0.,                                                                      &
-                0.,                                                                      &
-                Me%ComputeOptions%ImplicitVertDiffusion,                                 &
-                Me%ComputeOptions%HorizontalDiffusion,                                   &
-                Me%ComputeOptions%HorizontalDiffusion,                                   &
+         call ComputeDiffusion3D (ilb, iub, jlb, jub, klb, kub,                         &
+                dx, dy, dz,                                                             &
+                Me%External_Var%ComputeFaces3D_W,                                       &
+                fx, fy, fz,                                                             &
+                Me%WaterLevel%DT, Me%Velocity%Vertical%Cartesian,                       &
+                Me%External_Var%Volume_W,                                               &
+                Ticoef, Ecoef, DCoef, Fcoef,                                            &
+                0.,                                                                     &
+                0.,                                                                     &
+                Me%ComputeOptions%ImplicitVertDiffusion,                                &
+                Me%ComputeOptions%HorizontalDiffusion,                                  &
+                Me%ComputeOptions%HorizontalDiffusion,                                  &
                 Me%ComputeOptions%VerticalDiffusion)
         !----Interpolate Fluxes to W-Grid
         do k = klb, kub
         do j = jlb, jub + 1
         do i = ilb, iub + 1
-!            fx(i,j,k) = interpolate3D(Me%WaterFluxes%X,                                  &  
-!                                   Me%External_Var%DUX, Me%External_Var%DVY,             &
+!            fx(i,j,k) = interpolate3D(Me%WaterFluxes%X,                                &  
+!                                   Me%External_Var%DUX, Me%External_Var%DVY,           &
 !                                   Me%External_Var%DWZ, i, j, k, 0, 0, -1)
 
             aux = Me%External_Var%DUZ(i, j, k-1) /(Me%External_Var%DUZ(i, j, k-1) + Me%External_Var%DUZ(i, j, k))
@@ -20978,8 +20981,8 @@ cd2:        if      (Num_Discretization == Abbott    ) then
             fx(i,j,k) =             Me%External_Var%ComputeFaces3D_U(i,j,k  ) * Me%WaterFluxes%X(i,j,k  ) * aux  
             fx(i,j,k) = fx(i,j,k) + Me%External_Var%ComputeFaces3D_U(i,j,k-1) * Me%WaterFluxes%X(i,j,k-1) * (1.-aux)
 
-!            fy(i,j,k) = interpolate3D(Me%WaterFluxes%Y,                                  &  
-!                                   Me%External_Var%DUX, Me%External_Var%DVY,             &
+!            fy(i,j,k) = interpolate3D(Me%WaterFluxes%Y,                                &  
+!                                   Me%External_Var%DUX, Me%External_Var%DVY,           &
 !                                   Me%External_Var%DWZ, i, j, k, 0, 0, -1)
 
             aux = Me%External_Var%DVZ(i, j, k-1) /(Me%External_Var%DVZ(i, j, k-1) + Me%External_Var%DVZ(i, j, k))
@@ -20987,8 +20990,8 @@ cd2:        if      (Num_Discretization == Abbott    ) then
             fy(i,j,k) =             Me%External_Var%ComputeFaces3D_V(i,j,k  ) * Me%WaterFluxes%Y(i,j,k  ) * aux  
             fy(i,j,k) = fy(i,j,k) + Me%External_Var%ComputeFaces3D_V(i,j,k-1) * Me%WaterFluxes%Y(i,j,k-1) * (1.-aux)
 
-            !fz(i,j,k) = interpolate3D(Me%WaterFluxes%Z,                                  &  
-            !                       Me%External_Var%DUX, Me%External_Var%DVY,             &
+            !fz(i,j,k) = interpolate3D(Me%WaterFluxes%Z,                                &  
+            !                       Me%External_Var%DUX, Me%External_Var%DVY,           &
             !                       Me%External_Var%DWZ, i, j, k, 0, 0, -1)
             
             fz(i,j,k) =             Me%External_Var%ComputeFaces3D_W(i,j,k  ) * Me%WaterFluxes%Z(i,j,k  ) * 0.5
@@ -20998,25 +21001,25 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         enddo !do i
         enddo !do j
         !----Advection
-        call ComputeAdvection3D(ilb, iub, jlb, jub, klb, kub,                            &
-                    dx, dy, dz,                                                          &
-                    Me%External_Var%ComputeFaces3D_W,                                    &
-                    fx, fy, fz,                                                          &
-                    Me%WaterLevel%DT, Me%Velocity%Vertical%Cartesian,                    &
-                    Me%External_Var%Volume_W,                                            &
-                    Ticoef, Ecoef, DCoef, Fcoef,                                         &
-                    0.0,                                                                 &
-                    0.0,                                                                 &
-                    Me%ComputeOptions%ImplicitVertAdvection,                             &
-                    Me%ComputeOptions%HorizontalAdvection,                               &
-                    Me%ComputeOptions%HorizontalAdvection,                               &
-                    Me%ComputeOptions%VerticalAdvection,                                 &
-                    Me%ComputeOptions%AdvectionMethodH,                                  &
-                    Me%ComputeOptions%AdvectionMethodV,                                  &
-                    Me%ComputeOptions%TVD_LimH,                                          &
-                    Me%ComputeOptions%TVD_LimV,                                          &
-                    Me%ComputeOptions%VolumeRelMax,                                      &
-                    Me%ComputeOptions%Upwind2H,                                          &
+        call ComputeAdvection3D(ilb, iub, jlb, jub, klb, kub,                           &
+                    dx, dy, dz,                                                         &
+                    Me%External_Var%ComputeFaces3D_W,                                   &
+                    fx, fy, fz,                                                         &
+                    Me%WaterLevel%DT, Me%Velocity%Vertical%Cartesian,                   &
+                    Me%External_Var%Volume_W,                                           &
+                    Ticoef, Ecoef, DCoef, Fcoef,                                        &
+                    0.0,                                                                &
+                    0.0,                                                                &
+                    Me%ComputeOptions%ImplicitVertAdvection,                            &
+                    Me%ComputeOptions%HorizontalAdvection,                              &
+                    Me%ComputeOptions%HorizontalAdvection,                              &
+                    Me%ComputeOptions%VerticalAdvection,                                &
+                    Me%ComputeOptions%AdvectionMethodH,                                 &
+                    Me%ComputeOptions%AdvectionMethodV,                                 &
+                    Me%ComputeOptions%TVD_LimH,                                         &
+                    Me%ComputeOptions%TVD_LimV,                                         &
+                    Me%ComputeOptions%VolumeRelMax,                                     &
+                    Me%ComputeOptions%Upwind2H,                                         &
                     Me%ComputeOptions%Upwind2V) 
 
         !Compute the momentum discharge 
@@ -21321,6 +21324,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         real(8), dimension (:,:,:), pointer  :: p         ! coefficient matrix (diagonal elements)
         real,    dimension (:,:,:), pointer  :: q         ! independdent term
         real,    dimension (:,:,:), pointer  :: pc        ! previsional pressure correction
+        integer, dimension (:,:  ), pointer  :: KFloorZ   ! bottom layer
         integer                              :: di, dj    ! index change due to calculation direction
         real                                 :: dt        ! time step
         real                                 :: az        ! cell face area in Z direction
@@ -21330,6 +21334,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         integer                              :: i, j, k   ! counters
         integer                              :: ILB, IUB, JLB, JUB, KLB, KUB !bounds
         integer                              :: status 
+        integer                              :: kbottom, ii, jj
         ! integer                              :: CHUNK
         
         !Begin----------------------------------------------------------------------
@@ -21348,6 +21353,8 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         KLB = Me%WorkSize%KLB
         KUB = Me%WorkSize%KUB
         dt = Me%WaterLevel%DT
+        
+        KFloorZ => Me%External_Var%KFloor_Z
 
         if (Me%Relaxation%Force) then        
 
@@ -21454,18 +21461,29 @@ cd2:        if      (Num_Discretization == Abbott    ) then
 
         if (Me%ComputeOptions%WaterDischarges) call NonHydroDischarges
         
-        call NonHydroOpenBoundary()
+        call NonHydroOpenBoundary(InTime = Implicit_)
+
+
+        if (Me%DDecomp%ON) then
+!            Similar THOMAS_2D_DDecomp
+!            call BICGSTAB2D_DDecomp
+        else
+
+            call BICGSTAB2D(pc, p, s, n, w, e, q,               &
+                              ilb, iub, jlb, jub, klb, kub,     &
+                              dj,                               &
+                              Me%NonHydroStatic%MaxIt,          &
+                              Me%NonHydroStatic%Residual,       &
+                              Me%External_Var%OpenPoints3D,     &
+                              Me%NonHydroStatic%AlphaLU,        &
+                              Me%NonHydroStatic%NormalizedResidual)
+            
+        endif
+        
+        call NonHydroOpenBoundary(InTime = Explicit_)
 
         !
         !----Solve the syste
-        call BICGSTAB2D(pc, p, s, n, w, e, q,               &
-                          ilb, iub, jlb, jub, klb, kub,     &
-                          dj,                               &
-                          Me%NonHydroStatic%MaxIt,          &
-                          Me%NonHydroStatic%Residual,       &
-                          Me%External_Var%OpenPoints3D,     &
-                          Me%NonHydroStatic%AlphaLU,        &
-                          Me%NonHydroStatic%NormalizedResidual)
         !
         !----Correction (of velocity and water level accordingly to 'pc')
         !
@@ -21485,7 +21503,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
 !            if((.not.Me%ComputeOptions%Compute_Tide).or. &
 !              (Me%External_Var%BoundaryPoints(i, j)/=Boundary)) then
 
-            if(Me%External_Var%OpenPoints3D(i, j, KUB) == OpenPoint) then 
+            if(Me%External_Var%OpenPoints3D  (i, j, KUB) == OpenPoint) then 
                 ![m]= [m^2/s^2]     / [m/s^2]
                 pcl = pc(i, j, KUB) / Gravity
                 if(abs(pcl)<AllmostZero) pcl = 0. ! only correct after level if pc is something
@@ -21501,6 +21519,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         ! !!$OMP END DO
         ! !!$OMP END PARALLEL
         
+
 
         ! !!$OMP PARALLEL PRIVATE(i,j,k,pcl)
         ! !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -21532,6 +21551,8 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         
         !----restore values on p (avoid divisions by zero at later stages of calculation)
         call SetMatrixValue(p, Me%WorkSize, dble(1.0))
+        
+        nullify (w, s, p, n, e, q, pc, KFloorZ)
 
     End Subroutine NonHydroStaticCorrection
     !End------------------------------------------------------------
@@ -21546,23 +21567,26 @@ cd2:        if      (Num_Discretization == Abbott    ) then
     ! e-mail : hernanitheias@netcabo.pt                                                       !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Subroutine NonHydroOpenBoundary()
+    Subroutine NonHydroOpenBoundary(InTime)
+        !Arguments------------------------------------------------------------------
+        integer, intent(IN)                  :: InTime
         !Local----------------------------------------------------------------------
         real,    dimension (:,:,:), pointer  :: e,w,s,n   ! coefficient matrix (non-diagonals elements)
         real(8), dimension (:,:,:), pointer  :: p         ! coefficient matrix (diagonal elements)
-        real,    dimension (:,:,:), pointer  :: q         ! independdent term
+        real,    dimension (:,:,:), pointer  :: q, pc     ! independdent term
         integer                              :: i, j, k   ! counters
         integer                              :: ILB, IUB, JLB, JUB, KUB ! bounds
         ! integer                              :: CHUNK
         
         !Begin----------------------------------------------------------------------
         !----Shorten variables names
-        s => Me%Coef%D3%D
-        p => Me%Coef%D3%E
-        n => Me%Coef%D3%F
-        q => Me%Coef%D3%TI
-        w => Me%NonHydroStatic%CCoef
-        e => Me%NonHydroStatic%GCoef
+        s   => Me%Coef%D3%D
+        p   => Me%Coef%D3%E
+        n   => Me%Coef%D3%F
+        q   => Me%Coef%D3%TI
+        w   => Me%NonHydroStatic%CCoef
+        e   => Me%NonHydroStatic%GCoef
+        pc  => Me%NonHydroStatic%PrevisionalQ
         
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -21593,39 +21617,60 @@ Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
 
                     if      (Me%External_Var%BoundaryPoints(i-1, j) == Boundary) then
                         
-                        if      (Me%Direction%XY == DirectionY_) then
-                            e(i-1, j, k) =  0.
-                            w(i-1, j, k) =  0.
-                            p(i-1, j, k) =  1.  
-                            s(i-1, j, k) =  0.
-                            n(i-1, j, k) = -1.
-                            q(i-1, j, k) =  0.
-                        elseif  (Me%Direction%XY == DirectionX_) then
-                            e(i-1, j, k) = e(i, j, k)
-                            w(i-1, j, k) = w(i, j, k)
-                            p(i-1, j, k) = p(i, j, k)
-                            s(i-1, j, k) = s(i, j, k)
-                            n(i-1, j, k) = n(i, j, k)
-                            q(i-1, j, k) = q(i, j, k)
-                        endif
+                        if (InTime == Implicit_) then
+                            
+                            if      (Me%Direction%XY == DirectionY_) then
+                                e(i-1, j, k) =  0.
+                                w(i-1, j, k) =  0.
+                                p(i-1, j, k) =  1.  
+                                s(i-1, j, k) =  0.
+                                n(i-1, j, k) = -1.
+                                q(i-1, j, k) =  0.
+                            elseif  (Me%Direction%XY == DirectionX_) then
+                                e(i-1, j, k) = 0.
+                                w(i-1, j, k) = 0.
+                                p(i-1, j, k) = 1.
+                                s(i-1, j, k) = 0.
+                                n(i-1, j, k) = 0.
+                                q(i-1, j, k) = pc(i-1, j, k)
+                            endif
+                            
+                        elseif (InTime == Explicit_) then
                         
+                            if  (Me%Direction%XY == DirectionX_) then
+                                pc(i-1, j, k) = pc(i, j, k)
+                            endif                                
+                            
+                        endif                   
+                             
                     else if (Me%External_Var%BoundaryPoints(i, j) == Boundary) then
 
-                        if      (Me%Direction%XY == DirectionY_) then                  
-                            e(i, j, k) =  0.
-                            w(i, j, k) =  0.
-                            p(i, j, k) =  1.
-                            s(i, j, k) = -1.
-                            n(i, j, k) =  0.
-                            q(i, j, k) =  0.
-                        elseif  (Me%Direction%XY == DirectionX_) then
-                            e(i, j, k) = e(i-1, j, k)
-                            w(i, j, k) = w(i-1, j, k)
-                            p(i, j, k) = p(i-1, j, k)
-                            s(i, j, k) = s(i-1, j, k)
-                            n(i, j, k) = n(i-1, j, k)
-                            q(i, j, k) = q(i-1, j, k)
-                        endif
+                        if (InTime == Implicit_) then
+
+                            if      (Me%Direction%XY == DirectionY_) then                  
+                                e(i, j, k) =  0.
+                                w(i, j, k) =  0.
+                                p(i, j, k) =  1.
+                                s(i, j, k) = -1.
+                                n(i, j, k) =  0.
+                                q(i, j, k) =  0.
+                            elseif  (Me%Direction%XY == DirectionX_) then
+                                e(i, j, k) = 0.
+                                w(i, j, k) = 0.
+                                p(i, j, k) = 1
+                                s(i, j, k) = 0.
+                                n(i, j, k) = 0.
+                                q(i, j, k) = pc(i, j, k)
+                            endif
+
+                        elseif (InTime == Explicit_) then
+                        
+                            if  (Me%Direction%XY == DirectionX_) then
+                                pc(i, j, k) = pc(i-1, j, k)
+                            endif                                
+                            
+                        endif                        
+                            
                     endif
 
                 enddo ! do k
@@ -21643,40 +21688,61 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
                 do k = Me%External_Var%KFloor_U(i, j), KUB
 
                     if      (Me%External_Var%BoundaryPoints(i, j - 1) == Boundary) then
+                    
+                        if (InTime == Implicit_) then                    
 
-                        if      (Me%Direction%XY == DirectionX_) then
-                            e(i, j-1, k) =  0.
-                            w(i, j-1, k) =  0.
-                            p(i, j-1, k) =  1.
-                            s(i, j-1, k) =  0.
-                            n(i, j-1, k) = -1.
-                            q(i, j-1, k) =  0.
-                        elseif  (Me%Direction%XY == DirectionY_) then
-                            e(i, j-1, k) = e(i, j, k)
-                            w(i, j-1, k) = w(i, j, k)
-                            p(i, j-1, k) = p(i, j, k)
-                            s(i, j-1, k) = s(i, j, k)
-                            n(i, j-1, k) = n(i, j, k)
-                            q(i, j-1, k) = q(i, j, k)
-                        endif
+                            if      (Me%Direction%XY == DirectionX_) then
+                                e(i, j-1, k) =  0.
+                                w(i, j-1, k) =  0.
+                                p(i, j-1, k) =  1.
+                                s(i, j-1, k) =  0.
+                                n(i, j-1, k) = -1.
+                                q(i, j-1, k) =  0.
+                            elseif  (Me%Direction%XY == DirectionY_) then
+                                e(i, j-1, k) = 0.
+                                w(i, j-1, k) = 0.
+                                p(i, j-1, k) = 1.
+                                s(i, j-1, k) = 0.
+                                n(i, j-1, k) = 0.
+                                q(i, j-1, k) = pc(i, j-1, k)
+                            endif
+                            
+                        elseif (InTime == Explicit_) then
+                        
+                            if  (Me%Direction%XY == DirectionY_) then
+                                pc(i, j-1, k) = pc(i, j, k)
+                            endif                                
+                            
+                        endif                             
 
                     else if (Me%External_Var%BoundaryPoints(i, j) == Boundary) then
+                    
+                        if (InTime == Implicit_) then                    
 
-                        if      (Me%Direction%XY == DirectionX_) then                    
-                            e(i, j, k) =  0.
-                            w(i, j, k) =  0.
-                            p(i, j, k) =  1.
-                            s(i, j, k) = -1.
-                            n(i, j, k) =  0.
-                            q(i, j, k) =  0.
-                        elseif  (Me%Direction%XY == DirectionY_) then
-                            e(i, j, k) = e(i, j-1, k)
-                            w(i, j, k) = w(i, j-1, k)
-                            p(i, j, k) = p(i, j-1, k)
-                            s(i, j, k) = s(i, j-1, k)
-                            n(i, j, k) = n(i, j-1, k)
-                            q(i, j, k) = q(i, j-1, k)
-                        endif
+                            if      (Me%Direction%XY == DirectionX_) then                    
+                                e(i, j, k) =  0.
+                                w(i, j, k) =  0.
+                                p(i, j, k) =  1.
+                                s(i, j, k) = -1.
+                                n(i, j, k) =  0.
+                                q(i, j, k) =  0.
+                            elseif  (Me%Direction%XY == DirectionY_) then
+                                e(i, j, k) = 0.
+                                w(i, j, k) = 0.
+                                p(i, j, k) = 1.
+                                s(i, j, k) = 0.
+                                n(i, j, k) = 0.
+                                q(i, j, k) = pc(i, j, k)
+                            endif
+
+                        elseif (InTime == Explicit_) then
+                        
+                            if  (Me%Direction%XY == DirectionY_) then
+                                pc(i, j, k) = pc(i, j-1, k)
+                            endif                                
+                            
+                        endif                             
+                        
                     endif
 
                 enddo ! do k
@@ -21695,6 +21761,7 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
         nullify(w)
         nullify(s)
         nullify(n)
+        nullify(pc)
     end subroutine NonHydroOpenBoundary
     !End------------------------------------------------------------
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
