@@ -148,6 +148,7 @@ Module ModuleMERCATORFormat
         integer, dimension(12)                  :: Instants(1:12) = 0
         logical                                 :: ComputeBarotropicVel = .false.
         logical                                 :: MyOceanPSY4QV2R2 = .false.
+        character(len=StringLength)             :: MappingVarName
     end type  T_MERCATORFormat
 
     type(T_MERCATORFormat), pointer             :: Me
@@ -542,8 +543,16 @@ Module ModuleMERCATORFormat
                      default      = .false.,                                            &
                      ClientModule = 'ModuleMERCATORFormat',                             &
                      STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleMERCATORFormat - ERR150'
-        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleMERCATORFormat - ERR150'
+                
+        call GetData(Me%MappingVarName,                                                 &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'MAP_VAR_NAME',                                     &
+                     default      = 'temperature',                                      &
+                     ClientModule = 'ModuleMERCATORFormat',                             &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleMERCATORFormat - ERR151'
         
 
     end subroutine ReadOptions
@@ -2261,7 +2270,7 @@ i2:                     if (CheckName(nameAux, MohidName)) then
                 
                             if      (nDimensions == 4) then
                             
-                                if (MohidName == GetPropertyName(Temperature_)) then 
+                                if (MohidName == trim(adjustl(Me%MappingVarName))) then 
 
                                     status = NF90_GET_VAR(ncid,n,Aux4D)
                                     if (status /= nf90_noerr)                           &
