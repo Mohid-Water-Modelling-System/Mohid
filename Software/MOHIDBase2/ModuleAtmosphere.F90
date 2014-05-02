@@ -116,6 +116,8 @@ Module ModuleAtmosphere
     private ::          OutPutResultsHDF5
     private ::          OutPut_TimeSeries
     private ::          OutPut_Statistics
+    private ::      ModifyAtmospDeposOxidNO3  !LLP
+    private ::      ModifyAtmospDeposReduNH4   !LLP
 
     !Destructor
     public  ::  KillAtmosphere
@@ -2128,6 +2130,12 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
 
             call SearchProperty(PropertyX, MeanSeaLevelPressure_, STAT = STAT_CALL) 
             if (STAT_CALL == SUCCESS_) call ModifyMeanSeaLevelPressure (PropertyX)
+            
+            call SearchProperty(PropertyX, AtmospDeposOxidNO3_, STAT = STAT_CALL) !LLP
+            if (STAT_CALL == SUCCESS_) call ModifyAtmospDeposOxidNO3 (PropertyX)
+            
+            call SearchProperty(PropertyX, AtmospDeposReduNH4_, STAT = STAT_CALL)  !LLP
+            if (STAT_CALL == SUCCESS_) call ModifyAtmospDeposReduNH4 (PropertyX)
 
             call ModifyRandom
             
@@ -3391,6 +3399,61 @@ do1 :   do while (associated(PropertyX))
     end subroutine ModifyPropByIrri
 
     !--------------------------------------------------------------------------
+    
+    subroutine ModifyAtmospDeposOxidNO3 (PropAtmospDeposOxidNO3)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Property), pointer                   :: PropAtmospDeposOxidNO3
+
+        !Begin-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        if (PropAtmospDeposOxidNO3%ID%SolutionFromFile) then  !LLP
+
+            call ModifyFillMatrix (FillMatrixID   = PropAtmospDeposOxidNO3%ID%ObjFillMatrix, &
+                                   Matrix2D       = PropAtmospDeposOxidNO3%Field,            &
+                                   PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
+                                   STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyAtmospDeposOxidNO3 - ModuleAtmosphere - ERR01'
+
+            if (PropAtmospDeposOxidNO3%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropAtmospDeposOxidNO3%ID%ObjFillMatrix, PropAtmospDeposOxidNO3%PredictedDT,    &
+                                                PropAtmospDeposOxidNO3%DTForNextEvent, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyPropAtmospDeposOxidNO3 - ModuleAtmosphere - ERR02'
+        endif
+
+        endif
+
+    end subroutine ModifyAtmospDeposOxidNO3
+
+    !------------------------------------------------------------------------------
+    subroutine ModifyAtmospDeposReduNH4 (PropAtmospDeposReduNH4)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Property), pointer                   :: PropAtmospDeposReduNH4
+
+        !Begin-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        if (PropAtmospDeposReduNH4%ID%SolutionFromFile) then  !LLP
+
+            call ModifyFillMatrix (FillMatrixID   = PropAtmospDeposReduNH4%ID%ObjFillMatrix, &
+                                   Matrix2D       = PropAtmospDeposReduNH4%Field,            &
+                                   PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
+                                   STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyAtmospDeposReduNH4 - ModuleAtmosphere - ERR01'
+
+            if (PropAtmospDeposReduNH4%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropAtmospDeposReduNH4%ID%ObjFillMatrix, PropAtmospDeposReduNH4%PredictedDT,    &
+                                                PropAtmospDeposReduNH4%DTForNextEvent, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyAtmospDeposReduNH4 - ModuleAtmosphere - ERR02'
+        endif
+
+        endif
+
+    end subroutine ModifyAtmospDeposReduNH4
+
+    !------------------------------------------------------------------------------
 
     subroutine ClimatologicSolarRadiation(PropSolarRadiation)
 

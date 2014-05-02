@@ -481,7 +481,8 @@ Module ModuleGlobalData
     integer, parameter :: LongWaveSolarRadiationExtin_      = 519
     integer, parameter :: SpecificOxygenFlux_               = 520
     integer, parameter :: SpecificCarbonDioxideFlux_        = 521
-
+    integer, parameter :: AmmoniaFlux_                      = 522
+    integer, parameter :: NitrateFlux_                      = 523
 
 
     !AtmosProperties
@@ -507,6 +508,8 @@ Module ModuleGlobalData
     integer, parameter :: WindModulusBeaufort_              = 619
     integer, parameter :: HydrogenSulfide_                  = 620
     integer, parameter :: MethylMercaptan_                  = 621
+    integer, parameter :: AtmospDeposOxidNO3_               = 622
+    integer, parameter :: AtmospDeposReduNH4_               = 623
 
     !Basin Properties
     integer, parameter :: RefEvapotrans_                    = 708
@@ -1331,6 +1334,8 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SpecificOxygenFlux       = 'specific oxygen flux'
     character(StringLength), private, parameter :: Char_CarbonDioxideFlux        = 'carbon dioxide flux'
     character(StringLength), private, parameter :: Char_SpecificCarbonDioxideFlux= 'specific carbon dioxide flux'
+    character(StringLength), private, parameter :: Char_AmmoniaFlux              = 'ammonia flux'
+    character(StringLength), private, parameter :: Char_NitrateFlux              = 'nitrate flux'
     character(StringLength), private, parameter :: Char_WindShearVelocity        = 'wind shear velocity'
     character(StringLength), private, parameter :: Char_SurfaceRadiation         = 'surface radiation'
     character(StringLength), private, parameter :: Char_WindStressX              = 'wind stress X'
@@ -1364,6 +1369,9 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_O2AtmosphericPressure    = 'O2 atmospheric pressure'    
     character(StringLength), private, parameter :: Char_HydrogenSulfide          = 'hydrogen sulfide'           ! H2S
     character(StringLength), private, parameter :: Char_MethylMercaptan          = 'methyl mercaptan'           ! or methanethiol 
+    character(StringLength), private, parameter :: Char_AtmospDeposOxidNO3       = 'atmospheric deposition oxidized NO3' !LLP
+    character(StringLength), private, parameter :: Char_AtmospDeposReduNH4       = 'atmospheric deposition reduced NH4'  !LLP
+    
 
     
     !Sand Transport
@@ -2546,6 +2554,8 @@ Module ModuleGlobalData
             call AddPropList (CarbonDioxideFlux_ ,         Char_CarbonDioxideFlux,         ListNumber)
             call AddPropList (SpecificCarbonDioxideFlux_ , Char_SpecificCarbonDioxideFlux, ListNumber)
             call AddPropList (Albedo_ ,                    Char_Albedo,                    ListNumber)
+            call AddPropList (AmmoniaFlux_ ,               Char_AmmoniaFlux,               ListNumber)
+            call AddPropList (NitrateFlux_ ,               Char_NitrateFlux,               ListNumber)
 
 
             call AddPropList (WindVelocityX_,           Char_WindVelocityX          ,      ListNumber)
@@ -2564,6 +2574,8 @@ Module ModuleGlobalData
             call AddPropList (Irrigation_,              Char_Irrigation             ,      ListNumber)
             call AddPropList (SunHours_ ,               Char_SunHours               ,      ListNumber)
             call AddPropList (ATMTransmitivity_ ,       Char_ATMTransmitivity       ,      ListNumber)
+            call AddPropList (AtmospDeposOxidNO3_ ,     Char_AtmospDeposOxidNO3     ,      ListNumber)
+            call AddPropList (AtmospDeposReduNH4_ ,     Char_AtmospDeposReduNH4     ,      ListNumber)
 
             call AddPropList (MeanSeaLevelPressure_ ,   Char_MeanSeaLevelPressure,      ListNumber)
             call AddPropList (WindModulus_ ,            Char_WindModulus         ,      ListNumber)

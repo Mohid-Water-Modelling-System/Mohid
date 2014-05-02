@@ -37,6 +37,7 @@ Module ModuleInterfaceWaterAir
                                           LatentHeat, SensibleHeat, LongWaveDownward,           &
                                           LongWaveUpward, AerationFlux, AerationFlux_CO2,       &
                                           SetMatrixValue, CHUNK_J
+                                          
     use ModuleEnterData,            only: ConstructEnterData, GetData, ExtractBlockFromBuffer,  &
                                           Block_Unlock, GetOutPutTime, ReadFileName,            &
                                           KillEnterData   
@@ -133,6 +134,8 @@ Module ModuleInterfaceWaterAir
     private ::          ModifyCarbonDioxideFlux
     private ::              ModifyAerationFlux
     private ::              ModifyCO2AerationFlux
+    private ::          ModifyNitrateFlux
+    private ::          ModifyAmmoniaFlux
     private ::          ModifySurfaceRadiation
     private ::              ComputeSurfaceRadiation
     private ::          ModifyNonSolarFlux
@@ -209,7 +212,9 @@ Module ModuleInterfaceWaterAir
     type       T_Ext_Options
         logical                                     :: HeatFluxYes                  = .false.
         logical                                     :: OxygenFluxYes                = .false.
-        logical                                     :: CarbonDioxideFluxYes         = .false.       
+        logical                                     :: CarbonDioxideFluxYes         = .false.
+        logical                                     :: AmmoniaFluxYes               = .false.
+        logical                                     :: NitrateFluxYes               = .false.       
         logical                                     :: WQMYes                       = .false.
         logical                                     :: SurfaceWaterFluxYes          = .false.
         logical                                     :: HydrodynamicWindYes          = .false.
@@ -240,6 +245,8 @@ Module ModuleInterfaceWaterAir
         logical                                     :: NonSolarFlux                 = .false.
         logical                                     :: OxygenFlux                   = .false.
         logical                                     :: CarbonDioxideFlux            = .false.
+        logical                                     :: AmmoniaFlux                  = .false.
+        logical                                     :: NitrateFlux                  = .false.
         logical                                     :: SpecificOxygenFlux           = .false.
         logical                                     :: SpecificCarbonDioxideFlux    = .false.        
         logical                                     :: WindShearVelocity            = .false.
@@ -279,6 +286,8 @@ Module ModuleInterfaceWaterAir
         type(T_ExtField)                            :: WindVelocityX
         type(T_ExtField)                            :: WindVelocityY
         type(T_ExtField)                            :: WindDirection
+        type(T_ExtField)                            :: AtmospDeposOxidNO3
+        type(T_ExtField)                            :: AtmospDeposReduNH4
     end type T_Ext_Atm
 
     private :: T_Local_Atm
@@ -373,6 +382,8 @@ Module ModuleInterfaceWaterAir
         integer                                     :: CO2AerationEquation      = FillValueInt
         real                                        :: Altitude                 = FillValueReal
         real                                        :: AltitudeCorrection       = FillValueReal
+        real                                        :: ReNAtmDep                = FillValueReal
+        real                                        :: OxNAtmDep                = FillValueReal 
 
         integer                                     :: PropertiesNumber         = 0
 
@@ -1815,6 +1826,12 @@ do1 :   do while (associated(PropertyX))
         call Search_Property(PropertyX, SpecificCarbonDioxideFlux_,  STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) Me%IntOptions%SpecificCarbonDioxideFlux  = ON
         
+        call Search_Property(PropertyX, AmmoniaFlux_,             STAT = STAT_CALL)  !LLP
+        if (STAT_CALL == SUCCESS_) Me%IntOptions%AmmoniaFlux             = ON
+        
+        call Search_Property(PropertyX, NitrateFlux_,             STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) Me%IntOptions%NitrateFlux             = ON
+        
         call Search_Property(PropertyX, TurbulentKineticEnergy_, STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) Me%IntOptions%TurbulentKineticEnergy = ON
 
@@ -1855,11 +1872,13 @@ do1 :   do while (associated(PropertyX))
                                           TemperatureFluxYes   = Me%ExtOptions%HeatFluxYes,            &
                                           OxygenFluxYes        = Me%ExtOptions%OxygenFluxYes,          &
                                           CarbonDioxideFluxYes = Me%ExtOptions%CarbonDioxideFluxYes,   &
+                                          AmmoniaFluxYes       = Me%ExtOptions%AmmoniaFluxYes,         &  !LLP
+                                          NitrateFluxYes       = Me%ExtOptions%NitrateFluxYes,         &
                                           WQMYes               = Me%ExtOptions%WQMYes,                 &
                                           T90VariableYes       = Me%ExtOptions%T90VariableYes,         &   
                                           STAT                 = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR10'
-
+ 
         !Checks Hydrodynamic 
         call GetHydrodynamicAirOptions(HydrodynamicID      = Me%ObjHydrodynamic,                &
                                        SurfaceWaterFluxYes = Me%ExtOptions%SurfaceWaterFluxYes, &
@@ -1955,13 +1974,25 @@ do1 :   do while (associated(PropertyX))
            
         endif
 
+        if (Me%ExtOptions%AmmoniaFluxYes) then    !LLP
 
+            call Search_Property(PropertyX, AmmoniaFlux_, .true., STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR140'
+            
+        endif
+
+        if (Me%ExtOptions%NitrateFluxYes) then
+
+            call Search_Property(PropertyX, NitrateFlux_, .true., STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR140b'         
+           
+        endif
 
 
         if (Me%ExtOptions%SurfaceWaterFluxYes) then
 
             call Search_Property(PropertyX, SurfaceWaterFlux_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR140'
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR150'
 
             Me%ExtOptions%Precipitation = AtmospherePropertyExists(Me%ObjAtmosphere, Precipitation_)
             Me%ExtOptions%Irrigation    = AtmospherePropertyExists(Me%ObjAtmosphere, Irrigation_   )         
@@ -1974,11 +2005,11 @@ do1 :   do while (associated(PropertyX))
         if (Me%ExtOptions%HydrodynamicWindYes) then
 
             call Search_Property(PropertyX, WindStressX_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR150'
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR160'
 
 
             call Search_Property(PropertyY, WindStressY_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR160'
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR170'
 
             if ((      PropertyX%ID%SolutionFromFile .and. .not. PropertyY%ID%SolutionFromFile) .or. &
                 (.not. PropertyX%ID%SolutionFromFile .and.       PropertyY%ID%SolutionFromFile)) then
@@ -1995,7 +2026,7 @@ do1 :   do while (associated(PropertyX))
 
             if (.not.AtmospherePropertyExists(Me%ObjAtmosphere, AtmosphericPressure_)) then
                 write(*,*) 'Missing AtmosphericPressure in Module Atmosphere'
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR180'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR190'
             endif
 
         endif
@@ -2005,7 +2036,7 @@ do1 :   do while (associated(PropertyX))
 
             if (.not.AtmospherePropertyExists(Me%ObjAtmosphere, MeanSeaLevelPressure_)) then
                 write(*,*) 'Missing mslp in Module Atmosphere'
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR181'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR191'
             endif
 
         endif
@@ -2019,7 +2050,7 @@ do1 :   do while (associated(PropertyX))
                 .and. .not. AtmospherePropertyExists(Me%ObjAtmosphere, MeanSeaLevelPressure_)) then
 
                 write(*,*) 'Missing AtmosphericPressure or Mslp in Module Atmosphere '
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR190'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR200'
 
             endif
 
@@ -2029,12 +2060,12 @@ do1 :   do while (associated(PropertyX))
 
             if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
                 write(*,*) 'Missing WindVelocity in Module Atmosphere '
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR200'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR210'
             endif
 
             if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
                 write(*,*) 'Missing WindVelocity in Module Atmosphere '
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR210'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR220'
             endif
 
         endif
@@ -2044,7 +2075,7 @@ do1 :   do while (associated(PropertyX))
             
             if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, SolarRadiation_))then
                 write(*,*) 'Missing SolarRadiation in Module Atmosphere '
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR220'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR230'
             endif
 
         endif
@@ -2069,7 +2100,7 @@ do1 :   do while (associated(PropertyX))
                 
             else if (STAT_CALL /= SUCCESS_) then
             
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR230'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR240'
                 
             endif
             
@@ -2300,7 +2331,24 @@ do1 :   do while (associated(PropertyX))
             endif
         endif
         
+        call Search_Property(PropertyX, AmmoniaFlux_, .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, AtmospDeposReduNH4_))then
+                write(*,*) 'Missing Atmospheric Deposition Reduced NH4 in Module Atmosphere '
+                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR140'
+            endif
+
+        endif
         
+        call Search_Property(PropertyX, NitrateFlux_, .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            
+             if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, AtmospDeposOxidNO3_))then
+                write(*,*) 'Missing Atmospheric Deposition Oxidized NO3 in Module Atmosphere '
+                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR150'
+            endif
+        endif
 
     end subroutine CheckOptionsAir
 
@@ -2704,6 +2752,16 @@ do1 :   do while (associated(PropertyX))
         if(Me%IntOptions%CarbonDioxideFlux)then
             call Search_Property(PropertyX, CarbonDioxideFlux_,      STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) call ModifyCarbonDioxideFlux  (PropertyX)
+        endif
+        
+        if(Me%IntOptions%AmmoniaFlux)then
+            call Search_Property(PropertyX, AmmoniaFlux_,      STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_)  call ModifyAmmoniaFlux   (PropertyX)
+        endif
+        
+        if(Me%IntOptions%NitrateFlux)then
+            call Search_Property(PropertyX, NitrateFlux_,      STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) call ModifyNitrateFlux  (PropertyX)
         endif
 
         if(Me%IntOptions%WindShearVelocity)then
@@ -4043,6 +4101,106 @@ do4:    do i=ILB, IUB
     end subroutine ModifyCO2AerationFlux
     
     !--------------------------------------------------------------------------  
+    !---------------------------------------------------------------------------
+    
+    subroutine ModifyAmmoniaFlux(PropAmmoniaFlux)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Property),         pointer :: PropAmmoniaFlux
+
+        !External---------------------------------------------------------------
+        integer                            :: STAT_CALL
+
+        !Local------------------------------------------------------------------
+        real,    dimension(:,:  ),    pointer   :: AtmospDepositionR
+        integer                            :: i, j
+        integer                            :: CHUNK
+        integer                            :: ILB, IUB, JLB, JUB
+        !Begin------------------------------------------------------------------
+       
+        ILB = Me%WorkSize2D%ILB
+        IUB = Me%WorkSize2D%IUB
+        JLB = Me%WorkSize2D%JLB
+        JUB = Me%WorkSize2D%JUB
+
+        
+       call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,                 &
+                                   Scalar       = Me%ExtAtm%AtmospDeposReduNH4%Field, &
+                                   ID           = AtmospDeposReduNH4_,                &
+                                   STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ModifyAmmoniaFlux - ModuleInterfaceWaterAir - ERR10'
+        
+        AtmospDepositionR  => Me%ExtAtm%AtmospDeposReduNH4%Field
+        
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
+                
+                PropAmmoniaFlux%Field(i,j) = AtmospDepositionR(i,j)
+               
+            endif
+
+        end do
+        end do  
+        
+        call UnGetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%AtmospDeposReduNH4%Field, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyAmmoniaFlux - ModuleInterfaceWaterAir - ERR20'
+
+    end subroutine ModifyAmmoniaFlux
+
+   !-------------------------------------------------------------------------- 
+  
+
+   
+   
+   subroutine ModifyNitrateFlux(PropNitrateFlux)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Property),         pointer :: PropNitrateFlux
+
+        !External---------------------------------------------------------------
+        integer                            :: STAT_CALL
+
+        !Local------------------------------------------------------------------
+        real,    dimension(:,:  ),    pointer   :: AtmospDepositionO
+        integer                            :: i, j
+        integer                            :: CHUNK
+        integer                            :: ILB, IUB, JLB, JUB
+        !Begin------------------------------------------------------------------
+
+        ILB = Me%WorkSize2D%ILB
+        IUB = Me%WorkSize2D%IUB
+        JLB = Me%WorkSize2D%JLB
+        JUB = Me%WorkSize2D%JUB
+
+        call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,                 &
+                                   Scalar       = Me%ExtAtm%AtmospDeposOxidNO3%Field, &
+                                   ID           = AtmospDeposOxidNO3_,                &
+                                   STAT         = STAT_CALL)
+        
+        if (STAT_CALL /= SUCCESS_)stop 'ModifyNitrateFlux - ModuleInterfaceWaterAir - ERR10'
+        
+        AtmospDepositionO  => Me%ExtAtm%AtmospDeposOxidNO3%Field
+       
+        
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
+                
+                PropNitrateFlux%Field(i,j) = AtmospDepositionO(i,j)
+               
+            endif
+
+        end do
+        end do  
+        
+        call UnGetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%AtmospDeposOxidNO3%Field, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNitrateFlux - ModuleInterfaceWaterAir - ERR20'
+
+    end subroutine ModifyNitrateFlux
+
+   !-------------------------------------------------------------------------- 
+   
 
     subroutine ModifyWindShearVelocity
 
@@ -4510,6 +4668,36 @@ PropX:          do while (associated(PropertyX))
 
         endif
 
+
+        if(Me%ExtOptions%AmmoniaFluxYes)then   !LLP
+
+            call Search_Property(PropertyX, AmmoniaFlux_, STAT = STAT_CALL) 
+            if (STAT_CALL == SUCCESS_)then
+
+                call SetSurfaceFlux(Me%ObjWaterProperties,                  &
+                                    PropertyX%ID%IDNumber,                  &
+                                    PropertyX%Field,                        &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR45'
+            endif
+
+        endif
+        
+        if(Me%ExtOptions%NitrateFluxYes)then   !LLP
+
+            call Search_Property(PropertyX, NitrateFlux_, STAT = STAT_CALL) 
+            if (STAT_CALL == SUCCESS_)then
+
+                call SetSurfaceFlux(Me%ObjWaterProperties,                  &
+                                    PropertyX%ID%IDNumber,                  &
+                                    PropertyX%Field,                        &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR45a'
+            endif
+
+        endif
 
         if(Me%ExtOptions%WQMYes)then
 

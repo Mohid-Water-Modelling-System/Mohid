@@ -1087,6 +1087,8 @@ Module ModuleWaterProperties
         logical                                 :: PrecipitationON
         real,    pointer, dimension(:,:  )      :: OxygenFlux
         real,    pointer, dimension(:,:  )      :: CarbonDioxideFlux
+        real,    pointer, dimension(:,:  )      :: AmmoniaFlux
+        real,    pointer, dimension(:,:  )      :: NitrateFlux
         real,    pointer, dimension(:,:  )      :: WindShearVelocity
         real,    pointer, dimension(:,:  )      :: NonSolarRadiation
         real,    pointer, dimension(:,:  )      :: SurfaceRadiation
@@ -6525,6 +6527,16 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             allocate(NewProperty%SurfaceFlux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                     &
                 stop 'Construct_PropertyValues - ModuleWaterProperties - ERR20' 
+            NewProperty%Surfaceflux(:,:) = FillValueReal
+        
+        endif
+        
+        if(NewProperty%ID%IDNumber == Ammonia_ .OR. &  !LLP
+           NewProperty%ID%IDNumber == Nitrate_) then
+        
+            allocate(NewProperty%SurfaceFlux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                     &
+                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR20a' 
             NewProperty%Surfaceflux(:,:) = FillValueReal
         
         endif
@@ -17770,7 +17782,43 @@ case1 :     select case(Property%ID%IDNumber)
                     enddo
                     enddo
                     
+                case (Ammonia_)
+                
+                    do j=JLB, JUB
+                    do i=ILB, IUB
+                        if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                        
+                            Property%SurfaceFlux(i, j) = Me%ExtSurface%AmmoniaFlux(i, j)
+                            
+                            Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)       +  & !mg l-1  
+                                                                (Property%SurfaceFlux(i, j)             *  & !mg m-2 s-1 N
+                                                                Property%Evolution%DTInterval           *  & !s
+                                                                Me%ExternalVar%gridCellArea(i, j)       /  & !m2
+                                                                Me%ExternalVar%VolumeZ(i,j,KUB))        *  & !LLP m3  mg m-3 
+                                                                (1./1000.)!convert mg m-3 to mg l-1
+                        endif
                     
+                    enddo
+                    enddo 
+                     
+                case (Nitrate_)
+                    do j=JLB, JUB
+                    do i=ILB, IUB
+                        if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                        
+                            Property%SurfaceFlux(i, j) = Me%ExtSurface%NitrateFlux(i, j)
+                            
+                            Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)       +  & !mg l-1  
+                                                                (Property%SurfaceFlux(i, j)             *  & !mg/m2 s N
+                                                                Property%Evolution%DTInterval           *  & !
+                                                                Me%ExternalVar%gridCellArea(i, j)       /  & !m2
+                                                                Me%ExternalVar%VolumeZ(i,j,KUB))        *  & !LLP m3  mg m-3 
+                                                                (1./1000.)!convert mg m-3 to mg l-1
+                        endif
+                    
+                    enddo
+                    enddo 
+                   
                 case default
 
             end select case1
@@ -22870,6 +22918,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                                             TemperatureFluxYes,         &
                                             OxygenFluxYes,              &
                                             CarbonDioxideFluxYes,       &
+                                            AmmoniaFluxYes,             &
+                                            NitrateFluxYes,             &
                                             WQMYes,                     &
                                             T90VariableYes,             &
                                             STAT)
@@ -22877,6 +22927,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !Arguments-------------------------------------------------------------
         integer                                     :: WaterPropertiesID
         logical, optional, intent(OUT)              :: TemperatureFluxYes
+        logical, optional, intent(OUT)              :: AmmoniaFluxYes, NitrateFluxYes
         logical, optional, intent(OUT)              :: OxygenFluxYes, CarbonDioxideFluxYes, WQMYes
         logical, optional, intent(OUT)              :: T90VariableYes
         integer, optional, intent(OUT)              :: STAT
@@ -22900,6 +22951,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             WQMYes               = .false.
             T90VariableYes       = .false.
             CarbonDioxideFluxYes = .false.
+            AmmoniaFluxYes       = .false.
+            NitrateFluxYes       = .false.
             
 
             PropertyX => Me%FirstProperty
@@ -22932,7 +22985,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 
                 end if
                 
-
+                if (PropertyX%ID%IDNumber == Ammonia_  )then
+                 
+                    if(PropertyX%Evolution%SurfaceFluxes    )AmmoniaFluxYes   = .true.
+                
+                end if
+                
+                if (PropertyX%ID%IDNumber == Nitrate_  )then
+                 
+                    if(PropertyX%Evolution%SurfaceFluxes    )NitrateFluxYes   = .true.
+                
+                end if
 
                 if ((PropertyX%ID%IDNumber == Phytoplankton_ )  .or. &
                     (PropertyX%ID%IDNumber == Diatoms_       )  .or. &
@@ -23007,12 +23070,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !----------------------------------------------------------------------
 
     
-    subroutine GetPropertySurfaceFlux(WaterPropertiesID, OxygenSurfaceFlux, CarbonDioxideSurfaceFlux, STAT)
+    subroutine GetPropertySurfaceFlux(WaterPropertiesID, OxygenSurfaceFlux, CarbonDioxideSurfaceFlux, AmmoniaSurfaceFlux, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                                 :: WaterPropertiesID
         real, pointer, dimension(:,:), optional                 :: OxygenSurfaceFlux
         real, pointer, dimension(:,:), optional                 :: CarbonDioxideSurfaceFlux
+        real, pointer, dimension(:,:), optional                 :: AmmoniaSurfaceFlux
         integer,            optional, intent(OUT)               :: STAT
 
         !Local-------------------------------------------------------------------
@@ -23052,6 +23116,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
                 if (STAT_CALL == SUCCESS_) then
                      CarbonDioxideSurfaceFlux => PropertyX%SurfaceFlux
+                endif
+                
+             endif
+             
+             if (present(AmmoniaSurfaceFlux)) then           
+
+                call Search_Property(PropertyX, PropertyXID = Ammonia_, STAT = STAT_CALL)
+
+                if (STAT_CALL == SUCCESS_) then
+                     AmmoniaSurfaceFlux => PropertyX%SurfaceFlux
                 endif
                 
              endif
@@ -23352,6 +23426,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 case(CarbonDioxideFlux_)
 
                     Me%ExtSurface%CarbonDioxideFlux     => Flux
+                    
+                case(AmmoniaFlux_)
+
+                    Me%ExtSurface%AmmoniaFlux           => Flux
+                
+                case(NitrateFlux_)
+
+                    Me%ExtSurface%NitrateFlux           => Flux
 
 
                 case(NonSolarFlux_)
