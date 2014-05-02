@@ -63,6 +63,8 @@ Module ModuleRunOff
                                         TryIgnoreDischarge, GetDischargeSpatialEmission, &
                                         CorrectsCellsDischarges, Kill_Discharges,        &
                                         GetByPassON
+    use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif, &
+                                       BoxDif, KillBoxDif                                                      
                                         
     implicit none
 
@@ -159,7 +161,8 @@ Module ModuleRunOff
          type (T_Time), dimension(:), pointer       :: RestartOutTime       => null()
         logical                                     :: WriteRestartFile     = .false.
         logical                                     :: RestartOverwrite     = .false.
-        integer                                     :: NextRestartOutput    = 1         
+        integer                                     :: NextRestartOutput    = 1 
+        logical                                     :: BoxFluxes        
     end type T_OutPut
 
 
@@ -168,6 +171,7 @@ Module ModuleRunOff
         character(PathLength)                       :: InitialFile          = null_str
         character(PathLength)                       :: FinalFile            = null_str
         character(PathLength)                       :: TransientHDF         = null_str
+        character(PathLength)                       :: BoxesFile            = null_str
     end type T_Files    
 
     type T_ExtVar
@@ -235,6 +239,7 @@ Module ModuleRunOff
         integer                                     :: ObjDrainageNetwork       = 0
         integer                                     :: ObjDischarges            = 0
         integer                                     :: ObjEnterData             = 0
+        integer                                     :: ObjBoxDif                = 0
         type (T_OutPut   )                          :: OutPut
         type (T_ExtVar)                             :: ExtVar
         type (T_Files)                              :: Files
@@ -1534,12 +1539,87 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call ReadConvergenceParameters
         
+        call StartOutputBoxFluxes
+                
         !Closes Data File
         call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR760'
 
 
     end subroutine ReadDataFile
+
+    !--------------------------------------------------------------------------
+
+    subroutine StartOutputBoxFluxes
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer :: STAT_CALL
+        integer :: iflag
+        logical :: exist, opened
+        character(len=StringLength), dimension(:),  pointer :: FluxesOutputList
+        character(len=StringLength), dimension(:),  pointer :: ScalarOutputList
+
+        !Begin-----------------------------------------------------------------
+       
+        ! This keyword have two functions if exist fluxes between boxes are compute 
+        ! and the value read is the name file where the boxes are defined
+        call GetData(Me%Files%BoxesFile,                                                &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'BOXFLUXES',                                      &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   ='ModulePorousMedia',                               &
+                     STAT           = STAT_CALL)                                      
+
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Subroutine StartOutputBoxFluxes - ModuleRunoff. ERR02.'
+
+cd6 :   if (iflag .EQ. 1) then
+
+            Me%Output%BoxFluxes = .true.
+            
+            inquire(FILE = Me%Files%BoxesFile, EXIST = exist)
+cd4 :       if (exist) then
+                
+                inquire(FILE = Me%Files%BoxesFile, OPENED  = opened)
+cd5 :           if (opened) then
+                    write(*,*    ) 
+                    write(*,'(A)') 'BoxFluxesFileName = ', Me%Files%BoxesFile
+                    write(*,*    ) 'Already opened.'
+                    stop           'Subroutine StartOutputBoxFluxes; ModuleRunoff. ERR04'    
+                end if cd5
+
+                allocate(FluxesOutputList(1), ScalarOutputList(1)) 
+
+                FluxesOutputList = 'runoff_water'
+                ScalarOutputList = 'runoff_water'
+
+                call StartBoxDif(BoxDifID         = Me%ObjBoxDif,                    &
+                                 TimeID           = Me%ObjTime,                      &
+                                 HorizontalGridID = Me%ObjHorizontalGrid,            &
+                                 BoxesFilePath    = Me%Files%BoxesFile,              &
+                                 FluxesOutputList = FluxesOutputList,                &
+                                 ScalarOutputList = ScalarOutputList,                &
+                                 WaterPoints2D    = Me%ExtVar%BasinPoints,           &
+                                 STAT             = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                         &
+                    stop 'Subroutine StartOutputBoxFluxes - ModuleRunoff. ERR15.'
+
+                deallocate(FluxesOutputList, ScalarOutputList) 
+                nullify   (FluxesOutputList, ScalarOutputList)
+                
+            else
+                write(*,*) 
+                write(*,*)     'Error dont have the file box.'
+                write(*,'(A)') 'BoxFileName = ', Me%Files%BoxesFile
+                stop           'Subroutine StartOutputBoxFluxes; ModuleRunoff. ERR03'    
+            end if cd4
+        else
+            Me%Output%BoxFluxes = .false.        
+        end if cd6
+        
+    end subroutine StartOutputBoxFluxes
 
     !--------------------------------------------------------------------------
     
@@ -3987,6 +4067,10 @@ doIter:         do while (iter <= Niter)
             !Output Results
             if (Me%OutPut%Yes) then                   
                 call RunOffOutput
+            endif
+            
+            if (Me%Output%BoxFluxes) then
+                call ComputeBoxesWaterFluxes
             endif
 
             if (Me%WriteMaxWaterColumn) &
@@ -8116,6 +8200,67 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
     !--------------------------------------------------------------------------
 
+    subroutine ComputeBoxesWaterFluxes
+
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_CALL, CHUNK, i, j
+        real, dimension(:,:), pointer           :: WaterVolume
+        !----------------------------------------------------------------------
+       
+        if (MonitorPerformance) call StartWatch ("ModuleRunoff", "ComputeBoxesWaterFluxes")
+        
+        call BoxDif(Me%ObjBoxDif,                                                    &
+                    Me%iFlowX,                                                       &
+                    Me%iFlowY,                                                       &
+                    'runoff_water',                                                  &
+                    Me%ExtVar%BasinPoints,                                           &
+                    STAT = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                                 &
+           stop 'Subroutine ComputeBoxesWaterFluxes - ModuleRunoff. ERR01'
+        
+        
+        allocate(WaterVolume(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB))
+        WaterVolume = null_real
+        
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        
+        !$OMP PARALLEL PRIVATE(I,J)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+            if (Me%ExtVar%BasinPoints(i, j) == 1) then
+                
+                ![m3] = [m] * [m2]
+                WaterVolume(i,j) = Me%myWaterColumn(i,j) * Me%ExtVar%GridCellArea(i,j)
+                
+            endif
+
+        enddo
+        enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+        
+        
+        call BoxDif(Me%ObjBoxDif,                                                    &
+                    WaterVolume,                                                     &
+                    'runoff_water',                                                  &
+                    Me%ExtVar%BasinPoints,                                           &
+                    STAT = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                                 &
+           stop 'Subroutine ComputeBoxesWaterFluxes - ModuleRunoff. ERR02'
+
+        deallocate (WaterVolume)
+        
+        
+        if (MonitorPerformance) call StopWatch ("ModuleRunoff", "ComputeBoxesWaterFluxes")
+
+    end subroutine ComputeBoxesWaterFluxes
+
+    !--------------------------------------------------------------------------
 
     subroutine OutputMaxWaterColumn
 
@@ -8470,6 +8615,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 endif
 
+                if (Me%Output%BoxFluxes) then
+                    call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                               &
+                        stop 'KillRunOff - RunOff - ERR04'
+                endif
+                
                 !Deassociates External Instances
                 nUsers = DeassociateInstance (mTIME_, Me%ObjTime)
                 if (nUsers == 0) stop 'KillRunOff - RunOff - ERR05'

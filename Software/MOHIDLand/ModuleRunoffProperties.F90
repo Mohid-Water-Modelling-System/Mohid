@@ -96,6 +96,9 @@ Module ModuleRunoffProperties
                                         TryIgnoreDischarge, GetDischargeSpatialEmission, &
                                         CorrectsCellsDischarges, Kill_Discharges,        &
                                         GetDischargeConcentration
+    
+    use ModuleBoxDif,               only: StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif,     &
+                                          BoxDif, KillBoxDif        
 
    implicit none
 
@@ -291,6 +294,7 @@ Module ModuleRunoffProperties
         logical                                 :: Profile_ON                    = .false.
         logical                                 :: WriteRestartFile              = .false.        
         logical                                 :: RestartOverwrite              = .false.
+        logical                                 :: Boxes_ON                      = .false.
         integer                                 :: NextRestartOutput             = 1        
     end type T_OutPut
 
@@ -381,6 +385,7 @@ Module ModuleRunoffProperties
         character(PathLength)                   :: FinalFile              = null_str
         character(PathLength)                   :: TransientHDF           = null_str
         character(PathLength)                   :: DataSedimentQualityFile = null_str
+        character(PathLength)                   :: BoxesFile = null_str
         integer                                 :: AsciiUnit              = null_int
     end type T_Files    
 
@@ -492,7 +497,20 @@ Module ModuleRunoffProperties
         real   , pointer, dimension(: , : )  :: F_flux  => null()  !Coeficient to calculate AdvFlux and DifFlux
     end type T_FluxCoef
 
-
+   type  T_Fluxes
+        real, pointer, dimension(:,:)         :: AdvFluxX   => null()
+        real, pointer, dimension(:,:)         :: AdvFluxY   => null()
+        real, pointer, dimension(:,:)         :: AdvFluxZ   => null()
+        
+        real, pointer, dimension(:,:)         :: DifFluxX   => null()
+        real, pointer, dimension(:,:)         :: DifFluxY   => null()
+        real, pointer, dimension(:,:)         :: DifFluxZ   => null()
+        
+        real, pointer, dimension(:,:)         :: MassFluxesX   => null()
+        real, pointer, dimension(:,:)         :: MassFluxesY   => null()
+        real, pointer, dimension(:,:)         :: MassFluxesZ   => null()
+    end type T_Fluxes
+    
     type T_RunoffProperties
         integer                                     :: ObjTime              = 0
         integer                                     :: ObjHorizontalGrid    = 0
@@ -506,6 +524,7 @@ Module ModuleRunoffProperties
         integer                                     :: ObjProfile           = 0
         integer                                     :: ObjInterface         = 0
         integer                                     :: ObjDischarges        = 0
+        integer                                     :: ObjBoxDif            = 0
 !#ifdef _PHREEQC_        
 !        integer                                     :: ObjPhreeqC                = 0
 !        integer                                     :: ObjInterfaceSoilChemistry = 0 
@@ -525,6 +544,7 @@ Module ModuleRunoffProperties
         type(T_A_B_C_Explicit)                      :: COEFExpl 
         type(T_FluxCoef)                            :: COEF3_HorAdvXX           !Horizont advection coeficients
         type(T_FluxCoef)                            :: COEF3_HorAdvYY           !Horizont advection coeficients
+        type(T_Fluxes)                              :: Fluxes
         real, pointer, dimension(: , :    )         :: TICOEF3         => null()      
         real(8), pointer, dimension(:)              :: VECG            => null()         !Auxiliar thomas arrays 
         real(8), pointer, dimension(:)              :: VECW            => null()         !Auxiliar thomas arrays  
@@ -534,6 +554,7 @@ Module ModuleRunoffProperties
 
         logical                                     :: RunoffProperties = .false.
         integer                                     :: PropertiesNumber = 0
+        integer                                     :: NumberPropForBoxes     = 0
         real   , pointer, dimension(:,:)            :: DissolvedToParticulate2D => null()
         real                                        :: ResidualTime     = null_real
         
@@ -556,9 +577,10 @@ Module ModuleRunoffProperties
 !        real, dimension(:,:), pointer               :: ShearStressY
                
         real(8), pointer, dimension(:,:)            :: WaterVolume     => null()
+        real(8), pointer, dimension(:,:)            :: CellMass        => null()
         integer, pointer, dimension(:,:)            :: DummyOpenPoints => null()
 
-        real(8), pointer, dimension(:,:)           :: WaterColumnBT  => null()       !Water Column Before Transport
+        real(8), pointer, dimension(:,:)            :: WaterColumnBT  => null()       !Water Column Before Transport
         
         integer                                     :: nPropWithDischarge   = 0
        
@@ -693,7 +715,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructHDF    
     
             call ConstructTimeSerie
-            
+
+            if (Me%Output%Boxes_ON) then
+                call StartOutputBoxFluxes
+            endif            
             
             call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructRunoffProperties - ModuleRunoffProperties - ERR010'
@@ -1214,6 +1239,34 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%VECW                     = Null_real 
            
             endif
+
+            if (Me%Output%Boxes_ON) then
+                allocate(Me%Fluxes%AdvFluxX    (ILB:IUB, JLB:JUB))
+                allocate(Me%Fluxes%AdvFluxY    (ILB:IUB, JLB:JUB))
+                allocate(Me%Fluxes%AdvFluxZ    (ILB:IUB, JLB:JUB))
+                
+                allocate(Me%Fluxes%DifFluxX    (ILB:IUB, JLB:JUB))
+                allocate(Me%Fluxes%DifFluxY    (ILB:IUB, JLB:JUB))
+                allocate(Me%Fluxes%DifFluxZ    (ILB:IUB, JLB:JUB))
+                
+                allocate(Me%Fluxes%MassFluxesX (ILB:IUB, JLB:JUB))
+                allocate(Me%Fluxes%MassFluxesY (ILB:IUB, JLB:JUB))
+                allocate(Me%Fluxes%MassFluxesZ (ILB:IUB, JLB:JUB))
+            
+                Me%Fluxes%AdvFluxX     = Null_real
+                Me%Fluxes%AdvFluxY     = Null_real
+                Me%Fluxes%AdvFluxZ     = Null_real
+                
+                Me%Fluxes%DifFluxX     = Null_real
+                Me%Fluxes%DifFluxY     = Null_real
+                Me%Fluxes%DifFluxZ     = Null_real
+                
+                Me%Fluxes%MassFluxesX  = Null_real
+                Me%Fluxes%MassFluxesY  = Null_real
+                Me%Fluxes%MassFluxesZ  = Null_real
+            
+            endif
+            
         endif
         
         if(Me%Coupled%BottomFluxes) then
@@ -2777,6 +2830,10 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) &
             stop 'Construct_PropertyOutPut - ModuleRunoffProperties - ERR02'
 
+        if (NewProperty%BoxTimeSerie) then
+            Me%Output%Boxes_ON = .true.
+            Me%NumberPropForBoxes = Me%NumberPropForBoxes + 1
+        endif
 
         call GetData(NewProperty%BoxTimeSerie2D,                                           &
                      Me%ObjEnterData, iflag,                                               &
@@ -3255,6 +3312,117 @@ i1:         if (CoordON) then
     end subroutine ConstructHDF
 
   
+    !--------------------------------------------------------------------------
+
+    subroutine StartOutputBoxFluxes
+
+        !External--------------------------------------------------------------
+        integer                                             :: iflag, STAT_CALL
+        integer                                             :: ILB, IUB, JLB, JUB
+        logical                                             :: Exist, Opened
+ 
+        !Local-----------------------------------------------------------------
+        type(T_Property    ),                       pointer :: PropertyX
+        character(len=StringLength), dimension(:),  pointer :: ScalarOutputList
+        character(len=StringLength), dimension(:),  pointer :: FluxesOutputList
+        integer                                             :: nScalars, n, nFluxes
+
+        !Begin-----------------------------------------------------------------
+
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+
+        ! This keyword have two functions if exist fluxes between boxes are compute 
+        ! and the value read is the name file where the boxes are defined
+        call GetData(Me%Files%BoxesFile,                                            &
+                     Me%ObjEnterData, iflag,                                        &
+                     keyword      = 'BOXFLUXES',                                    &
+                     ClientModule = 'ModuleRunoffProperties',                       &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'StartOutputBoxFluxes - ModuleRunoffProperties - ERR01'
+        if (iflag .EQ. 0)                                                           &
+            stop 'StartOutputBoxFluxes - ModuleRunoffProperties - ERR02'    
+        
+        inquire(File = Me%Files%BoxesFile, Exist = exist)
+        if (exist) then
+            inquire(File = Me%Files%BoxesFile, Opened  = Opened)
+            if (opened) then
+                write(*,*    ) 
+                write(*,'(A)') 'BoxesFile = ',trim(adjustl(Me%Files%BoxesFile))
+                write(*,*    ) 'Already opened.'
+                stop           'StartOutputBoxFluxes - ModuleRunoffProperties - ERR03'    
+            end if
+        else
+            write(*,*) 
+            write(*,*)     'Could not find the boxes file.'
+            write(*,'(A)') 'BoxFileName = ', Me%Files%BoxesFile
+            stop           'StartOutputBoxFluxes - ModuleRunoffProperties - ERR04'    
+        end if
+        
+        !Output Rates and Properties inside box (.bxm)
+        nScalars = Me%NumberPropForBoxes
+        !Output Properties fluxes between boxes
+        nFluxes  = Me%NumberPropForBoxes
+            
+        allocate(ScalarOutputList(nScalars), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'StartOutputBoxFluxes - ModuleRunoffProperties - ERR05'
+
+        allocate(FluxesOutputList(nFluxes), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'StartOutputBoxFluxes - ModuleRunoffProperties - ERR06'
+
+        n = 0
+        PropertyX => Me%FirstProperty
+        do while(associated(PropertyX))
+            if (PropertyX%BoxTimeSerie) then
+                n = n + 1
+                ScalarOutputList(n) = "runoff_"//trim(PropertyX%ID%Name)
+                FluxesOutputList(n) = "runoff_"//trim(PropertyX%ID%Name)
+            endif
+            PropertyX => PropertyX%Next
+        end do        
+        
+        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'StartOutputBoxFluxes - ModuleRunoffProperties - ERR01'
+
+        call StartBoxDif(BoxDifID           = Me%ObjBoxDif,                 &
+                         TimeID             = Me%ObjTime,                   &
+                         HorizontalGridID   = Me%ObjHorizontalGrid,         &
+                         BoxesFilePath      = Me%Files%BoxesFile,           &
+                         FluxesOutputList   = FluxesOutputList,             &
+                         ScalarOutputList   = ScalarOutputList,             &
+                         WaterPoints2D      = Me%ExtVar%BasinPoints,        &
+                         STAT               = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'StartOutputBoxFluxes - ModuleRunoffProperties - ERR07'
+
+        !Unget
+        call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'StartOutputBoxFluxes - ModuleRunoffProperties - ERR08'  
+
+
+        deallocate(ScalarOutputList, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'StartOutputBoxFluxes - ModuleRunoffProperties - ERR09'
+
+        deallocate(FluxesOutputList, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'StartOutputBoxFluxes - ModuleRunoffProperties - ERR10'
+
+
+        allocate(Me%CellMass(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'StartOutputBoxFluxes - ModuleRunoffProperties - ERR170'
+        Me%CellMass(:,:) = 0.            
+        
+        
+        
+    end subroutine StartOutputBoxFluxes
+
     !--------------------------------------------------------------------------
 
      subroutine Open_HDF5_OutPut_File        
@@ -4893,6 +5061,10 @@ cd0:    if (Exist) then
                 call OutPut_HDF
             endif
 
+            if (Me%Output%Boxes_ON) then
+                call Output_Boxes_Mass
+            endif
+
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%ExtVar%EndTime)) then
                 if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
@@ -5567,6 +5739,21 @@ cd0:    if (Exist) then
             call SetMatrixValue (Me%COEF3%F, Me%Size, 0.0)
 
         endif
+
+      if (Me%Output%Boxes_ON) then
+            
+            call SetMatrixValue (Me%Fluxes%AdvFluxX, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%AdvFluxY, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%AdvFluxZ, Me%Size, dble(0.0))
+
+            call SetMatrixValue (Me%Fluxes%DifFluxX, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%DifFluxY, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%DifFluxZ, Me%Size, dble(0.0))
+            
+            call SetMatrixValue (Me%Fluxes%MassFluxesX, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%MassFluxesY, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%MassFluxesZ, Me%Size, dble(0.0))
+        end if 
     
     end subroutine RestartVariables
 
@@ -5819,6 +6006,19 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         call HorizontalDiffusion(PropertyX)                              !always explicit
         call HorizontalAdvection(PropertyX, ImpExp_AdvXX, ImpExp_AdvYY)  !explicit or implicit
 
+
+cd5 :   if (Me%Output%Boxes_ON) then
+
+            if (ImpExp_AdvXX == ImplicitScheme)    &
+                call CalcHorizontalAdvFluxXX(PropertyX, ImpExp_AdvXX)
+
+            if (ImpExp_AdvYY == ImplicitScheme)    &
+                call CalcHorizontalAdvFluxYY(PropertyX, ImpExp_AdvYY)
+
+            call Output_Boxes_Fluxes (PropertyX)
+            
+        end if cd5
+
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyAdvectionDiffusionCoefs")
 
         
@@ -5956,6 +6156,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
         !$OMP END PARALLEL
 
+        if (Me%Output%Boxes_ON) call CalcHorizontalDifFluxXX(CurrProp)
 
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "HorizontalDiffusionXX")
     
@@ -6011,6 +6212,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !$OMP END PARALLEL
 
+        if (Me%Output%Boxes_ON) call CalcHorizontalDifFluxYY(CurrProp)
 
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "HorizontalDiffusionYY")
 
@@ -6183,6 +6385,9 @@ doi4 :      do i = ILB, IUB
             stop 'sub. ModulePorousMediaProperties - HorizontalAdvectionXX - ERR01'
         
         endif cd6
+        
+        
+        if (Me%Output%Boxes_ON .and. ImpExp_AdvXX == ExplicitScheme) call CalcHorizontalAdvFluxXX(CurrProp, ImpExp_AdvXX)       
 
 
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "HorizontalAdvectionXX")
@@ -6315,11 +6520,205 @@ doi4 :      do i = ILB, IUB
         
         endif cd6
 
+        if (Me%Output%Boxes_ON .and. ImpExp_AdvYY == ExplicitScheme) call CalcHorizontalAdvFluxXX(CurrProp, ImpExp_AdvYY)
 
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "HorizontalAdvectionYY")
 
     end subroutine HorizontalAdvectionYY
     
+    !--------------------------------------------------------------------------
+
+    subroutine CalcHorizontalAdvFluxXX(CurrProp, Weigth)
+
+        !External--------------------------------------------------------------
+        type (T_Property), pointer                  :: CurrProp    
+        real, intent(IN) :: Weigth !Refers to the wigth of Implicit-Explicit calculations
+
+        !Local-----------------------------------------------------------------
+
+        integer :: i,     j
+        integer :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "CalcHorizontalAdvFluxXX")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        !$OMP PARALLEL PRIVATE(i,j)
+
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i, j - 1) .gt. AlmostZero) then
+
+            Me%Fluxes%AdvFluxX(i, j) =                                               &
+                          Me%Fluxes%AdvFluxX(i, j)                                   &
+                        + Weigth                                                     &
+                        * (Me%COEF3_HorAdvXX%C_flux(i,   j)                          &
+                        *  CurrProp%Concentration  (i, j-2)                          &
+                        +  Me%COEF3_HorAdvXX%D_flux(i,   j)                          &
+                        *  CurrProp%Concentration  (i, j-1)                          &
+                        +  Me%COEF3_HorAdvXX%E_flux(i,   j)                          &
+                        *  CurrProp%Concentration  (i,   j)                          &
+                        +  Me%COEF3_HorAdvXX%F_flux(i,   j)                          &
+                        *  CurrProp%Concentration  (i, j+1))
+
+        endif
+        end do doi1
+        end do doj1
+        !$OMP END DO NOWAIT
+
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "CalcHorizontalAdvFluxXX")
+
+        !----------------------------------------------------------------------
+
+    end subroutine CalcHorizontalAdvFluxXX
+
+    !--------------------------------------------------------------------------
+
+    subroutine CalcHorizontalAdvFluxYY(CurrProp, Weigth)
+
+        !External--------------------------------------------------------------
+    
+        real, intent(IN) :: Weigth !Refers to the wigth of Implicit-Explicit calculations
+        type (T_Property), pointer                  :: CurrProp    
+
+        !Local-----------------------------------------------------------------
+
+        integer :: i,     j
+        integer :: CHUNK
+        
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "CalcHorizontalAdvFluxYY")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(i,j)
+        
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i-1, j) .gt. AlmostZero) then
+            Me%Fluxes%AdvFluxY(i, j) =                                                  &
+                          Me%Fluxes%AdvFluxY(i, j)                                      &
+                        + Weigth                                                        &
+                        * (Me%COEF3_HorAdvYY%C_flux(i  , j)                          &
+                        *  CurrProp%Concentration  (i-2, j)                          &
+                        +  Me%COEF3_HorAdvYY%D_flux(i,   j)                          &
+                        *  CurrProp%Concentration  (i-1, j)                          &
+                        +  Me%COEF3_HorAdvYY%E_flux(i,   j)                          &
+                        *  CurrProp%Concentration  (i,   j)                          &
+                        +  Me%COEF3_HorAdvYY%F_flux(i,   j)                          &
+                        *  CurrProp%Concentration  (i+1, j))
+        endif
+        end do doi1
+        end do doj1
+        !$OMP END DO NOWAIT
+
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "CalcHorizontalAdvFluxYY")
+
+        !----------------------------------------------------------------------
+
+    end subroutine CalcHorizontalAdvFluxYY
+
+    !--------------------------------------------------------------------------
+
+    subroutine CalcHorizontalDifFluxXX(CurrProp)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Property), pointer                  :: CurrProp    
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j  
+        integer                                     :: CHUNK
+        real                                        :: AreaU
+        
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "CalcHorizontalDifFluxXX")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        
+        !$OMP PARALLEL PRIVATE(i,j,AreaU)
+        
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i, j-1) .gt. AlmostZero) then                           
+                
+                AreaU = (0.5 * (Me%ExtVar%WaterColumnOld(i,j) + Me%ExtVar%WaterColumnOld(i,j-1))) * Me%ExtVar%DYY(i,j)
+                
+                Me%Fluxes%DifFluxX(i, j) =                                           &
+                              Me%Fluxes%DifFluxX      (i,  j)                        &
+                            - CurrProp%ViscosityU     (i,  j)                        &
+                            * AreaU                                                  &
+                            / Me%ExtVar%DZX           (i,j-1)                        &
+                            *(CurrProp%Concentration  (i,  j)                        &
+                            - CurrProp%Concentration  (i,j-1))
+
+            endif
+        end do doi1
+        end do doj1
+        !$OMP END DO NOWAIT
+
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "CalcHorizontalDifFluxXX")
+
+
+    end subroutine CalcHorizontalDifFluxXX
+
+    !--------------------------------------------------------------------------
+
+    subroutine CalcHorizontalDifFluxYY(CurrProp)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Property), pointer                  :: CurrProp    
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j 
+        integer                                     :: CHUNK
+        real                                        :: AreaV
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "CalcHorizontalDifFluxYY")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(i,j,AreaV)
+
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i-1, j) .gt. AlmostZero) then
+            
+            AreaV = (0.5 * (Me%ExtVar%WaterColumnOld(i,j) + Me%ExtVar%WaterColumnOld(i-1,j))) * Me%ExtVar%DXX(i,j  )
+        
+            Me%Fluxes%DifFluxY(i, j) =                                               &
+                          Me%Fluxes%DifFluxY      (i  , j)                           &
+                        - CurrProp%ViscosityV     (i  , j)                           &
+                        * AreaV                                                      &
+                        / Me%ExtVar%DZY           (i-1, j)                           &
+                        *(CurrProp%Concentration  (i  , j)                           &
+                        - CurrProp%Concentration  (i-1, j))
+        endif
+        end do doi1
+        end do doj1
+        !$OMP END DO
+        
+        !$OMP END PARALLEL
+        
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "CalcHorizontalDifFluxYY")
+        
+
+    end subroutine CalcHorizontalDifFluxYY
+
     !--------------------------------------------------------------------------
 
 !    subroutine ModifyDrainageNetworkCoefs (PropertyX)
@@ -8898,6 +9297,102 @@ First:          if (LastTime.LT.Actual) then
 
     !----------------------------------------------------------------------------
 
+    subroutine Output_Boxes_Mass
+
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, STAT_CALL, CHUNK
+        type (T_Property), pointer                  :: CurrProperty
+        !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "Output_Boxes")
+
+        CurrProperty => Me%FirstProperty
+        do while (associated(CurrProperty)) 
+            
+            if (CurrProperty%BoxTimeSerie) then
+               
+                Me%CellMass(:,:) = 0.
+                
+                CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                !$OMP PARALLEL PRIVATE(I,J)
+                
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            
+                    if (Me%ExtVar%BasinPoints(i, j) == 1) then
+                    
+                        !g =  g/m3 * m * m2
+                        Me%CellMass(i,j) = CurrProperty%Concentration(i,j)  *  &
+                                              Me%ExtVar%WaterColumn(i,j) * Me%ExtVar%Area(i,j)    
+
+                    endif
+
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL                  
+                
+               
+                call BoxDif(Me%ObjBoxDif, Me%CellMass,                         &
+                            "runoff_"//trim(adjustl(CurrProperty%ID%Name)),    &
+                            Me%ExtVar%BasinPoints,                             &
+                            STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)  &
+                    stop 'Output_Boxes - ModuleRunoffProperties - ERR01'        
+                
+                Me%CellMass(:,:) = null_real                                    
+
+            endif
+            
+            CurrProperty => CurrProperty%Next
+        
+        end do 
+        
+        nullify (CurrProperty)
+       
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "Output_Boxes")    
+    
+    end subroutine Output_Boxes_Mass
+
+    !----------------------------------------------------------------------------
+    
+    subroutine Output_Boxes_Fluxes (Property)
+    
+        !Arguments---------------------------------------------------------------
+        type (T_Property)                         :: Property
+        !Local-------------------------------------------------------------------
+        integer                                   :: CHUNK, STAT_CALL, i, j
+        !Begin-------------------------------------------------------------------
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                                
+        !$OMP PARALLEL PRIVATE(I,J)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do3 :   do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+do4 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+            Me%Fluxes%MassFluxesX (I,J) = Me%Fluxes%AdvFluxX(I,J) + Me%Fluxes%DifFluxX (I,J)
+            Me%Fluxes%MassFluxesY (I,J) = Me%Fluxes%AdvFluxY(I,J) + Me%Fluxes%DifFluxY (I,J)
+        end do do4
+        end do do3
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+        !Integration of fluxes
+        call BoxDif(Me%ObjBoxDif,                        &
+                    Me%Fluxes%MassFluxesX,               &
+                    Me%Fluxes%MassFluxesY,               &
+                    "runoff_"//trim(Property%ID%Name),   &
+                    Me%ExtVar%BasinPoints,               &
+                    STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                     &
+        stop 'Output_Boxes_Fluxes - ModuleRunoffProperties - ERR300'
+                
+    end subroutine Output_Boxes_Fluxes
+    
+    !--------------------------------------------------------------------------
+
     subroutine WriteFinalFile
 
         !Local-----------------------------------------------------------------
@@ -9212,7 +9707,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 endif 
                 
             endif           
-            
+
+            if (Me%Output%Boxes_ON) then
+                call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                               &
+                    stop 'KillRunOff - RunOff - ERR04'
+            endif            
             
             if (associated(Me%Disper_Longi%Field))then
                 deallocate(Me%Disper_Longi%Field, STAT = STAT_CALL)

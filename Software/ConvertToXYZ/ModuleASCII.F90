@@ -60,6 +60,9 @@ Module ModuleASCII
         real                            :: yllCorner
         real                            :: CellSize
         real                            :: NoDataValue
+        real                            :: AddFactor
+        real                            :: MultiplyFactor
+        logical                         :: ChangeZ
         real, dimension(:), pointer     :: Z
         integer                         :: ObjEnterData = 0
     end type  T_ASCII
@@ -173,6 +176,30 @@ Module ModuleASCII
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR040'
         endif
+
+        call GetData(Me%AddFactor,                                                      &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile_,                                          &
+                     keyword      ='ADD_FACTOR',                                        &
+                     ClientModule ='DigitalTerrainCreator',                             &
+                     Default      = 0.,                                                 &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR060'
+
+        call GetData(Me%MultiplyFactor,                                                 &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile_,                                          &
+                     keyword      ='MULTIPLY_FACTOR',                                   &
+                     ClientModule ='DigitalTerrainCreator',                             &
+                     Default      = 1.,                                                 &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR070'
+        
+        Me%ChangeZ = .false.
+        if ((Me%AddFactor .ne. 0.) .or. (Me%MultiplyFactor .ne. 1.)) then
+            Me%ChangeZ = .true.
+        endif
+        
         
     end subroutine ReadOptions
 
@@ -249,7 +276,7 @@ Module ModuleASCII
 
 
         !Local------------------------------------------------------------------
-        real                                        :: X,Y
+        real                                        :: X,Y, Z
         integer                                     :: i,j
         integer                                     :: STAT_CALL
         integer                                     :: Counter                 !for reducing resolution case
@@ -288,7 +315,12 @@ Module ModuleASCII
                 if ((.not. Me%IgnoreNegativeValues) .or. (Me%Z(j) >= 0.)) then
                     Counter = Counter + 1
                     if ((.not. Me%ReduceResolution) .or. (Counter >= Me%ReduceResolutionStep)) then
-                        write(Me%OutputUnit,*) X, Y, Me%Z(j)
+                        if (Me%ChangeZ) then
+                            Z = Me%Z(j) * Me%MultiplyFactor + Me%AddFactor
+                            write(Me%OutputUnit,*) X, Y, Z
+                        else
+                            write(Me%OutputUnit,*) X, Y, Me%Z(j)
+                        endif
                         Counter = 0
                     endif
                 endif

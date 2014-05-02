@@ -94,7 +94,9 @@ Module ModulePorousMedia
                                        GetGeometryAreas, KillGeometry 
     use ModuleMap,              only : ConstructMap, GetWaterPoints3D, GetOpenPoints3D,  &
                                        GetComputeFaces3D, UnGetMap,                      &
-                                       UpdateComputeFaces3D, KillMap         
+                                       UpdateComputeFaces3D, KillMap  
+    use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif, &
+                                       BoxDif, KillBoxDif                                                      
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,            &
                                        KillFillMatrix, GetIfMatrixRemainsConstant
     use ModuleDrainageNetwork,  only : GetChannelsWaterLevel, GetChannelsBottomLevel,    &
@@ -269,6 +271,7 @@ Module ModulePorousMedia
         logical                                 :: WriteRestartFile     = .false.
         logical                                 :: SurfaceOutput        = .false.
         logical                                 :: RestartOverwrite     = .false.
+        logical                                 :: BoxFluxes            = .false.
         integer                                 :: NextRestartOutput    = 1
         integer                                 :: NextSurfaceOutput    = 1
     end type T_OutPut
@@ -280,6 +283,7 @@ Module ModulePorousMedia
         character(PathLength)                   :: TransientHDF         = null_str
         character(PathLength)                   :: BottomFile           = null_str
         character(PathLength)                   :: ASCFile              = null_str
+        character(PathLength)                   :: BoxesFile            = null_str
         integer                                 :: AsciiUnit            = null_int
     end type T_Files    
 
@@ -477,7 +481,8 @@ Module ModulePorousMedia
         integer                                 :: ObjEnterData             = 0
         integer                                 :: ObjProfile               = 0
         integer                                 :: ObjTriangulation         = 0
-        integer                                 :: ObjDischarges            = 0        
+        integer                                 :: ObjDischarges            = 0
+        integer                                 :: ObjBoxDif                = 0        
         type (T_PropertyID)                     :: ImpermeableFractionID
         
         real,    allocatable, dimension(:,:,:)  :: ThetaField        !!FieldCapacity [m3/m3]                
@@ -771,6 +776,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (Me%SoilOpt%WriteLog)  call ConstructASCIIOutput
 
+            call StartOutputBoxFluxes
+
             call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructPorousMedia - ModulePorousMedia - ERR02'
 
@@ -780,7 +787,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !First Output
             if (Me%OutPut%Yes .or. Me%OutPut%SurfaceOutput) call PorousMediaOutput                        
-
+            
             call ReadUnLockExternalVar
 
             !Returns ID
@@ -802,6 +809,81 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     end subroutine ConstructPorousMedia
  
+    !--------------------------------------------------------------------------
+
+    subroutine StartOutputBoxFluxes
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer :: STAT_CALL
+        integer :: iflag
+        logical :: exist, opened
+        character(len=StringLength), dimension(:),  pointer :: FluxesOutputList
+        character(len=StringLength), dimension(:),  pointer :: ScalarOutputList
+
+        !Begin-----------------------------------------------------------------
+       
+        ! This keyword have two functions if exist fluxes between boxes are compute 
+        ! and the value read is the name file where the boxes are defined
+        call GetData(Me%Files%BoxesFile,                                                &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'BOXFLUXES',                                      &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   ='ModulePorousMedia',                               &
+                     STAT           = STAT_CALL)                                      
+
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Subroutine StartOutputBoxFluxes - ModulePorousMedia. ERR02.'
+
+cd6 :   if (iflag .EQ. 1) then
+
+            Me%Output%BoxFluxes = .true.
+            
+            inquire(FILE = Me%Files%BoxesFile, EXIST = exist)
+cd4 :       if (exist) then
+                
+                inquire(FILE = Me%Files%BoxesFile, OPENED  = opened)
+cd5 :           if (opened) then
+                    write(*,*    ) 
+                    write(*,'(A)') 'BoxFluxesFileName = ', Me%Files%BoxesFile
+                    write(*,*    ) 'Already opened.'
+                    stop           'Subroutine StartOutputBoxFluxes; ModulePorousMedia. ERR04'    
+                end if cd5
+
+                allocate(FluxesOutputList(1), ScalarOutputList(1)) 
+
+                FluxesOutputList = 'soil_water'
+                ScalarOutputList = 'soil_water'
+
+                call StartBoxDif(BoxDifID         = Me%ObjBoxDif,                    &
+                                 TimeID           = Me%ObjTime,                      &
+                                 HorizontalGridID = Me%ObjHorizontalGrid,            &
+                                 BoxesFilePath    = Me%Files%BoxesFile,              &
+                                 FluxesOutputList = FluxesOutputList,                &
+                                 ScalarOutputList = ScalarOutputList,                &
+                                 WaterPoints3D    = Me%ExtVar%WaterPoints3D,         &
+                                 Size3D           = Me%Size,                         &
+                                 WorkSize3D       = Me%WorkSize,                     &
+                                 STAT             = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                         &
+                    stop 'Subroutine StartOutputBoxFluxes - ModulePorousMedia. ERR15.'
+
+                deallocate(FluxesOutputList, ScalarOutputList) 
+                nullify   (FluxesOutputList, ScalarOutputList)
+                
+            else
+                write(*,*) 
+                write(*,*)     'Error dont have the file box.'
+                write(*,'(A)') 'BoxFileName = ', Me%Files%BoxesFile
+                stop           'Subroutine StartOutputBoxFluxes; ModulePorousMedia. ERR03'    
+            end if cd4
+        else
+            Me%Output%BoxFluxes = .false.        
+        end if cd6
+        
+    end subroutine StartOutputBoxFluxes
+
     !--------------------------------------------------------------------------
 
     subroutine CheckBoundaryCells
@@ -5529,6 +5611,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             if (Me%OutPut%Yes .or. Me%OutPut%SurfaceOutput) call PorousMediaOutput                        
             if (Me%OutPut%TimeSerieON)                      call OutPutTimeSeries
             if (Me%OutPut%ProfileON  )                      call ProfileOutput
+            if (Me%Output%BoxFluxes  )                      call ComputeBoxesWaterFluxes
             
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%EndTime)) then
@@ -9700,6 +9783,80 @@ do1:                do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i,j), -1
 
     !--------------------------------------------------------------------------
 
+    subroutine ComputeBoxesWaterFluxes
+
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_CALL, CHUNK, i, j, k
+        real, dimension(:,:,:), pointer         :: WaterVolume
+        real(8), dimension (:,:,:), pointer     :: FluxU, FluxV, FluxW    
+        !----------------------------------------------------------------------
+       
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "ComputeBoxesWaterFluxes")
+        
+        !from allocatable to pointer to fit to BoxDif 
+        FluxU => Me%FluxU
+        FluxV => Me%FluxV
+        FluxW => Me%FluxWFinal
+        
+        call BoxDif(Me%ObjBoxDif,                                                    &
+                    FluxU,                                                           &
+                    FluxV,                                                           &
+                    FluxW,                                                           & 
+                    'soil_water',                                                    &
+                    Me%ExtVar%WaterPoints3D,                                         &
+                    STAT = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                                 &
+           stop 'Subroutine ComputeBoxesWaterFluxes - ModulePorousMedia. ERR01'
+        
+        nullify (FluxU)
+        nullify (FluxV)
+        nullify (FluxW)
+        
+        allocate(WaterVolume(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB, Me%WorkSize%KLB:Me%WorkSize%KUB))
+        WaterVolume = null_real
+        
+        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        
+        !$OMP PARALLEL PRIVATE(I,J,K)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+            if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+                
+                ![m3] = [m3H20/m3soil] * [m3soil]
+                WaterVolume(i,j,k) = Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k)
+                
+            endif
+
+        enddo
+        enddo
+        enddo      
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+        
+        
+        call BoxDif(Me%ObjBoxDif,                                                    &
+                    WaterVolume,                                                     &
+                    'soil_water',                                                    &
+                    Me%ExtVar%WaterPoints3D,                                         &
+                    STAT = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                                 &
+           stop 'Subroutine ComputeBoxesWaterFluxes - ModulePorousMedia. ERR02'
+
+        deallocate (WaterVolume)
+        
+        
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "ComputeBoxesWaterFluxes")
+
+    end subroutine ComputeBoxesWaterFluxes
+
+    !--------------------------------------------------------------------------
+
     subroutine CalculateTotalStoredVolume(WriteOut)
 
         !Arguments-------------------------------------------------------------
@@ -9797,6 +9954,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%ImpermeableFractionID%ObjFillMatrix /= 0) then
                     call KillFillMatrix (Me%ImpermeableFractionID%ObjFillMatrix, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillPorousMedia - PorousMedia - ERR030'                
+                endif
+
+
+                if (Me%Output%BoxFluxes) then
+                    call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                               &
+                        stop 'KillPorousMedia - PorousMedia - ERR35'
                 endif
                 
                 if (Me%SoilOpt%ImposeBoundary) then

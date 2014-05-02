@@ -92,7 +92,7 @@ Module ModulePorousMediaProperties
                                          GetFluxV, GetFluxW, GetUnsatW, GetUnsatV,         &
                                          GetUnsatU, UnGetPorousMedia, GetUnsatWFinal,      &
                                          GetThetaS, GetGWFlowToChannels, GetThetaF,        &
-                                         GetGWLayerOld, GetPotentialInfiltration,          &
+                                         GetGWLayer, GetGWLayerOld, GetPotentialInfiltration, &
                                          GetGWFlowToChannelsByLayer, GetGWToChannelsLayers,&
                                          GetGWFlowOption, GetTranspiration, GetEvaporation,&
                                          GetBoundaryImposed, GetBoundaryCells,             &
@@ -501,6 +501,8 @@ Module ModulePorousMediaProperties
         real, dimension(:,:), pointer           :: ConcentrationDN          => null()
         real, dimension(:,:,:), pointer         :: ConcInInterfaceDN        => null()
         real, dimension(:,:,:), pointer         :: ConcInBoundary           => null()
+        real, dimension(:,:  ), pointer         :: AverageAquiferConc       => null()
+        real, dimension(:,:  ), pointer         :: AverageVadozeConc        => null()
         real, dimension(:,:),   pointer         :: PesticideFlux            => null()
         logical, pointer, dimension(:,:,:)      :: UptakeActive             => null()
         real, pointer, dimension(:,:,:)         :: Mass_Created             => null()
@@ -522,6 +524,7 @@ Module ModulePorousMediaProperties
         logical                                 :: BoxTimeSerie             = .false.
         logical                                 :: BoxTimeSerie2D           = .false.
         logical                                 :: OutputHDF                = .false. 
+        logical                                 :: OutputAverageConc        = .false. 
         logical                                 :: UseToCalcECw             = .false.
         real                                    :: ECwFactor                = 0.0
         real, pointer, dimension(:,:,:)         :: PropertyDecay            => null()
@@ -593,6 +596,20 @@ Module ModulePorousMediaProperties
         real   , pointer, dimension(: , : , :)  :: F_flux   => null() !Coeficient to calculate AdvFlux and DifFlux
     end type T_FluxCoef
 
+    type  T_Fluxes
+        real, pointer, dimension(:,:,:)         :: AdvFluxX   => null()
+        real, pointer, dimension(:,:,:)         :: AdvFluxY   => null()
+        real, pointer, dimension(:,:,:)         :: AdvFluxZ   => null()
+        
+        real, pointer, dimension(:,:,:)         :: DifFluxX   => null()
+        real, pointer, dimension(:,:,:)         :: DifFluxY   => null()
+        real, pointer, dimension(:,:,:)         :: DifFluxZ   => null()
+        
+        real, pointer, dimension(:,:,:)         :: MassFluxesX   => null()
+        real, pointer, dimension(:,:,:)         :: MassFluxesY   => null()
+        real, pointer, dimension(:,:,:)         :: MassFluxesZ   => null()
+    end type T_Fluxes
+
 #ifdef _PHREEQC_  
     type T_PhreeqCModel
         integer               :: ID           = null_int
@@ -656,6 +673,7 @@ Module ModulePorousMediaProperties
         type(T_FluxCoef)                             :: COEF3_VertAdv            !Vertical advection coeficients
         type(T_FluxCoef)                             :: COEF3_HorAdvXX           !Horizont advection coeficients
         type(T_FluxCoef)                             :: COEF3_HorAdvYY           !Horizont advection coeficients
+        type(T_Fluxes)                               :: Fluxes
         real, pointer, dimension(: , : , :)          :: TICOEF3          => null()      
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                                  :: TICOEF3Ptr
@@ -1624,6 +1642,33 @@ doi3:   do J = JLB, JUB
 !                Me%VECG                     = Null_real 
 !                Me%VECW                     = Null_real 
            
+            endif
+            
+            if (Me%Output%Boxes_ON) then
+                allocate(Me%Fluxes%AdvFluxX    (ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate(Me%Fluxes%AdvFluxY    (ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate(Me%Fluxes%AdvFluxZ    (ILB:IUB, JLB:JUB, KLB:KUB))
+                
+                allocate(Me%Fluxes%DifFluxX    (ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate(Me%Fluxes%DifFluxY    (ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate(Me%Fluxes%DifFluxZ    (ILB:IUB, JLB:JUB, KLB:KUB))
+                
+                allocate(Me%Fluxes%MassFluxesX (ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate(Me%Fluxes%MassFluxesY (ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate(Me%Fluxes%MassFluxesZ (ILB:IUB, JLB:JUB, KLB:KUB))
+            
+                Me%Fluxes%AdvFluxX     = Null_real
+                Me%Fluxes%AdvFluxY     = Null_real
+                Me%Fluxes%AdvFluxZ     = Null_real
+                
+                Me%Fluxes%DifFluxX     = Null_real
+                Me%Fluxes%DifFluxY     = Null_real
+                Me%Fluxes%DifFluxZ     = Null_real
+                
+                Me%Fluxes%MassFluxesX  = Null_real
+                Me%Fluxes%MassFluxesY  = Null_real
+                Me%Fluxes%MassFluxesZ  = Null_real
+            
             endif
             
             !griflet: BEGIN this is the alternate version that allows parallel openmp
@@ -3157,7 +3202,7 @@ do1 :   do
         allocate(NewProperty%ConcInBoundary(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR90'
         NewProperty%ConcInBoundary(:,:,:) = FillValueReal            
-                
+        
         call GetData(NewProperty%MinValue,                                                  &
                      Me%ObjEnterData,iflag,                                                 &
                      SearchType   = FromBlock,                                              &
@@ -3512,8 +3557,6 @@ do1:    do while(associated(Property))
         if (STAT_CALL /= SUCCESS_) &
             stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR03'
 
-
-
         call GetData(NewProperty%OutputHDF,                                              &
                      Me%ObjEnterData, iflag,                                             &
                      Keyword      = 'OUTPUT_HDF',                                        &
@@ -3523,6 +3566,33 @@ do1:    do while(associated(Property))
                      STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR04'
+        
+        !output in HDF the average conc in aquifer and in vadoze zone for each soil collumn
+        if (NewProperty%OutputHDF) then
+            call GetData(NewProperty%OutputAverageConc,                                      &
+                         Me%ObjEnterData, iflag,                                             &
+                         Keyword      = 'OUTPUT_AVERAGE_CONC',                               &
+                         ClientModule = 'ModulePorousMediaProperties',                       &
+                         Default      = .false.,                                             &
+                         SearchType   = FromBlock,                                           &
+                         STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR05'
+            
+            if (NewProperty%OutputAverageConc) then
+                allocate(NewProperty%AverageAquiferConc(Me%WorkSize%ILB:Me%WorkSize%IUB,     &
+                                                        Me%WorkSize%JLB:Me%WorkSize%JUB),    &
+                                                        STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR10'
+                NewProperty%AverageAquiferConc(:,:) = FillValueReal            
+
+                allocate(NewProperty%AverageVadozeConc(Me%WorkSize%ILB:Me%WorkSize%IUB,      &
+                                                       Me%WorkSize%JLB:Me%WorkSize%JUB),     &
+                                                       STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR20'
+                NewProperty%AverageAquiferConc(:,:) = FillValueReal  
+            endif
+        endif
         
     end subroutine Construct_PropertyOutPut
    
@@ -3777,8 +3847,8 @@ i1:         if (CoordON) then
         type(T_Property    ),                       pointer :: PropertyX
         type(T_SedimentRate),                       pointer :: SedimentRateX
         character(len=StringLength), dimension(:),  pointer :: ScalarOutputList
-        !character(len=StringLength), dimension(:),  pointer :: FluxesOutputList
-        integer                                             :: nScalars, n !, nFluxes
+        character(len=StringLength), dimension(:),  pointer :: FluxesOutputList
+        integer                                             :: nScalars, n, nFluxes
 
         !Begin-----------------------------------------------------------------
 
@@ -3794,7 +3864,7 @@ i1:         if (CoordON) then
         call GetData(Me%Files%BoxesFile,                                            &
                      Me%ObjEnterData, iflag,                                        &
                      keyword      = 'BOXFLUXES',                                    &
-                     ClientModule = 'ModulePorousMediaProperties',                     &
+                     ClientModule = 'ModulePorousMediaProperties',                  &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_)                                                &
             stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR01'
@@ -3818,32 +3888,39 @@ i1:         if (CoordON) then
         end if
         
         !Output Rates and Properties inside box (.bxm)
-        nScalars = Me%SedimentRatesNumber
-        nScalars = nScalars + Me%NumberPropForBoxes
+        nScalars = Me%NumberPropForBoxes + Me%SedimentRatesNumber
+        !Output Properties fluxes between boxes
+        nFluxes  = Me%NumberPropForBoxes
             
         allocate(ScalarOutputList(nScalars), STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR05'
 
+        allocate(FluxesOutputList(nFluxes), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR06'
+
         n = 0
-        if (Me%Output%RateFluxes) then
-            SedimentRateX => Me%FirstSedimentRate
-            do while(associated(SedimentRateX))
-                n = n + 1
-                ScalarOutputList(n) ="Sed_"//trim(SedimentRateX%ID%Name)
-                SedimentRateX => SedimentRateX%Next
-            end do
-        endif
         if (Me%Output%Boxes_ON) then
             PropertyX => Me%FirstProperty
             do while(associated(PropertyX))
                 if (PropertyX%BoxTimeSerie) then
                     n = n + 1
-                    ScalarOutputList(n) = "Sed_"//trim(PropertyX%ID%Name)
+                    ScalarOutputList(n) = "soil_"//trim(PropertyX%ID%Name)
+                    FluxesOutputList(n) = "soil_"//trim(PropertyX%ID%Name)
                 endif
                 PropertyX => PropertyX%Next
             end do        
+        endif        
+        if (Me%Output%RateFluxes) then
+            SedimentRateX => Me%FirstSedimentRate
+            do while(associated(SedimentRateX))
+                n = n + 1
+                ScalarOutputList(n) ="soil_"//trim(SedimentRateX%ID%Name)
+                SedimentRateX => SedimentRateX%Next
+            end do
         endif
+
         
         call GetWaterPoints3D (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR090'
@@ -3853,7 +3930,7 @@ i1:         if (CoordON) then
                          TimeID             = Me%ObjTime,                   &
                          HorizontalGridID   = Me%ObjHorizontalGrid,         &
                          BoxesFilePath      = Me%Files%BoxesFile,           &
- !                        FluxesOutputList   = FluxesOutputList,             &
+                         FluxesOutputList   = FluxesOutputList,             &
                          ScalarOutputList   = ScalarOutputList,             &
                          WaterPoints3D      = Me%ExtVar%WaterPoints3D,      &
                          Size3D             = Me%Size,                      &
@@ -3865,6 +3942,11 @@ i1:         if (CoordON) then
         deallocate(ScalarOutputList, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR09'
+
+        deallocate(FluxesOutputList, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR10'
+
 
         call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR0140'
@@ -5528,7 +5610,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             endif
             
             if (Me%Output%Boxes_ON) then
-                call Output_Boxes
+                call Output_Boxes_Mass
             endif
 
     !       call ProfileOutput    em teste no construct e no kill
@@ -6943,6 +7025,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             call SetMatrixValue (Me%COEF3%F, Me%Size, 0.0)
 
         endif
+
+      if (Me%Output%Boxes_ON) then
+            
+            call SetMatrixValue (Me%Fluxes%AdvFluxX, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%AdvFluxY, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%AdvFluxZ, Me%Size, dble(0.0))
+
+            call SetMatrixValue (Me%Fluxes%DifFluxX, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%DifFluxY, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%DifFluxZ, Me%Size, dble(0.0))
+            
+            call SetMatrixValue (Me%Fluxes%MassFluxesX, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%MassFluxesY, Me%Size, dble(0.0))
+            call SetMatrixValue (Me%Fluxes%MassFluxesZ, Me%Size, dble(0.0))
+        end if 
     
     end subroutine RestartVariables
 
@@ -7295,7 +7392,11 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                             :: ImpExp_AdvXX, ImpExp_AdvYY           
         real                                             :: AdvectionV_Imp_Exp  
         real                                             :: DiffusionV_Imp_Exp  
-        real                                             :: AdvectionH_Imp_Exp                  
+        real                                             :: AdvectionH_Imp_Exp  
+        integer                                          :: di,    dj    
+        integer                                          :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                          :: ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS
+                        
         !begin--------------------------------------------------------------------
  
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "ModifyAdvectionDiffusionCoefs")
@@ -7324,6 +7425,135 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             call VerticalAdvection(PropertyX, AdvectionV_Imp_Exp)            !implicit or explicit                           
          
          endif   
+
+!        THOMASZ WAS MOVED TO ROUTINE THAT COMPUTES
+!        CONCENTRATIONS BASED ON ALL PROCESSES (ModifyPropertyValues).
+!        MAYBE THE PROBLEM WITH VERTICAL ADVECTION IMPLICIT IS DUE TO LACK OF
+!        FIRST THOMASZ HERE AND RESET COEFS and THEN USE AGAIN (THOMASZ OR THOMAS3D??)
+
+        ILBWS = Me%WorkSize%ILB
+        IUBWS = Me%WorkSize%IUB
+        JLBWS = Me%WorkSize%JLB
+        JUBWS = Me%WorkSize%JUB
+        KLBWS = Me%WorkSize%KLB
+        KUBWS = Me%WorkSize%KUB
+        ILB   = Me%Size%ILB
+        IUB   = Me%Size%IUB
+        JLB   = Me%Size%JLB 
+        JUB   = Me%Size%JUB
+        KLB   = Me%Size%KLB
+        KUB   = Me%Size%KUB
+
+
+cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitScheme = 0
+
+            di = 0
+            dj = 1
+
+            !griflet: old call
+            !call THOMAS_3D(ILBWS, IUBWS,                                                &
+            !               JLBWS, JUBWS,                                                &
+            !               KLBWS, KUBWS,                                                &
+            !               di, dj,                                                      &
+            !               Me%COEF3%D,                                                  &
+            !               Me%COEF3%E,                                                  &
+            !               Me%COEF3%F,                                                  &
+            !               Me%TICOEF3,                                                  &
+            !               PropertyX%Concentration,                                     &
+            !               Me%VECG,                                                     &
+            !               Me%VECW)      
+            !griflet: new  call
+            call THOMAS_3D(ILBWS, IUBWS,                                                &
+                           JLBWS, JUBWS,                                                &
+                           KLBWS, KUBWS,                                                &
+                           di, dj,                                                      &
+                           Me%THOMAS,                                                   &
+                           PropertyX%Concentration                                      &     
+#ifdef _ENABLE_CUDA
+                           , Me%ObjCuda,                                                &
+                           .FALSE.                                                      &
+#endif _ENABLE_CUDA
+                           )
+                            
+        else if (KUBWS == 1 .and. ImpExp_AdvYY == ImplicitScheme) then cd3 !ImplicitScheme = 0
+
+            di = 1
+            dj = 0
+            
+            !griflet: old call
+            !call THOMAS_3D(JLBWS, JUBWS,                                                &
+            !               ILBWS, IUBWS,                                                &
+            !               KLBWS, KUBWS,                                                &
+            !               di, dj,                                                      &
+            !               Me%COEF3%D,                                                  &
+            !               Me%COEF3%E,                                                  &
+            !               Me%COEF3%F,                                                  &
+            !               Me%TICOEF3,                                                  &
+            !               PropertyX%Concentration,                                     &
+            !               Me%VECG,                                                     &
+            !               Me%VECW)      
+            !griflet: new call                           
+            call THOMAS_3D(JLBWS, JUBWS,                                                &
+                           ILBWS, IUBWS,                                                &
+                           KLBWS, KUBWS,                                                &
+                           di, dj,                                                      &
+                           Me%THOMAS,                                                   &
+                           PropertyX%Concentration                                      &      
+#ifdef _ENABLE_CUDA
+                           , Me%ObjCuda,                                                &
+                           .FALSE.                                                      &
+#endif _ENABLE_CUDA
+                           )
+        endif cd3
+!        else cd3
+! 
+!            ! If the model is 3D the vertical diffusion must be implicit so is necessary to 
+!            ! compute the vertical diffusion  implicitly
+!            
+!            !griflet: old call   
+!            !CALL THOMASZ(ILBWS, IUBWS,                                                  &
+!            !             JLBWS, JUBWS,                                                  &
+!            !             KLBWS, KUBWS,                                                  &
+!            !             Me%COEF3%D,                                                    &
+!            !             Me%COEF3%E,                                                    &
+!            !             Me%COEF3%F,                                                    &
+!            !             Me%TICOEF3,                                                    &
+!            !             PropertyX%Concentration,                                       &
+!            !             Me%VECG,                                                       &
+!            !             Me%VECW)      
+!        
+!            !griflet: new call
+!            call THOMASZ(ILBWS, IUBWS,                                                  &
+!                         JLBWS, JUBWS,                                                  &
+!                         KLBWS, KUBWS,                                                  &
+!                         Me%THOMAS,                                                     &
+!                         PropertyX%Concentration                                        &
+!#ifdef _ENABLE_CUDA
+!                         , Me%ObjCuda,                                                  &
+!                         .FALSE.                                                        &
+!#endif _ENABLE_CUDA
+!                        )
+!
+!        endif cd3
+
+
+cd5 :   if (Me%Output%Boxes_ON) then
+            if (AdvectionV_Imp_Exp > 0.0 .and. KUBWS > 1)                        &
+                call CalcVerticalAdvFlux(PropertyX, AdvectionV_Imp_Exp)
+
+            if (DiffusionV_Imp_Exp > 0.0 .and. KUBWS > 1)                        &
+                call CalcVerticalDifFlux (PropertyX, DiffusionV_Imp_Exp)
+
+            if ((.not. Me%Vertical1D) .and. (ImpExp_AdvXX == ImplicitScheme))    &
+                call CalcHorizontalAdvFluxXX(PropertyX, ImpExp_AdvXX)
+
+            if ((.not. Me%Vertical1D) .and. (.not. Me%XZFlow) .and. (ImpExp_AdvYY == ImplicitScheme))  &
+                call CalcHorizontalAdvFluxYY(PropertyX, ImpExp_AdvYY)
+
+            call Output_Boxes_Fluxes (PropertyX)
+            
+        end if cd5
+
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ModifyAdvectionDiffusionCoefs")
         
@@ -7469,7 +7699,8 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
         !$OMP END PARALLEL
 
-
+        if (Me%Output%Boxes_ON) call CalcHorizontalDifFluxXX(CurrProp)
+        
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalDiffusionXX")
     
     end subroutine HorizontalDiffusionXX
@@ -7525,7 +7756,8 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !$OMP END PARALLEL
 
-
+        if (Me%Output%Boxes_ON) call CalcHorizontalDifFluxYY(CurrProp)
+        
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalDiffusionYY")
 
 
@@ -7775,6 +8007,8 @@ doi4 :      do i = ILB, IUB
         endif cd6
 
         !$OMP END PARALLEL
+        
+        if (Me%Output%Boxes_ON .and. ImpExp_AdvXX == ExplicitScheme) call CalcHorizontalAdvFluxXX(CurrProp, ImpExp_AdvXX)
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalAdvectionXX")
 
@@ -7907,7 +8141,9 @@ doi4 :      do i = ILB, IUB
         endif cd6
 
         !$OMP END PARALLEL
-
+        
+        if (Me%Output%Boxes_ON .and. ImpExp_AdvYY == ExplicitScheme) call CalcHorizontalAdvFluxXX(CurrProp, ImpExp_AdvYY)
+        
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalAdvectionYY")
 
     end subroutine HorizontalAdvectionYY
@@ -8016,7 +8252,9 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !$OMP END PARALLEL
 
         endif
-        
+
+        if (Me%Output%Boxes_ON .and. DiffusionV_Imp_Exp < 1.)                              &
+            call CalcVerticalDifFlux(CurrProperty, 1. - DiffusionV_Imp_Exp)        
         
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "VerticalDiffusion")
 
@@ -8144,11 +8382,309 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !$OMP END PARALLEL
 
-
+        if (Me%Output%Boxes_ON .and. AdvectionV_Imp_Exp < 1.)    &
+            call CalcVerticalAdvFlux(CurrProp, 1. - AdvectionV_Imp_Exp)
+            
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "VerticalAdvection")
 
 
     end subroutine VerticalAdvection
+
+    !--------------------------------------------------------------------------
+
+    subroutine CalcVerticalAdvFlux(CurrProp, Weigth)
+
+
+        !Arguments-------------------------------------------------------------
+        type (T_Property), pointer                  :: CurrProp
+        real, intent(IN)                            :: Weigth !Refers to the wigth of Implicit-Explicit calculations
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k  
+        integer                                     :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "CalcVerticalAdvFlux")
+
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+        
+        !$OMP PARALLEL PRIVATE(k,j,i)
+
+dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+        if (Me%ExtVar%ComputeFacesW3D(i, j, k) == 1) then
+
+            Me%Fluxes%AdvFluxZ(i, j, k) =                                               &
+                          Me%Fluxes%AdvFluxZ(i, j, k)                                   &
+                        + Weigth                                                        &
+                        *(Me%COEF3_VertAdv%C_flux(i,j,k)                                &
+                        * CurrProp%Concentration(i, j, k-2)                             &
+                        + Me%COEF3_VertAdv%D_flux(i,j,k)                                &
+                        * CurrProp%Concentration(i, j, k-1)                             &
+                        + Me%COEF3_VertAdv%E_flux(i,j,k)                                &
+                        * CurrProp%Concentration(i, j, k )                              &
+                        + Me%COEF3_VertAdv%F_flux(i,j,k)                                &
+                        * CurrProp%Concentration(i, j, k+1))
+
+        endif
+
+        end do doi1
+        end do doj1
+        !$OMP END DO NOWAIT
+        end do dok1
+
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "CalcVerticalAdvFlux")
+
+        !----------------------------------------------------------------------
+
+    end subroutine CalcVerticalAdvFlux
+
+    !--------------------------------------------------------------------------
+
+    subroutine CalcHorizontalAdvFluxXX(CurrProp, Weigth)
+
+        !External--------------------------------------------------------------
+        type (T_Property), pointer                  :: CurrProp    
+        real, intent(IN) :: Weigth !Refers to the wigth of Implicit-Explicit calculations
+
+        !Local-----------------------------------------------------------------
+
+        integer :: i,     j,     k  
+        integer :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "CalcHorizontalAdvFluxXX")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k)
+
+dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        if (Me%ExtVar%ComputeFacesU3D(i, j, k) == 1) then
+
+            Me%Fluxes%AdvFluxX(i, j, k) =                                               &
+                          Me%Fluxes%AdvFluxX(i, j, k)                                   &
+                        + Weigth                                                        &
+                        * (Me%COEF3_HorAdvXX%C_flux(i,   j, k)                          &
+                        *  CurrProp%Concentration  (i, j-2, k)                          &
+                        +  Me%COEF3_HorAdvXX%D_flux(i,   j, k)                          &
+                        *  CurrProp%Concentration  (i, j-1, k)                          &
+                        +  Me%COEF3_HorAdvXX%E_flux(i,   j, k)                          &
+                        *  CurrProp%Concentration  (i,   j, k)                          &
+                        +  Me%COEF3_HorAdvXX%F_flux(i,   j, k)                          &
+                        *  CurrProp%Concentration  (i, j+1, k))
+
+        endif
+        end do doi1
+        end do doj1
+        !$OMP END DO NOWAIT
+        end do dok1
+
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "CalcHorizontalAdvFluxXX")
+
+        !----------------------------------------------------------------------
+
+    end subroutine CalcHorizontalAdvFluxXX
+
+    !--------------------------------------------------------------------------
+
+    subroutine CalcHorizontalAdvFluxYY(CurrProp, Weigth)
+
+        !External--------------------------------------------------------------
+    
+        real, intent(IN) :: Weigth !Refers to the wigth of Implicit-Explicit calculations
+        type (T_Property), pointer                  :: CurrProp    
+
+        !Local-----------------------------------------------------------------
+
+        integer :: i,     j,     k  
+        integer :: CHUNK
+        
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "CalcHorizontalAdvFluxYY")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        
+dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        if (Me%ExtVar%ComputeFacesV3D(i  , j, k) == 1) then
+            Me%Fluxes%AdvFluxY(i, j, k) =                                               &
+                          Me%Fluxes%AdvFluxY(i, j, k)                                   &
+                        + Weigth                                                        &
+                        * (Me%COEF3_HorAdvYY%C_flux(i  , j, k)                          &
+                        *  CurrProp%Concentration  (i-2, j, k)                          &
+                        +  Me%COEF3_HorAdvYY%D_flux(i,   j, k)                          &
+                        *  CurrProp%Concentration  (i-1, j, k)                          &
+                        +  Me%COEF3_HorAdvYY%E_flux(i,   j, k)                          &
+                        *  CurrProp%Concentration  (i,   j, k)                          &
+                        +  Me%COEF3_HorAdvYY%F_flux(i,   j, k)                          &
+                        *  CurrProp%Concentration  (i+1, j, k))
+        endif
+        end do doi1
+        end do doj1
+        !$OMP END DO NOWAIT
+        end do dok1
+
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "CalcHorizontalAdvFluxYY")
+
+        !----------------------------------------------------------------------
+
+    end subroutine CalcHorizontalAdvFluxYY
+
+    !--------------------------------------------------------------------------
+
+    subroutine CalcVerticalDifFlux(CurrProp, Weigth)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Property), pointer                  :: CurrProp           
+        real, intent(IN)                            :: Weigth !Refers to the wigth of Implicit-Explicit calculations
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k  
+        integer                                     :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "CalcVerticalDifFlux")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(i, j, k)
+
+dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        if (Me%ExtVar%ComputeFacesW3D(i, j, k  ) == 1) then
+            Me%Fluxes%DifFluxZ(i, j, k) =                                               &
+                          Me%Fluxes%DifFluxZ(i, j, k)                                   &
+                        - Weigth                                                        &
+                        * CurrProp%Diffusivity(i,j,k)                                   &
+                        * Me%ExtVar%DUX(i,j)                                            &
+                        * Me%ExtVar%DVY(i,j)                                            &
+                        / Me%ExtVar%DZZ(i,j,k-1)                                        &
+                        *(CurrProp%Concentration(i, j, k  )                             &
+                        - CurrProp%Concentration(i, j, k-1))
+        endif
+        end do doi1
+        end do doj1
+        !$OMP END DO NOWAIT
+        end do dok1
+
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "CalcVerticalDifFlux")
+
+        !----------------------------------------------------------------------
+
+    end subroutine CalcVerticalDifFlux
+
+    !--------------------------------------------------------------------------
+
+    subroutine CalcHorizontalDifFluxXX(CurrProp)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Property), pointer                  :: CurrProp    
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k  
+        integer                                     :: CHUNK
+        
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "CalcHorizontalDifFluxXX")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        
+dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%ComputeFacesU3D(i, j  , k) == 1) then                           
+                Me%Fluxes%DifFluxX(i, j, k) =                                           &
+                              Me%Fluxes%DifFluxX      (i,  j, k)                        &
+                            - CurrProp%ViscosityU     (i,  j, k)                        &
+                            * Me%ExtVar%AreaU         (i,  j, k)                        &
+                            / Me%ExtVar%DZX           (i,j-1   )                        &
+                            *(CurrProp%Concentration  (i,  j, k)                        &
+                            - CurrProp%Concentration  (i,j-1, k))
+
+            endif
+        end do doi1
+        end do doj1
+        !$OMP END DO NOWAIT
+        end do dok1
+
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "CalcHorizontalDifFluxXX")
+
+
+    end subroutine CalcHorizontalDifFluxXX
+
+    !--------------------------------------------------------------------------
+
+    subroutine CalcHorizontalDifFluxYY(CurrProp)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Property), pointer                  :: CurrProp    
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k  
+        integer                                     :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "CalcHorizontalDifFluxYY")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(i,j,k)
+
+dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        if (Me%ExtVar%ComputeFacesV3D(i  , j, k) == 1) then
+            Me%Fluxes%DifFluxY(i, j, k) =                                               &
+                          Me%Fluxes%DifFluxY      (i  , j, k)                           &
+                        - CurrProp%ViscosityV     (i  , j, k)                           &
+                        * Me%ExtVar%AreaV         (i  , j, k)                           &
+                        / Me%ExtVar%DZY           (i-1, j   )                           &
+                        *(CurrProp%Concentration  (i  , j, k)                           &
+                        - CurrProp%Concentration  (i-1, j, k))
+        endif
+        end do doi1
+        end do doj1
+        !$OMP END DO
+        end do dok1
+        
+        !$OMP END PARALLEL
+        
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "CalcHorizontalDifFluxYY")
+        
+
+    end subroutine CalcHorizontalDifFluxYY
 
     !--------------------------------------------------------------------------
 !    subroutine ModifyExplicitCoefs(PropertyX) 
@@ -9641,7 +10177,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
            
             call BoxDif(Me%ObjBoxDif,                                       &
                         SedimentRateX%Field,                                &
-                        "Sed_"//trim(adjustl(SedimentRateX%ID%Name)),       &
+                        "soil_"//trim(adjustl(SedimentRateX%ID%Name)),       &
                         Me%ExtVar%WaterPoints3D,                            &
                         STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                    &
@@ -11014,8 +11550,42 @@ First:          if (LastTime.LT.Actual) then
                                                   STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR075'
                         endif
-                    endif
+                    
+                        if (PropertyX%OutputAverageConc) then
+                            
+                            call ComputeAverageConc (PropertyX)
 
+                            !Sets limits for next write operations
+                            call HDF5SetLimits   (Me%ObjHDF5,                                &
+                                                  Me%WorkSize%ILB,                           &
+                                                  Me%WorkSize%IUB,                           &
+                                                  Me%WorkSize%JLB,                           &
+                                                  Me%WorkSize%JUB,                           &
+                                                  STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR076'
+                            
+                            call HDF5WriteData   (Me%ObjHDF5,                                                 &
+                                                  "/Results/"//trim(PropertyX%ID%Name)//"_AvrgAquiferConc",   &
+                                                  trim(PropertyX%ID%Name)//"_AvrgAquiferConc",                &
+                                                  trim(PropertyX%ID%Units),                                   &
+                                                  Array2D = PropertyX%AverageAquiferConc,                     &
+                                                  OutputNumber = OutPutNumber,                                &
+                                                  STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR077' 
+
+                            call HDF5WriteData   (Me%ObjHDF5,                                                 &
+                                                  "/Results/"//trim(PropertyX%ID%Name)//"_AvrgVadozeConc",    &
+                                                  trim(PropertyX%ID%Name)//"_AvrgVadozeConc",                 &
+                                                  trim(PropertyX%ID%Units),                                   &
+                                                  Array2D = PropertyX%AverageVadozeConc,                      &
+                                                  OutputNumber = OutPutNumber,                                &
+                                                  STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR078'  
+                        
+                        endif
+                    
+                    endif                    
+                    
                     PropertyX => PropertyX%Next
 
                 enddo
@@ -11035,8 +11605,170 @@ First:          if (LastTime.LT.Actual) then
     end subroutine OutPut_HDF
 
     !----------------------------------------------------------------------------
+    !the routimne goes vertically (K) from bottom to top summing prop mass and volume to compute
+    !average concentration at end of aquifer ot top of soil. if aquifer or vadoze zone do not exist
+    !the value is null_real
+    subroutine ComputeAverageConc(PropertyX)
+    
+        !Arguments---------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        !Local-------------------------------------------------------------------
+        type (T_Property), pointer                  :: SoilDryDensity       
+        integer, dimension(:,:), pointer            :: GWlayer
+        integer                                     :: STAT_CALL, CHUNK, i, j, k
+        real                                        :: SoilMass, PropMass, SumPropMass, SumSoilMass
+        real                                        :: WaterVolume, SumWaterVolume
+        !Begin-------------------------------------------------------------------
+        
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "ComputeAverageConc")
+        
+        !this is the first non saturated layer
+        call GetGWLayer   (Me%ObjPorousMedia, GWlayer, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAverageConc - ModulePorousMediaProperties - ERR001'
 
-    subroutine Output_Boxes
+!        call GetGeometryKFloor(Me%ObjGeometry,                                          &
+!                               Z    = Me%ExtVar%KFloor,                                 &
+!                               STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_)                                                      &
+!            call SetError(FATAL_, INTERNAL_, "ComputeAverageConc - ModulePorousMediaProperties. ERR002")
+        
+        !if not computed will be stupid number (e.g. no vadoze or no aquifer)
+        PropertyX%AverageAquiferConc = null_real
+        PropertyX%AverageVadozeConc  = null_real
+        
+        if (Check_Particulate_Property(PropertyX%ID%IDNumber)) then
+
+            call SearchProperty(SoilDryDensity, SoilDryDensity_        , .false., STAT = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeAverageConc - ModulePorousMediaProperties - ERR003'
+
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            !$OMP PARALLEL PRIVATE(I,J,K,SumPropMass,SumSoilMass,PropMass,SoilMass)
+                        
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+            SumPropMass = 0.
+            SumSoilMass = 0.
+            
+            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                
+                if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then        
+                    
+                    ! [kgsoil] = [kgsoil/m3cell] * [m3cell]) 
+                    SoilMass  = SoilDryDensity%Concentration(i,j,k) * Me%ExtVar%CellVolume(i,j,k) 
+                                                                    
+                    ![mg]     =  [mg/kgsoil] * [kgsoil]
+                    PropMass  = PropertyX%Concentration(i,j,k) * SoilMass                   
+                    
+                    !mg
+                    SumPropMass   = SumPropMass + PropMass
+                    !kgsoil
+                    SumSoilMass   = SumSoilMass + SoilMass 
+                    
+                    !reached aquifer top - compute aquifer conc
+                    if (K == GWlayer(i,j) - 1) then
+                        
+                        ![mg/kgsoil]                  = [mg] / [kgsoil]
+                        PropertyX%AverageAquiferConc(i,j) = SumPropMass / SumSoilMass
+                        
+                        !reset
+                        SumPropMass = 0.
+                        SumSoilMass = 0.
+                    
+                    !reached top of soil - compute aquifer (no vadoze) or vadoze conc                        
+                    elseif (K == Me%WorkSize%KUB) then
+                        
+                        if (GWlayer(i,j) == Me%WorkSize%KUB) then
+                            ![mg/kgsoil]                  = [mg] / [kgsoil]
+                            PropertyX%AverageAquiferConc(i,j) = SumPropMass / SumSoilMass                 
+                        else
+                            ![mg/kgsoil]                  = [mg] / [kgsoil]
+                            PropertyX%AverageVadozeConc(i,j) = SumPropMass / SumSoilMass                 
+                        endif
+                    endif
+                        
+                endif
+                
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL 
+        
+        else
+
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            !$OMP PARALLEL PRIVATE(I,J,K,SumPropMass,SumWaterVolume,PropMass,WaterVolume)
+                        
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+            SumPropMass    = 0.
+            SumWaterVolume = 0.
+            
+            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                
+                if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then        
+                    
+                    ! [m3] = [m3H20/m3cell] * [m3cell]) 
+                    WaterVolume  = Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k) 
+                                                                    
+                    ![g]     =  [g/m3] * [m3]
+                    PropMass  = PropertyX%Concentration(i,j,k) * WaterVolume                   
+                    
+                    !g
+                    SumPropMass    = SumPropMass + PropMass
+                    !m3
+                    SumWaterVolume = SumWaterVolume + WaterVolume 
+                    
+                    !reached aquifer top - compute aquifer conc
+                    if (K == GWlayer(i,j) - 1) then
+                        
+                        ![mg/kgsoil]                  = [mg] / [m3]
+                        PropertyX%AverageAquiferConc(i,j) = SumPropMass / SumWaterVolume
+                        
+                        !reset
+                        SumPropMass    = 0.
+                        SumWaterVolume = 0.
+                    
+                    !reached top of soil - compute aquifer (no vadoze) or vadoze conc                        
+                    elseif (K == Me%WorkSize%KUB) then
+                        
+                        if (GWlayer(i,j) == Me%WorkSize%KUB) then
+                            ![mg/kgsoil]                  = [mg] / [m3]
+                            PropertyX%AverageAquiferConc(i,j) = SumPropMass / SumWaterVolume                 
+                        else
+                            ![mg/kgsoil]                  = [mg] / [m3]
+                            PropertyX%AverageVadozeConc(i,j) = SumPropMass / SumWaterVolume                 
+                        endif
+                    endif
+                        
+                endif
+                
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL         
+        
+        endif
+
+!        call UnGetGeometry( Me%ObjGeometry, Me%ExtVar%KFloor,       STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_)                                                      &
+!            call SetError(FATAL_, INTERNAL_, "ComputeAverageConc - ModulePorousMediaProperties. ERR10")
+
+        call UnGetPorousMedia (Me%ObjPorousMedia, GWlayer, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAverageConc - ModulePorousMediaProperties - ERR020'      
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ComputeAverageConc")
+    
+    end subroutine ComputeAverageConc
+    
+    !----------------------------------------------------------------------------
+    
+    subroutine Output_Boxes_Mass
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
@@ -11047,9 +11779,7 @@ First:          if (LastTime.LT.Actual) then
 
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "Output_Boxes")
 
-        
-        
-        
+       
         call GetWaterPoints3D   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Output_Boxes - ModulePorousMediaProperties - ERR10'        
         
@@ -11126,21 +11856,19 @@ First:          if (LastTime.LT.Actual) then
                 endif
                 
                 call BoxDif(Me%ObjBoxDif, Me%CellMass,                      &
-                            "Sed_"//trim(adjustl(CurrProperty%ID%Name)),    &
+                            "soil_"//trim(adjustl(CurrProperty%ID%Name)),    &
                             Me%ExtVar%WaterPoints3D,                        &
                             STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)  &
                     stop 'Output_Boxes - ModulePorousMediaProperties - ERR01'        
                 
                 Me%CellMass(:,:,:) = null_real                                    
-            
+
             endif
             
             CurrProperty => CurrProperty%Next
         
         end do 
-        
-
         
         nullify (CurrProperty)
         nullify (SoilDryDensity)
@@ -11156,9 +11884,61 @@ First:          if (LastTime.LT.Actual) then
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "Output_Boxes")    
     
-    end subroutine Output_Boxes
+    end subroutine Output_Boxes_Mass
 
     !----------------------------------------------------------------------------
+    
+    subroutine Output_Boxes_Fluxes (Property)
+    
+        !Arguments---------------------------------------------------------------
+        type (T_Property)                         :: Property
+        !Local-------------------------------------------------------------------
+        integer                                   :: CHUNK, STAT_CALL, i, j, k
+        !Begin-------------------------------------------------------------------
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                                
+        !$OMP PARALLEL PRIVATE(I,J,K)
+do2 :   do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do3 :   do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+do4 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+            Me%Fluxes%MassFluxesX (I,J,K) = Me%Fluxes%AdvFluxX(I,J,K) + Me%Fluxes%DifFluxX (I,J,K)
+            Me%Fluxes%MassFluxesY (I,J,K) = Me%Fluxes%AdvFluxY(I,J,K) + Me%Fluxes%DifFluxY (I,J,K)
+        end do do4
+        end do do3
+        !$OMP END DO NOWAIT
+        end do do2
+        !$OMP END PARALLEL
+
+        if (Me%WorkSize%KUB > Me%WorkSize%KLB) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+do5 :       do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do6 :       do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+do7 :       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                Me%Fluxes%MassFluxesZ (I,J,K) = Me%Fluxes%AdvFluxZ(I,J,K) + Me%Fluxes%DifFluxZ (I,J,K)
+            end do do7
+            end do do6
+            !$OMP END DO NOWAIT
+            end do do5
+            !$OMP END PARALLEL
+        endif
+
+        !Integration of fluxes
+        call BoxDif(Me%ObjBoxDif,                        &
+                    Me%Fluxes%MassFluxesX,               &
+                    Me%Fluxes%MassFluxesY,               &
+                    Me%Fluxes%MassFluxesZ,               &
+                    "soil_"//trim(Property%ID%Name),     &
+                    Me%ExtVar%WaterPoints3D,             &
+                    STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                     &
+        stop 'Output_Boxes_Fluxes - ModulePorousMediaProperties - ERR300'
+                
+    end subroutine Output_Boxes_Fluxes
+    
+    !--------------------------------------------------------------------------
 
     subroutine WriteFinalFile
 
