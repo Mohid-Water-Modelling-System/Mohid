@@ -3495,6 +3495,7 @@ i0:     if(Me%Dim == Dim2D)then
 
             allocate(Me%HDF%PreviousField2D (ILB:IUB, JLB:JUB))
             allocate(Me%HDF%NextField2D     (ILB:IUB, JLB:JUB))
+            allocate(Me%HDF%Array2D         (ILB:IUB, JLB:JUB))
 
             Me%HDF%PreviousField2D(:,:) = FillValueReal
             Me%HDF%NextField2D    (:,:) = FillValueReal
@@ -3510,6 +3511,7 @@ i0:     if(Me%Dim == Dim2D)then
 
             allocate(Me%HDF%PreviousField3D (ILB:IUB, JLB:JUB, KLB:KUB))
             allocate(Me%HDF%NextField3D     (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate(Me%HDF%Array3D         (ILB:IUB, JLB:JUB, KLB:KUB))
 
             Me%HDF%PreviousField3D(:,:,:) = FillValueReal
             Me%HDF%NextField3D    (:,:,:) = FillValueReal
@@ -7272,9 +7274,9 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                 instant           = Me%HDF%NextInstant
                 Me%NextEventEnd   = Me%HDF%NextTime   
                 if (Me%Dim == Dim2D) then             
-                    Me%HDF%Array2D    => Me%HDF%NextField2D
+                    Me%HDF%Array2D    = Me%HDF%NextField2D
                 else
-                    Me%HDF%Array3D    => Me%HDF%NextField3D
+                    Me%HDF%Array3D    = Me%HDF%NextField3D
                 endif
             else
             
