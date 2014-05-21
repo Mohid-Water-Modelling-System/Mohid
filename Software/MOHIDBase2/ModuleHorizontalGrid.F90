@@ -453,7 +453,8 @@ Module ModuleHorizontalGrid
         integer                                 :: ObjHDF5       = 0
         integer                                 :: ObjEnterData  = 0
         integer                                 :: ObjEnterData2 = 0
-
+        
+        type(T_Polygon),          pointer       :: AuxPolygon
 
         type (T_HorizontalGrid), pointer        :: Next => null()
 
@@ -3402,7 +3403,10 @@ BF1:    if (Me%ReadCartCorners) then
 
         allocate (Me%YY1D_Aux(ILB:IUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - HorizontalGrid - ERR330'
-
+        
+        allocate(Me%AuxPolygon)
+        Me%AuxPolygon%Count = 5                
+        allocate(Me%AuxPolygon%VerticesF(1:5))
 
     end subroutine AllocateVariables
 
@@ -10074,6 +10078,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 nullify    (Me%XX1D_Aux) 
                 nullify    (Me%YY1D_Aux)
+                
+                deallocate(Me%AuxPolygon%VerticesF)
+                deallocate(Me%AuxPolygon)
 
                 call KillFatherGridList
                 
@@ -12307,44 +12314,44 @@ cd1:    if      (SumON > 0) then
         integer                                         :: I1, I2, I3, I4
         integer                                         :: J1, J2, J3, J4
         logical                                         :: IsPointInside, SearchCell, CellFound
+        logical                                         :: UnknownInitialIJ
+        
         !Begin -------------------------------------------------------------
 
-        allocate(Point)        
-
+        CellFound        = .false.
+        SearchCell       = .true.
+        UnknownInitialIJ = .true.
+        
+        allocate(Point)
         Point%X = XPoint
         Point%Y = YPoint
-
-        CellFound = .false.
-        SearchCell = .true.
 
         !check if 
 f1:     if (present(Iold) .and. present(Jold)) then
 
-f3:         if (Iold>=ILB .and. Iold<=IUB .and. Jold>=JLB .and. Jold<=JUB) then
+f12:        if (Iold>=ILB .and. Iold<=IUB .and. Jold>=JLB .and. Jold<=JUB) then
 
-                allocate(Polygon)
-                Polygon%Count     = 5                
-                allocate(Polygon%VerticesF(1:Polygon%Count))
-            
-                Polygon%VerticesF(1)%X  = XX2D_Z(Iold  ,Jold  )
-                Polygon%VerticesF(1)%Y  = YY2D_Z(Iold  ,Jold  )
+                UnknownInitialIJ = .false.
+                
+                Me%AuxPolygon%VerticesF(1)%X  = XX2D_Z(Iold  ,Jold  )
+                Me%AuxPolygon%VerticesF(1)%Y  = YY2D_Z(Iold  ,Jold  )
 
-                Polygon%VerticesF(2)%X  = XX2D_Z(Iold+1,Jold  )
-                Polygon%VerticesF(2)%Y  = YY2D_Z(Iold+1,Jold  )
+                Me%AuxPolygon%VerticesF(2)%X  = XX2D_Z(Iold+1,Jold  )
+                Me%AuxPolygon%VerticesF(2)%Y  = YY2D_Z(Iold+1,Jold  )
 
-                Polygon%VerticesF(3)%X  = XX2D_Z(Iold+1,Jold+1)
-                Polygon%VerticesF(3)%Y  = YY2D_Z(Iold+1,Jold+1)
+                Me%AuxPolygon%VerticesF(3)%X  = XX2D_Z(Iold+1,Jold+1)
+                Me%AuxPolygon%VerticesF(3)%Y  = YY2D_Z(Iold+1,Jold+1)
 
-                Polygon%VerticesF(4)%X  = XX2D_Z(Iold  ,Jold+1)
-                Polygon%VerticesF(4)%Y  = YY2D_Z(Iold  ,Jold+1)
+                Me%AuxPolygon%VerticesF(4)%X  = XX2D_Z(Iold  ,Jold+1)
+                Me%AuxPolygon%VerticesF(4)%Y  = YY2D_Z(Iold  ,Jold+1)
                 
                 !close polygon 
-                Polygon%VerticesF(5)%X  = Polygon%VerticesF(1)%X
-                Polygon%VerticesF(5)%Y  = Polygon%VerticesF(1)%Y
+                Me%AuxPolygon%VerticesF(5)%X  = Me%AuxPolygon%VerticesF(1)%X
+                Me%AuxPolygon%VerticesF(5)%Y  = Me%AuxPolygon%VerticesF(1)%Y
                 
-                call SetLimits(Polygon)
+                call SetLimits(Me%AuxPolygon)
                 
-                if (IsPointInsidePolygon(Point, Polygon)) then
+                if (IsPointInsidePolygon(Point, Me%AuxPolygon)) then
                     
                     SearchCell = .false.
                     CellFound  = .true.
@@ -12353,182 +12360,251 @@ f3:         if (Iold>=ILB .and. Iold<=IUB .and. Jold>=JLB .and. Jold<=JUB) then
                     JZ         = Jold
                     
                 endif
+                
+            else f12
+            
+                UnknownInitialIJ = .true.
+                
+            endif f12            
+        
+        endif f1
+
+f2:     if (SearchCell) then
+
+            !search adjacent cells
+f3:         if (present(Iold) .and. present(Jold) .and. (.not. UnknownInitialIJ)) then 
+
+                ILower = Iold - 1
+                IUpper = Iold + 1
+                JLower = Jold - 1
+                JUpper = Jold + 1
+
+                if(JLower .lt. JLB)then
+                    JLower = JLB
+                end if
+                
+                if(JUpper .gt. JUB)then
+                    JUpper = JUB
+                end if
+                
+                if(ILower .lt. ILB)then
+                    ILower = ILB
+                end if
+                
+                if(IUpper .gt. IUB)then
+                    IUpper = IUB
+                end if
+
+                do j = JLower, JUpper
+                do i = ILower, IUpper
+                
+                    if(i == iold .and. j == jold) cycle
+                    
+                    if(DefinedPoint(i,j) == 1)then
+
+                        Me%AuxPolygon%VerticesF(1)%X  = XX2D_Z(i  ,j  )
+                        Me%AuxPolygon%VerticesF(1)%Y  = YY2D_Z(i  ,j  )
+
+                        Me%AuxPolygon%VerticesF(2)%X  = XX2D_Z(i+1,j  )
+                        Me%AuxPolygon%VerticesF(2)%Y  = YY2D_Z(i+1,j  )
+
+                        Me%AuxPolygon%VerticesF(3)%X  = XX2D_Z(i+1,j+1)
+                        Me%AuxPolygon%VerticesF(3)%Y  = YY2D_Z(i+1,j+1)
+
+                        Me%AuxPolygon%VerticesF(4)%X  = XX2D_Z(i  ,j+1)
+                        Me%AuxPolygon%VerticesF(4)%Y  = YY2D_Z(i  ,j+1)
+                        
+                        !close polygon 
+                        Me%AuxPolygon%VerticesF(5)%X  = Me%AuxPolygon%VerticesF(1)%X
+                        Me%AuxPolygon%VerticesF(5)%Y  = Me%AuxPolygon%VerticesF(1)%Y
+                        
+                        call SetLimits(Me%AuxPolygon)
+                
+                        if (IsPointInsidePolygon(Point, Me%AuxPolygon)) then
+                            
+                            SearchCell = .false.
+                            CellFound  = .true.
+                            
+                            IZ         = i
+                            JZ         = j
+                            
+                            exit
+                            
+                        endif
+                        
+                    endif
+
+                enddo
+                if(CellFound) exit  !exit do J loop 
+                enddo
+ 
+            end if f3
+            
+            !if still has not found the grid cell
+f4:         if(SearchCell)then
+            
+                Iupper = IUB
+                ILower = ILB
+
+                Jupper = JUB
+                JLower = JLB
+                
+                allocate(Polygon)
+                allocate(Polygon%VerticesF(1: 2*(IUB-ILB+1+JUB-JLB+1)))
+
+               
+                do while (SearchCell)
+
+                    ICenter = int(real((Iupper - ILower)/ 2.)) + ILower
+                    JCenter = int(real((Jupper - JLower)/ 2.)) + JLower
+                    
+                    IsPointInside = .false.
+
+                    !Construct 4 polygons NW, NE, SW, SE
+                    do pi = 1, 4
+                        
+                        !All polygons are defined anti-Clockwise 
+                        if      (pi==1) then
+
+                            if (ILower == ICenter) cycle
+                            if (JLower == JCenter) cycle
+                            
+                            I1 = ILower;  J1 = JLower
+                            I2 = ILower;  J2 = JCenter
+                            I3 = ICenter; J3 = JCenter
+                            I4 = ICenter; J4 = JLower
+
+                        else if (pi==2) then
+
+                            if (ILower == ICenter) cycle
+
+                            I1 = ILower;  J1 = JCenter;
+                            I2 = ILower;  J2 = Jupper;
+                            I3 = ICenter; J3 = Jupper;
+                            I4 = ICenter; J4 = JCenter;
+
+                        else if (pi==3) then
+
+                            if (JLower == JCenter) cycle
+
+                            I1 = ICenter; J1 = JLower;
+                            I2 = ICenter; J2 = JCenter;
+                            I3 = IUpper ; J3 = JCenter;
+                            I4 = IUpper;  J4 = JLower;
+
+                        else if (pi==4) then
+
+
+                            I1 = ICenter; J1 = JCenter;
+                            I2 = ICenter; J2 = JUpper;
+                            I3 = IUpper ; J3 = JUpper;
+                            I4 = IUpper;  J4 = JCenter;
+
+                        endif
+                        
+                        Polygon%Count = 0.
+
+                        do j = J1, J2
+
+                            if (DefinedPoint(I1,j) == 1) then
+
+                                Polygon%Count = Polygon%Count + 1                   
+
+                                Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(I1,j)
+                                Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(I1,j)
+
+                            endif
+                        
+                        end do
+
+                        do i = I2, I3
+
+                            if (DefinedPoint(i,J2) == 1) then
+
+                                Polygon%Count = Polygon%Count + 1                   
+
+                                Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(i,J2)
+                                Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(i,J2)
+
+                            endif
+                        
+                        end do
+
+                        do j = J3, J4, -1
+
+                            if (DefinedPoint(I3,j) == 1) then
+
+                                Polygon%Count = Polygon%Count + 1                   
+
+                                Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(I3,j)
+                                Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(I3,j)
+
+                            endif
+                        
+                        end do
+
+                        do i = I4, I1, -1
+
+                            if (DefinedPoint(i,J4) == 1) then
+
+                                Polygon%Count = Polygon%Count + 1                   
+
+                                Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(i,J4)
+                                Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(i,J4)
+
+                            endif
+                        
+                        end do
+
+                        Polygon%Count = Polygon%Count + 1                   
+
+                        !Close polygon
+                        Polygon%VerticesF(Polygon%Count)%X  = Polygon%VerticesF(1)%X
+                        Polygon%VerticesF(Polygon%Count)%Y  = Polygon%VerticesF(1)%Y
+
+                        call SetLimits(Polygon)
+
+                        IsPointInside = IsPointInsidePolygon(Point, Polygon)
+
+                        if (IsPointInside) exit
+
+                    enddo
+
+                    Iupper  = I3
+                    ILower  = I1
+
+                    Jupper  = J2
+                    JLower  = J1
+                    
+                    if ((Iupper - ILower) == 1 .and. (Jupper - JLower) == 1) then
+                        
+                        SearchCell = .false.           
+                    
+                        if (IsPointInside) then
+                            !Test if the cell was found
+                             CellFound = .true.
+                        endif
+                    endif
                                     
+                end do 
+
+                IZ = ILower
+                JZ = JLower
+
                 deallocate(Polygon%VerticesF)        
                 nullify   (Polygon%VerticesF)        
 
                 deallocate(Polygon)
                 nullify   (Polygon)
                 
-            endif f3            
-        
-        endif f1
-
-
-f2:     if (SearchCell) then
-            Iupper = IUB
-            ILower = ILB
-
-            Jupper = JUB
-            JLower = JLB
-            
-            allocate(Polygon)
-            allocate(Polygon%VerticesF(1: 2*(IUB-ILB+1+JUB-JLB+1)))
-
-           
-            do while (SearchCell)
-
-                ICenter = int(real((Iupper - ILower)/ 2.)) + ILower
-                JCenter = int(real((Jupper - JLower)/ 2.)) + JLower
-                
-                IsPointInside = .false.
-
-                !Construct 4 polygons NW, NE, SW, SE
-                do pi = 1, 4
-                    
-                    !All polygons are defined anti-Clockwise 
-                    if      (pi==1) then
-
-                        if (ILower == ICenter) cycle
-                        if (JLower == JCenter) cycle
-                        
-                        I1 = ILower;  J1 = JLower
-                        I2 = ILower;  J2 = JCenter
-                        I3 = ICenter; J3 = JCenter
-                        I4 = ICenter; J4 = JLower
-
-                    else if (pi==2) then
-
-                        if (ILower == ICenter) cycle
-
-                        I1 = ILower;  J1 = JCenter;
-                        I2 = ILower;  J2 = Jupper;
-                        I3 = ICenter; J3 = Jupper;
-                        I4 = ICenter; J4 = JCenter;
-
-                    else if (pi==3) then
-
-                        if (JLower == JCenter) cycle
-
-                        I1 = ICenter; J1 = JLower;
-                        I2 = ICenter; J2 = JCenter;
-                        I3 = IUpper ; J3 = JCenter;
-                        I4 = IUpper;  J4 = JLower;
-
-                    else if (pi==4) then
-
-
-                        I1 = ICenter; J1 = JCenter;
-                        I2 = ICenter; J2 = JUpper;
-                        I3 = IUpper ; J3 = JUpper;
-                        I4 = IUpper;  J4 = JCenter;
-
-                    endif
-                    
-                    Polygon%Count = 0.
-
-                    do j = J1, J2
-
-                        if (DefinedPoint(I1,j) == 1) then
-
-                            Polygon%Count = Polygon%Count + 1                   
-
-                            Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(I1,j)
-                            Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(I1,j)
-
-                        endif
-                    
-                    end do
-
-                    do i = I2, I3
-
-                        if (DefinedPoint(i,J2) == 1) then
-
-                            Polygon%Count = Polygon%Count + 1                   
-
-                            Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(i,J2)
-                            Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(i,J2)
-
-                        endif
-                    
-                    end do
-
-                    do j = J3, J4, -1
-
-                        if (DefinedPoint(I3,j) == 1) then
-
-                            Polygon%Count = Polygon%Count + 1                   
-
-                            Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(I3,j)
-                            Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(I3,j)
-
-                        endif
-                    
-                    end do
-
-                    do i = I4, I1, -1
-
-                        if (DefinedPoint(i,J4) == 1) then
-
-                            Polygon%Count = Polygon%Count + 1                   
-
-                            Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(i,J4)
-                            Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(i,J4)
-
-                        endif
-                    
-                    end do
-
-                    Polygon%Count = Polygon%Count + 1                   
-
-                    !Close polygon
-                    Polygon%VerticesF(Polygon%Count)%X  = Polygon%VerticesF(1)%X
-                    Polygon%VerticesF(Polygon%Count)%Y  = Polygon%VerticesF(1)%Y
-
-                    call SetLimits(Polygon)
-
-                    IsPointInside = IsPointInsidePolygon(Point, Polygon)
-
-                    if (IsPointInside) exit
-
-                enddo
-
-                Iupper  = I3
-                ILower  = I1
-
-                Jupper  = J2
-                JLower  = J1
-                
-                if ((Iupper - ILower) == 1 .and. (Jupper - JLower) == 1) then
-                    
-                    SearchCell = .false.           
-                
-                    if (IsPointInside) then
-                        !Test if the cell was found
-                         CellFound = .true.
-                    endif
-                endif
-                                
-            end do 
-
-            IZ = ILower
-            JZ = JLower
-
-            deallocate(Polygon%VerticesF)        
-            nullify   (Polygon%VerticesF)        
-
-            deallocate(Polygon)
-            nullify   (Polygon)
+            endif f4
 
         endif f2
-        
-        deallocate(Point)
-        nullify   (Point)
-
                 
         if (present(CellLocated)) CellLocated = CellFound
-
-            
+        
+        deallocate(Point)
+        nullify(Point)
 
 
     end subroutine LocateCellPolygons

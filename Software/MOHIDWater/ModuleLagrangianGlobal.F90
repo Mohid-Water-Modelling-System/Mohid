@@ -1043,6 +1043,9 @@ Module ModuleLagrangianGlobal
         type(T_PropStatistic  ), dimension(:),pointer :: PropStatistic  => null()
                                           !ig  
         type(T_OilSpreading   ), dimension(:),pointer :: OilSpreading   => null()
+        
+        real, dimension(:, :, :), pointer       :: MassDissolvedSumParticCell => null()
+        real, dimension(:, :, :), pointer       :: MassSumParticCell          => null()
 
         type(T_HNS   ), dimension(:),pointer          :: HNS            => null()
 
@@ -1685,7 +1688,6 @@ Module ModuleLagrangianGlobal
         type(T_Online)                          :: Online    
 !#endif      
 
-
         logical                                 :: WritesTimeSerie      = .false.
         logical                                 :: RunOnlyMov2D         = .false.
         logical                                 :: Overlay              = .false.
@@ -2227,6 +2229,24 @@ d1:     do em =1, Me%EulerModelNumber
 
             allocate (Me%EulerModel(em)%OilSpreading(1: Me%NGroups), STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR10'
+            
+            allocate (Me%EulerModel(em)%MassDissolvedSumParticCell( Me%EulerModel(em)%Size%ILB: &
+                                                                    Me%EulerModel(em)%Size%IUB, &
+                                                                    Me%EulerModel(em)%Size%JLB: &
+                                                                    Me%EulerModel(em)%Size%JUB,&
+                                                                    Me%EulerModel(em)%Size%KLB: &
+                                                                    Me%EulerModel(em)%Size%KUB),&
+                                                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR11'
+            
+            allocate (Me%EulerModel(em)%MassSumParticCell         ( Me%EulerModel(em)%Size%ILB: &
+                                                                    Me%EulerModel(em)%Size%IUB, &
+                                                                    Me%EulerModel(em)%Size%JLB: &
+                                                                    Me%EulerModel(em)%Size%JUB,&
+                                                                    Me%EulerModel(em)%Size%KLB: &
+                                                                    Me%EulerModel(em)%Size%KUB),&
+                                                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR12'
 
 d2:         do ig = 1, Me%NGroups
 
@@ -3495,8 +3515,7 @@ d2:     do em =1, Me%EulerModelNumber
             endif
 
         enddo d2
-
-
+        
         !----------------------------------------------------------------------
 
     end subroutine ConstructLag2Euler
@@ -5191,6 +5210,8 @@ NDF:        if (.not. NewOrigin%Default) then
                 
                 NewOrigin%Position%CoordX = Position(1)                   
                 NewOrigin%Position%CoordY = Position(2)
+                
+                
                 
                 call Convert_XY_CellIJ(Me%EulerModel(em),NewOrigin%Position, Referential = GridCoord_)
 
@@ -8271,12 +8292,14 @@ CurrOr: do while (associated(CurrentOrigin))
                         "Err",      &
                         "Depth"
             Else
-            152 format(4X, A6,4X,A12, 4X, A12, 4X, A12, 4X, A3, 4X, A6, 4X, &
+            152 format(4X, A6,4X,A12, 4X, A12, 4X, A12, 4X, A12, 4X, A12, 4X, A3, 4X, A6, 4X, &
                        A6, 4X, A3, 4X, A3, 4X, A6)
                 Write(CurrentOrigin%troUnit,152) "Number", &
                         "Time",     &
                         "Lat",      &   
                         "Lon",      &
+                        "I",        &   
+                        "J",        &
                         "Status",   &
                         "Wd",       &
                         "Cur",      &
@@ -9402,6 +9425,9 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
             !Sets Horizontal Position equal to origin
             NewParticle%Position%X = CurrentOrigin%Position%X
             NewParticle%Position%Y = CurrentOrigin%Position%Y
+            
+            NewParticle%Position%I = CurrentOrigin%Position%I
+            NewParticle%Position%J = CurrentOrigin%Position%J
 
             call Convert_XY_CellIJ (Me%EulerModel(em), NewParticle%Position, Referential = AlongGrid_)
 
@@ -9557,6 +9583,9 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                 !call LocateEulerModel(NewParticle)
 
                 em = CurrentOrigin%Position%ModelID
+                
+                NewPosition%I = null_int
+                NewPosition%J = null_int
 
                 !Converts Horizontal Position
                 call Convert_XY_CellIJ (Me%EulerModel(em), NewPosition, Referential = AlongGrid_)
@@ -11440,8 +11469,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_    
-
-
+        
         STAT_ = UNKNOWN_
 
         call Ready(LagrangianID, ready_)
@@ -11546,9 +11574,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 if (Me%State%Partition) then
                     call PartitionDecay      ()
                 endif
+                
 
                 !Internal Oil Processes
                 if (Me%State%Oil) then
+
                     call ComputeAreaVolume  ()
                     call InternalParticOil   ()
 
@@ -11568,6 +11598,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 !                    endif
 
                 endif
+                
+
 
                 !Check the concentration limits
                 call CheckConcLimits        ()
@@ -11636,6 +11668,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         endif
 
         if (present(STAT)) STAT = STAT_
+        
 
     end subroutine ModifyLagrangianGlobal
 
@@ -12283,6 +12316,7 @@ d1:     do while (associated(CurrentOrigin))
         
         !Begin-----------------------------------------------------------------    
         
+        
             !Writes Particle Output
             call ParticleOutput         ()
     
@@ -12298,7 +12332,7 @@ d1:     do while (associated(CurrentOrigin))
             if(Me%Output%WriteRestartFile)then
                 call OutputRestartFile
             end if
-
+            
     end subroutine LagrangianOutput
     
     !--------------------------------------------------------------------------    
@@ -12478,6 +12512,7 @@ iON:        if (CurrentOrigin%EmissionON) then
         integer                                     :: i, j, em, ig
 
         !Begin-----------------------------------------------------------------
+        
                 !Fills Grid concentration
         if (Me%Now > Me%ExternalVar%LastConcCompute) then
             
@@ -12511,6 +12546,7 @@ i1:                 if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint
             enddo d1
 
         endif
+        
 
     end subroutine FillGridThickness
 
@@ -12628,7 +12664,6 @@ i2:                 if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Partic), pointer                    :: CurrentPartic
-        real, dimension(:, :, :), pointer           :: MassSumParticCell
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: i, j, k, STAT_CALL, em, ig
         logical                                     :: HaveDomain
@@ -12639,7 +12674,7 @@ i2:                 if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint
 d1:     do em = 1, Me%EulerModelNumber                         
         
             ig = CurrentOrigin%GroupID
-
+            
             ILB = Me%EulerModel(em)%WorkSize%ILB
             JLB = Me%EulerModel(em)%WorkSize%JLB
             KLB = Me%EulerModel(em)%WorkSize%KLB
@@ -12647,15 +12682,10 @@ d1:     do em = 1, Me%EulerModelNumber
             JUB = Me%EulerModel(em)%WorkSize%JUB
             KUB = Me%EulerModel(em)%WorkSize%KUB
 
-            allocate (MassSumParticCell (ILB:IUB,                &
-                                         JLB:JUB,                &
-                                         KLB:KUB),               &                                 
-                                         STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR10'
 
-                   
+                  
             !Adds the mass of all particles in the every cell
-            MassSumParticCell = 0.
+            Me%EulerModel(em)%MassSumParticCell = 0.
             CurrentPartic => CurrentOrigin%FirstPartic
             do while (associated(CurrentPartic))
 
@@ -12695,7 +12725,8 @@ d1:     do em = 1, Me%EulerModelNumber
                 
                 if (HaveDomain) then
 
-                    MassSumParticCell(i, j, k) = MassSumParticCell(i, j, k) + CurrentPartic%OilMass
+                    Me%EulerModel(em)%MassSumParticCell(i, j, k) = Me%EulerModel(em)%MassSumParticCell(i, j, k) + &
+                                                                   CurrentPartic%OilMass
 
                 endif                    
 
@@ -12708,16 +12739,11 @@ d1:     do em = 1, Me%EulerModelNumber
             do i = ILB, IUB
                if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
                      Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D(i, j,k) =     &
-                     MassSumParticCell(i,j,k) / Me%EulerModel(em)%VolumeZ(i,j,k)  
+                     Me%EulerModel(em)%MassSumParticCell(i,j,k) / Me%EulerModel(em)%VolumeZ(i,j,k)  
                 end if
             enddo
             enddo
             enddo
-
-
-            deallocate (MassSumParticCell, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR50'
-
         enddo d1
 
     end subroutine OilGridConcentration3D
@@ -12731,7 +12757,6 @@ d1:     do em = 1, Me%EulerModelNumber
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Partic), pointer                    :: CurrentPartic
-        real, dimension(:, :, :), pointer           :: MassDissolvedSumParticCell
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: i, j, k, STAT_CALL, em, ig
         logical                                     :: HaveDomain
@@ -12742,23 +12767,17 @@ d1:     do em = 1, Me%EulerModelNumber
 d1:     do em = 1, Me%EulerModelNumber                         
         
             ig = CurrentOrigin%GroupID
-
+            
             ILB = Me%EulerModel(em)%WorkSize%ILB
             JLB = Me%EulerModel(em)%WorkSize%JLB
             KLB = Me%EulerModel(em)%WorkSize%KLB
             IUB = Me%EulerModel(em)%WorkSize%IUB
             JUB = Me%EulerModel(em)%WorkSize%JUB
             KUB = Me%EulerModel(em)%WorkSize%KUB
-            
-            allocate (MassDissolvedSumParticCell (ILB:IUB,                &
-                                                  JLB:JUB,                &
-                                                  KLB:KUB),               &                                 
-                                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR10'
 
 
             !Adds the mass of all particles in the every cell
-            MassDissolvedSumParticCell = 0.
+            Me%EulerModel(em)%MassDissolvedSumParticCell = 0.
             CurrentPartic => CurrentOrigin%FirstPartic
             do while (associated(CurrentPartic))
 
@@ -12797,7 +12816,8 @@ d1:     do em = 1, Me%EulerModelNumber
                 endif                
                 
                 if (HaveDomain) then
-                    MassDissolvedSumParticCell(i, j, k) = MassDissolvedSumParticCell(i, j, k) + & 
+                    Me%EulerModel(em)%MassDissolvedSumParticCell(i, j, k) = &
+                                                       Me%EulerModel(em)%MassDissolvedSumParticCell(i, j, k) + & 
                                                        CurrentPartic%OilDissolvedMass
                 endif
                 
@@ -12810,16 +12830,13 @@ d1:     do em = 1, Me%EulerModelNumber
             do i = ILB, IUB               
                if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
                     Me%EulerModel(em)%OilSpreading(ig)%OilGridDissolution3D(i,j,k) =                &
-                    MassDissolvedSumParticCell(i,j,k) /     &
+                    Me%EulerModel(em)%MassDissolvedSumParticCell(i,j,k) /     &
                     Me%EulerModel(em)%VolumeZ(i,j,k) 
                 end if
             enddo
             enddo
             enddo
 
-
-            deallocate (MassDissolvedSumParticCell, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR50'
 
         enddo d1
 
@@ -14530,7 +14547,6 @@ CurrOr: do while (associated(CurrentOrigin))
 
         enddo CurrOr
 
-
     end subroutine MovePartic
 
     !--------------------------------------------------------------------------
@@ -15328,6 +15344,9 @@ dts:        do ts = 1, 2
                     DYn           = DYrand                              
                 endif    
                 
+                NewPosition%I = CurrentPartic%Position%I
+                NewPosition%J = CurrentPartic%Position%J
+                
                 call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
                                        Referential = AlongGrid_, ConvertOK = ConvertOK)                 
                                            
@@ -15346,6 +15365,9 @@ dts:        do ts = 1, 2
                     !New Position
                     NewPosition%X = NewPosition%X + DXn / real(Npi)
                     NewPosition%Y = NewPosition%Y + DYn / real(Npi)   
+                    
+                    NewPosition%I = CurrentPartic%Position%I
+                    NewPosition%J = CurrentPartic%Position%J
                     
                     !Convert Coordinates
                     call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
@@ -15380,6 +15402,10 @@ dts:        do ts = 1, 2
                     NewPosition%ModelID = em
                     !If particle changes domain
                     if (NewPosition%ModelID /= CurrentPartic%Position%ModelID) then
+                    
+                        NewPosition%I = null_int
+                        NewPosition%J = null_int
+                    
                         !Needs to change to along grid referential
                         call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
                                                              Referential = GridCoord_,          &
@@ -15446,6 +15472,9 @@ dts:        do ts = 1, 2
     iFKP:           if (MovePartic) then
 
                         CurrentPartic%Freazed = .false. 
+                        
+                        NewPosition%I = CurrentPartic%Position%I
+                        NewPosition%J = CurrentPartic%Position%J
                         
                         !Convert Coordinates
                         call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
@@ -18334,7 +18363,6 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: dx, dy, dt, Angle, Grad, vx, vy, Aux, x1, y1, t1, AuxT, RAND, dist
 
         !Begin-----------------------------------------------------------------
-
         
         do em = 1, Me%EulerModelNumber
             do ig = 1, Me%NGroups
@@ -18649,7 +18677,7 @@ ib2:                if (.not. CurrentPartic%Beached) then
             CurrentOrigin => CurrentOrigin%Next
 
         enddo CurrOr
-
+        
 
     end subroutine ComputeAreaVolume
 
@@ -19044,7 +19072,6 @@ CurrOr: do while (associated(CurrentOrigin))
         type (T_Time)                               :: LagrangianTime
 
 
-
         LagrangianTime = Me%Now
 
         CurrentOrigin => Me%FirstOrigin
@@ -19299,7 +19326,7 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
             CurrentOrigin => CurrentOrigin%Next
 
         enddo CurrOr
-
+        
     end subroutine InternalParticOil
 
     !--------------------------------------------------------------------------
@@ -24015,9 +24042,8 @@ d1:     do em =1, Me%EulerModelNumber
                                 
         !Begin----------------------------------------------------------------------
 
-
         Me%ExternalVar%LastConcCompute = Me%Now
-
+        
 d1:     do em = 1, Me%EulerModelNumber 
 
 
@@ -24249,6 +24275,7 @@ cd0:                    if (nProp > 0) then
         enddo dg
 
         enddo d1
+        
 
 d2:     do em = 1, Me%EulerModelNumber 
 
@@ -24343,7 +24370,7 @@ g2:         do ig = 1, Me%NGroups
                         endif
 
                     end select
-
+                    
                     where (Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig).lt.     &
                            Me%EulerModel(em)%Lag2Euler%MinConc(:, ig))                  &
                            Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig) =       &
@@ -24352,7 +24379,6 @@ g2:         do ig = 1, Me%NGroups
                     where (Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig)  == 0.)                                   &
                            Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig)  =      &
                            Me%EulerModel(em)%Lag2Euler%AmbientConc(:,ig)
-
 
                 else
 
@@ -24425,6 +24451,7 @@ g3:             do ig = 1, Me%NGroups
             endif cd3
 
         enddo d2
+        
 
     end subroutine FillGridConcentration
 
@@ -24931,7 +24958,6 @@ CurrOr:         do while (associated(CurrentOrigin))
         type (T_Origin), pointer                    :: CurrentOrigin
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: ig
-        real, dimension(:, :), pointer              :: OilGridConc2D 
         character(StringLength)                     :: AuxChar
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                     :: WS_KLB, WS_KUB
@@ -24957,9 +24983,6 @@ CurrOr:         do while (associated(CurrentOrigin))
                               WS_KLB, WS_KUB)
 
 
-        !Allocate GridVolume, GridMass
-        allocate (OilGridConc2D (ILB:IUB, JLB:JUB))
-
 Group:  do ig = 1, Me%nGroups
 
             !Writes the Group to an auxiliar string
@@ -24976,7 +24999,6 @@ CurrOr:     do while (associated(CurrentOrigin))
                 !Just writes the output if there are particle
 !                if (CurrentOrigin%nParticle > 0) then
                     !OilGridConc2D = CurrentOrigin%OilGridConcentration
-                    OilGridConc2D = Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration
 
                     !HDF 5
                     call HDF5WriteData        (Me%ObjHDF5(em),                       &
@@ -24984,7 +25006,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                                                //"/Data_2D/OilConcentration_2D",            &
                                                "OilConcentration_2D",                       &
                                                "ppm",                                       &
-                                               Array2D = OilGridConc2D,                     &
+                                               Array2D = Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration,   &
                                                OutputNumber = OutputNumber)
 
 
@@ -24994,9 +25016,6 @@ CurrOr:     do while (associated(CurrentOrigin))
             enddo CurrOr
 
         enddo Group
-
-        deallocate (OilGridConc2D )
-
 
     end subroutine WriteOilGridConcentration
 
@@ -25199,9 +25218,6 @@ CurrOr:     do while (associated(CurrentOrigin))
                               WS_KLB, WS_KUB)
 
 
-        !Allocate GridVolume, GridMass
-        allocate (OilGridConc3D (ILB:IUB, JLB:JUB, KLB:KUB))
-
 Group:  do ig = 1, Me%nGroups
 
             !Writes the Group to an auxiliar string
@@ -25218,7 +25234,6 @@ CurrOr:     do while (associated(CurrentOrigin))
                 !Just writes the output if there are particle
 !                if (CurrentOrigin%nParticle > 0) then
 !                   OilGridConc3D = CurrentOrigin%OilGridConcentration3D
-                    OilGridConc3D = Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D
 
                     !HDF 5
                     call HDF5WriteData        (Me%ObjHDF5(em),                              &
@@ -25226,7 +25241,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                                                //"/Data_3D/OilConcentration_3D",            &
                                                "OilConcentration_3D",                       &
                                                "Kg/m3",                                     &
-                                               Array3D = OilGridConc3D,                     &
+                                               Array3D = Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration3D, &
                                                OutputNumber = OutputNumber)
 
 
@@ -25236,8 +25251,6 @@ CurrOr:     do while (associated(CurrentOrigin))
             enddo CurrOr
 
         enddo Group
-
-        deallocate (OilGridConc3D )
 
 
     end subroutine WriteOilGridConcentration3D
@@ -25256,7 +25269,7 @@ CurrOr:     do while (associated(CurrentOrigin))
         type (T_Origin), pointer                    :: CurrentOrigin
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: ig
-        real, dimension(:, :, :), pointer           :: OilDissolution3D 
+        !real, dimension(:, :, :), pointer           :: OilDissolution3D 
         character(StringLength)                     :: AuxChar
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                     :: WS_KLB, WS_KUB
@@ -25283,7 +25296,7 @@ CurrOr:     do while (associated(CurrentOrigin))
 
 
         !Allocate GridVolume, GridMass
-        allocate (OilDissolution3D (ILB:IUB, JLB:JUB, KLB:KUB))
+        !allocate (OilDissolution3D (ILB:IUB, JLB:JUB, KLB:KUB))
 
 Group:  do ig = 1, Me%nGroups
 
@@ -25300,7 +25313,7 @@ CurrOr:     do while (associated(CurrentOrigin))
 
                 !Just writes the output if there are particle
 !               if (CurrentOrigin%nParticle > 0) then
-                    OilDissolution3D = Me%EulerModel(em)%OilSpreading(ig)%OilGridDissolution3D
+                    !OilDissolution3D = Me%EulerModel(em)%OilSpreading(ig)%OilGridDissolution3D
 
                     !HDF 5
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
@@ -25308,7 +25321,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                                                //"/Data_3D/Dissolution_3D",                    &
                                                "Dissolution_3D",                               &
                                                "Kg/m3",                                        &
-                                               Array3D = OilDissolution3D,                     &
+                                               Array3D = Me%EulerModel(em)%OilSpreading(ig)%OilGridDissolution3D,   &
                                                OutputNumber = OutputNumber)
 
 
@@ -25319,7 +25332,7 @@ CurrOr:     do while (associated(CurrentOrigin))
 
         enddo Group
 
-        deallocate (OilDissolution3D )
+        !deallocate (OilDissolution3D )
 
 
     end subroutine WriteOilGridDissolution3D
@@ -25628,6 +25641,15 @@ if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                     i  = CurrentPartic%Position%I
                     j  = CurrentPartic%Position%J
                     k  = CurrentPartic%Position%K
+                    
+                    !Cell Postition
+                    CellI = CurrentPartic%Position%CellI
+                    CellJ = CurrentPartic%Position%CellJ
+
+                    !Fraction of the cell
+                    BALX  = CellJ - int(CellJ)
+                    BALY  = CellI - int(CellI)
+
 
                     !default tracer status = on water column
                     TracerStatus = 1 
@@ -25699,13 +25721,6 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                     
 
 
-                    !Cell Postition
-                    CellI = CurrentPartic%Position%CellI
-                    CellJ = CurrentPartic%Position%CellJ
-
-                    !Fraction of the cell
-                    BALX  = CellJ - int(CellJ)
-                    BALY  = CellI - int(CellI)
 
                     !Linear Interpolation to obtain the velocity of the Water
                     U = LinearInterpolation(Velocity_U(i,  j  ,k), Velocity_U(i,  j+1,k), BALX)
@@ -25739,7 +25754,7 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                 100 format(4X, i6,4X,f12.2, 4X, f12.5, 4X, f12.5, 4X, i3, 4X, i6, 4X,   &
                            i7, 4X,  i3, 4X, i3, 4X, i3, 4X, f12.2, 4X, f12.2, 4X, i3.3, &
                            i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
-                110 format(4X, i6,4X,f12.2, 4X, f12.5, 4X, f12.5, 4X, i3, 4X,   &
+                110 format(4X, i6,4X,f12.2, 4X, f12.5, 4X, f12.5, 4X, i3, 4X, i3, 4X, i3, 4X,   &
                            i3.3, i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
                                                                  
                     If (CurrentOrigin%State%Oil) then
@@ -25769,6 +25784,8 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                         RunPeriod, &
                         GeographicCoordinates(em, CurrentPartic%Position, 1), &
                         GeographicCoordinates(em, CurrentPartic%Position, 2), &
+                        CurrentPartic%Position%I, &
+                        CurrentPartic%Position%J, &
                         TracerStatus, &                  
                         nint(WindDirection), &
                         nint(WindIntensityInKnots), &
@@ -26974,6 +26991,13 @@ d1:     do em = 1, Me%EulerModelNumber
         !Begin---------------------------------------------------------------------
 
 d1:     do em =1, Me%EulerModelNumber 
+
+            deallocate (Me%EulerModel(em)%MassDissolvedSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'DeAllocateOil - ModuleLagrangianGlobal - ERR10'
+            
+            deallocate (Me%EulerModel(em)%MassSumParticCell, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'DeAllocateOil - ModuleLagrangianGlobal - ERR11'
+
 
 d2:         do ig = 1, Me%NGroups
 
