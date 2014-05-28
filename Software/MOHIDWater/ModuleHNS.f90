@@ -183,6 +183,7 @@ Module ModuleHNS
         real                                                 :: WavePeriod           = null_real
         real                                                 :: WaterSolubility      = null_real
         real                                                 :: ParticleState        = null_real
+        real                                                 :: Depth                = null_real
         real                                                 :: Area                 = null_real
         logical                                              :: BackTracking         = OFF
         real                                                 :: DropletsD50          = null_real
@@ -327,50 +328,15 @@ cd2 :       if (present(ExtractType)) then
             
 ifContCalc: if (.NOT. ContCalc ) then
 !                Me%Var%Time              = 0.0
-!                Me%Var%MEvaporated       = 0.0
-!                Me%Var%VEvaporated       = 0.0
-!                Me%Var%FMEvaporated      = 0.0
-!                Me%Var%MDispersed        = 0.0
-!                Me%Var%VDispersed        = 0.0
-!                Me%Var%FMDispersed       = 0.0
-!                Me%Var%MSedimented       = 0.0
-!                Me%Var%VSedimented       = 0.0
-!                Me%Var%FMSedimented      = 0.0
-!                Me%Var%MDissolved        = 0.0
-!                Me%Var%VDissolved        = 0.0
-!                Me%Var%FMDissolved       = 0.0
+                Me%Var%MEvaporated              = 0.0
+                Me%Var%MEntrained               = 0.0
+                Me%Var%MSedimented              = 0.0
+                Me%Var%MDissolved               = 0.0
+                Me%Var%MVolatilized             = 0.0
+                Me%Var%MDegraded                = 0.0
+
 !                Me%Var%Volume            = 0.0
                 Me%State%FirstStepIP     = ON
-!                Me%State%FirstStepAP     = ON
-
-                !initialization of some properties
-            
-!                Me%Var%SolubilityOilInWater = SolubilityFreshOil
-!
-!                Me%Var%ThicknessLimit       = F_ThicknessLimit ()
-!                                   
-!cd5:            if (Me%Var%OilEvaporation) then
-!cd6:                if (Me%Var%EvaporationMethod .EQ. PseudoComponents) then
-!                        
-!cd7:                    if (Me%Var%OilType .EQ. Refined) then
-!                            write (*, *) 'Refined Oil + PseudoComponents Method : '
-!                            write (*, *) 'Rough aproximation in evaporation process'
-!                            write (*, *) '(Refined products usually don`t demonstrate linear distilattion curves)'
-!                        end if  cd7
-!                                            
-!                   else if (Me%Var%EvaporationMethod .EQ. EvaporativeExposure) then cd6
-!
-!cd8:                    if (Me%Var%OilType .EQ. Refined) then
-!                            write (*, *) 'Refined Oil + Evaporative Exposure Method : '
-!                            write (*, *) 'Rough aproximation in evaporation process'
-!                            write (*, *) '(Refined products usually don`t demonstrate linear distilattion curves)'
-!                        end if cd8
-!                    
-!                       Me%Var%IBP              = F_IBP  ()
-!                       Me%Var%Slope            = F_Slope()
-!                   end if cd6
-!
-!                end if cd5
 
                 !Find HNS behaviour class
                 call FindHNSBehaviourClass(VaporPressure     = Me%Var%VaporPressure,     &
@@ -701,16 +667,15 @@ ifdegr:  if  (Me%Var%HNSDegradation) then
          end if ifdegr
 
             if (Me%ExternalVar%BackTracking) then
-    !            Me%Var%OilSpreading             = .false.
-    !            Me%Var%OilEvaporation           = .false.
-    !            Me%Var%OilDispersion            = .false.
-    !            Me%Var%OilSedimentation         = .false.
-    !            Me%Var%OilEmulsification        = .false.
-    !            Me%Var%OilDissolution           = .false.
-    !            Me%Var%OilChemDispersion        = .false.
-    !            Me%Var%OilMecCleanup            = .false.
+                Me%Var%HNSSpreading             = .false.
+                Me%Var%HNSEvaporation           = .false.
+                Me%Var%HNSEntrainment           = .false.
+                Me%Var%HNSDissolution           = .false.
+                Me%Var%HNSVolatilization        = .false.
+                Me%Var%HNSSedimentation         = .false.
+                Me%Var%HNSDegradation           = .false.
                 
-                write(*,*) "Backtracking option is ON all oil processes were disconnected"
+                write(*,*) "Backtracking option is ON - all HNS processes were disconnected"
                 write(*,*) "Subroutine HNSOptions - ModuleHNS - WRN010"  
             endif
         
@@ -1207,6 +1172,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
                                     MassIN,                                       &
                                     HNSParticleStateIN,                           &
                                     DropletsDiameterIN,                           &
+                                    Depth,                                        &
                                     Density,                                      &
                                     MassOUT,                                      &
                                     VolumeOUT,                                    &
@@ -1230,6 +1196,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         real,              intent(IN)               :: MassIN
         integer,           intent(IN)               :: HNSParticleStateIN
         real,              intent(IN)               :: DropletsDiameterIN
+        real,              intent(IN)               :: Depth
         real,              intent(OUT)              :: Density
         real,              intent(OUT)              :: MassOUT
         real,              intent(OUT)              :: VolumeOUT
@@ -1274,9 +1241,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                     Me%ExternalVar%Wind                 = Wind
                     Me%ExternalVar%Currents             = Currents
                     Me%ExternalVar%SPM                  = SPM
+                    Me%ExternalVar%Depth                = Depth
                     Me%Var%InitialMass                  = InitialMass
                     Me%Var%Mass                         = MassIN
-                    Me%Var%DropletDiameter             = DropletsDiameterIN
+                    Me%Var%DropletDiameter              = DropletsDiameterIN
                     
                     Call InitializeVariables
                     
@@ -1501,7 +1469,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         KMassTransf = 0.0292 * Wind **(7./9.) * Diameter **(-1./9.) * SchmidtNbr **(-2./3.)
 
         ! evaporation rate, Kawamura and Mackay 1985 - units kg/s
-        EvaporationRate = Area * KMassTransf * ((MolecularWeight * VaporPressure) / (R * AirTemperatureInKelvin))
+        !next R is multiplied by 1.e3 in order to get R in units J/kmol.K
+        EvaporationRate = Area * KMassTransf * ((MolecularWeight * VaporPressure) / (R * 1.e3 * AirTemperatureInKelvin))
         
         !Correction for Volatilization (Brighton, 1985, 1990; Reynolds 1992)
         VolatileCorrection = - (AtmPressure / VaporPressure) * log(Max(AlmostZero,(1. - (VaporPressure / AtmPressure ))))
@@ -1570,7 +1539,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Local-------------------------------------------------------------------
         real :: Diffusivity
         real :: WaterTemperatureInKelvin
-        real :: WaterCinVisc_
+        real :: WaterCinVisc_cSt
         real :: WaterDynamicVisc_
         real :: WaterSolubility
         real :: MolarVolume_       
@@ -1579,6 +1548,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         real :: KTransferMass
         real :: WaterTemperature
         real :: Diameter, SurfaceArea, ReynoldsVelocity, ReynoldsNbr, SherwoodNbr, SchmidtNbr, WaterDensity
+!        real  :: R_converted
         integer :: ParticleState
         real :: MDissolvedDT 
         
@@ -1596,21 +1566,26 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         WaterDensity = Me%ExternalVar%WaterDensity
         
-        !Dynamic Viscocity in cP (mPa/s-1)
+        !Dynamic Viscocity in cP (mPa/s)
         WaterDynamicVisc_ = GetWaterDynamicVisc(WaterTemperature)
-        !Water Kynematic Visc in St (cm2/s)
-        WaterCinVisc_ = 10. * WaterDynamicVisc_ / WaterDensity
+        !Water Kynematic Visc in cSt (cm2/s)
+        WaterCinVisc_cSt = 10. * WaterDynamicVisc_ / WaterDensity
         
         WaterSolubility = Me%Var%WaterSolubility
+
+        !universal gas constant R in atm-m3/mol-K
+        !R_converted = 8.206e-5
 
         !Diffusivity (Hayduk & Minhas, 1982) in cm2/s
         !Diffusivity = 1.25e-8 * ((MolarVolume_**(-0.19)) - 0.292) * (WaterTemperatureInKelvin **1.52) * WaterDynamicVisc_
 
         !Diffusivity (Hayduk & Laudie method) - in (Lyman et al., 1982 apud Hines & Maddox, 1985)  in cm2/s
-        Diffusivity = (R * 1.E-5 * WaterTemperatureInKelvin) / ((WaterDynamicVisc_**1.14) * (MolarVolumeLeBas_**(0.589)))
+        !Diffusivity = (R_converted * 1.E-5 * WaterTemperatureInKelvin) / ((WaterDynamicVisc_**1.14) * (MolarVolumeLeBas_**(0.589)))
 
+        !Diffusivity (Hayduk & Laudie method) - in (Hayduk, W. and H. Laudie, 1974)  in cm2/s
+        Diffusivity = (13.26 * 1.E-5) / ((WaterDynamicVisc_**1.14) * (MolarVolumeLeBas_**(0.589)))
         
-        SchmidtNbr = WaterCinVisc_ / Diffusivity
+        SchmidtNbr = WaterCinVisc_cSt / Diffusivity
 
         If (ParticleState .EQ. Surface_) then
 
@@ -1622,7 +1597,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
            
             ReynoldsVelocity = Me%ExternalVar%Wind 
                       
-            ReynoldsNbr = ReynoldsVelocity * Diameter / WaterCinVisc_
+            ReynoldsNbr = ReynoldsVelocity * Diameter / (WaterCinVisc_cSt*1e-4)
 
             SherwoodNbr = .578 * (SchmidtNbr **(1./3.)) * (ReynoldsNbr ** 0.5)
                  
@@ -1635,15 +1610,18 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
             ReynoldsVelocity = Me%ExternalVar%Currents 
 
-            ReynoldsNbr = ReynoldsVelocity * Diameter / WaterCinVisc_
+            ReynoldsNbr = ReynoldsVelocity * Diameter / (WaterCinVisc_cSt*1.e-4)
 
             SherwoodNbr = 2. + 0.552 * sqrt(ReynoldsNbr) * (SchmidtNbr **(1./3.))
 
         EndIf        
 
+        !next 1.e-4 is to convert diffusivity units from cm2/s to m2/s
         KTransferMass = (SherwoodNbr * Diffusivity * 1.e-4) / Diameter  
 
-        MDissolvedDT = KTransferMass * WaterSolubility * SurfaceArea * Me%Var%DTHNSInternalProcesses
+        !next 1.e-3 is to convert mass units, because WaterSolubility is in mg/l = g/m3
+        !and it should be in kg/m3 to get MDissolvedDT in kg/s
+        MDissolvedDT = KTransferMass * WaterSolubility * 1.e-3 * SurfaceArea * Me%Var%DTHNSInternalProcesses
         
         Me%Var%MDissolvedDT = MDissolvedDT
 !        Me%Var%MDissolved = max(MDissolved - MVolatilizedDT * Me%Var%DTHNSInternalProcesses, 0.)
@@ -1706,9 +1684,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         
         !---------------------------------------------------------------------
         if (Organic) then
-            MolarVolumeLeBas = 4.9807 * (MolecularWeight ** 0.651)
+            MolarVolumeLeBas = 4.9807 * (MolecularWeight ** 0.6963)
         else
-            MolarVolumeLeBas = 2.8047 * (MolecularWeight ** 0.6963)
+            MolarVolumeLeBas = 2.8047 * (MolecularWeight ** 0.651)
         endif
     
     end function MolarVolumeLeBas
@@ -1753,6 +1731,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         real :: MixDepth
         real :: MVolatilizedDT
         real :: MDissolved
+        real :: Depth
 
         !------------------------------------------------------------------------
 
@@ -1762,25 +1741,34 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         WaterSolubility = Me%Var%WaterSolubility
         MDissolved = Me%Var%Mass
         WaveHeight = Me%ExternalVar%WaveHeight
+        Depth = Me%ExternalVar%Depth
         
-        H = VaporPressure / (WaterSolubility / MolecularWeight)
+        !next 1.e-3 is to convert solubility units to kg/m3, in order to get H in 
+        ! m3*Pa/kmol or J/kmol
+        H = VaporPressure / (WaterSolubility * 1.e-3 / MolecularWeight)
         
-if1:    If ( H < 3.0e-7) then
+if1:    If ( H < 30.3975) then
             MVolatilizedDT = 0
         Else if1
 
-            H_Dimensionless = H / (R * AirTemperatureInKelvin)
-            
-            !liquid-phase exchange coefficient (m/s)
-            K5 = 20. * sqrt(44./ MolecularWeight) * (0.01 / 3600.) 
-
-            !gas-phase exchange coefficient (m/s)
-            K6 = 3000. * sqrt (18. / MolecularWeight)  * (0.01 / 3600.)
-            
-            !overall mass transfer coefficient (m/s)
-            K7 = (H_Dimensionless * K5 * K6)/(H_Dimensionless * K6 + K5)
             MixDepth = WaveHeight / 2.
-            MVolatilizedDT = K7 * MDissolved / MixDepth
+
+            If (Depth > MixDepth) then
+                MVolatilizedDT = 0
+            Else
+                !next 1.e3 is to put R in J/kmol.K
+                H_Dimensionless = H / (R * 1.e3 * AirTemperatureInKelvin)
+                
+                !liquid-phase exchange coefficient (m/s)
+                K5 = 20. * sqrt(44./ MolecularWeight) * (0.01 / 3600.) 
+
+                !gas-phase exchange coefficient (m/s)
+                K6 = 3000. * sqrt (18. / MolecularWeight)  * (0.01 / 3600.)
+                
+                !overall mass transfer coefficient (m/s)
+                K7 = (H_Dimensionless * K5 * K6)/(H_Dimensionless * K6 + K5)
+                MVolatilizedDT = min(MDissolved, (K7 * MDissolved / MixDepth) * Me%Var%DTHNSInternalProcesses)
+            End If
         End If if1
 
         Me%Var%MVolatilizedDT = MVolatilizedDT
@@ -1882,7 +1870,8 @@ if1:    If ( H < 3.0e-7) then
         WaterDegradationFactor = exp(-WaterDegradationRate * DT)
         SedimentDegradationFactor = exp(-SedimentDegradationRate * DT)
                      
-        If (HNSParticleState .EQ. Air_Evaporated_) then
+        If ((HNSParticleState .EQ. Air_Evaporated_) .OR.            &
+            (HNSParticleState .EQ. Air_Volatilized_)) then
             MDegradedDT = (1. - AirDegradationFactor) * Mass
         ElseIf (HNSParticleState .EQ. Bottom_Deposited_) then
             MDegradedDT = (1. - SedimentDegradationFactor) * Mass

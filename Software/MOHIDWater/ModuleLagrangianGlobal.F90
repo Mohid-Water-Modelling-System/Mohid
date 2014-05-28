@@ -16175,8 +16175,8 @@ OIL:            if (CurrentOrigin%State%Oil) then
                                 
                                 if (r1 .LT. correction) then
                                     call random_number(r2)
-                                    BreakingWaveHeight = 1.5 * WaveHeight
-                                    NewPosition%Z = min(r2 * 1.5 * BreakingWaveHeight + SurfaceDepth, BottomDepth)
+!                                    BreakingWaveHeight = 1.5 * WaveHeight
+                                    NewPosition%Z = min(r2 * 1.5 * WaveHeight + SurfaceDepth, BottomDepth)
                                     
                                     !CurrentPartic%Geometry%OilDropletsD50 = CurrentOrigin%OilDropletsD50
 
@@ -18699,6 +18699,7 @@ ib2:                if (.not. CurrentPartic%Beached) then
         integer                                     :: old_emp
         real                                        :: MassIn, MassOUT
         integer                                     :: HNSParticleStateNew, HNSParticleStateOld
+        real                                        :: HNSParticleDepth
 
 
         !Local-----------------------------------------------------------------
@@ -18813,10 +18814,15 @@ i1:         if (CurrentOrigin%nParticle > 0)  then
                     
                     WavePeriod = CurrentOrigin%FirstPartic%WavePeriod
                     
-                     HNSParticleStateOld = CurrentPartic%HNSParticleState
+                    HNSParticleDepth =  CurrentPartic%Position%Z - &
+                                        Me%EulerModel(emp)%SZZ(i, j,Me%EulerModel(emp)%WorkSize%KUB)
+                    if (HNSParticleDepth < 0.)       HNSParticleDepth = 0. 
 
-                     MassIn = CurrentPartic%HNSMass
-                     call HNSInternalProcesses(CurrentOrigin%ObjHNS,                              &
+
+                    HNSParticleStateOld = CurrentPartic%HNSParticleState
+
+                    MassIn = CurrentPartic%HNSMass
+                    call HNSInternalProcesses(CurrentOrigin%ObjHNS,                               &
                                           Wind                  = Wind,                           &
                                           Currents              = Currents,                       &
                                           WaterTemperature      = WaterTemperature,               &
@@ -18831,6 +18837,7 @@ i1:         if (CurrentOrigin%nParticle > 0)  then
                                           MassIn                = MassIn,                         &
                                           DropletsDiameterIN    = CurrentPartic%Geometry%DropletsDiameter, &
                                           HNSParticleStateIN    = HNSParticleStateOld,            &
+                                          Depth                 = HNSParticleDepth,               &
                                           Density               = CurrentPartic%HNSDensity,       &
                                           MassOUT               = MassOUT,                        &
                                           VolumeOUT             = CurrentPartic%Geometry%Volume,  &
@@ -19033,8 +19040,8 @@ CurrOr: do while (associated(CurrentOrigin))
         
         if ((HNSParticleStateOld .EQ. Surface_) .AND. (HNSParticleStateNew .EQ. WaterColumn_Droplet_)) then
             call random_number(r2)
-            BreakingWaveHeight = 1.5 * WaveHeight
-            ParticlePositionZ = min(r2 * 1.5 * BreakingWaveHeight + SurfaceDepth, BottomDepth)          
+!            BreakingWaveHeight = 1.5 * WaveHeight
+            ParticlePositionZ = min(r2 * 1.5 * WaveHeight + SurfaceDepth, BottomDepth)          
         endif
            
     end subroutine VerifyEntrainment

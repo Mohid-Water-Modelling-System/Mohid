@@ -3773,12 +3773,12 @@ cd2 :       if (Me%Var%OilType .EQ. refined) then
         !------------------------------------------------------------------------
 
 !        F_Cdisp = max(0.0 , -390.07*log(Me%Var%ViscCin/1.0e6) - 2779.4 )
-!         IF (Me%Var%ViscCin < 132.0 ) THEN 
-!            F_Cdisp = exp( (-0.1023 * log(Me%Var%ViscCin)) + 7.572)
-!         ELSE 
-!            F_Cdisp = exp( (-1.8927 * log(Me%Var%ViscCin)) + 16.313) 
-!         ENDIF
-         F_Cdisp = max(0.0 , -312.25*log(ViscCin) + 2509.8 )
+         if (ViscCin < 132.0 ) then 
+            F_Cdisp = max(0.0,exp( (-0.1023 * log(ViscCin)) + 7.572))
+         else 
+            F_Cdisp = max(0.0,exp( (-1.8927 * log(ViscCin)) + 16.313))
+         endif
+!         F_Cdisp = max(0.0 , -312.25*log(ViscCin) + 2509.8 )
 
         !------------------------------------------------------------------------
 
