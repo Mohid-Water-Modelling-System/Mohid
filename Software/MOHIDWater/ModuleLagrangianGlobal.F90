@@ -1512,6 +1512,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: MaxPart                  = null_int
         real                                    :: MaxVol                   = null_real
         real                                    :: AgeLimit                 = null_real
+        logical                                 :: AgeFreezeBeach           = .false.
         real                                    :: AccidentProbDefault      = FillValueReal
         logical                                 :: AreaVTS                  = .true.
         type (T_FloatingObject)                 :: FloatingObject        
@@ -4115,7 +4116,7 @@ BF:         if (BlockFound) then
         real                                        :: Depth , TotalVolume
         logical                                     :: HaveOrigin, PropertyFound, NoDomain
         type (T_Property), pointer                  :: NewProperty
-        integer                                     :: i, j, k
+        integer                                     :: i, j, k, KUB
         logical                                     :: ret
         integer                                     :: PropertyID, DensityMethod
         logical                                     :: WP_HaveProperty, SedimentDefined = .false.
@@ -4377,55 +4378,53 @@ iDF:                if (.not. NewOrigin%Default) then
 
                 endif iFV
 
-
-
-                call GetData(NewOrigin%MovingOrigin,                            &
-                             Me%ObjEnterData,                                   &
-                             flag,                                              &
-                             SearchType   = FromBlock,                          &
-                             default      = .false.,                            &
-                             keyword      ='MOVING_ORIGIN',                     &
-                             ClientModule ='ModuleLagrangianGlobal',            &
+                call GetData(NewOrigin%MovingOrigin,                                    &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             default      = .false.,                                    &
+                             keyword      ='MOVING_ORIGIN',                             &
+                             ClientModule ='ModuleLagrangianGlobal',                    &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR400'
 
                 if (NewOrigin%MovingOrigin) then
 
-                    call GetData(NewOrigin%MovingOriginFile,                     &
-                                 Me%ObjEnterData,                     &
-                                 flag,                                           &
-                                 SearchType   = FromBlock,                       &
-                                 keyword      ='MOVING_ORIGIN_FILE',             &
-                                 ClientModule ='ModuleLagrangianGlobal',               &
+                    call GetData(NewOrigin%MovingOriginFile,                            &
+                                 Me%ObjEnterData,                                       &
+                                 flag,                                                  &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      ='MOVING_ORIGIN_FILE',                    &
+                                 ClientModule ='ModuleLagrangianGlobal',                &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_ .or. flag /= 1) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR410'
 
-                    call GetData(NewOrigin%MovingOriginUnits,                    &
-                                 Me%ObjEnterData,                     &
-                                 flag,                                           &
-                                 default      = 'Cells',                         &
-                                 SearchType   = FromBlock,                       &
-                                 keyword      ='MOVING_ORIGIN_UNITS',            &
-                                 ClientModule ='ModuleLagrangianGlobal',               &
+                    call GetData(NewOrigin%MovingOriginUnits,                           &
+                                 Me%ObjEnterData,                                       &
+                                 flag,                                                  &
+                                 default      = 'Cells',                                &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      ='MOVING_ORIGIN_UNITS',                   &
+                                 ClientModule ='ModuleLagrangianGlobal',                &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR420'
 
 
-                    call GetData(NewOrigin%MovingOriginColumnX,                  &
-                                 Me%ObjEnterData,                     &
-                                 flag,                                           &
-                                 SearchType   = FromBlock,                       &
-                                 keyword      ='MOVING_ORIGIN_COLUMN_X',         &
-                                 ClientModule ='ModuleLagrangianGlobal',               &
+                    call GetData(NewOrigin%MovingOriginColumnX,                         &
+                                 Me%ObjEnterData,                                       & 
+                                 flag,                                                  &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      ='MOVING_ORIGIN_COLUMN_X',                &
+                                 ClientModule ='ModuleLagrangianGlobal',                &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_ .or. flag /= 1) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR430'
 
-                    call GetData(NewOrigin%MovingOriginColumnY,                  &
-                                 Me%ObjEnterData,                     &
-                                 flag,                                           &
-                                 SearchType   = FromBlock,                       &
-                                 keyword      ='MOVING_ORIGIN_COLUMN_Y',         &
-                                 ClientModule ='ModuleLagrangianGlobal',               &
+                    call GetData(NewOrigin%MovingOriginColumnY,                         &
+                                 Me%ObjEnterData,                                       &
+                                 flag,                                                  &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      ='MOVING_ORIGIN_COLUMN_Y',                &  
+                                 ClientModule ='ModuleLagrangianGlobal',                &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_ .or. flag /= 1) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR440'
 
@@ -4437,12 +4436,12 @@ iDF:                if (.not. NewOrigin%Default) then
                                  default      = .false.,                                &
                                  ClientModule ='ModuleLagrangianGlobal',                &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_ .or. flag /= 1) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR440'
+                    if (STAT_CALL /= SUCCESS_ ) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR445'
 
                     if (.not. NewOrigin%Default) then
-                        call StartTimeSerieInput(NewOrigin%ObjTimeSerie,            &
-                                                 NewOrigin%MovingOriginFile,        &
-                                                 Me%ExternalVar%ObjTime,            &
+                        call StartTimeSerieInput(NewOrigin%ObjTimeSerie,                &
+                                                 NewOrigin%MovingOriginFile,            &
+                                                 Me%ExternalVar%ObjTime,                &
                                                  STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR450'
                     endif
@@ -4472,7 +4471,7 @@ iDF:                if (.not. NewOrigin%Default) then
             endif
         endif
         
-        if (NewOrigin%EmissionSpatial  == Box_ .and.                                   &
+        if (NewOrigin%EmissionSpatial  == Box_ .and.                                    &
             NewOrigin%EmissionTemporal == Instantaneous_) then
             call GetData(NewOrigin%PointVolume,                                         &
                          Me%ObjEnterData,                                               &
@@ -5235,11 +5234,11 @@ NDF:        if (.not. NewOrigin%Default) then
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1025'                
 
                 !Verifies the horizontal location of the origin
-                i = NewOrigin%Position%I
-                j = NewOrigin%Position%J
-                k = Me%EulerModel(em)%WorkSize%KUB
+                i   = NewOrigin%Position%I
+                j   = NewOrigin%Position%J
+                KUB = Me%EulerModel(em)%WorkSize%KUB
 
-                if (Me%EulerModel(em)%Waterpoints3D(i, j, k) /= WaterPoint) then
+                if (Me%EulerModel(em)%Waterpoints3D(i, j, KUB) /= WaterPoint) then
                 
                     if (FindWaterLocation) then
                         call OriginLocationInWater(NewOrigin%Position,Me%EulerModel(em),FoundWater)
@@ -5268,7 +5267,7 @@ NDF:        if (.not. NewOrigin%Default) then
 
                 if (NewOrigin%Position%SurfaceEmission) then
 
-                    NewOrigin%Position%Z = Me%EulerModel(em)%SZZ(i, j, k)
+                    NewOrigin%Position%Z = Me%EulerModel(em)%SZZ(i, j, KUB)
 
                     call Convert_Z_CellK (NewOrigin, Me%EulerModel(em), NewOrigin%Position)
                     call Convert_CellK_K (NewOrigin%Position)
@@ -5290,7 +5289,7 @@ NDF:        if (.not. NewOrigin%Default) then
 
                     if (flag == 1) then
 
-                        NewOrigin%Position%Z = Me%EulerModel(em)%SZZ(i, j, k) + Depth
+                        NewOrigin%Position%Z = Me%EulerModel(em)%SZZ(i, j, KUB) + Depth
 
                         call Convert_Z_CellK (NewOrigin, Me%EulerModel(em), NewOrigin%Position)
                         call Convert_CellK_K (NewOrigin%Position)
@@ -5349,7 +5348,7 @@ NDF:        if (.not. NewOrigin%Default) then
                     endif
                 endif
 
-                if (NewOrigin%Position%Z .EQ. Me%EulerModel(em)%SZZ(i, j, k)) then
+                if (NewOrigin%Position%Z .EQ. Me%EulerModel(em)%SZZ(i, j, KUB)) then
                     NewOrigin%Position%Surface          = .true.
                     NewOrigin%Position%SurfaceEmission  = .true.
                 else
@@ -5367,7 +5366,7 @@ NDF:        if (.not. NewOrigin%Default) then
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR1060'
 
                 if (NewOrigin%Position%MaintainDepth) then
-                    NewOrigin%Position%DepthWithWaterLevel = NewOrigin%Position%Z - Me%EulerModel(em)%SZZ(i, j, k)
+                    NewOrigin%Position%DepthWithWaterLevel = NewOrigin%Position%Z - Me%EulerModel(em)%SZZ(i, j, KUB)
                 endif
 
 
@@ -5390,10 +5389,10 @@ NDF:        if (.not. NewOrigin%Default) then
                 !Initial Position of floating Particle close to the surface
                 if (NewOrigin%Movement%Float) then
 
-                    i = NewOrigin%Position%I
-                    j = NewOrigin%Position%J
-                    k = Me%EulerModel(em)%WorkSize%KUB
-                    NewOrigin%Position%Z = Me%EulerModel(em)%SZZ(i, j, k)
+                    i   = NewOrigin%Position%I
+                    j   = NewOrigin%Position%J
+                    KUB = Me%EulerModel(em)%WorkSize%KUB
+                    NewOrigin%Position%Z = Me%EulerModel(em)%SZZ(i, j, KUB)
             
                     call Convert_Z_CellK  (NewOrigin, Me%EulerModel(em), NewOrigin%Position)
                     call Convert_CellK_K  (NewOrigin%Position)
@@ -6363,7 +6362,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
         if (NewOrigin%State%Age) Me%State%Age = .true.
 
         if (NewOrigin%State%Age) then
-        !Age limit in days
+            !Age limit in days
             call GetData(NewOrigin%AgeLimit,                                            &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
@@ -6373,7 +6372,17 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                          Default      = -FillValueReal,                                 &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1530'
-
+            
+            !Age limit in days
+            call GetData(NewOrigin%AgeFreezeBeach,                                      &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='AGE_FREEZE_BEACH',                              &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         Default      = OFF,                                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1535'
         endif 
         
         call GetData(NewOrigin%State%AccidentProbability,                               &
@@ -7070,13 +7079,13 @@ d1:     do em = 1, Me%EulerModelNumber
             if (Me%State%Monitor) then
 
                 !Starts BoxDif
-                call StartBoxDif(BoxDifID         = Me%EulerModel(em)%ObjMonBox,                           & 
-                                 TimeID           = Me%EulerModel(em)%ObjTime,                             &
-                                 HorizontalGridID = Me%EulerModel(em)%ObjHorizontalGrid,                   &
-                                 BoxesFilePath    = Me%Files%MonitorBox,                    &
-                                 WaterPoints3D    = Me%EulerModel(em)%Waterpoints3D,           &
-                                 Size3D           = Me%EulerModel(em)%Size,                    &
-                                 WorkSize3D       = Me%EulerModel(em)%WorkSize,                &
+                call StartBoxDif(BoxDifID         = Me%EulerModel(em)%ObjMonBox,        & 
+                                 TimeID           = Me%EulerModel(em)%ObjTime,          &
+                                 HorizontalGridID = Me%EulerModel(em)%ObjHorizontalGrid,&
+                                 BoxesFilePath    = Me%Files%MonitorBox,                &
+                                 WaterPoints3D    = Me%EulerModel(em)%Waterpoints3D,    &
+                                 Size3D           = Me%EulerModel(em)%Size,             &
+                                 WorkSize3D       = Me%EulerModel(em)%WorkSize,         &
                                  STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'BoxTypeVariablesDefiniton - ModuleLagrangianGlobal - ERR150'
 
@@ -7086,13 +7095,13 @@ d1:     do em = 1, Me%EulerModelNumber
             if (Me%State%HaveBeachingProbBox) then
 
                 !Starts BoxDif
-                call StartBoxDif(BoxDifID         = Me%EulerModel(em)%ObjBeachingProbBox,              &
-                                 TimeID           = Me%EulerModel(em)%ObjTime,                         &
-                                 HorizontalGridID = Me%EulerModel(em)%ObjHorizontalGrid,               &
+                call StartBoxDif(BoxDifID         = Me%EulerModel(em)%ObjBeachingProbBox,&
+                                 TimeID           = Me%EulerModel(em)%ObjTime,           &
+                                 HorizontalGridID = Me%EulerModel(em)%ObjHorizontalGrid, &
                                  BoxesFilePath    = Me%Files%BeachingBoxFileName,       &
-                                 WaterPoints3D    = Me%EulerModel(em)%Waterpoints3D,       &
-                                 Size3D           = Me%EulerModel(em)%Size,                &
-                                 WorkSize3D       = Me%EulerModel(em)%WorkSize,            &
+                                 WaterPoints3D    = Me%EulerModel(em)%Waterpoints3D,    &
+                                 Size3D           = Me%EulerModel(em)%Size,             &
+                                 WorkSize3D       = Me%EulerModel(em)%WorkSize,         &
                                  STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'BoxTypeVariablesDefiniton - ModuleLagrangianGlobal - ERR230'
 
@@ -10287,7 +10296,7 @@ em1:    do em =1, Me%EulerModelNumber
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        character (StringLength)                        :: GroupName
+        character (StringLength)                        :: GroupName, AuxChar, AuxChar2
         integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                         :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                         :: WS_KLB, WS_KUB
@@ -10345,10 +10354,25 @@ d1:     do em = 1, Me%EulerModelNumber
                 endif
 
             endif
-
+            
+         
+            
             do ig = 1, Me%NGroups
+            
+                !Writes the Group to an auxiliar string
+                write (AuxChar, fmt='(i3)') ig
+
+                if (Me%NGroups == 1) then
+
+                    AuxChar2 = trim(Me%EulerModel(em)%Name)
+
+                else
+
+                    AuxChar2 = trim(Me%EulerModel(em)%Name)//"/Group_"//trim(adjustl(AuxChar))
+
+                endif               
                 
-                GroupName = trim(Me%EulerModel(em)%Name)//"_"
+                GroupName = trim(AuxChar2)//"_"
             
                 call ConstructStatistic (Me%EulerModel(em)%PropStatistic(nP)%Statistic1_ID(ig),     &
                                          ObjTime          = Me%EulerModel(em)%ObjTime,              &
@@ -10366,7 +10390,7 @@ d1:     do em = 1, Me%EulerModelNumber
 
                 if (Me%OutPut%ConcMaxTracer) then
 
-                    GroupName = trim(Me%EulerModel(em)%Name)//"_"//"MaxTracer_"
+                    GroupName = trim(AuxChar2)//"_"//"MaxTracer_"
 
                     call ConstructStatistic (Me%EulerModel(em)%PropStatistic(nP)%Statistic2_ID(ig), &
                                              ObjTime      = Me%EulerModel(em)%ObjTime,              &
@@ -10384,7 +10408,7 @@ d1:     do em = 1, Me%EulerModelNumber
 
                 if (Me%OutPut%MassTracer) then
 
-                    GroupName = trim(Me%EulerModel(em)%Name)//"_"//"MassTracer_"
+                    GroupName = trim(AuxChar2)//"_"//"MassTracer_"
 
                     call ConstructStatistic (Me%EulerModel(em)%PropStatistic(nP)%Statistic3_ID(ig), &
                                              ObjTime      = Me%EulerModel(em)%ObjTime,              &
@@ -10401,7 +10425,7 @@ d1:     do em = 1, Me%EulerModelNumber
 
                     if (Me%OutPut%ConcMaxTracer) then
 
-                        GroupName = trim(Me%EulerModel(em)%Name)//"_"//"MaxMassTracer_"
+                        GroupName = trim(AuxChar2)//"_"//"MaxMassTracer_"
 
                         call ConstructStatistic (Me%EulerModel(em)%PropStatistic(nP)%Statistic4_ID(ig), &
                                                  ObjTime      = Me%EulerModel(em)%ObjTime,              &
@@ -11823,7 +11847,13 @@ dem:        do em = 1, Me%EulerModelNumber
                 enddo            
                 deallocate(Point)
 
-                
+                !Ungets CoordX and CoordY
+                call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, CoordX, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleOpenBoundary - ERR40'
+
+                call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, CoordY, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleOpenBoundary - ERR45'
+
                 call ModifyGridData(Me%EulerModel(em)%ObjGridData, Bathymetry, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RedefinedCoastLine - ModuleLagrangianGlobal - ERR50' 
                 
@@ -11952,6 +11982,13 @@ dem:        do em = 1, Me%EulerModelNumber
                     ic = ic + 1
                 enddo
                 enddo
+                
+                !Ungets CoordX and CoordY
+                call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, CoordX, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanBathym - ModuleLagrangianGlobal - ERR32'
+
+                call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, CoordY, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanBathym - ModuleLagrangianGlobal - ERR35'                
 
                 if (Me%MeteoOcean%Prop(nMOP)%FieldNumber > 0) then
 
@@ -14133,6 +14170,12 @@ CurrPart:       do while (associated(CurrentPartic))
         
         
 DoEM:   do em =1, Me%EulerModelNumber         
+
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+
 Group:      do ig = 1, Me%nGroups
                 do j = JLB, JUB
                     do i = ILB, IUB
@@ -15419,11 +15462,11 @@ dts:        do ts = 1, 2
                 
                     if (MovePartic) then
 
-                        if (Me%Booms%ON .or. Me%ThinWallsON) then
+                        if ((Me%Booms%ON .and. CurrentPartic%Position%Surface) .or. Me%ThinWallsON) then
                     
                             if (ConvertOK) then                                                         
 
-                                if (Me%Booms%ON) then
+                                if (Me%Booms%ON .and. CurrentPartic%Position%Surface) then
                         
                                     do nn = 1, Me%Booms%Number
                                         if (SegIntersectLine(                               &
@@ -17428,6 +17471,8 @@ dw3:            do while (associated(CurrentParticle))
 
 
                 dh1 = CurrentParticle%Position%Z - Me%EulerModel(em)%SZZ(i, j, k)
+                
+                dh1 = max(0.,dh1)
 
                 !Radiation in the center of the particle (I2)
                 !I2 = I1*exp(-K * Thickness/2) <=> I1 = I2 / exp(-K * Thickness/2)
@@ -19513,7 +19558,11 @@ CurrOr: do while (associated(CurrentOrigin))
                 CurrentPartic => CurrentOrigin%FirstPartic
                 do while (associated(CurrentPartic))
 
-                    CurrentPartic%Age = CurrentPartic%Age + Me%DT_Partic
+                    if (.not.(CurrentOrigin%AgeFreezeBeach.and.CurrentPartic%Beached)) then
+                    
+                        CurrentPartic%Age = CurrentPartic%Age + Me%DT_Partic
+                        
+                    endif                        
                 
                     if (.not.CurrentOrigin%State%WQM) then
 
@@ -19524,9 +19573,13 @@ CurrOr: do while (associated(CurrentOrigin))
                         do while (associated(CurrentProperty))
 
                           if (CurrentProperty%ID==Age_) then
+                          
+                            if (.not.(CurrentOrigin%AgeFreezeBeach.and.CurrentPartic%Beached)) then
 
                                CurrentPartic%Concentration(nprop) = CurrentPartic%Concentration(nprop) + Me%DT_Partic/3600.
-
+                            
+                            endif
+                            
                           endif
                          
                           nprop=nprop +1
@@ -19538,7 +19591,9 @@ CurrOr: do while (associated(CurrentOrigin))
                     endif
                     
                     !seconds
-                    if (CurrentPartic%Age > CurrentOrigin%AgeLimit * 86400) CurrentPartic%KillPartic = ON
+                    if (CurrentPartic%Age > CurrentOrigin%AgeLimit * 86400) then
+                        CurrentPartic%KillPartic = ON
+                    endif                        
                   
                     CurrentPartic => CurrentPartic%Next
                 
@@ -20188,10 +20243,10 @@ d4:     do em =1, Me%EulerModelNumber
                 CurrentOrigin => Me%FirstOrigin
                 do while (associated(CurrentOrigin))
 
-                    if (em /= CurrentOrigin%Position%ModelID) then
-                        CurrentOrigin => CurrentOrigin%Next
-                        cycle
-                    endif
+!                    if (em /= CurrentOrigin%Position%ModelID) then
+!                        CurrentOrigin => CurrentOrigin%Next
+!                        cycle
+!                    endif
 
                     Me%EulerModel(em)%Monitor%IntgVolumeByOrigin (Box, CurrentOrigin%ID) =       &
                         Me%EulerModel(em)%Monitor%IntgVolumeByOrigin (Box, CurrentOrigin%ID) +   &
@@ -23841,7 +23896,7 @@ CurrOr:     do while (associated(CurrentOrigin))
 
             Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
 
-            call SetError(WARNING_, INTERNAL_, "Lagrangian restart file saved          : ", &
+            call SetError(WARNING_, INTERNAL_, "lagrangianglobal restart file saved          : ", &
                           Year, Month, Day, Hour, Minute, Second)
 
         end if
@@ -24081,9 +24136,9 @@ d1:     do em = 1, Me%EulerModelNumber
             endif
 
             if (Me%OutPut%ConcMaxTracer) then
-                Me%EulerModel(em)%Lag2Euler%GridMaxTracer (:,:,:,:,:) = 0.
+                Me%EulerModel(em)%Lag2Euler%GridMaxTracer  (:,:,:,:,:) = 0.
                 if (Me%OutPut%MassTracer) then
-                    Me%EulerModel(em)%Lag2Euler%GridMaxMass   (:,:,:,:,:) = 0.                
+                    Me%EulerModel(em)%Lag2Euler%GridMaxMass(:,:,:,:,:) = 0.                
                 endif
             endif
 
@@ -25493,22 +25548,22 @@ CurrOr:     do while (associated(CurrentOrigin))
         !Local-----------------------------------------------------------------
         type (T_Partic), pointer                    :: CurrentPartic
         type (T_Origin), pointer                    :: CurrentOrigin
-        integer                                     :: em, ig
+        integer                                     :: emp, ig
         integer                                     :: i, j, k
         integer                                     :: kbottom        
 
             CurrentOrigin => Me%FirstOrigin
     CurrOr: do while (associated(CurrentOrigin))
-                em = CurrentOrigin%Position%ModelID
                 ig = CurrentOrigin%GroupID
 
                 CurrentPartic => CurrentOrigin%FirstPartic
 
     CurrPartic: do while (associated(CurrentPartic))
 
-                    i  = CurrentPartic%Position%I
-                    j  = CurrentPartic%Position%J
-                    k  = CurrentPartic%Position%K
+                    i   = CurrentPartic%Position%I
+                    j   = CurrentPartic%Position%J
+                    k   = CurrentPartic%Position%K
+                    emp = CurrentPartic%Position%ModelID
 
                     !default tracer status = on water column
                     CurrentPartic%ParticleState = 1 
@@ -25520,19 +25575,23 @@ CurrOr:     do while (associated(CurrentOrigin))
                     If (CurrentPartic%Beached)              CurrentPartic%ParticleState = 10             
 
                     !tracer status = at the bottom
-                    kbottom = Me%EulerModel(em)%KFloor(i, j)
+                    kbottom = Me%EulerModel(emp)%KFloor(i, j)
                     
                     if (CurrentOrigin%State%FloatingObject) then
                         CurrentPartic%ParticleState = nint(CurrentOrigin%FloatingObject%ImmersionRatio * 0.1)
                     end if
                     
-                    if (CurrentOrigin%State%Deposition) then
-                        if (CurrentPartic%Position%Z >=         &
-                        (Me%EulerModel(em)%SZZ(i, j, kbottom -1)- CurrentOrigin%Deposition%BottomDistance)) &
-                        CurrentPartic%ParticleState = 00
-                    else
-                        if (CurrentPartic%Position%Z >= Me%EulerModel(em)%SZZ(i, j, kbottom -1)) &
-                        CurrentPartic%ParticleState = 00
+                    if (kbottom >= 1) then
+                    
+                        if (CurrentOrigin%State%Deposition) then
+                            if (CurrentPartic%Position%Z >=         &
+                            (Me%EulerModel(emp)%SZZ(i, j, kbottom -1)- CurrentOrigin%Deposition%BottomDistance)) &
+                            CurrentPartic%ParticleState = 00
+                        else
+                            if (CurrentPartic%Position%Z >= Me%EulerModel(emp)%SZZ(i, j, kbottom -1)) &
+                            CurrentPartic%ParticleState = 00
+                        endif
+                    
                     endif
 
                     CurrentPartic => CurrentPartic%Next
