@@ -46,8 +46,8 @@ Module ModuleAssimilation
     use ModuleGridData,         only: GetGridData, UngetGridData        
     use ModuleHorizontalGrid,   only: WriteHorizontalGrid, UnGetHorizontalGrid,             &
                                       GetGridCellArea, GetXYCellZ,                          &
-                                      GetDDecompMPI_ID, GetDDecompON,&
-                                      GetGridOutBorderPolygon
+                                      GetDDecompMPI_ID, GetDDecompON,                       &
+                                      GetGridOutBorderPolygon, RotateVectorFieldToGrid
     use ModuleHorizontalMap,    only: GetWaterPoints2D, UngetHorizontalMap, GetWaterFaces2D 
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryDistances, UngetGeometry, &
                                       GetGeometryKFloor
@@ -78,6 +78,8 @@ Module ModuleAssimilation
     !Selector
     public  ::  GetAssimilationSize
     public  ::  GetAssimilationField
+    public  ::  GetAssimilationVectorField
+    private ::      RotateVectorFields
     private ::      SearchProperty
     private ::          AssimilationFromFile
     public  ::  GetAssimilationCoef
@@ -165,6 +167,7 @@ Module ModuleAssimilation
         type (T_PropertyID)                     :: CoefID
         integer                                 :: Dim                  = null_int
         type (T_Field)                          :: Field
+        type (T_Field)                          :: FieldGrid
         type (T_Field)                          :: CoefField          
         real                                    :: ColdRelaxPeriod      = null_real
         real                                    :: ColdOrder            = null_real
@@ -900,6 +903,9 @@ cd2 :           if (BlockFound) then
         nullify(NewProperty%Field%R2D)
         nullify(NewProperty%Field%R3D)
 
+        nullify(NewProperty%FieldGrid%R2D)
+        nullify(NewProperty%FieldGrid%R3D)
+
         nullify(NewProperty%CoefField%R2D)
         nullify(NewProperty%CoefField%R3D)
         
@@ -1008,7 +1014,7 @@ cd2 :           if (BlockFound) then
 
                     allocate(NewProperty%Field%R2D (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR70'
-
+                    
                     NewProperty%Field%R2D(:,:) = FillValueReal
             
                     NewProperty%Field%TypeZUV  = TranslateTypeZUV(Char_TypeZUV)
@@ -1830,6 +1836,219 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
     end subroutine GetAssimilationField
 
     !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    
+    subroutine GetAssimilationVectorField(AssimilationID,                               &
+                                          VectorX_ID, VectorY_ID,                       & 
+                                          VectorX_2D, VectorY_2D,                       &
+                                          VectorX_3D, VectorY_3D,                       &
+                                          STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: AssimilationID
+        integer                                     :: VectorX_ID, VectorY_ID
+        real, dimension(:,:  ), pointer, optional   :: VectorX_2D, VectorY_2D
+        real, dimension(:,:,:), pointer, optional   :: VectorX_3D, VectorY_3D
+        integer                                     :: ID
+        integer, optional, intent(OUT)              :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+        type (T_Property), pointer                  :: PropertyX, PropertyY
+        integer                                     :: STAT_CALL_X, STAT_CALL_Y   
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(AssimilationID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            nullify(PropertyX)
+            call SearchProperty(PropertyX = PropertyX, PropertyXIDNumber = VectorX_ID, STAT = STAT_CALL_X) 
+                                         
+            nullify(PropertyY)
+            call SearchProperty(PropertyX = PropertyY, PropertyXIDNumber = VectorY_ID, STAT = STAT_CALL_Y) 
+
+                           
+cd2:        if (STAT_CALL_X == SUCCESS_ .and. STAT_CALL_Y == SUCCESS_) then
+
+                call RotateVectorFields(PropertyX, PropertyY)
+
+
+cd3:            if (PropertyX%Dim == Dim_2D) then
+
+                    if (present(VectorX_2D)) then 
+
+                        call Read_Lock(mASSIMILATION_, Me%InstanceID)
+
+                        VectorX_2D     => PropertyX%FieldGrid%R2D
+
+                    endif
+
+                    if (present(VectorY_2D)) then 
+
+                        call Read_Lock(mASSIMILATION_, Me%InstanceID)
+
+                        VectorY_2D     => PropertyY%FieldGrid%R2D
+
+                    endif
+
+
+                else if (PropertyX%Dim == Dim_3D) then
+
+                    if (present(VectorX_3D)) then 
+
+                        call Read_Lock(mASSIMILATION_, Me%InstanceID)
+
+                        VectorX_3D     => PropertyX%FieldGrid%R3D
+
+                    endif
+
+                    if (present(VectorY_3D)) then 
+
+                        call Read_Lock(mASSIMILATION_, Me%InstanceID)
+
+                        VectorY_3D     => PropertyY%FieldGrid%R3D
+
+                    endif
+
+                endif cd3
+
+                STAT_ = SUCCESS_
+
+            else  cd2
+
+                STAT_ = SUCCESS_
+
+            endif cd2
+
+        else cd1
+         
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                               &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetAssimilationVectorField
+
+    !--------------------------------------------------------------------------
+
+
+    subroutine RotateVectorFields(PropertyX, PropertyY)
+        !Arguments-------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX        => null()
+        type (T_Property), pointer                  :: PropertyY        => null()
+        
+        !Local-----------------------------------------------------------------
+        integer, dimension(:,:),    pointer         :: WaterPoints2D
+        integer, dimension(:,:,:),  pointer         :: WaterPoints3D        
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+            
+i1:     if (PropertyX%Dim == Dim_2D) then
+        
+            if (PropertyY%Dim /= Dim_2D) stop 'RotateVectorFields - ModuleAssimilation - ERR10'
+        
+            if (.not. associated(PropertyX%FieldGrid%R2D)) then 
+            
+                nullify (PropertyX%FieldGrid%R2D) 
+                allocate(PropertyX%FieldGrid%R2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+
+                PropertyX%FieldGrid%R2D(:,:) = null_real
+
+                nullify (PropertyY%FieldGrid%R2D) 
+                allocate(PropertyY%FieldGrid%R2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+
+                PropertyY%FieldGrid%R2D(:,:) = null_real
+
+            endif
+            
+            call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR20'
+            
+
+            call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid,      &
+                                         VectorInX         = PropertyX%Field%R2D,       &
+                                         VectorInY         = PropertyY%Field%R2D,       &
+                                         VectorOutX        = PropertyX%FieldGrid%R2D,   &
+                                         VectorOutY        = PropertyY%FieldGrid%R2D,   &   
+                                         WaterPoints2D     = WaterPoints2D,             &
+                                         RotateX           = .true.,                    &
+                                         RotateY           = .true.,                    &
+                                         STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR30'
+
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR40'
+        
+        endif i1
+
+
+i2:     if (PropertyX%Dim == Dim_3D) then
+        
+            if (PropertyY%Dim /= Dim_3D) stop 'RotateVectorFields - ModuleAssimilation - ERR50'
+        
+            if (.not. associated(PropertyX%FieldGrid%R3D)) then 
+            
+                nullify (PropertyX%FieldGrid%R3D) 
+                allocate(PropertyX%FieldGrid%R3D(Me%Size%ILB:Me%Size%IUB,               &
+                                                 Me%Size%JLB:Me%Size%JUB,               &
+                                                 Me%Size%KLB:Me%Size%KUB))
+
+                PropertyX%FieldGrid%R3D(:,:,:) = null_real
+
+                nullify (PropertyY%FieldGrid%R3D) 
+                allocate(PropertyY%FieldGrid%R3D(Me%Size%ILB:Me%Size%IUB,               &
+                                                 Me%Size%JLB:Me%Size%JUB,               &
+                                                 Me%Size%KLB:Me%Size%KUB))
+
+                PropertyY%FieldGrid%R3D(:,:,:) = null_real
+
+            endif
+            
+            call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR60'
+            
+
+            call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid,      &
+                                         VectorInX         = PropertyX%Field%R3D,       &
+                                         VectorInY         = PropertyY%Field%R3D,       &
+                                         VectorOutX        = PropertyX%FieldGrid%R3D,   &
+                                         VectorOutY        = PropertyY%FieldGrid%R3D,   &   
+                                         WaterPoints3D     = WaterPoints3D,             &
+                                         RotateX           = .true.,                    &
+                                         RotateY           = .true.,                    &
+                                         KLB               = Me%WorkSize%KLB,           &
+                                         KUB               = Me%WorkSize%KUB,           &
+                                         STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR70'
+
+            call UnGetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR80'
+        
+        endif i2
+
+
+
+    end subroutine RotateVectorFields
+
+    
+    !--------------------------------------------------------------------------
+
 
     subroutine GetAssimilationCoef(AssimilationID, ID, CoefField2D, CoefField3D,        &
                                    ColdRelaxPeriod, ColdOrder, Minimum, STAT)

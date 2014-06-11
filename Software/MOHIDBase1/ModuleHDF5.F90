@@ -6590,8 +6590,11 @@ Module ModuleHDF5
             
            !Opens the group
             call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR10'
-
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Group name not present in the hdf5 input file', GroupName
+                stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR10'
+            endif
+            
             !Opens the Dataset
             call h5dopen_f          (gr_id, ItemName_, dset_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR20'

@@ -5664,7 +5664,7 @@ cd4 :       if (present(GridLongitudeConn)) then
 
         !Arguments---------------------------------------------------------------
         integer                                     :: HorizontalGridID
-        real, dimension(:,:), optional, pointer     :: CoordX, CoordY
+        real, dimension(:,:),  pointer              :: CoordX, CoordY
         integer, optional,  intent(OUT)             :: STAT    
 
         !Local-------------------------------------------------------------------

@@ -38,9 +38,14 @@
         character(*), pointer, dimension(:) :: WaveName
         type(T_Time)                        :: time_
         integer                             :: STAT
+        
+        !Local-----------------------------------------------------------
         real                                :: Year, Hour
         real                                :: Minute, Second
 C        character (len=132)                 :: AuxChar
+        real, dimension(NTask2000)           :: AuxAmp
+        real, dimension(NTask2000)           :: AuxPhase
+        character(256), dimension(NTask2000) :: AuxName
 C
 C AN EXTENDED VERSION OF IAN VASSIE'S MARI PROGRAM TO READ CONSTANTS
 C IN THE SAME FORMAT AS TIRA PRINTS THEM. THIS VERSION IS WRITTEN FOR
@@ -89,8 +94,11 @@ C 36 = S2)
      &28.39866D0,28.48080D0,72.92714D0,74.02517D0, 86*0.D0/
      
      
+
+     
       call OrderTidalComponents(WaveAmplitude, WavePhase, 
-     %                                WaveName, NWaves)
+     %                          WaveName,NWaves,AuxAmp,AuxPhase,
+     %                          AuxName)
 C
       IREAD = 5
       IRITE = 6
@@ -250,9 +258,9 @@ C      READ(5,1006) NEN(K+1),SIG,HH,G
  1006 FORMAT(I4,12X,F11.7,F12.4,F11.3)
 C
 C DERIVE CONSTANT NUMBER FROM SI TABLE
-      SIG =  Name2Frequency(WaveName(K))
-      HH  =  WaveAmplitude(K)
-      G   =  WavePhase(K) * 360.
+      SIG =  Name2Frequency(AuxName(K))
+      HH  =  AuxAmp(K)
+      G   =  AuxPhase(K) * 360.
       
       NEN(K+1) = 0
       DO 789 JKK = 1,200
@@ -1306,18 +1314,19 @@ C
       
 
       subroutine OrderTidalComponents(WaveAmplitude, WavePhase, 
-     %                                WaveName,nWaves)
+     %                                WaveName,nWaves,AuxAmp,AuxPhase,
+     %                                AuxName)
+     
     
         !Arguments---------------------------------------------------
-        real, dimension(:), pointer         :: WaveAmplitude
-        real, dimension(:), pointer         :: WavePhase
-        character(*), dimension(:), pointer :: WaveName
-        integer                             :: nWaves
-        
+        real, dimension(:), pointer          :: WaveAmplitude
+        real, dimension(:), pointer          :: WavePhase
+        character(*), dimension(:), pointer  :: WaveName
+        integer                              :: nWaves
+        real, dimension(NTask2000)           :: AuxAmp
+        real, dimension(NTask2000)           :: AuxPhase
+        character(256), dimension(NTask2000) :: AuxName        
         !local-------------------------------------------------------
-        real, dimension(NTask2000)         :: AuxAmp
-        real, dimension(NTask2000)         :: AuxPhase
-        character(256), dimension(NTask2000) :: AuxName
         logical, dimension(NTask2000)      :: Used
         integer                         :: i, j, imin
         real(8)                         :: MinFreq, AuxFreq
@@ -1342,10 +1351,6 @@ C
             AuxName  (i) = WaveName     (imin)
                                      
         enddo            
-        
-        WaveAmplitude(1:nWaves) = AuxAmp   (1:nWaves)
-        WavePhase    (1:nWaves) = AuxPhase (1:nWaves)
-        WaveName     (1:nWaves) = AuxName  (1:nWaves)
         
     
        end subroutine OrderTidalComponents

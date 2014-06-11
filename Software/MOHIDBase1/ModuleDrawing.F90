@@ -983,6 +983,11 @@ d1:     do i=1, XYZ%Count
         
         !Begin-----------------------------------------------------------------
         
+        Left   = - FillValueReal
+        Right  =   FillValueReal
+        Bottom = - FillValueReal
+        Top    =   FillValueReal          
+        
 d1:     do i=1, Count
 
             if (X(i) < Left)  Left    = X(i)
@@ -1010,6 +1015,11 @@ d1:     do i=1, Count
         integer                                     :: i
         
         !Begin-----------------------------------------------------------------
+        
+        Left   = - FillValueReal
+        Right  =   FillValueReal
+        Bottom = - FillValueReal
+        Top    =   FillValueReal         
         
 d1:     do i=1, Count
 
@@ -1039,6 +1049,11 @@ d1:     do i=1, Count
         integer                                     :: i
         
         !Begin-----------------------------------------------------------------
+        
+        Left   = - FillValueReal
+        Right  =   FillValueReal
+        Bottom = - FillValueReal
+        Top    =   FillValueReal         
         
 d1:     do i=1, Count
 

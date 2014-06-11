@@ -33,11 +33,21 @@ Module ModuleGauge
     use ModuleTime                  
     use ModuleEnterData
     use ModuleToga               
-    use ModuleHorizontalGrid,   only : GetGridAngle, GetGridOrigin, GetHorizontalGrid,   &
-                                       GetXYCellZ, GetXYCellZ_ThreadSafe, UnGetHorizontalGrid
+    use ModuleDrawing
+    use ModuleHorizontalGrid,   only : GetGridAngle, GetGridOrigin, GetHorizontalGrid,  &
+                                       GetXYCellZ, GetXYCellZ_ThreadSafe,               &
+                                       GetGridBorderLimits, GetLatitudeLongitude,       &
+                                       GetHorizontalGridSize, GetZCoordinates,          &
+                                       UnGetHorizontalGrid
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie
     use ModuleFunctions,        only : RodaXY
     use ModuleTask2000,         only : Task2000Level, NTask2000          
+    use ModuleField4D,          only : ConstructField4D, ModifyField4DXYZ, KillField4D, &
+                                       GetField4DHarmonicsON, GetField4DHarmonicsNumber,&
+                                       GetField4DHarmonicsName
+                                       
+    use ModuleHorizontalMap,    only : GetBoundaries, UnGetHorizontalMap
+
 
     implicit none
 
@@ -64,9 +74,7 @@ Module ModuleGauge
     public  :: GetReferenceLevel
     public  :: GetLevelEvolution
     public  :: GetIJWaterLevel
-    public  :: GetIJWaterLevel_ThreadSafe
     public  :: GetIJReferenceLevel
-    public  :: GetIJReferenceLevel_ThreadSafe
     public  :: GetTriangGaugesON
     public  :: GetVelEvolution
 
@@ -160,21 +168,34 @@ Module ModuleGauge
 
     type       T_Gauge
         integer                             :: InstanceID
-        integer                             :: UnitGauge    = FillValueInt
-        character(LEN = StringLength)       :: FileName     = null_str
+        integer                             :: UnitGauge                = FillValueInt
+        character(LEN = StringLength)       :: FileName                 = null_str
+        character(LEN = StringLength)       :: HDFFileTidalComponents   = null_str
+        type(T_XYZPoints),       pointer    :: GaugesLocation           => null()
+        
+        logical                             :: HDFFileTidalON           = .false.
+        
+        !Instance of ModuleField4D
+        integer                             :: ObjField4D               = 0
+        
+        !Instance of ModuleHorizontalGrid
+        integer                             :: ObjHorizontalGrid        = 0
 
+        !Instance of ModuleHorizontalMap
+        integer                             :: ObjHorizontalMap         = 0
+        
         !Instance of ModuleTime
-        integer                             :: ObjTime = 0
+        integer                             :: ObjTime                  = 0
 
         !Instance of Module_EnterData
-        integer                             :: ObjEnterData = 0
+        integer                             :: ObjEnterData             = 0
         
         logical                             :: Triangulation
         
         integer                             :: TidePREDICTION
         
         logical                             :: ComputeAdmittance
-       
+      
         !Link list
         type (T_TideGauge ), pointer        :: FirstGauge 
         type (T_TideGauge ), pointer        :: LastGauge
@@ -200,11 +221,12 @@ Module ModuleGauge
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructGauges(GaugeID, HorizontalGridID, TimeID, GaugeFile, STAT)
+    subroutine ConstructGauges(GaugeID, HorizontalGridID, HorizontalMapID, TimeID, GaugeFile, STAT)
 
         !Arguments------------------------------------------------------------
         integer                                     :: GaugeID
         integer,          optional,  intent(IN)     :: HorizontalGridID
+        integer,          optional,  intent(IN)     :: HorizontalMapID
         integer                                     :: TimeID
         character(len=*), optional,  intent(IN)     :: GaugeFile
         integer,          optional,  intent(OUT)    :: STAT     
@@ -218,6 +240,7 @@ Module ModuleGauge
         type(T_TidalWave), pointer                  :: PresentWave
         integer                                     :: I, ClientNumber
         integer                                     :: STAT_, ready_
+        character(LEN = StringLength   )            :: GaugesLocationFile
         character(LEN = StringLength   ), parameter :: block_begin = '<begingauge>'
         character(LEN = StringLength   ), parameter :: block_end   = '<endgauge>'
 
@@ -244,6 +267,18 @@ Module ModuleGauge
 
             !Associates other instances
             Me%ObjTime = AssociateInstance (mTIME_, TimeID)
+
+            if (present(HorizontalGridID)) then            
+                Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
+            else
+                Me%ObjHorizontalGrid = 0
+            endif
+            
+            if (present(HorizontalMapID)) then
+                Me%ObjHorizontalMap = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID)
+            else
+                Me%ObjHorizontalMap = 0                                
+            endif
 
             if(present(GaugeFile))then
 
@@ -292,7 +327,7 @@ Module ModuleGauge
             
             if (Me%TidePREDICTION /= Task2000_ .and. Me%TidePREDICTION /= Toga_) then
                 write(*,*) 'The tide PREDICTION method is not known'
-                stop       'ConstructGauges - ModuleGauges - ERR38'
+                stop       'ConstructGauges - ModuleGauges - ERR60'
             endif
 
             call GetData(Me%ComputeAdmittance,                                          &
@@ -302,69 +337,50 @@ Module ModuleGauge
                          Default    = .false.,                                          &
                          ClientModule ='ModuleGauge',                                   &
                          STAT       = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR50' 
-
-            !New Gauger file format
-do2:        do 
-                call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,  &
-                                            block_begin, block_end, BlockFound, &
-                                            STAT = STAT_CALL)
-if4 :           if (STAT_CALL .EQ. 0) then
-if5 :               if (BlockFound) then           
-                        call ReadGaugeData(PresentGauge)
-
-if2 :                   if (.NOT. associated(Me%FirstGauge)) then         !If list is not initialized
-                            Me%FirstGauge => PresentGauge                 !FirstGauge element is always FirstGauge
-                            Me%LastGauge  => PresentGauge                 !FirstGauge element is also the LastGauge one
-
-                            nullify(Me%FirstGauge%Prev)
-                            nullify(Me%LastGauge%Next )
-                        else 
-                            PresentGauge%Prev => Me%LastGauge
-
-                            Me%LastGauge%Next => PresentGauge 
-                            Me%LastGauge      => PresentGauge
-
-                            nullify(Me%LastGauge%Next)
-                        end if if2
-                    else
-                        exit do2    !No more blocks
-                    end if if5
-                else if (STAT_CALL .EQ. BLOCK_END_ERR_) then 
-                    stop 'ConstructGauges - ModuleGauges - ERR60' 
-                end if if4
-            end do do2
-
-
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR70' 
-
-
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR70'
+            
+            call GetData(Me%HDFFileTidalComponents,                                     &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType = FromFile,                                         &
+                         keyword    = 'FILE_TIDAL_COMPONENTS',                          &
+                         Default    = null_str,                                         &
+                         ClientModule ='ModuleGauge',                                   &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR80'            
+            
+            if (iflag/=0) then
+                Me%HDFFileTidalON = .true.
+            else
+                Me%HDFFileTidalON = .false.
+            endif
+            
+            if (Me%HDFFileTidalON) then
+                if (Me%Triangulation) then
+                
+                    call GetData(GaugesLocationFile,                                            &
+                                 Me%ObjEnterData, iflag,                                        &
+                                 SearchType = FromFile,                                         &
+                                 keyword    = 'FILE_GAUGES_LOCATION',                           &
+                                 Default    = null_str,                                         &
+                                 ClientModule ='ModuleGauge',                                   &
+                                 STAT       = STAT_CALL)            
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR90'  
+                    if (iflag     == 0       ) stop 'ConstructGauges - ModuleGauges - ERR100'  
+                               
+                    call New(Me%GaugesLocation, GaugesLocationFile)
+                    
+                endif
+            endif                
+            
+            
+            if (Me%HDFFileTidalON) then
+                call ReadGaugeDataHDF
+            else
+                call ReadGaugeDataASCII
+            endif
+            
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR80' 
-
-            !If no Gaugers were found in the new file format tryes to read former file format.
-if3 :       if (.NOT. associated(Me%FirstGauge)) then
-do3:            do 
-                    call ReadOldForm(BlockFound, PresentGauge)
-
-if6 :               if (BlockFound) then
-if7 :                   if      (.NOT. associated(Me%FirstGauge)) then    !If list is not initialized
-                            Me%FirstGauge => PresentGauge                 !FirstGauge element is always FirstGauge
-                            Me%LastGauge  => PresentGauge                 !FirstGauge element is also the LastGauge one
-
-                            nullify(Me%FirstGauge%Prev)
-                            nullify(Me%LastGauge%Next )
-
-                        else if (      associated(Me%FirstGauge)) then
-                            stop 'ConstructGauges - ModuleGauges - ERR90' 
-                        end if if7
-                    else
-                        exit do3    !No more blocks
-                    end if if6
-                end do do3
-            end if if3
-
 
 
 if8 :       if (.NOT. associated(Me%FirstGauge)) then
@@ -422,6 +438,389 @@ do5 :               do while (associated(PresentWave))
     end subroutine ConstructGauges
 
     !--------------------------------------------------------------------------
+    
+    subroutine ReadGaugeDataASCII
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: iflag
+        logical                                     :: BlockFound
+        type(T_TideGauge), pointer                  :: PresentGauge
+        type(T_TidalWave), pointer                  :: PresentWave
+        integer                                     :: ClientNumber
+        character(LEN = StringLength   ), parameter :: block_begin = '<begingauge>'
+        character(LEN = StringLength   ), parameter :: block_end   = '<endgauge>'
+        integer                                     :: FromBlock
+
+        !----------------------------------------------------------------------
+    
+        !New Gauger file format
+do2:     do 
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,  &
+                                        block_begin, block_end, BlockFound, &
+                                        STAT = STAT_CALL)
+if4 :       if (STAT_CALL .EQ. 0) then
+if5 :           if (BlockFound) then           
+                    call GetExtractType (FromBlock = FromBlock)
+                    call ReadGaugeData  (PresentGauge, FromBlock)
+                    call AddGauge2List  (PresentGauge)
+                else
+                    exit do2    !No more blocks
+                end if if5
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then 
+                stop 'ConstructGauges - ModuleGauges - ERR60' 
+            end if if4
+        end do do2
+
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR70' 
+
+
+        !If no Gaugers were found in the new file format tryes to read former file format.
+if3 :   if (.NOT. associated(Me%FirstGauge)) then
+do3:        do 
+                call ReadOldForm(BlockFound, PresentGauge)
+
+if6 :           if (BlockFound) then
+                    if (associated(Me%FirstGauge)) then
+                        stop 'ConstructGauges - ModuleGauges - ERR90' 
+                    end if
+                    call AddGauge2List(PresentGauge)
+                else
+                    exit do3    !No more blocks
+                end if if6
+            end do do3
+        end if if3
+
+    end subroutine ReadGaugeDataASCII
+    
+    !--------------------------------------------------------------------------    
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ReadGaugeDataHDF
+
+        !Local-----------------------------------------------------------------
+        real,       dimension(:,:), pointer                     :: CoordX, CoordY 
+        integer,    dimension(:,:), pointer                     :: BoundaryPoints2D        
+        real,       dimension(:  ), pointer                     :: X, Y, Amplitude, Phase
+        real,       dimension(:  ), pointer                     :: AuxX, AuxY
+        integer,    dimension(:  ), pointer                     :: Icell, Jcell
+        logical,    dimension(:  ), pointer                     :: NoAmplitude, NoPhase
+        type (T_Size2D)                                         :: WorkSize
+        real                                                    :: West, East, South, North
+        real                                                    :: LatDefault, LongDefault
+        integer                                                 :: STAT_CALL
+        integer                                                 :: iflag
+        logical                                                 :: BlockFound, Field4DHarmonicsON
+        type(T_TideGauge), pointer                              :: PresentGauge
+        integer                                                 :: ClientNumber, FromBlock
+        real, dimension(1:2,1:2)                                :: WindowLimitsXY        
+        character(LEN = StringLength   ), parameter             :: block_begin = '<beginHDFgauges>'
+        character(LEN = StringLength   ), parameter             :: block_end   = '<endHDFgauges>'
+        character(LEN = WaveNameLength ), dimension(:), pointer :: HarmonicsName        
+        integer                                                 :: n, ni, NP, HarmonicsNumber
+        integer                                                 :: ILB, IUB, JLB, JUB, i, j, Nmax   
+
+        !----------------------------------------------------------------------
+        
+        
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                      &
+                                    block_begin, block_end, BlockFound,                 &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR10'  
+        if (.not. BlockFound     ) stop 'ReadGaugeDataHDF - ModuleGauges - ERR20' 
+    
+        call GetGridBorderLimits(Me%ObjHorizontalGrid,                                  &
+                                 West, East, South, North, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR30' 
+        
+        WindowLimitsXY(2,1) = South
+        WindowLimitsXY(2,2) = North
+        WindowLimitsXY(1,1) = West
+        WindowLimitsXY(1,2) = East
+        
+        call GetLatitudeLongitude(Me%ObjHorizontalGrid, Latitude  = LatDefault,         &
+                                                        Longitude = LongDefault,        & 
+                                                        STAT      = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR40' 
+        
+        call GetExtractType(FromBlock = FromBlock)
+
+        call ConstructField4D(Field4DID         = Me%ObjField4D,                        &
+                              EnterDataID       = Me%ObjEnterData,                      &
+                              ExtractType       = FromBlock,                            &
+                              FileName          = Me%HDFFileTidalComponents,            &
+                              TimeID            = Me%ObjTime,                           &   
+                              MaskDim           = 2,                                    &
+                              LatReference      = LatDefault,                           &
+                              LonReference      = LongDefault,                          & 
+                              WindowLimitsXY    = WindowLimitsXY,                       &
+                              Extrapolate       = .true.,                               & 
+                              ClientID          = ClientNumber,                         &
+                              STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR50' 
+        
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR60' 
+        
+        call GetField4DHarmonicsON(Field4DID        = Me%ObjField4D,                    &
+                                   PropertyIDNumber = WaterLevel_,                      &
+                                   HarmonicsON      = Field4DHarmonicsON,               &
+                                   STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)      then
+            stop 'ReadGaugeDataHDF - ModuleGauges - ERR70' 
+        endif            
+        
+        if (.not. Field4DHarmonicsON)   then
+            write(*,*) 'No tidal components defined in Field4D'
+            stop 'ReadGaugeDataHDF - ModuleGauges - ERR80' 
+        endif            
+        
+        call GetField4DHarmonicsNumber(Field4DID        = Me%ObjField4D,                    &
+                                       PropertyIDNumber = WaterLevel_,                      &
+                                       HarmonicsNumber  = HarmonicsNumber,                  &
+                                       STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)      then
+            stop 'ReadGaugeDataHDF - ModuleGauges - ERR90' 
+        endif            
+        
+        allocate(HarmonicsName(HarmonicsNumber))
+        
+        call GetField4DHarmonicsName  (Field4DID        = Me%ObjField4D,                    &
+                                       PropertyIDNumber = WaterLevel_,                      &
+                                       HarmonicsName    = HarmonicsName,                    &
+                                       STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)      then
+            stop 'ReadGaugeDataHDF - ModuleGauges - ERR90' 
+        endif           
+        
+        if (Me%Triangulation) then
+            X   => Me%GaugesLocation%X
+            Y   => Me%GaugesLocation%Y
+            NP  =  Me%GaugesLocation%Count
+        else
+        
+            call GetHorizontalGridSize(Me%ObjHorizontalGrid,                             &
+                                       WorkSize = WorkSize,                              &
+                                       STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR100' 
+            
+            ILB = WorkSize%ILB
+            IUB = WorkSize%IUB
+            JLB = WorkSize%JLB
+            JUB = WorkSize%JUB
+
+            !Gets BoundaryPoints from the HorizontalMap
+            call GetBoundaries(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR110'
+            
+            !Gets Center cell coordinates            
+            call GetZCoordinates(Me%ObjHorizontalGrid,  CoordX = CoordX, CoordY = CoordY, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR120' 
+            
+            Nmax = (IUB - ILB + 1) * 2 + (JUB - JLB + 1) * 2
+
+            allocate(AuxX(Nmax), AuxY(Nmax)) 
+            
+            ni = 0
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (BoundaryPoints2D(i, j) == Boundary ) then
+                    ni = ni + 1
+                    AuxX(ni) = CoordX(i, j)                            
+                    AuxY(ni) = CoordY(i, j)
+                endif
+            enddo
+            enddo
+            
+            NP = ni
+
+            allocate(X    (1:NP), Y    (1:NP))
+            allocate(Icell(1:NP), Jcell(1:NP))            
+            
+            ni = 0
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (BoundaryPoints2D(i, j) == Boundary ) then
+                    ni = ni + 1
+                    Icell(ni) = i
+                    Jcell(ni) = j
+                endif
+            enddo
+            enddo
+            
+            X  (1:NP) = AuxX  (1:NP)
+            Y  (1:NP) = AuxY  (1:NP)
+            
+            deallocate(AuxX, AuxY) 
+
+            !UnGets BoundaryPoints from the HorizontalMap
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR130'
+            
+            !UnGets Center cell coordinates            
+            call UnGetHorizontalGrid(Me%ObjHorizontalGrid,  CoordX, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR140' 
+                        
+            call UnGetHorizontalGrid(Me%ObjHorizontalGrid,  CoordY, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR150' 
+            
+        endif
+        
+        allocate(Amplitude  (1:NP), Phase  (1:NP))
+        allocate(NoAmplitude(1:NP), NoPhase(1:NP))     
+        
+        Amplitude   (:) = FillValueReal
+        Phase       (:) = FillValueReal
+                
+        do n = 1, HarmonicsNumber
+        
+            NoAmplitude (:) = .true. 
+            
+            call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
+                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  X                 = X,                                & 
+                                  Y                 = Y,                                &
+                                  Field             = Amplitude,                        & 
+                                  NoData            = NoAmplitude,                      &
+                                  WaveName          = HarmonicsName(n),                 &    
+                                  ExtractAmplitudes = .true.,                           &
+                                  STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR160' 
+            
+            NoPhase    (:) = .true.             
+
+            call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
+                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  X                 = X,                                & 
+                                  Y                 = Y,                                &
+                                  Field             = Phase,                            & 
+                                  NoData            = NoPhase,                          &
+                                  WaveName          = HarmonicsName(n),                 &    
+                                  ExtractAmplitudes = .false.,                          &
+                                  STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR170' 
+            
+            do ni = 1, NP 
+            
+                if (NoAmplitude(ni) .and. .not. Me%Triangulation) then
+                    write(*,*) 'Tidal amplitudes missing in the open boundary'  
+                    write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
+                    stop 'ReadGaugeDataHDF - ModuleGauges - ERR190' 
+                endif
+                
+                if (NoPhase(ni)    .and. .not. Me%Triangulation) then
+                    write(*,*) 'Tidal phase missing in the open boundary'
+                    write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
+                    stop 'ReadGaugeDataHDF - ModuleGauges - ERR200' 
+                endif                    
+
+            enddo
+             
+                            
+            if (n== 1) then
+                do ni = 1, NP 
+                    if (.not. NoAmplitude(ni) .and. .not. NoPhase(ni)) then
+                        if(Me%Triangulation) then
+                            i = FillValueInt
+                            j = FillValueInt
+                        else
+                            i = Icell(ni)
+                            j = Jcell(ni)
+                        endif                            
+                        call CreateGaugeFromHDFData(PresentGauge, X(ni), Y(ni), ni, i, j)
+                    endif                        
+                enddo
+            endif                                    
+
+            PresentGauge => Me%FirstGauge
+
+            do ni = 1, NP 
+                if (.not. NoAmplitude(ni) .and. .not. NoPhase(ni)) then            
+                    !no need to divide by 360º already done in the ModuleField4D
+                    Phase(ni)     = Phase(ni) 
+                    call NewWave(PresentGauge, HarmonicsName(n), Amplitude(ni), Phase(ni))                
+                    PresentGauge => PresentGauge%Next
+                endif                
+            enddo
+
+                                    
+        enddo
+
+        deallocate(Amplitude  , Phase  )
+        deallocate(NoAmplitude, NoPhase)       
+        deallocate(HarmonicsName) 
+        if (.not. Me%Triangulation) then
+            deallocate(X, Y)
+        endif
+
+        call KillField4D(Me%ObjField4D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauge - ERR300'
+        
+
+    end subroutine ReadGaugeDataHDF
+    
+    !--------------------------------------------------------------------------    
+    
+    subroutine CreateGaugeFromHDFData(PresentGauge, X, Y, n, i, j)
+
+        !Arguments-------------------------------------------------------------
+        type(T_TideGauge), pointer              :: PresentGauge
+        real                                    :: X, Y
+        integer                                 :: n, i, j
+        !Local-----------------------------------------------------------------
+        integer                                 :: FromFile
+
+        !----------------------------------------------------------------------
+        
+        call GetExtractType (FromFile =   FromFile)
+        call ReadGaugeData  (PresentGauge, FromFile, ReadHarmonicsOk = .false.)
+        
+        write(PresentGauge%Name,*) n
+        PresentGauge%Metric_X    = X
+        PresentGauge%Metric_Y    = Y
+        PresentGauge%Grid_I      = I
+        PresentGauge%Grid_J      = J        
+        
+        call AddGauge2List(PresentGauge)        
+
+    end subroutine CreateGaugeFromHDFData        
+
+    
+    !--------------------------------------------------------------------------
+
+    
+    subroutine AddGauge2List(PresentGauge)
+
+        !Local-----------------------------------------------------------------
+        type(T_TideGauge), pointer                  :: PresentGauge
+
+        !----------------------------------------------------------------------
+ 
+
+if2 :   if (.NOT. associated(Me%FirstGauge)) then         !If list is not initialized
+            Me%FirstGauge => PresentGauge                 !FirstGauge element is always FirstGauge
+            Me%LastGauge  => PresentGauge                 !FirstGauge element is also the LastGauge one
+
+            nullify(Me%FirstGauge%Prev)
+            nullify(Me%LastGauge%Next )
+        else 
+            PresentGauge%Prev => Me%LastGauge
+
+            Me%LastGauge%Next => PresentGauge 
+            Me%LastGauge      => PresentGauge
+
+            nullify(Me%LastGauge%Next)
+        end if if2
+
+    end subroutine AddGauge2List
+    
+    !--------------------------------------------------------------------------    
+
 
     subroutine AllocateInstance
 
@@ -499,30 +898,36 @@ do5 :               do while (associated(PresentWave))
 
     !--------------------------------------------------------------------------
 
-    subroutine ReadGaugeData(PresentGauge)
+    subroutine ReadGaugeData(PresentGauge, FromBlock, ReadHarmonicsOk)
 
         !Arguments------------------------------------------------------------
         type(T_TideGauge), pointer                  :: PresentGauge
+        integer                                     :: FromBlock
+        logical, optional                           :: ReadHarmonicsOk
 
         !Local-----------------------------------------------------------------
         real                                        :: DT, ReadTimeSerieDT
         integer, pointer, dimension(:)              :: ColumnsToRead
         integer                                     :: flag
         integer                                     :: status
-        integer                                     :: FromBlock
         integer                                     :: control = 0, NColumns = 0.
         character(LEN = StringLength)               :: text, TimeSerieDataFile, AuxChar
+        logical                                     :: ReadHarmonicsOk_
         
 
         !----------------------------------------------------------------------
-
-        call GetExtractType(FromBlock = FromBlock)
 
         allocate(PresentGauge)
         nullify (PresentGauge%Prev     )
         nullify (PresentGauge%Next     )
         nullify (PresentGauge%FirstWave)
         nullify (PresentGauge%LastWave )
+        
+        if (present(ReadHarmonicsOk)) then
+            ReadHarmonicsOk_ = ReadHarmonicsOk
+        else
+            ReadHarmonicsOk_ = .true. 
+        endif
 
         call GetData(PresentGauge%Name,                                                  &
                      Me%ObjEnterData, flag,                                              &
@@ -567,62 +972,82 @@ if5 :   if ((flag > 0).and.(flag < 3)) then
         end if if5
 
         call Calc_Decimal_geo_coord(PresentGauge)
+        
+        if (ReadHarmonicsOk_) then
 
-        call GetData(PresentGauge%Metric_X,                                              &
-                     Me%ObjEnterData, flag,                                              &
-                     keyword    = 'METRIC_X',                                            &
-                     default    = FillValueReal,                                         &
-                     SearchType = FromBlock,                                             &
-                     ClientModule ='ModuleGauge',                                        &
-                     STAT       = status)
-        if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR50'
-
-
-if1:    if (flag == 1) then 
-
-            call GetData(PresentGauge%Metric_Y,                                          &
-                         Me%ObjEnterData, flag,                                      &
-                         keyword    = 'METRIC_Y',                                        &
-                         default    = FillValueReal,                                     &
-                         SearchType = FromBlock,                                         &
-                         ClientModule ='ModuleGauge',                                    &
+            call GetData(PresentGauge%Metric_X,                                              &
+                         Me%ObjEnterData, flag,                                              &
+                         keyword    = 'METRIC_X',                                            &
+                         default    = FillValueReal,                                         &
+                         SearchType = FromBlock,                                             &
+                         ClientModule ='ModuleGauge',                                        &
                          STAT       = status)
-            if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR60'
+            if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR50'
 
-            if (flag == 1) then
-                PresentGauge%DefinedMetric = .true.
-                Control                    = Control + 1
-            endif
 
-        endif if1
+    if1:    if (flag == 1) then 
 
-        call GetData(PresentGauge%GRID_I,                                                &
-                     Me%ObjEnterData, flag,                                          &
-                     keyword    = 'GRID_I',                                              &
-                     default    = FillValueInt,                                          &
-                     SearchType = FromBlock,                                             &
-                     ClientModule ='ModuleGauge',                                        &
-                     STAT       = status)
-        if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR70'
+                call GetData(PresentGauge%Metric_Y,                                          &
+                             Me%ObjEnterData, flag,                                      &
+                             keyword    = 'METRIC_Y',                                        &
+                             default    = FillValueReal,                                     &
+                             SearchType = FromBlock,                                         &
+                             ClientModule ='ModuleGauge',                                    &
+                             STAT       = status)
+                if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR60'
 
-if3:    if (flag == 1) then
+                if (flag == 1) then
+                    PresentGauge%DefinedMetric = .true.
+                    Control                    = Control + 1
+                endif
 
-            call GetData(PresentGauge%GRID_J,                                            &
-                         Me%ObjEnterData, flag,                                      &
-                         keyword    = 'GRID_J',                                          &
-                         default    = FillValueInt,                                      &
-                         SearchType = FromBlock,                                         &
-                         ClientModule ='ModuleGauge',                                    &
+            endif if1
+
+            call GetData(PresentGauge%GRID_I,                                                &
+                         Me%ObjEnterData, flag,                                              &
+                         keyword    = 'GRID_I',                                              &
+                         default    = FillValueInt,                                          &
+                         SearchType = FromBlock,                                             &
+                         ClientModule ='ModuleGauge',                                        &
                          STAT       = status)
-            if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR80'
+            if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR70'
+
+    if3:    if (flag == 1) then
+
+                call GetData(PresentGauge%GRID_J,                                            &
+                             Me%ObjEnterData, flag,                                      &
+                             keyword    = 'GRID_J',                                          &
+                             default    = FillValueInt,                                      &
+                             SearchType = FromBlock,                                         &
+                             ClientModule ='ModuleGauge',                                    &
+                             STAT       = status)
+                if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR80'
 
 
-            if (flag == 1) then
-                Control = Control + 1
-            endif
+                if (flag == 1) then
+                    Control = Control + 1
+                endif
+                
+            else  if3
+            
+                call GetXYCellZ_ThreadSafe(HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                           XPoint           = PresentGauge%Metric_X,        &
+                                           YPoint           = PresentGauge%Metric_Y,        &
+                                           I                = PresentGauge%GRID_I,          & 
+                                           J                = PresentGauge%GRID_J,          &
+                                           STAT             = status)
+                if (status /= SUCCESS_ .and. status /= OUT_OF_BOUNDS_ERR_) then
+                    stop 'ReadGaugeData - ModuleGauge - ERR80'
+                endif
+                
+                if (status == OUT_OF_BOUNDS_ERR_) then
+                    PresentGauge%GRID_I = FillValueInt
+                    PresentGauge%GRID_J = FillValueInt
+                endif
 
-        endif if3
+            endif if3
 
+        endif
             
 if2 :   if (control == 0) then
             write (*,*) 'No Tide Gauge location provided'
@@ -935,18 +1360,22 @@ if2 :   if (control == 0) then
           
         endif
         
-        if (PresentGauge%VelEvolution == Harmonics) then        
+        if (ReadHarmonicsOk_) then
+        
+            if (PresentGauge%VelEvolution == Harmonics) then        
+                
+                !call ReadVelocityHarmonics(PresentGauge)        
             
-            !call ReadVelocityHarmonics(PresentGauge)        
+            endif
+
+
+            if (PresentGauge%LevelEvolution == Harmonics) then
+
+                call ReadHarmonics(PresentGauge)
+
+            endif 
         
         endif
-
-
-        if (PresentGauge%LevelEvolution == Harmonics) then
-
-            call ReadHarmonics(PresentGauge)
-
-        endif 
 
         if (PresentGauge%LevelEvolution    == TimeSerie .or.                            &
             PresentGauge%RefLevelEvolution == TimeSerie .or.                            &
@@ -1721,22 +2150,18 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     
     !--------------------------------------------------------------------------
 
-    subroutine GetIJReferenceLevel(GaugeID, HorizontalGridID, I, J, ReferenceLevel, STAT)
+    subroutine GetIJReferenceLevel(GaugeID, HorizontalGridID, ImposedElevation, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer                         :: GaugeID
-        integer                         :: HorizontalGridID
-        integer,           intent(IN )  :: I, J
-        real,              intent(OUT)  :: ReferenceLevel
-        integer, optional, intent(OUT)  :: STAT
+        integer,                          intent(IN)    :: GaugeID
+        integer,                          intent(IN)    :: HorizontalGridID
+        real,    dimension(:,:), pointer, intent(INOUT) :: ImposedElevation
+        integer, optional,                intent(OUT)   :: STAT
 
         !Local-----------------------------------------------------------------
-        real                            :: PX, PY             
-        integer                         :: STAT_, ready_
-        type(T_TideGauge), pointer      :: PresentGauge
-        logical                         :: Found
-        real                            :: PercI, PercJ 
-        integer                         :: Iaux, Jaux        
+        integer                                         :: STAT_, ready_
+        type(T_TideGauge), pointer                      :: PresentGauge
+        integer                                         :: i, j
         
 
         !----------------------------------------------------------------------
@@ -1748,56 +2173,23 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-
-
             PresentGauge => Me%FirstGauge
 
-            Found = .false.
+            do while (associated(PresentGauge)) 
+            
+                i = PresentGauge%Grid_I
+                j = PresentGauge%Grid_J
 
-            do while (associated(PresentGauge) .and. .not. Found) 
-
-                if (PresentGauge%Grid_I == I .and. PresentGauge%Grid_J == J) then
-
-                    ReferenceLevel = PresentGauge%ReferenceLevel                    
-
-                    Found = .true.
-
-                endif
-                
-                PX = PresentGauge%Metric_X
-                PY = PresentGauge%Metric_Y
-                
-                call GetXYCellZ(HorizontalGridID, PX, PY, Iaux, Jaux, STAT = STAT_)
-
-  
-                if (I == Iaux .and. J == Jaux) then
-                
-                    call GetXYCellZ(HorizontalGridID, PX, PY, Iaux, Jaux, PercI = PercI, PercJ = PercJ, STAT = STAT_)
-
-                    if (abs(PercI-0.5) < 0.02 .and. abs(PercJ-0.5) < 0.02) then
-
-                        ReferenceLevel = PresentGauge%ReferenceLevel                     
-
-                        Found = .true.
-                        
-                    endif
-                
-                endif
+                ImposedElevation(i, j) = ImposedElevation(i, j) + PresentGauge%ReferenceLevel                    
 
                 PresentGauge => PresentGauge%Next
 
-             enddo
+            enddo
 
+            nullify(PresentGauge)            
+            
+            STAT_ = SUCCESS_
 
-            if (Found) then
-
-                STAT_ = SUCCESS_
-
-            else
-
-                STAT_ = NOT_FOUND_ERR_
-
-            endif
         else 
             STAT_ = ready_
         end if if1
@@ -1808,111 +2200,25 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     end subroutine GetIJReferenceLevel
 
-    !----------------------------------------------------------------------
-
-    subroutine GetIJReferenceLevel_ThreadSafe(GaugeID, HorizontalGridID, I, J, ReferenceLevel, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer,           intent(IN )  :: GaugeID
-        integer,           intent(IN )  :: HorizontalGridID
-        integer,           intent(IN )  :: I, J
-        real,              intent(OUT)  :: ReferenceLevel
-        integer, optional, intent(OUT)  :: STAT
-
-        !Local-----------------------------------------------------------------
-        real                            :: PX, PY             
-        integer                         :: STAT_, ready_
-        type(T_TideGauge), pointer      :: PresentGauge
-        logical                         :: Found
-        real                            :: PercI, PercJ 
-        integer                         :: Iaux, Jaux        
-        type (T_Gauge), pointer         :: LocalMe
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        LocalMe => Ready_ThreadSafe(GaugeID, ready_) 
-        
-if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
-            (ready_ .EQ. READ_LOCK_ERR_)) then
-
-            PresentGauge => LocalMe%FirstGauge
-
-            Found = .false.
-
-            do while (associated(PresentGauge) .and. .not. Found) 
-
-                if (PresentGauge%Grid_I == I .and. PresentGauge%Grid_J == J) then
-
-                    ReferenceLevel = PresentGauge%ReferenceLevel                    
-
-                    Found = .true.
-
-                endif
-                
-                PX = PresentGauge%Metric_X
-                PY = PresentGauge%Metric_Y
-                
-                call GetXYCellZ_ThreadSafe(HorizontalGridID, PX, PY, Iaux, Jaux, STAT = STAT_)
-
-  
-                if (I == Iaux .and. J == Jaux) then
-                
-                    call GetXYCellZ_ThreadSafe(HorizontalGridID, PX, PY, Iaux, Jaux, PercI = PercI, PercJ = PercJ, STAT = STAT_)
-
-                    if (abs(PercI-0.5) < 0.02 .and. abs(PercJ-0.5) < 0.02) then
-
-                        ReferenceLevel = PresentGauge%ReferenceLevel                     
-
-                        Found = .true.
-                        
-                    endif
-                
-                endif
-
-                PresentGauge => PresentGauge%Next
-
-             enddo
-
-
-            if (Found) then
-
-                STAT_ = SUCCESS_
-
-            else
-
-                STAT_ = NOT_FOUND_ERR_
-
-            endif
-        else 
-            STAT_ = ready_
-        end if if1
-
-        if (present(STAT)) STAT = STAT_
-
-        !----------------------------------------------------------------------
-
-    end subroutine GetIJReferenceLevel_ThreadSafe
 
     !--------------------------------------------------------------------------
 
-    subroutine GetIJWaterLevel(GaugeID, HorizontalGridID, I, J, WaterLevel, STAT)
+    !--------------------------------------------------------------------------
+
+    subroutine GetIJWaterLevel(GaugeID, HorizontalGridID, ImposedElevation, Coef, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer                         :: GaugeID
-        integer                         :: HorizontalGridID
-        integer,           intent(IN )  :: I, J
-        real,              intent(OUT)  :: WaterLevel
-        integer, optional, intent(OUT)  :: STAT
+        integer,                          intent(IN)    :: GaugeID
+        integer,                          intent(IN)    :: HorizontalGridID
+        real,    dimension(:,:), pointer, intent(INOUT) :: ImposedElevation
+        real,                             intent(IN)    :: Coef
+        integer, optional,                intent(OUT)   :: STAT
 
         !Local-----------------------------------------------------------------
-        real                            :: PX, PY       
-        integer                         :: STAT_, ready_
-        type(T_TideGauge), pointer      :: PresentGauge
-        logical                         :: Found
-        real                            :: PercI, PercJ 
-        integer                         :: Iaux, Jaux 
+        integer                                         :: STAT_, ready_
+        type(T_TideGauge), pointer                      :: PresentGauge
+        integer                                         :: i, j
+        
 
         !----------------------------------------------------------------------
 
@@ -1925,51 +2231,21 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
             PresentGauge => Me%FirstGauge
 
-            Found = .false.
+            do while (associated(PresentGauge)) 
+            
+                i = PresentGauge%Grid_I
+                j = PresentGauge%Grid_J
 
-            do while (associated(PresentGauge) .and. .not. Found) 
-
-                if (PresentGauge%Grid_I == I .and. PresentGauge%Grid_J == J) then
-
-                    WaterLevel = PresentGauge%WaterLevel                    
-
-                    Found      = .true.
-
-                endif
-                
-                PX = PresentGauge%Metric_X
-                PY = PresentGauge%Metric_Y                
-                
-                call GetXYCellZ(HorizontalGridID, PX, PY, Iaux, Jaux, STAT = STAT_)
-
-  
-                if (I == Iaux .and. J == Jaux) then
-
-                    call GetXYCellZ(HorizontalGridID, PX, PY, Iaux, Jaux, PercI = PercI, PercJ = PercJ, STAT = STAT_)
-
-                    if (abs(PercI-0.5) < 0.02 .and. abs(PercJ-0.5) < 0.02) then
-
-                        WaterLevel = PresentGauge%WaterLevel                    
-
-                        Found = .true.
-                        
-                    endif
-
-                endif
+                ImposedElevation(i, j) = ImposedElevation(i, j) + PresentGauge%WaterLevel * Coef
 
                 PresentGauge => PresentGauge%Next
 
-             enddo
+            enddo
+            
+            nullify(PresentGauge)
 
-            if (Found) then
+            STAT_ = SUCCESS_
 
-                STAT_ = SUCCESS_
-
-            else
-
-                STAT_ = NOT_FOUND_ERR_
-
-            endif
         else 
             STAT_ = ready_
         end if if1
@@ -1980,92 +2256,10 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     end subroutine GetIJWaterLevel
 
-    !----------------------------------------------------------------------
 
-    subroutine GetIJWaterLevel_ThreadSafe(GaugeID, HorizontalGridID, I, J, WaterLevel, STAT)
+    !--------------------------------------------------------------------------
 
-        !Arguments-------------------------------------------------------------
-        integer,           intent(IN )  :: GaugeID
-        integer,           intent(IN )  :: HorizontalGridID
-        integer,           intent(IN )  :: I, J
-        real,              intent(OUT)  :: WaterLevel
-        integer, optional, intent(OUT)  :: STAT
 
-        !Local-----------------------------------------------------------------
-        real                            :: PX, PY       
-        integer                         :: STAT_, ready_
-        type(T_TideGauge), pointer      :: PresentGauge
-        logical                         :: Found
-        real                            :: PercI, PercJ 
-        integer                         :: Iaux, Jaux 
-        type (T_Gauge), pointer         :: LocalMe
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        LocalMe => Ready_ThreadSafe(GaugeID, ready_) 
-        
-if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
-            (ready_ .EQ. READ_LOCK_ERR_)) then
-
-            PresentGauge => LocalMe%FirstGauge
-
-            Found = .false.
-
-            do while (associated(PresentGauge) .and. .not. Found) 
-
-                if (PresentGauge%Grid_I == I .and. PresentGauge%Grid_J == J) then
-
-                    WaterLevel = PresentGauge%WaterLevel                    
-
-                    Found      = .true.
-
-                endif
-                
-                PX = PresentGauge%Metric_X
-                PY = PresentGauge%Metric_Y                
-                
-                call GetXYCellZ_ThreadSafe(HorizontalGridID, PX, PY, Iaux, Jaux, STAT = STAT_)
-
-  
-                if (I == Iaux .and. J == Jaux) then
-
-                    call GetXYCellZ_ThreadSafe(HorizontalGridID, PX, PY, Iaux, Jaux, PercI = PercI, PercJ = PercJ, STAT = STAT_)
-
-                    if (abs(PercI-0.5) < 0.02 .and. abs(PercJ-0.5) < 0.02) then
-
-                        WaterLevel = PresentGauge%WaterLevel                    
-
-                        Found = .true.
-                        
-                    endif
-
-                endif
-
-                PresentGauge => PresentGauge%Next
-
-             enddo
-
-            if (Found) then
-
-                STAT_ = SUCCESS_
-
-            else
-
-                STAT_ = NOT_FOUND_ERR_
-
-            endif
-        else 
-            STAT_ = ready_
-        end if if1
-
-        if (present(STAT)) STAT = STAT_
-
-        !----------------------------------------------------------------------
-
-    end subroutine GetIJWaterLevel_ThreadSafe
-    
     !----------------------------------------------------------------------
 
 
@@ -3958,9 +4152,24 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 !Deassociates External Instances
                 nUsers = DeassociateInstance (mTIME_,     Me%ObjTime)
-                if (nUsers == 0) stop 'KillGauge - Gauge - ERR01'
+                if (nUsers == 0) stop 'KillGauge - Gauge - ERR10'
+                
+                if (Me%ObjHorizontalMap /= 0) then
+                    nUsers = DeassociateInstance (mHORIZONTALMAP_,  Me%ObjHorizontalMap )
+                    if (nUsers == 0) stop 'KillGauge - Gauge - ERR20'
+                endif
+                
+                if (Me%ObjHorizontalGrid /= 0) then
+                    nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid)
+                    if (nUsers == 0) stop 'KillGauge - Gauge - ERR30'
+                endif                    
 
                 if (associated(Me%FirstGauge)) call KillGaugeList(Me%FirstGauge, Me%LastGauge)
+                
+                if (associated(Me%GaugesLocation)) then
+                    deallocate(Me%GaugesLocation)
+                    nullify   (Me%GaugesLocation)
+                endif
                 
                 call DeallocateInstance
 

@@ -37,32 +37,35 @@ Module ModuleFillMatrix
     use ModuleGlobalData
     use ModuleTime
     use ModuleEnterData
-    use ModuleFunctions,        only : InterpolateValueInTime, InterpolateProfile,       &
-                                       SetMatrixValue, InterpolateMatrix2DInTime,        &
-                                       InterpolateMatrix3DInTime,                        &
+    use ModuleFunctions,        only : InterpolateValueInTime, InterpolateProfile,      &
+                                       SetMatrixValue, InterpolateMatrix2DInTime,       &
+                                       InterpolateMatrix3DInTime,                       &
                                        InterpolateLinearyMatrix2D, InterpolateLinearyMatrix3D
-    use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes,          &
+    use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes,         &
                                        UngetBoxDif, KillBoxDif
-    use ModuleGridData,         only : ConstructGridData, GetGridData, UnGetGridData,    &
+    use ModuleGridData,         only : ConstructGridData, GetGridData, UnGetGridData,   &
                                        KillGridData, GetGridDataType 
-    use ModuleHorizontalGrid,   only : GetGridAngle, GetHorizontalGridSize,              &
-                                       GetGridBorderLimits, GetLatitudeLongitude,        &
-                                       GetDDecompOpenBorders,                &
-                                       GetDDecompParameters,                 &
-                                       GetDDecompWorkSize2D
-    use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue,           &
-                                       GetTimeSerieDTForNextEvent,                       &
-                                       GetTimeSerieTimeOfNextDataset,                    & 
-                                       GetTimeSerieTimeOfDataset, GetTimeSerieDataValues,&
-                                       GetTimeSerieValueForIndex, KillTimeSerie
+    use ModuleHorizontalGrid,   only : GetGridAngle, GetHorizontalGridSize,             &
+                                       GetGridBorderLimits, GetLatitudeLongitude,       &
+                                       GetDDecompOpenBorders,                           &
+                                       GetDDecompParameters,                            &
+                                       GetDDecompWorkSize2D, GetZCoordinates,           &
+                                       UnGetHorizontalGrid
+    use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue,          &
+                                       GetTimeSerieDTForNextEvent,                      &
+                                       GetTimeSerieTimeOfNextDataset,                   & 
+                                       GetTimeSerieTimeOfDataset,                       &
+                                       GetTimeSerieDataValues,GetTimeSerieValueForIndex,&
+                                        KillTimeSerie
     use ModuleGeometry,         only : GetGeometryDistances, UnGetGeometry, GetGeometrySize
-    use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData, GetHDF5GroupID,      &
-                                       GetHDF5FileAccess, GetHDF5GroupNumberOfItems,     &
-                                       HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5,  &
+    use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData, GetHDF5GroupID,     &
+                                       GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
+                                       HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
                                        GetHDF5GroupExist
                                        
     use ModuleField4D,          only : ConstructField4D, GetField4DNumberOfInstants,    &
-                                       GetField4DInstant, ModifyField4D, KillField4D
+                                       GetField4DInstant, ModifyField4D,                &
+                                       ModifyField4DXYZ, KillField4D
                                        
 
     implicit none
@@ -282,35 +285,42 @@ Module ModuleFillMatrix
     end type 
 
     type T_Field4D
-        character(PathLength)                       :: FileName     = null_str, & !initialization: Jauch
-                                                       VGroupPath   = null_str, & !initialization: Jauch
-                                                       FieldName    = null_str !initialization: Jauch
-        real                                        :: MultiplyingFactor    = null_real !initialization: Jauch
+        character(PathLength)                       :: FileName             = null_str, & 
+                                                       VGroupPath           = null_str, & 
+                                                       FieldName            = null_str 
+        real                                        :: MultiplyingFactor    = null_real 
         logical                                     :: HasMultiplyingFactor = .false.
-        real                                        :: AddingFactor         = null_real !initialization: Jauch
+        real                                        :: AddingFactor         = null_real 
         logical                                     :: HasAddingFactor      = .false.
         type (T_Time)                               :: NextTime,  PreviousTime
         type (T_Time)                               :: StartTime,  EndTime        
-        real                                        :: Next4DValue      = FillValueReal
-        real                                        :: Previous4DValue  = FillValueReal
-        integer                                     :: NextInstant      = null_int, & !initialization: Jauch
-                                                       PreviousInstant  = null_int    !initialization: Jauch
-        real, dimension(:,:  ), pointer             :: PreviousField2D  => null(), &
-                                                       NextField2D      => null(), &
-                                                       Array2D          => null()
-        real, dimension(:,:,:), pointer             :: PreviousField3D  => null(), &
-                                                       NextField3D      => null(), &
-                                                       ReadField3D      => null(), &
-                                                       Array3D          => null()
-        integer                                     :: ObjHDF5          =  0
-        integer                                     :: NumberOfInstants = null_int !initialization: Jauch
-        logical                                     :: CyclicTimeON     = .false.
-        logical                                     :: From2Dto3D       = .false.
+        real                                        :: Next4DValue          = FillValueReal
+        real                                        :: Previous4DValue      = FillValueReal
+        integer                                     :: NextInstant          = null_int, & 
+                                                       PreviousInstant      = null_int    
+        real, dimension(:,:  ), pointer             :: PreviousField2D      => null(), &
+                                                       NextField2D          => null(), &
+                                                       Array2D              => null()
+        real, dimension(:,:,:), pointer             :: PreviousField3D      => null(), &
+                                                       NextField3D          => null(), &
+                                                       ReadField3D          => null(), &
+                                                       Array3D              => null()
+        integer                                     :: ObjHDF5              =  0
+        integer                                     :: NumberOfInstants     = null_int 
+        logical                                     :: CyclicTimeON         = .false.
+        logical                                     :: From2Dto3D           = .false.
         type(T_Generic4D)                           :: Generic4D
-        logical                                     :: ArgumentFileName = .false. !initialization: Jauch
-        integer                                     :: ObjField4D       = 0
-        logical                                     :: Field4D          = .false.
-        logical                                     :: HarmonicsON      = .false.
+        logical                                     :: ArgumentFileName     = .false. 
+        integer                                     :: ObjField4D           = 0
+        logical                                     :: Field4D              = .false.
+        logical                                     :: HarmonicsON          = .false.
+        logical                                     :: SpatialInterpolON    = .false. 
+        integer                                     :: Ncells
+        real,    dimension(:), pointer              :: X                    => null()
+        real,    dimension(:), pointer              :: Y                    => null()        
+        real,    dimension(:), pointer              :: Z                    => null()
+        real,    dimension(:), pointer              :: Prop                 => null()
+        logical, dimension(:), pointer              :: NoData               => null()        
     end type T_Field4D
 
 
@@ -356,8 +366,10 @@ Module ModuleFillMatrix
         integer                                     :: InstantOfNextDataset
         logical                                     :: ValueIsUsedForDTPrediction = .false.
         real                                        :: NextValueForDTPred
-        real, dimension(:, :   ), pointer           :: Matrix2D => null()
-        real, dimension(:, :, :), pointer           :: Matrix3D => null()
+        real,    dimension(:, :   ), pointer        :: Matrix2D         => null()
+        real,    dimension(:, :, :), pointer        :: Matrix3D         => null()
+        integer, dimension(:, :   ), pointer        :: PointsToFill2D   => null()        
+        integer, dimension(:, :, :), pointer        :: PointsToFill3D   => null()
         
         type(T_Time)                                :: BeginTime, EndTime
 
@@ -484,7 +496,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%TypeZUV      = TypeZUV
             Me%PropertyID   = PropertyID
             
-            Me%Matrix2D     => Matrix2D
+            Me%Matrix2D       => Matrix2D
+            Me%PointsToFill2D => PointsToFill2D
             
             where (PointsToFill2D == WaterPoint) Me%Matrix2D = null_real
 
@@ -545,7 +558,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 ObjFillMatrix            = ObjFillMatrix_ 
             else
                 PropertyID%ObjFillMatrix = ObjFillMatrix_
-            endif            
+            endif       
+            
+            nullify(Me%Matrix2D      )
+            nullify(Me%PointsToFill2D)
+                 
 
             STAT_ = SUCCESS_
 
@@ -662,7 +679,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%TypeZUV      = TypeZUV
             Me%PropertyID   = PropertyID
 
-            Me%Matrix3D     => Matrix3D
+            Me%Matrix3D       => Matrix3D
+            Me%PointsToFill3D => PointsToFill3D
+            
 
             if (present(FillMatrix)) then
                 FillMatrix_ = FillMatrix
@@ -736,6 +755,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 PropertyID%ObjFillMatrix = ObjFillMatrix_
             endif            
+            
+            nullify(Me%Matrix3D      )
+            nullify(Me%PointsToFill3D)
 
             STAT_ = SUCCESS_
 
@@ -3652,6 +3674,16 @@ i0:     if(Me%Dim == Dim2D)then
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR130'        
+
+        call GetData(Me%HDF%SpatialInterpolON,                                          &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'SPATIAL_INTERPOL',                                 &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR135'        
+
         
         if (MasterOrSlave) then
             Me%HDF%Field4D = .true. 
@@ -3659,51 +3691,59 @@ i0:     if(Me%Dim == Dim2D)then
         
 if4D:   if (Me%HDF%Field4D) then
 
-            if (MasterOrSlave) then
-            
-                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
-                                                      WorkSize         = WindowLimitsJI,       &
-                                                      STAT             = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR140'
-                                                      
-                write(*,*) 'With domain decomposition - ILB,IUB, JLB, JUB',             &
-                            WindowLimitsJI%ILB,WindowLimitsJI%IUB, WindowLimitsJI%JLB, WindowLimitsJI%JUB
-                
-            else
-            
-                if(Me%Dim == Dim2D)then
-                    WindowLimitsJI     = Me%WorkSize2D
-                else                    
-                    WindowLimitsJI%ILB = Me%WorkSize3D%ILB
-                    WindowLimitsJI%IUB = Me%WorkSize3D%IUB
-                    WindowLimitsJI%JLB = Me%WorkSize3D%JLB
-                    WindowLimitsJI%JUB = Me%WorkSize3D%JUB
-                endif
-                
-                write(*,*) 'No domain decomposition - ILB,IUB, JLB, JUB',               &
-                            WindowLimitsJI%ILB,WindowLimitsJI%IUB, WindowLimitsJI%JLB, WindowLimitsJI%JUB
-            
-            endif                
+ifSI:       if (Me%HDF%SpatialInterpolON) then
 
-            call GetLatitudeLongitude(Me%ObjHorizontalGrid, Latitude  = LatDefault, Longitude = LongDefault, & 
-                                      STAT      = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR150'
-        
-            call ConstructField4D(Field4DID         = Me%HDF%ObjField4D,                &
-                                  EnterDataID       = Me%ObjEnterData,                  &
-                                  ExtractType       = ExtractType,                      &
-                                  FileName          = Me%HDF%FileName,                  &
-                                  TimeID            = Me%ObjTime,                       &   
-                                  MaskDim           = Me%Dim,                           &
-                                  LatReference      = LatDefault,                       &
-                                  LonReference      = LongDefault,                      & 
-                                  WindowLimitsJI    = WindowLimitsJI,                   &
-                                  Extrapolate       = .false.,                          &    
-                                  PropertyID        = Me%PropertyID,                    &                                  
-                                  ClientID          = ClientID,                         &
-                                  STAT              = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR160'
+                call ConstructField4DInterpol(ExtractType, ClientID, PointsToFill2D, PointsToFill3D)
+
+            else ifSI
             
+ifMS:           if (MasterOrSlave) then
+                
+                    call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                                          WorkSize         = WindowLimitsJI,       &
+                                                          STAT             = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR140'
+                                                          
+                    write(*,*) 'With domain decomposition - ILB,IUB, JLB, JUB',             &
+                                WindowLimitsJI%ILB,WindowLimitsJI%IUB, WindowLimitsJI%JLB, WindowLimitsJI%JUB
+                    
+                else ifMS
+                
+                    if(Me%Dim == Dim2D)then
+                        WindowLimitsJI     = Me%WorkSize2D
+                    else                    
+                        WindowLimitsJI%ILB = Me%WorkSize3D%ILB
+                        WindowLimitsJI%IUB = Me%WorkSize3D%IUB
+                        WindowLimitsJI%JLB = Me%WorkSize3D%JLB
+                        WindowLimitsJI%JUB = Me%WorkSize3D%JUB
+                    endif
+                    
+                    write(*,*) 'No domain decomposition - ILB,IUB, JLB, JUB',               &
+                                WindowLimitsJI%ILB,WindowLimitsJI%IUB, WindowLimitsJI%JLB, WindowLimitsJI%JUB
+                
+                endif ifMS                
+
+                call GetLatitudeLongitude(Me%ObjHorizontalGrid, Latitude  = LatDefault,     &
+                                                                Longitude = LongDefault,    & 
+                                                                STAT      = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR150'
+
+                call ConstructField4D(Field4DID         = Me%HDF%ObjField4D,                &
+                                      EnterDataID       = Me%ObjEnterData,                  &
+                                      ExtractType       = ExtractType,                      &
+                                      FileName          = Me%HDF%FileName,                  &
+                                      TimeID            = Me%ObjTime,                       &   
+                                      MaskDim           = Me%Dim,                           &
+                                      LatReference      = LatDefault,                       &
+                                      LonReference      = LongDefault,                      & 
+                                      WindowLimitsJI    = WindowLimitsJI,                   &
+                                      Extrapolate       = .false.,                          &    
+                                      PropertyID        = Me%PropertyID,                    &                                  
+                                      ClientID          = ClientID,                         &
+                                      STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR160'
+            
+            endif ifSI
             
             call GetField4DNumberOfInstants(Me%HDF%ObjField4D, Me%HDF%NumberOfInstants, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR170'
@@ -3714,11 +3754,11 @@ if4D:   if (Me%HDF%Field4D) then
             call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
 
             call ConstructHDF5 (Me%HDF%ObjHDF5, trim(Me%HDF%FileName), HDF5_READ, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR180'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR180'
 
             call GetHDF5GroupNumberOfItems(Me%HDF%ObjHDF5, "/Time", &
                                            Me%HDF%NumberOfInstants, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR190'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR190'
         
         endif if4D
         
@@ -3746,7 +3786,7 @@ i2:         if(Me%HDF%NumberOfInstants > 1)then
 i2a:            if (Me%PredictDTMethod == 2) then
 
                     !This methodology do NOT works with CYCLICTIME or BACKTRACKING (needs revision)
-                if (Me%Backtracking) then
+                    if (Me%Backtracking) then
                         stop 'ConstructHDFInput - ModuleFillMatrix - ERR145'
                     endif
 
@@ -4099,7 +4139,143 @@ i4:         if(Me%Dim == Dim2D)then
 
     end subroutine ConstructHDFInput
 
-    !--------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------------
+    
+    subroutine ConstructField4DInterpol(ExtractType, ClientID, PointsToFill2D, PointsToFill3D)
+        !Arguments----------------------------------------------------------------------
+        integer                                         :: ExtractType, ClientID
+        integer,  dimension(:,:,:),   pointer, optional :: PointsToFill3D
+        integer,  dimension(:,:),     pointer, optional :: PointsToFill2D
+
+
+        !Local--------------------------------------------------------------------------
+        real,       dimension(:,:),     pointer         :: CoordX, CoordY
+        real, dimension(1:2,1:2)                        :: WindowLimitsXY
+        real                                            :: West, East, South, North  
+        real                                            :: LatDefault, LongDefault
+        integer                                         :: STAT_CALL, i, j, k, icount, NCells
+        
+        !Begin--------------------------------------------------------------------------      
+
+        call GetGridBorderLimits(Me%ObjHorizontalGrid, West, East, South, North, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR10'
+
+        WindowLimitsXY(2,1) = South
+        WindowLimitsXY(2,2) = North
+        WindowLimitsXY(1,1) = West
+        WindowLimitsXY(1,2) = East
+        
+        if (Me%Dim == Dim2D) then
+            
+            icount = 0
+            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
+                if (PointsToFill2D(i,j) == WaterPoint) icount = icount + 1
+            enddo
+            enddo
+            
+            Ncells        = icount
+            Me%HDF%Ncells = Ncells
+        
+        else
+        
+            icount = 0
+            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+                if (PointsToFill3D(i,j,k) == WaterPoint) icount = icount + 1
+            enddo
+            enddo
+            enddo
+            
+            Ncells        = icount
+            Me%HDF%Ncells = Ncells
+        
+            allocate(Me%HDF%Z(1:NCells))
+         
+            Me%HDF%Z(1:NCells) = FillValueReal
+                                                     
+        endif                    
+            
+        allocate(Me%HDF%X(1:NCells), Me%HDF%Y(1:NCells), Me%HDF%Prop(1:NCells), Me%HDF%NoData(1:NCells))
+        
+        Me%HDF%X     (1:NCells) = FillValueReal
+        Me%HDF%Y     (1:NCells) = FillValueReal
+        Me%HDF%Prop  (1:NCells) = FillValueReal
+        Me%HDF%NoData(1:NCells) = .true.
+        
+        call GetZCoordinates(Me%ObjHorizontalGrid, CoordX, CoordY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR40'
+        
+        if (Me%Dim == Dim2D) then
+            
+            icount = 0
+            
+            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
+            
+                if (PointsToFill2D(i,j) == WaterPoint) then
+
+                    icount           = icount + 1
+                    Me%HDF%X(icount) = CoordX(i, j)
+                    Me%HDF%Y(icount) = CoordY(i, j)
+
+                endif                    
+                
+            enddo
+            enddo
+            
+        else
+        
+            icount = 0
+            
+            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+                
+                if (PointsToFill3D(i,j,k) == WaterPoint) then
+                    
+                    icount           = icount + 1
+                    Me%HDF%X(icount) = CoordX(i, j)
+                    Me%HDF%Y(icount) = CoordY(i, j)
+                
+                endif                    
+                
+            enddo
+            enddo   
+            enddo     
+            
+        endif       
+    
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR70'
+
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR80'
+        
+        call GetLatitudeLongitude(Me%ObjHorizontalGrid, Latitude  = LatDefault,         &
+                                                        Longitude = LongDefault,        & 
+                                                        STAT      = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR90'
+        
+        call ConstructField4D(Field4DID         = Me%HDF%ObjField4D,                    &
+                              EnterDataID       = Me%ObjEnterData,                      &
+                              ExtractType       = ExtractType,                          &
+                              FileName          = Me%HDF%FileName,                      &
+                              TimeID            = Me%ObjTime,                           &   
+                              MaskDim           = Me%Dim,                               &
+                              LatReference      = LatDefault,                           &
+                              LonReference      = LongDefault,                          & 
+                              WindowLimitsXY    = WindowLimitsXY,                       &
+                              Extrapolate       = .true.,                               &    
+                              PropertyID        = Me%PropertyID,                        &                                  
+                              ClientID          = ClientID,                             &
+                              STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR100'
+    
+    end subroutine ConstructField4DInterpol
+
+    
    !----------------------------------------------------------------------------
 
     subroutine Generic4thDimension(ExtractType)
@@ -4170,11 +4346,11 @@ i4:         if(Me%Dim == Dim2D)then
         !Begin-----------------------------------------------------------------
 
 if4D:   if (Me%HDF%Field4D) then      
-            
-                HDF5TimeInstant = GetField4DInstant(Field4DID = Me%HDF%ObjField4D,          &
-                                                    Instant   = Instant,                    &
-                                                    STAT      =  STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'HDF5TimeInstant - ModuleFillMatrix - ERR10'
+        
+            HDF5TimeInstant = GetField4DInstant(Field4DID = Me%HDF%ObjField4D,          &
+                                                Instant   = Instant,                    &
+                                                STAT      =  STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'HDF5TimeInstant - ModuleFillMatrix - ERR10'
         
         else if4D
         
@@ -4322,12 +4498,21 @@ if4D:   if (Me%HDF%Field4D) then
             CurrentTime = GetField4DInstant (Me%HDF%ObjField4D, Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'
             
-            call ModifyField4D(Field4DID        = Me%HDF%ObjField4D,                    &
-                               PropertyIDNumber = Me%PropertyID%IDNumber,               & 
-                               CurrentTime      = CurrentTime,                          &
-                               Matrix2D         = Field,                                &
-                               STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'
+            if (Me%HDF%SpatialInterpolON) then
+            
+                call ModifyField4DInterpol(CurrentTime      = CurrentTime,              & 
+                                           Matrix2D         = Field)
+
+            else
+            
+                call ModifyField4D(Field4DID        = Me%HDF%ObjField4D,                &
+                                   PropertyIDNumber = Me%PropertyID%IDNumber,           & 
+                                   CurrentTime      = CurrentTime,                      &
+                                   Matrix2D         = Field,                            &
+                                   STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'
+
+            endif                
 
         else if4D            
         
@@ -4415,13 +4600,22 @@ if4D:   if (Me%HDF%Field4D) then
 
             CurrentTime = GetField4DInstant (Me%HDF%ObjField4D, Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR10'
+            
+            if (Me%HDF%SpatialInterpolON) then
+            
+                call ModifyField4DInterpol(CurrentTime      = CurrentTime,              & 
+                                           Matrix3D         = Field)
 
-            call ModifyField4D(Field4DID        = Me%HDF%ObjField4D,                    &
-                               PropertyIDNumber = Me%PropertyID%IDNumber,               & 
-                               CurrentTime      = CurrentTime,                          & 
-                               Matrix3D         = Field,                                &
-                               STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'                                   
+            else            
+
+                call ModifyField4D(Field4DID        = Me%HDF%ObjField4D,                &
+                                   PropertyIDNumber = Me%PropertyID%IDNumber,           & 
+                                   CurrentTime      = CurrentTime,                      & 
+                                   Matrix3D         = Field,                            &
+                                   STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'                                   
+                
+            endif                
 
         else if4D            
         
@@ -4506,6 +4700,126 @@ if4D:   if (Me%HDF%Field4D) then
 
     end subroutine ReadHDF5Values3D
 
+    !-----------------------------------------------------------------------------------
+
+    subroutine ModifyField4DInterpol(CurrentTime, Matrix3D, Matrix2D)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_Time)                                :: CurrentTime
+        real, dimension(:,:,:), pointer, optional   :: Matrix3D
+        real, dimension(:,:  ), pointer, optional   :: Matrix2D
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:,:), pointer             :: ZCellCenter 
+        integer                                     :: i, j, k, icount
+        integer                                     :: STAT_CALL
+        !Begin-----------------------------------------------------------------
+
+        Me%HDF%NoData   (:) = .true.
+
+if2D:   if (Me%Dim == Dim2D) then
+
+            call ModifyField4DXYZ(Field4DID             = Me%HDF%ObjField4D,            &
+                                  PropertyIDNumber      = Me%PropertyID%IDNumber,       &
+                                  CurrentTime           = CurrentTime,                  &
+                                  X                     = Me%HDF%X,                     &
+                                  Y                     = Me%HDF%Y,                     &
+                                  Field                 = Me%HDF%Prop,                  &
+                                  NoData                = Me%HDF%NoData,                &
+                                  STAT                  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR10' 
+            
+            icount = 0
+            
+            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
+                
+                if (Me%PointsToFill2D(i,j) == WaterPoint) then
+                    
+                    icount           = icount + 1
+                    if (Me%HDF%NoData(icount)) then
+                        write(*,*) GetPropertyName (Me%PropertyID%IDNumber)
+                        write(*,*) 'No data in 2D cell I=',i, 'J=',j
+                        stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR20' 
+                    else                        
+                        Matrix2D(i, j)   = Me%HDF%Prop(icount)
+                    endif
+                endif                    
+                
+            enddo   
+            enddo      
+            
+        
+        else if2D
+        
+            call GetGeometryDistances(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR30' 
+        
+            icount = 0
+            
+            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+                
+                if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
+                    
+                    icount           = icount + 1
+                    Me%HDF%Z(icount) = ZCellCenter(i, j, k)
+                
+                endif                    
+                
+            enddo
+            enddo   
+            enddo            
+            
+            call UnGetGeometry(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR40'             
+        
+            call ModifyField4DXYZ(Field4DID             = Me%HDF%ObjField4D,            &
+                                  PropertyIDNumber      = Me%PropertyID%IDNumber,       &
+                                  CurrentTime           = CurrentTime,                  &
+                                  X                     = Me%HDF%X,                     &
+                                  Y                     = Me%HDF%Y,                     &
+                                  Z                     = Me%HDF%Z,                     &
+                                  Field                 = Me%HDF%Prop,                  &
+                                  NoData                = Me%HDF%NoData,                &
+                                  STAT                  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR50' 
+            
+            icount = 0
+            
+            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+                
+                if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
+                    
+                    icount           = icount + 1
+                    if (Me%HDF%NoData(icount)) then
+                        write(*,*) 'No data in 3D cell I=',i, 'J=',j, 'K=',k
+                        stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60' 
+                    else                        
+                        Matrix3D(i, j, k)   = Me%HDF%Prop(icount)
+                    endif
+                
+                endif                    
+                
+            enddo
+            enddo   
+            enddo            
+            
+        
+        endif if2D
+        
+        if (icount /= Me%HDF%Ncells) then
+            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70' 
+        endif         
+        
+
+    end subroutine ModifyField4DInterpol
+    
+    !-----------------------------------------------------------------------------------    
+    
 
     subroutine ProfileTimeSerieField(PointsToFill3D, Instant, Field)
 
@@ -4929,6 +5243,11 @@ if4D:   if (Me%HDF%Field4D) then
             if (present(Matrix2D)) Me%Matrix2D => Matrix2D
             if (present(Matrix3D)) Me%Matrix3D => Matrix3D
 
+            if (present(PointsToFill2D)) Me%PointsToFill2D => PointsToFill2D
+            if (present(PointsToFill3D)) Me%PointsToFill3D => PointsToFill3D
+
+
+
             if (present(Generic_4D_Value)) then
                 Generic_4D_Value_ = Generic_4D_Value
             else
@@ -4982,6 +5301,12 @@ if4D:   if (Me%HDF%Field4D) then
                         endif  
 
                 end select
+                
+                nullify(Me%Matrix2D)
+                nullify(Me%Matrix3D)
+
+                nullify(Me%PointsToFill2D)
+                nullify(Me%PointsToFill3D)
 
                 STAT_ = SUCCESS_
             else
@@ -5748,14 +6073,20 @@ if4D:   if (Me%HDF%Field4D) then
         else   
             Now = CurrentTime
         endif 
-
-        call ModifyField4D(Field4DID        = Me%HDF%ObjField4D,                    &
-                           PropertyIDNumber = Me%PropertyID%IDNumber,               & 
-                           CurrentTime      = Now,                                  & 
-                           Matrix3D         = Me%Matrix3D,                          &
-                           STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'  
+    
+        if (Me%HDF%SpatialInterpolON) then
         
+            call ModifyField4DInterpol(CurrentTime      = Now,                          & 
+                                       Matrix3D         = Me%Matrix3D)
+        
+        else
+            call ModifyField4D(Field4DID        = Me%HDF%ObjField4D,                    &
+                               PropertyIDNumber = Me%PropertyID%IDNumber,               & 
+                               CurrentTime      = Now,                                  & 
+                               Matrix3D         = Me%Matrix3D,                          &
+                               STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'  
+        endif
             
     end subroutine ModifyHDFInput3DHarmonics
         
@@ -6020,15 +6351,23 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
         else   
             Now = CurrentTime
         endif 
+        
+        if (Me%HDF%SpatialInterpolON) then
+        
+            call ModifyField4DInterpol(CurrentTime      = Now,                          & 
+                                       Matrix2D         = Me%Matrix2D)
+        
+        else
+        
 
-        call ModifyField4D(Field4DID        = Me%HDF%ObjField4D,                    &
-                           PropertyIDNumber = Me%PropertyID%IDNumber,               & 
-                           CurrentTime      = Now,                                  & 
-                           Matrix2D         = Me%Matrix2D,                          &
-                           STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ModifyHDFInput2DHarmonics - ModuleFillMatrix - ERR20'  
+            call ModifyField4D(Field4DID        = Me%HDF%ObjField4D,                    &
+                               PropertyIDNumber = Me%PropertyID%IDNumber,               & 
+                               CurrentTime      = Now,                                  & 
+                               Matrix2D         = Me%Matrix2D,                          &
+                               STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ModifyHDFInput2DHarmonics - ModuleFillMatrix - ERR20'  
 
-
+        endif
 
     end subroutine ModifyHDFInput2DHarmonics
         
@@ -7407,6 +7746,15 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     
 if4D:               if (Me%HDF%Field4D) then
 
+                        if (Me%HDF%SpatialInterpolON) then
+    
+                            if (Me%Dim == Dim3D) then
+                                 deallocate(Me%HDF%Z)
+                            endif                    
+                                
+                            deallocate(Me%HDF%X, Me%HDF%Y, Me%HDF%Prop, Me%HDF%NoData)
+                        
+                        endif
                         
                         call KillField4D(Me%HDF%ObjField4D, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR30'

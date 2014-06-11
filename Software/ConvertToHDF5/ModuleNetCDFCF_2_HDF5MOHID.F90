@@ -188,7 +188,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: CenterX, CenterY
         logical                                 :: ComputeRH
         character(len=StringLength)             :: TempRH, PressureRH, SpecificHumidityRH
-
+        integer                                 :: ExtractFromLayer, NumberOfLayers
         
     end type  T_Field
 
@@ -1983,6 +1983,27 @@ BF:         if (BlockFound) then
                     if (Me%Field(ip)%Dim /= 2 .and. Me%Field(ip)%Dim /= 3)              &
                         stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR60'    
 
+                    if (Me%Field(ip)%Dim == 2) then
+                        call GetData(Me%Field(ip)%ExtractFromLayer,                         &
+                                     Me%ObjEnterData, iflag,                                &
+                                     SearchType   = FromBlockInBlock,                       &
+                                     keyword      = 'EXTRACT_LAYER',                        &
+                                     default      = 1,                                      &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                     STAT         = STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR55'
+                        
+                        call GetData(Me%Field(ip)%NumberOfLayers,                           &
+                                     Me%ObjEnterData, iflag,                                &
+                                     SearchType   = FromBlockInBlock,                       &
+                                     keyword      = 'N_LAYERS',                             &
+                                     default      = 1,                                      &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                     STAT         = STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR57'
+                        
+                    endif                        
+                        
                     call ConstructPropertyID (Me%Field(ip)%ID,  Me%ObjEnterData, FromBlockInBlock)
                     
                     !Index 1 is time
@@ -4591,13 +4612,13 @@ i2:                 if (Me%Depth%Interpolate) then
 !                                                       Dim4 = Me%Date%NumberInst)
         else if (Me%Field(iP)%Dim == 2) then
             if      (Me%Field(iP)%ValueIn%Dim  == 3) then
-                call AllocateValueIn(Me%Field(iP)%ValueIn, Dim1 = Me%LongLat%jmax,          &
-                                                           Dim2 = Me%LongLat%imax,          &
+                call AllocateValueIn(Me%Field(iP)%ValueIn, Dim1 = Me%LongLat%jmax,      &
+                                                           Dim2 = Me%LongLat%imax,      &
                                                            Dim3 = 1)
             elseif (Me%Field(iP)%ValueIn%Dim  == 4) then
-                call AllocateValueIn(Me%Field(iP)%ValueIn, Dim1 = Me%LongLat%jmax,          &
-                                                           Dim2 = Me%LongLat%imax,          &
-                                                           Dim3 = 1,                        &
+                call AllocateValueIn(Me%Field(iP)%ValueIn, Dim1 = Me%LongLat%jmax,      &
+                                                           Dim2 = Me%LongLat%imax,      &
+                                                           Dim3 = Me%Field(iP)%NumberOfLayers, &
                                                            Dim4 = 1)
             else
                 stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'

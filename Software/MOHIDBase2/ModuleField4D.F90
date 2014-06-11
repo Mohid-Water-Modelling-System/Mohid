@@ -69,8 +69,6 @@ Module ModuleField4D
     use ModuleTimeSerie
     use ModuleTask2000,         only : Task2000Level               
                                        
-
-
     implicit none
 
     private 
@@ -98,7 +96,10 @@ Module ModuleField4D
     public  :: GetField4DNumberOfInstants
     public  :: GetField4DInstant
     public  :: GetField4DSize2D
-    public  :: GetField4DSize3D                         
+    public  :: GetField4DSize3D   
+    public  :: GetField4DHarmonicsON
+    public  :: GetField4DHarmonicsNumber
+    public  :: GetField4DHarmonicsName
     
     !Modifier
     public  :: ModifyField4D
@@ -167,7 +168,10 @@ Module ModuleField4D
         real,                          dimension(:,:,:  ), pointer :: Amplitude2D    => null()
         real,                          dimension(:,:,:  ), pointer :: Residual3D     => null()
         real,                          dimension(:,:    ), pointer :: Residual2D     => null()
-        
+        logical                                                    :: Extract        = .false.
+        logical                                                    :: ExtractAmp     = .false.
+        character(Len=WaveNameLength)                              :: ExtractWave    = null_str
+        character(Len=StringLength)                                :: FieldNameDim   = null_str
     end type T_Harmonics     
 
 
@@ -246,7 +250,8 @@ Module ModuleField4D
         integer                                     :: TypeZUV              = null_int
         
         logical                                     :: ChangeInTime         = .false.
-        
+        logical                                     :: Extrapolate          = .false.
+       
         integer                                     :: ValuesType           = null_int
         real                                        :: Next4DValue          = null_real
         real                                        :: Previous4DValue      = null_real
@@ -361,7 +366,7 @@ Module ModuleField4D
         type (T_Size2D)            ,  optional, intent(IN )   :: WindowLimitsJI
         logical,                      optional, intent(IN )   :: Extrapolate
         type (T_PropertyID),          optional, intent(IN )   :: PropertyID
-        integer,                      optional, intent(OUT)   :: ClientID     
+        integer,                      optional, intent(IN )   :: ClientID     
         integer,                      optional, intent(OUT)   :: STAT     
         
         !Local-------------------------------------------------------------------
@@ -453,7 +458,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     Me%ReadWindow = .false.
                 endif
                 
-                call ReadGridFromFile
+                call ReadGridFromFile(ExtractType)
                 
             endif
            
@@ -700,9 +705,10 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
 
     !--------------------------------------------------------------------------
     
-    subroutine ReadGridFromFile
+    subroutine ReadGridFromFile(ExtractType)
 
         !Arguments-------------------------------------------------------------
+        integer                                 :: ExtractType
                                                     
         !Local-----------------------------------------------------------------
 #ifndef _NO_NETCDF            
@@ -712,8 +718,8 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
         real,      pointer, dimension(:,:)      :: LatStagW, LonStagW
         real,   pointer, dimension(:  )         :: XXDummy, YYDummy
         integer, dimension(:,:), pointer        :: WindowDomain        
-        integer                                 :: Imax, Jmax, STAT_CALL
-        integer                                 :: ILB, IUB, JLB, JUB, i, j
+        integer                                 :: Imax, Jmax, STAT_CALL, iflag
+        integer                                 :: ILB, IUB, JLB, JUB, i, j, jj
 
         !Begin-----------------------------------------------------------------
         
@@ -764,6 +770,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                               Array2D       = LonStag,                                  &
                               STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR50'
+            
 #ifndef _NO_NETCDF            
         else if (Me%File%Form == NetCDF_) then
         
@@ -800,6 +807,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
             deallocate(LonStagR8)        
 #endif
         endif
+        
         
 irw:    if (Me%ReadWindow) then
 
@@ -1576,7 +1584,7 @@ wwd1:       if (Me%WindowWithData) then
 
         Me%OutPut%NextOutPut = 1
         
-       call GetData(PropField%Harmonics%ON,                                            &
+       call GetData(PropField%Harmonics%ON,                                             &
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
                      keyword      = 'HARMONICS',                                        &
@@ -1584,6 +1592,28 @@ wwd1:       if (Me%WindowWithData) then
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160'    
+        
+        if (PropField%Harmonics%ON) then
+            call GetData(PropField%Harmonics%Extract,                                   &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'EXTRACT_HARMONICS',                            &
+                         default      = .false.,                                        &
+                         ClientModule = 'ModuleField4D',                                &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR170'    
+            
+            call GetData(PropField%Harmonics%FieldNameDim,                              &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'HARMONICS_FIELD_DIM',                          &
+                         default      = char_residual_,                                 &
+                         ClientModule = 'ModuleField4D',                                &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR175'    
+
+            
+        endif
         
         if (LastGroupEqualField)                                                        &
             PropField%VGroupPath=trim(PropField%VGroupPath)//"/"//trim(PropField%FieldName)            
@@ -1601,7 +1631,7 @@ wwd1:       if (Me%WindowWithData) then
         
             if (PropField%Harmonics%ON) then
                 call GetHDF5ArrayDimensions (Me%File%Obj, trim(PropField%VGroupPath),   &
-                                  char_residual_,                                       &
+                                  PropField%Harmonics%FieldNameDim,                     &
                                   NDim = PropField%SpaceDim, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadOptions - ModuleField4D - ERR115'
             else                
@@ -1670,9 +1700,15 @@ wwd1:       if (Me%WindowWithData) then
         if (iflag==1) then
             PropField%MaxValueON = .true.
         endif
-
-
-
+        call GetData(PropField%Extrapolate,                                             &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'EXTRAPOLATE',                                      &
+                     default      = Me%Extrapolate,                                     &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160'
+        
 
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
@@ -1691,8 +1727,11 @@ wwd1:       if (Me%WindowWithData) then
         integer                                     :: ExtractType
 
         !Local-----------------------------------------------------------------
-        character(LEN = StringLength   ), parameter :: block_begin = '<<beginharmonics>>'
-        character(LEN = StringLength   ), parameter :: block_end   = '<<endharmonics>>'
+        character(LEN = StringLength   ), parameter :: block_begin1 = '<beginharmonics>'
+        character(LEN = StringLength   ), parameter :: block_end1   = '<endharmonics>'
+
+        character(LEN = StringLength   ), parameter :: block_begin2 = '<<beginharmonics>>'
+        character(LEN = StringLength   ), parameter :: block_end2   = '<<endharmonics>>'
         
         integer                                     :: STAT_CALL, ClientNumber, FirstLine, LastLine, i
         logical                                     :: BlockFound
@@ -1706,8 +1745,8 @@ wwd1:       if (Me%WindowWithData) then
                 
             call ExtractBlockFromBuffer(EnterDataID         = Me%ObjEnterData,          &
                                         ClientNumber        = ClientNumber,             &
-                                        block_begin         = block_begin,              &
-                                        block_end           = block_end,                &
+                                        block_begin         = block_begin1,             &
+                                        block_end           = block_end1,               &
                                         BlockFound          = BlockFound,               &
                                         FirstLine           = FirstLine,                &
                                         LastLine            = LastLine,                 &
@@ -1721,8 +1760,8 @@ wwd1:       if (Me%WindowWithData) then
 
             call ExtractBlockFromBlock (EnterDataID         = Me%ObjEnterData,          &
                                         ClientNumber        = ClientNumber,             &
-                                        block_begin         = block_begin,              &
-                                        block_end           = block_end,                &
+                                        block_begin         = block_begin2,             &
+                                        block_end           = block_end2,               &
                                         BlockInBlockFound   = BlockFound,               &
                                         FirstLine           = FirstLine,                &
                                         LastLine            = LastLine,                 &
@@ -2473,9 +2512,12 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                 allocate(Me%Matrix3D(ILB:IUB, JLB:JUB, 0:2))
                 Me%Matrix3D(:,:,:) = FillValueReal
             endif            
-            
+
             call ReadValues2DHarmonics(NewPropField)
-            call FromHarmonics2Field2D(NewPropField, CurrentTime) 
+            
+            if (.not.NewPropField%Harmonics%Extract) then
+                call FromHarmonics2Field2D(NewPropField, CurrentTime) 
+            endif
 
         else i0
 
@@ -2497,7 +2539,10 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             endif
             
             call ReadValues3DHarmonics(NewPropField)
-            call FromHarmonics2Field3D(NewPropField, CurrentTime) 
+            
+            if (.not.NewPropField%Harmonics%Extract) then            
+                call FromHarmonics2Field3D(NewPropField, CurrentTime) 
+            endif                
             
         endif i0
         
@@ -3151,7 +3196,7 @@ d2:     do N =1, NW
         
         GroupName = trim(NewPropField%VGroupPath)
         
-        FieldName = char_residual_ 
+        FieldName = NewPropField%Harmonics%FieldNameDim 
     
         if      (Me%File%Form == HDF5_  ) then
             call GetHDF5ArrayDimensions(Me%File%Obj, GroupName, FieldName,          &
@@ -3187,7 +3232,7 @@ d2:     do N =1, NW
 #ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
-            FieldName = char_residual_
+            FieldName = NewPropField%Harmonics%FieldNameDim
         
             call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
                                 Array2D         = Field,                            &
@@ -3232,38 +3277,56 @@ d2:     do N =1, NW
         JUB = Me%WorkSize2D%JUB
         NW  = NewPropField%Harmonics%Number   
         
-        do i = ILB,IUB
-        do j = JLB,JUB
+if1:    if (NewPropField%Harmonics%Extract) then
 
-            Amplitude   => NewPropField%Harmonics%Amplitude2D(i, j, :)
-            Phase       => NewPropField%Harmonics%Phase2D    (i, j, :)   
+            do n = 1, NW
+                if (trim(NewPropField%Harmonics%WaveName(n)) == trim(NewPropField%Harmonics%ExtractWave)) then
+                    exit
+                endif
+            enddo
             
-            do n=1,NW
-                if (ISNAN(Amplitude(n))) Amplitude(n) = FillValueReal
-                if (ISNAN(Phase    (n))) Phase    (n) = FillValueReal
-            enddo                 
-            
-            if (sum(Amplitude(1:NW))>0.) then             
-        
-                call Task2000Level(WaterLevel       = Field(i, j),                              &
-                                   TimeReference    = NewPropField%Harmonics%TimeReference,     &
-                                   NWaves           = NewPropField%Harmonics%Number,            &
-                                   WaveAmplitude    = Amplitude,                                &
-                                   WavePhase        = Phase,                                    &
-                                   WaveName         = NewPropField%Harmonics%WaveName,          & 
-                                   time_            = CurrentTime,                              &
-                                   STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'FromHarmonics2Field2D - ModuleField4D - ERR10'  
-                
-                Field(i, j) = Field(i, j) + NewPropField%Harmonics%Residual2D(i, j)
-                
-            else                
-                
-                Field(i, j) = FillValueReal
-                
+            if (NewPropField%Harmonics%ExtractAmp) then
+                Field(ILB:IUB,JLB:JUB) = NewPropField%Harmonics%Amplitude2D(ILB:IUB,JLB:JUB,n)
+            else
+                Field(ILB:IUB,JLB:JUB) = NewPropField%Harmonics%Phase2D    (ILB:IUB,JLB:JUB,n)
             endif                
-        enddo
-        enddo
+        
+        else   if1
+        
+            do i = ILB,IUB
+            do j = JLB,JUB
+
+                Amplitude   => NewPropField%Harmonics%Amplitude2D(i, j, :)
+                Phase       => NewPropField%Harmonics%Phase2D    (i, j, :)   
+                
+                do n=1,NW
+                    if (ISNAN(Amplitude(n))) Amplitude(n) = FillValueReal
+                    if (ISNAN(Phase    (n))) Phase    (n) = FillValueReal
+                enddo                 
+                
+                if (sum(Amplitude(1:NW))>0.) then             
+            
+                    call Task2000Level(WaterLevel       = Field(i, j),                              &
+                                       TimeReference    = NewPropField%Harmonics%TimeReference,     &
+                                       NWaves           = NewPropField%Harmonics%Number,            &
+                                       WaveAmplitude    = Amplitude,                                &
+                                       WavePhase        = Phase,                                    &
+                                       WaveName         = NewPropField%Harmonics%WaveName,          & 
+                                       time_            = CurrentTime,                              &
+                                       STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'FromHarmonics2Field2D - ModuleField4D - ERR10'  
+                    
+                    Field(i, j) = Field(i, j) + NewPropField%Harmonics%Residual2D(i, j)
+                    
+                else                
+                    
+                    Field(i, j) = FillValueReal
+                    
+                endif                
+            enddo
+            enddo
+            
+        endif if1                        
     
         if(NewPropField%HasMultiplyingFactor)then
             do j = JLB, JUB
@@ -3502,7 +3565,7 @@ d2:     do N =1, NW
         
         GroupName = trim(NewPropField%VGroupPath)
         
-        FieldName = char_residual_ 
+        FieldName = NewPropField%Harmonics%FieldNameDim 
     
         if      (Me%File%Form == HDF5_  ) then
             call GetHDF5ArrayDimensions(Me%File%Obj, GroupName, FieldName,          &
@@ -3539,7 +3602,7 @@ d2:     do N =1, NW
 #ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
-            FieldName = char_residual_
+            FieldName = NewPropField%Harmonics%FieldNameDim
         
             call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
                                 Array3D         = Field,                            &
@@ -3887,6 +3950,123 @@ d2:     do N =1, NW
 
     end subroutine GetField4DSize3D
     
+
+    !--------------------------------------------------------------------------
+    
+    subroutine GetField4DHarmonicsON(Field4DID, PropertyIDNumber, HarmonicsON, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN )                            :: Field4DID
+        integer, intent(IN )                            :: PropertyIDNumber
+        logical, intent(OUT)                            :: HarmonicsON
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        type (T_PropField), pointer                     :: PropField
+        integer                                         :: STAT_, ready_, STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(Field4DID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetField4DHarmonicsON - ModuleField4D - ERR10'
+            
+            HarmonicsON = PropField%Harmonics%ON
+            
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetField4DHarmonicsON
+
+    !--------------------------------------------------------------------------
+    
+    subroutine GetField4DHarmonicsNumber(Field4DID, PropertyIDNumber, HarmonicsNumber, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN )                            :: Field4DID
+        integer, intent(IN )                            :: PropertyIDNumber
+        integer, intent(OUT)                            :: HarmonicsNumber
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        type (T_PropField), pointer                     :: PropField
+        integer                                         :: STAT_, ready_, STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(Field4DID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetField4DHarmonicsNumber - ModuleField4D - ERR10'
+            
+            HarmonicsNumber = PropField%Harmonics%Number
+            
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetField4DHarmonicsNumber
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetField4DHarmonicsName(Field4DID, PropertyIDNumber, HarmonicsName, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,                                              intent(IN ) :: Field4DID
+        integer,                                              intent(IN ) :: PropertyIDNumber
+        character(Len=WaveNameLength), dimension(:), pointer, intent(OUT) :: HarmonicsName
+        integer, optional,                                    intent(OUT) :: STAT
+
+        !Local-----------------------------------------------------------------
+        type (T_PropField), pointer                     :: PropField
+        integer                                         :: STAT_, ready_, STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(Field4DID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetField4DHarmonicsName - ModuleField4D - ERR10'
+            
+            HarmonicsName(:) = PropField%Harmonics%WaveName(:)
+            
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetField4DHarmonicsName
+    
+    !--------------------------------------------------------------------------    
+ 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -4092,16 +4272,19 @@ d2:     do N =1, NW
     end subroutine WriteOutput
     
     !--------------------------------------------------------------------------
-    subroutine ModifyField4DXYZ(Field4DID, PropertyIDNumber, CurrentTime, X, Y, Z, Field, NoData, STAT)
+    subroutine ModifyField4DXYZ(Field4DID, PropertyIDNumber, CurrentTime, X, Y, Z,      &
+                                Field, NoData, WaveName, ExtractAmplitudes, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                            intent(IN)             :: Field4DID
         integer,                            intent(IN)             :: PropertyIDNumber
-        type (T_Time),                      intent(IN)             :: CurrentTime 
+        type (T_Time),                      intent(IN), optional   :: CurrentTime 
         real,    dimension(:),   pointer,   intent(IN)             :: X, Y
         real,    dimension(:),   pointer,   intent(IN),  optional  :: Z
         real,    dimension(:),   pointer,   intent(OUT)            :: Field
         logical, dimension(:),   pointer,   intent(INOUT)          :: NoData
+        character(len=*),                   intent(IN ), optional  :: WaveName
+        logical,                            intent(IN ), optional  :: ExtractAmplitudes
         integer,                            intent(OUT), optional  :: STAT
                                             
         !Local-----------------------------------------------------------------
@@ -4117,8 +4300,11 @@ d2:     do N =1, NW
         if (ready_ .EQ. IDLE_ERR_) then
         
             if (Me%WindowWithData) then
-        
-                Me%CurrentTimeExt = CurrentTime
+                if (present(CurrentTime)) then
+                    Me%CurrentTimeExt = CurrentTime
+                else
+                    call null_time(Me%CurrentTimeExt)
+                endif                    
             
                 if (Me%BackTracking) then  
                     call BacktrackingTime
@@ -4130,12 +4316,31 @@ d2:     do N =1, NW
                 
                 if (Me%CurrentTimeInt < Me%File%StartTime) CorrectTimeFrame = .false.  
                 if (Me%CurrentTimeInt > Me%File%EndTime  ) CorrectTimeFrame = .false.              
-                
-                if (CorrectTimeFrame) then        
             
-                    call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DXYZ - ModuleField4D - ERR10'
+                call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DXYZ - ModuleField4D - ERR10'                
+                
+                if (CorrectTimeFrame .or. PropField%Harmonics%Extract) then        
+            
+                    if (PropField%Harmonics%Extract) then
+                    
+                        if (present(WaveName)) then
+                            PropField%Harmonics%ExtractWave = WaveName
+                        else
+                            stop 'ModifyField4DXYZ - ModuleField4D - ERR20'                                                
+                        endif
 
+
+                        if (present(ExtractAmplitudes)) then
+                            PropField%Harmonics%ExtractAmp = ExtractAmplitudes
+                        else
+                            stop 'ModifyField4DXYZ - ModuleField4D - ERR30'                                                
+                        endif
+
+
+                        
+                    endif                        
+                    
                     if      (PropField%SpaceDim == Dim2D) then
                     
                         call Interpolate2DCloud (PropField, X, Y, Field, NoData) 
@@ -4143,7 +4348,7 @@ d2:     do N =1, NW
                     else if (PropField%SpaceDim == Dim3D) then
                     
                         if (.not.present(Z)) then
-                            stop 'ModifyField4DXYZ - ModuleField4D - ERR20'
+                            stop 'ModifyField4DXYZ - ModuleField4D - ERR40'
                         endif
 
                         call Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
@@ -4288,7 +4493,7 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
 
         if (STAT_CALL/=SUCCESS_) stop 'Interpolate2DCloud - ModuleField4D - ERR10' 
         
-        if (Me%Extrapolate) then        
+        if (PropField%Extrapolate) then        
             call FillMatrix2DNearestCell(Me%WorkSize2D%ILB,                             &
                                          Me%WorkSize2D%IUB,                             &
                                          Me%WorkSize2D%JLB,                             &
@@ -4347,25 +4552,31 @@ dnP:    do nP = 1,nPoints
                 MaskNE      = Me%ExternalVar%Waterpoints2D(iN, jE)
                 
 
-                if (ValueSW < FillValueReal/1e4) ValueSW = 0.
-                if (ValueSE < FillValueReal/1e4) ValueSE = 0.                
-                if (ValueNW < FillValueReal/1e4) ValueNW = 0.                
-                if (ValueNE < FillValueReal/1e4) ValueNE = 0.    
+                if (PropField%Extrapolate) then
                 
-                if (Me%Extrapolate) then
+                    NoData(nP) = .false.
                 
-                    ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
-                    ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                    if (ValueSW < FillValueReal/1e4) NoData(nP) = .true.
+                    if (ValueSE < FillValueReal/1e4) NoData(nP) = .true.
+                    if (ValueNW < FillValueReal/1e4) NoData(nP) = .true.
+                    if (ValueNE < FillValueReal/1e4) NoData(nP) = .true.
                     
-                    Field(nP)   = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
+                    if (.not.  NoData(nP)) then
+                
+                        ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
+                        ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                        
+                        Field(nP)   = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
 
-                    if (abs(Field(nP)) > 0.) then
-                        NoData(nP) = .false. 
-                    else
-                        NoData(nP) = .true. 
-                    endif                    
+                    endif
                     
                 else
+                
+                    if (ValueSW < FillValueReal/1e4) ValueSW = 0.
+                    if (ValueSE < FillValueReal/1e4) ValueSE = 0.                
+                    if (ValueNW < FillValueReal/1e4) ValueNW = 0.                
+                    if (ValueNE < FillValueReal/1e4) ValueNE = 0.                   
+                    
                     if (MaskNW == WaterPoint .and. MaskNE == WaterPoint) then
                         ValueN = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
                         MaskN  = 1
@@ -4593,7 +4804,7 @@ dnP:    do nP = 1,nPoints
                               STAT              = STAT_CALL) 
         if (STAT_CALL/=SUCCESS_) stop 'Interpolate3DCloud - ModuleField4D - ERR10' 
 
-        if (Me%Extrapolate) then        
+        if (PropField%Extrapolate) then        
             call FillMatrix3DNearestCell(Me%WorkSize3D%ILB,                             &
                                          Me%WorkSize3D%IUB,                             &
                                          Me%WorkSize3D%JLB,                             &
@@ -4625,7 +4836,7 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
                                     STAT            = STAT_CALL)                                     
         if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR30'
 
-        if (Me%Extrapolate) then        
+        if (PropField%Extrapolate) then        
             call FillMatrix3DNearestCell(Me%WorkSize3D%ILB,                             &
                                          Me%WorkSize3D%IUB,                             &
                                          Me%WorkSize3D%JLB,                             &
@@ -4647,7 +4858,7 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
                             Z                   =  Z,                                   &
                             Field               =  Field,                               &
                             NoData              =  NoData,                              &
-                            Extrapolate         =  Me%Extrapolate)
+                            Extrapolate         =  PropField%Extrapolate)
         
         call UnGetMap(Map_ID          = Me%ObjMap,                                      &
                       Array           = Me%ExternalVar%WaterPoints3D,                   &
@@ -4776,25 +4987,31 @@ dnP:    do nP = 1,nPoints
                     
                 endif
 
-                if (ValueSW < FillValueReal/1e4) ValueSW = 0.
-                if (ValueSE < FillValueReal/1e4) ValueSE = 0.                
-                if (ValueNW < FillValueReal/1e4) ValueNW = 0.                
-                if (ValueNE < FillValueReal/1e4) ValueNE = 0.    
-                
                 if (Extrapolate) then
                 
-                    ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
-                    ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                    NoData(nP) = .false.
+                
+                    if (ValueSW < FillValueReal/1e4) NoData(nP) = .true.
+                    if (ValueSE < FillValueReal/1e4) NoData(nP) = .true.
+                    if (ValueNW < FillValueReal/1e4) NoData(nP) = .true.
+                    if (ValueNE < FillValueReal/1e4) NoData(nP) = .true.
                     
-                    Field(nP)   = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
+                    if (.not.  NoData(nP)) then
+                
+                        ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
+                        ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                        
+                        Field(nP)   = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
 
-                    if (abs(Field(nP)) > 0.) then
-                        NoData(nP) = .false. 
-                    else
-                        NoData(nP) = .true. 
                     endif                    
                     
                 else
+
+                    if (ValueSW < FillValueReal/1e4) ValueSW = 0.
+                    if (ValueSE < FillValueReal/1e4) ValueSE = 0.                
+                    if (ValueNW < FillValueReal/1e4) ValueNW = 0.                
+                    if (ValueNE < FillValueReal/1e4) ValueNE = 0.    
+
                     if (MaskNW == WaterPoint .and. MaskNE == WaterPoint) then
                         ValueN = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
                         MaskN  = 1

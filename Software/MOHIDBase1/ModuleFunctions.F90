@@ -4668,6 +4668,200 @@ d1:     do k = KLB, KUB
     !-------------------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
+    subroutine FillMatrix2DNearestCellV2 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB
+        real,         dimension(:,:),   pointer     :: OutValues2D
+        integer,      dimension(:,:),   pointer     :: ComputePoints2D
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: dij, i, j, ii, jj, NumberOfCells
+        integer                                     :: dijmax, dimax, djmax, Total2DCells
+        integer                                     :: imin, imax, jmin, jmax
+        logical                                     :: Found
+
+        !Begin-----------------------------------------------------------------
+
+        Total2DCells = (IUB-ILB+1)*(JUB-JLB+1)
+
+        NumberOfCells = 0
+
+        do j=JLB,JUB
+        do i=ILB,IUB
+            NumberOfCells = NumberOfCells + ComputePoints2D(i, j)
+        enddo
+        enddo
+        
+i1:     if (NumberOfCells > 0 .and. NumberOfCells < Total2DCells) then
+
+dj:         do j = JLB, JUB
+di:         do i = ILB, IUB
+
+i2:             if (ComputePoints2D(i, j) == 0) then
+
+                    dimax = IUB-ILB + 1
+                    djmax = JUB-JLB + 1
+
+                    dijmax = max(dimax, djmax)
+                    
+                    Found = .false.
+
+d3:                 do dij=1,dijmax
+
+                        jmin = max(j - dij, JLB)
+                        jmax = min(j + dij, JUB)
+                        imin = max(i - dij, ILB)
+                        imax = min(i + dij, IUB)
+
+d4:                     do ii = imin,imax
+
+                            if (ComputePoints2D(ii, jmin)==1) then
+                                OutValues2D(i, j) = OutValues2D(ii, jmin) 
+                                Found = .true.
+                                exit
+                            endif
+
+                            if (ComputePoints2D(ii, jmax)==1) then
+                                OutValues2D(i, j) = OutValues2D(ii, jmax) 
+                                Found = .true.
+                                exit
+                            endif
+
+                        enddo d4
+                        
+                        if (Found) exit
+
+d5:                     do jj = jmin,jmax
+
+                            if (ComputePoints2D(imin, jj)==1) then
+                                OutValues2D(i, j) = OutValues2D(imin, jj) 
+                                Found = .true.
+                                exit
+                            endif
+
+                            if (ComputePoints2D(imax, jj)==1) then
+                                OutValues2D(i, j) = OutValues2D(imax, jj) 
+                                Found = .true.
+                                exit
+                            endif
+
+                        enddo d5
+                        
+                        if (Found) exit
+                        
+                    enddo d3
+            
+                endif i2                
+
+            enddo di
+            enddo dj            
+                
+       
+        else  i1
+
+            !Maintain the original values in the layer where are no nearst cell with values
+        
+        endif i1
+
+
+    end subroutine FillMatrix2DNearestCellV2
+
+    !-------------------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine FillMatrix2DNearestCellV3 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB
+        real,         dimension(:,:),   pointer     :: OutValues2D
+        integer,      dimension(:,:),   pointer     :: ComputePoints2D
+
+        !Local-----------------------------------------------------------------
+        integer,      dimension(:,:  ), pointer     :: Map2D
+        real                                        :: xaux
+        integer                                     :: i, j, ii, jj, NumberOfCells
+        integer                                     :: Total2DCells
+        integer                                     :: imin, imax, jmin, jmax, Naux, np
+
+        !Begin-----------------------------------------------------------------
+
+        Total2DCells = (IUB-ILB+1)*(JUB-JLB+1)
+
+        NumberOfCells = 0
+
+        do j=JLB,JUB
+        do i=ILB,IUB
+            if (OutValues2D(i, j) > FillValueReal/1e4) then
+                NumberOfCells = NumberOfCells + ComputePoints2D(i, j)
+            endif                
+        enddo
+        enddo
+        
+i1:     if (NumberOfCells > 0 .and. NumberOfCells < Total2DCells) then
+
+            allocate(Map2D  (ILB:IUB, JLB:JUB))
+            Map2D(ILB:IUB, JLB:JUB) = ComputePoints2D(ILB:IUB, JLB:JUB)
+            
+            xaux = 0.
+            Naux = NumberOfCells
+                     
+dn:         do while(Naux < Total2DCells)
+            
+                call random_number(xaux)
+                i = ILB + int((IUB-ILB+1)*xaux)
+
+                call random_number(xaux)
+                j = JLB + int((JUB-JLB+1)*xaux)
+
+i2:             if (Map2D(i, j) == 0 .or. OutValues2D(i, j) < FillValueReal/1e4) then
+
+                    jmin = max(j - 1, JLB)
+                    jmax = min(j + 1, JUB)
+                    imin = max(i - 1, ILB)
+                    imax = min(i + 1, IUB)
+                    
+                    np = 0
+                    
+d5:                 do while (np<10)
+
+                        call random_number(xaux)
+                        ii = imin + int((imax-imin+1)*xaux)
+
+                        call random_number(xaux)
+                        jj = jmin + int((jmax-jmin+1)*xaux)
+
+                        if (Map2D(ii, jj)==1 .and. OutValues2D(ii, jj) > FillValueReal/1e4) then
+                            OutValues2D(i, j) = OutValues2D(ii, jj) 
+                            Map2D      (i, j) = 1 
+                            Naux              = Naux + 1
+                            np                = 100000
+                        else
+                            np                = np + 1
+                        endif
+
+                    enddo d5    
+                    
+                endif i2                
+
+            enddo dn
+
+            deallocate(Map2D)
+                
+        else  i1
+
+            !Maintain the original values in the layer where are no nearst cell with values
+        
+        endif i1
+
+
+    end subroutine FillMatrix2DNearestCellV3
+    
+    !-------------------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
     subroutine FillMatrix2DNearestCell (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
 
         !Arguments-------------------------------------------------------------
@@ -4676,69 +4870,61 @@ d1:     do k = KLB, KUB
         integer,      dimension(:,:),   pointer     :: ComputePoints2D
 
         !Local-----------------------------------------------------------------
+        integer,      dimension(:,:  ), pointer     :: Map2D
+        real                                        :: SumVal, AverageVal
+        integer                                     :: i, j, NumberOfCells
 
-        integer                                     :: dij, Count, i, j, NumberOfCells
-        integer                                     :: jj, ii, dijmax, dimax, djmax
-        real                                        :: SumValues
-       
         !Begin-----------------------------------------------------------------
 
-        NumberOfCells =  Sum(ComputePoints2D(ILB:IUB, JLB:JUB))
+        NumberOfCells = 0
+        SumVal        = 0.
 
+        do j=JLB,JUB
+        do i=ILB,IUB
+            if (OutValues2D(i, j) > FillValueReal/1e4 .and. ComputePoints2D(i, j) == 1) then
+                if (OutValues2D(i-1, j) < FillValueReal/1e4 .or. ComputePoints2D(i-1, j) == 0 .or. &
+                    OutValues2D(i+1, j) < FillValueReal/1e4 .or. ComputePoints2D(i+1, j) == 0 .or. &
+                    OutValues2D(i, j-1) < FillValueReal/1e4 .or. ComputePoints2D(i, j-1) == 0 .or. &
+                    OutValues2D(i, j+1) < FillValueReal/1e4 .or. ComputePoints2D(i, j+1) == 0) then
+                    
+                    SumVal        = SumVal + OutValues2D(i, j)
+                    NumberOfCells = NumberOfCells + ComputePoints2D(i, j)                    
+                    
+                endif
+            endif                
+        enddo
+        enddo
+        
 i1:     if (NumberOfCells > 0) then
-        
-d1:         do j = JLB, JUB
-            do i = ILB, IUB
+
+            AverageVal =  SumVal / real (NumberOfCells)
             
-i2:             if (ComputePoints2D(i, j) == 0) then
-            
-                    dimax = max(IUB-i + 1, i - ILB + 1)
-                    djmax = max(JUB-j + 1, j - JLB + 1)
-
-                    dijmax = max(dimax, djmax)
-                
-                    SumValues   = 0
-                    Count = 0
-
-d2:                 do dij=1,dijmax
-
-                        do jj=j-dij,j+dij
-                        do ii=i-dij,i+dij
-
-                            if (jj < JLB) cycle
-                            if (jj > JUB) cycle
-                            if (ii < ILB) cycle
-                            if (ii > IUB) cycle
-
-                            if (ComputePoints2D(ii, jj) == 1) then
-                                SumValues   = SumValues   + OutValues2D(ii, jj) 
-                                Count = Count + 1
-                            endif
-
-                        enddo
-                        enddo
-
-                        if (Count > 0) exit
-
-                    enddo d2
-
-                    OutValues2D(i, j) = SumValues / real(Count)
-
-                endif i2
-
+            do j=JLB,JUB
+            do i=ILB,IUB
+                if (OutValues2D(i, j) < FillValueReal/1e4 .or. ComputePoints2D(i, j) == 0) then
+                    OutValues2D(i, j) = AverageVal
+                endif
             enddo
-            enddo d1
-        
-        else  i1
-        
-        !Maintain the original values because there are no nearst cell with values
+            enddo
+            
 
+                
+        else  i1
+
+            do j=JLB,JUB
+            do i=ILB,IUB
+                OutValues2D(i, j) = FillValueReal
+            enddo
+            enddo
+        
         endif i1
 
+
     end subroutine FillMatrix2DNearestCell
-
+    
     !-------------------------------------------------------------------------------------
-
+    
+    
     subroutine FillMatrix3DNearestCell (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D)
 
         !Arguments-------------------------------------------------------------
@@ -4747,67 +4933,59 @@ d2:                 do dij=1,dijmax
         integer,      dimension(:,:,:), pointer     :: ComputePoints3D
 
         !Local-----------------------------------------------------------------
-        integer                                     :: dij, Count, i, j, k, NumberOfCells
-        integer                                     :: dijmax, dimax, djmax
-        integer                                     :: imin, imax, jmin, jmax
-        real                                        :: SumValues
+        real,         dimension(:,:  ), pointer     :: Value2D
+        integer,      dimension(:,:  ), pointer     :: Map2D
+
+        integer                                     :: k, kfirst, klast
+        
         
         !Begin-----------------------------------------------------------------
 
+        allocate(Value2D(ILB-1:IUB+1, JLB-1:JUB+1))
+        allocate(Map2D  (ILB-1:IUB+1, JLB-1:JUB+1))
+
 d1:     do k = KLB, KUB
 
-            NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, k))
-
-
-i1:         if (NumberOfCells > 0) then
-
-d2:             do j = JLB, JUB
-                do i = ILB, IUB
-                    
-i2:                 if (ComputePoints3D(i, j, k) == 0) then
-
-                        dimax = max(IUB-i + 1, i - ILB + 1)
-                        djmax = max(JUB-j + 1, j - JLB + 1)
-
-                        dijmax = max(dimax, djmax)
-                    
-                        SumValues = 0
-                        Count     = 0
-                        
-d3:                     do dij=1,dijmax
-                            
-                            jmin =max(j-dij,JLB)
-                            jmax =min(j+dij,JUB)
-
-                            imin =max(i-dij,ILB)
-                            imax =min(i+dij,IUB)
-                            
-                            Count = sum(ComputePoints3D(imin:imax, jmin:jmax, k))
-                            
-                            if (Count == 0) then
-                                cycle
-                            else
-                                SumValues=sum(ComputePoints3D(imin:imax, jmin:jmax, k) * OutValues3D(imin:imax, jmin:jmax, k)) 
-                                OutValues3D(i, j, k) = SumValues / real(Count)
-                                exit
-                            endif
-
-
-                        enddo d3
-
-                       
-                    endif i2
-                    
-                enddo
-                enddo d2
+            Map2D      (ILB-1:IUB+1, JLB-1:JUB+1  ) = ComputePoints3D(ILB-1:IUB+1, JLB-1:JUB+1,k)
+            Value2D    (ILB-1:IUB+1, JLB-1:JUB+1  ) = OutValues3D    (ILB-1:IUB+1, JLB-1:JUB+1,k)
             
-            else  i1
-
-                !Maintain the original values in the layer where are no nearst cell with values
+            call FillMatrix2DNearestCell (ILB, IUB, JLB, JUB, Map2D, Value2D)
             
-            endif i1
-
+            OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,k) = Value2D        (ILB-1:IUB+1, JLB-1:JUB+1  )
+            
         enddo d1
+        
+        kfirst = -FillValueInt
+        klast  = -FillValueInt
+        
+!Search for the first layer with data
+d2:     do k = KLB, KUB
+            if (OutValues3D(ILB, JLB, k) > FillValueReal/1e4) then
+                kfirst = k
+                exit
+            endif
+        enddo d2
+        
+!Extrapolate for the bottom layers
+d3:     do k = KLB, kfirst - 1
+            OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,k) = OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,kfirst)
+        enddo d3
+
+!Search for the last layer with data
+d4:     do k = KUB, KLB,-1
+            if (OutValues3D(ILB, JLB, k) > FillValueReal/1e4) then
+                klast = k
+                exit
+            endif
+        enddo d4
+        
+!Extrapolate for the surface layers
+d5:     do k = klast + 1,KUB
+            OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,k) = OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,klast)
+        enddo d5
+
+
+        deallocate(Map2D, Value2D)        
 
     end subroutine FillMatrix3DNearestCell
 

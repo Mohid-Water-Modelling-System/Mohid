@@ -169,7 +169,7 @@ Module ModuleHydrodynamic
                                        GetAssimilationCoef, UnGetAssimilation,           &
                                        KillAssimilation, GetAssimilationAltimetry,       &
                                        GetAssimilationAltimetryDT, GetAltimetryDecayTime,&
-                                       GetAltimSigmaDensAnalyzed
+                                       GetAltimSigmaDensAnalyzed, GetAssimilationVectorField
     use ModuleStopWatch,        only : StartWatch, StopWatch         
     use ModuleStatistic,        only : ConstructStatistic, GetStatisticMethod,           &
                                        GetStatisticParameters, GetStatisticLayersNumber, &
@@ -537,12 +537,12 @@ Module ModuleHydrodynamic
         module procedure dpythag
     end interface pythag
 
-    private :: HydroPropAssimilation3D
+    private :: HydroPropAssimilationVelocity
     private :: HydroPropAssimilation2D
 
     private HydroPropAssimilation
     interface  HydroPropAssimilation
-        module procedure HydroPropAssimilation3D
+        module procedure HydroPropAssimilationVelocity
         module procedure HydroPropAssimilation2D
     end interface HydroPropAssimilation
 
@@ -1379,7 +1379,7 @@ Module ModuleHydrodynamic
         logical                         :: XZFlow   = .false.
         
         logical                         :: ExternalBarotropicVel2D  = .true. 
-
+        
     end type T_HydroOptions
 
     type       T_OutPut
@@ -1506,6 +1506,7 @@ Module ModuleHydrodynamic
         logical                             :: Geometry             = .false.
         integer                             :: ReferenceVelocity    = TotalVel_
         real,   dimension(:,:,:), pointer   :: DecayTimeGeo => null()       
+        logical                             :: BrFroceOnlyAssimil   = .false.
     endtype      
 
     private :: T_SubModel
@@ -2351,6 +2352,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
         logical                            :: BlockFound
         real                               :: MinWaterColumn
         real,    dimension(:,:),   pointer :: Bathymetry
+        logical                            :: RotateX, RotateY        
         
         !----------------------------------------------------------------------
 
@@ -2462,6 +2464,9 @@ cd11:   if (Me%ComputeOptions%Recording) then
 
         call GetOpenPoints3D(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR100'
+        
+        RotateX = .false.
+        RotateY = .false.
 
         BeginBlock = "<begin_velocity_u>"
         EndBlock   = "<end_velocity_u>"
@@ -2522,6 +2527,8 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                        ClientID             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR150'
+            
+            RotateX = .true.
 
             if (Me%Velocity%Horizontal%U%InTypeZUV == TypeZ_) then
 
@@ -2632,6 +2639,8 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                        ClientID             = ClientNumber,                     &            
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR240'
+            
+            RotateY = .true.
 
             if (Me%Velocity%Horizontal%V%InTypeZUV == TypeZ_) then
 
@@ -2683,6 +2692,24 @@ cd11:   if (Me%ComputeOptions%Recording) then
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR280'
         
+        call GetWaterPoints3D(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR290'
+
+        call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid,           &
+                                     VectorInX         = Me%Velocity%Horizontal%U%New,   &
+                                     VectorInY         = Me%Velocity%Horizontal%V%New,   &
+                                     VectorOutX        = Me%Velocity%Horizontal%U%New,   &
+                                     VectorOutY        = Me%Velocity%Horizontal%V%New,   &   
+                                     WaterPoints3D     = Me%External_Var%WaterPoints3D,  &
+                                     RotateX           = RotateX,                        &
+                                     RotateY           = RotateY,                        &
+                                     KLB               = Me%WorkSize%KLB,                &
+                                     KUB               = Me%WorkSize%KUB,                &
+                                     STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  Stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR292'
+
+        call UnGetMap(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR294'       
 
         call GetGeometryAreas(Me%ObjGeometry,                 &
                               AreaU = Me%External_Var%Area_U, &
@@ -11069,17 +11096,28 @@ cd2 :           if (IC3D(i,j,k)>0) then
             call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR18")
 
         endif
-
+        
 
         if (Me%Relaxation%Force) then
+        
+             call GetData(Me%Relaxation%BrFroceOnlyAssimil,                             &
+                          Me%ObjEnterData, iflag,                                       &
+                          keyword = 'BRFORCE_ONLY_ASSIMILA',                            &
+                          default = .false.,                                            &
+                          SearchType = FromFile,                                        &
+                          ClientModule ='ModuleHydrodynamic',                           &
+                          STAT       = status)
 
+            if (status /= SUCCESS_)                                                     &
+               call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR1800")        
+        
             !Forces 
             allocate (Me%Forces%Relax_Aceleration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
 
-            if (status /= SUCCESS_)                                                          &
+            if (status /= SUCCESS_)                                                     &
                call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR19")
  
-                Me%Forces%Relax_Aceleration(:,:,:) = FillValueReal
+            Me%Forces%Relax_Aceleration(:,:,:) = FillValueReal
 
 
         endif 
@@ -11114,7 +11152,6 @@ cd2 :           if (IC3D(i,j,k)>0) then
     end subroutine ConstructRelaxation
 
     !----------------------------------------------------------------------------
-
 
 
     !----------------------------------------------------------------------------
@@ -20638,19 +20675,31 @@ cd1:    if (Evolution == Solve_Equations_) then
            
                 !$OMP MASTER
                 !Fetch the reference barotropic velocity field
-                call GetAssimilationField(Me%ObjAssimilation,                           &
-                                     ID      = BarotropicVelocityU_,                    &
-                                     Field2D = Me%Geostroph%Reference_U_barotropic,     &
-                                     STAT    = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'MomentumMassConservation - ModuleHydrodynamic - ERR010'
+                !call GetAssimilationField(Me%ObjAssimilation,                           &
+                !                     ID      = BarotropicVelocityU_,                    &
+                !                     Field2D = Me%Geostroph%Reference_U_barotropic,     &
+                !                     STAT    = STAT_CALL)
+                !if (STAT_CALL /= SUCCESS_)                                              &
+                !    stop 'MomentumMassConservation - ModuleHydrodynamic - ERR010'
 
-                call GetAssimilationField(Me%ObjAssimilation,                           &
-                                     ID      = BarotropicVelocityV_,                    &
-                                     Field2D = Me%Geostroph%Reference_V_barotropic,     &
-                                     STAT    = STAT_CALL)
+                !call GetAssimilationField(Me%ObjAssimilation,                           &
+                !                     ID      = BarotropicVelocityV_,                    &
+                !                     Field2D = Me%Geostroph%Reference_V_barotropic,     &
+                !                     STAT    = STAT_CALL)
+                !if (STAT_CALL /= SUCCESS_)                                              &
+                !    stop 'MomentumMassConservation - ModuleHydrodynamic - ERR020'
+                    
+                !It is important to read vector fields in agreggated way to allow the 
+                !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
+                call GetAssimilationVectorField                                     &
+                                     (AssimilationID    = Me%ObjAssimilation,       &
+                                      VectorX_ID        = BarotropicVelocityU_,     &
+                                      VectorY_ID        = BarotropicVelocityV_,     & 
+                                      VectorX_2D        = Me%Geostroph%Reference_U_barotropic, & 
+                                      VectorY_2D        = Me%Geostroph%Reference_V_barotropic, & 
+                                      STAT              = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'MomentumMassConservation - ModuleHydrodynamic - ERR020'
+                    stop 'MomentumMassConservation - ModuleHydrodynamic - ERR020'                    
 
                 !Fetch the nudging coefficient for barotropic velocity
                 call GetAssimilationCoef(Me%ObjAssimilation,                            &
@@ -26355,73 +26404,99 @@ ifa:    if (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.          
             if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR050")
             
             if (Me%ComputeOptions%ExternalBarotropicVel2D) then            
+                
+                !call GetAssimilationField(Me%ObjAssimilation,                       &
+                !                          ID              = BarotropicVelocityU_,   &
+                !                          Field2D         = LocalVel2D_X,           &
+                !                          STAT            = status)
 
-                    call GetAssimilationField(Me%ObjAssimilation,                       &
-                                              ID              = BarotropicVelocityU_,   &
-                                              Field2D         = LocalVel2D_X,           &
-                                              STAT            = status)
-
-                    if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
-                        "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR060")
+                !if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
+                !    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR060")
 
 
-                    call GetAssimilationField(Me%ObjAssimilation,                       &
-                                              ID              = BarotropicVelocityV_,   &
-                                              Field2D         = LocalVel2D_Y,           &
-                                              STAT            = status)
+                !call GetAssimilationField(Me%ObjAssimilation,                       &
+                !                          ID              = BarotropicVelocityV_,   &
+                !                          Field2D         = LocalVel2D_Y,           &
+                !                          STAT            = status)
 
-                    if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
-                        "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")
+                !if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
+                !    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")
+                    
+                !It is important to read vector fields in agreggated way to allow the 
+                !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
+                call GetAssimilationVectorField                                     &
+                                     (AssimilationID    = Me%ObjAssimilation,       &
+                                      VectorX_ID        = BarotropicVelocityU_,     &
+                                      VectorY_ID        = BarotropicVelocityV_,     & 
+                                      VectorX_2D        = LocalVel2D_X,             & 
+                                      VectorY_2D        = LocalVel2D_Y,             &
+                                      STAT              = status)
+
+                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
+                    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")
 
             else
 
-                    call GetAssimilationField(Me%ObjAssimilation,                       &
-                                              ID              = VelocityU_,             &
-                                              Field3D         = LocalVel3D_X,           &
-                                              STAT            = status)
+                !call GetAssimilationField(Me%ObjAssimilation,                       &
+                !                          ID              = VelocityU_,             &
+                !                          Field3D         = LocalVel3D_X,           &
+                !                          STAT            = status)
 
-                    if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
-                        "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR080")
+                !if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
+                !    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR080")
 
 
-                    call GetAssimilationField(Me%ObjAssimilation,                       &
-                                              ID              = VelocityV_,             &
-                                              Field3D         = LocalVel3D_Y,           &
-                                              STAT            = status)
+                !call GetAssimilationField(Me%ObjAssimilation,                       &
+                !                          ID              = VelocityV_,             &
+                !                          Field3D         = LocalVel3D_Y,           &
+                !                          STAT            = status)
 
-                    if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
-                        "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR090")
-                    
-                    nullify (LocalVel2D_X, LocalVel2D_Y)
-                    allocate(LocalVel2D_X(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-                    allocate(LocalVel2D_Y(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                !if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
+                !    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR090")
+                
+                !It is important to read vector fields in agreggated way to allow the 
+                !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
+                call GetAssimilationVectorField                                     &
+                                     (AssimilationID    = Me%ObjAssimilation,       &
+                                      VectorX_ID        = VelocityU_,               &
+                                      VectorY_ID        = VelocityV_,               & 
+                                      VectorX_3D        = LocalVel3D_X,             & 
+                                      VectorY_3D        = LocalVel3D_Y,             &
+                                      STAT              = status)
 
-                    LocalVel2D_X(:,:) = 0.
-                    LocalVel2D_Y(:,:) = 0.
+                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
+                    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")                    
+                
+                nullify (LocalVel2D_X, LocalVel2D_Y)
+                allocate(LocalVel2D_X(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                allocate(LocalVel2D_Y(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
-                    do  j = JLB, JUB
-                    do  i = ILB, IUB                    
-i34:                    if (Me%External_Var%ComputeFaces3D_U(i, j, KUB) == Covered) then                     
-                            kbottom = Me%External_Var%kfloor_U(i, j) 
-                            do  k = kbottom, KUB
-                                LocalVel2D_X(i, j) = LocalVel2D_X(i, j) + LocalVel3D_X(i, j, k) * &
-                                                     Me%External_Var%DUZ(i, j, k) / Me%External_Var%WaterColumnU(i, j)
-                            enddo 
-                        endif i34
-                    enddo
-                    enddo
-                    
-                    do  j = JLB, JUB
-                    do  i = ILB, IUB                    
-i35:                    if (Me%External_Var%ComputeFaces3D_V(i, j, KUB) == Covered) then                     
-                            kbottom = Me%External_Var%kfloor_V(i, j) 
-                            do  k = kbottom, KUB
-                                LocalVel2D_Y(i, j) = LocalVel2D_Y(i, j) + LocalVel3D_Y(i, j, k) * &
-                                                     Me%External_Var%DVZ(i, j, k) / Me%External_Var%WaterColumnV(i, j)
-                            enddo 
-                        endif i35
-                    enddo
-                    enddo                    
+                LocalVel2D_X(:,:) = 0.
+                LocalVel2D_Y(:,:) = 0.
+
+                do  j = JLB, JUB
+                do  i = ILB, IUB                    
+i34:                if (Me%External_Var%ComputeFaces3D_U(i, j, KUB) == Covered) then                     
+                        kbottom = Me%External_Var%kfloor_U(i, j) 
+                        do  k = kbottom, KUB
+                            LocalVel2D_X(i, j) = LocalVel2D_X(i, j) + LocalVel3D_X(i, j, k) * &
+                                                 Me%External_Var%DUZ(i, j, k) / Me%External_Var%WaterColumnU(i, j)
+                        enddo 
+                    endif i34
+                enddo
+                enddo
+                
+                do  j = JLB, JUB
+                do  i = ILB, IUB                    
+i35:                if (Me%External_Var%ComputeFaces3D_V(i, j, KUB) == Covered) then                     
+                        kbottom = Me%External_Var%kfloor_V(i, j) 
+                        do  k = kbottom, KUB
+                            LocalVel2D_Y(i, j) = LocalVel2D_Y(i, j) + LocalVel3D_Y(i, j, k) * &
+                                                 Me%External_Var%DVZ(i, j, k) / Me%External_Var%WaterColumnV(i, j)
+                        enddo 
+                    endif i35
+                enddo
+                enddo                    
 
             endif
 
@@ -34133,25 +34208,50 @@ cd1:    if (Me%Relaxation%ReferenceVelocity == TotalVel_   .or.             &
 cd2:    if      (Me%Direction%XY == DirectionX_) then
 
             Vel_ID = VelocityU_
-            if (Me%SubModel%ON)                                             &
+
+            if (Me%SubModel%ON)                                                         &
                 SubModel_UV_New => Me%SubModel%U_New
+                
+            !It is important to read vector fields in agreggated way to allow the 
+            !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
+            call GetAssimilationVectorField                                             &
+                                 (AssimilationID    = Me%ObjAssimilation,               &
+                                  VectorX_ID        = VelocityU_,                       &
+                                  VectorY_ID        = VelocityV_,                       & 
+                                  VectorX_3D        = VelAssimilation,                  & 
+                                  STAT              = status)
+            if (status /= SUCCESS_)                                                     &
+                call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR10")                   
+                
 
         else if (Me%Direction%XY == DirectionY_) then cd2
 
             Vel_ID = VelocityV_
-            if (Me%SubModel%ON)                                             &
+            if (Me%SubModel%ON)                                                         &
                 SubModel_UV_New => Me%SubModel%V_New
+
+            !It is important to read vector fields in agreggated way to allow the 
+            !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
+            call GetAssimilationVectorField                                             &
+                                 (AssimilationID    = Me%ObjAssimilation,               &
+                                  VectorX_ID        = VelocityU_,                       &
+                                  VectorY_ID        = VelocityV_,                       & 
+                                  VectorY_3D        = VelAssimilation,                  & 
+                                  STAT              = status)
+            if (status /= SUCCESS_)                                                      &
+                call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR15")
+
 
         endif cd2
 
 
-        call GetAssimilationField(Me%ObjAssimilation,                   &
-                                  ID              = Vel_ID,                          &
-                                  Field3D         = VelAssimilation,                 &
-                                  STAT            = status)
+        !call GetAssimilationField(Me%ObjAssimilation,                   &
+        !                          ID              = Vel_ID,                          &
+        !                          Field3D         = VelAssimilation,                 &
+        !                          STAT            = status)
 
-        if (status /= SUCCESS_)                                                      &
-            call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR10")
+        !if (status /= SUCCESS_)                                                      &
+        !    call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR10")
 
 
         call GetAssimilationCoef (Me%ObjAssimilation,                                &
@@ -34235,6 +34335,10 @@ do3:            do K=kbottom, KUB
 
                         stop 'ModifyRelaxAceleration - ModuleHydrodynamic - ERR40'
 
+                    endif
+                    
+                    if (Me%Relaxation%BrFroceOnlyAssimil) then
+                        VelReference = VelAssimilation(i, j, k)
                     endif
                     
                     ![m/s^2]                   = []*([m/s] - [m/s]) / [s]
@@ -36140,8 +36244,8 @@ do62:                   do  K = kbottom, KUB
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    Subroutine HydroPropAssimilation3D( PropertyID, PropModel,           &
-                                       PropSubModel, Map3D, KFloor, DT)
+    Subroutine HydroPropAssimilationVelocity( PropertyID, PropModel,           &
+                                              PropSubModel, Map3D, KFloor, DT)
 
         !Arguments------------------------------------------------------------
 
@@ -36200,32 +36304,61 @@ do62:                   do  K = kbottom, KUB
 
         else
 
-            call GetAssimilationField(Me%ObjAssimilation,                               &
-                                      ID              = PropertyID,                     &
-                                      Field3D         = PropAssimilation,               &
-                                      STAT            = status)
+            !call GetAssimilationField(Me%ObjAssimilation,                               &
+            !                          ID              = PropertyID,                     &
+            !                          Field3D         = PropAssimilation,               &
+            !                          STAT            = status)
+            if      (PropertyID == VelocityU_) then
+                
+                !It is important to read vector fields in agreggated way to allow the 
+                !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
+                call GetAssimilationVectorField                                         &
+                                     (AssimilationID    = Me%ObjAssimilation,           &
+                                      VectorX_ID        = VelocityU_,                   &
+                                      VectorY_ID        = VelocityV_,                   & 
+                                      VectorX_3D        = PropAssimilation,             & 
+                                      STAT              = status)
 
-            if (status /= SUCCESS_)                                                     &
+                if (status /= SUCCESS_)                                                     &
+                    call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR10")
 
-                call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation3D - Hydrodynamic - ERR01")
+            elseif (PropertyID == VelocityV_) then
+            
+               !It is important to read vector fields in agreggated way to allow the 
+                !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
+                call GetAssimilationVectorField                                         &
+                                     (AssimilationID    = Me%ObjAssimilation,           &
+                                      VectorX_ID        = VelocityU_,                   &
+                                      VectorY_ID        = VelocityV_,                   & 
+                                      VectorY_3D        = PropAssimilation,             & 
+                                      STAT              = status)
 
+                if (status /= SUCCESS_)                                                     &
+                    call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR20")
+                    
+            else
+            
+                call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR30")                                    
+
+            endif
+            
         endif
 
         call GetAssimilationCoef (Me%ObjAssimilation,                                   &
-                                  ID          = PropertyID,                             &
-                                  CoefField3D = DecayTime,                              &
-                                  ColdRelaxPeriod = ColdPeriod,                         &
-                                  ColdOrder       = ColdOrder,                          &
-                                  STAT        = status)
+                                  ID                = PropertyID,                       &
+                                  CoefField3D       = DecayTime,                        &
+                                  ColdRelaxPeriod   = ColdPeriod,                       &
+                                  ColdOrder         = ColdOrder,                        &
+                                  STAT              = status)
 
         if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation3D - Hydrodynamic - ERR02")
+            call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR40")
 
 
         DT_RunPeriod = CurrentTime - BeginTime
 
         if (ColdPeriod > (EndTime - BeginTime))                                         &
-            call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation3D - Hydrodynamic - ERR03")
+            call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR50")
 
         if (ColdPeriod <= DT_RunPeriod) then
             CoefCold = 1
@@ -36236,7 +36369,7 @@ do62:                   do  K = kbottom, KUB
 
         CHUNK = CHUNK_J(JLB, JUB)
 
-        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "HydroPropAssimilation3D")
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "HydroPropAssimilationVelocity")
 
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom,AuxDecay)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -36264,13 +36397,12 @@ do3:            do K=kbottom, KUB
         !$OMP END DO
         !$OMP END PARALLEL
 
-        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "HydroPropAssimilation3D")
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "HydroPropAssimilationVelocity")
 
-        call UnGetAssimilation(Me%ObjAssimilation, DecayTime,        &
-                               STAT        = status)
+        call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
 
         if (status /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation3D - Hydrodynamic - ERR04")
+            call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR60")
 
         if (.not. associated(PropSubModel)) then
 
@@ -36278,7 +36410,7 @@ do3:            do K=kbottom, KUB
                                    STAT        = status)
 
             if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation3D - Hydrodynamic - ERR05")
+                call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR70")
 
         else
 
@@ -36287,7 +36419,7 @@ do3:            do K=kbottom, KUB
         endif
  
 
-    End Subroutine HydroPropAssimilation3D
+    End Subroutine HydroPropAssimilationVelocity
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -36379,7 +36511,7 @@ do3:            do K=kbottom, KUB
         DT_RunPeriod = CurrentTime - BeginTime
 
         if (ColdPeriod > (EndTime - BeginTime))                                         &
-            call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation3D - Hydrodynamic - ERR03")
+            call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR03")
 
         if (ColdPeriod <= DT_RunPeriod) then
             CoefCold = 1

@@ -243,7 +243,7 @@ Module ModuleOpenBoundary
 
             !Time Properties - Actualizes CurrentTime
             call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR17'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR10'
 
 
             !Gets the size from the Bathymetry
@@ -251,7 +251,7 @@ Module ModuleOpenBoundary
                                        Size     = Me%Size,                               &
                                        WorkSize = Me%WorkSize,                           &
                                        STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR07'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR20'
 
           
             Me%Compute_Tide          = Compute_Tide 
@@ -269,43 +269,44 @@ cd1:        if (Me%Compute_Tide) then
                 !Initialize the Gauges
                 call ConstructGauges(GaugeID          = Me%ObjGauge,                     &
                                      HorizontalGridID = Me%ObjHorizontalGrid,            &
+                                     HorizontalMapID  = Me%ObjHorizontalMap,             &
                                      TimeID           = Me%ObjTime,                      &
                                      STAT = STAT_CALL)
 
-                if (STAT_CALL .NE. 0) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR04'
+                if (STAT_CALL .NE. 0) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR30'
 
                 !Get the number of gauges in use
                 call GetNGauges(Me%ObjGauge, NGauges, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR50'
 
                 !Allocates Station
                 allocate(Me%Station%Elevation(NGauges), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR06'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR60'
 
                 allocate(Me%Station%MetricX(NGauges), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR06a'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR70'
 
                 allocate(Me%Station%MetricY(NGauges), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR06b'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR80'
 
                 allocate(Me%Station%ReferenceLevel(NGauges), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR06c'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR90'
 
                 allocate(Me%Station%OpenPoints(NGauges), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR06d'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR100'
 
 
                 allocate(Me%Station%VelocityU(NGauges), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR06e'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR110'
 
                 allocate(Me%Station%VelocityV(NGauges), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR06f'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR120'
                 
                 
                 call GetTriangGaugesON(Me%ObjGauge,                                     &
                                        TriangGaugesON,                                  &
                                        STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR13a'                
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR130'                
 
                 !Starts Triangulation
                 if (NGauges > 2 .and. TriangGaugesON) then
@@ -319,7 +320,7 @@ cd1:        if (Me%Compute_Tide) then
                                                 Me%Station%MetricX,                     &
                                                 Me%Station%MetricY,                     &
                                                 STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR13'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR140'
 
                     call ConstructTriangulation(Me%ObjTriangulation,                    &
                                                 NGauges,                                &
@@ -328,7 +329,7 @@ cd1:        if (Me%Compute_Tide) then
                                                 WriteTriangles = ON,                    &
                                                 STAT= STAT_CALL)
                     if  (STAT_CALL /= SUCCESS_      ) then
-                        stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR14'
+                        stop 'ConstructOpenBoundary - ModuleOpenBoundary - ERR150'
                     endif
                     
                     call WriteTriangles
@@ -362,7 +363,7 @@ cd1:        if (Me%Compute_Tide) then
 
         else 
             
-            stop 'ModuleOpenBoundary - ConstructOpenBoundary - ERR99' 
+            stop 'ModuleOpenBoundary - ConstructOpenBoundary - ERR160' 
 
         end if 
 
@@ -468,7 +469,6 @@ cd1:        if (Me%Compute_Tide) then
 
         !External--------------------------------------------------------------       
         integer                             :: STAT_CALL
-        integer, dimension(:,:), pointer    :: BoundaryPoints2D
         integer, dimension(:,:), pointer    :: BoundaryFacesU2D, BoundaryFacesV2D
 
         !Local-----------------------------------------------------------------
@@ -486,14 +486,9 @@ cd1:        if (Me%Compute_Tide) then
 
         endif
 
-
-        !Gets BoundaryPoints from the HorizontalMap
-        call GetBoundaries(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR10'
-
          call GetBoundaryFaces(Me%ObjHorizontalMap, BoundaryFacesU = BoundaryFacesU2D, &
                                                     BoundaryFacesV = BoundaryFacesV2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR20'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR10'
 
 
 
@@ -501,14 +496,14 @@ cd2:    if (Me%Compute_Tide) then
 
             !Get the number of gauges in use
             call GetNGauges(Me%ObjGauge, NGauges, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR20'
 
 
             !Get the current elevation at the gauges
             call GetReferenceLevel(Me%ObjGauge,                         &
                                    Me%Station%ReferenceLevel,           &
                                    STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR30'
 
 
             !If there are less then three gauges, only the first is considered
@@ -517,7 +512,6 @@ cd3:        if (NGauges < 3) then
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-!                    if ( BoundaryPoints2D(i, j) == Boundary ) then
                     if ( BoundaryFacesU2D(i  , j  ) == Boundary .or. &
                          BoundaryFacesU2D(i  , j+1) == Boundary .or. &
                          BoundaryFacesV2D(i  , j  ) == Boundary .or. &
@@ -534,77 +528,67 @@ cd3:        if (NGauges < 3) then
 
             else cd3
 
-                !Gets Center cell coordinates
-                call GetZCoordinates(Me%ObjHorizontalGrid,  CoordX = CoordX, CoordY = CoordY, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR30'
+cd4:            if (.not.Me%TriangGaugesON) then
+             
+                    call GetIJReferenceLevel(Me%ObjGauge, Me%ObjHorizontalGrid,         &
+                                             Me%BoundaryReferenceLevel,                 &
+                                             STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR40'
+                    endif
+
+                else cd4
+                    
+                    !Gets Center cell coordinates
+                    call GetZCoordinates(Me%ObjHorizontalGrid,  CoordX = CoordX, CoordY = CoordY, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR50'
 
 
-                !Interpolates Elevation at the boundary points
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                
-                    FoundBound = .false.
+                    !Interpolates Elevation at the boundary points
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    
+                        FoundBound = .false.
 
-                    if (Me%TriangGaugesON) then
+                        Me%BoundaryReferenceLevel(i, j) = 0.
+                        
                         if (BoundaryFacesU2D(i  , j  ) == Boundary .or.                     &
                             BoundaryFacesU2D(i  , j+1) == Boundary .or.                     &
                             BoundaryFacesV2D(i  , j  ) == Boundary .or.                     &
                             BoundaryFacesV2D(i+1, j  ) == Boundary) FoundBound = .true.
 
-                    else
-                        if (BoundaryPoints2D(i, j) == Boundary) FoundBound = .true.
-                    endif
-                         
-cd4:                if (FoundBound) then
+                             
+cd5:                    if (FoundBound) then
 
-                        !Points where to interpolate
-                        PX = CoordX(i,j)
-                        PY = CoordY(i,j)
-                            
-                        call GetIJReferenceLevel(Me%ObjGauge, Me%ObjHorizontalGrid,      &
-                                                 i, j,                                   &
-                                                 Me%BoundaryReferenceLevel(i, j),        &
-                                                 STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_)     &
-                            stop "ComputeReferenceLevel - ModuleOpenBoundary - ERR40"
-
-cd24:                   if (STAT_CALL == NOT_FOUND_ERR_) then 
+                            !Points where to interpolate
+                            PX = CoordX(i,j)
+                            PY = CoordY(i,j)
                           
-                            if (Me%TriangGaugesON) then                               
-                                call SetHeightValues (Me%ObjTriangulation,  &
-                                                      Me%Station%ReferenceLevel, &
-                                                      STAT = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR60'
+                            call SetHeightValues (Me%ObjTriangulation,  &
+                                                  Me%Station%ReferenceLevel, &
+                                                  STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR60'
 
-                                !Interpolation
-                                Me%BoundaryReferenceLevel(i, j) = InterPolation(             &
-                                                                  Me%ObjTriangulation,       &
-                                                                  PX, PY,                    &
-                                                                  FillOutsidePoints=.true.,  &
-                                                                  STAT = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR70'
-                            else
-                                write(*,*) 'Triangulation is OFF'
-                                write(*,*) 'It is missing a gauge in cell (i,j)',i,j,' coordinates (x,y)', PX, PY
-                                stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR80'
-                            endif
-                            
-                        endif cd24
+                            !Interpolation
+                            Me%BoundaryReferenceLevel(i, j) = InterPolation(             &
+                                                              Me%ObjTriangulation,       &
+                                                              PX, PY,                    &
+                                                              FillOutsidePoints=.true.,  &
+                                                              STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR70'
+                                
+                        endif cd5
+                    enddo
+                    enddo
 
-                    else cd4
+                    !Ungets CoordX and CoordY
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, stat = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR80'
 
-                        Me%BoundaryReferenceLevel(i, j) = 0.
-
-                    endif cd4
-                enddo
-                enddo
-
-                !Ungets CoordX and CoordY
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, stat = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR80'
-
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordY, stat = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR90'
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordY, stat = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR90'
+                    
+                endif cd4                    
 
             endif cd3
 
@@ -615,9 +599,6 @@ cd24:                   if (STAT_CALL == NOT_FOUND_ERR_) then
         endif cd2
 
         !Unget boundary points 2D
-        call UnGetHorizontalMap(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR13'
-
         call UnGetHorizontalMap(Me%ObjHorizontalMap, BoundaryFacesU2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR100'
 
@@ -977,7 +958,6 @@ cd3:            if (NGauges < 3) then
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-!                        if ( BoundaryPoints2D(i, j) == Boundary ) then
                         if ( BoundaryFacesU2D(i  , j  ) == Boundary .or. &
                              BoundaryFacesU2D(i  , j+1) == Boundary .or. &
                              BoundaryFacesV2D(i  , j  ) == Boundary .or. &
@@ -1011,220 +991,169 @@ cd3:            if (NGauges < 3) then
 
                 else cd3
                 
-                    !Gets Center cell coordinates
-                    call GetZCoordinates(Me%ObjHorizontalGrid,  CoordX = CoordX, CoordY = CoordY, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR06'
+cd4:                if (.not. Me%TriangGaugesON) then
+                
+                        call GetIJWaterLevel(Me%ObjGauge, Me%ObjHorizontalGrid,         &
+                                             Me%ImposedElevation, Coef, STAT = STAT_CALL)
 
-                    NOpen = Sum(Me%Station%OpenPoints(1:NGauges))
-                    if (NOpen < 3) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR07'
+                        call GetIJReferenceLevel(Me%ObjGauge, Me%ObjHorizontalGrid,     &
+                                             Me%ImposedElevation, STAT = STAT_CALL)
 
-                    allocate (AuxElevation (1 : NOpen)) 
-                    allocate (AuxRefLevel  (1 : NOpen)) 
-                    allocate (AuxMetricX   (1 : NOpen)) 
-                    allocate (AuxMetricY   (1 : NOpen)) 
-                    allocate (AuxVelocityU (1 : NOpen)) 
-                    allocate (AuxVelocityV (1 : NOpen)) 
+                    else cd4
+                
+                        !Gets Center cell coordinates
+                        call GetZCoordinates(Me%ObjHorizontalGrid,  CoordX = CoordX, CoordY = CoordY, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR06'
 
-                    jj = 1
+                        NOpen = Sum(Me%Station%OpenPoints(1:NGauges))
+                        if (NOpen < 3) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR07'
 
-                    do ii = 1, NGauges
+                        allocate (AuxElevation (1 : NOpen)) 
+                        allocate (AuxRefLevel  (1 : NOpen)) 
+                        allocate (AuxMetricX   (1 : NOpen)) 
+                        allocate (AuxMetricY   (1 : NOpen)) 
+                        allocate (AuxVelocityU (1 : NOpen)) 
+                        allocate (AuxVelocityV (1 : NOpen)) 
+
+                        jj = 1
+
+                        do ii = 1, NGauges
+                            
+cd5:                        if (Me%Station%OpenPoints(ii) == 1) then
+
+                                AuxElevation (jj) = Me%Station%Elevation     (ii)
+
+                                AuxRefLevel  (jj) = Me%Station%ReferenceLevel(ii)
+
+                                AuxMetricX   (jj) = Me%Station%MetricX       (ii)
+
+                                AuxMetricY   (jj) = Me%Station%MetricY       (ii)
+                            
+                                jj = jj + 1
+
+                            endif cd5
+
+                        enddo
+
+cd6:                    if (NOpen < NGauges) then
+
+                            call KillTriangulation(Me%ObjTriangulation, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR08'
+
+                            call ConstructTriangulation(Me%ObjTriangulation,                 &
+                                                        NOpen,                               &
+                                                        AuxMetricX, AuxMetricY,              &
+                                                        WriteTriangles = ON,                 &
+                                                        STAT = STAT_CALL)
+                            if  (STAT_CALL /= SUCCESS_) then
+                                stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR09'
+                            endif
+                            
+                            call WriteTriangles
+
+                        endif cd6
                         
-cd4:                    if (Me%Station%OpenPoints(ii) == 1) then
-
-                            AuxElevation (jj) = Me%Station%Elevation     (ii)
-
-                            AuxRefLevel  (jj) = Me%Station%ReferenceLevel(ii)
-
-                            AuxMetricX   (jj) = Me%Station%MetricX       (ii)
-
-                            AuxMetricY   (jj) = Me%Station%MetricY       (ii)
-                        
-                            jj = jj + 1
-
-                        endif cd4
-
-                    enddo
-
-cd5:                if (NOpen < NGauges .and. Me%TriangGaugesON) then
-
-                        call KillTriangulation(Me%ObjTriangulation, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR08'
-
-                        call ConstructTriangulation(Me%ObjTriangulation,                 &
-                                                    NOpen,                               &
-                                                    AuxMetricX, AuxMetricY,              &
-                                                    WriteTriangles = ON,                 &
-                                                    STAT = STAT_CALL)
-                        if  (STAT_CALL /= SUCCESS_) then
-                            stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR09'
-                        endif
-                        
-                        call WriteTriangles
-
-                    endif cd5
-                    
-                    if (Me%TriangGaugesON) then
-                    
                         call SetHeightValues (Me%ObjTriangulation,  &
                                               AuxElevation,                      &
                                               STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR11'
-                                    
-                    endif
-                  
-                    !Interpolates Elevation at the boundary points
+                                        
+                        !Interpolates Elevation at the boundary points
 
-                    !$OMP PARALLEL PRIVATE( i,j,FoundBound,PX,PY,WaterLevel,STAT_CALL)
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        !$OMP PARALLEL PRIVATE( i,j,FoundBound,PX,PY,WaterLevel,STAT_CALL)
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-                        FoundBound = .false.
+                            FoundBound = .false.
+                            WaterLevel = 0.
 
-                        if (Me%TriangGaugesON) then
                             if (BoundaryFacesU2D(i  , j  ) == Boundary .or.             &
                                 BoundaryFacesU2D(i  , j+1) == Boundary .or.             &
                                 BoundaryFacesV2D(i  , j  ) == Boundary .or.             &
                                 BoundaryFacesV2D(i+1, j  ) == Boundary) FoundBound = .true.
 
-                        else
-                            if (BoundaryPoints2D(i, j) == Boundary) FoundBound = .true.
-                        endif
-                        
-cd6:                    if (FoundBound) then
+cd7:                        if (FoundBound) then
 
-                            !Points where to interpolate
-                            PX = CoordX(i,j)
-                            PY = CoordY(i,j)
-
-                            STAT_CALL = UNKNOWN_
+                                !Points where to interpolate
+                                PX = CoordX(i,j)
+                                PY = CoordY(i,j)    
+                                    
                             
-                            call GetIJWaterLevel_ThreadSafe(Me%ObjGauge, Me%ObjHorizontalGrid, i, j, WaterLevel, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_) then
-                                write(*,*) ' STAT_CALL is ', STAT_CALL
-                                stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR10'
-                            endif
+                                WaterLevel = InterPolation_ThreadSafe(Me%ObjTriangulation,  &
+                                                           PX, PY, FillOutsidePoints=.true., &
+                                                           STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) then
+                                    write(*,*) ' STAT_CALL is ', STAT_CALL
+                                    stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR12'
+                                endif
 
-cd23:                       if (STAT_CALL == NOT_FOUND_ERR_) then
 
-                                if (Me%TriangGaugesON) then
+                                !Interpolation
+                                Me%ImposedElevation(i, j) = WaterLevel * Coef
 
-                                    STAT_CALL = UNKNOWN_
+                            endif cd7
 
-                                    WaterLevel = InterPolation_ThreadSafe(Me%ObjTriangulation,  &
-                                                               PX, PY, FillOutsidePoints=.true., &
-                                                               STAT = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_) then
-                                        write(*,*) ' STAT_CALL is ', STAT_CALL
-                                        stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR12'
-                                    endif
+                        enddo
+                        enddo
+                        !$OMP END DO NOWAIT
+                        !$OMP END PARALLEL
 
-                                else
-                                    write(*,*) 'Triangulation is OFF'
-                                    write(*,*) 'It is missing a gauge in cell (i,j)',i,j,' coordinates (x,y)', PX, PY
-                                    stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR80'
-                                endif                                
-
-                            endif cd23
-
-                            !Interpolation
-                            Me%ImposedElevation(i, j) = WaterLevel * Coef
-
-                        endif cd6
-
-                    enddo
-                    enddo
-                    !$OMP END DO NOWAIT
-                    !$OMP END PARALLEL
-
-                    if (Me%TriangGaugesON) then
 
                         call SetHeightValues (  Me%ObjTriangulation,        &
                                                 AuxRefLevel,                &
                                                 STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR14'
 
-                    endif
+                        !$OMP PARALLEL PRIVATE(i,j,FoundBound,PX,PY,RefLevel,STAT_CALL)
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                            
+                        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-                    !$OMP PARALLEL PRIVATE(i,j,FoundBound,PX,PY,RefLevel,STAT_CALL)
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            FoundBound = .false.
+                            RefLevel   = 0.
 
-                        FoundBound = .false.
-
-                        if (Me%TriangGaugesON) then
                             if (BoundaryFacesU2D(i  , j  ) == Boundary .or.             &
                                 BoundaryFacesU2D(i  , j+1) == Boundary .or.             &
                                 BoundaryFacesV2D(i  , j  ) == Boundary .or.             &
                                 BoundaryFacesV2D(i+1, j  ) == Boundary) FoundBound = .true.
 
-                        else
-                            if (BoundaryPoints2D(i, j) == Boundary) FoundBound = .true.
-                        endif
-                        
-                        if (FoundBound) then
-
-                            !Points where to interpolate
-                            PX = CoordX(i,j)
-                            PY = CoordY(i,j)
-
-                            STAT_CALL = UNKNOWN_
+                            if (FoundBound) then
+                    
+                                RefLevel = InterPolation_ThreadSafe(Me%ObjTriangulation, &
+                                                         PX, PY, FillOutsidePoints=.true., STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) then
+                                    write(*,*) 'STAT_CALL is ', STAT_CALL
+                                    stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR15'
+                                endif
+                           
+                            endif
                             
-                            call GetIJReferenceLevel_ThreadSafe(Me%ObjGauge, Me%ObjHorizontalGrid, i, j, RefLevel, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_) then                                
-                                 write(*,*) 'STAT_CALL is ', STAT_CALL
-                                stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR13'
-                            endif
-
-                          if (STAT_CALL == NOT_FOUND_ERR_) then                               
-
-                                if (Me%TriangGaugesON) then
-
-                                    STAT_CALL = UNKNOWN_
-
-                                    RefLevel = InterPolation_ThreadSafe(Me%ObjTriangulation, &
-                                                             PX, PY, FillOutsidePoints=.true., STAT = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_) then
-                                        write(*,*) 'STAT_CALL is ', STAT_CALL
-                                        stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR15'
-                                    endif
-                                    
-                                else
-                                    write(*,*) 'Triangulation is OFF'
-                                    write(*,*) 'It is missing a gauge in cell (i,j)',i,j,' coordinates (x,y)', PX, PY
-                                    stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR80'
-                                endif                                
-
-                            endif
-
-                            !Interpolation
                             Me%ImposedElevation(i, j) = Me%ImposedElevation(i, j) + RefLevel
+                                
+                        enddo
+                        enddo
+                        !$OMP END DO NOWAIT                    
+                        !$OMP END PARALLEL
 
-                        else
+                    
 
-                            Me%ImposedElevation(i, j) = 0.
+                        deallocate (AuxElevation) 
+                        deallocate (AuxRefLevel ) 
+                        deallocate (AuxMetricX  ) 
+                        deallocate (AuxMetricY  ) 
+                        deallocate (AuxVelocityU) 
+                        deallocate (AuxVelocityV) 
 
-                        endif
+                        !Ungets CoordX and CoordY
+                        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, stat = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR16'
+
+                        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordY, stat = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR17'
                         
-                    enddo
-                    enddo
-                    !$OMP END DO NOWAIT                    
-                    !$OMP END PARALLEL
-
-                    deallocate (AuxElevation) 
-                    deallocate (AuxRefLevel ) 
-                    deallocate (AuxMetricX  ) 
-                    deallocate (AuxMetricY  ) 
-                    deallocate (AuxVelocityU) 
-                    deallocate (AuxVelocityV) 
-
-                    !Ungets CoordX and CoordY
-                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, stat = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR16'
-
-                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordY, stat = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR17'
+                    endif cd4                        
 
                 endif cd3
             

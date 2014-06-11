@@ -69,6 +69,7 @@ Module ModuleTimeSerie
     public  :: GetNumberOfTimeSeries
     public  :: GetTimeSerieLocation
     public  :: GetTimeSerieValue
+    public  :: GetTimeSerieTimeLimits
     public  :: GetTimeSerieIntegral
     public  :: GetTimeSerieDT
     public  :: GetTimeSerieHeader
@@ -3607,6 +3608,48 @@ do1:        do while (NextTime <= ActualTime)
     
     end subroutine GetTimeSerieTimeOfNextDataset
         
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+
+    subroutine GetTimeSerieTimeLimits(TimeSerieID, StartTime, EndTime, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TimeSerieID
+        type(T_Time),      intent(OUT)              :: StartTime, EndTime
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: STAT_ 
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeSerieID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            StartTime = Me%InitialData + Me%DataMatrix(1,             1)
+
+            EndTime   = Me%InitialData + Me%DataMatrix(Me%DataValues, 1)
+
+            STAT_ = SUCCESS_
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+        
+    end subroutine GetTimeSerieTimeLimits
 
     !--------------------------------------------------------------------------
 
