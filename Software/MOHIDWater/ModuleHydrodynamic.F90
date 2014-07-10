@@ -2349,10 +2349,11 @@ cd11:   if (Me%ComputeOptions%Recording) then
         integer, dimension(:,:,:), pointer :: PointsToFill3D
         character(len = StringLength)      :: BeginBlock, EndBlock, Char_TypeZUV
         integer                            :: STAT_CALL, ClientNumber, i, j, k, iflag 
+        integer                            :: JLB, ILB, JUB, IUB
         logical                            :: BlockFound
+        logical                            :: RotateX, RotateY       
         real                               :: MinWaterColumn
         real,    dimension(:,:),   pointer :: Bathymetry
-        logical                            :: RotateX, RotateY        
         
         !----------------------------------------------------------------------
 
@@ -2391,25 +2392,39 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                        
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR30'
             
-            Me%WaterLevel%New (:,:) = Me%WaterLevel%New (:,:) / Me%OutPut%WaterLevelUnits            
-
-            if(.not. Me%WaterLevel%ID%SolutionFromFile)then
+            Me%WaterLevel%New (:,:) = Me%WaterLevel%New (:,:) / Me%OutPut%WaterLevelUnits 
             
-                call GetGeometryMinWaterColumn(Me%ObjGeometry, MinWaterColumn, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR40'
-                
-                call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR41'
+            !Gets Bathymetry
+            call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR40'
 
+            call GetGeometryMinWaterColumn(Me%ObjGeometry, MinWaterColumn, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR50'
+                 
+do1:        do  j=Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:        do  i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+cd1:            if (Me%External_Var%WaterPoints2D(i, j) == WaterPoint) then
+
+                    !The water level can not be located below the bottom
+cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWaterColumn / 2.)) then
+                        Me%WaterLevel%New(i, j) = - Bathymetry(i, j) + MinWaterColumn / 2.
+                    endif cd2
+                    
+                endif cd1
+            enddo do2
+            enddo do1          
+            
+            call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR60'
+                  
+            if(.not. Me%WaterLevel%ID%SolutionFromFile)then
+                
                 do  j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do  i=Me%WorkSize%ILB, Me%WorkSize%IUB
                         
                     if (Me%External_Var%WaterPoints2D(i, j) == WaterPoint) then
                     
-                        if (Me%WaterLevel%New(i,j) < (- Bathymetry(i, j) + 0.999 * MinWaterColumn)) then
-                            Me%WaterLevel%New(i,j) =  - Bathymetry(i, j) + 0.999 * MinWaterColumn
-                        endif 
-
                         Me%WaterLevel%Old(i, j) = Me%WaterLevel%New(i, j)
 
                     endif
@@ -2417,11 +2432,8 @@ cd11:   if (Me%ComputeOptions%Recording) then
                 enddo
                 enddo
                 
-                call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR41'
-
                 call KillFillMatrix(Me%WaterLevel%ID%ObjFillMatrix, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR50'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR70'
                 
             end if
             
@@ -2429,7 +2441,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
             call UnGetHorizontalMap(Me%ObjHorizontalMap,                                &                      
                                     Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR61'
+                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR80'
 
 
         else 
@@ -2437,7 +2449,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
                 write(*,*) 'Block not found'
                 write(*,*) 'Begin = ',trim(BeginBlock)
                 write(*,*) 'End   = ',trim(EndBlock)
-                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR60'
+                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR90'
             endif
 
         endif
@@ -2445,10 +2457,10 @@ cd11:   if (Me%ComputeOptions%Recording) then
 
 
         call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR100'
 
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR80'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR110'
 
         call Initial_Geometry
 
@@ -2460,10 +2472,10 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                ComputeFacesV3D = Me%External_Var%ComputeFaces3D_V,      &
                                STAT            = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR90'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR120'
 
         call GetOpenPoints3D(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR100'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR130'
         
         RotateX = .false.
         RotateY = .false.
@@ -2475,7 +2487,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
         call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                     &
                                      BeginBlock, EndBlock,                              &
                                      BlockFound, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR110'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR140'
 
         if (BlockFound) then
 
@@ -2487,7 +2499,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
                          ClientModule   = 'ModuleHydrodynamic',                         &
                          default        = "Z",                                          &
                          STAT           = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR150'
 
             Me%Velocity%Horizontal%U%InTypeZUV = TranslateTypeZUV(Char_TypeZUV)
 
@@ -2505,11 +2517,11 @@ cd11:   if (Me%ComputeOptions%Recording) then
 
             else if (Me%Velocity%Horizontal%U%InTypeZUV == TypeV_) then
 
-                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR130'
+                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR160'
 
             else
 
-                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR140'
+                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR170'
 
             endif
 
@@ -2526,7 +2538,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                        FillMatrix           = 0.,                               &
                                        ClientID             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR150'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR180'
             
             RotateX = .true.
 
@@ -2557,7 +2569,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
             if(.not. Me%Velocity%Horizontal%U%ID%SolutionFromFile)then
                 
                 call KillFillMatrix(Me%Velocity%Horizontal%U%ID%ObjFillMatrix, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR160'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR190'
             end if
 
         else
@@ -2572,10 +2584,10 @@ cd11:   if (Me%ComputeOptions%Recording) then
         endif
 
         call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR180'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR200'
 
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR190'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR210'
 
 
 
@@ -2586,7 +2598,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
         call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                             &
                                      BeginBlock, EndBlock,                                      &
                                      BlockFound, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR200'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR220'
 
         if (BlockFound) then
 
@@ -2598,7 +2610,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
                          ClientModule   = 'ModuleHydrodynamic',                         &
                          default        = "Z",                                          &
                          STAT           = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR210'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR230'
 
             Me%Velocity%Horizontal%V%InTypeZUV = TranslateTypeZUV(Char_TypeZUV)
 
@@ -2616,11 +2628,11 @@ cd11:   if (Me%ComputeOptions%Recording) then
 
             else if (Me%Velocity%Horizontal%V%InTypeZUV == TypeU_) then
 
-                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR220'
+                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR240'
 
             else
 
-                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR230'
+                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR250'
 
             endif
 
@@ -2638,7 +2650,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                        FillMatrix           = 0.,                               &
                                        ClientID             = ClientNumber,                     &            
                                        STAT                 = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR240'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR260'
             
             RotateY = .true.
 
@@ -2669,7 +2681,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
             if(.not. Me%Velocity%Horizontal%V%ID%SolutionFromFile)then
                 
                 call KillFillMatrix(Me%Velocity%Horizontal%V%ID%ObjFillMatrix, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR250'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR270'
             end if
 
         else
@@ -2679,7 +2691,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
                 write(*,*) 'Block not found'
                 write(*,*) 'Begin = ',trim(BeginBlock)
                 write(*,*) 'End   = ',trim(EndBlock)
-                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR260'
+                stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR280'
 
             endif
 
@@ -2687,13 +2699,13 @@ cd11:   if (Me%ComputeOptions%Recording) then
 
 
         call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR270'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR290'
 
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR280'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR300'
         
         call GetWaterPoints3D(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR290'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR310'
 
         call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid,           &
                                      VectorInX         = Me%Velocity%Horizontal%U%New,   &
@@ -2706,27 +2718,27 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                      KLB               = Me%WorkSize%KLB,                &
                                      KUB               = Me%WorkSize%KUB,                &
                                      STAT              = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)  Stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR292'
+        if (STAT_CALL /= SUCCESS_)  Stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR320'
 
         call UnGetMap(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR294'       
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR330'       
 
-        call GetGeometryAreas(Me%ObjGeometry,                 &
-                              AreaU = Me%External_Var%Area_U, &
-                              AreaV = Me%External_Var%Area_V, &
+        call GetGeometryAreas(Me%ObjGeometry,                                           &
+                              AreaU = Me%External_Var%Area_U,                           &
+                              AreaV = Me%External_Var%Area_V,                           &
                               STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR290'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR340'
         
 dok1:   do k = Me%WorkSize%KLB,Me%WorkSize%KUB        
 doj1:   do j = Me%WorkSize%JLB,Me%WorkSize%JUB
 doi1:   do i = Me%WorkSize%ILB,Me%WorkSize%IUB
 
 Cov1:       if (Me%External_Var%ComputeFaces3D_U(I, J, K) == Covered) then
-
-                    Me%WaterFluxes%X(i, j, k) = dble(Me%Velocity%Horizontal%U%New(i,j,k)) * &
-                                                dble(Me%External_Var%Area_U      (i,j,k))
+                
+                Me%WaterFluxes%X(i, j, k) = dble(Me%Velocity%Horizontal%U%New(i,j,k)) * &
+                                            dble(Me%External_Var%Area_U      (i,j,k))
             endif Cov1
             
         enddo doi1
@@ -2750,28 +2762,28 @@ Cov2:       if ( Me%External_Var%ComputeFaces3D_V(I, J, K) == Covered) then
         
         !Module - ModuleMap
         !3D Mapping Properties
-        call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_U,                       &
+        call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_U,                      &
                       STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR300'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR350'
 
-        call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_V,                       &
+        call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_V,                      &
                       STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR310'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR360'
 
         call UnGetMap(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR320'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR370'
 
         call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Area_U, STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR330'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR380'
 
         call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Area_V, STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR340'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR390'
 
 
     end subroutine ReadInitialImposedSolution 
@@ -20316,6 +20328,10 @@ cd1:    if (Evolution == Solve_Equations_) then
 
             call ReadImposedSolution
 
+            !In this subroutine model verifies if the level is below a critical level and 
+            !if this is the case water level is set equal to the critical level. 
+            call WaterLevelCorrection
+
             !Update the moving boundary (boundary of the tidal areas covered)
             call UpdateComputeFaces3D(Me%ObjMap, Me%WaterLevel%New,                     &
                                       Me%CurrentTime, STAT = STAT_CALL)               
@@ -23573,10 +23589,9 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         if (Me%ComputeOptions%AltimetryAssimilation%Yes)                            &
             call WaterLevelRelaxationAltimetry
 
-        !In this subroutine model verifies if the level is below a critical level 
-        !This is critical level is a warning that says below this level there is a very 
-        !by probability of negative volumes
-        call WaterLevelCorrection
+            !In this subroutine model verifies if the level is below a critical level and 
+            !if this is the case water level is set equal to the critical level. 
+            call WaterLevelCorrection
         
         if (Me%ComputeOptions%WaterLevelMaxMin)                                 &
             call WaterLevelMaxMin(WaterLevel_Max, WaterLevel_Min)
@@ -24305,16 +24320,14 @@ idd:    if (Me%DDecomp%MasterOrSlave) then
 
         integer                             :: i, j, STAT_CALL
 !        integer                             :: M
-        integer                             :: IUB, ILB, JUB, JLB, KUB
-        integer, pointer, dimension (:,:,:) :: WaterPoints3D
+        integer                             :: IUB, ILB, JUB, JLB
+        integer, pointer, dimension (:,:)   :: WaterPoints2D
 
         real,    dimension(:,:), pointer    :: WaterLevel_New, Bathymetry, VolumeCreated, &
                                                DUX, DVY 
         real                                :: MinWaterColumn, WaterLevelMin, dh
 
-!        character(LEN = StringLength)       :: auxi,  auxj
-!        character(LEN = 5           )       :: auxii, auxjj
-        logical                             :: OKWarnning, CorrectWaterLevel 
+        logical                             :: CorrectWaterLevel 
 
         integer                             :: CHUNK
 
@@ -24327,10 +24340,9 @@ idd:    if (Me%DDecomp%MasterOrSlave) then
         ILB = Me%WorkSize%ILB
         JUB = Me%WorkSize%JUB
         JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
 
         WaterLevel_New    => Me%WaterLevel%New
-        WaterPoints3D     => Me%External_Var%WaterPoints3D
+        WaterPoints2D     => Me%External_Var%WaterPoints2D
         VolumeCreated     => Me%WaterLevel%VolumeCreated
 
         DUX            => Me%External_Var%DUX
@@ -24351,20 +24363,18 @@ idd:    if (Me%DDecomp%MasterOrSlave) then
         if (STAT_CALL /= SUCCESS_) &
             stop 'WaterLevelCorrection - ModuleHydrodynamic - ERR02'
 
-        OKWarnning = .false.
-         
         CHUNK = CHUNK_J(JLB, JUB) 
          
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "WaterLevelCorrection")
         endif
          
-        !$OMP PARALLEL PRIVATE(i,j,dh,OKWarnning)
+        !$OMP PARALLEL PRIVATE(i,j,dh)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK) 
 do1:    do  j = JLB, JUB
 do2:    do  i = ILB, IUB
                         
-cd1:        if (WaterPoints3D(i, j, KUB) == OpenPoint) then
+cd1:        if (WaterPoints2D(i, j) == OpenPoint) then
 
                 !By defaul this first correction is always made because the water level can not
                 !be located below the bottom
@@ -24377,8 +24387,6 @@ cd2:            if (WaterLevel_New(i, j) < (- Bathymetry(i, j) + MinWaterColumn 
 
                     WaterLevel_New(i, j) = - Bathymetry(i, j) + MinWaterColumn / 2.
 
-                    OKWarnning = .true.
-
                 endif cd2
 
 
@@ -24388,46 +24396,8 @@ cd3:            if (CorrectWaterLevel .and. WaterLevel_New(i, j) < (WaterLevelMi
 
                     WaterLevel_New(i, j) = WaterLevelMin + MinWaterColumn / 2.
 
-                    OKWarnning = .true.
-
                 endif cd3
         
-!cd4:            if (OKWarnning) then
-
-                    !Disables warnings in the corners
-!                    if ((i==ILB .and. j == JLB) .or.  &
-!                        (i==ILB .and. j == JUB) .or.  &
-!                        (i==IUB .and. j == JLB) .or.  &
-!                        (i==IUB .and. j == JUB)) Cyclic do2
-
-
-!do3 :               do M = 1, StringLength
-!                        auxi(M:M) = space
-!                        auxj(M:M) = space
-!                    end do do3
-
-             
-!                    write(auxi,*) i
-!                    auxi = adjustl(trim(auxi))
-
-             
-!                    write(auxj,*) j
-!                    auxj = adjustl(trim(auxj))
-!
-
-!do4 :               do M = 1, 5
-!                        auxii(M:M) = auxi(M:M)
-!                        auxjj(M:M) = auxj(M:M)
-!                    end do do4
-
-
-!                    string = adjustl(trim('In point I='//auxii//' and J='//auxjj//' was created water.'))
-
-!                    call SetError (WARNING_, INTERNAL_, String)
-
-!                    OKWarnning = .false.
-
-!                endif cd4
             endif cd1
 
         enddo do2
@@ -24445,7 +24415,7 @@ cd3:            if (CorrectWaterLevel .and. WaterLevel_New(i, j) < (WaterLevelMi
             stop 'WaterLevelCorrection - ModuleHydrodynamic - ERR03'
 
         nullify (WaterLevel_New, VolumeCreated, DUX, DVY)
-        nullify (WaterPoints3D )
+        nullify (WaterPoints2D )
 
         !----------------------------------------------------------------------
 
@@ -29352,7 +29322,7 @@ cd4:                if (abs(Velocity_UV_New(i, j, Kbottom)) < Vmin_Chezy) then
 
                     else  cd4
 
-                        AUXZ        = DUZ_VZ(i, j, Kbottom)
+                        AUXZ        = MAX(DUZ_VZ(i, j, Kbottom), 01.*Hmin_Chezy)
 
                     endif cd4
 
@@ -29364,7 +29334,7 @@ cd4:                if (abs(Velocity_UV_New(i, j, Kbottom)) < Vmin_Chezy) then
                                 RugosityMatrix(iSouth, jWest) * DUX_VY(i      , j     ))/  &
                                (DUX_VY        (iSouth, jWest) + DUX_VY(i      , j     ))
 
-cd1:                if (Rugosity == 0.) then
+cd1:                if (Rugosity <= 0.) then
 
                         Chezy = 0.
 
@@ -29379,20 +29349,14 @@ cd3:                   if (Manning) then
 
                             !To avoid wall distance values lower than rugosity
                             WallDistance = AuxZ/2. + Rugosity
+                            
+                            if (WallDistance > Rugosity) then
 
-                            if (WallDistance <= Rugosity)  then
-
-                                write(*,*) 'AuxZ, IUB ,JUB, X, Y, I, J=', AuxZ, IUB ,JUB, dj, di, I, J
-
-                                call SetError (FATAL_, INTERNAL_, "Modify_ChezyVelUV - Hydrodynamic - ERR04")        
-
+                                ! [] = [] / log ([m]/[m])
+                                Chezy = (Const_VonKarman / LOG(WallDistance / Rugosity))**2.
+                            else
+                                Chezy = 0.
                             endif
-
-
-
-                            ! [] = [] / log ([m]/[m])
-                            Chezy = (Const_VonKarman / LOG(WallDistance / Rugosity))**2.
-
 
                         endif cd3
 
@@ -36338,7 +36302,7 @@ do62:                   do  K = kbottom, KUB
                     
             else
             
-                call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR30")                                    
+                call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR30")
 
             endif
             

@@ -75,7 +75,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  89
+    integer, parameter  :: MaxModules           =  90
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -1707,6 +1707,7 @@ Module ModuleGlobalData
     integer, parameter ::  mPressureDifferences_    = 87
     integer, parameter ::  mAnalytical_LDS_         = 88
     integer, parameter ::  mHNS_                    = 89
+    integer, parameter ::  mGlueWW3_OBC_            = 90
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -1820,7 +1821,8 @@ Module ModuleGlobalData
         T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
         T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics"),     &
         T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     ,  T_Module(mAnalytical_LDS_      , "Analytical_LDS"),        &  
-        T_Module(mPressureDifferences_   , "PressureDifferences"),   T_Module(mHNS_                    , "HNS") /)
+        T_Module(mPressureDifferences_   , "PressureDifferences"),   T_Module(mHNS_                    , "HNS"           ),        &
+        T_Module(mGlueWW3_OBC_           , "GlueWW3_OBC"                                                                            ) /)
         
 
     !Variables
@@ -3035,19 +3037,21 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
     !   OPENCLOSE     - Activate unit (1) or deactivate (0)
     !   UNIT          - Number to the opened unit or to the unit to close   
 
-    subroutine UnitsManager(UNIT, OPENCLOSE, STAT)
+    subroutine UnitsManager(UNIT, OPENCLOSE, STATUS, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer,           intent(INOUT)    :: UNIT
-        integer,           intent(IN   )    :: OPENCLOSE
-        integer, optional, intent(OUT  )    :: STAT
+        integer,                    intent(INOUT)   :: UNIT
+        integer,                    intent(IN   )   :: OPENCLOSE
+        character(len=*), optional, intent(IN   )   :: STATUS
+        integer,          optional, intent(OUT  )   :: STAT
 
         !External--------------------------------------------------------------
-        logical                             :: opened
-        integer                             :: STAT_CALL
+        logical                                     :: opened
+        integer                                     :: STAT_CALL
 
         !Local-----------------------------------------------------------------
-        integer                             :: STAT_
+        character(len = StringLength)               :: STATUS_        
+        integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
@@ -3069,7 +3073,19 @@ do1 :       do while (Opened)
             inquire(UNIT = Unit, OPENED = opened)
 
 if8 :       if (opened) then
-                close(UNIT, IOSTAT = STAT_CALL)
+
+                if (present(STATUS)) then
+                    STATUS_ = STATUS
+                    if (STATUS_ /= 'KEEP' .and.                                         &
+                        STATUS_ /= 'SAVE' .and.                                         &
+                        STATUS_ /= 'DELETE') then
+                        stop       "UnitsManager - ModuleGlobalData - ERR100"
+                    endif
+                else
+                    STATUS_ = 'KEEP'
+                endif
+
+                close(UNIT, STATUS = STATUS_, IOSTAT = STAT_CALL)
 
 if9 :           if (STAT_CALL .NE. SUCCESS_) then
                     write(*,*)  

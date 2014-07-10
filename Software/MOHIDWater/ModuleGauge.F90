@@ -165,13 +165,13 @@ Module ModuleGauge
         integer                             :: ObjTimeSerie = 0
     end type T_TideGauge
 
-
     type       T_Gauge
         integer                             :: InstanceID
         integer                             :: UnitGauge                = FillValueInt
         character(LEN = StringLength)       :: FileName                 = null_str
         character(LEN = StringLength)       :: HDFFileTidalComponents   = null_str
-        type(T_XYZPoints),       pointer    :: GaugesLocation           => null()
+        
+        type(T_XYZPoints),       pointer    :: GaugesLocation            => null() 
         
         logical                             :: HDFFileTidalON           = .false.
         
@@ -531,20 +531,54 @@ if6 :           if (BlockFound) then
                                     STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR10'  
         if (.not. BlockFound     ) stop 'ReadGaugeDataHDF - ModuleGauges - ERR20' 
+
+        if (Me%Triangulation) then
+            X   => Me%GaugesLocation%X
+            Y   => Me%GaugesLocation%Y
+            NP  =  Me%GaugesLocation%Count
+            
+            WindowLimitsXY(2,1) = Me%GaugesLocation%Limits%Bottom     
+            WindowLimitsXY(2,2) = Me%GaugesLocation%Limits%Top 
+            WindowLimitsXY(1,1) = Me%GaugesLocation%Limits%Left     
+            WindowLimitsXY(1,2) = Me%GaugesLocation%Limits%Right     
+
+            LatDefault          = (Me%GaugesLocation%Limits%Bottom  + Me%GaugesLocation%Limits%Top ) / 2.
+            LongDefault         = (Me%GaugesLocation%Limits%Right   + Me%GaugesLocation%Limits%Left) / 2.
+            
+        else
+        
+            if (Me%ObjHorizontalGrid == 0) then
+            
+                call ReadGaugeData  (PresentGauge, FromFile, ReadHarmonicsOk = .false.)
+                call AddGauge2List  (PresentGauge)        
+                
+                PresentGauge => Me%FirstGauge
+                
+                WindowLimitsXY(2,1) = Me%FirstGauge%Metric_Y     
+                WindowLimitsXY(2,2) = Me%FirstGauge%Metric_Y
+                WindowLimitsXY(1,1) = Me%FirstGauge%Metric_X
+                WindowLimitsXY(1,2) = Me%FirstGauge%Metric_X
+                
+                LatDefault          = Me%FirstGauge%Metric_Y
+                LongDefault         = Me%FirstGauge%Metric_X
+
+            else
     
-        call GetGridBorderLimits(Me%ObjHorizontalGrid,                                  &
-                                 West, East, South, North, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR30' 
-        
-        WindowLimitsXY(2,1) = South
-        WindowLimitsXY(2,2) = North
-        WindowLimitsXY(1,1) = West
-        WindowLimitsXY(1,2) = East
-        
-        call GetLatitudeLongitude(Me%ObjHorizontalGrid, Latitude  = LatDefault,         &
-                                                        Longitude = LongDefault,        & 
-                                                        STAT      = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR40' 
+                call GetGridBorderLimits(Me%ObjHorizontalGrid,                                  &
+                                         West, East, South, North, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR30' 
+                
+                WindowLimitsXY(2,1) = South
+                WindowLimitsXY(2,2) = North
+                WindowLimitsXY(1,1) = West
+                WindowLimitsXY(1,2) = East
+                
+                call GetLatitudeLongitude(Me%ObjHorizontalGrid, Latitude  = LatDefault,         &
+                                                                Longitude = LongDefault,        & 
+                                                                STAT      = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR40' 
+            endif
+        endif
         
         call GetExtractType(FromBlock = FromBlock)
 
@@ -601,73 +635,86 @@ if6 :           if (BlockFound) then
             Y   => Me%GaugesLocation%Y
             NP  =  Me%GaugesLocation%Count
         else
+            
+            if (Me%ObjHorizontalGrid == 0) then
+
+                NP   = 1
+
+                allocate(X    (1:NP), Y    (1:NP))
+
+                X(1) = Me%FirstGauge%Metric_X
+                Y(1) = Me%FirstGauge%Metric_Y                
+            
+            else             
         
-            call GetHorizontalGridSize(Me%ObjHorizontalGrid,                             &
-                                       WorkSize = WorkSize,                              &
-                                       STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR100' 
-            
-            ILB = WorkSize%ILB
-            IUB = WorkSize%IUB
-            JLB = WorkSize%JLB
-            JUB = WorkSize%JUB
+                call GetHorizontalGridSize(Me%ObjHorizontalGrid,                             &
+                                           WorkSize = WorkSize,                              &
+                                           STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR100' 
+                
+                ILB = WorkSize%ILB
+                IUB = WorkSize%IUB
+                JLB = WorkSize%JLB
+                JUB = WorkSize%JUB
 
-            !Gets BoundaryPoints from the HorizontalMap
-            call GetBoundaries(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR110'
-            
-            !Gets Center cell coordinates            
-            call GetZCoordinates(Me%ObjHorizontalGrid,  CoordX = CoordX, CoordY = CoordY, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR120' 
-            
-            Nmax = (IUB - ILB + 1) * 2 + (JUB - JLB + 1) * 2
+                !Gets BoundaryPoints from the HorizontalMap
+                call GetBoundaries(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR110'
+                
+                !Gets Center cell coordinates            
+                call GetZCoordinates(Me%ObjHorizontalGrid,  CoordX = CoordX, CoordY = CoordY, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR120' 
+                
+                Nmax = (IUB - ILB + 1) * 2 + (JUB - JLB + 1) * 2
 
-            allocate(AuxX(Nmax), AuxY(Nmax)) 
-            
-            ni = 0
+                allocate(AuxX(Nmax), AuxY(Nmax)) 
+                
+                ni = 0
 
-            do j = JLB, JUB
-            do i = ILB, IUB
-                if (BoundaryPoints2D(i, j) == Boundary ) then
-                    ni = ni + 1
-                    AuxX(ni) = CoordX(i, j)                            
-                    AuxY(ni) = CoordY(i, j)
-                endif
-            enddo
-            enddo
-            
-            NP = ni
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    if (BoundaryPoints2D(i, j) == Boundary ) then
+                        ni = ni + 1
+                        AuxX(ni) = CoordX(i, j)                            
+                        AuxY(ni) = CoordY(i, j)
+                    endif
+                enddo
+                enddo
+                
+                NP = ni
 
-            allocate(X    (1:NP), Y    (1:NP))
-            allocate(Icell(1:NP), Jcell(1:NP))            
-            
-            ni = 0
+                allocate(X    (1:NP), Y    (1:NP))
+                allocate(Icell(1:NP), Jcell(1:NP))            
+                
+                ni = 0
 
-            do j = JLB, JUB
-            do i = ILB, IUB
-                if (BoundaryPoints2D(i, j) == Boundary ) then
-                    ni = ni + 1
-                    Icell(ni) = i
-                    Jcell(ni) = j
-                endif
-            enddo
-            enddo
-            
-            X  (1:NP) = AuxX  (1:NP)
-            Y  (1:NP) = AuxY  (1:NP)
-            
-            deallocate(AuxX, AuxY) 
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    if (BoundaryPoints2D(i, j) == Boundary ) then
+                        ni = ni + 1
+                        Icell(ni) = i
+                        Jcell(ni) = j
+                    endif
+                enddo
+                enddo
+                
+                X  (1:NP) = AuxX  (1:NP)
+                Y  (1:NP) = AuxY  (1:NP)
+                
+                deallocate(AuxX, AuxY) 
 
-            !UnGets BoundaryPoints from the HorizontalMap
-            call UnGetHorizontalMap(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR130'
-            
-            !UnGets Center cell coordinates            
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid,  CoordX, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR140' 
-                        
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid,  CoordY, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR150' 
+                !UnGets BoundaryPoints from the HorizontalMap
+                call UnGetHorizontalMap(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR130'
+                
+                !UnGets Center cell coordinates            
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid,  CoordX, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR140' 
+                            
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid,  CoordY, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR150' 
+
+            endif                
             
         endif
         
@@ -728,11 +775,14 @@ if6 :           if (BlockFound) then
                         if(Me%Triangulation) then
                             i = FillValueInt
                             j = FillValueInt
+                            call CreateGaugeFromHDFData(X(ni), Y(ni), ni, i, j)
                         else
-                            i = Icell(ni)
-                            j = Jcell(ni)
+                            if (Me%ObjHorizontalGrid /= 0) then
+                                i = Icell(ni)
+                                j = Jcell(ni)
+                                call CreateGaugeFromHDFData(X(ni), Y(ni), ni, i, j)
+                            endif
                         endif                            
-                        call CreateGaugeFromHDFData(PresentGauge, X(ni), Y(ni), ni, i, j)
                     endif                        
                 enddo
             endif                                    
@@ -766,13 +816,13 @@ if6 :           if (BlockFound) then
     
     !--------------------------------------------------------------------------    
     
-    subroutine CreateGaugeFromHDFData(PresentGauge, X, Y, n, i, j)
+    subroutine CreateGaugeFromHDFData(X, Y, n, i, j)
 
         !Arguments-------------------------------------------------------------
-        type(T_TideGauge), pointer              :: PresentGauge
         real                                    :: X, Y
         integer                                 :: n, i, j
         !Local-----------------------------------------------------------------
+        type(T_TideGauge), pointer              :: PresentGauge        
         integer                                 :: FromFile
 
         !----------------------------------------------------------------------
@@ -973,63 +1023,64 @@ if5 :   if ((flag > 0).and.(flag < 3)) then
 
         call Calc_Decimal_geo_coord(PresentGauge)
         
-        if (ReadHarmonicsOk_) then
 
-            call GetData(PresentGauge%Metric_X,                                              &
-                         Me%ObjEnterData, flag,                                              &
-                         keyword    = 'METRIC_X',                                            &
-                         default    = FillValueReal,                                         &
-                         SearchType = FromBlock,                                             &
-                         ClientModule ='ModuleGauge',                                        &
+        call GetData(PresentGauge%Metric_X,                                              &
+                     Me%ObjEnterData, flag,                                              &
+                     keyword    = 'METRIC_X',                                            &
+                     default    = FillValueReal,                                         &
+                     SearchType = FromBlock,                                             &
+                     ClientModule ='ModuleGauge',                                        &
+                     STAT       = status)
+        if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR50'
+
+
+if1:    if (flag == 1) then 
+
+            call GetData(PresentGauge%Metric_Y,                                          &
+                         Me%ObjEnterData, flag,                                      &
+                         keyword    = 'METRIC_Y',                                        &
+                         default    = FillValueReal,                                     &
+                         SearchType = FromBlock,                                         &
+                         ClientModule ='ModuleGauge',                                    &
                          STAT       = status)
-            if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR50'
+            if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR60'
 
+            if (flag == 1) then
+                PresentGauge%DefinedMetric = .true.
+                Control                    = Control + 1
+            endif
 
-    if1:    if (flag == 1) then 
+        endif if1
 
-                call GetData(PresentGauge%Metric_Y,                                          &
-                             Me%ObjEnterData, flag,                                      &
-                             keyword    = 'METRIC_Y',                                        &
-                             default    = FillValueReal,                                     &
-                             SearchType = FromBlock,                                         &
-                             ClientModule ='ModuleGauge',                                    &
-                             STAT       = status)
-                if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR60'
+        call GetData(PresentGauge%GRID_I,                                                &
+                     Me%ObjEnterData, flag,                                              &
+                     keyword    = 'GRID_I',                                              &
+                     default    = FillValueInt,                                          &
+                     SearchType = FromBlock,                                             &
+                     ClientModule ='ModuleGauge',                                        &
+                     STAT       = status)
+        if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR70'
 
-                if (flag == 1) then
-                    PresentGauge%DefinedMetric = .true.
-                    Control                    = Control + 1
-                endif
+if3:    if (flag == 1) then
 
-            endif if1
-
-            call GetData(PresentGauge%GRID_I,                                                &
-                         Me%ObjEnterData, flag,                                              &
-                         keyword    = 'GRID_I',                                              &
-                         default    = FillValueInt,                                          &
-                         SearchType = FromBlock,                                             &
-                         ClientModule ='ModuleGauge',                                        &
+            call GetData(PresentGauge%GRID_J,                                            &
+                         Me%ObjEnterData, flag,                                      &
+                         keyword    = 'GRID_J',                                          &
+                         default    = FillValueInt,                                      &
+                         SearchType = FromBlock,                                         &
+                         ClientModule ='ModuleGauge',                                    &
                          STAT       = status)
-            if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR70'
-
-    if3:    if (flag == 1) then
-
-                call GetData(PresentGauge%GRID_J,                                            &
-                             Me%ObjEnterData, flag,                                      &
-                             keyword    = 'GRID_J',                                          &
-                             default    = FillValueInt,                                      &
-                             SearchType = FromBlock,                                         &
-                             ClientModule ='ModuleGauge',                                    &
-                             STAT       = status)
-                if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR80'
+            if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR80'
 
 
-                if (flag == 1) then
-                    Control = Control + 1
-                endif
-                
-            else  if3
+            if (flag == 1) then
+                Control = Control + 1
+            endif
             
+        else  if3
+        
+            if (Me%ObjHorizontalGrid /= 0) then
+        
                 call GetXYCellZ_ThreadSafe(HorizontalGridID = Me%ObjHorizontalGrid,         &
                                            XPoint           = PresentGauge%Metric_X,        &
                                            YPoint           = PresentGauge%Metric_Y,        &
@@ -1045,10 +1096,10 @@ if5 :   if ((flag > 0).and.(flag < 3)) then
                     PresentGauge%GRID_J = FillValueInt
                 endif
 
-            endif if3
-
-        endif
+            endif
             
+        endif if3
+           
 if2 :   if (control == 0) then
             write (*,*) 'No Tide Gauge location provided'
             stop 'ReadGaugeData - ModuleGauge - ERR90'

@@ -48,11 +48,16 @@ program MohidTidePreview
         integer                         :: ObjGauge             = 0
         character(len=PathLength)       :: GaugeFile
         character(len=PathLength)       :: OutPutFileName
+        character(len=PathLength)       :: OutFileNameHighLow
         character(len=StringLength)     :: Name
         integer                         :: OutPutFileUnit
+        integer                         :: OutPutHighLowUnit        
         real                            :: Longitude, Latitude
         real, dimension(:), pointer     :: ReferenceLevel
         type(T_TidePrev), pointer       :: Next
+        real                            :: Aux1,Aux2,Aux3
+        integer                         :: counter
+        real                            :: PreviousTime
     end type T_TidePrev
     
 
@@ -90,7 +95,7 @@ program MohidTidePreview
         call StartCPUTime
         
         call ConstructEnterData (ObjEnterData, DataFile, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR10'
 
 
         call ReadTimeKeyWords   (ObjEnterData, FromFile, BeginTime, EndTime, DT,        &
@@ -98,7 +103,7 @@ program MohidTidePreview
         
         call StartComputeTime(ObjTime, InitialSystemTime, BeginTime, EndTime, DT = DT,  &
                               VariableDT = VariableDT, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR20'
 
         call GetData(ExportToXYZ,                                                       &
                      ObjEnterData,  iflag,                                              &
@@ -106,7 +111,7 @@ program MohidTidePreview
                      keyword      = 'EXPORT_TO_XYZ',                                    &
                      Default      = OFF,                                                &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR30'
 
 
         call GetData(XYZFile,                                                           &
@@ -115,7 +120,7 @@ program MohidTidePreview
                      keyword      = 'XYZ_FILE',                                         &
                      Default      = 'GaugeLocation.xyz',                                &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR40'
 
 
         TotalTidePrevs = 0
@@ -139,14 +144,23 @@ program MohidTidePreview
                                  SearchType   = FromBlock,                                  &
                                  keyword      = 'NAME',                                     &
                                  STAT         = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR05'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR50'
 
                     call GetData(NewTidePrev%OutPutFileName,                                &
                                  ObjEnterData,  iflag,                                      &
                                  SearchType   = FromBlock,                                  &
                                  keyword      = 'OUT_FILE',                                 &
+                                 default      = 'TidePrev.srh',                             &                                 
                                  STAT         = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR06'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR60'
+
+                    call GetData(NewTidePrev%OutFileNameHighLow,                            &
+                                 ObjEnterData,  iflag,                                      &
+                                 SearchType   = FromBlock,                                  &
+                                 keyword      = 'OUT_FILE_HIGH_LOW',                        &
+                                 default      = 'TidePrevHighLowTide.srh',                  &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR70'
 
 
                     call GetData(NewTidePrev%GaugeFile,                                     &
@@ -154,23 +168,24 @@ program MohidTidePreview
                                  SearchType   = FromBlock,                                  &
                                  keyword      = 'IN_TIDES',                                 &
                                  STAT         = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR07'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR80'
+                    if (iflag     == 0       ) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR90'
 
 
                     call ConstructGauges(GaugeID    = NewTidePrev%ObjGauge,                 &
                                          TimeID     = ObjTime,                              &
                                          GaugeFile  = NewTidePrev%GaugeFile,                &
                                          STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR08'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR100'
 
 
                     !Get the number of gauges in use
                     call GetNGauges(NewTidePrev%ObjGauge, NGauges, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR09'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR110'
         
                     if(NGauges .ne. 1)then
                         write(*,*)'Can only compute one gauge per tide preview at the time.'
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR10'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR120'
                     end if
 
                     allocate(NewTidePrev%ReferenceLevel(NGauges))
@@ -179,12 +194,12 @@ program MohidTidePreview
                     call GetReferenceLevel(NewTidePrev%ObjGauge,                            &
                                            NewTidePrev%ReferenceLevel,                      &
                                            STAT = STAT_CALL) 
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR11'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR130'
 
                     allocate(XLocation(NGauges), YLocation(NGauges))
 
                     call GetGaugeLocation(NewTidePrev%ObjGauge, XLocation, YLocation, STAT = STAT_CALL) 
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR12'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR140'
 
                     NewTidePrev%Longitude = XLocation(1)
                     NewTidePrev%Latitude  = YLocation(1)
@@ -194,7 +209,7 @@ program MohidTidePreview
                     exit     !No more blocks
                 end if 
             else if (STAT_CALL .EQ. BLOCK_END_ERR_) then 
-                stop 'ConstructMohidTidePreview - MohidTidePreview - ERR13'
+                stop 'ConstructMohidTidePreview - MohidTidePreview - ERR150'
             end if
         end do
 
@@ -202,10 +217,10 @@ program MohidTidePreview
         if(ExportToXYZ) call ExportGaugeLocations
 
         call Block_Unlock(ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR14'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR160'
 
         call KillEnterData (ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR15'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR170'
 
         write(*,*)
         write(*,*)'Total number of gauges to preview :', TotalTidePrevs
@@ -258,9 +273,10 @@ program MohidTidePreview
         !Local-----------------------------------------------------------------
         logical                                     :: Running
         integer                                     :: STAT_CALL
-        real                                        :: TotalTime
+        real                                        :: TotalTime, PreviousTime, AuxDT
         real,       dimension(:), pointer           :: OpenPoints, WaterLevel
         type(T_TidePrev), pointer                   :: TidePrev
+        real                                        :: DTAux
 
         !Begin-----------------------------------------------------------------
 
@@ -277,7 +293,7 @@ program MohidTidePreview
         do while(associated(TidePrev))
 
             call UnitsManager (TidePrev%OutPutFileUnit, OPEN_FILE, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR10'
 
             open(TidePrev%OutPutFileUnit, file = TidePrev%OutPutFileName, Status = 'unknown')
 
@@ -290,18 +306,37 @@ program MohidTidePreview
             write(TidePrev%OutPutFileUnit, *)
             write(TidePrev%OutPutFileUnit, *) 'Seconds   Elevation'
             write(TidePrev%OutPutFileUnit, *) '<BeginTimeSerie>'
+            
+            call UnitsManager (TidePrev%OutPutHighLowUnit, OPEN_FILE, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR20'
 
+            open(TidePrev%OutPutHighLowUnit, file = TidePrev%OutFileNameHighLow, Status = 'unknown')
+
+            call WriteDataLine(TidePrev%OutPutHighLowUnit, "SERIE_INITIAL_DATA", CurrentTime)
+            write(TidePrev%OutPutHighLowUnit, *) "TIME_UNITS              : SECONDS"
+            write(TidePrev%OutPutHighLowUnit, *) "LONGITUDE               : ", TidePrev%Longitude
+            write(TidePrev%OutPutHighLowUnit, *) "LATITUDE                : ", TidePrev%Latitude
+
+            write(TidePrev%OutPutHighLowUnit, *)
+            write(TidePrev%OutPutHighLowUnit, *)
+            write(TidePrev%OutPutHighLowUnit, *) 'Seconds   Elevation'
+            write(TidePrev%OutPutHighLowUnit, *) '<BeginTimeSerie>'
+
+            TidePrev%counter = 0
+            
+            TidePrev%PreviousTime  = 0.
 
             TidePrev => TidePrev%Next
         end do
 
 
-        TotalTime = 0.
+        TotalTime      = 0.
+        PreviousTime   = 0.
 
         do while (Running)
 
             TidePrev => FirstTidePrev
-        
+            
             do while(associated(TidePrev))
 
                 call GaugeLevel(TidePrev%ObjGauge,                          &
@@ -310,10 +345,27 @@ program MohidTidePreview
                                 CurrentTime,                                &
                                 ReferenceLevel = TidePrev%ReferenceLevel,   &
                                 STAT = STAT_CALL) 
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR02'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR30'
 
-                write(TidePrev%OutPutFileUnit, *) TotalTime, WaterLevel(1) + TidePrev%ReferenceLevel
-
+                write(TidePrev%OutPutFileUnit, *) TotalTime, WaterLevel(1) + TidePrev%ReferenceLevel(1)
+                
+                TidePrev%counter    = TidePrev%counter + 1
+                TidePrev%Aux3       = TidePrev%Aux2
+                TidePrev%Aux2       = TidePrev%Aux1
+                TidePrev%Aux1       = WaterLevel(1) + TidePrev%ReferenceLevel(1)
+                
+                DTAux = PreviousTime - TidePrev%PreviousTime
+                
+                if (TidePrev%counter > 3 .and. DTAux > 10800.) then
+                    !low tide 
+                    if ((TidePrev%Aux2 <= TidePrev%Aux1 .and. TidePrev%Aux2 <= TidePrev%Aux3) .or. &
+                    !high tide 
+                        (TidePrev%Aux2 >= TidePrev%Aux1 .and. TidePrev%Aux2 >= TidePrev%Aux3)) then
+                        write(TidePrev%OutPutHighLowUnit, *) PreviousTime, TidePrev%Aux2
+                        TidePrev%PreviousTime = PreviousTime
+                    endif
+                endif
+                
                 TidePrev => TidePrev%Next
 
             end do
@@ -322,15 +374,16 @@ program MohidTidePreview
             if (CPUTime - LastCPUTime > 10.) then
                 LastCPUTime = CPUTime
                 call PrintProgress(ObjTime, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR03'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR40'
             endif
 
             
-            CurrentTime = CurrentTime + DT
-            TotalTime   = TotalTime   + DT
+            CurrentTime     = CurrentTime + DT
+            PreviousTime    = TotalTime
+            TotalTime       = TotalTime   + DT
 
             call ActualizeCurrentTime(ObjTime, DT, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR50'
 
 
             if (abs(CurrentTime - EndTime) > DT / 10.) then
@@ -351,7 +404,13 @@ program MohidTidePreview
             write(TidePrev%OutPutFileUnit, *) '<EndTimeSerie>'
 
             call UnitsManager (TidePrev%OutPutFileUnit, CLOSE_FILE, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR60'
+            
+            write(TidePrev%OutPutHighLowUnit, *) '<EndTimeSerie>'
+
+            call UnitsManager (TidePrev%OutPutHighLowUnit, CLOSE_FILE, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR70'
+            
 
             TidePrev => TidePrev%Next
 

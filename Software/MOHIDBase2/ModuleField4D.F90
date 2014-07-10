@@ -30,6 +30,11 @@
 
 Module ModuleField4D
 
+#ifndef _NOT_IEEE_ARITHMETIC
+    use ieee_arithmetic
+#endif
+
+
     use ModuleGlobalData
     use ModuleTime
     use ModuleEnterData
@@ -3299,11 +3304,13 @@ if1:    if (NewPropField%Harmonics%Extract) then
                 Amplitude   => NewPropField%Harmonics%Amplitude2D(i, j, :)
                 Phase       => NewPropField%Harmonics%Phase2D    (i, j, :)   
                 
+
+#ifndef _NOT_IEEE_ARITHMETIC
                 do n=1,NW
-                    if (ISNAN(Amplitude(n))) Amplitude(n) = FillValueReal
-                    if (ISNAN(Phase    (n))) Phase    (n) = FillValueReal
+                    if (ieee_is_nan(Amplitude(n))) Amplitude(n) = FillValueReal
+                    if (ieee_is_nan(Phase    (n))) Phase    (n) = FillValueReal
                 enddo                 
-                
+#endif
                 if (sum(Amplitude(1:NW))>0.) then             
             
                     call Task2000Level(WaterLevel       = Field(i, j),                              &
@@ -3665,11 +3672,15 @@ d2:     do N =1, NW
         do i = ILB,IUB
 
             Amplitude   => NewPropField%Harmonics%Amplitude3D(i, j, k, :)
-            Phase       => NewPropField%Harmonics%Phase3D    (i, j, k, :)        
+            Phase       => NewPropField%Harmonics%Phase3D    (i, j, k, :)    
+            
+
+#ifndef _NOT_IEEE_ARITHMETIC
             do n=1,NW
-                if (ISNAN(Amplitude(n))) Amplitude(n) = FillValueReal
-                if (ISNAN(Phase    (n))) Phase    (n) = FillValueReal
-            enddo
+                if (ieee_is_nan(Amplitude(n))) Amplitude(n) = FillValueReal
+                if (ieee_is_nan(Phase    (n))) Phase    (n) = FillValueReal
+            enddo                 
+#endif                
             if (sum(Amplitude(1:NW))>0.) then             
         
                 call Task2000Level(WaterLevel       = Field(i, j, k),                           &
@@ -4315,12 +4326,14 @@ d2:     do N =1, NW
                 CorrectTimeFrame = .true.
                 
                 if (Me%CurrentTimeInt < Me%File%StartTime) CorrectTimeFrame = .false.  
-                if (Me%CurrentTimeInt > Me%File%EndTime  ) CorrectTimeFrame = .false.              
-            
+                if (Me%CurrentTimeInt > Me%File%EndTime  ) CorrectTimeFrame = .false.     
+                
                 call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DXYZ - ModuleField4D - ERR10'                
                 
-                if (CorrectTimeFrame .or. PropField%Harmonics%Extract) then        
+                if (PropField%Harmonics%ON) CorrectTimeFrame = .true.                                         
+                
+                if (CorrectTimeFrame) then        
             
                     if (PropField%Harmonics%Extract) then
                     

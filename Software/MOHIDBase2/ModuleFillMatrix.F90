@@ -3777,9 +3777,18 @@ ifMS:           if (MasterOrSlave) then
             call BacktrackingTime(Now)
         else   
             Now = CurrentTime
-        endif  
+        endif
 
-i1:     if (.not. Me%HDF%Generic4D%ON) then
+        !Initial field
+i1:     if (Me%HDF%Generic4D%ON .or. (Me%HDF%Field4D .and. Me%HDF%HarmonicsOn)) then
+            
+            if (Me%Dim == Dim2D) then
+                call ModifyHDFInput2D (PointsToFill2D) 
+            else
+                call ModifyHDFInput3D (PointsToFill3D)
+            endif
+
+        else i1
             
 i2:         if(Me%HDF%NumberOfInstants > 1)then
 
@@ -3856,126 +3865,126 @@ i2a:            if (Me%PredictDTMethod == 2) then
                 else i2a
 
                     if (Me%Backtracking) then
-                    Me%HDF%PreviousInstant  = Me%HDF%NumberOfInstants
-                    Me%HDF%NextInstant      = Me%HDF%PreviousInstant               
-                else
-                    Me%HDF%PreviousInstant  = 1
-                    Me%HDF%NextInstant      = Me%HDF%PreviousInstant
-                endif
-                
-                Me%HDF%PreviousTime     = HDF5TimeInstant(Me%HDF%PreviousInstant) 
-                
-                call CheckCyclicMonths(Me%HDF%PreviousTime, RefTime = Now, CyclicTimeON = Me%HDF%CyclicTimeON)
+                        Me%HDF%PreviousInstant  = Me%HDF%NumberOfInstants
+                        Me%HDF%NextInstant      = Me%HDF%PreviousInstant               
+                    else
+                        Me%HDF%PreviousInstant  = 1
+                        Me%HDF%NextInstant      = Me%HDF%PreviousInstant
+                    endif
+                    
+                    Me%HDF%PreviousTime     = HDF5TimeInstant(Me%HDF%PreviousInstant) 
+                    
+                    call CheckCyclicMonths(Me%HDF%PreviousTime, RefTime = Now, CyclicTimeON = Me%HDF%CyclicTimeON)
 
 i3:             if (Me%HDF%CyclicTimeON) then
-            
-                    if (Me%HDF%NumberOfInstants /= 12) stop 'ConstructHDFInput - ModuleFillMatrix - ERR210'
-
-                else i3
                 
+                        if (Me%HDF%NumberOfInstants /= 12) stop 'ConstructHDFInput - ModuleFillMatrix - ERR210'
+
+                    else i3
+                    
 ib:                 if (Me%BackTracking) then  
+                            
+                            if(Me%HDF%PreviousTime .lt. Now)then
+                                write(*,*)
+                                write(*,*)'----------Backtracking mode-----------'
+                                write(*,*)'Could not read solution from HDF5 file'
+                                write(*,*)'Last file instant greater than current time'
+                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR220'
+                            end if
+
+                            if(Me%TimeEvolution .ne. None)then                        
+                                if(Me%HDF%StartTime .gt. Me%BeginTime)then
+                                    write(*,*)
+                                    write(*,*)'----------Backtracking mode-----------'                                
+                                    write(*,*)'Could not read solution from HDF5 file'
+                                    write(*,*)'First instant in file lower than simulation starting time'
+                                    write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                                    stop      'ConstructHDFInput - ModuleFillMatrix - ERR230'
+                                end if
+                            endif
                         
-                        if(Me%HDF%PreviousTime .lt. Now)then
-                            write(*,*)
-                            write(*,*)'----------Backtracking mode-----------'
-                            write(*,*)'Could not read solution from HDF5 file'
-                            write(*,*)'Last file instant greater than current time'
-                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR220'
+                        else   ib
+                            if(Me%HDF%PreviousTime .gt. Now)then
+                                write(*,*)
+                                write(*,*)'Could not read solution from HDF5 file'
+                                write(*,*)'First file instant greater than current time'
+                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR240'
+                            end if
+                        
+                            call CheckCyclicMonths(Me%HDF%EndTime, RefTime = Me%EndTime)
+
+
+                            if(Me%TimeEvolution .ne. None)then
+                                if(Me%HDF%EndTime .lt. Me%EndTime)then
+                                    write(*,*)
+                                    write(*,*)'Could not read solution from HDF5 file'
+                                    write(*,*)'Last instant in file lower than simulation ending time'
+                                    write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                                    stop      'ConstructHDFInput - ModuleFillMatrix - ERR250'
+                                end if
+                            end if
+                        endif ib
+
+                    endif i3
+
+                    FoundSecondInstant = .false.
+                
+                    !if number of instants greater than 1 then 
+                    !find first and second instants
+d2:                 do while(.not. FoundSecondInstant)
+
+                        Me%HDF%PreviousInstant  = Me%HDF%NextInstant
+                        if (Me%Backtracking) then
+                            Me%HDF%NextInstant      = Me%HDF%NextInstant - 1
+                        else                
+                            Me%HDF%NextInstant      = Me%HDF%NextInstant + 1
+                        endif
+
+                        if (Me%HDF%CyclicTimeON .and. Me%HDF%NextInstant .gt. Me%HDF%NumberOfInstants) then
+                            Me%HDF%NextInstant  = 1
                         end if
 
-                        if(Me%TimeEvolution .ne. None)then                        
-                            if(Me%HDF%StartTime .gt. Me%BeginTime)then
-                                write(*,*)
-                                write(*,*)'----------Backtracking mode-----------'                                
-                                write(*,*)'Could not read solution from HDF5 file'
-                                write(*,*)'First instant in file lower than simulation starting time'
-                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR230'
+
+                        Me%HDF%NextTime         = HDF5TimeInstant(Me%HDF%NextInstant)
+
+                        call CheckCyclicMonths(Me%HDF%NextTime, RefTime = Now,              &
+                                               CyclicTimeON = Me%HDF%CyclicTimeON)
+
+                        if (Me%Backtracking) then
+                            if(Me%HDF%PreviousTime .ge. Now .and. Me%HDF%NextTime .le. Now) then
+                                FoundSecondInstant  = .true.
+                                exit
+                            end if
+                        else
+                            if(Me%HDF%PreviousTime .le. Now .and. Me%HDF%NextTime .ge. Now) then
+                                FoundSecondInstant  = .true.
+                                exit
                             end if
                         endif
-                    
-                    else   ib
-                        if(Me%HDF%PreviousTime .gt. Now)then
-                            write(*,*)
-                            write(*,*)'Could not read solution from HDF5 file'
-                            write(*,*)'First file instant greater than current time'
-                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR240'
-                        end if
-                    
-                        call CheckCyclicMonths(Me%HDF%EndTime, RefTime = Me%EndTime)
+                        Me%HDF%PreviousTime = Me%HDF%NextTime
 
-
-                        if(Me%TimeEvolution .ne. None)then
-                            if(Me%HDF%EndTime .lt. Me%EndTime)then
+                        if (Me%Backtracking) then
+                            if(Me%HDF%NextInstant .lt. 1 .and. .not. Me%HDF%CyclicTimeON) then
+                                write(*,*)
+                                write(*,*)'----------Backtracking mode-----------------'
+                                write(*,*)'Could not read solution from HDF5 file'
+                                write(*,*)'Could not find second instant in file'
+                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR260'
+                            end if
+                        
+                        else
+                            if(Me%HDF%NextInstant .gt. Me%HDF%NumberOfInstants .and. .not. Me%HDF%CyclicTimeON) then
                                 write(*,*)
                                 write(*,*)'Could not read solution from HDF5 file'
-                                write(*,*)'Last instant in file lower than simulation ending time'
+                                write(*,*)'Could not find second instant in file'
                                 write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR250'
+                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR270'
                             end if
-                        end if
-                    endif ib
-
-                endif i3
-
-                FoundSecondInstant = .false.
-            
-                !if number of instants greater than 1 then 
-                !find first and second instants
-d2:             do while(.not. FoundSecondInstant)
-
-                    Me%HDF%PreviousInstant  = Me%HDF%NextInstant
-                    if (Me%Backtracking) then
-                        Me%HDF%NextInstant      = Me%HDF%NextInstant - 1
-                    else                
-                        Me%HDF%NextInstant      = Me%HDF%NextInstant + 1
-                    endif
-
-                    if (Me%HDF%CyclicTimeON .and. Me%HDF%NextInstant .gt. Me%HDF%NumberOfInstants) then
-                        Me%HDF%NextInstant  = 1
-                    end if
-
-
-                    Me%HDF%NextTime         = HDF5TimeInstant(Me%HDF%NextInstant)
-
-                    call CheckCyclicMonths(Me%HDF%NextTime, RefTime = Now,              &
-                                           CyclicTimeON = Me%HDF%CyclicTimeON)
-
-                    if (Me%Backtracking) then
-                        if(Me%HDF%PreviousTime .ge. Now .and. Me%HDF%NextTime .le. Now) then
-                            FoundSecondInstant  = .true.
-                            exit
-                        end if
-                    else
-                        if(Me%HDF%PreviousTime .le. Now .and. Me%HDF%NextTime .ge. Now) then
-                            FoundSecondInstant  = .true.
-                            exit
-                        end if
-                    endif
-                    Me%HDF%PreviousTime = Me%HDF%NextTime
-
-                    if (Me%Backtracking) then
-                        if(Me%HDF%NextInstant .lt. 1 .and. .not. Me%HDF%CyclicTimeON) then
-                            write(*,*)
-                            write(*,*)'----------Backtracking mode-----------------'
-                            write(*,*)'Could not read solution from HDF5 file'
-                            write(*,*)'Could not find second instant in file'
-                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR260'
-                        end if
-                    
-                    else
-                        if(Me%HDF%NextInstant .gt. Me%HDF%NumberOfInstants .and. .not. Me%HDF%CyclicTimeON) then
-                            write(*,*)
-                            write(*,*)'Could not read solution from HDF5 file'
-                            write(*,*)'Could not find second instant in file'
-                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR270'
-                        end if
-                    endif
-                end do d2
+                        endif
+                    end do d2
 
                 endif i2a
 
@@ -6897,7 +6906,8 @@ doj:    do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             call FindDTForNextEventInHDF(PointsToFill2D, ActualTime)             
         else
             if (Me%DTForNextEvent > 0.0) then
-                Me%DTForNextEvent = max(0.0, Me%HDF%PreviousTime - ActualTime)
+                Me%DTForNextEvent = Me%HDF%PreviousTime - ActualTime
+                if (Me%DTForNextEvent<0.0) Me%DTForNextEvent = 0.0
             endif
             Me%DTForNextDataset = Me%TimeOfNextDataset - ActualTime
             if (Me%DTForNextDataset <= 0.0) then

@@ -976,7 +976,7 @@ d1:     do i=1, XYZ%Count
         !Arguments-------------------------------------------------------------
         real(4),   dimension(:),   pointer   :: X, Y
         integer, intent(IN)                  :: Count
-        integer, intent(OUT)                 :: Left, Right,Bottom,Top
+        real(4), intent(OUT)                 :: Left, Right,Bottom,Top
         
         !local-----------------------------------------------------------------
         integer                                     :: i
@@ -1009,7 +1009,7 @@ d1:     do i=1, Count
         !Arguments-------------------------------------------------------------
         real(8),   dimension(:),   pointer   :: X, Y
         integer, intent(IN)                  :: Count
-        integer, intent(OUT)                 :: Left, Right,Bottom,Top
+        real(8), intent(OUT)                 :: Left, Right,Bottom,Top
         
         !local-----------------------------------------------------------------
         integer                                     :: i
@@ -1050,10 +1050,10 @@ d1:     do i=1, Count
         
         !Begin-----------------------------------------------------------------
         
-        Left   = - FillValueReal
-        Right  =   FillValueReal
-        Bottom = - FillValueReal
-        Top    =   FillValueReal         
+        Left   = - FillValueInt
+        Right  =   FillValueInt
+        Bottom = - FillValueInt
+        Top    =   FillValueInt         
         
 d1:     do i=1, Count
 
