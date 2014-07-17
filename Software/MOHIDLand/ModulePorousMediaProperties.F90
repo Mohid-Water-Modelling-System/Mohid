@@ -503,6 +503,8 @@ Module ModulePorousMediaProperties
         real, dimension(:,:,:), pointer         :: ConcInBoundary           => null()
         real, dimension(:,:  ), pointer         :: AverageAquiferConc       => null()
         real, dimension(:,:  ), pointer         :: AverageVadozeConc        => null()
+        real, dimension(:,:  ), pointer         :: AverageAquiferDecay      => null()
+        real, dimension(:,:  ), pointer         :: AverageVadozeDecay       => null()        
         real, dimension(:,:),   pointer         :: PesticideFlux            => null()
         logical, pointer, dimension(:,:,:)      :: UptakeActive             => null()
         real, pointer, dimension(:,:,:)         :: Mass_Created             => null()
@@ -525,6 +527,7 @@ Module ModulePorousMediaProperties
         logical                                 :: BoxTimeSerie2D           = .false.
         logical                                 :: OutputHDF                = .false. 
         logical                                 :: OutputAverageConc        = .false. 
+        logical                                 :: OutputAverageDecay       = .false. 
         logical                                 :: UseToCalcECw             = .false.
         real                                    :: ECwFactor                = 0.0
         real, pointer, dimension(:,:,:)         :: PropertyDecay            => null()
@@ -3592,6 +3595,37 @@ do1:    do while(associated(Property))
                 if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR20'
                 NewProperty%AverageAquiferConc(:,:) = FillValueReal  
             endif
+            
+            !compute average decay
+            if (NewProperty%Evolution%Decay) then
+            
+                call GetData(NewProperty%OutputAverageDecay,                                     &
+                             Me%ObjEnterData, iflag,                                             &
+                             Keyword      = 'OUTPUT_AVERAGE_DECAY',                              &
+                             ClientModule = 'ModulePorousMediaProperties',                       &
+                             Default      = .false.,                                             &
+                             SearchType   = FromBlock,                                           &
+                             STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR030'            
+                
+                if (NewProperty%OutputAverageDecay) then
+                
+                    allocate(NewProperty%AverageAquiferDecay(Me%WorkSize%ILB:Me%WorkSize%IUB,     &
+                                                            Me%WorkSize%JLB:Me%WorkSize%JUB),    &
+                                                            STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR40'
+                    NewProperty%AverageAquiferDecay(:,:) = FillValueReal  
+                    
+                    allocate(NewProperty%AverageVadozeDecay(Me%WorkSize%ILB:Me%WorkSize%IUB,      &
+                                                           Me%WorkSize%JLB:Me%WorkSize%JUB),     &
+                                                           STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR50'
+                    NewProperty%AverageAquiferDecay(:,:) = FillValueReal 
+                
+                endif
+            endif
+            
         endif
         
     end subroutine Construct_PropertyOutPut
@@ -11549,6 +11583,40 @@ First:          if (LastTime.LT.Actual) then
                                                   OutputNumber = OutPutNumber,                         &
                                                   STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR075'
+                            
+                            if (PropertyX%OutputAverageDecay) then
+                                
+                                call ComputeAverageDecay (PropertyX)
+
+                                !Sets limits for next write operations
+                                call HDF5SetLimits   (Me%ObjHDF5,                                &
+                                                      Me%WorkSize%ILB,                           &
+                                                      Me%WorkSize%IUB,                           &
+                                                      Me%WorkSize%JLB,                           &
+                                                      Me%WorkSize%JUB,                           &
+                                                      STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR080'
+                                
+                                call HDF5WriteData   (Me%ObjHDF5,                                                 &
+                                                      "/Results/"//trim(PropertyX%ID%Name)//"_AvrgAquiferDecay",  &
+                                                      trim(PropertyX%ID%Name)//"_AvrgAquiferDecay",               &
+                                                      trim(PropertyX%ID%Units),                                   &
+                                                      Array2D = PropertyX%AverageAquiferDecay,                    &
+                                                      OutputNumber = OutPutNumber,                                &
+                                                      STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR090' 
+
+                                call HDF5WriteData   (Me%ObjHDF5,                                                 &
+                                                      "/Results/"//trim(PropertyX%ID%Name)//"_AvrgVadozeDecay",   &
+                                                      trim(PropertyX%ID%Name)//"_AvrgVadozeDecay",                &
+                                                      trim(PropertyX%ID%Units),                                   &
+                                                      Array2D = PropertyX%AverageVadozeDecay,                     &
+                                                      OutputNumber = OutPutNumber,                                &
+                                                      STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR0100'  
+                            
+                            endif                            
+                            
                         endif
                     
                         if (PropertyX%OutputAverageConc) then
@@ -11562,7 +11630,7 @@ First:          if (LastTime.LT.Actual) then
                                                   Me%WorkSize%JLB,                           &
                                                   Me%WorkSize%JUB,                           &
                                                   STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR076'
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR0110'
                             
                             call HDF5WriteData   (Me%ObjHDF5,                                                 &
                                                   "/Results/"//trim(PropertyX%ID%Name)//"_AvrgAquiferConc",   &
@@ -11571,7 +11639,7 @@ First:          if (LastTime.LT.Actual) then
                                                   Array2D = PropertyX%AverageAquiferConc,                     &
                                                   OutputNumber = OutPutNumber,                                &
                                                   STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR077' 
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR0120' 
 
                             call HDF5WriteData   (Me%ObjHDF5,                                                 &
                                                   "/Results/"//trim(PropertyX%ID%Name)//"_AvrgVadozeConc",    &
@@ -11580,9 +11648,9 @@ First:          if (LastTime.LT.Actual) then
                                                   Array2D = PropertyX%AverageVadozeConc,                      &
                                                   OutputNumber = OutPutNumber,                                &
                                                   STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR078'  
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR0130'  
                         
-                        endif
+                        endif                    
                     
                     endif                    
                     
@@ -11594,7 +11662,7 @@ First:          if (LastTime.LT.Actual) then
 
                 !Writes everything to disk
                 call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR080'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR0140'
             
             endif  TOut
         endif  TNum
@@ -11765,6 +11833,97 @@ First:          if (LastTime.LT.Actual) then
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ComputeAverageConc")
     
     end subroutine ComputeAverageConc
+    
+    !----------------------------------------------------------------------------
+
+    !the routimne goes vertically (K) from bottom to top averaging decay 
+    !at end of aquifer ot top of soil. if aquifer or vadoze zone do not exist
+    !the value is null_real
+    subroutine ComputeAverageDecay(PropertyX)
+    
+        !Arguments---------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        !Local-------------------------------------------------------------------
+        integer, dimension(:,:), pointer            :: GWlayer
+        integer                                     :: STAT_CALL, CHUNK, i, j, k
+        real                                        :: SumDecay, SumCells
+        !Begin-------------------------------------------------------------------
+        
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "ComputeAverageDecay")
+        
+        !this is the first non saturated layer
+        call GetGWLayer   (Me%ObjPorousMedia, GWlayer, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAverageDecay - ModulePorousMediaProperties - ERR001'
+
+!        call GetGeometryKFloor(Me%ObjGeometry,                                          &
+!                               Z    = Me%ExtVar%KFloor,                                 &
+!                               STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_)                                                      &
+!            call SetError(FATAL_, INTERNAL_, "ComputeAverageDecay - ModulePorousMediaProperties. ERR002")
+        
+        !if not computed will be stupid number (e.g. no vadoze or no aquifer)
+        PropertyX%AverageAquiferDecay = null_real
+        PropertyX%AverageVadozeDecay  = null_real
+        
+
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        !$OMP PARALLEL PRIVATE(I,J,K,SumDecay,SumCells)
+                    
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
+        SumDecay    = 0.   
+        SumCells    = 0.
+        
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+            
+            if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then        
+                
+                SumDecay = SumDecay + PropertyX%PropertyDecay(i,j,k)
+                SumCells = SumCells + 1
+                               
+                !reached aquifer top - compute aquifer conc
+                if (K == GWlayer(i,j) - 1) then
+                    
+                    ![g/m3.day-1 or mg/kg.day-1]                 
+                    PropertyX%AverageAquiferDecay(i,j) = SumDecay / SumCells
+                    
+                    !reset
+                    SumDecay    = 0.
+                    SumCells    = 0.
+                
+                !reached top of soil - compute aquifer (no vadoze) or vadoze conc                        
+                elseif (K == Me%WorkSize%KUB) then
+                    
+                    if (GWlayer(i,j) == Me%WorkSize%KUB) then
+                        ![g/m3.day-1 or mg/kg.day-1]               
+                        PropertyX%AverageAquiferDecay(i,j) = SumDecay / SumCells                 
+                    else
+                        ![g/m3.day-1 or mg/kg.day-1]                 
+                        PropertyX%AverageVadozeDecay(i,j) = SumDecay / SumCells                 
+                    endif
+                endif
+                    
+            endif
+            
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL         
+        
+
+!        call UnGetGeometry( Me%ObjGeometry, Me%ExtVar%KFloor,       STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_)                                                      &
+!            call SetError(FATAL_, INTERNAL_, "ComputeAverageConc - ModulePorousMediaProperties. ERR10")
+
+        call UnGetPorousMedia (Me%ObjPorousMedia, GWlayer, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAverageDecay - ModulePorousMediaProperties - ERR020'      
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ComputeAverageDecay")
+    
+    end subroutine ComputeAverageDecay
     
     !----------------------------------------------------------------------------
     
