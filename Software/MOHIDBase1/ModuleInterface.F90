@@ -1578,11 +1578,11 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR23'
  
                 !Construct mass fluxes between properties
-                call Construct_WWTPQRateFlux(Me%ObjWWTPQ,                  &
-                                          Me%Array%ILB,                        &
-                                          Me%Array%IUB,                        &
-                                          STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR24'
+!                call Construct_WWTPQRateFlux(Me%ObjWWTPQ,                  &
+!                                          Me%Array%ILB,                        &
+!                                          Me%Array%IUB,                        &
+!                                          STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR24'
                
                 !Number of properties involved
                 call GetWWTPQSize(Me%ObjWWTPQ,                   &
@@ -2499,194 +2499,194 @@ cd14 :          if (Phosphorus) then
              case (WWTPQModel)
 
                 !Sinks and sources compute options 
-                call GetWWTPQOptions(Me%ObjWWTPQ,       Phyto            = Phyto,           &
-                                                        Nitrogen         = Nitrogen,        &
-                                                        Diatoms          = Diatoms,         &
-                                                        Silica           = Silica,          & 
-                                                        Phosphorus       = Phosphorus,      &
-                                                        Zoo              = Zoo,             &
-                                                        BOD              = BOD,             &
-                                                        Oxygen           = Oxygen,          &
-                                                        Bacteria         = Bacteria,        &
-                                                        Ciliate          = Ciliate,         &
-                                                        Pompools         = Pompools,        &
-                                                        STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR30' 
+!                call GetWWTPQOptions(Me%ObjWWTPQ,       Phyto            = Phyto,           &
+!                                                        Nitrogen         = Nitrogen,        &
+!                                                        Diatoms          = Diatoms,         &
+!                                                        Silica           = Silica,          & 
+!                                                        Phosphorus       = Phosphorus,      &
+!                                                        Zoo              = Zoo,             &
+!                                                        BOD              = BOD,             &
+!                                                        Oxygen           = Oxygen,          &
+!                                                        Bacteria         = Bacteria,        &
+!                                                        Ciliate          = Ciliate,         &
+!                                                        Pompools         = Pompools,        &
+!                                                        STAT             = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR30' 
 
 
-                if (Phyto) then 
-                    if (.not.FindProperty(PropertiesList, Phytoplankton_))          &
-                        stop 'WWTPQM needs property phytoplankton - Check_Options'
-                end if
-
-               if (Zoo) then
-                    if (.not.FindProperty(PropertiesList, Zooplankton_))            &
-                        stop 'WWTPQM needs property zooplankton - Check_Options'
-                end if
-
-               if (Phosphorus) then
-
-                    if (.not.FindProperty(PropertiesList, POP_))                    &
-                        stop 'WWTPQM needs property particulate organic phosphorus - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, DOPRefractory_))          &
-                        stop 'WWTPQM needs property dissolved refractory organic phosphorus - Check_Options'
-
-                    if (.not. FindProperty(PropertiesList, DOPNon_Refractory_))     &
-                        stop 'WWTPQM needs property dissolved non-refractory organic phosphorus - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, Inorganic_Phosphorus_))   &
-                        stop 'WWTPQM needs property inorganic phosphorus - Check_Options'
-                        
-                end if
-
-                if (Nitrogen) then
-
-                    if (.not.FindProperty(PropertiesList, PON_))                    &
-                        stop 'WWTPQM needs property particulate organic nitrogen - Check_Options'
-                        
-                    if (Bacteria .and. .not.FindProperty(PropertiesList, PONRefractory_))          &
-                        stop 'WWTPQM needs property particulate refractory organic nitrogen - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, DONRefractory_))          &
-                        stop 'WWTPQM needs property dissolved refractory organic nitrogen - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, DONNon_Refractory_))     &
-                        stop 'WWTPQM needs property dissolved non-refractory organic nitrogen - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, Ammonia_))                &
-                        stop 'WWTPQM needs property ammonia - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, Nitrate_))                &
-                        stop 'WWTPQM needs property nitrate - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, Nitrite_))                &
-                        stop 'WWTPQM needs property nitrite - Check_Options'
-                        
-                end if
-
-                if (BOD) then
-                    if (.not.FindProperty(PropertiesList, BOD_))                    &
-                        stop 'WWTPQM needs property biochemical oxygen demand - Check_Options'
-                end if
-
-
-                if (Bacteria) then
-                    if (.not.FindProperty(PropertiesList, Bacteria_))               &
-                        stop 'WWTPQM needs property bacteria - Check_Options'
-                end if
-
-                if (Ciliate) then
-                    if (.not.FindProperty(PropertiesList, Ciliate_))                &
-                        stop 'WWTPQM needs property ciliate - Check_Options'
-                end if
-
-                if (Diatoms) then
-                    if (.not.FindProperty(PropertiesList, Diatoms_))                &
-                        stop 'WWTPQM needs property diatoms - Check_Options'
-                end if
-
-                if (Silica) then
-                    if (.not.FindProperty(PropertiesList, DSilica_))                &
-                        stop 'WWTPQM needs property diatoms - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, BioSilica_))               &
-                        stop 'WWTPQM needs property diatoms - Check_Options'
-                end if
-
-                !If one wants to run just the age property oxygen is not needed - Frank 09-2003
-                if (Phosphorus .or. BOD .or. Ciliate .or. Nitrogen .or. Bacteria) then
-                    if (.not.FindProperty(PropertiesList, Oxygen_))                     &
-                        stop 'WWTPQM needs property oxygen - Check_Options'
-                endif
-
-               if(.NOT.(Pompools)) then
-
-                if (FindProperty(PropertiesList, PON1_) .OR. FindProperty(PropertiesList, PON2_) .OR. &
-                    FindProperty(PropertiesList, PON3_) .OR. FindProperty(PropertiesList, PON4_) .OR. &
-                    FindProperty(PropertiesList, PON5_) .OR. FindProperty(PropertiesList, POP1_) .OR. &
-                    FindProperty(PropertiesList, POP2_) .OR. FindProperty(PropertiesList, POP3_) .OR. &
-                    FindProperty(PropertiesList, POP4_) .OR. FindProperty(PropertiesList, POP5_))     &
-                        stop 'WWTPQM needs the POM pools option activated - Check_Options'
-
-               end if   
-
-                if (Pompools) then
-                 
-                 if (Nitrogen) then
-
-                    if (.not.FindProperty(PropertiesList, PON1_))                    &
-                        stop 'WWTPQM with POM pools needs property PON1 - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, PON2_))                    &
-                        stop 'WWTPQM with POM pools needs property PON2 - Check_Options'    
-
-                    if (.not.FindProperty(PropertiesList, PON3_))                    &
-                        stop 'WWTPQM with POM pools needs property PON3 - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, PON4_))                    &
-                        stop 'WWTPQM with POM pools needs property PON4 - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, PON5_))                    &
-                        stop 'WWTPQM with POM pools needs property PON5 - Check_Options'
-                            
-                  end if
-
-                  if (Phosphorus) then
-
-                     if (.not.FindProperty(PropertiesList, POP1_))                   &
-                        stop 'WWTPQM with POM pools needs property POP1 - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, POP2_))                    &
-                        stop 'WWTPQM with POM pools needs property POP2 - Check_Options'    
-
-                    if (.not.FindProperty(PropertiesList, POP3_))                    &
-                        stop 'WWTPQM with POM pools needs property POP3 - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, POP4_))                    &
-                        stop 'WWTPQM with POM pools needs property POP4 - Check_Options'
-
-                    if (.not.FindProperty(PropertiesList, POP5_))                    &
-                        stop 'WWTPQM with POM pools needs property POP5 - Check_Options'
-
-                  end if
-
-                  if (.NOT. Zoo) then                  
-                    stop 'WWTPQM with POM pools needs property Zoo - Check_Options'                    
-                  end if 
-
-                end if
+!                if (Phyto) then 
+!                    if (.not.FindProperty(PropertiesList, Phytoplankton_))          &
+!                        stop 'WWTPQM needs property phytoplankton - Check_Options'
+!                end if
+!
+!               if (Zoo) then
+!                    if (.not.FindProperty(PropertiesList, Zooplankton_))            &
+!                        stop 'WWTPQM needs property zooplankton - Check_Options'
+!                end if
+!
+!               if (Phosphorus) then
+!
+!                    if (.not.FindProperty(PropertiesList, POP_))                    &
+!                        stop 'WWTPQM needs property particulate organic phosphorus - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, DOPRefractory_))          &
+!                        stop 'WWTPQM needs property dissolved refractory organic phosphorus - Check_Options'
+!
+!                    if (.not. FindProperty(PropertiesList, DOPNon_Refractory_))     &
+!                        stop 'WWTPQM needs property dissolved non-refractory organic phosphorus - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, Inorganic_Phosphorus_))   &
+!                        stop 'WWTPQM needs property inorganic phosphorus - Check_Options'
+!                        
+!                end if
+!
+!                if (Nitrogen) then
+!
+!                    if (.not.FindProperty(PropertiesList, PON_))                    &
+!                        stop 'WWTPQM needs property particulate organic nitrogen - Check_Options'
+!                        
+!                    if (Bacteria .and. .not.FindProperty(PropertiesList, PONRefractory_))          &
+!                        stop 'WWTPQM needs property particulate refractory organic nitrogen - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, DONRefractory_))          &
+!                        stop 'WWTPQM needs property dissolved refractory organic nitrogen - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, DONNon_Refractory_))     &
+!                        stop 'WWTPQM needs property dissolved non-refractory organic nitrogen - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, Ammonia_))                &
+!                        stop 'WWTPQM needs property ammonia - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, Nitrate_))                &
+!                        stop 'WWTPQM needs property nitrate - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, Nitrite_))                &
+!                        stop 'WWTPQM needs property nitrite - Check_Options'
+!                        
+!                end if
+!
+!                if (BOD) then
+!                    if (.not.FindProperty(PropertiesList, BOD_))                    &
+!                        stop 'WWTPQM needs property biochemical oxygen demand - Check_Options'
+!                end if
+!
+!
+!                if (Bacteria) then
+!                    if (.not.FindProperty(PropertiesList, Bacteria_))               &
+!                        stop 'WWTPQM needs property bacteria - Check_Options'
+!                end if
+!
+!                if (Ciliate) then
+!                    if (.not.FindProperty(PropertiesList, Ciliate_))                &
+!                        stop 'WWTPQM needs property ciliate - Check_Options'
+!                end if
+!
+!                if (Diatoms) then
+!                    if (.not.FindProperty(PropertiesList, Diatoms_))                &
+!                        stop 'WWTPQM needs property diatoms - Check_Options'
+!                end if
+!
+!                if (Silica) then
+!                    if (.not.FindProperty(PropertiesList, DSilica_))                &
+!                        stop 'WWTPQM needs property diatoms - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, BioSilica_))               &
+!                        stop 'WWTPQM needs property diatoms - Check_Options'
+!                end if
+!
+!                !If one wants to run just the age property oxygen is not needed - Frank 09-2003
+!                if (Phosphorus .or. BOD .or. Ciliate .or. Nitrogen .or. Bacteria) then
+!                    if (.not.FindProperty(PropertiesList, Oxygen_))                     &
+!                        stop 'WWTPQM needs property oxygen - Check_Options'
+!                endif
+!
+!               if(.NOT.(Pompools)) then
+!
+!                if (FindProperty(PropertiesList, PON1_) .OR. FindProperty(PropertiesList, PON2_) .OR. &
+!                    FindProperty(PropertiesList, PON3_) .OR. FindProperty(PropertiesList, PON4_) .OR. &
+!                    FindProperty(PropertiesList, PON5_) .OR. FindProperty(PropertiesList, POP1_) .OR. &
+!                    FindProperty(PropertiesList, POP2_) .OR. FindProperty(PropertiesList, POP3_) .OR. &
+!                    FindProperty(PropertiesList, POP4_) .OR. FindProperty(PropertiesList, POP5_))     &
+!                        stop 'WWTPQM needs the POM pools option activated - Check_Options'
+!
+!               end if   
+!
+!                if (Pompools) then
+!                 
+!                 if (Nitrogen) then
+!
+!                    if (.not.FindProperty(PropertiesList, PON1_))                    &
+!                        stop 'WWTPQM with POM pools needs property PON1 - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, PON2_))                    &
+!                        stop 'WWTPQM with POM pools needs property PON2 - Check_Options'    
+!
+!                    if (.not.FindProperty(PropertiesList, PON3_))                    &
+!                        stop 'WWTPQM with POM pools needs property PON3 - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, PON4_))                    &
+!                        stop 'WWTPQM with POM pools needs property PON4 - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, PON5_))                    &
+!                        stop 'WWTPQM with POM pools needs property PON5 - Check_Options'
+!                            
+!                  end if
+!
+!                  if (Phosphorus) then
+!
+!                     if (.not.FindProperty(PropertiesList, POP1_))                   &
+!                        stop 'WWTPQM with POM pools needs property POP1 - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, POP2_))                    &
+!                        stop 'WWTPQM with POM pools needs property POP2 - Check_Options'    
+!
+!                    if (.not.FindProperty(PropertiesList, POP3_))                    &
+!                        stop 'WWTPQM with POM pools needs property POP3 - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, POP4_))                    &
+!                        stop 'WWTPQM with POM pools needs property POP4 - Check_Options'
+!
+!                    if (.not.FindProperty(PropertiesList, POP5_))                    &
+!                        stop 'WWTPQM with POM pools needs property POP5 - Check_Options'
+!
+!                  end if
+!
+!                  if (.NOT. Zoo) then                  
+!                    stop 'WWTPQM with POM pools needs property Zoo - Check_Options'                    
+!                  end if 
+!
+!                end if
                 
-            case(BivalveModel) 
-                
-                !Size%ILB = 1; Size%IUB = 1
-                
-                !Get number of simulated properties 
-                call GetBivalveSize(Me%ObjBivalve, PropLB, PropUB, STAT = STAT_CALL)
-                if(STAT_CALL .NE. SUCCESS_) stop 'Check_Options - ModuleInterface - ERR40'
-
-                call GetBivalvePropertyList(Me%ObjBivalve, BivalveList, STAT_CALL)
-                if(STAT_CALL .NE. SUCCESS_) stop 'Check_Options - ModuleInterface - ERR50'
-                              
-                !Number of properties involved
-                PropLB = Me%Prop%ILB
-                PropUB = Me%Prop%IUB
-
-                do i = PropLB, PropUB
-                    if (.not.FindProperty(PropertiesList, BivalveList(i))) then
-                        write(*,*) 'Property ',GetPropertyName(BivalveList(i)),' not found in the Bivalve list'
-                        write(*,*) 'Please check (Water Properties file) if keyword BIVALVE should be on.'
-                              stop 'Properties lists inconsistent  - Check_Options- ModuleInterface- ERR60'    
-                    end if
-                end do
-
-                call UngetBivalve (Me%ObjBivalve, BivalveList, STAT=STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR70'
-
-           case default
-                write(*,*) 
-                write(*,*) 'Defined sinks and sources model was not recognised.'
-                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR80'
+!            case(BivalveModel) 
+!                
+!                !Size%ILB = 1; Size%IUB = 1
+!                
+!                !Get number of simulated properties 
+!                call GetBivalveSize(Me%ObjBivalve, PropLB, PropUB, STAT = STAT_CALL)
+!                if(STAT_CALL .NE. SUCCESS_) stop 'Check_Options - ModuleInterface - ERR40'
+!
+!                call GetBivalvePropertyList(Me%ObjBivalve, BivalveList, STAT_CALL)
+!                if(STAT_CALL .NE. SUCCESS_) stop 'Check_Options - ModuleInterface - ERR50'
+!                              
+!                !Number of properties involved
+!                PropLB = Me%Prop%ILB
+!                PropUB = Me%Prop%IUB
+!
+!                do i = PropLB, PropUB
+!                    if (.not.FindProperty(PropertiesList, BivalveList(i))) then
+!                        write(*,*) 'Property ',GetPropertyName(BivalveList(i)),' not found in the Bivalve list'
+!                        write(*,*) 'Please check (Water Properties file) if keyword BIVALVE should be on.'
+!                              stop 'Properties lists inconsistent  - Check_Options- ModuleInterface- ERR60'    
+!                    end if
+!                end do
+!
+!                call UngetBivalve (Me%ObjBivalve, BivalveList, STAT=STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR70'
+!
+!           case default
+!                write(*,*) 
+!                write(*,*) 'Defined sinks and sources model was not recognised.'
+!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR80'
 
         end select
 
@@ -2863,10 +2863,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
                     case (WWTPQModel)
 
-                        call GetWWTPQPropRateFlux( Me%ObjWWTPQ,                     &
-                                                nFirstProp, nSecondProp,                &
-                                                RateFlux, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR04'
+!                        call GetWWTPQPropRateFlux( Me%ObjWWTPQ,                     &
+!                                                nFirstProp, nSecondProp,                &
+!                                                RateFlux, STAT_CALL)
+!                        if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR04'
                         
                     case (SeagrassWaterInteractionModel)
                           
@@ -2955,8 +2955,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
                 case (WWTPQModel)
 
-                    call UnGetWWTPQPropRateFlux(Me%ObjWWTPQ, RateFlux, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR10' 
+!                    call UnGetWWTPQPropRateFlux(Me%ObjWWTPQ, RateFlux, STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux3D - ModuleInterface - ERR10' 
                     
                 case (SeagrassSedimInteractionModel)
                      
@@ -4729,6 +4729,16 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         logical,                intent(OUT)     :: Ready
 
         !External--------------------------------------------------------------
+        integer                                 :: numSolInertOrgMat
+        integer                                 :: numReadilyBioSub
+        integer                                 :: numPartInertOrgMar
+        integer                                 :: numSlowlyBioSub
+        integer                                 :: numHetBio
+        integer                                 :: numAutBio
+        integer                                 :: numPartProd
+        integer                                 :: numSolBioOrgNitrogen
+        integer                                 :: numPartBioOrgNitrogen
+        integer                                 :: numAlkalinity       
         integer                                 :: numZoo, numPhyto, numDiatoms 
         integer                                 :: numSiBio, numSiDiss 
         integer                                 :: numAmmonia, numNitrate, numNitrite
@@ -5539,289 +5549,127 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 #endif
             case (WWTPQModel)
 
-                call GetWWTPQPropIndex(Me%ObjWWTPQ,                                         &
-                                     Zoo                             = numZoo,                  &
-                                     Larvae                          = numLarvae,               &
-                                     Phyto                           = numPhyto,                &
-                                     Diatoms                         = numDiatoms,              &
-                                     Ammonia                         = numAmmonia,              &
-                                     Nitrate                         = numNitrate,              &
-                                     Nitrite                         = numNitrite,              &
-                                     BiogenicSilica                  = numSiBio,                & 
-                                     DissolvedSilica                 = numSiDiss,               & 
-                                     DissOrganicNitrogenRefractory   = numDONRefractory,        &
-                                     DONNonRefractory                = numDONNonRefractory,     &
-                                     PartOrganicNitrogen             = numPartOrganicNitrogen,  &
-                                     PartOrganicNitrogenRefractory   = numPartOrganicNitrogenRef,  &
-                                     PONitrogen1                     = numPONitrogen1,          &
-                                     PONitrogen2                     = numPONitrogen2,          &
-                                     PONitrogen3                     = numPONitrogen3,          &
-                                     PONitrogen4                     = numPONitrogen4,          &
-                                     PONitrogen5                     = numPONitrogen5,          &                                
-                                     Oxygen                          = numOxygen,               &
-                                     BOD                             = numBOD,                  &
-                                     DissOrganicPhosphorusRefractory = numDOPRefractory,        &
-                                     DOPNonRefractory                = numDOPNonRefractory,     &
-                                     PartOrganicPhosphorus           = numPartOrganicPhosphorus,&
-                                     POPhosphorus1                   = numPOPhosphorus1,        &
-                                     POPhosphorus2                   = numPOPhosphorus2,        &
-                                     POPhosphorus3                   = numPOPhosphorus3,        &
-                                     POPhosphorus4                   = numPOPhosphorus4,        &
-                                     POPhosphorus5                   = numPOPhosphorus5,        &
-                                     InorganicPhosphorus             = numInorganicPhosphorus,  &
-                                     Bacteria                        = numBacteria,             &
-                                     Ciliate                         = numCiliate,              &
-                                     STAT                            = STAT_CALL)
+                call GetWWTPQPropIndex(Me%ObjWWTPQ,                                               &
+                                      SolInertOrgMat                  = numSolInertOrgMat,        &
+                                      ReadilyBioSub                   = numReadilyBioSub,         &
+                                      PartInertOrgMar                 = numPartInertOrgMar,       & 
+                                      SlowlyBioSub                    = numSlowlyBioSub,          &  
+                                      HetBio                          = numHetBio,                &
+                                      AutBio                          = numAutBio,                &
+                                      PartProd                        = numPartProd,              &
+                                      SolBioOrgNitrogen               = numSolBioOrgNitrogen,     &
+                                      PartBioOrgNitrogen              = numPartBioOrgNitrogen,    &
+                                      Oxygen                          = numOxygen,               &
+                                      Ammonia                         = numAmmonia,              &
+                                      Nitrate                         = numNitrate,              &
+                                      Alkalinity                      = numalkalinity,           &
+                                      STAT                            = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity3D - ModuleInterface - ERR08' 
 
-                call GetWWTPQOptions(Me%ObjWWTPQ,                                           &
-                                   Zoo            = lZoo,                                       &
-                                   Larvae         = lLarvae,                                    &
-                                   Phyto          = lPhyto,                                     &
-                                   Diatoms        = lDiatoms,                                   & 
-                                   Silica         = lSilica,                                    & 
-                                   Nitrogen       = lNitrogen,                                  &
-                                   Phosphorus     = lPhosphorus,                                &
-                                   Oxygen         = lOxygen,                                    &
-                                   Salinity       = lSalinity,                                  &
-                                   BOD            = lBOD,                                       & 
-                                   Bacteria       = lBacteria,                                  &
-                                   Ciliate        = lCiliate,                                   &
-                                   Pompools       = lPompools,                                  &
-                                   STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity3D - ModuleInterface - ERR09'
+!                call GetWWTPQOptions(Me%ObjWWTPQ,                                               &
+!                                    SolInertOrgMat                  = lSolInertOrgMat,          &
+!                                    ReadilyBioSub                   = lReadilyBioSub,           &
+!                                    PartInertOrgMar                 = lPartInertOrgMar,         & 
+!                                    SlowlyBioSub                    = lSlowlyBioSub,            &  
+!                                    HetBio                          = lHetBio,                  &
+!                                    AutBio                          = lAutBio,                  &
+!                                    PartProd                        = lPartProd,                &
+!                                    SolBioOrgNitrogen               = lSolBioOrgNitrogen,       &
+!                                    PartBioOrgNitrogen              = lPartBioOrgNitrogen,      &
+!                                    Oxygen                          = lOxygen,                  &
+!                                    Ammonia                         = lAmmonia,                 &
+!                                    Nitrate                         = lNitrate,                  &
+!                                    STAT           = STAT_CALL)
+!                if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity3D - ModuleInterface - ERR09'
 
-                 if (lPhyto) then 
-                 if (PropertyID == Phytoplankton_) then
-                     call InputData(Concentration,numPhyto)
-                     Me%AddedProperties(numPhyto)    = .TRUE.
-                 end if 
-                 end if 
-
-                 if (lZoo) then
-                 if (PropertyID == Zooplankton_) then
-                     call InputData(Concentration,numZoo)
-                     Me%AddedProperties(numZoo)      = .TRUE.
-                 end if 
-                 end if 
-
-                 if (lLarvae) then
-                 if (PropertyID == Larvae_) then
-                     call InputData(Concentration,numLarvae)
-                     Me%AddedProperties(numLarvae)   = .TRUE.
-                 end if 
-                 end if 
-
-                 if (lPhosphorus) then
-
-                     if (PropertyID == POP_) then
-                         call InputData(Concentration, numPartOrganicPhosphorus)
-                         Me%AddedProperties(numPartOrganicPhosphorus)    = .TRUE.
-                     end if
-
-                     if (PropertyID== DOPRefractory_) then
-                         call InputData(Concentration, numDOPRefractory)
-                         Me%AddedProperties(numDOPRefractory)            = .TRUE.
-                     end if
-
-                     if (PropertyID== DOPNon_Refractory_) then
-                         call InputData(Concentration, numDOPNonRefractory)
-                         Me%AddedProperties(numDOPNonRefractory)         = .TRUE.
-                     end if
-
-                     if (PropertyID== Inorganic_Phosphorus_) then
-                         call InputData(Concentration, numInorganicPhosphorus)
-                         Me%AddedProperties(numInorganicPhosphorus)      = .TRUE.
-                     end if
-                     
-                 end if
-
-
-                 if (lNitrogen) then
-                     if (PropertyID== PON_) then
-                         call InputData(Concentration, numPartOrganicNitrogen)
-                         Me%AddedProperties(numPartOrganicNitrogen)      = .TRUE.
-                     end if
-
-                     if (PropertyID== PONRefractory_) then
-                         call InputData(Concentration, numPartOrganicNitrogenRef)
-                         Me%AddedProperties(numPartOrganicNitrogenRef)   = .TRUE.
-                     end if
-
-                     if (PropertyID== DONRefractory_) then
-                         call InputData(Concentration, numDONRefractory)
-                         Me%AddedProperties(numDONRefractory)            = .TRUE.
-                     end if
-
-                     if (PropertyID== DONNon_Refractory_) then
-                         call InputData(Concentration,numDONNonRefractory)
-                         Me%AddedProperties(numDONNonRefractory)         = .TRUE.
-                     end if
-
-                     if (PropertyID== Ammonia_) then
-                         call InputData(Concentration,numAmmonia)
-                         Me%AddedProperties(numAmmonia)                  = .TRUE.
-                     end if
-
-                     if (PropertyID== Nitrate_) then
-                         call InputData(Concentration,numNitrate)
-                         Me%AddedProperties(numNitrate)                  = .TRUE.
-                     end if                                                              
-
-                  if (PropertyID== Nitrite_) then
-                      call InputData(Concentration,numNitrite)
-                      Me%AddedProperties(numNitrite)                  = .TRUE.
-                  end if
-              end if
-
-
-             if (lPompools) then
-
-               if (lNitrogen) then
-                  
-                  if (PropertyID== PON1_) then
-                      call InputData(Concentration, numPONitrogen1)
-                      Me%AddedProperties(numPONitrogen1)              = .TRUE.
-                  end if                   
-
-                   if (PropertyID== PON2_) then
-                      call InputData(Concentration, numPONitrogen2)
-                      Me%AddedProperties(numPONitrogen2)              = .TRUE.
+                  if (PropertyID == SolInertOrgMat_) then
+                     call InputData(Concentration,numSolInertOrgMat)
+                     Me%AddedProperties(numSolInertOrgMat)    = .TRUE.
+                  end if 
+                
+                  if (PropertyID == ReadilyBioSub_) then
+                     call InputData(Concentration,numReadilyBioSub)
+                     Me%AddedProperties(numReadilyBioSub)    = .TRUE.
                   end if 
                   
-                  if (PropertyID== PON3_) then
-                      call InputData(Concentration, numPONitrogen3)
-                      Me%AddedProperties(numPONitrogen3)              = .TRUE.
-                  end if
-                  
-                   if (PropertyID== PON4_) then
-                      call InputData(Concentration, numPONitrogen4)
-                      Me%AddedProperties(numPONitrogen4)              = .TRUE.
-                  end if                                                            
-
-                   if (PropertyID== PON5_) then
-                      call InputData(Concentration, numPONitrogen5)
-                      Me%AddedProperties(numPONitrogen5)              = .TRUE.
-                  end if    
-               
-               end if  
-
-               if (lPhosphorus) then
-               
-                   if (PropertyID== POP1_) then
-                      call InputData(Concentration, numPOPhosphorus1)
-                      Me%AddedProperties(numPOPhosphorus1)            = .TRUE.
-                  end if                    
-
-                   if (PropertyID== POP2_) then
-                      call InputData(Concentration, numPOPhosphorus2)
-                      Me%AddedProperties(numPOPhosphorus2)            = .TRUE.
+                  if (PropertyID == PartInertOrgMar_) then
+                     call InputData(Concentration,numPartInertOrgMar)
+                     Me%AddedProperties(numPartInertOrgMar)    = .TRUE.
                   end if 
                   
-                   if (PropertyID== POP3_) then
-                      call InputData(Concentration, numPOPhosphorus3)
-                      Me%AddedProperties(numPOPhosphorus3)            = .TRUE.
+                  if (PropertyID == SlowlyBioSub_) then
+                     call InputData(Concentration,numSlowlyBioSub)
+                     Me%AddedProperties(numSlowlyBioSub)    = .TRUE.
                   end if 
                   
-                   if (PropertyID== POP4_) then
-                      call InputData(Concentration, numPOPhosphorus4)
-                      Me%AddedProperties(numPOPhosphorus4)            = .TRUE.
-                  end if                                                             
-
-                   if (PropertyID== POP5_) then
-                      call InputData(Concentration, numPOPhosphorus5)
-                      Me%AddedProperties(numPOPhosphorus5)            = .TRUE.
-                  end if                 
-               
-               end if
-                                                         
-              end if
+                  if (PropertyID == HetBio_) then
+                     call InputData(Concentration,numHetBio)
+                     Me%AddedProperties(numHetBio)    = .TRUE.
+                  end if 
 
 
-              if (lBOD) then
-              if (PropertyID== BOD_) then
-                  call InputData(Concentration,numBOD)
-                  Me%AddedProperties(numBOD)      = .TRUE.
-              end if
-              end if
+                  if (PropertyID == AutBio_) then
+                     call InputData(Concentration,numAutBio)
+                     Me%AddedProperties(numAutBio)    = .TRUE.
+                  end if 
+                  
+                  if (PropertyID == PartProd_) then
+                     call InputData(Concentration,numPartProd)
+                     Me%AddedProperties(numPartProd)    = .TRUE.
+                  end if 
+                  
+                  if (PropertyID == SolBioOrgNitrogen_) then
+                     call InputData(Concentration,numSolBioOrgNitrogen)
+                     Me%AddedProperties(numSolBioOrgNitrogen)    = .TRUE.
+                  end if 
 
-
-
-              if (lBacteria) then
-              if (PropertyID== Bacteria_) then
-                  call InputData(Concentration,numBacteria)
-                  Me%AddedProperties(numBacteria) = .TRUE.
-              end if
-              end if
-
-
-
-              if (lCiliate) then
-              if (PropertyID== Ciliate_) then
-                  call InputData(Concentration,numCiliate)
-                  Me%AddedProperties(numCiliate)  = .TRUE.
-              end if
-              end if
-
-              !The oxygen is always compute. If it's not defined in the waterproperties 
-              ! module then the saturation value is compute
-              if (PropertyID== Oxygen_) then
-                  call InputData(Concentration,numOxygen)
-                  Me%AddedProperties(numOxygen)   = .TRUE.
-              end if
-
-              if (lSalinity) then
-              
+                  
+                  if (PropertyID == PartBioOrgNitrogen_) then
+                     call InputData(Concentration,numPartBioOrgNitrogen)
+                     Me%AddedProperties(numPartBioOrgNitrogen )    = .TRUE.
+                  end if 
+                  
+                  if (PropertyID == Oxygen_) then
+                     call InputData(Concentration,numOxygen)
+                     Me%AddedProperties(numOxygen)    = .TRUE.
+                  end if 
+                  
+                  if (PropertyID == Ammonia_) then
+                     call InputData(Concentration,numAmmonia)
+                     Me%AddedProperties(numAmmonia)    = .TRUE.
+                  end if 
+                  
+                  if (PropertyID == Nitrate_) then
+                     call InputData(Concentration,numNitrate)
+                     Me%AddedProperties(numNitrate)    = .TRUE.
+                  end if 
+                  
+                  if (PropertyID == Alkalinity_) then
+                     call InputData(Concentration,numAlkalinity)
+                     Me%AddedProperties(numAlkalinity)    = .TRUE.
+                  end if 
+                  
               if (PropertyID== Salinity_) then
-                      call UnfoldMatrix(Concentration, Me%Salinity)
-                      SalinityAdded       =.TRUE.
-                  end if
+                  call UnfoldMatrix(Concentration, Me%Salinity)
+                  SalinityAdded       =.TRUE.
               end if
 
               if (PropertyID== Temperature_) then
                   call UnfoldMatrix(Concentration, Me%Temperature)
                   TemperatureAdded    =.TRUE.
               end if
-
-              if (PropertyID== FishFood_) then
-                  call UnfoldMatrix(Concentration, Me%FishFood)
-                  FishFoodAdded       =.TRUE.
-              end if
-
-              if (lDiatoms) then 
-              if (PropertyID == Diatoms_) then
-                  call InputData(Concentration,numDiatoms)
-                  Me%AddedProperties(numDiatoms)    = .TRUE.
-              end if
-              end if
-
-
-               if (lSilica) then
-
-                if (PropertyID == DSilica_) then
-                    call InputData(Concentration, numSiDiss)
-                    Me%AddedProperties(numSiDiss)    = .TRUE.
-                end if
-
-                if (PropertyID== BioSilica_) then
-                    call InputData(Concentration, numSiBio)
-                    Me%AddedProperties(numSiBio)            = .TRUE.
-                end if
-
-            end if
-
-            if ((SalinityAdded .or. (.not. lSalinity)) .AND. TemperatureAdded) then
+            if (SalinityAdded .AND. TemperatureAdded) then
                 Ready = .TRUE.
 
                 do i = PropLB, PropUB
                 if (.NOT. Me%AddedProperties(i)) then
                          Ready = .FALSE.
                          exit
-                     end if
-                     end do
+                end if
+                end do
 
-                     if (Ready) Me%AddedProperties = .FALSE.
-                 end if       
+                if (Ready) Me%AddedProperties = .FALSE.
+            end if       
      
      
             case(SeagrassSedimInteractionModel)
@@ -6049,6 +5897,17 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         logical,            intent(OUT)         :: Ready
 
         !External--------------------------------------------------------------
+        integer                                 :: numSolInertOrgMat
+        integer                                 :: numReadilyBioSub
+        integer                                 :: numPartInertOrgMar
+        integer                                 :: numSlowlyBioSub
+        integer                                 :: numHetBio
+        integer                                 :: numAutBio
+        integer                                 :: numPartProd
+        integer                                 :: numSolBioOrgNitrogen
+        integer                                 :: numPartBioOrgNitrogen
+        integer                                 :: numAlkalinity
+        
         integer                                 :: numZoo, numPhyto, numDiatoms 
         integer                                 :: numSiBio, numSiDiss 
         integer                                 :: numAmmonia, numNitrate, numNitrite
@@ -6787,329 +6646,99 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
             case (WWTPQModel)
 
-                call GetWWTPQPropIndex(Me%ObjWWTPQ,                                         &
-                                     Zoo                             = numZoo,                  &
-                                     Larvae                          = numLarvae,               &
-                                     Phyto                           = numPhyto,                &
-                                     Diatoms                         = numDiatoms,              & 
-                                     Ammonia                         = numAmmonia,              &
-                                     Nitrate                         = numNitrate,              &
-                                     Nitrite                         = numNitrite,              &
-                                     BiogenicSilica                  = numSiBio,                & 
-                                     DissolvedSilica                 = numSiDiss,               & 
-                                     DissOrganicNitrogenRefractory   = numDONRefractory,        &
-                                     DONNonRefractory                = numDONNonRefractory,     &
-                                     PartOrganicNitrogen             = numPartOrganicNitrogen,  &
-                                     PartOrganicNitrogenRefractory   = numPartOrganicNitrogenRef,  &
-                                     PONitrogen1                     = numPONitrogen1 ,         &
-                                     PONitrogen2                     = numPONitrogen2 ,         &
-                                     PONitrogen3                     = numPONitrogen3 ,         &
-                                     PONitrogen4                     = numPONitrogen4 ,         &
-                                     PONitrogen5                     = numPONitrogen5 ,         & 
-                                     Oxygen                          = numOxygen,               &
-                                     BOD                             = numBOD,                  &
-                                     DissOrganicPhosphorusRefractory = numDOPRefractory,        &
-                                     DOPNonRefractory                = numDOPNonRefractory,     &
-                                     PartOrganicPhosphorus           = numPartOrganicPhosphorus,&
-                                     POPhosphorus1                   = numPOPhosphorus1 ,       &
-                                     POPhosphorus2                   = numPOPhosphorus2 ,       &
-                                     POPhosphorus3                   = numPOPhosphorus3 ,       &
-                                     POPhosphorus4                   = numPOPhosphorus4 ,       &
-                                     POPhosphorus5                   = numPOPhosphorus5 ,       &
-                                     InorganicPhosphorus             = numInorganicPhosphorus,  &
-                                     Bacteria                        = numBacteria,             &
-                                     Ciliate                         = numCiliate,              &
-                                     STAT                            = STAT_CALL)
+                 call GetWWTPQPropIndex(Me%ObjWWTPQ,                                              &
+                                      SolInertOrgMat                  = numSolInertOrgMat,        &
+                                      ReadilyBioSub                   = numReadilyBioSub,         &
+                                      PartInertOrgMar                 = numPartInertOrgMar,       & 
+                                      SlowlyBioSub                    = numSlowlyBioSub,          &  
+                                      HetBio                          = numHetBio,                &
+                                      AutBio                          = numAutBio,                &
+                                      PartProd                        = numPartProd,              &
+                                      SolBioOrgNitrogen               = numSolBioOrgNitrogen,     &
+                                      PartBioOrgNitrogen              = numPartBioOrgNitrogen,    &
+                                      Oxygen                          = numOxygen,               &
+                                      Ammonia                         = numammonia,              &
+                                      Nitrate                         = numnitrate,             &
+                                      Alkalinity                      = numalkalinity,          &
+                                      STAT                            = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity1D - ModuleInterface - ERR08' 
+!
+!                 call GetWWTPQOptions(Me%ObjWWTPQ,                                           &
+!                                      SolInertOrgMat                  = lSolInertOrgMat,        &
+!                                      ReadilyBioSub                   = lReadilyBioSub,         &
+!                                      PartInertOrgMar                 = lPartInertOrgMar,       & 
+!                                      SlowlyBioSub                    = lSlowlyBioSub,          &  
+!                                      HetBio                          = lHetBio,                &
+!                                      AutBio                          = lAutBio,                &
+!                                      PartProd                        = lPartProd,              &
+!                                      SolBioOrgNitrogen               = lSolBioOrgNitrogen,     &
+!                                      PartBioOrgNitrogen              = lPartBioOrgNitrogen,    &
+!                                      Oxygen                          = lOxygen,               &
+!                                      Ammonia                         = lAmmonia,              &
+!                                      Nitrate                         = lNitrate,              &
+!                                   STAT           = STAT_CALL)
+!                if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity1D - ModuleInterface - ERR09'
+                  
+                  if (PropertyID == SolInertOrgMat_) then
+                     call InputData(Concentration,numSolInertOrgMat)
+                     Me%AddedProperties(numSolInertOrgMat)    = .TRUE.
+                  end if 
 
-                call GetWWTPQOptions(Me%ObjWWTPQ,                                           &
-                                   Zoo            = lZoo,                                       &
-                                   Larvae         = lLarvae,                                    &
-                                   Phyto          = lPhyto,                                     &
-                                   Diatoms        = lDiatoms,                                   & 
-                                   Silica         = lSilica,                                    & 
-                                   Nitrogen       = lNitrogen,                                  &
-                                   Phosphorus     = lPhosphorus,                                &
-                                   Oxygen         = lOxygen,                                    &
-                                   Salinity       = lSalinity,                                  &
-                                   BOD            = lBOD,                                       & 
-                                   Bacteria       = lBacteria,                                  &
-                                   Ciliate        = lCiliate,                                   &
-                                   Pompools       = lPompools,                                  &
-                                   STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity1D - ModuleInterface - ERR09'
+                  if (PropertyID == ReadilyBioSub_) then
+                     call InputData(Concentration,numReadilyBioSub)
+                     Me%AddedProperties(numReadilyBioSub)    = .TRUE.
+                  end if                   
+                  if (PropertyID == PartInertOrgMar_) then
+                     call InputData(Concentration,numPartInertOrgMar)
+                     Me%AddedProperties(numPartInertOrgMar)    = .TRUE.
+                  end if 
 
+                  if (PropertyID == SlowlyBioSub_) then
+                     call InputData(Concentration,numSlowlyBioSub)
+                     Me%AddedProperties(numSlowlyBioSub)    = .TRUE.
+                  end if 
 
-          if (lPhyto) then 
-          if (PropertyID == Phytoplankton_) then
-              call InputData(Concentration,numPhyto)
-              Me%AddedProperties(numPhyto)    = .TRUE.
-          end if
-          end if
+                  if (PropertyID == HetBio_) then
+                     call InputData(Concentration,numHetBio)
+                     Me%AddedProperties(numHetBio)    = .TRUE.
+                  end if 
 
-          if (lZoo) then
-          if (PropertyID == Zooplankton_) then
-              call InputData(Concentration,numZoo)
-              Me%AddedProperties(numZoo)      = .TRUE.
-          end if
-          end if
+ 
+                  if (PropertyID == AutBio_) then
+                     call InputData(Concentration,numAutBio)
+                     Me%AddedProperties(numAutBio)    = .TRUE.
+                  end if 
 
-         if (lLarvae) then
-         if (PropertyID == Larvae_) then
-              call InputData(Concentration,numLarvae)
-              Me%AddedProperties(numLarvae)   = .TRUE.
-          end if
-          end if
+                  if (PropertyID == PartProd_) then
+                     call InputData(Concentration,numPartProd)
+                     Me%AddedProperties(numPartProd)    = .TRUE.
+                  end if 
 
-          if (lPhosphorus) then
+                  if (PropertyID == SolBioOrgNitrogen_) then
+                     call InputData(Concentration,numSolBioOrgNitrogen)
+                     Me%AddedProperties(numSolBioOrgNitrogen)    = .TRUE.
+                  end if 
 
-              if (PropertyID == POP_) then
-                  call InputData(Concentration, numPartOrganicPhosphorus)
-                  Me%AddedProperties(numPartOrganicPhosphorus)    = .TRUE.
-              end if
+                  if (PropertyID == PartBioOrgNitrogen_) then
+                     call InputData(Concentration,numPartBioOrgNitrogen)
+                     Me%AddedProperties(numPartBioOrgNitrogen )    = .TRUE.
+                  end if 
 
-              if (PropertyID== DOPRefractory_) then
-                  call InputData(Concentration, numDOPRefractory)
-                  Me%AddedProperties(numDOPRefractory)            = .TRUE.
-              end if
+                  if (PropertyID == Oxygen_) then
+                     call InputData(Concentration,numOxygen)
+                     Me%AddedProperties(numOxygen)    = .TRUE.
+                  end if 
 
-              if (PropertyID== DOPNon_Refractory_) then
-                  call InputData(Concentration, numDOPNonRefractory)
-                  Me%AddedProperties(numDOPNonRefractory)         = .TRUE.
-              end if
+                  if (PropertyID == Ammonia_) then
+                     call InputData(Concentration,numAmmonia)
+                     Me%AddedProperties(numAmmonia)    = .TRUE.
+                  end if 
 
-              if (PropertyID== Inorganic_Phosphorus_) then
-                  call InputData(Concentration, numInorganicPhosphorus)
-                  Me%AddedProperties(numInorganicPhosphorus)      = .TRUE.
-              end if
-              
-          end if
+                  if (PropertyID == Nitrate_) then
+                     call InputData(Concentration,numNitrate)
+                     Me%AddedProperties(numNitrate)    = .TRUE.
+                  end if 
 
-
-          if (lNitrogen) then
-              if (PropertyID== PON_) then
-                  call InputData(Concentration, numPartOrganicNitrogen)
-                  Me%AddedProperties(numPartOrganicNitrogen)      = .TRUE.
-              end if
-
-              if (PropertyID== PONRefractory_) then
-                  call InputData(Concentration, numPartOrganicNitrogenRef)
-                  Me%AddedProperties(numPartOrganicNitrogenRef)   = .TRUE.
-              end if
-
-              if (PropertyID== DONRefractory_) then
-                  call InputData(Concentration, numDONRefractory)
-                  Me%AddedProperties(numDONRefractory)            = .TRUE.
-              end if
-
-              if (PropertyID== DONNon_Refractory_) then
-                  call InputData(Concentration,numDONNonRefractory)
-                  Me%AddedProperties(numDONNonRefractory)         = .TRUE.
-              end if
-
-              if (PropertyID== Ammonia_) then
-                  call InputData(Concentration,numAmmonia)
-                  Me%AddedProperties(numAmmonia)                  = .TRUE.
-              end if 
-
-              if (PropertyID== Nitrate_) then
-                  call InputData(Concentration,numNitrate)
-                  Me%AddedProperties(numNitrate)                  = .TRUE.
-              end if                    
-
-             if (PropertyID== Nitrite_) then
-                  call InputData(Concentration,numNitrite)
-                  Me%AddedProperties(numNitrite)                  = .TRUE.
-              end if
-          end if
-
-
-        if (lPompools) then
-
-          if (lNitrogen) then
-              
-             if (PropertyID== PON1_) then
-                  call InputData(Concentration, numPONitrogen1)
-                  Me%AddedProperties(numPONitrogen1)              = .TRUE.
-              end if                    
-
-              if (PropertyID== PON2_) then
-                  call InputData(Concentration, numPONitrogen2)
-                  Me%AddedProperties(numPONitrogen2)              = .TRUE.
-              end if
-              
-             if (PropertyID== PON3_) then
-                  call InputData(Concentration, numPONitrogen3)
-                  Me%AddedProperties(numPONitrogen3)              = .TRUE.
-              end if
-              
-              if (PropertyID== PON4_) then
-                  call InputData(Concentration, numPONitrogen4)
-                  Me%AddedProperties(numPONitrogen4)              = .TRUE.
-              end if                                                              
-
-              if (PropertyID== PON5_) then
-                  call InputData(Concentration, numPONitrogen5)
-                  Me%AddedProperties(numPONitrogen5)              = .TRUE.
-              end if   
-           
-           end if   
-
-          if (lPhosphorus) then
-           
-              if (PropertyID== POP1_) then
-                  call InputData(Concentration, numPOPhosphorus1)
-                  Me%AddedProperties(numPOPhosphorus1)            = .TRUE.
-              end if                   
-
-              if (PropertyID== POP2_) then
-                  call InputData(Concentration, numPOPhosphorus2)
-                  Me%AddedProperties(numPOPhosphorus2)            = .TRUE.
-              end if 
-              
-              if (PropertyID== POP3_) then
-                  call InputData(Concentration, numPOPhosphorus3)
-                  Me%AddedProperties(numPOPhosphorus3)            = .TRUE.
-              end if 
-              
-             if (PropertyID== POP4_) then
-                  call InputData(Concentration, numPOPhosphorus4)
-                  Me%AddedProperties(numPOPhosphorus4)            = .TRUE.
-              end if                                                             
-
-              if (PropertyID== POP5_) then
-                  call InputData(Concentration, numPOPhosphorus5)
-                  Me%AddedProperties(numPOPhosphorus5)            = .TRUE.
-              end if                 
-           
-           end if
-                                                     
-          end if
-
-
-
-
-          if (lBOD) then
-          if (PropertyID== BOD_) then
-              call InputData(Concentration,numBOD)
-              Me%AddedProperties(numBOD)      = .TRUE.
-          end if
-          end if
-
-
-
-          if (lBacteria) then
-          if (PropertyID== Bacteria_) then
-              call InputData(Concentration,numBacteria)
-              Me%AddedProperties(numBacteria) = .TRUE.
-          end if
-          end if
-
-
-
-          if (lCiliate) then
-          if (PropertyID== Ciliate_) then
-              call InputData(Concentration,numCiliate)
-              Me%AddedProperties(numCiliate)  = .TRUE.
-          end if
-          end if
-
-
-          !The oxygen is always compute. If it's not defined in the waterproperties 
-          ! module then the saturation value is compute
-          if (PropertyID== Oxygen_) then
-              call InputData(Concentration,numOxygen)
-              Me%AddedProperties(numOxygen)   = .TRUE.
-          end if
-
-          if (lSalinity) then
-          
-              if (PropertyID== Salinity_) then
-                  call UnfoldMatrix(Concentration, Me%Salinity)
-                  SalinityAdded       =.TRUE.
-              end if
-          end if
-
-          if (PropertyID== Temperature_) then
-              call UnfoldMatrix(Concentration, Me%Temperature)
-              TemperatureAdded    =.TRUE.
-          end if
-
-          if (PropertyID== FishFood_) then
-              call UnfoldMatrix(Concentration, Me%FishFood)
-              FishFoodAdded       =.TRUE.
-          end if
-
-
-        if (lDiatoms) then 
-        if (PropertyID == Diatoms_) then
-              call InputData(Concentration,numDiatoms)
-              Me%AddedProperties(numDiatoms)    = .TRUE.
-          end if
-          end if
-
-
-          if (lSilica) then
-
-              if (PropertyID == DSilica_) then
-                  call InputData(Concentration, numSiDiss)
-                  Me%AddedProperties(numSiBio)    = .TRUE.
-              end if
-
-              if (PropertyID== BioSilica_) then
-                  call InputData(Concentration, numSiBio)
-                  Me%AddedProperties(numSiBio)            = .TRUE.
-              end if
-
-          end if
-
-          if ((SalinityAdded .or. (.not. lSalinity)) .AND. TemperatureAdded) then
-              Ready = .TRUE.
-
-              do i = PropLB, PropUB
-              if (.NOT. Me%AddedProperties(i)) then
-                  Ready = .FALSE.
-                  exit
-              end if
-              end do 
-
-                    if (Ready) Me%AddedProperties = .FALSE.
-                end if      
-        
-            case(BivalveModel)
-                            
-                call GetBivalvePropIndex(Me%ObjBivalve,PropertyID,IndexNumber,STAT=STAT_CALL)
-                
-                if (STAT_CALL==SUCCESS_) then
-                
-                    call InputData(Concentration, IndexNumber)
-                    Me%AddedProperties(IndexNumber) =.TRUE.
-                    
-                else if (STAT_CALL.NE.SUCCESS_ .AND. STAT_CALL.NE.NOT_FOUND_ERR_) then
-                    stop 'FillMassTempSalinity1D - ModuleInterface - ERR10' 
-                end if
-                     
-                if (PropertyID== Salinity_) then
-                    call UnfoldMatrix(Concentration, Me%Salinity)
-                    SalinityAdded       =.TRUE.
-                end if 
-
-                if (PropertyID== Temperature_) then
-                    call UnfoldMatrix(Concentration, Me%Temperature)
-                    TemperatureAdded    =.TRUE.
-                end if 
-
-                if (SalinityAdded .AND. TemperatureAdded) then
-                    Ready = .TRUE.
-
-                    do i = PropLB, PropUB
-                    if (.NOT. Me%AddedProperties(i)) then
-                            Ready = .FALSE.
-                            exit 
-                    end if 
-                    end do 
-                    if (Ready) Me%AddedProperties = .FALSE.
-                end if
 
             case default
                 write(*,*) 
@@ -7984,6 +7613,18 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                         :: PropertyID
 
         !External--------------------------------------------------------------
+        integer                                 :: numSolInertOrgMat
+        integer                                 :: numReadilyBioSub
+        integer                                 :: numPartInertOrgMar
+        integer                                 :: numSlowlyBioSub
+        integer                                 :: numHetBio
+        integer                                 :: numAutBio
+        integer                                 :: numPartProd
+        integer                                 :: numSolBioOrgNitrogen
+        integer                                 :: numPartBioOrgNitrogen
+        integer                                 :: numAlkalinity
+        
+        
         integer                         :: STAT_CALL
         integer                         :: numZoo, numPhyto, numDiatoms 
         integer                         :: numLarvae
@@ -8525,185 +8166,61 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
 #endif                        
             case (WWTPQModel)
         
-                call GetWWTPQPropIndex(Me%ObjWWTPQ,                                  &
-                             Zoo                              = numZoo,                  &
-                             Larvae                           = numLarvae,               &
-                             Phyto                            = numPhyto,                &
-                             Diatoms                          = numDiatoms,              & 
-                             Ammonia                          = numAmmonia,              &
-                             Nitrate                          = numNitrate,              &
-                             Nitrite                          = numNitrite,              &
-                             BiogenicSilica                   = numSiBio,                & 
-                             DissolvedSilica                  = numSiDiss,               & 
-                             DissOrganicNitrogenRefractory    = numDONRefractory,        &
-                             DONNonRefractory                 = numDONNonRefractory,     &
-                             PartOrganicNitrogen              = numPartOrganicNitrogen,  &
-                             PartOrganicNitrogenRefractory    = numPartOrganicNitrogenRef,  &
-                             PONitrogen1                      = numPONitrogen1 ,         &
-                             PONitrogen2                      = numPONitrogen2 ,         &
-                             PONitrogen3                      = numPONitrogen3 ,         &
-                             PONitrogen4                      = numPONitrogen4 ,         &
-                             PONitrogen5                      = numPONitrogen5 ,         & 
-                             Oxygen                           = numOxygen,               &
-                             BOD                              = numBOD,                  &
-                             DissOrganicPhosphorusRefractory  = numDOPRefractory,        &
-                             DOPNonRefractory                 = numDOPNonRefractory,     &
-                             PartOrganicPhosphorus            = numPartOrganicPhosphorus,&
-                             POPhosphorus1                    = numPOPhosphorus1 ,       &
-                             POPhosphorus2                    = numPOPhosphorus2 ,       &
-                             POPhosphorus3                    = numPOPhosphorus3 ,       &
-                             POPhosphorus4                    = numPOPhosphorus4 ,       &
-                             POPhosphorus5                    = numPOPhosphorus5 ,       &
-                             InorganicPhosphorus              = numInorganicPhosphorus,  &
-                             Bacteria                         = numBacteria,             &
-                             Ciliate                          = numCiliate,              &
-                             STAT                             = STAT_CALL)
+                call GetWWTPQPropIndex(Me%ObjWWTPQ,                                              &
+                                      SolInertOrgMat                  = numSolInertOrgMat,        &
+                                      ReadilyBioSub                   = numReadilyBioSub,         &
+                                      PartInertOrgMar                 = numPartInertOrgMar,       & 
+                                      SlowlyBioSub                    = numSlowlyBioSub,          &  
+                                      HetBio                          = numHetBio,                &
+                                      AutBio                          = numAutBio,                &
+                                      PartProd                        = numPartProd,              &
+                                      SolBioOrgNitrogen               = numSolBioOrgNitrogen,     &
+                                      PartBioOrgNitrogen              = numPartBioOrgNitrogen,   &
+                                      Oxygen                          = numOxygen,               &
+                                      Ammonia                         = numAmmonia,              &
+                                      Nitrate                         = numNitrate,             &
+                                      Alkalinity                      = numAlkalinity,          & 
+                              STAT                             = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'PropertyIndexNumber - ModuleInterface - ERR24'
                       
-               if      (PropertyID== Phytoplankton_       ) then
-                    nProperty = numPhyto
+               if      (PropertyID== SolInertOrgMat_       ) then
+                    nProperty = numSolInertOrgMat
 
-                else if (PropertyID== Zooplankton_         ) then
-                    nProperty = numZoo
+                else if (PropertyID== ReadilyBioSub_        ) then
+                    nProperty = numReadilyBioSub
  
-                else if (PropertyID== Larvae_              ) then 
-                    nProperty = numLarvae
+                else if (PropertyID== PartInertOrgMar_      ) then 
+                    nProperty = numPartInertOrgMar
 
-                else if (PropertyID== POP_                 ) then 
-                    nProperty = numPartOrganicPhosphorus
+                else if (PropertyID== SlowlyBioSub_         ) then 
+                    nProperty = numSlowlyBioSub
 
-                else if (PropertyID== DOPRefractory_       ) then 
-                    nProperty = numDOPRefractory
+                else if (PropertyID== HetBio_               ) then 
+                    nProperty = numHetBio
 
-                else if (PropertyID== DOPNon_Refractory_   ) then 
-                    nProperty = numDOPNonRefractory
+                else if (PropertyID== AutBio_               ) then 
+                    nProperty = numAutBio
 
-                else if (PropertyID== Inorganic_Phosphorus_) then 
-                    nProperty = numInorganicPhosphorus
+                else if (PropertyID== PartProd_             ) then 
+                    nProperty = numPartProd
 
-                else if (PropertyID== PON_                 ) then 
-                    nProperty = numPartOrganicNitrogen
+                else if (PropertyID== Oxygen_               ) then 
+                    nProperty = numOxygen
 
-                else if (PropertyID== PONRefractory_       ) then 
-                    nProperty = numPartOrganicNitrogenRef
-
-                else if (PropertyID== DONRefractory_       ) then 
-                    nProperty = numDONRefractory
-
-                else if (PropertyID== DONNon_Refractory_   ) then 
-                    nProperty = numDONNonRefractory 
-
-                else if (PropertyID== Ammonia_             ) then 
-                    nProperty = numAmmonia
-
-                else if (PropertyID== Nitrate_             ) then 
+                else if (PropertyID== Nitrate_              ) then 
                     nProperty = numNitrate
 
-                else if (PropertyID== Nitrite_             ) then 
-                    nProperty = numNitrite
-                    
-                else if (PropertyID== PON1_                ) then 
-                    nProperty = numPONitrogen1
-                
-                else if (PropertyID== PON2_                ) then 
-                    nProperty = numPONitrogen2        
-                
-                else if (PropertyID== PON3_                ) then 
-                    nProperty = numPONitrogen3    
-                
-                else if (PropertyID== PON4_                ) then 
-                    nProperty = numPONitrogen4
-                
-                else if (PropertyID== PON5_                ) then 
-                    nProperty = numPONitrogen5
-                    
-                else if (PropertyID== POP1_                ) then 
-                    nProperty = numPOPhosphorus1
-                
-                else if (PropertyID== POP2_                ) then 
-                    nProperty = numPOPhosphorus2        
-                
-                else if (PropertyID== POP3_                ) then 
-                    nProperty = numPOPhosphorus3    
-                
-                else if (PropertyID== POP4_                ) then 
-                    nProperty = numPOPhosphorus4
-                
-                else if (PropertyID== POP5_                ) then 
-                    nProperty = numPOPhosphorus5    
-                    
-                else if (PropertyID== Bacteria_            ) then 
-                    nProperty = numBacteria
+                else if (PropertyID== Ammonia_              ) then 
+                    nProperty = numAmmonia
 
-                else if (PropertyID== Ciliate_             ) then 
-                    nProperty = numCiliate
+                else if (PropertyID== SolBioOrgNitrogen_   ) then 
+                    nProperty = numSolBioOrgNitrogen
 
-                else if (PropertyID== BOD_                 ) then 
-                    nProperty = numBOD
+                else if (PropertyID== PartBioOrgNitrogen_  ) then 
+                    nProperty = numPartBioOrgNitrogen
 
-                else if (PropertyID== Oxygen_              ) then 
-                    nProperty = numOxygen
-                
-                else if (PropertyID== Diatoms_            ) then 
-                    nProperty = numDiatoms 
-
-                else if (PropertyID== DSilica_            ) then 
-                    nProperty = numSiDiss 
-
-                else if (PropertyID== BioSilica_           ) then 
-                    nProperty = numSiBio
-
-                else if (PropertyID== GrossProd_           ) then  
-                    CheckName = CheckPropertyName('grossprod', number = nProperty)
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR33'
-
-                else if (PropertyID== NutrientLim_         ) then 
-                    CheckName = CheckPropertyName('nutrientlim', number = nProperty)     
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR34'
-
-                else if (PropertyID== NLim_                ) then  
-                    CheckName = CheckPropertyName('nitrogenlim', number = nProperty)     
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR35'
-
-                else if (PropertyID== PLim_                ) then  
-                    CheckName = CheckPropertyName('phosphoruslim', number = nProperty)     
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR36'
-
-                else if (PropertyID== LightLim_            ) then   
-                    CheckName = CheckPropertyName('lightlim', number = nProperty) 
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR37'
-
-                else if (PropertyID== TemperatureLim_      ) then
-                    CheckName = CheckPropertyName('temperaturelim', number = nProperty)    
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR38'
-
-                else if (PropertyID== DiaGrossProd_           ) then
-                    CheckName = CheckPropertyName('diagrossprod', number = nProperty)
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR39'
-
-                else if (PropertyID== DiaNutrientLim_         ) then 
-                    CheckName = CheckPropertyName('dianutrientlim', number = nProperty)     
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR40'
-
-                else if (PropertyID== DiaNLim_         ) then   
-                    CheckName = CheckPropertyName('dianitrogenlim', number = nProperty)     
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR41'
-
-                else if (PropertyID== DiaPLim_         ) then 
-                    CheckName = CheckPropertyName('diaphosphoruslim', number = nProperty)     
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR42'
-
-                else if (PropertyID== DiaSiLim_         ) then  
-                    CheckName = CheckPropertyName('diasilicalim', number = nProperty)     
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR43'
-
-                else if (PropertyID== DiaLightLim_            ) then 
-                    CheckName = CheckPropertyName('dialightlim', number = nProperty) 
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR44'
-
-                else if (PropertyID== DiaTemperatureLim_      ) then
-                    CheckName = CheckPropertyName('diatemperaturelim', number = nProperty)    
-                    if (.NOT.CheckName) stop 'PropertyIndexNumber - ModuleInterface - ERR45'
+                else if (PropertyID== Alkalinity_          ) then 
+                    nProperty = numAlkalinity
 
                 else
                     write(*,*) 

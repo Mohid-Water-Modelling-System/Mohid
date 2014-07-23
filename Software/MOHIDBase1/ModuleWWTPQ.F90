@@ -7,10 +7,10 @@
 ! MODULE        : WWTPQ
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-! DATE          : June 2012
-! REVISION      : v4.0
-! DESCRIPTION   : Zero-dimensional model for water quality processes
-! in a Waste-Water Treatment Plant.
+! DATE          : October 2013
+! REVISION      : v1.0
+! DESCRIPTION   : Zero-dimensional model for Water Quality in activated sludge
+! process at WasteWater Treatment Plant.
 !
 !------------------------------------------------------------------------------
 !
@@ -29,252 +29,183 @@
 !
 !------------------------------------------------------------------------------
 
+!Module WWTPQ uses ModuleGlobalData, ModuleLUD, ModuleEnterData
+!?uses use ModuleFunctions, only: OxygenSaturation, PhytoLightLimitationFactor, what does it mean? what for? 
+!?uses all these modules in the end?
+
 Module ModuleWWTPQ
 
     use ModuleGlobalData
     use ModuleLUD
     use ModuleEnterData
-    use ModuleFunctions, only: OxygenSaturation, PhytoLightLimitationFactor
 
     implicit none
 
     private 
+!?what does it mean?
 
     !Subroutines---------------------------------------------------------------
+!? The commented subroutines are relly not needed? what do they do? If they are not needed, please remove them. 
 
     !Constructor
     public  :: StartWWTPQ
     private ::      AllocateInstance
+    private ::      Nullify_all_Sub_Type_Pointers
     private ::      WWTPQReadData
-    private ::          WWTPQOptions
+!    private ::          WWTPQOptions
     private ::          WWTPQPropertyIndexNumber
     private ::          WWTPQReadCalcOptions
-    private ::          WWTPQOptionsConsistencyVerif
-    private ::          WWTPQConfiguration
+!    private ::          WWTPQOptionsConsistencyVerif
+!    private ::          WWTPQConfiguration
     private ::          WWTPQReadFileConstants
-    private ::              WWTPQReadSilicaFileConstants   !aqui
-    private ::              WWTPQReadDiatomsFileConstants  !aqui    
     private ::      AllocateVariables
-    private ::          Add_PropRateFlux
-    private ::          Add_EquaRateFlux
+!    private ::          Add_PropRateFlux
+!    private ::          Add_EquaRateFlux
 
-    public  ::          Construct_WWTPQRateFlux
+!    public  ::          Construct_WWTPQRateFlux
 
      !Selector
     public  :: GetDTWWTPQM
-    public  :: GetWWTPQOptions
+!    public  :: GetWWTPQOptions
     public  :: GetWWTPQSize   
     public  :: GetWWTPQPropIndex
-    public  :: GetWWTPQPropRateFlux   
-    public  :: UnGetWWTPQPropRateFlux              
+!    public  :: GetWWTPQPropRateFlux   
+!    public  :: UnGetWWTPQPropRateFlux              
 
-    public  :: GetWWTPQNCRatio            
+!    public  :: GetWWTPQNCRatio            
 
     !Modifier
     public  :: WWTPQ            
     private ::      StartWWTPQIteration
-    private ::      WWTPQCoeficientsCalculation
-    private ::          WWTPQOxygen
-    private ::              WWTPQOxygenSaturation
-    private ::              WWTPQOxygenCalculation
-    private ::          WWTPQBOD
-    private ::          WWTPQLarvae  
-    private ::          WWTPQAge     
-    private ::          WWTPQZooplankton
-    private ::          WWTPQPhytoplankton
-    private ::          WWTPQBacteria
-    private ::          WWTPQCiliate
-    private ::          WWTPQDiatoms
-    private ::          WWTPQSilica
-    private ::          WWTPQBiogenicSilica
-    private ::          WWTPQDissolvedSilica
-    private ::          WWTPQNitrogen
-    private ::              WWTPQAmmonia
-    private ::              WWTPQNitrite
-    private ::              WWTPQNitrate
-    private ::              WWTPQOrganicNitrogen
-    private ::                  WWTPQParticulateOrganicNitrogen
-    private ::                  WWTPQDONRefractory
-    private ::                  WWTPQDONNonRefractory
-    private ::          WWTPQPhosphorus
-    private ::              WWTPQOrganicPhosphorus
-    private ::              WWTPQInorganicPhosphorus
-    private ::          WWTPQPOMpools
-    private ::      WWTPQSystemResolution
-
-    private ::      WWTPQRatesCalculation
-
+!!    private ::      WWTPQCoeficientsCalculation
+!    private ::          WWTPQOxygen
+!    private ::              WWTPQOxygenSaturation
+!    private ::              WWTPQOxygenCalculation
+!    private ::      WWTPQSystemResolution
+!
+!    private ::      WWTPQRatesCalculation
+!
     !Destructor
     public  ::  KillWWTPQ
     private ::      DeallocateInstance
-
-
+!
+!
     !Management
     private ::      Ready
     private ::          LocateObjWWTPQ
 
-    !Parameter-----------------------------------------------------------------
-
-    !WWTPQConfigurations definition
-    integer, parameter                              :: ZooPhy                  = 1
-    integer, parameter                              :: ZooPhyDia               = 2
-    integer, parameter                              :: ZooPhyDiaCil            = 3
-    integer, parameter                              :: ZooPhyDiaCilBac         = 4
-    integer, parameter                              :: ZooDia                  = 5
-    integer, parameter                              :: ZooDiaCilBac            = 6
-    integer, parameter                              :: ZooPhyCil               = 7
-    integer, parameter                              :: ZooPhyCilBac            = 8
-
-
     !Types---------------------------------------------------------------------
+    
+    !Stechiometric Parameters
+    type T_StechParameters
+        real :: HetBioYield                         = null_real !heterotrophic biomass yield, G COD G-1 COD
+        real :: AutoBioYield                        = null_real !autotrophic biomass yield, G COD G-1 N
+        real :: FracBioPartProd                     = null_real !fraction of biomass leading to particulate products, G COD G-1 COD
+        real :: NCODBioMassRatio                    = null_real !mass N/mass COD in biomass, G N G-1 COD
+        real :: NCODPartProdBioMassRatio            = null_real !mass N/mass COD in products from biomass, G N G-1 COD
+    end type T_StechParameters
 
-    type    T_PropIndex
-        integer :: Zoo                              = null_int
-        integer :: Larvae                           = null_int  
-        integer :: Age                              = null_int  
-        integer :: Phyto                            = null_int
-        integer :: Bacteria                         = null_int
-        integer :: Ciliate                          = null_int
-        integer :: Diatoms                          = null_int !aqui
-        integer :: BiogenicSilica                   = null_int !aqui
-        integer :: DissolvedSilica                  = null_int !aqui
-        integer :: Ammonia                          = null_int
-        integer :: Nitrate                          = null_int
-        integer :: Nitrite                          = null_int
-        integer :: DissOrganicNitrogenRefractory    = null_int
-        integer :: DONNonRefractory                 = null_int
-        integer :: PartOrganicNitrogen              = null_int
-        integer :: PONitrogen1                      = null_int
-        integer :: PONitrogen2                      = null_int
-        integer :: PONitrogen3                      = null_int
-        integer :: PONitrogen4                      = null_int
-        integer :: PONitrogen5                      = null_int
-        integer :: POPhosphorus1                    = null_int
-        integer :: POPhosphorus2                    = null_int
-        integer :: POPhosphorus3                    = null_int
-        integer :: POPhosphorus4                    = null_int
-        integer :: POPhosphorus5                    = null_int
-        integer :: PartOrganicNitrogenRefractory    = null_int
-        integer :: Oxygen                           = null_int
-        integer :: BOD                              = null_int
-        integer :: DissOrganicPhosphorusRefractory  = null_int
-        integer :: DOPNonRefractory                 = null_int
-        integer :: PartOrganicPhosphorus            = null_int
-        integer :: InorganicPhosphorus              = null_int
+    !Kinetic Parameters
+    type T_KineticParameters
+    
+    !heterotrophic organisms
+        real :: MaxSpecGrowthRateHetBio             = null_real !maximum specific growth rate for heterotrophic biomass,
+                                                                ! D-1, value at 20 ºC
+        real :: HalfSatCoefHetBio                   = null_real !half-saturation coefficient for heterotrophic biomass, G COD M-3
+        real :: OxygHalfSatCoefHetBio               = null_real !oxygen half-saturation coefficient for heterotrophic biomass, 
+                                                                !G O2 M-3
+        real :: NitHalfSatCoefDenHetBio             = null_real !nitrate half-saturation coefficient for denitrifying
+                                                                ! heterotrophic biomass,G NO3-N M-3
+        real :: DecayCoefHetBio                     = null_real !decay coefficient for heterotrophic biomass, D-1, value at 20 ºC
+        real :: CorFacAnoxGrowthHetBio              = null_real !correction factor for anoxic growth of heterotrophs, dimensionless
+        real :: AmmonifRate                         = null_real !ammonification rate, M3 COD (G.D)-1, value at 20 ºC
+        real :: MaxSpecHydroRate                    = null_real !maximum specific hydrolysis rate, 
+                                                                !G slowly biodegradable (COD G cell COD D)-1, value at 20 ºC
+        real :: HalfSatCoefHydroSlowlyBioSub        = null_real !half-saturation coefficient for hydrolysis of slowly biodegradable 
+                                                                !substrate, G slowly biodegradable COD G cell COD-1, value at 20 ºC
+        real :: CorFacAnoxCond                      = null_real !correction factor under anoxic conditions, dimensionless
+     
+     !autotrophic organisms   
+        real :: MaxSpecGrowthRateAutBio             = null_real !maximum specific growth rate for autotrophic biomass,
+                                                                ! D-1, value at 20 ºC 
+        real :: AmmoniaHalfSatCoefAutBio            = null_real !ammonia half-saturation coefficient for autotrophic biomass, 
+                                                                !G NH3-N M-3
+        real :: OxyHalfSatCoefAutBio                = null_real !oxygen half-saturation coefficient for autotrophic biomass,
+                                                                ! G O2 M-3
+        real :: DecayCoefAutBio                     = null_real !decay coefficient for autotrophic biomass, M3 COD (G D)-1
         
-    end type    T_PropIndex
+    end type T_KineticParameters
+    
+    !state variables
+    type    T_PropIndex
+        
+        integer :: SolInertOrgMat                   = null_int !SI, soluble inert organic matter, G COD M-3
+        integer :: ReadilyBioSub                    = null_int !SS, readily biodegradable substrate, G COD M-3
+        integer :: PartInertOrgMar                  = null_int !XI, particualte inert organic matter, G COD M-3 
+        integer :: SlowlyBioSub                     = null_int !XS, slowly biodegradable substrate, G COD M-3
+        integer :: HetBio                           = null_int !XBH, activate heterotrophic biomass, G COD M-3
+        integer :: AutBio                           = null_int !XBA, activate heterotrophic biomass, G COD M-3
+        integer :: PartProd                         = null_int !XP, particulate products arising from biomass decay, G COD M-3 
+        integer :: Oxygen                           = null_int !SO, oxygen, G (-COD) M-3 
+        integer :: Nitrate                          = null_int !SNO, nitrate and nitrite, G NO3-N M-3  
+        integer :: Ammonia                          = null_int !SNH, NH4+ + NH3 nitrogen, G NH3-N M-3
+        integer :: SolBioOrgNitrogen                = null_int !SND, soluble biodegradable organic nitrogen, G N M-3 
+        integer :: PartBioOrgNitrogen               = null_int !XND, particulate biodegradable organic matter, G N M-3 
+        integer :: Alkalinity                       = null_int !SALK, alkalinity, mol M-3 
+ 
+         end type    T_PropIndex
    
-    type    T_PropRateFlux
-        integer                              :: ID
-        real, pointer, dimension(:)          :: Field
-        type(T_PropRateFlux), pointer        :: Next,Prev
-    end type T_PropRateFlux
+   !para ter como output as taxas ao longo do tempo
+!    type    T_PropRateFlux
+!        integer                              :: ID
+!        real, pointer, dimension(:)          :: Field
+!        type(T_PropRateFlux), pointer        :: Next,Prev !?o que +e isto?
+!    end type T_PropRateFlux
 
-    type    T_EquaRateFlux
-        integer                              :: ID
-        real                                 :: scalar = null_real
-        logical                              :: TimeSerie
-        type(T_EquaRateFlux), pointer        :: next,prev
-        type(T_PropRateFlux), pointer        :: FirstPropRateFlux
-        type(T_PropRateFlux), pointer        :: LastPropRateFlux
+   
+!    type    T_EquaRateFlux
+!        integer                              :: ID   !??? porquê duas vezes declardo o ID?
+!        real                                 :: scalar = null_real
+!        logical                              :: TimeSerie
+!        type(T_EquaRateFlux), pointer        :: next,prev
+!        type(T_PropRateFlux), pointer        :: FirstPropRateFlux
+!        type(T_PropRateFlux), pointer        :: LastPropRateFlux
+!
+!    end type T_EquaRateFlux
 
-    end type T_EquaRateFlux
-
+   !o que é isto?
     type           T_ExtraRate
         integer                              :: ID
         real, pointer, dimension(:)          :: Field
     end type T_ExtraRate
-  
 
+   !o que é isto?
     type       T_PropCalc
-        logical :: Zoo        = OFF
-        logical :: Larvae     = OFF  
-        logical :: Age        = OFF  
-        logical :: Phyto      = OFF
-        logical :: Bacteria   = OFF
-        logical :: Ciliate    = OFF
-        logical :: Diatoms    = OFF !aqui
-        logical :: Silica     = OFF !aqui
         logical :: Nitrogen   = OFF
         logical :: Phosphorus = OFF
         logical :: Oxygen     = OFF
-        logical :: Salinity   = OFF  
-        logical :: BOD        = OFF
-        logical :: Pompools   = OFF
     end type T_PropCalc
 
-
+   !o que é isto?
     type       T_CalcMethod
         logical :: ExplicitMethod = OFF
         logical :: ImplicitMethod = OFF
-        logical :: SemiImpMethod  = OFF             !ppina
+        logical :: SemiImpMethod  = OFF            
     end type T_CalcMethod
 
+   !o que é isto?
     type       T_External
         real, pointer, dimension(:  ) :: Salinity
         real, pointer, dimension(:  ) :: Temperature
-        real, pointer, dimension(:  ) :: ShortWaveRadiation
-        real, pointer, dimension(:  ) :: LightExtCoefField
-        real, pointer, dimension(:  ) :: Thickness
+!        real, pointer, dimension(:  ) :: ShortWaveRadiation
+!        real, pointer, dimension(:  ) :: LightExtCoefField
+!        real, pointer, dimension(:  ) :: Thickness
         real, pointer, dimension(:,:) :: Mass      
-        real, pointer, dimension(:  ) :: FishFood
     end type T_External
 
-    type      T_SilicaCycle       !aqui
-        real :: KSiBiogenicDissRate                          = null_real
-        real :: BiogenicDissTCoef                          = null_real
-    end type T_SilicaCycle        !aqui
-    
-    type      T_Diatoms   !aqui 
-        real :: DiaGrowMaxRate                              = null_real
-        real :: DiaGrossGrowRate                            = null_real
-        real :: DiaEndogRepConst                            = null_real
-        real :: DiaPhotorespFactor                          = null_real
-        real :: DiaExcretionConstant                        = null_real
-        real :: DiaMortMaxRate                              = null_real 
-        real :: DiaMortSatConst                             = null_real 
-        real :: DiaE                                        = null_real  
-        real :: DiaNSatConst                                = null_real  
-        real :: DiaPSatConst                                = null_real  
-        real :: DiaSiSatConst                               = null_real  
-        real :: DiaPhotoinhibition                          = null_real
-        real :: DiaTOptMin                                  = null_real
-        real :: DiaTOptMax                                  = null_real
-        real :: DiaTMin                                     = null_real
-        real :: DiaTMax                                     = null_real
-        real :: DiaK1                                       = null_real
-        real :: DiaK2                                       = null_real
-        real :: DiaK3                                       = null_real
-        real :: DiaK4                                       = null_real
-        real :: DiaAlfaNC                                   = null_real
-        real :: DiaAlfaPC                                   = null_real
-        real :: DiaAlfaSiC                                  = null_real
-        real :: DiaSolublInorgExcreFraction                 = null_real
-        real :: DiaExcreDissOrgFraction                     = null_real
-        real :: GrazDiaMin                                  = null_real
-        real :: DiaRatioIngestionZoo                        = null_real
-        real :: DiaZooAssimilationRate                      = null_real
-        real :: ZooEfficiencyCaptureDiatoms                 = null_real
-        real :: DiaLightLimitationFactor                    = null_real
-        real :: DiaNutrientsLimitationFactor                = null_real
-        real :: DiaNLimitationFactor                        = null_real
-        real :: DiaPLimitationFactor                        = null_real
-        real :: DiaSiLimitationFactor                       = null_real        
-        real :: DiaTempLimitationFactor                     = null_real
-        
-        type(T_ExtraRate   ), pointer       :: DiaGrossProduction
-        type(T_ExtraRate   ), pointer       :: DiaTempLimitation
-        type(T_ExtraRate   ), pointer       :: DiaNutLimitation
-        type(T_ExtraRate   ), pointer       :: DiaNLimitation
-        type(T_ExtraRate   ), pointer       :: DiaSiLimitation
-
-        type(T_ExtraRate   ), pointer       :: DiaPLimitation
-        type(T_ExtraRate   ), pointer       :: DiaLightLimitation
-
-    end type T_Diatoms   !aqui 
-
+   !o que é isto?
     type      T_WWTPQ      
-        private
+!        private
         integer                             :: InstanceID
         type(T_Size1D      )                :: Prop          
         type(T_PropIndex   )                :: PropIndex
@@ -283,8 +214,8 @@ Module ModuleWWTPQ
 
         type(T_External    )                :: ExternalVar
 
-        type(T_EquaRateFlux), pointer       :: FirstEquaRateFlux
-        type(T_EquaRateFlux), pointer       :: LastEquaRateFlux
+!        type(T_EquaRateFlux), pointer       :: FirstEquaRateFlux
+!        type(T_EquaRateFlux), pointer       :: LastEquaRateFlux
 
         type(T_ExtraRate   ), pointer       :: GrossProduction
         type(T_ExtraRate   ), pointer       :: TempLimitation
@@ -293,234 +224,30 @@ Module ModuleWWTPQ
         type(T_ExtraRate   ), pointer       :: PLimitation
         type(T_ExtraRate   ), pointer       :: LightLimitation
 
-        !aqui
-        type(T_SilicaCycle )                :: SilicaCycle
-
-        !aqui
-        type(T_Diatoms     )                :: Diatoms  
-        
-        real, pointer, dimension(:)         :: NewProd,       RegeneratedProd
-        real, pointer, dimension(:)         :: NitrateUptake, AmmoniaUptake
-
         real :: DTDay                                       = null_real
-        real :: DTSecond                                    = null_real
+        real :: DTSecond                                    = null_real 
+   
+   !o que é isto?     
+         type(T_KineticParameters)                   :: KineticParameters
+         type(T_StechParameters)                     :: StechParameters
 
-        real :: NSatConst                                   = null_real
-        real :: PhytoNutRegenerationSatConst                = null_real
-
-        real :: AlfaPhytoNC                                 = null_real
-        real :: AlfaZooNC                                   = null_real
-        real :: AlfaCilNC                                   = null_real
-        real :: AlfaBacteriaNC                              = null_real
-        real :: OMAlfaNC                                    = null_real
-        real :: OMAlfaPC                                    = null_real
-        real :: BactAlfaOC                                  = null_real
-        real :: PlanktonOxygenCarbonRatio                   = null_real
-                        
-        real :: KRefrAmmoniaMinRate                         = null_real     !KRefrAmmoniaMinRate
-        real :: KNonRefrAmmoniaMinRate                      = null_real     !KNonRefrAmmoniaMinRate
-        real :: NonRefrAmmoniaMinRate 
-        real :: KDenitrificationRate                        = null_real
-        real :: KNitrificationRateK1                        = null_real     !FIRST NITRIFICATION STEP (NH3-»NO2)
-        real :: KNitrificationRateK2                        = null_real     !SECOND NITRIFICATION STEP (NO2-»NO3)
-        real :: KPartDecompRate                             = null_real
-        real :: PhytoAvaibleDecomp                          = null_real
-
-        real :: TRefrAmmoniaMin                             = null_real     !TRefractoryAmmoniaMineralization
-        real :: TNonRefrAmmoniaMin                          = null_real     !TNonRefractoryAmmoniaMineralization
-        real :: TDenitrification                            = null_real
-        real :: TNitrification                              = null_real
-        real :: TPartDecomposition                          = null_real
-
-        real :: NitrificationSatConst                       = null_real
-        real :: DenitrificationSatConst                     = null_real
-
-        real :: KDOPnrMinRate                               = null_real
-        real :: TDOPnrMin                                   = null_real
-        real :: KDOPrMinRate                                = null_real
-        real :: TDOPrMin                                    = null_real
-       
-        real :: AlfaPhytoPC                                 = null_real
-        real :: AlfaZooPC                                   = null_real
-        real :: PSatConst                                   = null_real
-        real :: AlfaCilPC                                   = null_real
-        real :: AlfaBacteriaPC                              = null_real
-        real :: AlfaSubstratPC                              = null_real
-        
-        real :: PhytoLightLimitationFactor                  = null_real
-        real :: PhytoNutrientsLimitationFactor              = null_real
-        real :: TPhytoLimitationFactor                      = null_real
-        real :: PhytoPLimitationFactor                      = null_real
-        real :: PhytoNLimitationFactor                      = null_real
-
-
-        real :: GrowMaxPhytoRate                            = null_real
-        real :: PhytoMortMaxRate                            = null_real
-        real :: PhytoGrossGrowRate                          = null_real
-        real :: E                                           = null_real
-        real :: TOptPhytoMin                                = null_real
-        real :: TOptPhytoMax                                = null_real
-        real :: TPhytoMin                                   = null_real
-        real :: TPhytoMax                                   = null_real
-        real :: FK1                                         = null_real
-        real :: FK2                                         = null_real
-        real :: FK3                                         = null_real
-        real :: FK4                                         = null_real
-        real :: Photoinhibition                             = null_real
-        real :: FMortSatConst                               = null_real
-        real :: PhotorespFactor                             = null_real
-        real :: PhytoExcretionConstant                      = null_real
-        real :: PhytoEndogRepConst                          = null_real     !PhytoEndogenousRepirationConstant
-        real :: PhotosynthesisOxygenCarbonRatio             = null_real 
-        real :: ONMineralizationRatio                       = null_real     !Ratio between organic nitrogen and 
-        real :: MinOxygen                                   = null_real     !minimum oxygen possible to allow aerobic 
-                                                                            !reactions
-        real :: POPDecompRate                               = null_real
-        real :: TPOPDecompRate                              = null_real
-        real :: GrowMaxZooRate                              = null_real
-        real :: RatioOxygenCarbonZooRespiration             = null_real
-        real :: RatioOxygenCarbonCilRespiration             = null_real
-        real :: TOptZooMin                                  = null_real
-        real :: TOptZooMax                                  = null_real
-        real :: TZooMin                                     = null_real
-        real :: TZooMax                                     = null_real
-        real :: ZK1                                         = null_real
-        real :: ZK2                                         = null_real
-        real :: ZK3                                         = null_real
-        real :: ZK4                                         = null_real
-        real :: GrazPhytoMin                                = null_real
-        real :: GrazCiliateMin                              = null_real
-        real :: GrazPreyMin                                 = null_real
-        real :: IvlevGrazConst                              = null_real
-        real :: ZPredMortalityRate                          = null_real
-        real :: TZooLimitationFactor                        = null_real
-
-        
-        real :: ZooExcretionFactor                          = null_real
-        real :: ZooExcretionConst                           = null_real 
-        real :: ZooIngestionConst                           = null_real
-        real :: ZooEfficiencyCapturePhyto                   = null_real 
-        real :: ZooEfficiencyCaptureCiliate                 = null_real 
-        real :: ZooIngestionMax                             = null_real 
-        real :: ZooAssimilationPhytoRate                    = null_real 
-        real :: ZooAssimilationCiliateRate                  = null_real 
-        real :: PhytoRatioIngestionZoo                      = null_real
-        real :: CiliatesRatioIngestionZoo                   = null_real
-        real :: BactRatioIngestionCiliates                  = null_real
-        real :: PhytoRatioIngestionCiliates                 = null_real  
-  
-    
-        real :: BacteriaNonGrazingMortalityRate             = null_real
-        real :: BacteriaExcretionRate                       = null_real
-        real :: NitrogenSaturationConstBacteria             = null_real
-        real :: BacteriaMaxUptake                           = null_real
-        real :: BacteriaMinSubstrate                        = null_real                    
-        real :: TOptbacteriaMin                             = null_real
-        real :: TOptBacteriaMax                             = null_real
-        real :: TBacteriaMin                                = null_real
-        real :: TBacteriaMax                                = null_real
-        real :: BK1                                         = null_real
-        real :: BK2                                         = null_real
-        real :: BK3                                         = null_real
-        real :: BK4                                         = null_real
-
-        real :: ZooNaturalMortalityRate                     = null_real
-        real :: ZooMortalityCoef                            = null_real
-        real :: ZooMinMortalityRate                         = null_real
-        real :: ZooMaxMortalityRate                         = null_real
-        real :: PhytoExcreDissOrgFraction                   = null_real
-        real :: ZooExcreDissOrgFraction                     = null_real
-        real :: PhytoSolublInorgExcreFraction               = null_real
-        real :: ZooSolublInorgExcreFraction                 = null_real
-
-
-        real :: CiliateNaturalMortalityRate                 = null_real
-        real :: CiliateMortalityCoef                        = null_real
-        real :: CiliateMinMortalityRate                     = null_real
-        real :: CiliateMaxMortalityRate                     = null_real
-        real :: CiliateExcretionConst                       = null_real
-        real :: CiliateExcretionFactor                      = null_real
-        real :: CiliateIngestionConst                       = null_real 
-        real :: CiliateEfficiencyCaptureBact                = null_real 
-        real :: CiliateEfficiencyCapturePhyto               = null_real 
-        real :: CiliateIngestionMax                         = null_real 
-        real :: CiliateAssimilationBacteriaRate             = null_real 
-        real :: CiliateAssimilationPhytoRate                = null_real 
-        real :: CiliateGrazBactMin                          = null_real
-        real :: CiliateGrazPhytoMin                         = null_real
-        real :: CiliateGrazPreyMin                         = null_real
-
-        real :: CiliateReferenceRespirationRate             = null_real
-
-        real :: BODOxidationCoefficient                     = null_real
-        real :: BODOxidationReferenceRate                   = null_real
-        real :: BODOxygenSSatConstant                       = null_real
-        real :: NConsOxyNitRatio                            = null_real     !NitrateConsumptionOxygenNitrateRatio
-        real :: NitrificationK1_ON_ratio                    = null_real     ! NH4 -> NO2 O:N Ratio   
-        real :: NitrificationK2_ON_ratio                    = null_real     ! NO2 -> NO3 O:N Ratio         
-        real :: PConsOxyPhosphorusRatio                     = null_real     !PhosphateConsumptionOxygenPhosphorusRatio (Rosa)
-        real :: PhytoTotalRespirationLossesRate             = null_real
-        real :: NitrificationRateK1                         = null_real
-        real :: NitrificationRateK2                         = null_real
-        real :: BODOxidationRate                            = null_real
-
-
-        real :: OxyCarbonRatio                              = null_real       !O:C Ratio in Co2
-
-        real :: DenitrificationRate                         = null_real
-        real :: PhytoNonGrazingMortalityRate                = null_real
-
-
-        real :: ZooReferenceRespirationRate                 = null_real
-        real :: PhytoExcretionsRate                         = null_real
-
-        integer :: NPhases                                  = null_int
-        real :: Awg                                         = null_real
-        real :: Bwg                                         = null_real
-        real :: Awz                                         = null_real
-        real :: Bwz                                         = null_real
-        real :: Atg                                         = null_real
-        real :: Btg                                         = null_real
-        real :: Atz                                         = null_real
-        real :: Btz                                         = null_real
-        real :: Ldensity                                    = null_real
-        real :: Lshape                                      = null_real
-        real :: Init_age                                    = null_real
-        real :: Inter_age                                   = null_real
-        real :: Final_age                                   = null_real
-        real :: Init_length                                 = null_real
-        real :: Inter_length                                = null_real
-        real :: Final_length                                = null_real
-        real :: FishFood_ref                                = null_real
-        real :: Temperature_ref                             = null_real
-        real :: Afg                                         = null_real
-        
-        real :: POMIngestVmax                               = null_real
-        real :: PONIngestKs                                 = null_real
-        real :: POPIngestKs                                 = null_real
-        real :: PON_CNratio                                 = null_real
-        real :: PON_CPratio                                 = null_real
-        
-
-
-        !aqui_10
-        integer                                     :: WWTPQConfiguration =0
-
+!
+   !o que é isto?
         double precision, pointer, dimension(:,:)   :: Matrix
         real,             pointer, dimension(:  )   :: IndTerm
         real, pointer, dimension(:  )               :: NewMass   !Used with Explicit method
-
-        !Instance of Module_EnterData
+!
+!        !Instance of Module_EnterData
         integer                                     :: ObjEnterData = 0
-
-        !Instance of ModuleLUD
+!
+!        !Instance of ModuleLUD
         integer                                     :: ObjLUD = 0
-
+!
         type(T_WWTPQ ), pointer              :: Next
-
+!
     end type T_WWTPQ
-
-    !Global Module Variables
+!
+!    !Global Module Variables
     type (T_WWTPQ), pointer                  :: FirstObjWWTPQ
     type (T_WWTPQ), pointer                  :: Me
 
@@ -528,7 +255,7 @@ Module ModuleWWTPQ
     
     contains
 
-
+!What is the meaning of contains? 
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -540,6 +267,8 @@ Module ModuleWWTPQ
 
 
     subroutine StartWWTPQ(WWTPQID, FileName, STAT)
+    
+    !? What does it subroutine do?
 
         !Arguments-------------------------------------------------------------
         integer                         :: WWTPQID
@@ -614,6 +343,8 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
 
     subroutine AllocateInstance
 
+ !? What does it subroutine do?
+
         !Local-----------------------------------------------------------------
         type (T_WWTPQ), pointer           :: NewObjWWTPQ
         type (T_WWTPQ), pointer           :: PreviousObjWWTPQ
@@ -646,819 +377,172 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
 
     Subroutine Nullify_all_Sub_Type_Pointers
 
+ !? What does it subroutine do?
+
         nullify(Me%ExternalVar%Salinity    )
         nullify(Me%ExternalVar%Temperature )
         nullify(Me%ExternalVar%Mass        )
-        nullify(Me%ExternalVar%FishFood    )
-        nullify(Me%NewProd                 )
-        nullify(Me%RegeneratedProd         )
-        nullify(Me%NitrateUptake           )
-        nullify(Me%AmmoniaUptake           )
         nullify(Me%Matrix                  )
         nullify(Me%IndTerm                 )
         nullify(Me%NewMass                 )
 
     end Subroutine Nullify_all_Sub_Type_Pointers
 
-    !--------------------------------------------------------------------------
-
-    subroutine Construct_WWTPQRateFlux(WWTPQID, WWTPQArrayLB, WWTPQArrayUB, STAT)
-
-        !Arguments---------------------------------------------------------------
-        integer                             :: WWTPQID
-        type(T_EquaRateFlux)    , pointer   :: EquaRateFluxX
-        integer, optional                   :: STAT
-
-        !External----------------------------------------------------------------
-        integer                             :: WWTPQArrayLB,WWTPQArrayUB
-
-        !Local-------------------------------------------------------------------
-        type (T_PropRateFlux), pointer      :: NewPropRateFlux
-        type (T_EquaRateFlux), pointer      :: NewEquaRateFlux
-        
-        !Begin-------------------------------------------------------------------
-
-        integer                             :: STAT_CALL
-        integer                             :: PropLB, PropUB
-                                            
-        integer                             :: NumAM
-        integer                             :: NumPON
-        integer                             :: NumPONr
-        integer                             :: NumZoo
-        integer                             :: NumPhyto
-        integer                             :: NumDONnr
-        integer                             :: NumNI
-        integer                             :: NumNA
-        integer                             :: NumDONr
-        integer                             :: NumO
-        integer                             :: NumBOD
-        integer                             :: NumIP
-        integer                             :: NumDOPr
-        integer                             :: NumDOPnr
-        integer                             :: NumPOP
-        integer                             :: NumPON1
-        integer                             :: NumPON2
-        integer                             :: NumPON3
-        integer                             :: NumPON4
-        integer                             :: NumPON5
-        integer                             :: NumPOP1
-        integer                             :: NumPOP2
-        integer                             :: NumPOP3
-        integer                             :: NumPOP4
-        integer                             :: NumPOP5
-        integer                             :: NumAge
-        integer                             :: numLarvae
-        integer                             :: NumCiliate
-        integer                             :: NumBacteria
-        integer                             :: NumDiatom
-        integer                             :: NumSiBio !aqui
-        integer                             :: NumSiDiss !aqui
-
-        logical, pointer, dimension (:)     :: LogicalEqua
-
-        integer                             :: equa,countequa
-        integer                             :: STAT_, ready_
-        logical                             :: CheckName
-        !----------------------------------------------------------------------
-
-
-        STAT_ = UNKNOWN_
-
-        call Ready(WWTPQID, ready_)
-
-cd0 :   if (ready_ .EQ. IDLE_ERR_) then
-
-            numPhyto   = Me%PropIndex%Phyto
-            numAM      = Me%PropIndex%Ammonia
-            numNI      = Me%PropIndex%Nitrite
-            numNA      = Me%PropIndex%Nitrate
-            numPON     = Me%PropIndex%PartOrganicNitrogen
-            numPONr    = Me%PropIndex%PartOrganicNitrogenRefractory
-            numDONnr   = Me%PropIndex%DONNonRefractory
-            numDONr    = Me%PropIndex%DissOrganicNitrogenRefractory
-            numZoo     = Me%PropIndex%Zoo
-            numBOD     = Me%PropIndex%BOD
-            numO       = Me%PropIndex%Oxygen      
-            numDOPr    = Me%PropIndex%DissOrganicPhosphorusRefractory          
-            numDOPnr   = Me%PropIndex%DOPNonRefractory 
-            numPOP     = Me%PropIndex%PartOrganicPhosphorus 
-            numIP      = Me%PropIndex%InorganicPhosphorus 
-            numPON1    = Me%PropIndex%PONitrogen1
-            numPON2    = Me%PropIndex%PONitrogen2
-            numPON3    = Me%PropIndex%PONitrogen3
-            numPON4    = Me%PropIndex%PONitrogen4
-            numPON5    = Me%PropIndex%PONitrogen5
-            numPOP1    = Me%PropIndex%POPhosphorus1
-            numPOP2    = Me%PropIndex%POPhosphorus2
-            numPOP3    = Me%PropIndex%POPhosphorus3
-            numPOP4    = Me%PropIndex%POPhosphorus4
-            numPOP5    = Me%PropIndex%POPhosphorus5 
-            numAge     = Me%PropIndex%Age
-            numLarvae  = Me%PropIndex%Larvae
-            NumCiliate = Me%PropIndex%Ciliate
-            NumBacteria= Me%PropIndex%Bacteria
-            NumDiatom  = Me%PropIndex%Diatoms         !aqui
-            NumSiBio   = Me%PropIndex%BiogenicSilica  !aqui
-            NumSiDiss  = Me%PropIndex%DissolvedSilica !aqui
-
-
-            PropUB = Me%Prop%IUB
-            PropLB = Me%Prop%ILB
-
-            allocate(LogicalEqua(PropLB:PropUB))
-            LogicalEqua =.false.
-    
-            countequa=0
-       
-            !oxigen is always computed
-            Logicalequa(NumO) =.true.
-            countequa = countequa + 1
-
-            if (Me%PropCalc%Nitrogen) then
-                Logicalequa(NumAM    )=.true.
-                Logicalequa(NumNI    )=.true.
-                Logicalequa(NumPON   )=.true.
-                Logicalequa(NumDONnr )=.true.
-                Logicalequa(NumDONr  )=.true.
-                Logicalequa(NumNA    )=.true.
-                countequa = countequa + 6
-            endif
-
-            if (Me%PropCalc%Age) then
-                Logicalequa(NumAge   )=.true.
-                countequa = countequa + 1
-            endif
-
-            if (Me%PropCalc%Bacteria) then
-                Logicalequa(NumBacteria)=.true.
-                countequa = countequa + 1
-                if(Me%PropCalc%Nitrogen)then               
-                    Logicalequa(NumPONr)=.true.
-                    countequa = countequa + 1
-                end if
-            endif
-
-            if (Me%PropCalc%Ciliate) then
-                Logicalequa(NumCiliate   )=.true.
-                countequa = countequa + 1
-            endif
-
-            if (Me%PropCalc%Larvae) then
-                Logicalequa(NumLarvae   )=.true.
-                countequa = countequa + 1
-            endif
-       
-            if (Me%PropCalc%Phosphorus) then
-                Logicalequa(numDOPr )=.true.
-                Logicalequa(numDOPnr)=.true.
-                Logicalequa(NumPOP  )=.true.
-                Logicalequa(NumIP   )=.true.
-                countequa = countequa + 4
-            endif
-            
-            if(Me%Propcalc%Pompools) then
-                if (Me%PropCalc%Nitrogen) then
-                    Logicalequa(NumPON1  )=.true.
-                    Logicalequa(NumPON2  )=.true.
-                    Logicalequa(NumPON3  )=.true.
-                    Logicalequa(NumPON4  )=.true.
-                    Logicalequa(NumPON5  )=.true.
-                    countequa = countequa + 5
-                endif
-            
-                if (Me%PropCalc%Phosphorus) then
-                    Logicalequa(NumPOP1 )=.true.
-                    Logicalequa(NumPOP2 )=.true.
-                    Logicalequa(NumPOP3 )=.true.
-                    Logicalequa(NumPOP4 )=.true.
-                    Logicalequa(NumPOP5 )=.true.
-                    countequa = countequa + 5
-                endif    
-            endif
-
-            if (Me%PropCalc%Silica) then
-                Logicalequa(NumSiBio )=.true.
-                Logicalequa(NumSiDiss)=.true.
-                countequa = countequa + 2
-            endif
-
-
-            if (Me%PropCalc%Phyto) then
-                Logicalequa(NumPhyto  )=.true.
-                countequa = countequa + 1
-            endif
-
-            !aqui
-            if (Me%PropCalc%Diatoms) then
-                Logicalequa(NumDiatom  )=.true.
-                countequa = countequa + 1
-            endif
-
-
-            if (Me%PropCalc%Zoo) then
-                Logicalequa(NumZOO     )=.true.
-                countequa = countequa + 1 
-            endif
-
-            if (Me%PropCalc%BOD) then
-                Logicalequa(NumBOD     )=.true.
-                countequa = countequa + 1 
-            endif
-       
-            if (Me%PropCalc%Phyto) then 
-            !if phyto then gross production and growth limitations parameter output are available  
-            
-                !GrossProduction
-                allocate (Me%GrossProduction, STAT = STAT_CALL)            
-                
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR01.'
-
-                CheckName = CheckPropertyName('grossprod', number = Me%GrossProduction%ID)
-
-                nullify(Me%GrossProduction%Field)
-                allocate(Me%GrossProduction%Field   (WWTPQArrayLB:WWTPQArrayUB))
-                
-                !TempLimitation
-                allocate (Me%TempLimitation, STAT = STAT_CALL)            
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR02.'
-
-                CheckName = CheckPropertyName('temperaturelim', number = Me%TempLimitation%ID)
-
-                nullify(Me%TempLimitation%Field)
-                allocate(Me%TempLimitation%Field   (WWTPQArrayLB:WWTPQArrayUB))
-                
-                !NutLimitation
-                allocate (Me%NutLimitation, STAT = STAT_CALL)            
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR03.'
-
-                CheckName = CheckPropertyName('nutrientlim', number = Me%NutLimitation%ID)  
-
-                nullify(Me%NutLimitation%field)
-                allocate(Me%NutLimitation%field   (WWTPQArrayLB:WWTPQArrayUB))
-
-                !NLimitation
-                allocate (Me%NLimitation, STAT = STAT_CALL)            
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR03.'
-
-                CheckName = CheckPropertyName('nitrogenlim', number = Me%NLimitation%ID)  
-
-                nullify(Me%NLimitation%field)
-                allocate(Me%NLimitation%field   (WWTPQArrayLB:WWTPQArrayUB))
-
-
-                !PLimitation
-                allocate (Me%PLimitation, STAT = STAT_CALL)            
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR03.'
-
-                CheckName = CheckPropertyName('phosphoruslim', number = Me%PLimitation%ID)  
-
-                nullify(Me%PLimitation%field)
-                allocate(Me%PLimitation%field   (WWTPQArrayLB:WWTPQArrayUB))
-
-
-                !LightLimitation
-                allocate (Me%LightLimitation, STAT = STAT_CALL)            
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR04.'
-
-                CheckName = CheckPropertyName('lightlim', number = Me%LightLimitation%ID)
-
-                nullify(Me%LightLimitation%field)
-                allocate(Me%LightLimitation%field   (WWTPQArrayLB:WWTPQArrayUB))            
-
-            endif
-       
-           !aqui_1
-
-            if (Me%PropCalc%Diatoms) then 
-            !if diatoms then gross production and growth limitations parameter output are available  
-            
-            !DiaGrossProduction
-                allocate (Me%Diatoms%DiaGrossProduction, STAT = STAT_CALL)            
-                
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR11.'
-
-                CheckName = CheckPropertyName('diagrossprod', number = Me%Diatoms%DiaGrossProduction%ID)
-
-                nullify(Me%Diatoms%DiaGrossProduction%Field)
-                allocate(Me%Diatoms%DiaGrossProduction%Field   (WWTPQArrayLB:WWTPQArrayUB))
-                
-            !TempLimitation
-                allocate (Me%Diatoms%DiaTempLimitation, STAT = STAT_CALL)            
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR12.'
-
-                CheckName = CheckPropertyName('diatemperaturelim', number = Me%Diatoms%DiaTempLimitation%ID)
-
-                nullify(Me%Diatoms%DiaTempLimitation%Field)
-                allocate(Me%Diatoms%DiaTempLimitation%Field   (WWTPQArrayLB:WWTPQArrayUB))
-                
-            !NutLimitation
-                allocate (Me%Diatoms%DiaNutLimitation, STAT = STAT_CALL)            
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR13.'
-
-                CheckName = CheckPropertyName('dianutrientlim', number = Me%Diatoms%DiaNutLimitation%ID)  
-
-                nullify(Me%Diatoms%DiaNutLimitation%field)
-                allocate(Me%Diatoms%DiaNutLimitation%field   (WWTPQArrayLB:WWTPQArrayUB))
-
-            !DiaNLimitation
-                allocate (Me%Diatoms%DiaNLimitation, STAT = STAT_CALL)            
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR13.'
-
-                CheckName = CheckPropertyName('dianitrogenlim', number = Me%Diatoms%DiaNLimitation%ID)  
-
-                nullify(Me%Diatoms%DiaNLimitation%field)
-                allocate(Me%Diatoms%DiaNLimitation%field   (WWTPQArrayLB:WWTPQArrayUB))
-
-            !DiaSiLimitation
-                allocate (Me%Diatoms%DiaSiLimitation, STAT = STAT_CALL)            
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR13.'
-
-                CheckName = CheckPropertyName('diasilicalim', number = Me%Diatoms%DiaSiLimitation%ID)  
-
-                nullify(Me%Diatoms%DiaSiLimitation%field)
-                allocate(Me%Diatoms%DiaSiLimitation%field   (WWTPQArrayLB:WWTPQArrayUB))
-
-
-            !DiaPLimitation
-                allocate (Me%Diatoms%DiaPLimitation, STAT = STAT_CALL)            
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR13.'
-
-                CheckName = CheckPropertyName('diaphosphoruslim', number = Me%Diatoms%DiaPLimitation%ID)  
-
-                nullify(Me%Diatoms%DiaPLimitation%field)
-                allocate(Me%Diatoms%DiaPLimitation%field   (WWTPQArrayLB:WWTPQArrayUB))
-
-
-            !LightLimitation
-                allocate (Me%Diatoms%DiaLightLimitation, STAT = STAT_CALL)            
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR14.'
-
-                CheckName = CheckPropertyName('dialightlim', number = Me%Diatoms%DiaLightLimitation%ID)
-
-                nullify(Me%Diatoms%DiaLightLimitation%field)
-                allocate(Me%Diatoms%DiaLightLimitation%field   (WWTPQArrayLB:WWTPQArrayUB))            
-
-            endif
-
-            if (countequa.ne.PropUB)                                                                & 
-                stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR20.'
-
-            do equa = PropLB,PropUB
-
-                if (Logicalequa(equa)) then
-
-                    allocate (NewEquaRateFlux, STAT = STAT_CALL)            
-                    if (STAT_CALL .NE. SUCCESS_)                                                    &
-                        stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR30.'
-
-                    nullify(NewEquaRateFlux%Prev,NewEquaRateFlux%Next)
-                    nullify(NewEquaRateFlux%FirstPropRateFlux,NewEquaRateFlux%LastPropRateFlux)
-
-                    ! Add new Property to the WaterProperties List 
-                    call Add_EquaRateFlux(NewEquaRateFlux)         
-
-                    NewEquaRateFlux%ID = equa
-
-                    if (STAT_CALL .NE. SUCCESS_)                                                    &
-                        stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR40.' 
-
-                endif
-            enddo
-
-
-            EquaRateFluxX => Me%FirstEquaRateFlux  
-
-
-do1:        do while (associated(EquaRateFluxX))
-
-                do equa = PropLB,PropUB
-
-                    if (LogicalEqua(equa)) then
-
-                        allocate (NewPropRateFlux, STAT = STAT_CALL)            
-                        if (STAT_CALL .NE. SUCCESS_)                                                 &
-                            stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR50.'
-
-                        nullify(NewPropRateFlux%field)
-                        nullify(NewPropRateFlux%Prev,NewPropRateFlux%Next)
-                        allocate(NewPropRateFlux%Field   (WWTPQArrayLB:WWTPQArrayUB))
-                        
-                        ! Add new Prop  
-                        call Add_PropRateFlux(EquaRateFluxX, NewPropRateFlux)         
-
-                        NewPropRateFlux%ID         = equa
-                        NewPropRateFlux%Field      = 0.
-
-                        if (STAT_CALL .NE. SUCCESS_)                                                &
-                            stop 'Subroutine Construct_WWTPQRateFlux - ModuleWWTPQ. ERR60.' 
-                    endif
-                enddo
-        
-                EquaRateFluxX => EquaRateFluxX%Next
-
-            enddo do1
-        
-            nullify(EquaRateFluxX) 
-
-            STAT_ = SUCCESS_
-        else               
-            STAT_ = ready_
-        end if cd0
-
-        if (present(STAT))                                                                          &
-            STAT = STAT_          
-          
-    end subroutine Construct_WWTPQRateFlux
-
     !----------------------------------------------------------------------------
-    !This subroutine adds a new property rateflux to the Rate Fluxes List
-    subroutine Add_EquaRateFlux(NewEquaRateFlux)
-
-        !Arguments-------------------------------------------------------------
-        type(T_EquaRateFlux),pointer    :: NewEquaRateFlux
-
-        !----------------------------------------------------------------------
-
-        if (.not.associated(Me%FirstEquaRateFlux)) then
-
-            Me%FirstEquaRateFlux        => NewEquaRateFlux
-            Me%LastEquaRateFlux         => NewEquaRateFlux
-        else
-            NewEquaRateFlux%Prev        => Me%LastEquaRateFlux
-            Me%LastEquaRateFlux%Next    => NewEquaRateFlux
-            Me%LastEquaRateFlux         => NewEquaRateFlux
-        
-        end if 
-
-    end subroutine Add_EquaRateFlux 
+!    !This subroutine adds a new property rateflux to the Rate Fluxes List
+!    subroutine Add_EquaRateFlux(NewEquaRateFlux)
+!
+!!? What does it subroutine do?
+!
+!        !Arguments-------------------------------------------------------------
+!        type(T_EquaRateFlux),pointer    :: NewEquaRateFlux
+!
+!        !----------------------------------------------------------------------
+!
+!        if (.not.associated(Me%FirstEquaRateFlux)) then
+!
+!            Me%FirstEquaRateFlux        => NewEquaRateFlux
+!            Me%LastEquaRateFlux         => NewEquaRateFlux
+!        else
+!            NewEquaRateFlux%Prev        => Me%LastEquaRateFlux
+!            Me%LastEquaRateFlux%Next    => NewEquaRateFlux
+!            Me%LastEquaRateFlux         => NewEquaRateFlux
+!        
+!        end if 
+!
+!    end subroutine Add_EquaRateFlux 
 
     !--------------------------------------------------------------------------
   
-    subroutine Add_PropRateFlux(EquaRateFluxX, NewPropRateFlux)
-
-        !Arguments-------------------------------------------------------------
-        type(T_EquaRateFlux),pointer              :: EquaRateFluxX
-        type(T_PropRateFlux),pointer              :: NewPropRateFlux
-
-        !----------------------------------------------------------------------
-
-        if (.not.associated(EquaRateFluxX%FirstPropRateFlux)) then
+!    subroutine Add_PropRateFlux(EquaRateFluxX, NewPropRateFlux)
+!
+!!? What does it subroutine do?
+!
+!        !Arguments-------------------------------------------------------------
+!        type(T_EquaRateFlux),pointer              :: EquaRateFluxX
+!        type(T_PropRateFlux),pointer              :: NewPropRateFlux
+!
+!        !----------------------------------------------------------------------
+!
+!        if (.not.associated(EquaRateFluxX%FirstPropRateFlux)) then
         
-            EquaRateFluxX%FirstPropRateFlux        => NewPropRateFlux
-            EquaRateFluxX%LastPropRateFlux         => NewPropRateFlux
-        
-        else
-            
-            NewPropRateFlux%Prev                   => EquaRateFluxX%LastPropRateFlux
-            EquaRateFluxX%LastPropRateFlux%Next    => NewPropRateFlux
-            EquaRateFluxX%LastPropRateFlux         => NewPropRateFlux
-        
-        end if 
-
-    end subroutine Add_PropRateFlux 
-
-    !--------------------------------------------------------------------------
+!            EquaRateFluxX%FirstPropRateFlux        => NewPropRateFlux
+!            EquaRateFluxX%LastPropRateFlux         => NewPropRateFlux
+!        
+!        else
+!            
+!            NewPropRateFlux%Prev                   => EquaRateFluxX%LastPropRateFlux
+!            EquaRateFluxX%LastPropRateFlux%Next    => NewPropRateFlux
+!            EquaRateFluxX%LastPropRateFlux         => NewPropRateFlux
+!        
+!        end if 
+!
+!    end subroutine Add_PropRateFlux 
+!
+!    !--------------------------------------------------------------------------
     
-    subroutine WWTPQOptions  
-
-        !External--------------------------------------------------------------
-        integer                         :: flag
-        integer                         :: FromFile
-        integer                         :: STAT_CALL
-
-        !----------------------------------------------------------------------
-
-        call GetExtractType(FromFile = FromFile)
-
-        call GetData(Me%PropCalc%Nitrogen,                                                          &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='NITROGEN',                                                            &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR01.' 
-
-
-        call GetData(Me%PropCalc%Phosphorus,                                                        &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='PHOSPHOR',                                                            &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR02.' 
-
-
-        call GetData(Me%PropCalc%Phyto,                                                             &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='PHYTO',                                                               &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)                        
-        if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR03.' 
-
-        call GetData(Me%PropCalc%Zoo,                                                               &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='ZOO',                                                                 &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR04.' 
-
-
-        call GetData(Me%PropCalc%Larvae,                                                            &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='LARVAE',                                                              &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR07.' 
-
-
-        call GetData(Me%PropCalc%Age,                                                               &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='AGE',                                                                 &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR08.'
-
-        call GetData(Me%PropCalc%Oxygen,                                                            &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='OXYGEN',                                                              &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)                        
-        if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR09.' 
-
-
-        if (Me%PropCalc%Oxygen) then 
-            Me%PropCalc%Salinity = .FALSE.
-        else
-            Me%PropCalc%Salinity = .TRUE.
-        endif
-
-
-        call GetData(Me%PropCalc%BOD,                                                               &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='BOD',                                                                 &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)                        
-        if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR10.' 
-
-        call GetData(Me%PropCalc%Bacteria,                                                          &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='BACTERIA',                                                            &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)                        
-        if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR11.' 
-
-
-        call GetData(Me%PropCalc%Ciliate,                                                           &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='CILIATE',                                                             &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)                        
-        if (STAT_CALL .NE. SUCCESS_)                                                                & 
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR12.'
-            
-        
-        call GetData(Me%PropCalc%Diatoms,                                                           &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='DIATOMS',                                                             &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)                        
-        if (STAT_CALL .NE. SUCCESS_)                                                                & 
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR13.' 
-        
-
-        
-        call GetData(Me%PropCalc%Silica,                                                            &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='SILICA',                                                              &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)                        
-        if (STAT_CALL .NE. SUCCESS_)                                                                & 
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR14.' 
-            
-            
-        call GetData(Me%PropCalc%Pompools,                                                          &
-                     Me%ObjEnterData, flag,                                                         &
-                     SearchType = FromFile,                                                         &
-                     keyword='POMPOOLS',                                                            &
-                     ClientModule = 'ModuleWWTPQ',                                           &
-                     STAT       = STAT_CALL)                        
-        if (STAT_CALL .NE. SUCCESS_)                                                                & 
-            stop 'Subroutine WWTPQOptions - ModuleWWTPQ. ERR15.'   
-        
-
-    end subroutine WWTPQOptions         
+!    subroutine WWTPQOptions  
+!    
+!    !? What does it subroutine do? Why nitrogen? phosphorous and oxygen? 
+!
+!        !External--------------------------------------------------------------
+!        integer                         :: flag
+!        integer                         :: FromFile
+!        integer                         :: STAT_CALL
+!
+!        !----------------------------------------------------------------------
+!
+!        call GetExtractType(FromFile = FromFile)
+!
+!        call GetData(Me%PropCalc%Nitrogen,                                                          &
+!                     Me%ObjEnterData, flag,                                                         &
+!                     SearchType = FromFile,                                                         &
+!                     keyword='NITROGEN',                                                            &
+!                     ClientModule = 'ModuleWWTPQ',                                           &
+!                     STAT       = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_)                                                                &
+!            stop 'Subroutine WWTPQOptions; Module ModuleWWTPQ. ERR01.' 
+!
+!
+!        call GetData(Me%PropCalc%Phosphorus,                                                        &
+!                     Me%ObjEnterData, flag,                                                         &
+!                     SearchType = FromFile,                                                         &
+!                     keyword='PHOSPHOR',                                                            &
+!                     ClientModule = 'ModuleWWTPQ',                                           &
+!                     STAT       = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_)                                                                &
+!            stop 'Subroutine WWTPQOptions; Module ModuleWWTPQ. ERR02.' 
+!
+!
+!        call GetData(Me%PropCalc%Oxygen,                                                            &
+!                     Me%ObjEnterData, flag,                                                         &
+!                     SearchType = FromFile,                                                         &
+!                     keyword='OXYGEN',                                                              &
+!                     ClientModule = 'ModuleWWTPQ',                                           &
+!                     STAT       = STAT_CALL)                        
+!        if (STAT_CALL .NE. SUCCESS_)                                                                &
+!            stop 'Subroutine WWTPQOptions; Module ModuleWWTPQ. ERR09.' 
+!
+!    end subroutine WWTPQOptions         
     
     !--------------------------------------------------------------------------
     
     !A subroutine WWTPQPropertyIndexNumber serve para atribuir indices as propriedades a ser 
     !calculadas no modulo de Qualidade da Agua
-    !
-    !Ricardo C. Miranda, 1996
+   
     subroutine WWTPQPropertyIndexNumber
 
-        !----------------------------------------------------------------------
+!? What does it subroutine do? Give IndexNumber to each property
 
         Me%Prop%ILB = 1
         Me%Prop%IUB = 0
+                    
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%SolInertOrgMat                   = Me%Prop%IUB
 
-        !Nitrogen index number
-        if (Me%PropCalc%Nitrogen) then
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%Ammonia                          = Me%Prop%IUB
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%ReadilyBioSub                    = Me%Prop%IUB
 
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%Nitrate                          = Me%Prop%IUB
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%PartInertOrgMar                  = Me%Prop%IUB
 
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%Nitrite                          = Me%Prop%IUB
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%SlowlyBioSub                     = Me%Prop%IUB
+                
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%HetBio                           = Me%Prop%IUB
 
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%PartOrganicNitrogen              = Me%Prop%IUB
-
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%DissOrganicNitrogenRefractory    = Me%Prop%IUB
-
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%DONNonRefractory                 = Me%Prop%IUB
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%AutBio                           = Me%Prop%IUB
             
-         endif   !Nitrogen  
-    
-        !Phosphorus index number
-        if (Me%PropCalc%Phosphorus) then   
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%PartProd                         = Me%Prop%IUB
 
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%PartOrganicPhosphorus            = Me%Prop%IUB
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%Oxygen                           = Me%Prop%IUB
 
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%DissOrganicPhosphorusRefractory  = Me%Prop%IUB
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%Nitrate                          = Me%Prop%IUB
 
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%DOPNonRefractory                 = Me%Prop%IUB
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%Ammonia                          = Me%Prop%IUB
             
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%InorganicPhosphorus              = Me%Prop%IUB
-        endif   !Phosphorus
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%SolBioOrgNitrogen                = Me%Prop%IUB
 
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%PartBioOrgNitrogen               = Me%Prop%IUB
 
-        if (Me%PropCalc%Pompools) then   
-            
-            if (Me%PropCalc%Nitrogen) then   
-            
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%PONitrogen1                      = Me%Prop%IUB            
-            
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%PONitrogen2                      = Me%Prop%IUB 
-
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%PONitrogen3                      = Me%Prop%IUB 
-            
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%PONitrogen4                      = Me%Prop%IUB 
-
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%PONitrogen5                      = Me%Prop%IUB                                     
-            
-            endif
-            
-            if (Me%PropCalc%Phosphorus) then   
-
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%POPhosphorus1                    = Me%Prop%IUB            
-            
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%POPhosphorus2                    = Me%Prop%IUB 
-
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%POPhosphorus3                    = Me%Prop%IUB 
-            
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%POPhosphorus4                    = Me%Prop%IUB 
-
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%POPhosphorus5                    = Me%Prop%IUB
-        
-            endif
-            
-        endif   !POMpools
-
-
-        !Silica index number
-        if (Me%PropCalc%Silica) then   
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%BiogenicSilica                   = Me%Prop%IUB
-
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%DissolvedSilica                  = Me%Prop%IUB
-
-        endif   !Silica
-        
-
-        !Phytoplankton index number
-        if (Me%PropCalc%Phyto) then
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%Phyto                            = Me%Prop%IUB        
-        endif   !Phyto
-
-
-
-        !Zooplankton index number
-        if (Me%PropCalc%Zoo) then 
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%Zoo                              = Me%Prop%IUB
-        endif   !Zoo
-
-        
-        !Larvae index number
-        if (Me%PropCalc%Larvae) then
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%Larvae                           = Me%Prop%IUB
-        endif   !Larvae 
-
-        
-        !Age index number
-        if (Me%PropCalc%Age) then
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%Age                              = Me%Prop%IUB
-        endif   !Age 
-
-        !Bacteria index number
-        if (Me%PropCalc%Bacteria) then
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%Bacteria                         = Me%Prop%IUB
-            
-            if (Me%PropCalc%Nitrogen) then
-                Me%Prop%IUB                               = Me%Prop%IUB + 1
-                Me%PropIndex%PartOrganicNitrogenRefractory= Me%Prop%IUB
-            endif
-
-        endif   !Bacteria
-
-
-        !Ciliate index number
-        if (Me%PropCalc%Ciliate) then
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%Ciliate                          = Me%Prop%IUB
-        endif   !Ciliate
-
-
-        !Oxygen index number -> The oxygen is always calculated.
-        Me%Prop%IUB                                       = Me%Prop%IUB + 1
-        Me%PropIndex%Oxygen                               = Me%Prop%IUB
-
-
-
-        !BOD index number
-        if (Me%PropCalc%BOD) then   
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%BOD                              = Me%Prop%IUB
-        endif   !BOD
-
-
-        !Diatoms index number
-        if (Me%PropCalc%Diatoms) then   
-            Me%Prop%IUB                                   = Me%Prop%IUB + 1
-            Me%PropIndex%Diatoms                          = Me%Prop%IUB
-        endif   !Diatoms
-    
-
+        Me%Prop%IUB                                   = Me%Prop%IUB + 1
+        Me%PropIndex%Alkalinity                       = Me%Prop%IUB
+                                      
     end subroutine WWTPQPropertyIndexNumber
 
     !--------------------------------------------------------------------------
 
     subroutine WWTPQReadData
+
+!? What does it subroutine do? 
 
         !Local-----------------------------------------------------------------
         logical :: Consistent
@@ -1466,20 +550,20 @@ do1:        do while (associated(EquaRateFluxX))
         !----------------------------------------------------------------------
         
 
-        call WWTPQOptions
+ !       call WWTPQOptions
         call WWTPQPropertyIndexNumber
         call WWTPQReadCalcOptions
 
-        Consistent = WWTPQOptionsConsistencyVerif ()
+        !Consistent = WWTPQOptionsConsistencyVerif ()
     
-        if (Consistent) then
-            call WWTPQConfiguration
+        !if (Consistent) then
+            !call WWTPQConfiguration
             call WWTPQReadFileConstants
-        else
-            write(*,*) 
-            write(*,*) 'The Water Quality Options were not consistent, verify file data.'
-            stop       'SUBROUTINE WWTPQReadData - ModuleWWTPQ. ERR01'
-        endif   !Consistent
+!        else
+!            write(*,*) 
+!            write(*,*) 'The Water Quality Options were not consistent, verify file data.'
+!            stop       'SUBROUTINE WWTPQReadData; Module ModuleWWTPQ. ERR01'
+!        endif   !Consistent
 
         !----------------------------------------------------------------------
 
@@ -1488,6 +572,8 @@ do1:        do while (associated(EquaRateFluxX))
     !--------------------------------------------------------------------------
 
     subroutine WWTPQReadCalcOptions
+    
+    !? What does it subroutine do? Verify which method is used to calculate (explicit, implicit, semi-explicit?)
 
         !External--------------------------------------------------------------
         integer                         :: FromFile
@@ -1504,10 +590,10 @@ do1:        do while (associated(EquaRateFluxX))
                                  Me%ObjEnterData, flag,                                             &
                                  SearchType = FromFile,                                             &
                                  keyword='EXPLICIT',                                                &
-                                 ClientModule = 'ModuleWWTPQ',                               &
+                                 ClientModule = 'ModuleWWTPQ',                                      &
                                  STAT       = STAT_CALL)                                            
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQReadCalcOptions - ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadCalcOptions; Module ModuleWWTPQ. ERR01.' 
 
 
         !Verifica se se pretende calcular usando um metodo IMPLICITO
@@ -1515,273 +601,28 @@ do1:        do while (associated(EquaRateFluxX))
                      Me%ObjEnterData, flag,                                                         &
                      SearchType = FromFile,                                                         &
                      keyword='IMPLICIT',                                                            &    
-                     ClientModule = 'ModuleWWTPQ',                                           &
+                     ClientModule = 'ModuleWWTPQ',                                                  &
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQReadCalcOptions - ModuleWWTPQ. ERR02.' 
+            stop 'Subroutine WWTPQReadCalcOptions; Module ModuleWWTPQ. ERR02.' 
 
             !Verifica se se pretende calcular usando um metodo IMPLICITO/EXPLICITO        
         call GetData(Me%CalcMethod%SemiimpMethod,                                                   & 
                      Me%ObjEnterData, flag,                                                         &
                      SearchType = FromFile,                                                         &
                      keyword='SEMIIMP',                                                             &    
-                     ClientModule = 'ModuleWWTPQ',                                           &
+                     ClientModule = 'ModuleWWTPQ',                                                  &
                      STAT       = STAT_CALL)                         
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQReadCalcOptions - ModuleWWTPQ. ERR03.'         
+            stop 'Subroutine WWTPQReadCalcOptions; Module ModuleWWTPQ. ERR03.'         
 
     end subroutine WWTPQReadCalcOptions
 
     !--------------------------------------------------------------------------
-
-    logical function WWTPQOptionsConsistencyVerif ()
-
-        !Local-----------------------------------------------------------------
-
-        integer :: aux
-
-        !----------------------------------------------------------------------
-
-cd3 :   if (Me%PropCalc%Nitrogen .OR. Me%PropCalc%Phosphorus) then
-
-            !aqui_2 
-cd4 :       if (Me%PropCalc%Phyto .OR. Me%PropCalc%Diatoms ) then 
-                WWTPQOptionsConsistencyVerif = .TRUE.
-
-            else
-cd5 :           if (Me%PropCalc%Zoo) then
-                    write(*,*) 
-                    write(*,*) 'It is not possible to simulate the Water Quality with zooplankton '
-                    write(*,*) 'and without phytoplankton or diatoms.                                        '
-                    write(*,*) 'FUNCTION WWTPQOptionsConsistencyVerif - ModuleWWTPQ. WARN01.'
-                    write(*,*) 
-                    WWTPQOptionsConsistencyVerif = .FALSE.
-
-                else
-                    WWTPQOptionsConsistencyVerif = .TRUE.
-                end if cd5 
-            end if cd4  
-           
-        else if (Me%PropCalc%Age .or. Me%PropCalc%Larvae .or. (Me%PropCalc%BOD .AND. Me%PropCalc%Oxygen)) then
-
-            WWTPQOptionsConsistencyVerif = .TRUE.
-
-        else
-        
-        !aqui_22    
-            write(*,*) 
-            write(*,*) 'It is just possible to simulate the Water Quality with nutrients.'
-            write(*,*) 'Or simple AGE or LARVAE'
-            write(*,*) 'FUNCTION WWTPQOptionsConsistencyVerif - ModuleWWTPQ. WARN02.'
-            write(*,*) 
-            WWTPQOptionsConsistencyVerif = .FALSE.
-        end if cd3       
-
-        !! ------- M&M -------  
-        !Para simular as bacterias é obrigatório simular os ciliados (e vice-versa)
-        !A condição para simular estes dois grupos é a existência de Fito e Zoo na simulção
-        !e de se estar a simular o ciclo do azoto
-
-cd8 :   if (WWTPQOptionsConsistencyVerif.AND.Me%PropCalc%Zoo.AND.Me%PropCalc%Nitrogen) then
-
-cd9 :       if (Me%PropCalc%Bacteria) then
-
-cd10 :          if (Me%PropCalc%Ciliate) then
-                        WWTPQOptionsConsistencyVerif = .TRUE.
-                else
-                    write(*,*) 
-                    write(*,*) 'It is not possible to simulate Bacteria without Ciliate. '
-                    write(*,*) 'FUNCTION WWTPQOptionsConsistencyVerif - ModuleWWTPQ. WARN04.'
-                    write(*,*) 
-                    WWTPQOptionsConsistencyVerif = .FALSE.
-                end if cd10
-            
-            else 
-
-cd11 :          if (Me%PropCalc%Ciliate) then
-                    
-                    if (Me%PropCalc%Phyto) then
-                        WWTPQOptionsConsistencyVerif = .TRUE.
-                    else
-
-                    write(*,*) 
-                    write(*,*) 'It is not possible to simulate Ciliate without Bacteria or Phytoplankton. '
-                    write(*,*) 'FUNCTION WWTPQOptionsConsistencyVerif - ModuleWWTPQ. WARN05.'
-                    write(*,*) 
-                    WWTPQOptionsConsistencyVerif = .FALSE.
-                    endif
-                else 
-                WWTPQOptionsConsistencyVerif = .TRUE.
-                end if cd11
-
-            end if cd9
-
-        else 
-
-cd12 :      if (Me%PropCalc%Bacteria.OR.Me%PropCalc%Ciliate) then
-                    write(*,*) 
-                    write(*,*) 'It is not possible to simulate Ciliate and Bacteria without Phytoplankton and Zooplankton. '
-                    write(*,*) 'FUNCTION WWTPQOptionsConsistencyVerif - ModuleWWTPQ. WARN05.'
-                    write(*,*) 
-                    WWTPQOptionsConsistencyVerif = .FALSE.
-            else
-            WWTPQOptionsConsistencyVerif = .TRUE.
-            end if cd12
-
-        end if cd8
-! ------- M&M -------
-
-
-cd7 :   if (WWTPQOptionsConsistencyVerif) then
-cd2 :   if (Me%PropCalc%BOD .AND. (.NOT. Me%PropCalc%Oxygen)) then
-            write(*,*) 
-            write(*,*) 'It is not possible to simulate the Water Quality with BOD and without Oxygen.'
-            write(*,*) 'FUNCTION WWTPQOptionsConsistencyVerif - ModuleWWTPQ. WARN03.'
-            write(*,*) 
-            WWTPQOptionsConsistencyVerif = .FALSE.
-        end if cd2
-        end if cd7
-
-        !aqui_222
-        if (WWTPQOptionsConsistencyVerif) then
-        
-            if (Me%PropCalc%Diatoms .AND. (.NOT. Me%PropCalc%Silica)) then
-                write(*,*) 
-                write(*,*) 'It is not possible to simulate the Water Quality with Diatoms and without Silica.'
-                write(*,*) 'FUNCTION WWTPQOptionsConsistencyVerif - ModuleWWTPQ. WARN04.'
-                write(*,*) 
-                WWTPQOptionsConsistencyVerif = .FALSE.
-            end if 
-        
-        end if 
-
-cd6 :   if (WWTPQOptionsConsistencyVerif) then
-            aux = 0
-            if (Me%CalcMethod%ExplicitMethod) aux = aux + 1
-            if (Me%CalcMethod%ImplicitMethod) aux = aux + 1
-            if (Me%CalcMethod%SemiImpMethod ) aux = aux + 1
-
-
-cd1 :       if (aux .EQ. 1) then
-                WWTPQOptionsConsistencyVerif = .TRUE.
-
-            else 
-                WWTPQOptionsConsistencyVerif = .FALSE.
-            end if cd1
-        end if cd6
-           
-        
-cd90 :  if (WWTPQOptionsConsistencyVerif) then
-        
-cd91 :       if (Me%PropCalc%Pompools) then
-            
-                if ((.NOT. Me%PropCalc%Nitrogen) .AND. (.NOT. Me%PropCalc%Phosphorus)) then
-                    write(*,*) 
-                    write(*,*) 'Impossible to simulate the Water Quality with POM pools without'
-                    write(*,*) 'at least one nutrient cycle (N or P).'
-                    write(*,*) 'FUNCTION WWTPQOptionsConsistencyVerif - ModuleWWTPQ. WARN06a.'
-                    write(*,*) 
-                    WWTPQOptionsConsistencyVerif = .FALSE.
-                end if
-                 
-                if (WWTPQOptionsConsistencyVerif .AND. (.NOT. Me%PropCalc%Oxygen)) then
-                    write(*,*) 
-                    write(*,*) 'Impossible to simulate the Water Quality with POM pools without oxygen.'
-                    write(*,*) 'FUNCTION WWTPQOptionsConsistencyVerif - ModuleWWTPQ. WARN06b.'
-                    write(*,*) 
-                    WWTPQOptionsConsistencyVerif = .FALSE.
-                end if 
-                          
-             end if cd91
-                     
-        end if cd90
-                
-
-
-        !----------------------------------------------------------------------
-
-    end function WWTPQOptionsConsistencyVerif
-
-    !--------------------------------------------------------------------------
-
-    subroutine WWTPQConfiguration
-
-        !External--------------------------------------------------------------
-
-        !Local-----------------------------------------------------------------
-        
-        !----------------------------------------------------------------------
-
-cd110 :  if (Me%PropCalc%Zoo) then
-        
-cd21 :      if (Me%PropCalc%Phyto) then
-
-cd31 :          if (Me%PropCalc%Diatoms) then
-
-cd41 :              if (Me%PropCalc%Ciliate) then
-
-cd51 :                  if (Me%PropCalc%Bacteria) then
-                            Me%WWTPQConfiguration = 4                        
-                        else cd51
-                            Me%WWTPQConfiguration = 3
-                        endif cd51
-                    
-                    else cd41
-                        
-                        Me%WWTPQConfiguration = 2
-                    
-                    endif cd41
-
-                else cd31
-
-cd61 :               if (Me%PropCalc%Ciliate) then
-
-cd71 :                  if (Me%PropCalc%Bacteria) then
-                            Me%WWTPQConfiguration = 8                        
-                        else cd71
-                            Me%WWTPQConfiguration = 7
-                        endif cd71
-                    
-                    else cd61
-                       
-                        Me%WWTPQConfiguration = 1
-                    
-                    endif cd61
-                
-                endif cd31
-
-            else cd21
-
-cd81 :          if (Me%PropCalc%Diatoms) then
-
-cd91 :              if (Me%PropCalc%Ciliate) then
-
-cd100 :                 if (Me%PropCalc%Bacteria) then
-                            Me%WWTPQConfiguration = 6                        
-                        endif cd100
-    
-                    else cd91
-        
-                        Me%WWTPQConfiguration = 5
-                    
-                    endif cd91
-
-                endif cd81
-            
-            endif cd21
-        
-        else cd110
-        
-            Me%WWTPQConfiguration = 0
-        
-        end if cd110 
-
-    end subroutine WWTPQConfiguration
-
-    !--------------------------------------------------------------------------
-
     
     subroutine WWTPQReadFileConstants
+
+!? What does it subroutine do? Read constants
 
         !External--------------------------------------------------------------
         integer                         :: FromFile
@@ -1794,2193 +635,239 @@ cd100 :                 if (Me%PropCalc%Bacteria) then
 
         call GetExtractType(FromFile = FromFile)
 
-cd1 :   if (Me%DTSecond .LE. 0.0) then
-            !DTSecond, time step, in seconds, between 2 WWTPQ calls 
-            call GetData(           Me%DTSecond,                                    &
-                                    Me%ObjEnterData, flag,                          &
-                                    SearchType = FromFile, keyword='DTSECONDS',     & 
-                                    default    = 60.0 * 60.0,                       & !1 hour
-                                    ClientModule = 'ModuleWWTPQ',            &
-                                    STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR00.' 
 
-cd22 :      if (flag .EQ. 0) then
+!?Why call for dtsecond is different than for other constants? 
+
+cd1 :   if (Me%dtsecond .le. 0.0) then
+            !dtsecond, time step, in seconds, between 2 wwtpq calls 
+            call GetData(           Me%dtsecond,                                    &
+                                    Me%objenterdata, flag,                          &
+                                    searchtype = fromfile, keyword='DTSECONDS',     & 
+                                    default    = 60.0 * 60.0,                       & !1 hour
+                                    clientmodule = 'modulewwtpq',                   &
+                                    stat       = stat_call)
+            if (stat_call .ne. success_)                                            &
+                stop 'subroutine wwtpqreadfileconstants; module modulewwtpq. err00.' 
+
+cd22 :      if (flag .eq. 0) then
                 write(*,*) 
-                write(*,*) 'Keyword DTSECONDS not found in Water quality data file.'
-                write(*,*) 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. WRN01.'
-                write(*,*) 'Assumed ', Me%DTSecond, &
-                            'seconds (',  Me%DTSecond / 3600.0, 'hour).'
+                write(*,*) 'keyword dtseconds not found in water quality data file.'
+                write(*,*) 'subroutine wwtpqreadfileconstants; module modulewwtpq. wrn01.'
+                write(*,*) 'assumed ', me%dtsecond, &
+                            'seconds (',  me%dtsecond / 3600.0, 'hour).'
                 write(*,*) 
             end if cd22
         end if cd1
 
         
-        !For compatibility with the rest of the program, !DTSeconds converted to day!
-        Me%DTDay = Me%DTSecond / 24.0 / 60.0 / 60.0
+        !for compatibility with the rest of the program, !dtseconds converted to day!
+        me%dtday = me%dtsecond / 24.0 / 60.0 / 60.0
 
         !Reads non specific rates & constants--------------------------------------
 
-        !NSatConst, nitrogen half-saturation constant, mgN/l
-        call GetData(           Me%NSatConst,                                       &
+        !HetBioYield, heterotrophic biomass yield, G COD G-1 COD
+        call GetData(           Me%StechParameters%HetBioYield,                     &
                                 Me%ObjEnterData, flag,                              &
-                                SearchType = FromFile,  keyword ='NSATCONS',        & 
-                                default    = 0.014,                                 &
+                                SearchType = FromFile,                              &
+                                keyword ='HET_BIO_YIELD',                           & 
+                                default    = 0.670,                                 &
+                                ClientModule = 'ModuleWWTPQ',                       &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+
+        !AutoBioYield, autotrophic biomass yield, G COD G-1 N
+        call GetData(           Me%StechParameters%AutoBioYield,                    &
+                                Me%ObjEnterData, flag,                              &
+                                SearchType = FromFile,  keyword ='AUT_BIO_YIELD',   & 
+                                default    = 0.240,                                 &
+                                ClientModule = 'ModuleWWTPQ',                       &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+
+        !FracBioPartProd, fraction of biomass leading to particulate products, G COD G-1 COD
+        call GetData(           Me%StechParameters%FracBioPartProd,                            &
+                                Me%ObjEnterData, flag,                                         &
+                                SearchType = FromFile,  keyword ='FRAC_BIO_PART_PROD',         & 
+                                default    = 0.080,                                            &
+                                ClientModule = 'ModuleWWTPQ',                                  &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                           &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+
+        !NCODBioMassRatio, mass N/mass COD in biomass, G N G-1 COD
+        call GetData(           Me%StechParameters%NCODBioMassRatio,                          &
+                                Me%ObjEnterData, flag,                                        &
+                                SearchType = FromFile,  keyword ='MASSN_MASSCOD_BIO_RATIO',   & 
+                                default    = 0.086,                                           &
+                                ClientModule = 'ModuleWWTPQ',                                 &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                          &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+
+        !NCODPartProdBioMassRatio, mass N/mass COD in products from biomass, G N G-1 COD
+        call GetData(           Me%StechParameters%NCODPartProdBioMassRatio,                            &
+                                Me%ObjEnterData, flag,                                                  &
+                                SearchType = FromFile,  keyword ='MASSN_MASSCOD_PART_PROD_BIO_RATIO',   & 
+                                default    = 0.060,                                                     &
+                                ClientModule = 'ModuleWWTPQ',                                           &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                                    &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+
+        !MaxSpecGrowthRateHetBio, maximum specific growth rate for heterotrophic biomass, D-1, value at 20 ºC
+        call GetData(           Me%KineticParameters%MaxSpecGrowthRateHetBio,                                       &
+                                Me%ObjEnterData, flag,                                                              &
+                                SearchType = FromFile,  keyword ='MAX_SPEC_GROWTH_RATE_HET_BIO',                    & 
+                                default    = 6.0,                                                                   &
+                                ClientModule = 'ModuleWWTPQ',                                                       &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                                                &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            
+        !HalfSatCoefHetBio, half-saturation coefficient for heterotrophic biomass, G COD M-3
+        call GetData(           Me%KineticParameters%HalfSatCoefHetBio,                         &
+                                Me%ObjEnterData, flag,                                          &
+                                SearchType = FromFile,  keyword ='HALF_SAT_COEF_HET_BIO',       & 
+                                default    = 20.0,                                              &
+                                ClientModule = 'ModuleWWTPQ',                                   &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                            &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+  
+        !OxygHalfSatCoefHetBio, oxygen half-saturation coefficient for heterotrophic biomass, G O2 M-3
+        call GetData(           Me%KineticParameters%OxygHalfSatCoefHetBio,                               &
+                                Me%ObjEnterData, flag,                                                    &
+                                SearchType = FromFile,  keyword ='OXYG_HALF_SAT_COEF_HET_BIO',            & 
+                                default    = 0.20,                                                        &
+                                ClientModule = 'ModuleWWTPQ',                                             &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                                      &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            
+        !NitHalfSatCoefDenHetBio, nitrate half-saturation coefficient for denitrifying heterotrophic biomass, G NO3-N M-3
+        call GetData(           Me%KineticParameters%NitHalfSatCoefDenHetBio,                                                 &
+                                Me%ObjEnterData, flag,                                                                        &
+                                SearchType = FromFile,  keyword ='NIT_HALF_SAT_COEF_DEN_HET_BIO',                             & 
+                                default    = 0.50,                                                                            &
+                                ClientModule = 'ModuleWWTPQ',                                                                 &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                                                          &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            
+        !DecayCoefHetBio, decay coefficient for heterotrophic biomass, D-1, value at 20 ºC
+        call GetData(           Me%KineticParameters%DecayCoefHetBio,                         &
+                                Me%ObjEnterData, flag,                                        &
+                                SearchType = FromFile,  keyword ='DECAY_COEF_HET_BIO',        & 
+                                default    = 0.62,                                            &
+                                ClientModule = 'ModuleWWTPQ',                                 &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                          &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+          
+        !CorFacAnoxGrowthHetBio, correction factor for anoxic growth of heterotrophs, dimensionless
+        call GetData(           Me%KineticParameters%CorFacAnoxGrowthHetBio,                               &
+                                Me%ObjEnterData, flag,                                                     &
+                                SearchType = FromFile,  keyword ='COR_FAC_ANO_GROWTH_HET_BIO',             & 
+                                default    = 0.8,                                                          &
+                                ClientModule = 'ModuleWWTPQ',                                              &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                                       &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+ 
+    
+        !AmmonifRate, ammonification rate, M3 COD (G.D)-1, value at 20 ºC
+        call GetData(           Me%KineticParameters%AmmonifRate,                   &
+                                Me%ObjEnterData, flag,                              &
+                                SearchType = FromFile,  keyword ='AMMONIF_RATE',    & 
+                                default    = 0.08,                                  &
+                                ClientModule = 'ModuleWWTPQ',                       &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'          
+      
+       !MaxSpecHydroRate, maximum specific hydrolysis rate, G slowly biodegradable (COD G cell COD D)-1, value at 20 ºC
+        call GetData(           Me%KineticParameters%MaxSpecHydroRate,                                                     &
+                                Me%ObjEnterData, flag,                                                                     &
+                                SearchType = FromFile,  keyword ='MAX_SPEC_HYDRO_RATE',                                    & 
+                                default    = 3.0,                                                                          &
+                                ClientModule = 'ModuleWWTPQ',                                                              &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                                                       &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+       
+  
+       !HalfSatCoefHydroSlowlyBioSub, half-saturation coefficient for hydrolysis of slowly biodegradable substrate, 
+       !G slowly biodegradable COD G cell COD-1, value at 20 ºC
+        call GetData(           Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub,                                       &
+                                Me%ObjEnterData, flag,                                                                   &
+                                SearchType = FromFile,  keyword ='HALF_SAT_COEF_HYDRO_SLOWLY_BIO_SUB',                   & 
+                                default    = 0.03,                                                                       &
+                                ClientModule = 'ModuleWWTPQ',                                                            &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                                                     &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            
+        !CorFacAnoxCond, correction factor under anoxic conditions, dimensionless
+        call GetData(           Me%KineticParameters%CorFacAnoxCond,                       &
+                                Me%ObjEnterData, flag,                                     &
+                                SearchType = FromFile,  keyword ='COR_FAC_ANOX_COND',      & 
+                                default    = 0.4,                                          &
+                                ClientModule = 'ModuleWWTPQ',                              &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                       &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'    
+            
+        !MaxSpecGrowthRateAutBio, maximum specific growth rate for autotrophic biomass, D-1, value at 20 ºC 
+        call GetData(           Me%KineticParameters%MaxSpecGrowthRateAutBio,                                       &
+                                Me%ObjEnterData, flag,                                                              &
+                                SearchType = FromFile,  keyword ='MAX_SPEC_GROWTH_RATE_AUT_BIO',                    & 
+                                default    = 0.80,                                                                  &
+                                ClientModule = 'ModuleWWTPQ',                                                       &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                                                &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'    
+            
+        !AmmoniaHalfSatCoefAutBio, ammonia half-saturation coefficient for autotrophic biomass, G NH3-N M-3 
+        call GetData(           Me%KineticParameters%AmmoniaHalfSatCoefAutBio,                                     &
+                                Me%ObjEnterData, flag,                                                             &
+                                SearchType = FromFile,  keyword ='AMMONIA_HALF_SAT_COEF_AUT_BIO',                  & 
+                                default    = 1.0,                                                                  &
+                                ClientModule = 'ModuleWWTPQ',                                                      &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                                               &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'  
+            
+        !OxyHalfSatCoefAutBio, oxygen half-saturation coefficient for autotrophic biomass, G O2 M-3 
+        call GetData(           Me%KineticParameters%OxyHalfSatCoefAutBio,                             &
+                                Me%ObjEnterData, flag,                                                 &
+                                SearchType = FromFile,  keyword ='OXY_HALF_SAT_COEF_AUT_BIO',          & 
+                                default    = 0.4,                                                      &
+                                ClientModule = 'ModuleWWTPQ',                                          &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                                   &
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'  
+            
+   
+        !DecayCoefAutBio, decay coefficient for autotrophic biomass, M3 COD (G D)-1
+        call GetData(           Me%KineticParameters%DecayCoefAutBio,                      &
+                                Me%ObjEnterData, flag,                                     &
+                                SearchType = FromFile,  keyword ='DECAY_COEF_AUT_BIO',     & 
+                                default    = 0.05,                                         &
                                 ClientModule = 'ModuleWWTPQ',                &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR01.' 
-
-
-        !Photoinhibition, phytoinhibition, W/m2                                                                                   
-        call GetData(           Me%Photoinhibition,                                 &
-                                Me%ObjEnterData, flag,                              &
-                                SearchType   = FromFile, keyword ='PHOTOIN',        & 
-                                default      = 121.0,                               &
-                                ClientModule = 'ModuleWWTPQ',                &
-                                STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR02.' 
-
-        !PhytoNutRegenerationSatConst, phytoplankton nutrient regeneration half saturation rate, 
-        !mgC/l
-        call GetData(            Me%PhytoNutRegenerationSatConst,                   &
-                                 Me%ObjEnterData, flag,                             &
-                                 SearchType = FromFile, keyword='FREGSATC',         &       
-                                 default    = 1.0,                                  &
-                                 ClientModule = 'ModuleWWTPQ',               &
-                                 STAT       = STAT_CALL)
-        if (               STAT_CALL .NE. SUCCESS_)                                 &
-            stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR03.' 
-
-
-        !AlfaPhytoNC, phytoplankton ratio between Nitrogen and Carbon, mgN/mgC
-        call GetData(            Me%AlfaPhytoNC,                                    &
-                                 Me%ObjEnterData, flag,                             &
-                                 SearchType = FromFile, keyword='FRATIONC',         & 
-                                 default    = 0.18,                                 & !Redfield ratio
-                                 ClientModule = 'ModuleWWTPQ',               &
-                                 STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR04.' 
-
-        !Reads rates & constants to the Nitrogen simulation------------------------
-
-
-        !OMAlfaNC, organic matter ratio between Nitrogen and Carbon, mgN/mgC
-        call GetData(            Me%OMAlfaNC,                                       &
-                                 Me%ObjEnterData, flag,                             &
-                                 SearchType = FromFile, keyword='OMRATIONC',        & 
-                                 default    = 0.18,                                 & !Redfield ratio
-                                 ClientModule = 'ModuleWWTPQ',               &
-                                 STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR04a.' 
-
-        !BactAlfaOC, organic matter ratio between Oxygen and Carbon, mgO/mgC
-        call GetData(            Me%BactAlfaOC,                                     &
-                                 Me%ObjEnterData, flag,                             &
-                                 SearchType = FromFile, keyword='BACTRATIOOC',      & 
-                                 default    = 1.4,                                  & !Redfield ratio
-                                 ClientModule = 'ModuleWWTPQ',               &
-                                 STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR04a.' 
-
+            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'  
         
-        
-        !OMAlfaPC, organic matter ratio between Nitrogen and Carbon, mgN/mgC
-        call GetData(            Me%OMAlfaPC,                                       &
-                                 Me%ObjEnterData, flag,                             &
-                                 SearchType = FromFile, keyword='OMRATIOPC',        & 
-                                 default    = 0.024,                                 & !Redfield ratio
-                                 ClientModule = 'ModuleWWTPQ',               &
-                                 STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR04b.' 
-
-
-
-            !AlfaZooNC, zooplankton ratio between Nitrogen and Carbon, mgN/mgC
-            call GetData(            Me%AlfaZooNC,                                  &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword='ZRATIONC',     & 
-                                     default    = 0.15,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR07.' 
-
-            !KRefrAmmoniaMinRate, reference ammonia mineralization rate of the
-            !   refractory DON, 1/T
-            call GetData(            Me%KRefrAmmoniaMinRate,                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword='NMINR',       &
-                                     default    = 0.01,                             & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR08.' 
-
-            !KPartDecompRate, reference particulate organic Nitrogen decomposition rate, 1/T
-            call GetData(          Me%KPartDecompRate,                              &
-                                   Me%ObjEnterData, flag,                           &
-                                   SearchType = FromFile,  keyword='NOPREF',        &
-                                   default    = 0.1,                                & !1/day
-                                   ClientModule = 'ModuleWWTPQ',             &
-                                   STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR10.' 
-
-            !PhytoAvaibleDecomp: Fraction of PON available for mineralization
-            call GetData(            Me%PhytoAvaibleDecomp,                         &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword='PHDECOMP',    &
-                                     default    = 0.7,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR11.' 
-
-
-            !KDenitrificationRate, reference denitirfication rate, 1/T
-            call GetData(            Me%KDenitrificationRate,                       &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword='DENITREF',    &
-                                     default    = 0.125,                             & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR12.' 
-
-            !KNitrificationRateK1, reference nitrification rate, 1/T
-            call GetData(            Me%KNitrificationRateK1,                       &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword='NITRIREFK1',  &
-                                     default    = 0.02,                             & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR13.' 
-                
-            !KNitrificationRateK2, reference nitrification rate, 1/T
-            call GetData(            Me%KNitrificationRateK2,                       &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword='NITRIREFK2',  &
-                                     default    = 0.25,                             & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR14.' 
-
-
-
-            !TRefrAmmoniaMin, DONren mineralization temperature coefficient 
-            !   of the refractory DON
-            call GetData(            Me%TRefrAmmoniaMin,                            &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword= 'TMINR',       &
-                                     default    = 1.02,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR15.' 
-
-
-            !TPartDecomposition, particulate organic Nitrogen decomposition temperature 
-            !coefficient
-            call GetData(            Me%TPartDecomposition,                         &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,   keyword='NOPCOEF',    & 
-                                     default    = 1.02,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR16.' 
-
-
-
-            !TDenitrification, denitirfication temperature coefficient
-            call GetData(            Me%TDenitrification,                           &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword ='TDENCOEF',   & 
-                                     default    = 1.045,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR17.' 
-
-            !TNitrification, nitrification temperature coefficient
-            call GetData(            Me%TNitrification,                             &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword ='TNITCOEF',   & 
-                                     default    = 1.047,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR18.' 
-
-            !NitrificationSatConst, nitrification semi-saturation constant, mgO2/l
-            call GetData(            Me%NitrificationSatConst,                      &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword ='NITSATCO',   & 
-                                     default    = 2.0,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR19.' 
-
-            !DenitrificationSatConst, denitrification semi-saturation constant, mgO2/l
-            call GetData(            Me%DenitrificationSatConst,                    &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,   keyword ='DENSATCO',  & 
-                                     default    = 0.1,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR20.' 
-
-            !PhytoSolublInorgExcreFraction, soluble inorganic fraction of the plankton excretions
-            call GetData(            Me%PhytoSolublInorgExcreFraction,              &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword='FSOLEXCR',    &  
-                                     default    = 0.4,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR21.' 
-
-
-            !ExcreDissOrgFraction, dissolved organic fraction of the plankton excretions
-            call GetData(            Me%PhytoExcreDissOrgFraction,                  &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword='FDISSDON',    &   
-                                     default    = 0.5,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR22.' 
-
-            ! ------- M&M -------
-            !   Pergunta para determinar se o programa vai ler as taxas e constantes referentes à opção
-            !   de simulação com ou sem Bact. & Cil.   
-
-                !PlanktonOxygenCarbonRatio
-                call GetData(            Me%PlanktonOxygenCarbonRatio,                  &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword='PLANK_OC_RAT', & 
-                                         default    = 32./12.,                            &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR23.' 
-
-                !ZooSolublInorgExcreFraction, soluble inorganic fraction of the zooplankton excretions
-                call GetData(            Me%ZooSolublInorgExcreFraction,                &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword='ZSOLEXCR',     &    
-                                         default    = 0.4,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR24.' 
-
-
-                !ZooExcreDissOrgFraction, dissolved organic fraction of the zooplankton excretions
-                call GetData(            Me%ZooExcreDissOrgFraction,                    &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword='ZDISSDON',     &
-                                         default    = 0.5,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR25.' 
-
-
-                !KNonRefrAmmoniaMinRate, reference ammonia mineralization rate of the
-                !   non refractory DON, 1/T
-                call GetData(            Me%KNonRefrAmmoniaMinRate,                     &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword='NMINENR',      &
-                                         default    = 0.1,                              & !1/day
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR26.' 
-
-                !TNonRefrAmmoniaMin, Nitrogen mineralization temperature coefficient 
-                !   of the non refractory DON
-                call GetData(          Me%TNonRefrAmmoniaMin,                           &
-                                       Me%ObjEnterData, flag,                           &
-                                       SearchType = FromFile,keyword='TMINNR',          & 
-                                       default    = 1.02,                               &
-                                       ClientModule = 'ModuleWWTPQ',             &
-                                       STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR27.' 
-
-
-
-
-
-        !Reads rates & constants to the Phosphorus simulation------------------------
-
-
-            
-            !KDOPnrMinRate, reference DOPnr mineralization rate, 1/T
-            call GetData(            Me%KDOPnrMinRate,                              &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,   keyword ='PMINNR',    & 
-                                     default    = 0.1,                             & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR28.' 
-
-            !TDOPnrMin, Phosphorus mineralization temperature coefficient
-            call GetData(            Me%TDOPnrMin,                                  &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,   keyword ='PMINNRCOEF',&
-                                     default    = 1.064,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR29.' 
-
-
-            
-            !KDOPrMinRate, reference DOPrefractary mineralization rate, 1/T
-            call GetData(            Me%KDOPrMinRate,                               &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,   keyword ='PMINR',     & 
-                                     default    = 0.03,                              & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR30.' 
-
-
-
-            !TDOPnrMin, Phosphorus mineralization temperature coefficient
-            call GetData(            Me%TDOPrMin,                                   &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,   keyword ='PMINRCOEF', &
-                                     default    = 1.064,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR31.' 
-
-
+    
+     end subroutine WWTPQReadFileConstants
    
-            !POPDecompRate, reference POP mineralization rate, 1/T
-            call GetData(            Me%POPDecompRate,                              &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,   keyword ='PPARTMIN',  & 
-                                     default    = 0.2,                             & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR32.' 
-
-
-
-            !TPOPMin, Phosphorus mineralization temperature coefficient
-            call GetData(            Me%TPOPDecompRate,                             & 
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,keyword ='TPPARTMINCOEF',&
-                                     default    = 1.08,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR33.' 
-
-
-            !AlfaPhytoPC, phytoplankton ratio between Phosphorus and Carbon, mgP/mgC
-            call GetData(            Me%AlfaPhytoPC,                                &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword ='FRATIOPC',   &
-                                     default    = 0.024,                            & !Redfield ratio
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR34.' 
-
-
-            !AlfaZooPC, zooplankton ratio between Phosphorus and Carbon, mgP/mgC
-            call GetData(            Me%AlfaZooPC,                                  &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='ZRATIOPC',    &
-                                     default    = 0.024,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR35.' 
-
-
-
-
-        !Reads the rates & constants to the Phytoplankton simulation---------------
- 
-
-            !PSatConst, Phosphorus half-saturation constant, phosphorus, M/L^3
-            call GetData(            Me%PSatConst,                                  &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='PSATCONS',    &
-                                     default    = 0.001,                            & !mgP/l
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR36.' 
-
-
-
-            !GrowMaxPhytoRate, maximum phytoplankton growth rate, 1/T
-            call GetData(            Me%GrowMaxPhytoRate,                           &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword ='GROWMAXF',   &
-                                     default    = 2.,                              & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR37.' 
-
-
-            !PhytoMortMaxRate, phytoplankton maximum mortality, carbon, M/(L^3.T)
-            call GetData(            Me%PhytoMortMaxRate,                           &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,   keyword ='FMORTMAX',  &  
-                                     default    = 0.02,                             & !mgC/l/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR38.' 
-
-
-
-
-            !TOptPhytoMin, minimum temperature of the optimal interval for the phytoplankton 
-            !growth, oC
-            call GetData(            Me%TOptPhytoMin,                               &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='TOPTFMIN',    &
-                                     default    = 25.0,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR39.' 
-
-
-            !TOptPhytoMax, maximum temperature of the optimal interval for the phytoplankton 
-            !growth, oC
-            call GetData(            Me%TOptPhytoMax,                               &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='TOPTFMAX',    &  
-                                     default    = 26.5,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR40.' 
-
-
-            !TPhytoMin, minimum tolerable temperature of the  interval for the phytoplankton 
-            !growth, oC
-            call GetData(            Me%TPhytoMin,                                  &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword ='TFMIN',      &
-                                     default    = 4.0,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR41.' 
-
-
-            !TPhytoMax, maximum tolerable temperature of the  interval for the phytoplankton 
-            !growth, oC
-            call GetData(            Me%TPhytoMax,                                  &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='TFMAX',       &
-                                     default    = 37.0,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR42.' 
-
-
-
-            !FK1, constant to control temperature response curve shape
-            call GetData(            Me%FK1,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword ='TFCONST1',   &
-                                     default    = 0.05,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR43.' 
-
-
-
-            !FK2, constant to control temperature response curve shape
-            call GetData(            Me%FK2,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='TFCONST2',    &
-                                     default    = 0.98,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR44.' 
-
-
-            !FK3, constant to control temperature response curve shape
-            call GetData(            Me%FK3,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='TFCONST3',    &
-                                     default    = 0.98,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR45.' 
-
-
-            !FK4, constant to control temperature response curve shape
-            call GetData(            Me%FK4,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='TFCONST4',    & 
-                                     default    = 0.02,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR46.' 
-
-
-
-            !FMortSatConst, mortality half saturation rate, M/(L^3.T)
-            call GetData(            Me%FMortSatConst,                              &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='FMORTCON',    & 
-                                     default    = 0.3,                              & !mgC/l/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR47.' 
-
-
-
-            !PhotorespFactor, fraction of actual photosynthesis which is oxidised by
-            !photorespiration
-            call GetData(            Me%PhotorespFactor,                            &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='PHOTORES',    & 
-                                     default    = 0.018,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR48.' 
-
-
-
-
-            !PhytoEndogRepConst, Phytoplankton endogenous respiration constant, 
-            !1 / T 
-            call GetData(            Me%PhytoEndogRepConst,                         &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='FENDREPC',    &
-                                     default    = 0.0175,                           & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR49.' 
-
-        
-        
-            !PhytoExcretionConstant, excretion constant
-            call GetData(            Me%PhytoExcretionConstant,                     &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'EXCRCONS',   &
-                                     default    = 0.08,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR50.' 
-
-
-            ! ------- M&M -------
-            !   Pergunta para determinar se o programa vai ler as taxas e constantes referentes à opção
-            !   de simulação com ou sem Bact. & Cil.   
-
-            !E, assimilation efficiency of the phytoplankton by the zooplankton
-                call GetData(            Me%E,                                          &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,   keyword ='ASS_EFIC',  &
-                                         default    = 0.8,                              & !60%
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR51.' 
-
-        !Reads the rates & constants to the Zooplankton simulation-----------------
-
-            !TOptZooMin, minimum temperature of the optimal interval for the zooplankton growth, 
-            !oC
-            call GetData(            Me%TOptZooMin,                                 &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TOPTZMIN',   &
-                                     default    = 24.8,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR52.' 
-
-
-            !TOptZooMax, maximum temperature of the optimal interval for the zooplankton growth, 
-            !oC
-            call GetData(            Me%TOptZooMax,                                 &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TOPTZMAX',   &
-                                     default    = 25.1,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR53.' 
-
-            !TZooMin, minimum tolerable temperature of the  interval for the zooplankton growth, 
-            !oC
-            call GetData(            Me%TZooMin,                                    &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TZMIN',      &
-                                     default    = 5.0,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR54.' 
-
-
-            !TZooMax, maximum tolerable temperature of the  interval for the zooplankton growth, 
-            !oC
-            call GetData(            Me%TZooMax,                                    &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TZMAX',      &
-                                     default    = 35.0,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR55.' 
-
-
-            !ZK1, constant to control temperature response curve shape
-            call GetData(            Me%ZK1,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TZCONST1',   &
-                                     default    = 0.05,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR56.' 
-
-            !ZK2, constant to control temperature response curve shape
-            call GetData(            Me%ZK2,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TZCONST2',   &
-                                     default    = 0.98,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                             &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR57.' 
-
-
-
-
-            !ZK3, constant to control temperature response curve shape
-            call GetData(            Me%ZK3,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TZCONST3',   &
-                                     default    = 0.98,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR58.' 
-
-
-            !ZK4, constant to control temperature response curve shape
-            call GetData(            Me%ZK4,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TZCONST4',   &
-                                     default    = 0.02,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR59.' 
-
-            !ZooReferenceRespirationRate, rate of consumption of Carbon by respiration and 
-            !non-predatory mortality at the reference temperature, 1/T
-            call GetData(            Me%ZooReferenceRespirationRate,                &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'ZREFRESP',   &
-                                     default    = 0.02,                            & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR60.' 
-
-            !GrazPhytoMin, minimum phytoplankton concentration for the existence of grazing, mgC/l
-            call GetData(            Me%GrazPhytoMin,                               &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'GRAZFITOMIN',&
-                                     default    = 0.0045,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR50.'
-           
-            !GrazPreyMin, minimum phytoplankton concentration for the existence of grazing, mgC/l
-            call GetData(            Me%GrazPreyMin,                               &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'ZOOPREYMIN',&
-                                     default    = 0.045,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR50.' 
- 
-        !Reads the rates & constants to the Ciliates and Bacteria simulation-----------------
-
-                !GrazCiliateMin, minimum phytoplankton concentration for the existence of grazing, mgC/l
-                call GetData(      Me%GrazCiliateMin,                                   &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'GRAZCILMIN', &
-                                         default    = 0.0045,                            &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR61.' 
-
-        
-
-                !ZooExcretionFactor, Zooplankton Excretion Rate
-                call GetData(           Me%ZooExcretionFactor,                          &
-                                        Me%ObjEnterData, flag,                          &
-                                        SearchType = FromFile, keyword =  'ZEXCFAC',    &
-                                        default    = 0.02,                            &
-                                        ClientModule = 'ModuleWWTPQ',            &
-                                        STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR62.' 
-
-                !ZooExcretionConstant, excretion constant
-                call GetData(            Me%ZooExcretionConst,                          &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'ZEXCCONS',   &
-                                         default    = 1.0305,                           &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR63.' 
-
-
-                !ZooMortalityCoef  
-                call GetData(           Me%ZooMortalityCoef,                            &
-                                        Me%ObjEnterData, flag,                          &
-                                        SearchType = FromFile, keyword = 'MORTZCOEF',   &
-                                        default    = 0.0,                               &
-                                        ClientModule = 'ModuleWWTPQ',            &
-                                        STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR64.' 
-
-
-
-                !ZooMinMortalityRate  
-                call GetData(            Me%ZooMinMortalityRate,                        &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'MINMORTZ',   &
-                                         default    = 0.0,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR65.' 
-
-
-                !ZooMaxMortalityRate
-                call GetData(            Me%ZooMaxMortalityRate,                        &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'MAXMORTZ',   &
-                                         default    = 0.040,                            & !1/day
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR66.' 
-    
-            
-                !ZooIngestionConst, Half-Saturation Constant for Grazing
-                call GetData(Me%ZooIngestionConst,                                      &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,keyword = 'INGCONSZ',    &
-                                         default    = 0.85,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR67.' 
-
-                                            
-                !ZooEfficiencyCapturePhyto  
-                call GetData(            Me%ZooEfficiencyCapturePhyto,                  &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'ZOOEFFCAPHY',   &
-                                         default    = 0.8,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR68.' 
-
-                        
-                !ZooEfficiencyCaptureCiliate
-                 call GetData(           Me%ZooEfficiencyCaptureCiliate,                &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'ZOOEFFCAPCIL' , &
-                                         default    = 0.2,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR69.' 
-
-                                
-                !ZooIngestionMax    
-                call GetData(            Me%ZooIngestionMax,                            &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword =  'ZINGMAX',   &
-                                         default    = 2.,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR70.' 
-                                    
-                !ZooAssimilationPhytoRate       
-                call GetData(            Me%ZooAssimilationPhytoRate,                   &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,keyword = 'ZOPHYASS',    &
-                                         default    = 0.8,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR71.' 
-
-
-
-                !ZooAssimilationCiliateRate 
-                call GetData(            Me%ZooAssimilationCiliateRate,                 &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,keyword = 'ZOCILASS',    &
-                                         default    = 0.8,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR72.' 
-
-                !PhytoRatioIngestionZoo 
-                call GetData(            Me%PhytoRatioIngestionZoo,                     &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'PHYRATING',  &
-                                         default    = 0.3,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR673.' 
-        
-                !PhytoRatioIngestionZoo 
-                call GetData(            Me%CiliatesRatioIngestionZoo,                  &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'CILRATINGZOO',&
-                                         default    = 0.3,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR673.' 
-
-
-
-    
-                !GrowMaxZooRate, maximum zooplankton growth rate, 1/T
-                call GetData(            Me%GrowMaxZooRate,                             &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'GROWMAXZ',   &
-                                         default    = 0.3,                             & !1/day
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR74.' 
-
-            
-                !IvlevGrazConst, Ivlev grazing constant
-                call GetData(            Me%IvlevGrazConst,                             &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'IVLEVCON',   &
-                                         default    = 1.6,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR75.' 
-
-
-            
-            !ZPredMortalityRate, predatory mortality rate, 1/T
-            call GetData(            Me%ZPredMortalityRate,                         &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'ZPREDMOR',   &
-                                     default    = 0.0077,                           & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR76.' 
-
-
-
-
-        !Reads the rates & constants to the Oxygen simulation----------------------
-
-
-            !PhotosynthesisOxygenCarbonRatio, Photosynthesis Oxygen:Carbon ratio, (M/L^3)/(M/L^3)
-            call GetData( Me%PhotosynthesisOxygenCarbonRatio,                       &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,keyword = 'PHOTOSOC',    &
-                                     default    = 32.0 / 12.0,                      & !mgO2 / mgC
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR77.' 
-
-
-            !RatioOxygenCarbonZooRespiration, Zooplankton respiration Oxygen:Carbon ratio, 
-            !mgO2 / mgC
-            call GetData(            Me%RatioOxygenCarbonZooRespiration,            &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,keyword = 'ZOCRATIO',    &
-                                     default    = 32.0 / 12.0,                      &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR78.' 
-
-
-            !NConsOxyNitRatio, secondary Oxygen production due to Nitrate 
-            !consumption, (M/L^3)/(M/L^3)
-            call GetData(            Me%NConsOxyNitRatio,                           &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,keyword = 'NITONRAT',    &
-                                     default    = 48.0 / 14.0,                      & !mgO2 / mgN
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR79a.' 
-                
-            
-            call GetData(            Me%NitrificationK1_ON_ratio,                   &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,keyword = 'NITK1_ONRAT', &
-                                     default    = (1.5*32) / 14.0,                      & !mgO2 / mgN
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR79b.'
-                
-            call GetData(            Me%NitrificationK2_ON_ratio,                   &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,keyword = 'NITK2_ONRAT', &
-                                     default    = (0.5*32) / 14.0,                      & !mgO2 / mgN
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR79c.'    
-                
-                
-                
-                
-
-            !     if (flag .EQ. 0)                                                   &
-            !         Me%NConsOxyNitRatio = 48.0 / 14.0          !mgO2 / mgN
-            !        NO3 -> N +O3
-            !         Me%NConsOxyNitRatio = 32.0 / 14.0          !mgO2 / mgN
-
-            !Rosa
-            !PConsOxyPhosphorusRatio, secondary Oxygen production due to phosphate consumption
-            call GetData(            Me%PConsOxyPhosphorusRatio,                    &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,keyword = 'PHOSOPRAT',   &
-                                     default    = 64.0 / 31.0,                      & !mgO2 / mgN
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR80.' 
-    
-            call GetData(            Me%MinOxygen,                                  &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,keyword = 'MINOXYGEN',   &
-                                     default    = 10E-5,                            &  !mgO2 /L
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR83.' 
-
-
-            !O:C Ratio in CO2
-            call GetData(            Me%OxyCarbonRatio,                             &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'OCRATIO',    &
-                                     default    = 32.0 / 12.0,                      & !mgO2/mgC
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR84a.' 
-
-
-
-        !Reads the rates & constants to the BOD simulation-------------------------
-
-
-
-
-            !BODOxidationCoefficient, BOD oxidation coefficient
-            call GetData(            Me%BODOxidationCoefficient,                    &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'BODCOEF',    &
-                                     default    = 1.047,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR85.' 
-
-
-            !BODOxidationReferenceRate, reference BOD oxidation, 1/T
-            call GetData(            Me%BODOxidationReferenceRate,                  &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'BODREF',     &
-                                     default    = 0.18,                             & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR86.' 
-
-
-            !BODOxygenSSatConstant, Oxygen limitation half-saturation constant, 1/T
-            call GetData(            Me%BODOxygenSSatConstant,                      &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword =  'BODOSSAT',  &
-                                     default    = 0.5,                              & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR87.' 
-
-
-            !AlfaCilNC, ciliate ratio between Nitrogen and Carbon, mgN/mgC
-            call GetData(            Me%AlfaCilNC,                                  &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'CRATIONC',   &
-                                     default    = 0.16,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR88a.' 
-
-
-            !AlfaCilPC, ciliate ratio between Phosp and Carbon, mgP/mgC
-            call GetData(            Me%AlfaCilPC,                                  &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'CRATIOPC',   &
-                                     default    = 0.024,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR88b.' 
-
-
-!Bacteria-----------------------------------------------------------------------------------------
-    
-            !AlfaBacteriaNC, bacteria ratio between Nitrogen and Carbon, mgN/mgC
-            call GetData(            Me%AlfaBacteriaNC,                             &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'BRATIONC',   &
-                                     default    = 0.2,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR89.' 
-
-
-           !Reads the rates & constants to the Bacteria simulation---------------------- 
-            !BacteriaNonGrazingMortalityRate
-            call GetData(            Me%BacteriaNonGrazingMortalityRate,            &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword ='NATMORB',     &
-                                     default    = 0.1,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR91.' 
-
-
-            !BacteriaExcretionRate   day-1
-            call GetData(  Me%BacteriaExcretionRate    ,                            &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'BARESPCO',   &
-                                     default    = 2.5,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR92.' 
-
-            !BacteriaMaxUptake
-            call GetData(            Me%BacteriaMaxUptake,                          &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword = 'BMAXUPTA',  &
-                                     default    = 0.25,                             & ! 6.6 day-1  /24 
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR93.' 
-
-
-            !BacteriaMinSubstrate
-            call GetData(            Me%BacteriaMinSubstrate,                       &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'BACMINSUB',  &
-                                     default    = 0.010,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR95.' 
-
-
-            !NitrogenSaturationConstBacteria
-            call GetData(            Me%NitrogenSaturationConstBacteria,            &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'BACNCONS',   &
-                                     default    = 0.0008,                           & ! mgN/l
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR96.' 
-
-
-            !TOptBacteriaMin, minimum temperature of the optimal interval for the Bacteria growth, 
-            !oC
-            call GetData(            Me%TOptBacteriaMin,                            &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TOPTBMIN',   &
-                                     default    = 24.8,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR97.' 
-
-            !TOptBacteriaMax, maximum temperature of the optimal interval for the Bacteria growth, 
-            !oC
-            call GetData(            Me%TOptBacteriaMax,                            &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TOPTBMAX',   &
-                                     default    = 25.1,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR98.' 
-
-
-            !TBacteriaMin, minimum tolerable temperature of the  interval for the Bacteria growth, 
-            !oC
-            call GetData(            Me%TBacteriaMin,                               &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TBMIN',      &
-                                     default    = 5.0,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR99.' 
-
-
-            !TBacteriaMax, maximum tolerable temperature of the  interval for the Bacteria growth, 
-            !oC
-            call GetData(            Me%TBacteriaMax,                               &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TBMAX',      &
-                                     default    = 35.0,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR100.' 
-
-
-            !BK1, constant to control temperature response curve shape
-            call GetData(            Me%BK1,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TBCONST1',   &
-                                     default    = 0.05,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR101.' 
-
-
-
-
-            !BK2, constant to control temperature response curve shape
-            call GetData(            Me%BK2,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TBCONST2',   &
-                                     default    = 0.98,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR102.' 
-
-
-            !BK3, constant to control temperature response curve shape
-            call GetData(            Me%BK3,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TBCONST3',   &
-                                     default    = 0.98,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR103.' 
-
-
-            !BK4, constant to control temperature response curve shape
-            call GetData(            Me%BK4,                                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'TBCONST4',   &
-                                     default    = 0.02,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR104.' 
-
-
-            !Reads the rates & constants to the Ciliate simulation-----------------
-
-            !CiliateGrazBactMin, minimum ciliates concentration for the existence of grazing, mgC/l
-            call GetData(            Me%CiliateGrazBactMin,                         &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'GRAZBACMIN', &
-                                     default    = 0.0045,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR105.' 
-
-            !CiliateGrazPhytoMin, minimum phytoplankton concentration for the existence of grazing, mgC/l
-            call GetData(            Me%CiliateGrazPhytoMin,                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'CILGRAZPHYMIN', &
-                                     default    = 0.0045,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR105.' 
-
-            !CiliateGrazPreyMin, minimum phytoplankton concentration for the existence of grazing, mgC/l
-            call GetData(            Me%CiliateGrazPreyMin,                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'CILPREYMIN', &
-                                     default    = 0.0045,                            &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR105.' 
-
-
-            !CiliateReferenceRespirationRate, rate of consumption of Carbon by respiration and 
-            call GetData(            Me%CiliateReferenceRespirationRate,            &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'CREFRESP',   &
-                                     default    = 0.02,                            & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR106.' 
-
-
-            !CiliateExcretionFactor, excretion constant
-            call GetData(            Me%CiliateExcretionFactor,                     &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'CEXCFAC',    &
-                                     default    = 0.02,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR107.' 
-
-
-            !CiliateExcretionConstant, excretion constant
-            call GetData(           Me%CiliateExcretionConst,                       &
-                                    Me%ObjEnterData, flag,                          &
-                                    SearchType = FromFile, keyword = 'CEXCCONS',    &
-                                    default    = 1.0305,                            &
-                                    ClientModule = 'ModuleWWTPQ',            &
-                                    STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR108.' 
-
-
-            !CiliateMortalityCoef    
-            call GetData(            Me%CiliateMortalityCoef,                       &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'MORTCICOEF', &
-                                     default    = 0.0,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR109.' 
-
-
-            !CiliateMinMortalityRate  
-            call GetData(            Me%CiliateMinMortalityRate,                    &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'MINMORTCI',  &
-                                     default    = 0.0,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR110.' 
-
-
-            !CiliateMaxMortalityRate
-            call GetData(            Me%CiliateMaxMortalityRate,                    &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'MAXMORTCI',  &
-                                     default    = 0.044,                            & !1/day
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR111.' 
-            
-            !CiliateIngestionConst, 1/2 sat
-           call GetData(             Me%CiliateIngestionConst,                      &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'INGCONSC',   &
-                                     default    = 0.85,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR112.' 
-
-
-            !CiliateEfficiencyCaptureBacteria   
-             call GetData( Me%CiliateEfficiencyCaptureBact,                         &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'CILEFFCAPBA',   &
-                                     default    = 0.5,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR113.' 
-                                
-            
-            !CiliateEfficiencyCapturePhyto  
-             call GetData( Me%CiliateEfficiencyCapturePhyto,                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'CILEFFCAPPHY',  &
-                                     default    = 0.5,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR113.'
-
-            !CiliateIngestionMax    
-            call GetData(            Me%CiliateIngestionMax,                        &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'CINGMAX',    &
-                                     default    = 2.,                             &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR114.' 
-                                    
-            
-            !CiliateAssimilationBacteriaRate    
-            call GetData(            Me%CiliateAssimilationBacteriaRate,            &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile, keyword = 'CILBACASS',  &
-                                     default    = 0.5,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR115.' 
-
-            !CiliateAssimilationPhytoRate    
-            call GetData(            Me%CiliateAssimilationPhytoRate,               &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,                         &
-                                     keyword = 'CILPHYASS',                         &
-                                     default    = 0.5,                              &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-           
-           
-            !RatioOxygenCarbonCilRespiration, Ciliates respiration Oxygen:Carbon ratio, 
-            !mgO2 / mgC
-            call GetData(            Me%RatioOxygenCarbonCilRespiration,            &
-                                     Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,keyword = 'CILOCRATIO',    &
-                                     default    = 32.0 / 12.0,                      &
-                                     ClientModule = 'ModuleWWTPQ',           &
-                                     STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR78.' 
-
-
-            !
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR115.' 
-
-                !PhytoRatioIngestionZoo 
-                call GetData(            Me%BactRatioIngestionCiliates,                  &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'BACINGCIL',&
-                                         default    = 0.5,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR673.' 
-
-
-                !PhytoRatioIngestionZoo 
-                call GetData(            Me%PhytoRatioIngestionCiliates,                &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile, keyword = 'PHYINGCIL',&
-                                         default    = 0.5,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR673.' 
-
-        !Reads the rates & constants to the Larvae simulation-------------------------
-
-                ! Awg Growth coefficient dependent of larvae weight 
-                call GetData(            Me%Awg,                                        &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'AWG',                               &
-                                         default    = 0.1344,                           &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR674.' 
-
-                ! Bwg Growth coefficient dependent of larvae weight 
-                call GetData(            Me%Bwg,                                        &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'BWG',                               &
-                                         default    = 0.061,                            &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR674.' 
-
-                ! Awz Death coefficient dependent of larvae weight 
-                call GetData(            Me%Awz,                                        &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'AWZ',                               &
-                                         default    = 1.073,                            &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR675.' 
-
-                ! Bwz Death coefficient dependent of larvae weight 
-                call GetData(            Me%Bwz,                                        &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'BWZ',                               &
-                                         default    = 0.353,                            &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR675.' 
-
-                ! Atg Growth coefficient dependent of temperature 
-                call GetData(            Me%Atg,                                        &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'ATG',                               &
-                                         default    = 0.0511,                           &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR676.' 
-
-                ! Btg Growth coefficient dependent of temperature
-                call GetData(            Me%Btg,                                        &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'BTG',                               &
-                                         default    = 0.0052,                           &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR676.' 
-
-                ! Atz Death coefficient dependent of temperature 
-                call GetData(            Me%Atz,                                        &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'ATZ',                               &
-                                         default    = 0.0149,                           &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR677.' 
-
-                ! Btz Death coefficient dependent of temperature
-                call GetData(            Me%Btz,                                        &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'BTZ',                               &
-                                         default    = 0.0129,                           &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR677.' 
-
-                ! Larvae shape factor 
-                call GetData(            Me%Lshape,                                     &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'LSHAPE',                            &
-                                         default    = 3.78,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR678.' 
-
-                ! Larvae density factor
-                call GetData(            Me%Ldensity,                                   &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'LDENSITY',                          &
-                                         default    = 2.95,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR678.' 
-
-                ! Number of larvae phases (valid values are 1 and 2) 
-                call GetData(            Me%NPhases,                                    &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'NPHASES',                           &
-                                         default    = 2,                                &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR679.' 
-
-                ! Larvae Inital Age (days) 
-                call GetData(            Me%Init_age,                                   &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'INIT_AGE',                          &
-                                         default    = 5.,                               &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR679.' 
-
-                ! Larvae Intermediate Age (days) 
-                call GetData(            Me%Inter_age,                                  &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'INTER_AGE',                         &
-                                         default    = 11.,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR679.' 
-
-                ! Larvae Final Age (days) 
-                call GetData(            Me%Final_age,                                  &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'FINAL_AGE',                         &
-                                         default    = 46.,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR679.' 
-
-                ! Larvae Inital Length (mm)
-                call GetData(            Me%Init_length,                                &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'INIT_LENGTH',                       &
-                                         default    = 5.,                               &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR680.' 
-
-                ! Larvae Intermediate Length (mm)
-                call GetData(            Me%Inter_length,                               &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'INTER_LENGTH',                      &
-                                         default    = 10.,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR680.' 
-
-                ! Larvae Final Length (mm)
-                call GetData(            Me%Final_length,                               &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'FINAL_LENGTH',                      &
-                                         default    = 35.,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR680.' 
-
-                ! Reference food availability (mg/m3)
-                call GetData(            Me%FishFood_ref,                               &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'FISHFOOD_REF',                      &
-                                         default    = 0.5,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR681.' 
-
-                ! Reference temperature (ºC)
-                call GetData(            Me%Temperature_ref,                            &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'TEMPERATURE_REF',                   &
-                                         default    = 15.,                              &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR682.' 
-
-                ! Afg Growth coefficient dependent of fishfood availability (mg/m3) HalfSaturationConstant
-                call GetData(            Me%Afg,                                        &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'AFG',                               &
-                                         default    = 0.05,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR682.' 
-                    
-        
-        
-        !Reads the rates & constants to the POM Pools  simulation---------------
-        
-                call GetData(            Me%POMIngestVmax,                              &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'POMINGESTVMAX',                     &
-                                         default    = 0.05,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR700.'
-                
-                call GetData(            Me%PONIngestKs,                                &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'PONINGESTKS',                       &
-                                         default    = 0.05,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR701.'
-                
-                call GetData(            Me%POPIngestKs,                                &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'POPINGESTKS',                       &
-                                         default    = 0.05,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR702.'
-                
-                call GetData(            Me%PON_CNratio,                                &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'PONCNRATIO',                        &
-                                         default    = 0.05,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR703.'    
-        
-                call GetData(            Me%PON_CPratio,                                &
-                                         Me%ObjEnterData, flag,                         &
-                                         SearchType = FromFile,                         &
-                                         keyword = 'PONCPRATIO',                        &
-                                         default    = 0.05,                             &
-                                         ClientModule = 'ModuleWWTPQ',           &
-                                         STAT       = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                    stop 'Subroutine WWTPQReadFileConstants - ModuleWWTPQ. ERR704.'
-        
-
-        !aqui
-        !Silica
-        if (Me%PropCalc%Silica) then
-
-            call  WWTPQReadSilicaFileConstants                                         
- 
-        endif       !Silica
-
-        !Diatoms
-        if (Me%PropCalc%Diatoms) then
-            call  WWTPQReadDiatomsFileConstants                                        
-        endif     !Diatoms
-
-        !aqui
-
-        !----------------------------------------------------------------------
-
-    end subroutine WWTPQReadFileConstants
-
-    !-------------------------------------------------------------------------------
-
-    subroutine WWTPQReadSilicaFileConstants
-
-        !External--------------------------------------------------------------
-        integer                         :: FromFile
-        integer                         :: STAT_CALL
-
-        !Local-----------------------------------------------------------------
-        integer                         :: flag
-
-        !Begin----------------------------------------------------------------------
-
-        call GetExtractType    (FromFile = FromFile)
-
-        !Biogenic Silica Dissolution Rate in the water column, d-1
-        call GetData(Me%SilicaCycle%KSiBiogenicDissRate,                            &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'SIKDISS',                                      &
-                     default      = 0.01,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadSilicaFileConstants - ModuleModuleWWTPQ - ERRO1'
-
-        !Biogenic Silica Dissolution temperature cefficient, adim
-        call GetData(Me%SilicaCycle%BiogenicDissTCoef,                              &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'SIDISSTCOEF',                                  &
-                     default      = 0.01,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadSilicaFileConstants - ModuleModuleWWTPQ - ERRO1'
-
-
-     end subroutine WWTPQReadSilicaFileConstants
-
-    !-------------------------------------------------------------------------------
-
-    subroutine WWTPQReadDiatomsFileConstants
-
-        !External--------------------------------------------------------------
-        integer                         :: FromFile
-        integer                         :: STAT_CALL
-
-        !Local-----------------------------------------------------------------
-        integer                         :: flag
-
-        !Begin----------------------------------------------------------------------
-
-        call GetExtractType    (FromFile = FromFile)    
-        
-        !Diatoms Maximum Gross Growth Rate, d-1 , EPA 1985
-        call GetData(Me%Diatoms%DiaGrowMaxRate,                                     &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIGROWMAX',                                    &
-                     default      = 3.0     ,                                       &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERRO1'
-
-        !Diatoms Endogenous Respiration Constant, d-1
-        call GetData(Me%Diatoms%DiaEndogRepConst,                                   &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIFENDREPC',                                   &
-                     default      = 0.0175,                                         &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERRO2'
-
-        !Fraction of Diatoms photosynthesis which is oxidized by photorespiration, d-1
-        call GetData(Me%Diatoms%DiaPhotorespFactor,                                 &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIPHOTORES',                                   &
-                     default      = 0.0175,                                        &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERRO3'
-
-        !Diatoms Excretion Constant, adim
-        call GetData(Me%Diatoms%DiaExcretionConstant,                               &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIEXCRCONS',                                   &
-                     default      = 0.07,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERRO4'
-
-        !Diatoms Maximum Mortality Rate, d-1
-        call GetData(Me%Diatoms%DiaMortMaxRate,                                     &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIMORTMAX',                                    &
-                     default      = 0.03,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERRO5'
-
-
-        !Diatoms half-saturation mortality rate, d-1
-        call GetData(Me%Diatoms%DiaMortSatConst,                                    &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIMORTCON',                                    &
-                     default      = 0.3,                                            &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERRO6'
-
-        !Zooplankton assimilation efficiency for diatoms, adim
-        call GetData(Me%Diatoms%DiaE,                                               &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIASS_EFIC',                                   &
-                     default      = 0.8,                                            &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERRO7'
-
-        !Nitrogen half-saturation constant for Diatoms, mgN/l
-        call GetData(Me%Diatoms%DiaNSatConst,                                       &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DINSATCONS',                                   &
-                     default      = 0.015,                                          &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERRO8'
-
-        !Phosphorus half-saturation constant for Diatoms, mgP/l
-        call GetData(Me%Diatoms%DiaPSatConst,                                       &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIPSATCONS',                                   &
-                     default      = 0.002,                                          &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERRO9'
-
-        !Silica half-saturation constant for Diatoms, mgSi/l
-        call GetData(Me%Diatoms%DiaSiSatConst,                                      &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DISISATCONS',                                  &
-                     default      = 0.08,                                          &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR10'
-
-        !Optimum light intensity for Diatoms photosynthesis, W/m2
-        
-        call GetData(Me%Diatoms%DiaPhotoinhibition,                                 &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIPHOTOIN',                                    &
-                     default      = 121.,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR11'
-
-        
-        !Minimum temperature of optimal interval for Diatoms photosynthesis, ºC
-        call GetData(Me%Diatoms%DiaTOptMin,                                         &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DITOPTMIN',                                    &
-                     default      = 25.,                                            &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR12'
-
-        !Maximum temperature of optimal interval for Diatoms photosynthesis, ºC
-        call GetData(Me%Diatoms%DiaTOptMax,                                         &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DITOPTMAX',                                    &
-                     default      = 26.5,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR13'
-
-        !Minimum tolerable temperature for Diatoms Growth, ºC
-        call GetData(Me%Diatoms%DiaTMin,                                            &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DITMIN',                                       &
-                     default      = 4.,                                             &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR14'
-
-        !Maximum tolerable temperature for Diatoms Growth, ºC
-        call GetData(Me%Diatoms%DiaTMax,                                            &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DITMAX',                                       &
-                     default      = 37.,                                            &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR15'
-
-        !Constant to control Diatoms temperature response curve shape, adim
-        call GetData(Me%Diatoms%DiaK1,                                              &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DITCONST1',                                    &
-                     default      = 0.05,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR16'
-
-        !Constant to control Diatoms temperature response curve shape, adim
-        call GetData(Me%Diatoms%DiaK2,                                              &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DITCONST2',                                    &
-                     default      = 0.98,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR17'
-
-    
-        !Constant to control Diatoms temperature response curve shape, adim
-        call GetData(Me%Diatoms%DiaK3,                                              &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DITCONST3',                                    &
-                     default      = 0.98,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR18'
-
-        !Constant to control Diatoms temperature response curve shape, adim
-        call GetData(Me%Diatoms%DiaK4,                                              &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DITCONST4',                                    &
-                     default      = 0.02,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR19'
-
-        !Diatoms Nitrogen/Carbon Ratio, mg N/mgC
-        call GetData(Me%Diatoms%DiaAlfaNC,                                          &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIRATIONC',                                    &
-                     default      = 0.18,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR20'
-
-        !Diatoms Phosphorus/Carbon Ratio, mg P/mgC
-        call GetData(Me%Diatoms%DiaAlfaPC,                                          &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIRATIOPC',                                    &
-                     default      = 0.024,                                          &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR21'
-
-        !Diatoms Silica/Carbon Ratio, mg Si/mgC
-        call GetData(Me%Diatoms%DiaAlfaSiC,                                         &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIRATIOSIC',                                   &
-                     default      = 0.6,                                            &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR22'
-
-
-        !Fraction of soluble inorganic material excreted by Diatoms, adim
-        call GetData(Me%Diatoms%DiaSolublInorgExcreFraction,                        &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DISOLEXCR',                                    &
-                     default      = 0.4,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR23'
-
-        !Fraction of dissolved organic material excreted by Diatoms, adim
-        call GetData(Me%Diatoms%DiaExcreDissOrgFraction,                            &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIDISSDON',                                    &
-                     default      = 0.5,                                           &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR24'
-
-        !Diatoms minimum concentration for predation, mgC/l
-        call GetData(Me%Diatoms%GrazDiaMin,                                         &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIGRAZMIN' ,                                   &
-                     default      = 0.0045,                                          &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR25'
-
-        !Proportion of diatoms in mesozooplankton ingestion, adim
-        call GetData(Me%Diatoms%DiaRatioIngestionZoo,                               &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIRATINGZOO',                                  &
-                     default      = 0.3,                                            &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR26'
-
-        !Assimilation Coefficient o Diatoms by mesozooplankton
-        call GetData(Me%Diatoms%DiaZooAssimilationRate,                             &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIZOASS',                                      &
-                     default      = 0.8,                                            &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR27'
-
-        !Zooplankton Efficiency Capture of Diatoms
-        call GetData(Me%Diatoms%ZooEfficiencyCaptureDiatoms,                        &
-                     Me%ObjEnterData, flag,                                         &
-                     SearchType   = FromFile,                                       &
-                     keyword      = 'DIZOOEFFCAP',                                  &
-                     default      = 0.8,                                            &
-                     ClientModule = 'ModuleWWTPQ',                           &
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadDiatomsFileConstants - ModuleModuleWWTPQ - ERR28'
-
-        
-     end subroutine WWTPQReadDiatomsFileConstants
-    
     !----------------------------------------------------------------------------
     
     subroutine AllocateVariables
+    
+   !? What does it subroutine do? Create a matrix? 
 
         !External----------------------------------------------------------------
         integer :: STAT_CALL
@@ -3993,14 +880,14 @@ cd22 :      if (flag .EQ. 0) then
         PropLB    = Me%Prop%ILB
         PropUB    = Me%Prop%IUB
 
-        allocate(Me%Matrix (PropLB:PropUB, PropLB:PropUB))
-        allocate(Me%IndTerm(PropLB:PropUB               ))
+        allocate(Me%Matrix (PropLB:PropUB, PropLB:PropUB)) !rates matrix
+        allocate(Me%IndTerm(PropLB:PropUB               )) !old concentration proprieties colunm
 
 
 cd1 :   if (Me%CalcMethod%ExplicitMethod) then
             allocate(Me%NewMass(PropLB:PropUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Subroutine AllocateVariables - ModuleWWTPQ. ERR01.'
+                stop 'Subroutine AllocateVariables; module ModuleWWTPQ. ERR01.'
         end if cd1
 
         !------------------------------------------------------------------------
@@ -4017,55 +904,9 @@ cd1 :   if (Me%CalcMethod%ExplicitMethod) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine GetWWTPQNCRatio(WWTPQID, Property, Ratio, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                             :: WWTPQID
-        real                                :: Ratio
-        integer                             :: Property
-        integer, optional, intent(OUT)      :: STAT    
-
-        !External--------------------------------------------------------------
-        integer                         :: ready_
-
-        !Local-----------------------------------------------------------------
-        integer                         :: STAT_
-        real                                :: AlphaNTS
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(WWTPQID, ready_)
-
-cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
-            (ready_ .EQ. READ_LOCK_ERR_)) then
-
-            !Ratio of gN in g dry substance according to Redfiel: 16mol*14gN/mol / 2749 gTS
-            AlphaNTS = 16.*14./2749.
-            Ratio = 1.0/AlphaNTS  !for all non-living VSS as PON and PONr
-            if (Property == Me%PropIndex%Phyto                  ) Ratio = Me%AlfaPhytoNC   /AlphaNTS
-            if (Property == Me%PropIndex%Diatoms                ) Ratio = Me%OMAlfaNC      /AlphaNTS
-            if (Property == Me%PropIndex%Zoo                    ) Ratio = Me%AlfaZooNC     /AlphaNTS
-            if (Property == Me%PropIndex%Ciliate                ) Ratio = Me%AlfaCilNC     /AlphaNTS
-            if (Property == Me%PropIndex%Bacteria               ) Ratio = Me%AlfaBacteriaNC/AlphaNTS
-
-            STAT_ = SUCCESS_
-        else 
-            STAT_ = ready_
-        end if cd1
-        
-        if (present(STAT))                                                    &
-            STAT = STAT_
-
-        !----------------------------------------------------------------------
-
-    end subroutine GetWWTPQNCRatio
-
-    !--------------------------------------------------------------------------
-
-
     subroutine GetWWTPQSize(WWTPQID, PropLB, PropUB, STAT)
+    
+    !? What does it subroutine do? 
 
         !Arguments-------------------------------------------------------------
         integer                         :: WWTPQID
@@ -4102,155 +943,47 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !----------------------------------------------------------------------
 
     end subroutine GetWWTPQSize
+!
+!    !--------------------------------------------------------------------------
 
-    !--------------------------------------------------------------------------
+    subroutine GetWWTPQPropIndex(WWTPQID,                                   &
+                                      SolInertOrgMat,                       &
+                                      ReadilyBioSub,                        &
+                                      PartInertOrgMar,                      & 
+                                      SlowlyBioSub,                         &  
+                                      HetBio,                               &
+                                      AutBio,                               &
+                                      PartProd,                             &              
+                                      Oxygen,                               &
+                                      Ammonia,                              &
+                                      Nitrate,                              & 
+                                      SolBioOrgNitrogen,                    &
+                                      PartBioOrgNitrogen,                   &
+                                      Alkalinity,                           &
+                                      STAT)    
 
+!? What does it subroutine do? Get the PropIndex of each propriety. 
+!? Why some subroutine have arguments and others do not? 
 
-    !--------------------------------------------------------------------------
-
-    subroutine GetWWTPQOptions(WWTPQID, Zoo,                              &
-                                           Larvae,                            &
-                                           Age,                               & ! Aires
-                                           Phyto,                             &
-                                           Nitrogen,                          & 
-                                           Phosphorus,                        &
-                                           Oxygen,                            &
-                                           Salinity,                          &  
-                                           BOD,                               &
-                                           Bacteria,                          &
-                                           Ciliate,                           &
-                                           Diatoms,                           &  !aqui
-                                           Silica,                            &  !aqui
-                                           PomPools,                          &
-                                           ExplicitMethod,                    &
-                                           ImplicitMethod,                    &
-                                           SemiImpMethod, STAT) 
-
-        !Arguments-------------------------------------------------------------
-        integer                         :: WWTPQID
-        integer, optional, intent(OUT)  :: STAT
-        logical, optional, intent(OUT)  :: Zoo,  Age, Larvae, Phyto, Nitrogen, Phosphorus, Oxygen,   &
-                                           Salinity, BOD, Bacteria, Ciliate, Diatoms, Silica, Pompools 
-        logical, optional, intent(OUT)  :: ExplicitMethod, ImplicitMethod, SemiImpMethod  
-
-        !External--------------------------------------------------------------
-        integer                         :: ready_              
-
-        !Local-----------------------------------------------------------------
-        integer                         :: STAT_
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(WWTPQID, ready_)    
-        
-cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
-            (ready_ .EQ. READ_LOCK_ERR_)) then
-
-            if (present(Zoo           )) Zoo            = Me%PropCalc%Zoo
-            if (present(Larvae        )) Larvae         = Me%PropCalc%Larvae 
-            if (present(Age           )) Age            = Me%PropCalc%Age    
-            if (present(Phyto         )) Phyto          = Me%PropCalc%Phyto
-            if (present(Nitrogen      )) Nitrogen       = Me%PropCalc%Nitrogen
-            if (present(Phosphorus    )) Phosphorus     = Me%PropCalc%Phosphorus
-            if (present(Oxygen        )) Oxygen         = Me%PropCalc%Oxygen       
-            if (present(Salinity      )) Salinity       = Me%PropCalc%Salinity                            
-            if (present(BOD           )) BOD            = Me%PropCalc%BOD 
-            if (present(Bacteria      )) Bacteria       = Me%PropCalc%Bacteria         ! so
-            if (present(Ciliate       )) Ciliate        = Me%PropCalc%Ciliate  
-            if (present(Diatoms       )) Diatoms        = Me%PropCalc%Diatoms        !aqui
-            if (present(Silica        )) Silica         = Me%PropCalc%Silica         !aqui
-            if (present(Pompools      )) Pompools       = Me%PropCalc%Pompools
-            if (present(ExplicitMethod)) ExplicitMethod = Me%CalcMethod%ExplicitMethod
-            if (present(ImplicitMethod)) ImplicitMethod = Me%CalcMethod%ImplicitMethod
-            if (present(SemiImpMethod )) SemiImpMethod  = Me%CalcMethod%SemiImpMethod    
-
-            STAT_ = SUCCESS_
-        else 
-            STAT_ = ready_
-        end if cd1
-
-        if (present(STAT))                                                    &
-            STAT = STAT_
-
-        !----------------------------------------------------------------------
-
-    end subroutine GetWWTPQOptions
-
-    !--------------------------------------------------------------------------
-
-    subroutine GetWWTPQPropIndex(WWTPQID, Zoo,                             &
-                                             Larvae,                           &  
-                                             Age,                              &
-                                             Phyto,                            &
-                                             Ammonia,                          &
-                                             Nitrate,                          &
-                                             Nitrite,                          &
-                                             DissOrganicNitrogenRefractory,    &
-                                             DONNonRefractory,                 &
-                                             PartOrganicNitrogen,              &
-                                             PartOrganicNitrogenRefractory,    &
-                                             PONitrogen1,                      &
-                                             PONitrogen2,                      &
-                                             PONitrogen3,                      &
-                                             PONitrogen4,                      &
-                                             PONitrogen5,                      &
-                                             Oxygen,                           &
-                                             BOD,                              &
-                                             Bacteria,                         &
-                                             Ciliate,                          &
-                                             Diatoms,                          &  !aqui
-                                             BiogenicSilica,                   &  !aqui
-                                             DissolvedSilica,                  &  !aqui
-                                             DissOrganicPhosphorusRefractory,  &
-                                             DOPNonRefractory,                 &
-                                             PartOrganicPhosphorus,            &
-                                             POPhosphorus1,                    &
-                                             POPhosphorus2,                    &
-                                             POPhosphorus3,                    &
-                                             POPhosphorus4,                    &
-                                             POPhosphorus5,                    &
-                                             InorganicPhosphorus,              &
-                                             STAT)
 
         !Arguments-------------------------------------------------------------
         integer                         :: WWTPQID
                                         
         integer, optional, intent(OUT)  :: STAT
-                                        
-        integer, optional, intent(OUT)  :: Zoo                              
-        integer, optional, intent(OUT)  :: Larvae                               
-        integer, optional, intent(OUT)  :: Age                             
-        integer, optional, intent(OUT)  :: Phyto                            
-        integer, optional, intent(OUT)  :: Ammonia                          
-        integer, optional, intent(OUT)  :: Nitrate                          
-        integer, optional, intent(OUT)  :: Nitrite                          
-        integer, optional, intent(OUT)  :: DissOrganicNitrogenRefractory    
-        integer, optional, intent(OUT)  :: DONNonRefractory 
-        integer, optional, intent(OUT)  :: PartOrganicNitrogen
-        integer, optional, intent(OUT)  :: PONitrogen1
-        integer, optional, intent(OUT)  :: PONitrogen2
-        integer, optional, intent(OUT)  :: PONitrogen3
-        integer, optional, intent(OUT)  :: PONitrogen4
-        integer, optional, intent(OUT)  :: PONitrogen5
-        integer, optional, intent(OUT)  :: POPhosphorus1
-        integer, optional, intent(OUT)  :: POPhosphorus2 
-        integer, optional, intent(OUT)  :: POPhosphorus3 
-        integer, optional, intent(OUT)  :: POPhosphorus4 
-        integer, optional, intent(OUT)  :: POPhosphorus5               
-        integer, optional, intent(OUT)  :: PartOrganicNitrogenRefractory              
-        integer, optional, intent(OUT)  :: Oxygen                           
-        integer, optional, intent(OUT)  :: BOD    
-        integer, optional, intent(OUT)  :: Bacteria
-        integer, optional, intent(OUT)  :: Ciliate
-        integer, optional, intent(OUT)  :: Diatoms          !aqui
-        integer, optional, intent(OUT)  :: BiogenicSilica   !aqui
-        integer, optional, intent(OUT)  :: DissolvedSilica  !aqui                         
-        integer, optional, intent(OUT)  :: DissOrganicPhosphorusRefractory    
-        integer, optional, intent(OUT)  :: DOPNonRefractory 
-        integer, optional, intent(OUT)  :: PartOrganicPhosphorus              
-        integer, optional, intent(OUT)  :: InorganicPhosphorus              
+!       
+        integer, optional, intent(OUT)  :: SolInertOrgMat   
+        integer, optional, intent(OUT)  :: ReadilyBioSub 
+        integer, optional, intent(OUT)  :: PartInertOrgMar
+        integer, optional, intent(OUT)  :: SlowlyBioSub
+        integer, optional, intent(OUT)  :: HetBio 
+        integer, optional, intent(OUT)  :: AutBio
+        integer, optional, intent(OUT)  :: PartProd
+        integer, optional, intent(OUT)  :: Oxygen
+        integer, optional, intent(OUT)  :: Ammonia
+        integer, optional, intent(OUT)  :: Nitrate
+        integer, optional, intent(OUT)  :: SolBioOrgNitrogen
+        integer, optional, intent(OUT)  :: PartBioOrgNitrogen
+        integer, optional, intent(OUT)  :: Alkalinity
 
         !External--------------------------------------------------------------
         integer :: ready_              
@@ -4263,53 +996,25 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         STAT_ = UNKNOWN_
 
         call Ready(WWTPQID, ready_)    
-        
+!        
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
-
-            if (present(Zoo                  )) Zoo                   = Me%PropIndex%Zoo
-            if (present(Larvae               )) Larvae                = Me%PropIndex%Larvae 
-            if (present(Age                  )) Age                   = Me%PropIndex%Age     
-            if (present(Phyto                )) Phyto                 = Me%PropIndex%Phyto
-            if (present(Ammonia              )) Ammonia               = Me%PropIndex%Ammonia
-            if (present(Nitrate              )) Nitrate               = Me%PropIndex%Nitrate
-            if (present(Nitrite              )) Nitrite               = Me%PropIndex%Nitrite
-            if (present(PartOrganicNitrogen  )) PartOrganicNitrogen   = Me%PropIndex%PartOrganicNitrogen
-            if (present(PartOrganicNitrogenRefractory  ))   &
-                PartOrganicNitrogenRefractory   = Me%PropIndex%PartOrganicNitrogenRefractory             
-            if (present(PONitrogen1          )) PONitrogen1           = Me%PropIndex%PONitrogen1    
-            if (present(PONitrogen2          )) PONitrogen2           = Me%PropIndex%PONitrogen2
-            if (present(PONitrogen3          )) PONitrogen3           = Me%PropIndex%PONitrogen3
-            if (present(PONitrogen4          )) PONitrogen4           = Me%PropIndex%PONitrogen4
-            if (present(PONitrogen5          )) PONitrogen5           = Me%PropIndex%PONitrogen5
-            if (present(POPhosphorus1        )) POPhosphorus1         = Me%PropIndex%POPhosphorus1    
-            if (present(POPhosphorus2        )) POPhosphorus2         = Me%PropIndex%POPhosphorus2
-            if (present(POPhosphorus3        )) POPhosphorus3         = Me%PropIndex%POPhosphorus3
-            if (present(POPhosphorus4        )) POPhosphorus4         = Me%PropIndex%POPhosphorus4
-            if (present(POPhosphorus5        )) POPhosphorus5         = Me%PropIndex%POPhosphorus5       
-            if (present(Oxygen               )) Oxygen                = Me%PropIndex%Oxygen
-            if (present(BOD                  )) BOD                   = Me%PropIndex%BOD 
-            if (present(Bacteria             )) Bacteria              = Me%PropIndex%Bacteria      
-            if (present(Ciliate              )) Ciliate               = Me%PropIndex%Ciliate
-            if (present(Diatoms              )) Diatoms               = Me%PropIndex%Diatoms          !aqui
-            if (present(BiogenicSilica       )) BiogenicSilica        = Me%PropIndex%BiogenicSilica   !aqui
-            if (present(DissolvedSilica      )) DissolvedSilica       = Me%PropIndex%DissolvedSilica  !aqui      
-            if (present(PartOrganicPhosphorus)) PartOrganicPhosphorus = Me%PropIndex%PartOrganicPhosphorus
-            if (present(InorganicPhosphorus  )) InorganicPhosphorus   = Me%PropIndex%InorganicPhosphorus
-
-            if (present(DissOrganicNitrogenRefractory   ))  &
-                DissOrganicNitrogenRefractory    = Me%PropIndex%DissOrganicNitrogenRefractory
-            if (present(DONNonRefractory))                  &
-                DONNonRefractory = Me%PropIndex%DONNonRefractory
-
-
-            if (present(DissOrganicPhosphorusRefractory )) &
-                DissOrganicPhosphorusRefractory    = Me%PropIndex%DissOrganicPhosphorusRefractory
-            if (present(DOPNonRefractory))                  &
-                DOPNonRefractory = Me%PropIndex%DOPNonRefractory
-
-
+           
+                   
+             if (present(SolInertOrgMat                 )) SolInertOrgMat          = Me%PropIndex%SolInertOrgMat
+             if (present(ReadilyBioSub                  )) ReadilyBioSub           = Me%PropIndex%ReadilyBioSub
+             if (present(PartInertOrgMar                )) PartInertOrgMar         = Me%PropIndex%PartInertOrgMar
+             if (present(SlowlyBioSub                   )) SlowlyBioSub            = Me%PropIndex%SlowlyBioSub
+             if (present(HetBio                         )) HetBio                  = Me%PropIndex%HetBio
+             if (present(AutBio                         )) AutBio                  = Me%PropIndex%AutBio
+             if (present(PartProd                       )) PartProd                = Me%PropIndex%PartProd
+             if (present(Oxygen                         )) Oxygen                  = Me%PropIndex%Oxygen
+             if (present(Ammonia                        )) Ammonia                 = Me%PropIndex%Ammonia
+             if (present(Nitrate                        )) Nitrate                 = Me%PropIndex%Nitrate
+             if (present(SolBioOrgNitrogen              )) SolBioOrgNitrogen       = Me%PropIndex%SolBioOrgNitrogen
+             if (present(PartBioOrgNitrogen             )) PartBioOrgNitrogen      = Me%PropIndex%PartBioOrgNitrogen
+             if (present(Alkalinity                     )) Alkalinity              = Me%PropIndex%Alkalinity
+             
             STAT_ = SUCCESS_
         else 
             STAT_ = ready_
@@ -4321,10 +1026,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !----------------------------------------------------------------------
 
     end subroutine GetWWTPQPropIndex
-
-    !--------------------------------------------------------------------------
-
+!
+!    !--------------------------------------------------------------------------
+!
     subroutine GetDTWWTPQM(WWTPQID, DTDay, DTSecond, STAT)
+    
+  !? What does it subroutine do?  
 
         !Arguments-------------------------------------------------------------
         integer                         :: WWTPQID
@@ -4362,206 +1069,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     end subroutine GetDTWWTPQM
 
-    !--------------------------------------------------------------------------
- 
-    subroutine GetWWTPQPropRateFlux(WWTPQID, Firstprop, Secondprop, PropRateFlux, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                             :: WWTPQID
-        real, dimension(:),     pointer     :: PropRateFlux
-        integer                             :: Firstprop,Secondprop
-        integer, optional, intent(OUT)      :: STAT
-
-        !External--------------------------------------------------------------
-        integer         :: ready_        
-
-        !Local-----------------------------------------------------------------
-        integer                             :: STAT_
-        integer                             :: prop,equa
-        logical                             :: found       
-        type(T_EquaRateFlux),       pointer :: EquaRateFluxX
-        type(T_PropRateFlux),   pointer     :: PropRateFluxX
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(WWTPQID, ready_)    
-        
-        found=.FALSE.
-
-cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
-            (ready_ .EQ. READ_LOCK_ERR_)) then
-
-
-            call Read_Lock(mWWTPQ_, Me%InstanceID)
-
-
-                EquaRateFluxX => Me%FirstEquaRateFlux
-
-do1 :           do while(associated(EquaRateFluxX))  
-                    
-                    PropRateFluxX => EquaRateFluxX%FirstPropRateFlux
-                    
-                    do while(associated(PropRateFluxX))  
-                    
-                        equa = EquaRateFluxX%ID
-                        prop = PropRateFluxX%ID
-                   
-                        if(Prop.eq.Firstprop.and.Equa.eq.SecondProp) then
-
-                            PropRateFlux => PropRateFluxX%Field (:)
-
-                            found=.true.
-                            exit do1
-
-                        endif
-                     
-                        PropRateFluxX => PropRateFluxX%Next
-
-                    end do
-                 
-                    EquaRateFluxX => EquaRateFluxX%Next
-          
-                end do do1
-
-
-               !aqui_3
-                if (.NOT.found) then
-
-                    if (FirstProp.eq. Me%GrossProduction%ID) then
-
-                        PropRateFlux => Me%GrossProduction%Field
-                        found=.TRUE.
-
-                    elseif (FirstProp.eq. Me%TempLimitation%ID) then
-
-                        PropRateFlux => Me%TempLimitation%Field
-                        found=.TRUE.
-
-                    elseif (FirstProp.eq. Me%NutLimitation%ID) then
-
-                        PropRateFlux => Me%NutLimitation%Field
-                        found=.TRUE.
-
-                    elseif (FirstProp.eq. Me%NLimitation%ID) then
-
-                        PropRateFlux => Me%NLimitation%Field
-                        found=.TRUE.
-
-                    elseif (FirstProp.eq. Me%PLimitation%ID) then
-
-                        PropRateFlux => Me%PLimitation%Field
-                        found=.TRUE.
-
-                    elseif (FirstProp.eq. Me%LightLimitation%ID) then
-
-                        PropRateFlux => Me%LightLimitation%Field
-                        found=.TRUE.
-                    
-                    elseif (FirstProp.eq. Me%Diatoms%DiaGrossProduction%ID) then
-
-                        PropRateFlux => Me%Diatoms%DiaGrossProduction%Field
-                        found=.TRUE.
-
-                    elseif (FirstProp.eq. Me%Diatoms%DiaTempLimitation%ID) then
-
-                        PropRateFlux => Me%Diatoms%DiaTempLimitation%Field
-                        found=.TRUE.
-
-                    elseif (FirstProp.eq. Me%Diatoms%DiaNutLimitation%ID) then
-
-                        PropRateFlux => Me%Diatoms%DiaNutLimitation%Field
-                        found=.TRUE.
-
-                    elseif (FirstProp.eq. Me%Diatoms%DiaNLimitation%ID) then
-
-                        PropRateFlux => Me%Diatoms%DiaNLimitation%Field
-                        found=.TRUE.
-
-                    elseif (FirstProp.eq. Me%Diatoms%DiaPLimitation%ID) then
-
-                        PropRateFlux => Me%Diatoms%DiaPLimitation%Field
-                        found=.TRUE.
-
-                    elseif (FirstProp.eq. Me%Diatoms%DiaSiLimitation%ID) then
-
-                        PropRateFlux => Me%Diatoms%DiaSiLimitation%Field
-                        found=.TRUE.
-
-                    elseif (FirstProp.eq. Me%Diatoms%DiaLightLimitation%ID) then
-
-                        PropRateFlux => Me%Diatoms%DiaLightLimitation%Field
-                        found=.TRUE.
-
-                    endif
-
-                endif
-
-                nullify  (PropRateFluxX,EquaRateFluxX)
-           
-            if (found) then              
-                STAT_ = SUCCESS_
-            else
-                STAT_ = NOT_FOUND_ERR_
-            endif
-        else cd1
-            STAT_ = ready_
-        end if cd1
-
-
-        if (present(STAT))                                                    &
-            STAT = STAT_
-
-        !----------------------------------------------------------------------
-
-    end subroutine GetWWTPQPropRateFlux
-
-    !--------------------------------------------------------------------------
-
-    
-    
-    !--------------------------------------------------------------------------
-    subroutine UnGetWWTPQPropRateFlux(WWTPQID, Array, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                         :: WWTPQID
-        integer, optional, intent(OUT)  :: STAT
-        real, pointer, dimension(:)     :: Array
-
-        !External--------------------------------------------------------------
-        integer                         :: ready_   
-
-        !Local-----------------------------------------------------------------
-        integer                         :: STAT_            
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(WWTPQID, ready_)    
-
-cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
-            nullify(Array)
-
-            call Read_Unlock(mWWTPQ_, Me%InstanceID, "UnGetWWTPQPropRateFlux")
-
-            STAT_ = SUCCESS_
-        else 
-            STAT_ = ready_
-        end if cd1
-
-        if (present(STAT))                                                    &
-            STAT = STAT_
-
-        !----------------------------------------------------------------------
-
-    end subroutine UnGetWWTPQPropRateFlux
-
-    !--------------------------------------------------------------------------
-
-
-
+!--------------------------------------------------------------------------
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4571,19 +1079,19 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-
-    
-    subroutine WWTPQ(WWTPQID,                                     &
+    subroutine WWTPQ(WWTPQID,                                                   &
                             Salinity,                                           &
                             Temperature,                                        &
                             ShortWaveRadiation,                                 &
                             LightExtCoefField,                                  &
                             Thickness,                                          &
                             Mass,                                               &
-                            WWTPQArrayLB, WWTPQArrayUB,                               &
+                            WWTPQArrayLB, WWTPQArrayUB,                         &
                             OpenPoints,                                         &               
                             FishFood,                                           &
                             STAT)  
+
+!? What does it subroutine do?
 
         !Arguments---------------------------------------------------------------
         integer                                       :: WWTPQID
@@ -4616,41 +1124,19 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         call Ready(WWTPQID, ready_)    
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
-
-            Me%ExternalVar%Salinity                   => Salinity
-            if (.NOT. associated(Me%ExternalVar%Salinity))         &
-                stop 'Subroutine WWTPQ - ModuleWWTPQ. ERR01' 
-
-
-            Me%ExternalVar%Temperature                => Temperature
-            if (.NOT. associated(Me%ExternalVar%Temperature))        &
-                stop 'Subroutine WWTPQ - ModuleWWTPQ. ERR02'
-                
-            Me%ExternalVar%ShortWaveRadiation         => ShortWaveRadiation
-            if (.NOT. associated(Me%ExternalVar%ShortWaveRadiation)) &
-                stop 'Subroutine WWTPQ - ModuleWWTPQ. ERR02' 
-            
-            Me%ExternalVar%LightExtCoefField          => LightExtCoefField
-            if (.NOT. associated(Me%ExternalVar%LightExtCoefField))  &
-                stop 'Subroutine WWTPQ - ModuleWWTPQ. ERR02' 
-            
-            Me%ExternalVar%Thickness                  => Thickness
-            if (.NOT. associated(Me%ExternalVar%Thickness))          &
-                stop 'Subroutine WWTPQ - ModuleWWTPQ. ERR02'  
-             
+!
+!            Me%ExternalVar%Salinity                   => Salinity
+!            if (.NOT. associated(Me%ExternalVar%Salinity))         &
+!                stop 'Subroutine WWTPQ; Module ModuleWWTPQ. ERR01' 
+!
+!
+            Me%ExternalVar%Temperature                => temperature
+            if (.not. associated(me%externalvar%temperature))        &
+                stop 'subroutine wwtpq; module modulewwtpq. err02'
 
             Me%ExternalVar%Mass                       => Mass
             if (.NOT. associated(Me%ExternalVar%Mass))               &
-                stop 'Subroutine WWTPQ - ModuleWWTPQ. ERR03.'
-
-cd6 :       if (present(FishFood)) then
-                Me%ExternalVar%FishFood               => FishFood
-                if (.NOT. associated(Me%ExternalVar%FishFood))       &
-                    stop 'Subroutine WWTPQ - ModuleWWTPQ. ERR4.'
-            else cd6
-                nullify(Me%ExternalVar%FishFood)
-            end if cd6
-
+                stop 'Subroutine WWTPQ; Module ModuleWWTPQ. ERR03.'
 
             call StartWWTPQIteration
 
@@ -4679,25 +1165,15 @@ do1 :       do index = WWTPQArrayLB, WWTPQArrayUB
                 !the rate fluxes are not calculated
                 !Rates must be computed before call to WWTPQSystemResolution to use 
                 !old concentrations 
-                if (associated(Me%FirstEquaRateFlux)) then
-                    call WWTPQRatesCalculation      (index)
-                end if
+!                if (associated(Me%FirstEquaRateFlux)) then
+!!                    call WWTPQRatesCalculation      (index)
+!               end if
 
                 call WWTPQSystemResolution         (index)
                 
-        !!----------------------------------------------------------------------
-
-
             end if
             end do do1
-
-
-            nullify(Me%ExternalVar%Salinity   )
-            nullify(Me%ExternalVar%Temperature)
-            nullify(Me%ExternalVar%Mass       )
-            nullify(Me%ExternalVar%FishFood   )
-
-           
+          
             STAT_ = SUCCESS_
         else               
             STAT_ = ready_
@@ -4707,21 +1183,10 @@ do1 :       do index = WWTPQArrayLB, WWTPQArrayUB
         if (present(STAT))                                                      &
             STAT = STAT_
 
-        !------------------------------------------------------------------------
-
+!        !------------------------------------------------------------------------
+!
     end subroutine WWTPQ
-
-    !----------------------------------------------------------------------------
-
-
-
-
-
-
-!********************
-!********* ver Sophie
-!********************
-
+!
     !----------------------------------------------------------------------------
 
     subroutine StartWWTPQIteration
@@ -4750,45 +1215,37 @@ do2 :       do j = PropLB, PropUB
 
     !----------------------------------------------------------------------------
 
-
-
-
-    !--------------------------------------------------------------------------
-
     subroutine WWTPQCoeficientsCalculation(index)
+    
+    !? What does it subroutine do?
 
         !Arguments-------------------------------------------------------------
 
         integer, intent(IN) :: index
 
-                                    call WWTPQOxygen       (index)
-        if (Me%PropCalc%BOD       ) call WWTPQBOD          (index)
-        if (Me%PropCalc%Phosphorus) call WWTPQPhosphorus   (index)
-        if (Me%PropCalc%Nitrogen  ) call WWTPQNitrogen     (index)
-        if (Me%PropCalc%Phyto     ) call WWTPQPhytoplankton(index)
-        if (Me%PropCalc%Zoo       ) call WWTPQZooplankton  (index)
-        if (Me%PropCalc%Bacteria  ) call WWTPQBacteria     (index)
-        if (Me%PropCalc%Ciliate   ) call WWTPQCiliate      (index)
-        if (Me%PropCalc%Silica    ) call WWTPQSilica       (index)  !aqui
-        if (Me%PropCalc%Diatoms   ) call WWTPQDiatoms      (index)  !aqui
-        if (Me%PropCalc%Age       ) call WWTPQAge          (index)
-        if (Me%PropCalc%Larvae    ) call WWTPQLarvae       (index)  ! Aires
-        if (Me%PropCalc%Pompools  ) call WWTPQPompools     (index)
+        call WWTPQSolInertOrgMat        (index)
+        call WWTPQReadilyBioSub         (index)
+        call WWTPQPartInertOrgMar       (index)
+        call WWTPQSlowlyBioSub          (index)
+        call WWTPQHetBio                (index)
+        call WWTPQAutBio                (index)
+        call WWTPQPartProd              (index)
+        call WWTPQOxygen                (index)
+        call WWTPQNitrate               (index)  
+        call WWTPQAmmonia               (index)  
+        call WWTPQSolBioOrgNitrogen     (index)
+        call WWTPQPartBioOrgNitrogen    (index)  
+        call WWTPQAlkalinity            (index)
 
-!
-
-
-        !----------------------------------------------------------------------
+      !----------------------------------------------------------------------
 
     end subroutine WWTPQCoeficientsCalculation
 
-    !--------------------------------------------------------------------------
-
-
-
-    !--------------------------------------------------------------------------
+!    !--------------------------------------------------------------------------
 
     subroutine WWTPQSystemResolution(index)
+    
+    !? What does it subroutine do? Calculate each new propriety using the method choosen
 
         !Arguments-------------------------------------------------------------
         integer, intent(IN)             :: index
@@ -4843,7 +1300,7 @@ do4 :       do equa = PropLB, PropUB           !Percorre as equacoes
                      x,                                                       &
                      STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                      &
-                stop 'Subroutine WWTPQSystemResolution - ModuleWWTPQ. ERR03.'
+                stop 'Subroutine WWTPQSystemResolution; module ModuleWWTPQ. ERR03.'
 
 
 
@@ -4888,7 +1345,7 @@ cd33 :               if (equa .EQ. prop) then
                      STAT = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                      &
-                stop 'Subroutine WWTPQSystemResolution - ModuleWWTPQ. ERR04.'
+                stop 'Subroutine WWTPQSystemResolution; module ModuleWWTPQ. ERR04.'
 
 
 do33 :      do prop = PropLB, PropUB
@@ -4903,3819 +1360,1658 @@ do33 :      do prop = PropLB, PropUB
 
     end subroutine WWTPQSystemResolution
 
-    !--------------------------------------------------------------------------
 
-    subroutine WWTPQRatesCalculation(index)
-        
-        !Arguments-------------------------------------------------------------
-        integer, intent(IN)                 :: index
-
-        !Local-----------------------------------------------------------------
-        integer                             :: Phyto
-        integer                             :: Diatoms    !aqui
-        real                                :: DTSec
-        integer                             :: PropUB,PropLB,equa,prop
-        type(T_PropRateFlux),       pointer :: PropRateFluxX
-        type(T_EquaRateFlux),       pointer :: EquaRateFluxX 
-
-        !----------------------------------------------------------------------
-
-        Phyto   = Me%PropIndex%Phyto
-        Diatoms = Me%PropIndex%Diatoms          !aqui
-
-        propLB  = Me%Prop%ILB 
-        propUB  = Me%Prop%IUB
-        DTSec   = Me%DTSecond
-        
-cd0:    if (Me%PropCalc%Phyto) then
-           
-           Me%GrossProduction%field(index)= Me%GrowMaxPhytoRate                                  &
-                                          * Me%TPhytoLimitationFactor                            &
-                                          * Me%PhytoLightLimitationFactor                        &
-                                          * Me%PhytoNutrientsLimitationFactor                    &
-                                          * Me%ExternalVar%Mass(Phyto,index)                     &
-                                          * DTSec
-                                       
-                         
-           Me%NutLimitation%field(index)  = Me%PhytoNutrientsLimitationFactor * DTSec
-           Me%NLimitation%field(index)    = Me%PhytoNLimitationFactor         * DTSec
-           Me%PLimitation%field(index)    = Me%PhytoPLimitationFactor         * DTSec
-           Me%LightLimitation%field(index)= Me%PhytoLightLimitationFactor     * DTSec
-           Me%TempLimitation%field(index) = Me%TPhytoLimitationFactor         * DTSec
- 
-        endif    cd0                    
-             
-        !aqui_5
-        if (Me%PropCalc%Diatoms) then
-           
-           Me%Diatoms%DiaGrossProduction%field(index)= Me%Diatoms%DiaGrowMaxRate                 &
-                                                     * Me%Diatoms%DiaTempLimitationFactor        &
-                                                     * Me%Diatoms%DiaLightLimitationFactor       &
-                                                     * Me%Diatoms%DiaNutrientsLimitationFactor   &
-                                                     * Me%ExternalVar%Mass(Diatoms,index)        &
-                                                     * DTSec
-                             
-           Me%Diatoms%DiaNutLimitation%field(index)  = Me%Diatoms%DiaNutrientsLimitationFactor * DTSec
-           Me%Diatoms%DiaNLimitation%field(index)    = Me%Diatoms%DiaNLimitationFactor         * DTSec
-           Me%Diatoms%DiaPLimitation%field(index)    = Me%Diatoms%DiaPLimitationFactor         * DTSec
-           Me%Diatoms%DiaSiLimitation%field(index)   = Me%Diatoms%DiaSiLimitationFactor        * DTSec
-           Me%Diatoms%DiaLightLimitation%field(index)= Me%Diatoms%DiaLightLimitationFactor * DTSec
-           Me%Diatoms%DiaTempLimitation%field(index) = Me%Diatoms%DiaTempLimitationFactor  * DTSec
- 
-        endif
-        !aqui_5
-        
-           
-          
-        EquaRateFluxX => Me%FirstEquaRateFlux
-
-do1:    do while(associated(EquaRateFluxX))  
-                    
-            PropRateFluxX => EquaRateFluxX%FirstPropRateFlux
-                    
-            do while(associated(PropRateFluxX))  
-                         
-                equa = EquaRateFluxX%ID
-                prop = PropRateFluxX%ID
-
-                if (equa.ne.prop) then
-
-                     PropRateFluxX%Field(index)=  -Me%Matrix(equa, prop)                     & 
-                                                  * Me%ExternalVar%Mass(prop,index)
-                else
+ subroutine WWTPQSolInertOrgMat  (index)
     
-                     PropRateFluxX%Field(index)=  -(1-Me%Matrix(equa, prop))                 & 
-                                                  * Me%ExternalVar%Mass(prop,index)
-                endif
+    !Subroutine to calculate the propriety SolInertOrgMat
+    
 
-                PropRateFluxX => PropRateFluxX%Next
+    !Arguments---------------------------------------------------------------
 
-            enddo
+!? what is the meaning of arguments?
 
-            EquaRateFluxX => EquaRateFluxX%Next
-
-        enddo do1
-
-        !unidades
-
-        !RateFlux = Matrix * Mass
-        !mg/l        1      mg/l 
-
-        !Matrix = dt * K
-        !   1   = DtDay * 1/Days
-        
-        nullify(PropRateFluxX)
-        nullify(EquaRateFluxX)
-
-    end subroutine WWTPQRatesCalculation
-
-     !----------------------------------------------------------------------------
-
-    subroutine WWTPQBacteria(index)
-
-        !Arguments---------------------------------------------------------------
         integer, intent(IN) :: index
 
-        !Local-----------------------------------------------------------------
-        integer                             :: DONnr
-        integer                             :: AM
-        integer                             :: BAC
-        integer                             :: PON
-        integer                             :: PONr
-        integer                             :: O
+    !Local-------------------------------------------------------------------
+    
+    !? what is the meaning of local?
+    
+    !State variables
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
 
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
 
-        real                                :: s1, s2, xa, xb, ya, yb 
-        real                                :: DTDay
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
+ 
+         real :: DTDay
+    
+!------------------------------------------------------------------------
+!State variables
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
 
-        real                                :: TBacteriaLimitationFactor    = null_real
-        real                                :: BacteriaDONUptake            = null_real
-        real                                :: BacteriaAmmoniaUptake        = null_real
-        real                                :: BacteriaPONUptake            = null_real
-        real                                :: BacteriaTotalUptake          = null_real
-        real                                :: BacteriaExcretionNitrogen    = null_real
-        real                                :: DeadBacteria                 = null_real
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
 
-        !----------------------------------------------------------------------
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
 
+        DTDay                          = Me%DTDay
 
-        ! Bacteria Common Coeficients ------------
-        DONnr   = Me%PropIndex%DONNonRefractory
-        PON     = Me%PropIndex%PartOrganicNitrogen
-        PONr    = Me%PropIndex%PartOrganicNitrogenRefractory
-        AM      = Me%PropIndex%Ammonia
-        BAC     = Me%PropIndex%Bacteria
-        O       = Me%PropIndex%Oxygen
-
-        DTDay   = Me%DTDay
-
-   
-
-
-         !FoodBacteriaLimitationFactor, food availability limitation factor
-!cd1 :       if ((Me%ExternalVar%Mass(numAmmonia, index)   &
-!               + Me%ExternalVar%Mass(numDONnr, index)     &
-!               - Me%NutMinBact) .LE. 0.0) then
-!                 FoodBactLimitationFactor = 0.0
-!            else
-!                 BactExponent = -Me%IvlevAssimBactConst                   &
-!                             * (Me%ExternalVar%Mass(numAmmonia, index)    &
-!                             + Me%ExternalVar%Mass(numDONnr, index)       & 
-!                             - Me%NutMinBact)
-
-!                 FoodBactLimitationFactor = 1.0 - exp(BactExponent)
-!            end if cd1
-
-
-
-
-       !TBacteriaLimitationFactor : limitation by temperature
-
-        s1 = (1. / (Me%TOptBacteriaMin - Me%TBacteriaMin)) &
-        * log((Me%BK2 * (1.0 - Me%BK1))                 &
-           / (Me%BK1 * (1.0 - Me%BK2)))
-
-        s2 = (1. / (Me%TBacteriaMax - Me%TOptBacteriaMax)) &
-        * log((Me%BK3 * (1.0 - Me%BK4))                 &
-           / (Me%BK4 * (1.0 - Me%BK3)))
-
-        ya = exp(s1 * (Me%ExternalVar%Temperature(index) - Me%TBacteriaMin))
-        yb = exp(s2 * (Me%TBacteriaMax - Me%ExternalVar%Temperature(index)))
-
-        xa = (Me%BK1 * ya) / (1.0 + Me%BK1 * (ya - 1.0))
-        xb = (Me%BK4 * yb) / (1.0 + Me%BK4 * (yb - 1.0))
-
-        TBacteriaLimitationFactor = xa * xb
-
-        !Needs C and AM to grow. C is availiable through PON and DONnr
-        if (((Me%ExternalVar%Mass(PON,index  ) .GE. Me%BacteriaMinSubstrate)  .OR.       &
-            ( Me%ExternalVar%Mass(DONnr,index) .GE. Me%BacteriaMinSubstrate)) .AND.      &
-            ( Me%ExternalVar%Mass(AM,index   ) .GE. Me%BacteriaMinSubstrate)) then
-
-            !BacteriaAmmoniaUptake (mgN/L)
-            BacteriaAmmoniaUptake = TBacteriaLimitationFactor                            &
-                           * Me%BacteriaMaxUptake                                        &
-                           * (Me%ExternalVar%Mass(AM, index)                             &
-                           /(Me%NitrogenSaturationConstBacteria                          &
-                           +  Me%ExternalVar%Mass(AM, index)))    
-
-            !PON exists
-            if (Me%ExternalVar%Mass(PON,index  ) .GE. Me%BacteriaMinSubstrate) then
-
-                !BacteriaPONUptake (mgN/L)
-                BacteriaPONUptake  = TBacteriaLimitationFactor                              &
-                           * Me%BacteriaMaxUptake                                           &
-                           * (Me%ExternalVar%Mass(PON, index)                               &
-                           / (Me%NitrogenSaturationConstBacteria                            &
-                           + Me%ExternalVar%Mass(PON, index))) 
-
-            else
-
-                BacteriaPONUptake  = 0.0
-
-            endif
-
-            !DONnr exists
-            if (Me%ExternalVar%Mass(DONnr,index) .GE. Me%BacteriaMinSubstrate) then
-
-                !BacteriaDONUptake, (mgN/L)
-                BacteriaDONUptake =  TBacteriaLimitationFactor                              &
-                          * Me%BacteriaMaxUptake                                            &
-                          * (Me%ExternalVar%Mass(DONnr, index)                              &
-                          / (Me%NitrogenSaturationConstBacteria                             &
-                          + Me%ExternalVar%Mass(DONnr, index)))
-
-            else
-
-                BacteriaDONUptake = 0.0
-
-            endif
-
-        else
-
-            BacteriaAmmoniaUptake = 0.0
-            BacteriaPONUptake     = 0.0
-            BacteriaDONUptake     = 0.0
-
-        endif
-        
-        !BacteriaTotalUptake, uptake in mgC/L
-        BacteriaTotalUptake = (BacteriaAmmoniaUptake                                    &
-                     / Me%AlfaBacteriaNC                                                &
-                     + (BacteriaDONUptake                                               &
-                     + BacteriaPONUptake)                                               &
-                     / Me%OMAlfaNC )                       
                  
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(SolInertOrgMat, SolInertOrgMat) = 1.0
+         
+ !Independent term
+        Me%IndTerm(SolInertOrgMat) = Me%ExternalVar%Mass(SolInertOrgMat, index)
+        
+ !------------------------------------------------------------------------
 
+    end subroutine WWTPQSolInertOrgMat 
 
-    !BacteriaExcretionNitrogen, excretion of soluble Nitrogen compounds by the bacteria  (mgN/L)
-
-     BacteriaExcretionNitrogen = Me%AlfaBacteriaNC * Me%BacteriaExcretionRate
-       
+    subroutine WWTPQReadilyBioSub (index)
     
-            
-            
-    !DeadBacteria Organic nitrogen from dead bacteria  (mgN/L)
-            DeadBacteria = Me%BacteriaNonGrazingMortalityRate * Me%AlfaBacteriaNC 
-       
-      
-                                    
-    !Calculation of system coeficients-----------------------------------------
-        Me%Matrix(BAC, BAC)   = 1.0 + DTDay * (Me%BacteriaExcretionRate                    &
-                                            + Me%BacteriaNonGrazingMortalityRate    &
-                                            - BacteriaTotalUptake )
-
-        Me%Matrix(PON, BAC)   = DTDay * BacteriaPONUptake
-
-        Me%Matrix(PONr, BAC)  = - DTDay * DeadBacteria
-
-
-        Me%Matrix(AM, BAC)    = (BacteriaAmmoniaUptake - BacteriaExcretionNitrogen) &
-                              * DTDay     
-
-
-        Me%Matrix(DONnr, Bac) = + DTDay * BacteriaDONUptake
-        
-        
-        !Oxygen---------------------------------------
-   
-        if (Me%PropCalc%Oxygen) then                                                                     
-            
-            Me%Matrix(O,  Bac)     =   DTDay * ((BacteriaPONUptake + BacteriaDONUptake) / Me%OMAlfaNC)    &
-                                             *  Me%BactAlfaOC      
-   
-        endif        
-        
-
-
-    !Independent term
-       Me%IndTerm(BAC)        = Me%ExternalVar%Mass(BAC, index) 
-
-    !----------------------------------------------------------------------
- 
-end subroutine WWTPQBacteria
-
-
-
-
-
-
-subroutine WWTPQCiliate(index)
+    !Subroutine to calculate the propriety ReadilyBioSub
 
     !Arguments---------------------------------------------------------------
 
         integer, intent(IN) :: index
 
-    !Local-----------------------------------------------------------------
+    !Local-------------------------------------------------------------------
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
 
-        integer :: BAC
-        integer :: CIL
-        integer :: O
-        integer :: PON
-        integer :: AM
-        integer :: DONnr
-        integer :: Phyto
-        integer :: IP
-        integer :: POP
-        integer :: DOPnr
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
 
-        
-        real :: OxygenCiliateRespRate               = null_real
-        real :: CiliateGrazBactLimitationFactor     = null_real
-        real :: CiliateGrazPhyLimitationFactor      = null_real
-        real :: CiliateIngestionBacteria            = null_real
-        real :: CiliateIngestionPhyto               = null_real
-        real :: CiliateNaturalMortality             = null_real
-        real :: DeadCiliateNitrogen                 = null_real  
-        real :: DeadCiliatePhosphorus               = null_real
-        real :: LostChainNitrogen                   = null_real
-        real :: LostChainPhosphorus                 = null_real
-        reaL :: LostGrazPhosphorus                  = null_real
-        reaL :: LostGrazNitrogen                    = null_real
-
-  
-        real :: CiliateRespirationRate              = null_real
-        real :: CiliateGrossGrowRate                = null_real
-        real :: CiliateExcretionRate                = null_real  
-        real :: CiliateExcretionNitrogen            = null_real 
-        real :: CiliateExcretionPhosphorus          = null_real 
-        real :: CiliateGrazPrey                     = null_real
-        real :: x, y, xa, ya
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
+ 
         real :: DTDay
+        real :: ReadilyBioSubRateHetBio             = null_real
         
-
-    !----------------------------------------------------------------------
-
-
-        BAC   = Me%PropIndex%Bacteria
-        CIL   = Me%PropIndex%Ciliate
-        O     = Me%PropIndex%Oxygen
-        PON   = Me%PropIndex%PartOrganicNitrogen
-        AM    = Me%PropIndex%Ammonia
-        DONnr = Me%PropIndex%DONNonRefractory
-        Phyto = Me%PropIndex%Phyto
-        POP   = Me%PropIndex%PartOrganicPhosphorus
-        DOPnr = Me%PropIndex%DOPNonRefractory
-        IP    = Me%PropIndex%InorganicPhosphorus
-
-
-        x       = null_real
-        y       = null_real
-        xa      = null_real
-        ya      = null_real
-
+        real :: ReadilyBioSubRateHetBioAerGrowth    = null_real
+        real :: ReadilyBioSubRateHetBioAnoGrowth    = null_real
+        real :: ReadilyBioSubRateHetBioHydrolysis   = null_real
         
-        DTDay = Me%DTDay
-
-
-    !Ciliates Grossgrowrate/NaturalMortality/ZooGrazPrey/LostChain/LostGraz-----------------
-    select case (Me%WWTPQConfiguration)
-
-        case (ZooPhyDiaCilBac,ZooPhyCilBac)
-
-            !Ciliates Grossgrowrate---------------------------------------------------------
-
-                !limitation by phyto (1º) 
-                x = Me%CiliateEfficiencyCapturePhyto * Me%ExternalVar%Mass(Phyto, index)          &
-                  - Me%CiliateGrazPhytoMin                                                             
-                                                                                    
-                y = Me%CiliateIngestionConst + (Me%CiliateEfficiencyCapturePhyto                    &
-                  * Me%ExternalVar%Mass(Phyto, index) - Me%CiliateGrazPhytoMin)                         
-
-                if  (x .LE. 0.0) then                                                                   
-                     CiliateGrazPhyLimitationFactor = 0.                                                
-                else
-                     CiliateGrazPhyLimitationFactor = x/ y
-                end if                                                                                  
-
-                !CiliatesIngestion of phyto
-                CiliateIngestionPhyto = CiliateGrazPhyLimitationFactor                              &
-                                        * Me%PhytoRatioIngestionCiliates                            &
-                                        * Me%CiliateIngestionMax                                    &
-                                        * Me%TZooLimitationFactor                                         
-                                                    
- 
-                !limitation by Bacteria (2º)                                                                 
-                xa = (Me%CiliateEfficiencyCaptureBact * Me%ExternalVar%Mass(BAC, index))            &
-                  - Me%CiliateGrazBactMin                                                               
-                                                                                        
-                ya = Me%CiliateIngestionConst + (Me%CiliateEfficiencyCaptureBact                    &
-                  * Me%ExternalVar%Mass(BAC, index) - Me%CiliateGrazBactMin)                            
-                                                                                        
-                if  (xa .LE. 0.0) then                                                               
-                     CiliateGrazBactLimitationFactor = 0.                                               
-                else                                                                                    
-                     CiliateGrazBactLimitationFactor = xa/ ya                                             
-                end if                                                                               
-                                                                                        
-                !CiliatesIngestion of Bacteria                
-                CiliateIngestionBacteria = CiliateGrazBactLimitationFactor                          &
-                                           * Me%BactRatioIngestionCiliates                          &
-                                           * (Me%CiliateIngestionMax-CiliateIngestionPhyto)         &
-                                           * Me%TZooLimitationFactor 
-            
-                !Ciliate gross growth rate
-                CiliateGrossGrowRate = Me%CiliateAssimilationPhytoRate * CiliateIngestionPhyto      & 
-                                     + Me%CiliateAssimilationBacteriaRate * CiliateIngestionBacteria
-                         
-                if (CiliateGrossGrowRate .LT. 0.0) then                                                     
-                    stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR10.'
-                elseif (CiliateGrossGrowRate .EQ. 0.0) then
-                    CiliateGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-                end if 
-
-            !CiliateGrazPrey for NaturalMortality Calculation--------------------------------------
-                            
-                CiliateGrazPrey  = Me%ExternalVar%Mass(Phyto, index)                                &
-                                  + Me%ExternalVar%Mass(BAC, index)                                    
-            
-            !LostChain, term due to different Phyto, Bacteria and Ciliates ratios----------- 
-            !and LostGraz, term due to not 100% assimilation----------------- 
-                            
-                !Nitrogen
-                if (Me%PropCalc%Nitrogen) then
-
-                    LostChainNitrogen = (Me%AlfaPhytoNC-Me%AlfaCilNC)                               &
-                                      * (Me%CiliateAssimilationPhytoRate * CiliateIngestionPhyto)   &
-                                      +(Me%AlfaBacteriaNC-Me%AlfaCilNC)                             &
-                                      * (Me%CiliateAssimilationBacteriaRate * CiliateIngestionBacteria)    
-                
-                    LostGrazNitrogen = (1- Me%CiliateAssimilationPhytoRate)                         &
-                                        * CiliateIngestionPhyto * Me%AlfaPhytoNC                    &
-                                      +(1- Me%CiliateAssimilationBacteriaRate)                      &
-                                        * CiliateIngestionBacteria * Me%AlfaBacteriaNC   
-
-                    if (LostChainNitrogen .LT. 0.0)                                                 &
-                        stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR20.'
-             
-                    if (LostGrazNitrogen .LT. 0.0)                                                  &
-                        stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR30.'
-
-                endif
-                
-                
-                !Phosphorus
-                if (Me%PropCalc%Phosphorus) then
-
-                    LostChainPhosphorus = (Me%AlfaPhytoPC-Me%AlfaCilPC)                             &
-                                      * (Me%CiliateAssimilationPhytoRate * CiliateIngestionPhyto)        
-                
-                    LostGrazPhosphorus = (1- Me%CiliateAssimilationPhytoRate)                       &
-                                        * Me%CiliateAssimilationPhytoRate * Me%AlfaPhytoPC                        
-
-                    if (LostChainPhosphorus .LT. 0.0)                                               &
-                        stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR40.'
-             
-                    if (LostGrazPhosphorus .LT. 0.0)                                                &
-                        stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR50.'
-
-                endif
- 
-        !endcase (ZooPhyDiaBact,ZooPhyCilBac)
-        case (ZooPhyDiaCil,ZooPhyCil)
-
-            !Ciliates Grossgrowrate---------------------------------------------------------
-
-                !limitation by phyto 
-                x = (Me%CiliateEfficiencyCapturePhyto * Me%ExternalVar%Mass(Phyto, index)          &
-                  - Me%CiliateGrazPhytoMin)                                                             
-                                                                                    
-                y = Me%CiliateIngestionConst + (Me%CiliateEfficiencyCapturePhyto                    &
-                  * Me%ExternalVar%Mass(Phyto, index) - Me%CiliateGrazPhytoMin)                         
-
-                if  (x .LE. 0.0) then                                                                   
-                     CiliateGrazPhyLimitationFactor = 0.                                                
-                else
-                     CiliateGrazPhyLimitationFactor = x/ y
-                end if                                                                                  
-
-                !CiliatesIngestion of phyto
-                CiliateIngestionPhyto = CiliateGrazPhyLimitationFactor                              &
-                                        * Me%PhytoRatioIngestionCiliates                            &
-                                        * Me%CiliateIngestionMax                                    &
-                                        * Me%TZooLimitationFactor                                         
-                                                               
-                !Ciliate gross growth rate
-                CiliateGrossGrowRate = Me%CiliateAssimilationPhytoRate * CiliateIngestionPhyto       
-                         
-                if (CiliateGrossGrowRate .LT. 0.0) then                                                     
-                    stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR60.'
-                elseif (CiliateGrossGrowRate .EQ. 0.0) then
-                    CiliateGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-                end if 
-
-            !CiliateGrazPrey for NaturalMortality Calculation--------------------------------------
-                            
-                CiliateGrazPrey  = Me%ExternalVar%Mass(Phyto, index)                                
-            
-
-            !LostChain, term due to different Phyto and Ciliates ratios----------- 
-            !and LostGraz, term due to not 100% assimilation----------------- 
-                            
-                !Nitrogen
-                if (Me%PropCalc%Nitrogen) then
-
-                    LostChainNitrogen = (Me%AlfaPhytoNC-Me%AlfaCilNC)                               &
-                                      * (Me%CiliateAssimilationPhytoRate * CiliateIngestionPhyto)      
-
-                    LostGrazNitrogen = (1- Me%CiliateAssimilationPhytoRate)                         &
-                                        * CiliateIngestionPhyto * Me%AlfaPhytoNC                    
-
-                    if (LostChainNitrogen .LT. 0.0)                                                 &
-                        stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR70.'
-             
-                    if (LostGrazNitrogen .LT. 0.0)                                                  &
-                        stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR80.'
-
-                endif
-                
-                
-                !Phosphorus
-                if (Me%PropCalc%Phosphorus) then
-
-                    LostChainPhosphorus = (Me%AlfaPhytoPC-Me%AlfaCilPC)                             &
-                                      * (Me%CiliateAssimilationPhytoRate * CiliateIngestionPhyto)        
-                
-                    LostGrazPhosphorus = (1- Me%CiliateAssimilationPhytoRate)                       &
-                                        * Me%CiliateAssimilationPhytoRate * Me%AlfaPhytoPC                        
-
-                    if (LostChainPhosphorus .LT. 0.0)                                               &
-                        stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR90.'
-             
-                    if (LostGrazPhosphorus .LT. 0.0)                                                &
-                        stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR100.'
-
-                endif
-
-        !end case (ZooPhyDiaCil,ZooPhyCil)
-        case (ZooDiaCilBac)
-
-            !Ciliates Grossgrowrate---------------------------------------------------------
-                                                    
-                !limitation by Bacteria (1º)                                                                 
-                xa = (Me%CiliateEfficiencyCaptureBact * Me%ExternalVar%Mass(BAC, index))            &
-                  - Me%CiliateGrazBactMin                                                               
-                                                                                        
-                ya = Me%CiliateIngestionConst + (Me%CiliateEfficiencyCaptureBact                    &
-                  * Me%ExternalVar%Mass(BAC, index) - Me%CiliateGrazBactMin)                            
-                                                                                        
-                if  (xa .LE. 0.0) then                                                               
-                     CiliateGrazBactLimitationFactor = 0.                                               
-                else                                                                                    
-                     CiliateGrazBactLimitationFactor = xa/ ya                                             
-                end if                                                                               
-                                                                                        
-                !CiliatesIngestion of Bacteria                
-                CiliateIngestionBacteria = CiliateGrazBactLimitationFactor                          &
-                                           * Me%BactRatioIngestionCiliates                          &
-                                           * Me%CiliateIngestionMax                                 &
-                                           * Me%TZooLimitationFactor 
-            
-                !Ciliate gross growth rate
-                CiliateGrossGrowRate = Me%CiliateAssimilationBacteriaRate * CiliateIngestionBacteria
-                         
-                if (CiliateGrossGrowRate .LT. 0.0) then                                                     
-                    stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR110.'
-                elseif (CiliateGrossGrowRate .EQ. 0.0) then
-                    CiliateGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-                end if 
-
-            !CiliateGrazPrey for NaturalMortality Calculation--------------------------------------
-                            
-                CiliateGrazPrey  = Me%ExternalVar%Mass(BAC, index)                                    
-            
-
-            !LostChain, term due to different  Bacteria and Ciliates ratios----------- 
-            !and LostGraz, term due to not 100% assimilation----------------- 
-                            
-                !Nitrogen
-                if (Me%PropCalc%Nitrogen) then
-
-                    LostChainNitrogen = (Me%AlfaBacteriaNC-Me%AlfaCilNC)                             &
-                                      * (Me%CiliateAssimilationBacteriaRate * CiliateIngestionBacteria)    
-                
-                    LostGrazNitrogen = (1- Me%CiliateAssimilationBacteriaRate)                      &
-                                        * CiliateIngestionBacteria * Me%AlfaBacteriaNC   
-
-                    if (LostChainNitrogen .LT. 0.0)                                                 &
-                        stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR120.'
-             
-                    if (LostGrazNitrogen .LT. 0.0)                                                  &
-                        stop 'Subroutine WWTPQCiliate-Module ModuleWWTPQ. ERR130.'
-
-                endif
-                
-                
-                !Phosphorus
-                if (Me%PropCalc%Phosphorus) then
-
-                    !Bacteria dont have phosphurus
-                    LostChainPhosphorus = 0.0
-                    
-                    LostGrazPhosphorus  = 0.0  
-                endif
-
-        !endcase (ZooDiaCilBac)
-        end select
-
-        !CiliatesNaturalMortality----------------------------------------------------------
-
-            if (CiliateGrazPrey .LE. Me%CiliateGrazPreyMin ) then
-                CiliateNaturalMortality = Me%CiliateMaxMortalityRate
-            else                                                                                    
-                CiliateNaturalMortality = (Me%CiliateMortalityCoef / CiliateGrazPrey)               & 
-                                          + Me%CiliateMinMortalityRate
-            end if  
-            
-            
-            if (Me%PropCalc%Nitrogen) then
-
-                !DeadCiliateNitrogen, Organic Nitrogen from dead Ciliate (mgN/L)
-                DeadCiliateNitrogen   = CiliateNaturalMortality * Me%AlfaCilNC
-            
-            endif
-
-            if (Me%PropCalc%Phosphorus) then
-
-                !DeadZooPhosphorus, Organic Phosphorus from dead Ciliate (mgP/L)
-                DeadCiliatePhosphorus = CiliateNaturalMortality * Me%AlfaCilPC 
-            
-            endif
-
-        !Ciliates RespirationRate -------------------------------------------------------
-        
-            CiliateRespirationRate = Me%CiliateReferenceRespirationRate * Me%TZooLimitationFactor
-       
-            !Oxygen loss due to Ciliate respiration
-            if (Me%PropCalc%Oxygen)  then
-                
-                OxygenCiliateRespRate = Me%RatioOxygenCarbonCilRespiration * CiliateRespirationRate
-            
-                if (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen).EQ.Me%MinOxygen) then
-                    CiliateGrossGrowRate  = -1.0 / null_real
-                    OxygenCiliateRespRate = -1.0 / null_real
-                endif
-            
-            endif 
-
-        !Ciliate ExcretionRate -------------------------------------------------------
-
-            CiliateExcretionRate = Me%CiliateExcretionFactor  * Me%CiliateExcretionConst            &
-                               ** Me%ExternalVar%Temperature(index)
-                
-            if (Me%PropCalc%Nitrogen) then
-
-                !CiliateExcretionNitrogen (mg N/L)
-                CiliateExcretionNitrogen = CiliateExcretionRate * Me%AlfaCilNC
-            
-            endif
-
-            if (Me%PropCalc%Phosphorus) then
-
-                !ZooExcretionPhosphorus (mg P/L)
-                CiliateExcretionPhosphorus = CiliateExcretionRate * Me%AlfaCilPC 
-            
-            endif
-    
-    !Calculation of system coeficients-----------------------------------------             
-    
-    !Organisms---------------------------------------
-
-        Me%Matrix(CIL, CIL)  = 1.0 + DTDay * (CiliateExcretionRate                                  &
-                                                 + CiliateRespirationRate                           &
-                                                 + CiliateNaturalMortality                          &
-                                                 - CiliateGrossGrowRate)
-
-        if (Me%PropCalc%Bacteria) then
-
-            Me%Matrix(BAC, CIL)=  DTDay * CiliateIngestionBacteria
-        
-        endif
-
-        if (Me%PropCalc%Phyto) then
-
-            Me%Matrix(Phyto, CIL)=  DTDay * CiliateIngestionPhyto
-        
-        endif
-
-    !Oxygen---------------------------------------
-   
-        if (Me%PropCalc%Oxygen) then                                                                     
-            Me%Matrix(O,  CIL)     =   DTDay * OxygenCiliateRespRate   
-        endif
-
-    !Nitrogen---------------------------------------
-        if (Me%PropCalc%Nitrogen) then
-        
-            Me%Matrix(AM, CIL   ) = - DTDay * (CiliateExcretionNitrogen * Me%ZooSolublInorgExcreFraction &
-                                              +CiliateRespirationRate   * Me%AlfaCilNC)    
-
-            Me%Matrix(DONnr, CIL) = - DTDay * (CiliateExcretionNitrogen                             & 
-                                               * Me%ZooExcreDissOrgFraction                         & 
-                                               * (1.0 - Me%ZooSolublInorgExcreFraction))           
-            
-            Me%Matrix(PON, CIL  ) = - DTDay * (CiliateExcretionNitrogen                             & 
-                                               * (1.0 - Me%ZooExcreDissOrgFraction)                 & 
-                                               * (1.0 - Me%ZooSolublInorgExcreFraction)             &
-                                              + DeadCiliateNitrogen                                 &
-                                              + LostChainNitrogen                                   &
-                                              + LostGrazNitrogen)
-        endif                                    
- 
-   !Phosphorus---------------------------------------
-        if (Me%PropCalc%Phosphorus) then
-        
-            Me%Matrix(IP, CIL   ) = -DTDay * (CiliateExcretionPhosphorus * Me%ZooSolublInorgExcreFraction &
-                                            +CiliateRespirationRate * Me%AlfaCilPC)    
-
-            
-            Me%Matrix(DOPnr, CIL) = -DTDay * (CiliateExcretionPhosphorus                            &
-                                              * Me%ZooExcreDissOrgFraction                          & 
-                                              * (1.0 - Me%ZooSolublInorgExcreFraction))           
-
-            Me%Matrix(POP, CIL  ) = -DTDay * (CiliateExcretionPhosphorus                            &
-                                               * (1.0 - Me%ZooExcreDissOrgFraction)                 & 
-                                               * (1.0 - Me%ZooSolublInorgExcreFraction)             &
-                                              + DeadCiliatePhosphorus                               &
-                                              + LostChainPhosphorus                                 &
-                                              + LostGrazPhosphorus)
-        endif
-
-    !Independent term
-        Me%IndTerm(CIL) = Me%ExternalVar%Mass(CIL, index) 
-  
-end subroutine WWTPQCiliate
-
-subroutine WWTPQOxygen(index)
-
-    !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
+        !?why some = null_real and other not? because after you say that other are equal to something? 
 
     !------------------------------------------------------------------------
-
-cd1 :   if (Me%PropCalc%Oxygen) then
-            call WWTPQOxygenCalculation(index)
-        else cd1
-            call WWTPQOxygenSaturation (index)
-        end if cd1
-
-    !------------------------------------------------------------------------
-
-end subroutine WWTPQOxygen
-
-    !----------------------------------------------------------------------------
-
-
-
-
-
-    !----------------------------------------------------------------------------
-
-subroutine WWTPQOxygenSaturation(index)
-
-    !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-    !------------------------------------------------------------------------
-
-        Me%ExternalVar%Mass(Me%PropIndex%Oxygen, index) =                           &
-                                OxygenSaturation(Me%ExternalVar%Temperature(index), &
-                                                 Me%ExternalVar%Salinity (index))
-
-
-        !Calculation of system coeficients 
-        Me%Matrix(Me%PropIndex%Oxygen, Me%PropIndex%Oxygen) = 1.0 
-
-
-        !Independent term
-        Me%IndTerm(Me%PropIndex%Oxygen) =                                           &
-                                Me%ExternalVar%Mass(Me%PropIndex%Oxygen, index)
-
-    !------------------------------------------------------------------------
-
-end subroutine WWTPQOxygenSaturation
-
-    !----------------------------------------------------------------------------
-
-
-  
-
-
-
-    !----------------------------------------------------------------------------
-    !OXYGEN
-    !
-    !SOURCES: - Phytoplankton Oxygen production due to photosynthesis;
-    !         - Oxygen production related with the Phytoplankton Nitrate consumption.
-    !
-    !SINKS:   - Phytoplankton and Zooplankton respiration;
-    !         - BOD oxidation (Carencia bioquimica de oxigenio).
-
-subroutine WWTPQOxygenCalculation(index)
-
-    !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-    !Local-------------------------------------------------------------------
-
-        integer :: O
-
-        
-    !------------------------------------------------------------------------
-
-        O   = Me%PropIndex%Oxygen
-
-
-
-    !Calculation of system coeficients---------------------------------------
-        Me%Matrix(O, O) = 1.0 
-
-
-    !Independent term
-        Me%IndTerm(O) = Me%ExternalVar%Mass(O, index)
-
-    !------------------------------------------------------------------------
-
-end subroutine WWTPQOxygenCalculation
-
-    !----------------------------------------------------------------------------
-
-
-  
-
-
-
-
-    !----------------------------------------------------------------------------
-
-    subroutine WWTPQBOD(index)
-
-    !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-    !Local-------------------------------------------------------------------
-
-        integer :: BOD
-        integer :: O
-
-        real    :: DTDay
-        real    :: BODOxidationRate    = null_real 
-
-    !------------------------------------------------------------------------
-
-        BOD     = Me%PropIndex%BOD 
-        O       = Me%PropIndex%Oxygen 
-
-        DTDay   = Me%DTDay
-
-
-
-
-    !BODOxidationRate, BOD oxidation rate, 1/T
-cd7 :   if (Me%PropCalc%Oxygen) then
-            
-            BODOxidationRate = Me%BODOxidationReferenceRate                         &
-                             * Me%BODOxidationCoefficient                           &
-                             ** (Me%ExternalVar%Temperature(index) - 20.0)          &
-                             * (MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)    &
-                             /(Me%BODOxygenSSatConstant                             &
-                             + MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)))
-        end if cd7
-
-
-
-
-    !Calculation of system coeficients---------------------------------------
-         Me%Matrix(BOD, BOD) = DTDay * BODOxidationRate + 1.0
-
-
-        if (Me%PropCalc%Oxygen) Me%Matrix(O, BOD) = DTDay * BODOxidationRate            
-
-
-    !Independent term
-        Me%IndTerm(BOD) = Me%ExternalVar%Mass(BOD, index)
-
-    !------------------------------------------------------------------------
-
-    end subroutine WWTPQBOD
-
-    !----------------------------------------------------------------------------
-
-    !----------------------------------------------------------------------------
-
-    subroutine WWTPQZooplankton(index)
-
-        !Arguments---------------------------------------------------------------
-        integer, intent(IN) :: index
-
-        !Local-------------------------------------------------------------------
-
-        integer :: IP
-        integer :: POP
-        integer :: DOPnr
-        integer :: AM
-        integer :: PON
-        integer :: Zoo
-        integer :: Phyto
-        integer :: Diatoms
-        integer :: BioSi
-        integer :: DissSi
-        integer :: DONnr
-        integer :: O
-        integer :: CIL
-
-        real    :: DTDay
-
-        real    :: ZooExcretionPhosphorus           = null_real
-        real    :: ZooExcretionNitrogen             = null_real
-        reaL    :: LostGrazPhosphorus               = null_real
-        reaL    :: LostGrazNitrogen                 = null_real
-        real    :: exponent                         = null_real
-        real    :: FoodZooLimitationFactor          = null_real
-        real    :: ZooRespirationRate               = null_real
-        real    :: ZooGrossGrowRate                 = null_real
-        real    :: LostChainNitrogen                = null_real
-        real    :: LostChainPhosphorus              = null_real
-        real    :: OxygenZooRespRate                = null_real
-        real    :: ZooGrazPhytoLimitationFactor     = null_real
-        real    :: ZooGrazDiatomsLimitationFactor   = null_real
-        real    :: ZooGrazCiliateLimitationFactor   = null_real
-        real    :: ZooGrazPrey                      = null_real !aqui
-        real    :: ZooIngestionPhyto                = null_real 
-        real    :: ZooIngestionCiliate              = null_real 
-        real    :: ZooIngestionDiatoms              = null_real 
-        real    :: ZooNaturalMortality              = null_real
-        real    :: DeadZooPhosphorus                = null_real  
-        real    :: DeadZooNitrogen                  = null_real  
-        real    :: PredatedZooPhosphorus            = null_real
-        real    :: PredatedZooNitrogen              = null_real
-        real    :: ZooExcretionRate                 = null_real
-
-        real    :: s1, s2, xa, xb, ya, yb, x, y, yac, ybc, xaox, xbox
-
-    !------------------------------------------------------------------------
-
-        POP     = Me%PropIndex%PartOrganicPhosphorus
-        DOPnr   = Me%PropIndex%DOPNonRefractory
-        IP      = Me%PropIndex%InorganicPhosphorus
-        AM      = Me%PropIndex%Ammonia
-        PON     = Me%PropIndex%PartOrganicNitrogen
-        DONnr   = Me%PropIndex%DONNonRefractory
-        Phyto   = Me%PropIndex%Phyto
-        Diatoms = Me%PropIndex%Diatoms
-        BioSi   = Me%PropIndex%BiogenicSilica   !aqui
-        DissSi  = Me%PropIndex%DissolvedSilica  !aqui
-        Zoo     = Me%PropIndex%Zoo
-        O       = Me%PropIndex%Oxygen
-        CIL     = Me%PropIndex%Ciliate
+!State variables
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
+
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
+
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
+
+        DTDay                          = Me%DTDay
+
+!ReadilyBioSubRateHetBio, ReadilyBioSub Rate in function of HetBio, D-1
               
-        DTDay   = Me%DTDay
-
-        s1      = null_real
-        s2      = null_real
-        xa      = null_real
-        xb      = null_real
-        xaox    = null_real
-        xbox    = null_real
-        ya      = null_real
-        yb      = null_real
-        x       = null_real
-        y       = null_real
-        yac     = null_real
-        ybc     = null_real
-
-        
-    !TZooLimitationFactor, temperature effect on zooplankton assimilation rate
-        s1 = (1. / (Me%TOptZooMin - Me%TZooMin)) * log((Me%ZK2 * (1.0 - Me%ZK1))                    &
-                                                     / (Me%ZK1 * (1.0 - Me%ZK2)))
-
-        s2 = (1. / (Me%TZooMax - Me%TOptZooMax)) * log((Me%ZK3 * (1.0 - Me%ZK4))                    &
-                                                     / (Me%ZK4 * (1.0 - Me%ZK3)))
-
-        ya = exp(s1 * (Me%ExternalVar%Temperature(index) - Me%TZooMin))
-        yb = exp(s2 * (Me%TZooMax - Me%ExternalVar%Temperature(index)))
-
-        xa = (Me%ZK1 * ya) / (1.0 + Me%ZK1 * (ya - 1.0))
-        xb = (Me%ZK4 * yb) / (1.0 + Me%ZK4 * (yb - 1.0))
-
-        Me%TZooLimitationFactor = xa * xb
-
-    !Zooplankton Grossgrowrate/NaturalMortality_--------------------------------------
-    select case (Me%WWTPQConfiguration)
-
-        case (ZooPhyDiaCil, ZooPhyDiaCilBac)
-
-            !Zooplankton Grossgrowrate------------------------------------------------
-
-                !limitation by diatoms (1º) 
-                yac = (Me%Diatoms%ZooEfficiencyCaptureDiatoms * Me%ExternalVar%Mass(Diatoms, index) &
-                     - Me%Diatoms%GrazDiaMin)                                                               
-                                                                                
-                ybc = (Me%ZooIngestionConst + Me%Diatoms%ZooEfficiencyCaptureDiatoms                &
-                    * Me%ExternalVar%Mass(Diatoms, index) - Me%Diatoms%GrazDiaMin)
-
-                if  (yac .LE. 0.0) then
-                    ZooGrazDiatomsLimitationFactor = 0.0
-                else           
-                    ZooGrazDiatomsLimitationFactor = yac / ybc
-                end if 
-
-                !ZooIngestion of diatoms
-                ZooIngestionDiatoms = Me%Diatoms%DiaRatioIngestionZoo                               &
-                                    * Me%ZooIngestionMax                                            &
-                                    * ZooGrazDiatomsLimitationFactor                                &
-                                    * Me%TZooLimitationFactor                       
-                                                    
-                !limitation by phyto (2º)
-                x = Me%ZooEfficiencyCapturePhyto * Me%ExternalVar%Mass(Phyto, index)                & 
-                - Me%GrazPhytoMin                                                                     
-                                                                        
-                y = Me%ZooIngestionConst + Me%ZooEfficiencyCapturePhyto                             &
-                * Me%ExternalVar%Mass(Phyto, index) - Me%GrazPhytoMin                                 
-
-                if  (x .LE. 0.0) then
-                    ZooGrazPhytoLimitationFactor = 0.0
-                else 
-                    ZooGrazPhytoLimitationFactor = x / y
-                end if
-
-                !ZooIngestion of Phyto 
-                ZooIngestionPhyto = Me%PhytoRatioIngestionZoo                                       &
-                                  * (Me%ZooIngestionMax -  ZooIngestionDiatoms)                     &                         
-                                  * ZooGrazPhytoLimitationFactor                                    &
-                                  * Me%TZooLimitationFactor                                         
-
-                !limitation by Ciliate 
-                yac = (Me%ZooEfficiencyCaptureCiliate * Me%ExternalVar%Mass(CIL, index)             &
-                     - Me%GrazCiliateMin)                                                           
-                                                                                                     
-                ybc = (Me%ZooIngestionConst + Me%ZooEfficiencyCaptureCiliate                        &
-                    * Me%ExternalVar%Mass(CIL, index) - Me%GrazCiliateMin)
-
-                if  (yac .LE. 0.0) then
-                    ZooGrazCiliateLimitationFactor = 0.0
-                else            
-                    ZooGrazCiliateLimitationFactor = yac / ybc
-                end if 
-
-                !ZooIngestion of Ciliate
-                ZooIngestionCiliate = Me%CiliatesRatioIngestionZoo                                  &
-                                    * (Me%ZooIngestionMax - ZooIngestionDiatoms-ZooIngestionPhyto)  &
-                                    * ZooGrazCiliateLimitationFactor                                &
-                                    * Me%TZooLimitationFactor                                           
-                                                                                
-                !ZooGrossGrowRate, zooplankton gross growth rate                                        
-                ZooGrossGrowRate =  (Me%Diatoms%DiaZooAssimilationRate * ZooIngestionDiatoms)       &
-                                   +(Me%ZooAssimilationPhytoRate       * ZooIngestionPhyto  )       &
-                                   +(Me%ZooAssimilationCiliateRate     * ZooIngestionCiliate)                 
-                         
-                if (ZooGrossGrowRate .LT. 0.0) then                                                     
-                    stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR01.'
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-                end if 
-            
-            !ZooGrazPrey for NaturalMortality Calculation--------------------------------------
-            
-                ZooGrazPrey = Me%ExternalVar%Mass(Diatoms, index)                                   &
-                            + Me%ExternalVar%Mass(Phyto, index)                                     &
-                            + Me%ExternalVar%Mass(CIL, index)                                    
-
-            
-            !LostChain, term due to different Phyto, Diatom and Bacteria and Zoo ratios----------- 
-            !and LostGraz, term due to not 100% assimilation----------------- 
-                            
-                !Nitrogen
-                if (Me%PropCalc%Nitrogen) then
-
-                    LostChainNitrogen = (Me%Diatoms%DiaAlfaNC-Me%AlfaZooNC)                         &
-                                        * (Me%Diatoms%DiaZooAssimilationRate * ZooIngestionDiatoms) &
-                                       +(Me%AlfaPhytoNC-Me%AlfaZooNC)                               &
-                                        * (Me%ZooAssimilationPhytoRate       * ZooIngestionPhyto)   & 
-                                       +(Me%AlfaCilNC-Me%AlfaZooNC)                                 &
-                                        * (Me%ZooAssimilationCiliateRate     * ZooIngestionCiliate)      
-                
-                    LostGrazNitrogen = (1- Me%Diatoms%DiaZooAssimilationRate)                       &
-                                        * ZooIngestionDiatoms * Me%Diatoms%DiaAlfaNC                &
-                                      +(1- Me%ZooAssimilationPhytoRate)                             &
-                                        * ZooIngestionPhyto * Me%AlfaPhytoNC                        &
-                                      +(1- Me%ZooAssimilationCiliateRate)                           &
-                                        * ZooIngestionCiliate * Me%AlfaCilNC   
-
-                    if (LostChainNitrogen .LT. 0.0)                                                 &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazNitrogen .LT. 0.0)                                                  &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
-                
-                
-                !Phosphorus
-                if (Me%PropCalc%Phosphorus) then
-
-                    LostChainPhosphorus = (Me%Diatoms%DiaAlfaPC-Me%AlfaZooPC)                       &
-                                        * (Me%Diatoms%DiaZooAssimilationRate * ZooIngestionDiatoms) &
-                                       +(Me%AlfaPhytoPC-Me%AlfaZooPC)                               &
-                                        * (Me%ZooAssimilationPhytoRate       * ZooIngestionPhyto)   & 
-                                       +(Me%AlfaCilPC-Me%AlfaZooPC)                                 &
-                                        * (Me%ZooAssimilationCiliateRate     * ZooIngestionCiliate)      
-
-                
-                    LostGrazPhosphorus = (1- Me%Diatoms%DiaZooAssimilationRate)                     &
-                                        * ZooIngestionDiatoms * Me%Diatoms%DiaAlfaPC                &
-                                      +(1- Me%ZooAssimilationPhytoRate)                             &
-                                        * ZooIngestionPhyto * Me%AlfaPhytoPC                        &
-                                      +(1- Me%ZooAssimilationCiliateRate)                           &
-                                        * ZooIngestionCiliate * Me%AlfaCilPC   
-
-                    if (LostChainPhosphorus .LT. 0.0)                                               &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazPhosphorus .LT. 0.0)                                                &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
+          ReadilyBioSubRateHetBioAerGrowth = (-1./HetBioYield)*MaxSpecGrowthRateHetBio*                                   &
+           (Me%ExternalVar%Mass(ReadilyBioSub, index)/(HalfSatCoefHetBio+Me%ExternalVar%Mass(ReadilyBioSub, index)))      &
+           *(Me%ExternalVar%Mass(Oxygen, index)/(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))      
                                        
-        !endcase (ZooPhyDiaCil, ZooPhyDiaCilBac)
-        case (ZooPhyCil, ZooPhyCilBac)
-
-            !Zooplankton Grossgrowrate------------------------------------------------
-                                                    
-                !limitation by phyto (1º)
-                x = Me%ZooEfficiencyCapturePhyto * Me%ExternalVar%Mass(Phyto, index)                & 
-                - Me%GrazPhytoMin                                                                     
-                                                                        
-                y = Me%ZooIngestionConst + Me%ZooEfficiencyCapturePhyto                             &
-                * Me%ExternalVar%Mass(Phyto, index) - Me%GrazPhytoMin                                 
-
-                if  (x .LE. 0.0) then
-                    ZooGrazPhytoLimitationFactor = 0.0
-                else 
-                    ZooGrazPhytoLimitationFactor = x / y
-                end if
-
-                !ZooIngestion of Phyto 
-                ZooIngestionPhyto = Me%PhytoRatioIngestionZoo                                       &
-                                  * (Me%ZooIngestionMax)                                            &                         
-                                  * ZooGrazPhytoLimitationFactor                                    &
-                                  * Me%TZooLimitationFactor                                         
-
-                !limitation by Ciliate (2º)
-                yac = (Me%ZooEfficiencyCaptureCiliate * Me%ExternalVar%Mass(CIL, index)             &
-                     - Me%GrazCiliateMin)                                                               
-                                                                                
-                ybc = (Me%ZooIngestionConst + Me%ZooEfficiencyCaptureCiliate                        &
-                    * Me%ExternalVar%Mass(CIL, index) - Me%GrazCiliateMin)
-
-                if  (yac .LE. 0.0) then
-                    ZooGrazCiliateLimitationFactor = 0.0
-                else            
-                    ZooGrazCiliateLimitationFactor = yac / ybc
-                end if 
-
-                !ZooIngestion of Ciliate
-                ZooIngestionCiliate = Me%CiliatesRatioIngestionZoo                                  &
-                                    * (Me%ZooIngestionMax - ZooIngestionPhyto)                      &
-                                    * ZooGrazCiliateLimitationFactor                                &
-                                    * Me%TZooLimitationFactor                                           
-                                                                                
-                !ZooGrossGrowRate, zooplankton gross growth rate                                        
-                ZooGrossGrowRate =  (Me%ZooAssimilationPhytoRate   * ZooIngestionPhyto)             &
-                                   +(Me%ZooAssimilationCiliateRate * ZooIngestionCiliate)                 
-                         
-                if (ZooGrossGrowRate .LT. 0.0) then                                                     
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR04.'
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-                end if 
-            
-            !ZooGrazPrey for NaturalMortality Calculation--------------------------------------
-            
-                ZooGrazPrey = Me%ExternalVar%Mass(Phyto, index)                                     &
-                            + Me%ExternalVar%Mass(CIL, index)                                       
-
-            !LostChain, term due to different Phyto, Ciliates and Zoo ratios----------- 
-            !and LostGraz, term due to not 100% assimilation----------------- 
-                            
-                !Nitrogen
-                if (Me%PropCalc%Nitrogen) then
-
-                    LostChainNitrogen = (Me%AlfaPhytoNC-Me%AlfaZooNC)                               &
-                                        * (Me%ZooAssimilationPhytoRate       * ZooIngestionPhyto)   & 
-                                       +(Me%AlfaCilNC-Me%AlfaZooNC)                                 &
-                                        * (Me%ZooAssimilationCiliateRate     * ZooIngestionCiliate)      
-                
-                    LostGrazNitrogen = (1- Me%ZooAssimilationPhytoRate)                             &
-                                        * ZooIngestionPhyto * Me%AlfaPhytoNC                        &
-                                      +(1- Me%ZooAssimilationCiliateRate)                           &
-                                        * ZooIngestionCiliate * Me%AlfaCilNC   
-
-                    if (LostChainNitrogen .LT. 0.0)                                                 &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazNitrogen .LT. 0.0)                                                  &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
-                
-                
-                !Phosphorus
-                if (Me%PropCalc%Phosphorus) then
-
-                    LostChainPhosphorus = (Me%AlfaPhytoPC-Me%AlfaZooPC)                              &
-                                         * (Me%ZooAssimilationPhytoRate       * ZooIngestionPhyto)   & 
-                                        +(Me%AlfaCilPC-Me%AlfaZooPC)                                 &
-                                         * (Me%ZooAssimilationCiliateRate     * ZooIngestionCiliate)      
-                
-                    LostGrazPhosphorus = (1- Me%ZooAssimilationPhytoRate)                           &
-                                        * ZooIngestionPhyto * Me%AlfaPhytoPC                        &
-                                      +(1- Me%ZooAssimilationCiliateRate)                           &
-                                        * ZooIngestionCiliate * Me%AlfaCilPC   
-             
-
-                    if (LostChainPhosphorus .LT. 0.0)                                               &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazPhosphorus .LT. 0.0)                                                &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
-
-        !endcase (ZooPhyCil, ZooPhyCilBac)
-        case (ZooDiaCilBac)
-
-            !Zooplankton Grossgrowrate------------------------------------------------
-
-                !limitation by diatoms (1º) 
-                yac = (Me%Diatoms%ZooEfficiencyCaptureDiatoms * Me%ExternalVar%Mass(Diatoms, index) &
-                     - Me%Diatoms%GrazDiaMin)                                                               
-                                                                                
-                ybc = (Me%ZooIngestionConst + Me%Diatoms%ZooEfficiencyCaptureDiatoms                &
-                    * Me%ExternalVar%Mass(Diatoms, index) - Me%Diatoms%GrazDiaMin)
-
-                if  (yac .LE. 0.0) then
-                    ZooGrazDiatomsLimitationFactor = 0.0
-                else           
-                    ZooGrazDiatomsLimitationFactor = yac / ybc
-                end if 
-
-                !ZooIngestion of diatoms
-                ZooIngestionDiatoms = Me%Diatoms%DiaRatioIngestionZoo                               &
-                                    * Me%ZooIngestionMax                                            &
-                                    * ZooGrazDiatomsLimitationFactor                                &
-                                    * Me%TZooLimitationFactor                       
-                                                    
-                !limitation by Ciliate (2º) 
-                yac = (Me%ZooEfficiencyCaptureCiliate * Me%ExternalVar%Mass(CIL, index)             &
-                     - Me%GrazCiliateMin)                                                               
-                                                                                
-                ybc = (Me%ZooIngestionConst + Me%ZooEfficiencyCaptureCiliate                        &
-                    * Me%ExternalVar%Mass(CIL, index) - Me%GrazCiliateMin)
-
-                if  (yac .LE. 0.0) then
-                    ZooGrazCiliateLimitationFactor = 0.0
-                else           
-                    ZooGrazCiliateLimitationFactor = yac / ybc
-                end if 
-
-                !ZooIngestion of Ciliate
-                ZooIngestionCiliate = Me%CiliatesRatioIngestionZoo                                  &
-                                    * (Me%ZooIngestionMax - ZooIngestionDiatoms)                    &
-                                    * ZooGrazCiliateLimitationFactor                                &
-                                    * Me%TZooLimitationFactor                                           
-                                                                                
-                !ZooGrossGrowRate, zooplankton gross growth rate                                        
-                ZooGrossGrowRate =  (Me%Diatoms%DiaZooAssimilationRate * ZooIngestionDiatoms)       &
-                                   +(Me%ZooAssimilationCiliateRate     * ZooIngestionCiliate)                 
-                         
-                if (ZooGrossGrowRate .LT. 0.0) then                                                     
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR07.'
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-                end if 
-            
-            !ZooGrazPrey for NaturalMortality Calculation--------------------------------------
-            
-                ZooGrazPrey = Me%ExternalVar%Mass(Diatoms, index)                                   &
-                            + Me%ExternalVar%Mass(CIL, index)                                    
-
-            !LostChain, term due to different  Diatoms, Ciliates and Zoo ratios----------- 
-            !and LostGraz, term due to not 100% assimilation----------------- 
-                            
-                !Nitrogen
-                if (Me%PropCalc%Nitrogen) then
-
-                    LostChainNitrogen = (Me%Diatoms%DiaAlfaNC-Me%AlfaZooNC)                         &
-                                        * (Me%Diatoms%DiaZooAssimilationRate * ZooIngestionDiatoms) &
-                                       +(Me%AlfaCilNC-Me%AlfaZooNC)                                 &
-                                        * (Me%ZooAssimilationCiliateRate     * ZooIngestionCiliate)      
-                
-                    LostGrazNitrogen = (1- Me%ZooAssimilationPhytoRate)                             &
-                                        * ZooIngestionPhyto * Me%AlfaPhytoNC                        &
-                                      +(1- Me%ZooAssimilationCiliateRate)                           &
-                                        * ZooIngestionCiliate * Me%AlfaCilNC   
-
-                    if (LostChainNitrogen .LT. 0.0)                                                 &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazNitrogen .LT. 0.0)                                                  &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
-                
-                
-                !Phosphorus
-                if (Me%PropCalc%Phosphorus) then
-
-                    LostChainPhosphorus = (Me%Diatoms%DiaAlfaPC-Me%AlfaZooPC)                       &
-                                         * (Me%Diatoms%DiaZooAssimilationRate * ZooIngestionDiatoms)&
-                                        +(Me%AlfaCilPC-Me%AlfaZooPC)                                &
-                                         * (Me%ZooAssimilationCiliateRate     * ZooIngestionCiliate)      
-                
-                    LostGrazPhosphorus = (1- Me%Diatoms%DiaZooAssimilationRate)                     &
-                                         * ZooIngestionDiatoms * Me%Diatoms%DiaAlfaPC               &
-                                        +(1- Me%ZooAssimilationCiliateRate)                         &
-                                         * ZooIngestionCiliate * Me%AlfaCilPC   
-             
-
-                    if (LostChainPhosphorus .LT. 0.0)                                               &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazPhosphorus .LT. 0.0)                                                &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
-
-        !endcase (ZooDiaCilBac)
-        case (ZooPhyDia)
-
-            !Zooplankton Grossgrowrate------------------------------------------------
-
-                !limitation by diatoms (1º) 
-                yac = (Me%Diatoms%ZooEfficiencyCaptureDiatoms * Me%ExternalVar%Mass(Diatoms, index) &
-                     - Me%Diatoms%GrazDiaMin)                                                               
-                                                                                
-                ybc = (Me%ZooIngestionConst + Me%Diatoms%ZooEfficiencyCaptureDiatoms                &
-                    * Me%ExternalVar%Mass(Diatoms, index) - Me%Diatoms%GrazDiaMin)
-
-                if  (yac .LE. 0.0) then
-                    ZooGrazDiatomsLimitationFactor = 0.0
-                else           
-                    ZooGrazDiatomsLimitationFactor = yac / ybc
-                end if 
-
-                !ZooIngestion of diatoms
-                ZooIngestionDiatoms = Me%Diatoms%DiaRatioIngestionZoo                               &
-                                    * Me%ZooIngestionMax                                            &
-                                    * ZooGrazDiatomsLimitationFactor                                &
-                                    * Me%TZooLimitationFactor                       
-                                                    
-                !limitation by phyto (2º)
-                x = Me%ZooEfficiencyCapturePhyto * Me%ExternalVar%Mass(Phyto, index)                & 
-                - Me%GrazPhytoMin                                                                     
-                                                                        
-                y = Me%ZooIngestionConst + Me%ZooEfficiencyCapturePhyto                             &
-                * Me%ExternalVar%Mass(Phyto, index) - Me%GrazPhytoMin                                 
-
-                if  (x .LE. 0.0) then
-                    ZooGrazPhytoLimitationFactor = 0.0
-                else 
-                    ZooGrazPhytoLimitationFactor = x / y
-                end if
-
-                !ZooIngestion of Phyto 
-                ZooIngestionPhyto = Me%PhytoRatioIngestionZoo                                       &
-                                  * (Me%ZooIngestionMax -  ZooIngestionDiatoms)                     &                         
-                                  * ZooGrazPhytoLimitationFactor                                    &
-                                  * Me%TZooLimitationFactor                                                                        
-                                                                                
-                !ZooGrossGrowRate, zooplankton gross growth rate                                        
-                ZooGrossGrowRate =  (Me%Diatoms%DiaZooAssimilationRate * ZooIngestionDiatoms)       &
-                                   +(Me%ZooAssimilationPhytoRate       * ZooIngestionPhyto  )       
-                         
-                if (ZooGrossGrowRate .LT. 0.0) then 
-                    stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR10.'
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-                end if 
-            
-            
-            !ZooGrazPrey for NaturalMortality Calculation--------------------------------------
-            
-                ZooGrazPrey = Me%ExternalVar%Mass(Diatoms, index)                                   &
-                            + Me%ExternalVar%Mass(Phyto, index)                                     
-
-
-            !LostChain, term due to different Phyto, Diatoms and Zoo ratios----------- 
-            !and LostGraz, term due to not 100% assimilation----------------- 
-                            
-                !Nitrogen
-                if (Me%PropCalc%Nitrogen) then
-
-                    LostChainNitrogen = (Me%Diatoms%DiaAlfaNC-Me%AlfaZooNC)                         &
-                                        * (Me%Diatoms%DiaZooAssimilationRate * ZooIngestionDiatoms) &
-                                       +(Me%AlfaPhytoNC-Me%AlfaZooNC)                               &
-                                        * (Me%ZooAssimilationPhytoRate       * ZooIngestionPhyto)    
-                
-                    LostGrazNitrogen = (1- Me%Diatoms%DiaZooAssimilationRate)                       &
-                                        * ZooIngestionDiatoms * Me%Diatoms%DiaAlfaNC                &
-                                      +(1- Me%ZooAssimilationPhytoRate)                             &
-                                        * ZooIngestionPhyto * Me%AlfaPhytoNC                        
-
-                    if (LostChainNitrogen .LT. 0.0)                                                 &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazNitrogen .LT. 0.0)                                                  &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
-                
-                
-                !Phosphorus
-                if (Me%PropCalc%Phosphorus) then
-
-                    LostChainPhosphorus = (Me%Diatoms%DiaAlfaPC-Me%AlfaZooPC)                       &
-                                        * (Me%Diatoms%DiaZooAssimilationRate * ZooIngestionDiatoms) &
-                                       +(Me%AlfaPhytoPC-Me%AlfaZooPC)                               &
-                                        * (Me%ZooAssimilationPhytoRate       * ZooIngestionPhyto)    
-                
-                    LostGrazPhosphorus = (1- Me%Diatoms%DiaZooAssimilationRate)                     &
-                                        * ZooIngestionDiatoms * Me%Diatoms%DiaAlfaPC                &
-                                      +(1- Me%ZooAssimilationPhytoRate)                             &
-                                        * ZooIngestionPhyto * Me%AlfaPhytoPC                        
-             
-
-                    if (LostChainPhosphorus .LT. 0.0)                                               &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazPhosphorus .LT. 0.0)                                                &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
-
-        !endcase (ZooPhyDia)
-        case (ZooPhy)
-
-            !Zooplankton Grossgrowrate------------------------------------------------
-                
-                if ((Me%ExternalVar%Mass(Phyto, index) - Me%GrazPhytoMin) .LE. 0.0) then
-                    
-                    FoodZooLimitationFactor = 0.0
-                
-                else 
-
-                    exponent = -Me%IvlevGrazConst                                                   &
-                             * (Me%ExternalVar%Mass(Phyto, index) - Me%GrazPhytoMin)
-                    
-                    FoodZooLimitationFactor = 1.0 - exp(exponent)
-
-                end if 
-
-                ZooGrossGrowRate = Me%GrowMaxZooRate                                                &
-                                 * Me%TZooLimitationFactor * FoodZooLimitationFactor
-                         
-                if (ZooGrossGrowRate .LT. 0.0) then
-                
-                    write(*,*)'ZooGrossGrowRate set to zero     :', ZooGrossGrowRate
-                    write(*,*)'Me%GrowMaxZooRate                :', Me%GrowMaxZooRate 
-                    write(*,*)'Me%TZooLimitationFactor          :', Me%TZooLimitationFactor
-                    write(*,*)'FoodZooLimitationFactor          :', FoodZooLimitationFactor
-                    write(*,*)'Me%ExternalVar%Mass(Phyto, index):', Me%ExternalVar%Mass(Phyto, index)
-                    write(*,*)'exponent                         :', exponent
-                    write(*,*)'index                            :', index
-               
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-                                                                     
-                    !stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR13.'
-                
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-                end if 
-            
+          ReadilyBioSubRateHetBioAnoGrowth = (-1./HetBioYield)*MaxSpecGrowthRateHetBio*                                   &
+          (Me%ExternalVar%Mass(ReadilyBioSub, index)                                                                      &
+           /(HalfSatCoefHetBio+Me%ExternalVar%Mass(ReadilyBioSub, index)))*(OxygHalfSatCoefHetBio                         &
+           /(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))                                                   &
+           *(Me%ExternalVar%Mass(Nitrate, index)/(NitHalfSatCoefDenHetBio+Me%ExternalVar%Mass(Nitrate, index)))           &
+           *CorFacAnoxGrowthHetBio  
+                       
+           if (Me%ExternalVar%Mass(HetBio, index) == 0) then
            
-            !ZooGrazPrey for NaturalMortality Calculation--------------------------------------
-            
-                ZooGrazPrey = Me%ExternalVar%Mass(Phyto, index)                                   
-
- 
-            !LostChain, term due to different Phyto, Diatoms and Zoo ratios----------- 
-            !and LostGraz, term due to not 100% assimilation----------------- 
-                            
-                !Nitrogen
-                if (Me%PropCalc%Nitrogen) then
-
-                    LostChainNitrogen = (Me%AlfaPhytoNC-Me%AlfaZooNC) * ZooGrossGrowRate      
-                
-
-                    LostGrazNitrogen = ZooGrossGrowRate                                             &
-                                      * Me%AlfaPhytoNC * ((1.0 - Me%E) / Me%E)   
-
-                    if (LostChainNitrogen .LT. 0.0)                                                 &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazNitrogen .LT. 0.0)                                                  &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
-                
-                
-                !Phosphorus
-                if (Me%PropCalc%Phosphorus) then
-
-                    LostChainPhosphorus = (Me%AlfaPhytoPC-Me%AlfaZooPC) * ZooGrossGrowRate          
-                
-                    LostGrazPhosphorus = ZooGrossGrowRate                                           &
-                                        * Me%AlfaPhytoPC * ((1.0 - Me%E) / Me%E)                                 
-
-                    if (LostChainPhosphorus .LT. 0.0)                                               &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazPhosphorus .LT. 0.0)                                                &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
-
-        !endcase (ZooPhy)
-        case (ZooDia)
-
-            !Zooplankton Grossgrowrate------------------------------------------------
-                
-                if ((Me%ExternalVar%Mass(Diatoms, index) - Me%Diatoms%GrazDiaMin) .LE. 0.0) then
-                    
-                    FoodZooLimitationFactor = 0.0
-                
-                else 
-
-                    exponent = -Me%IvlevGrazConst                                                   &
-                             * (Me%ExternalVar%Mass(Diatoms, index) - Me%Diatoms%GrazDiaMin)
-                    
-                    FoodZooLimitationFactor = 1.0 - exp(exponent)
-
-                end if 
-
-                ZooGrossGrowRate = Me%GrowMaxZooRate                                                &
-                                 * Me%TZooLimitationFactor * FoodZooLimitationFactor
-                         
-                if (ZooGrossGrowRate .LT. 0.0) then                                                     
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR16.'
-                elseif (ZooGrossGrowRate .EQ. 0.0) then
-                    ZooGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-                end if 
-            
+           ReadilyBioSubRateHetBioHydrolysis = 0
            
-            !ZooGrazPrey for NaturalMortality Calculation--------------------------------------
-            
-                ZooGrazPrey = Me%ExternalVar%Mass(Diatoms, index)                                   
-
-            !LostChain, term due to different Phyto, Diatoms, Ciliates and Zoo ratios----------- 
-            !and LostGraz, term due to not 100% assimilation----------------- 
-
-                !Nitrogen
-                if (Me%PropCalc%Nitrogen) then
-
-                    LostChainNitrogen = (Me%Diatoms%DiaAlfaNC-Me%AlfaZooNC) * ZooGrossGrowRate
-                
-                    LostGrazNitrogen = ZooGrossGrowRate                                             &
-                                      * Me%Diatoms%DiaAlfaNC * ((1.0 - Me%Diatoms%DiaE) / Me%Diatoms%DiaE)                
-
-                    if (LostChainNitrogen .LT. 0.0)                                                 &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazNitrogen .LT. 0.0)                                                  &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
-                
-                
-                !Phosphorus
-                if (Me%PropCalc%Phosphorus) then
-
-                    LostChainPhosphorus = (Me%Diatoms%DiaAlfaPC-Me%AlfaZooPC) * ZooGrossGrowRate
-                
-                    LostGrazPhosphorus = ZooGrossGrowRate                                           &
-                                        * Me%Diatoms%DiaAlfaPC * ((1.0 - Me%Diatoms%DiaE) / Me%Diatoms%DiaE)              
-
-                    if (LostChainPhosphorus .LT. 0.0)                                               &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-             
-                    if (LostGrazPhosphorus .LT. 0.0)                                                &
-                        stop 'Subroutine WWTPQZooplankton-Module ModuleWWTPQ. ERR02.'
-
-                endif
-
-        !endcase (ZooDia)
-        end select
-
-        !ZooNaturalMortality/ExcretionRate/Zooplankton predation----------------------
-
-            !ZooNaturalMortalityRate
-            if (ZooGrazPrey .LE. Me%GrazPreyMin ) then
-                ZooNaturalMortality = Me%ZooMaxMortalityRate
-            else                                                                                    
-                ZooNaturalMortality = (Me%ZooMortalityCoef / ZooGrazPrey)                       & 
-                                    + Me%ZooMinMortalityRate
-            end if  
-            
-            !Zooplankton ExcretionRate -------------------------------------------------------
-            ZooExcretionRate = Me%ZooExcretionFactor * Me%ZooExcretionConst                         &
-                               ** Me%ExternalVar%Temperature(index)
-
-            !Nitrogen
-            if (Me%PropCalc%Nitrogen) then
-            
-                !DeadZooNitrogen, Organic Nitrogen from dead Zooplankton (mgN/L)
-                DeadZooNitrogen   = ZooNaturalMortality * Me%AlfaZooNC
-
-                !Zooplankton predated by higher trophic levels---------------------------------
-                PredatedZooNitrogen   = Me%ZPredMortalityRate * Me%AlfaZooNC
-
-                !ZooExcretionNitrogen (mg N/L)
-                ZooExcretionNitrogen = ZooExcretionRate * Me%AlfaZooNC 
-
-            endif
-            
-            !Phosphorus
-            if (Me%PropCalc%Phosphorus) then
-            
-                !DeadZooPhosphorus, Organic Phosphorus from dead Zooplankton (mgP/L)
-                DeadZooPhosphorus = ZooNaturalMortality * Me%AlfaZooPC 
-
-                !Zooplankton predated by higher trophic levels---------------------------------
-                PredatedZooPhosphorus = Me%ZPredMortalityRate * Me%AlfaZooPC
-
-                !ZooExcretionPhosphorus (mg P/L)
-                ZooExcretionPhosphorus = ZooExcretionRate * Me%AlfaZooPC 
-
-            endif
-
-        !Zooplankton RespirationRate -------------------------------------------------------
-        
-            ZooRespirationRate = Me%ZooReferenceRespirationRate * Me%TZooLimitationFactor
-       
-            !Oxygen loss due to Zooplankton respiration
-            if (Me%PropCalc%Oxygen)  then
-                
-                OxygenZooRespRate = Me%RatioOxygenCarbonZooRespiration * ZooRespirationRate
-            
-                if (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen).EQ.Me%MinOxygen) then
-                    ZooGrossGrowRate  = -1.0 / null_real
-                    OxygenZooRespRate = -1.0 / null_real
-                endif
-            
-            endif 
-
+           else
            
-    !Calculation of system coeficients---------------------------------------
-
-    !Organisms---------------------------------------
-    
-    Me%Matrix(Zoo, Zoo)     = 1.0 + DTDay * ( ZooExcretionRate                                      & 
-                                                     + ZooRespirationRate                           & 
-                                                     + ZooNaturalMortality                          &                     
-                                                     + Me%ZPredMortalityRate                        &
-                                                     - ZooGrossGrowRate)
-   
-    select case (Me%WWTPQConfiguration)
-
-        case (ZooPhy)
-
-            Me%Matrix(Phyto, Zoo)   = (DTDay * ZooGrossGrowRate) / Me%E
-
-        case (ZooDia)
-
-            Me%Matrix(Diatoms, Zoo)=  (DTDay * ZooGrossGrowRate) / Me%Diatoms%DiaE
-
-            Me%Matrix(BioSi, Zoo)  = -(DTDay * ZooGrossGrowRate) / Me%Diatoms%DiaE * Me%Diatoms%DiaAlfaSiC
-
-        case default  
-       
-            if (Me%PropCalc%Phyto)then
-               
-                Me%Matrix(Phyto, Zoo)   =   DTDay * ZooIngestionPhyto
-            
-            endif
-
-
-            if (Me%PropCalc%Diatoms)then
-               
-                Me%Matrix(Diatoms, Zoo) =   DTDay * ZooIngestionDiatoms
-
-                Me%Matrix(BioSi, Zoo)   = - DTDay * ZooIngestionDiatoms * Me%Diatoms%DiaAlfaSiC
-            
-            endif
-
-            if (Me%PropCalc%Ciliate)then
-               
-                Me%Matrix(CIL, Zoo)     =   DTDay * ZooIngestionCiliate  
-            
-            endif
-
-    end select
- 
-    !Oxygen---------------------------------------
-   
-        if (Me%PropCalc%Oxygen)                                                                     &
-            Me%Matrix(O,  Zoo)     =   DTDay * OxygenZooRespRate   
-
-    !Nitrogen---------------------------------------
-        if (Me%PropCalc%Nitrogen) then
-        
-            Me%Matrix(AM, Zoo   ) = - DTDay * (ZooExcretionNitrogen * Me%ZooSolublInorgExcreFraction &
-                                              +ZooRespirationRate   * Me%AlfaZooNC)    
-
-            Me%Matrix(DONnr, Zoo) = - DTDay * (ZooExcretionNitrogen                                 & 
-                                               * Me%ZooExcreDissOrgFraction                         & 
-                                               * (1.0 - Me%ZooSolublInorgExcreFraction))           
-            
-            Me%Matrix(PON, Zoo  ) = - DTDay * (ZooExcretionNitrogen                                 & 
-                                               * (1.0 - Me%ZooExcreDissOrgFraction)                 & 
-                                               * (1.0 - Me%ZooSolublInorgExcreFraction)             &
-                                              + DeadZooNitrogen                                     &
-                                              + PredatedZooNitrogen                                 &
-                                              + LostChainNitrogen                                   &
-                                              + LostGrazNitrogen)
-        endif
-
-    !Phosphorus---------------------------------------
-        if (Me%PropCalc%Phosphorus) then
-        
-            Me%Matrix(IP, Zoo   ) = - DTDay * (ZooExcretionPhosphorus * Me%ZooSolublInorgExcreFraction &
-                                              + ZooRespirationRate   * Me%AlfaZooPC) 
-            
-            
-            Me%Matrix(DOPnr, Zoo) = -DTDay * (ZooExcretionPhosphorus                                &
-                                              * Me%ZooExcreDissOrgFraction                          & 
-                                              * (1.0 - Me%ZooSolublInorgExcreFraction))           
-
-            Me%Matrix(POP, Zoo  ) = -DTDay * (ZooExcretionPhosphorus                                &
-                                               * (1.0 - Me%ZooExcreDissOrgFraction)                 & 
-                                               * (1.0 - Me%ZooSolublInorgExcreFraction)             &
-                                              + DeadZooPhosphorus                                   &
-                                              + PredatedZooPhosphorus                               &
-                                              + LostChainPhosphorus                                 &
-                                              + LostGrazPhosphorus)
-        endif
-
-    !Independent term---------------------------------------
-        Me%IndTerm(Zoo) = Me%ExternalVar%Mass(Zoo, index) 
-
-    end subroutine WWTPQZooplankton
-
-    
-    !----------------------------------------------------------------------------
-
-   
-    subroutine WWTPQLarvae(index) ! Aires Santos and João Nogueira
-
-    
-    !   This routine computes growth and mortality rates for sardine Larvae. This
-    !   rates include temperature, fishfood and weight dependencie parameteres.
-    !
-        
-        
-        
-        !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-
-        !Local-------------------------------------------------------------------
-
-        integer :: Larvae
-        integer :: Age
-        integer :: NPhases
-
-        real    :: Age_
-        real    :: Temperature
-        real    :: DTDay
-        real    :: CLarvae
-        real    :: WLarvae
-        real    :: ZLarvae
-        real    :: ZLarvaeWeight
-        real    :: GLarvaeWeight
-        real    :: GLarvae
-        real    :: Gfishfood
-        real    :: FishFood
-
-        real    :: KGtemp
-        real    :: KZtemp
-        real    :: KGfishfood
-        real    :: Gfishfood_ref
-        real    :: GLarvaeTemp_ref
-        real    :: ZLarvaeTemp_ref
-        real    :: Afg
-        real    :: Awg
-        real    :: Bwg
-        real    :: Awz
-        real    :: Bwz
-        real    :: Atg
-        real    :: Btg
-        real    :: Atz
-        real    :: Btz
-        real    :: Ldensity
-        real    :: Lshape
-        real    :: Init_age
-        real    :: Inter_age
-        real    :: Final_age
-        real    :: Init_length
-        real    :: Inter_length
-        real    :: Final_length
-        real    :: FishFood_ref
-        real    :: Temperature_ref
-
-        !------------------------------------------------------------------------
-
-        Larvae      = Me%PropIndex%Larvae
-        Age         = Me%PropIndex%Age
-        Age_        = Me%ExternalVar%Mass(Age,index)
-        DTDay       = Me%DTDay
-        Temperature = Me%ExternalVar%Temperature(index)
-        FishFood    = Me%ExternalVar%FishFood(index)
-
-        !Calculation of the temperature coefficients-----------------------------
-
-        Temperature_ref = Me%Temperature_ref                                                   ! ºC
-        Atg = Me%Atg
-        Btg = Me%Btg
-        Atz = Me%Atz
-        Btz = Me%Btz
-
-        GLarvaeTemp_ref = Atg + Btg * Temperature_ref                     ! Houde e Zastrow
-        ZLarvaeTemp_ref = Atz + Btz * Temperature_ref                     ! Houde e Zastrow
-
-        KGtemp = 1.+(Btg/GLarvaeTemp_ref)*(Temperature-Temperature_ref)
-        KZtemp = 1.+(Btz/ZLarvaeTemp_ref)*(Temperature-Temperature_ref)
-
-        !Calculation of the nutrient coefficients (Michaelis-Menten equation)-------------
-
-        Afg = Me%Afg                                          
-        FishFood_ref = Me%FishFood_ref                                                      ! mg/m3
-        
-        Gfishfood_ref = FishFood_ref/(Afg + FishFood_ref)  
-        
-        Gfishfood = FishFood/(Afg + FishFood)  
-        KGfishfood = Gfishfood/Gfishfood_ref
-
-
-        !Calculation of the mass growth rate------------------------------------- 
-
-        Init_age = Me%Init_age
-        Inter_age = Me%Inter_age
-        Final_age = Me%Final_age
-        Init_length = Me%Init_length
-        Inter_length = Me%Inter_length
-        Final_length = Me%Final_length
-        NPhases = Me%NPhases
-
-cd1 :       if (NPhases .EQ. 1) then
-
-cd2 :           if (Age_ .le. Final_age) then
-                    CLarvae = Init_length + ((Final_length - Init_length) / Final_age) * Age_
-                else
-                    write(*,*)'Larvae too OLD....'
-                    stop      'WWTPQLarvae - ModuleWWTPQ - ERR01'
-                endif cd2
-                
-            elseif (NPhases .EQ. 2) then
-
-cd3 :           if (Age_ .le. Inter_age) then
-                    CLarvae = Init_length + ((Inter_length - Init_length) / Inter_age) * Age_
-                elseif (Age_ .gt. Inter_age .and. Age_ .le. Final_age) then
-                    CLarvae = Init_length + ((Final_length - Inter_length) / (Final_age - Inter_age)) * (Age_ - Inter_age)
-                else
-                    write(*,*)'Larvae too OLD....'
-                    stop      'WWTPQLarvae - ModuleWWTPQ - ERR01'
-                endif cd3
-
-            else 
-                write(*,*)'Valid values for NPHASES are only 1 or 2'
-                stop      'WWTPQLarvae - ModuleWWTPQ - ERR02'
-            endif cd1
-
-        Ldensity = Me%Ldensity
-        Lshape = Me%Lshape
-        Awg = Me%Awg   
-        Bwg = Me%Bwg 
-         
-        WLarvae         = exp ((-1 * Ldensity) + Lshape * log(CLarvae))                ! Girão
-        GLarvaeWeight   = Awg / (WLarvae**(Bwg))                                ! Houde
-        GLarvae         = KGfishfood * KGtemp * GLarvaeWeight 
-
-
-        !Calculation of the mortality rate--------------------------------------- 
-
-        Awz = Me%Awz   
-        Bwz = Me%Bwz         
-        
-        ZLarvaeWeight  = Awz * (WLarvae**(-1 * Bwz))                             ! Houde
-        ZLarvae        = KZtemp * ZLarvaeWeight
-
-
-         
-        !Calculation of system coeficients---------------------------------------
-        Me%Matrix(Larvae, Larvae) = 1.0 + DTDay * ZLarvae 
-
-
-        !Independent term
-        Me%IndTerm(Larvae) = Me%ExternalVar%Mass(Larvae, index)       &
-                                          * (1+DTDay*GLarvae)
-
-
-   !------------------------------------------------------------------------
-
-    end subroutine WWTPQLarvae
-
-    !----------------------------------------------------------------------------
-
-
-    subroutine WWTPQAge(index) ! Aires !index é as particulas
-
-
-        !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-        !Local-------------------------------------------------------------------
-
-        integer :: Age
-
-        real    :: DTDay
-
-        !------------------------------------------------------------------------
-
-        Age     = Me%PropIndex%Age 
-
-        DTDay   = Me%DTDay
-
- 
-        !Calculation of system coeficients---------------------------------------
-        Me%Matrix(Age, Age) = 1.0  
-
-
-        !Independent term
-        Me%IndTerm(Age) = Me%ExternalVar%Mass(Age, index) + DTDay
-
-    !------------------------------------------------------------------------
-
-    end subroutine WWTPQAge
-
-    !----------------------------------------------------------------------------
-
-
-    subroutine WWTPQPhytoplankton(index)
-
-    !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-    !Local-------------------------------------------------------------------
-        
-        integer :: Phyto
-        integer :: IP
-        integer :: POP, DOPnr
-        integer :: AM
-        integer :: PON
-        integer :: O
-        integer :: NA
-        integer :: DONnr
-        integer :: BOD
-
-
-        real    :: DTDay
-
-        real    :: PhytoExcretionsRate              = null_real
-        real    :: PhytoExcretionPhosphorus         = null_real
-        real    :: PhytoExcretionNitrogen           = null_real
-        real    :: DeadPhytoNitrogen                = null_real
-        real    :: DeadPhytoPhosphorus
-        real    :: PhytoTotalRespirationLossesRate  = null_real  
-        real    :: NitrateOxygen                    = null_real
-        real    :: IPOxygen                         = null_real !Rosa
-        
-        real    :: PhytoAmmoniaPreferenceFactor     = null_real
-        real    :: PhytoEndogenousRepiration        = null_real
-        real    :: PhotorespirationRate             = null_real
-        real    :: PhotoOxygen                      = null_real
-        real    :: OxygenPhytoRespRate              = null_real
-        real    :: PhytoNonGrazingMortalityRate     = null_real
-
-        real    :: s1, s2, xa, xb, ya, yb
-        real    :: x1, x2, x3 ,x4
-
-    !------------------------------------------------------------------------
-
-
-        POP     = Me%PropIndex%PartOrganicPhosphorus
-        DOPnr   = Me%PropIndex%DOPNonRefractory
-        Phyto   = Me%PropIndex%Phyto
-        IP      = Me%PropIndex%InorganicPhosphorus
-        AM      = Me%PropIndex%Ammonia
-        NA      = Me%PropIndex%Nitrate
-        PON     = Me%PropIndex%PartOrganicNitrogen
-        O       = Me%PropIndex%Oxygen
-        DONnr   = Me%PropIndex%DONNonRefractory
-        BOD     = Me%PropIndex%BOD
-        DTDay   = Me%DTDay
-
-
-        s1                              = null_real
-        s2                              = null_real
-        xa                              = null_real
-        xb                              = null_real
-        ya                              = null_real
-        yb                              = null_real
-
-        x1                              = null_real
-        x2                              = null_real
-        x3                              = null_real
-        x4                              = null_real
-
-
-    !------------------------------------------------------------------------
-
-    !PhytoGrossGrowRate, phytoplankton gross grow rate-----------------------
-    !PhytoNutrientsLimitationFactor, the nutrients limitation factor is the minimum between 
-    !Nitrogen and Phosphorus
-cd2 :   if (Me%PropCalc%Nitrogen) then
-            Me%PhytoNLimitationFactor   = (Me%ExternalVar%Mass(AM, index)                      &
-                                                + Me%ExternalVar%Mass(NA, index))                     &
-                                                / (Me%NSatConst                                       &
-                                                + Me%ExternalVar%Mass(AM, index)                      &
-                                                + Me%ExternalVar%Mass(NA, index))
-        else
-            Me%PhytoNLimitationFactor   = 1.0   !Nitrogen is not a limiting nutrient
-        end if cd2
-
-
-
-
-    !Phosphorus limitation factor
-cd3 :  if (Me%PropCalc%Phosphorus.AND.(.NOT.Me%PropCalc%Bacteria)) then
-            Me%PhytoPLimitationFactor =  Me%ExternalVar%Mass(IP, index)                      &
-                                               / (Me%PSatConst                                        &
-                                               + Me%ExternalVar%Mass(IP, index))
-        else
-            Me%PhytoPLimitationFactor = 1.0   !Phosphorus is not a limiting nutrient
-       end if cd3
-        
-
-        Me%PhytoNutrientsLimitationFactor = &
-                              min(Me%PhytoNLimitationFactor, Me%PhytoPLimitationFactor)
-
-
-    !TPhytoLimitationFactor, temperature effect on Phytoplankton assimilation rate
-        s1 = (1.0 / (Me%TOptPhytoMin - Me%TPhytoMin)) * log((Me%FK2 * (1.0 - Me%FK1))              &
-                                                          / (Me%FK1 * (1.0 - Me%FK2)))
-
-        s2 = (1.0 / (Me%TPhytoMax - Me%TOptPhytoMax)) * log((Me%FK3 * (1.0 - Me%FK4))              &
-                                                          / (Me%FK4 * (1.0 - Me%FK3)))
-
-        ya = exp(s1 * (Me%ExternalVar%Temperature(index) - Me%TPhytoMin))
-        yb = exp(s2 * (Me%TPhytoMax - Me%ExternalVar%Temperature(index)))
-
-        xa = (Me%FK1 * ya) / (1.0 + Me%FK1 * (ya - 1.0))
-        xb = (Me%FK4 * yb) / (1.0 + Me%FK4 * (yb - 1.0))
-
-        Me%TPhytoLimitationFactor = xa * xb
-
-
-    !PhytoLightLimitationFactor, light effect on Phytoplankton assimilation rate
-
-        Me%PhytoLightLimitationFactor =                                                            &
-          PhytoLightLimitationFactor(Thickness       = Me%ExternalVar%Thickness(index),            &
-                                     TopRadiation    = Me%ExternalVar%ShortWaveRadiation(index),   &
-                                     PExt            = Me%ExternalVar%LightExtCoefField(index),    &
-                                     Photoinhibition = Me%Photoinhibition)
-
-    !PhytoGrossGrowRate
-        Me%PhytoGrossGrowRate = Me%GrowMaxPhytoRate                                                &
-                                * Me%TPhytoLimitationFactor                                        &
-                                * Me%PhytoLightLimitationFactor                                    &
-                                * Me%PhytoNutrientsLimitationFactor
-
-
-cd21 :  if     (Me%PhytoGrossGrowRate .LT. 0.0) then
-            write(*,*)'Me%PhytoGrossGrowRate set to zero:', Me%PhytoGrossGrowRate
-            write(*,*)'Me%TPhytoLimitationFactor        :', Me%TPhytoLimitationFactor
-            write(*,*)'Me%PhytoLightLimitationFactor    :', Me%PhytoLightLimitationFactor
-            write(*,*)'Me%PhytoNutrientsLimitationFactor:', Me%PhytoNutrientsLimitationFactor
-            write(*,*)'Me%ExternalVar%Mass(AM, index)   :', Me%ExternalVar%Mass(AM, index)
-            write(*,*)'Me%ExternalVar%Mass(NA, index)   :', Me%ExternalVar%Mass(NA, index)
-            write(*,*)'Me%ExternalVar%Mass(IP, index)   :', Me%ExternalVar%Mass(IP, index)
-
-            Me%PhytoGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-            !stop 'Subroutine WWTPQPhytoplankton - ModuleWWTPQ. ERR01.'
-
-        else if (Me%PhytoGrossGrowRate .EQ. 0.0) then cd21
-            Me%PhytoGrossGrowRate =-1.0 / null_real   !Avoid division by zero below
-        end if cd21
-
-        if (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen).eq.Me%MinOxygen) then
-            Me%PhytoGrossGrowRate = -1.0 / null_real
-        endif
-
-
-    !PhytoAmmoniaPreferenceFactor
-cd22 :  if (Me%PropCalc%Nitrogen) then
-          
-            x1 = Me%ExternalVar%Mass(AM, index) * Me%ExternalVar%Mass(NA, index)
-
-            x2 = (Me%NSatConst + Me%ExternalVar%Mass(AM, index))                                   &
-               * (Me%NSatConst + Me%ExternalVar%Mass(NA, index)) 
-
-            x3 = Me%NSatConst * Me%ExternalVar%Mass(AM, index)
-
-            x4 = (Me%ExternalVar%Mass(AM, index) + Me%ExternalVar%Mass(NA, index))                 &
-               * (Me%NSatConst + Me%ExternalVar%Mass(NA, index))
-
-cd45 :      if ((x1 .EQ. 0.0) .AND. (x3 .EQ. 0.0)) then
-                PhytoAmmoniaPreferenceFactor = 0.0                 
-            else cd45
-                PhytoAmmoniaPreferenceFactor = (x1 / x2) + (x3 / x4)
-            end if cd45
-        end if cd22
-
-
-    !Respiration losses----------------------------------------
-    
-        !PhytoEndogenousRepiration, endogenous respiration
-            PhytoEndogenousRepiration = Me%PhytoEndogRepConst *                                   &
-                                        exp(0.069 * Me%ExternalVar%Temperature(index))
-      
-            if (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen).eq.Me%MinOxygen) then
-                PhytoEndogenousRepiration = -1.0 / null_real
-            endif
-        
-        !PhotorespirationRate
-            PhotorespirationRate = Me%PhotorespFactor * Me%PhytoGrossGrowRate
-
-
-        !PhytoTotalRespirationLosses, total respiration losses
-            PhytoTotalRespirationLossesRate = PhytoEndogenousRepiration + PhotorespirationRate
-
-
-    !DeadPhyto, phyto mortality from non grazing
-        
-        PhytoNonGrazingMortalityRate = Me%PhytoMortMaxRate *                                       &
-                                      ((Me%ExternalVar%Mass(Phyto, index)                          &
-                                        / Me%PhytoGrossGrowRate)                                   &
-                                       / (Me%FMortSatConst                                         &
-                                          + (Me%ExternalVar%Mass(Phyto, index)                     &  
-                                          / Me%PhytoGrossGrowRate)))
-
-
-
-    !Excretion and Dead losses----------------------------------------
-
-        PhytoExcretionsRate = Me%PhytoExcretionConstant * Me%PhytoGrossGrowRate                    &
-                            * (1.0 - Me%PhytoLightLimitationFactor)
-
-cd12 :  if (Me%PropCalc%Phosphorus) then
-
-
-            PhytoExcretionPhosphorus = Me%AlfaPhytoPC                                              &
-                                     * (PhytoTotalRespirationLossesRate                            &
-                                     + PhytoExcretionsRate)
-       
-            !aqui
-            !DeadPhyto, Organic Phosphorus from dead Phytoplankton
-            DeadPhytoPhosphorus = PhytoNonGrazingMortalityRate * Me%AlfaPhytoPC
-     
-        end if cd12
-
-
-cd13 :  if (Me%PropCalc%Nitrogen) then
-            
-            PhytoExcretionNitrogen =  Me%AlfaPhytoNC                                               &
-                                   * (PhytoTotalRespirationLossesRate                              &
-                                   + PhytoExcretionsRate)
-
-            !DeadPhyto, Organic Nitrogen from dead Phytoplankton
-            DeadPhytoNitrogen = PhytoNonGrazingMortalityRate * Me%AlfaPhytoNC 
-        
-        end if cd13
-
-    !Oxygen Cycle----------------------------------------
-
-cd6 :   if (Me%PropCalc%Oxygen) then
-          
-            if (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen).eq.Me%MinOxygen) then
-                NitrateOxygen = -1.0 / null_real
-                IPOxygen = -1.0/null_real
-                PhotoOxygen = -1.0 / null_real
-                OxygenPhytoRespRate = -1.0 / null_real
-            else 
-
-               !Phytoplankton Oxygen production, NitrateOxygen + IPOxygen + PhotoOxygen
-cd66 :          if (Me%PropCalc%Nitrogen) then
-      
-                    !Secondary Oxygen production due to Nitrate consumption
-                    NitrateOxygen = Me%PhytoGrossGrowRate * Me%NConsOxyNitRatio                    &
-                                  * Me%AlfaPhytoNC * (1 - PhytoAmmoniaPreferenceFactor)      
-
-                else
-                   
-                    NitrateOxygen = 0.0
-
-                end if cd66               
-
-!Rosa
-cd666:          if (Me%PropCalc%Phosphorus) then 
-
-                    !Secondary Oxygen production due to Inorganic phosphorus (phosphate) consumption
-                    IPOxygen = Me%PhytoGrossGrowRate * Me%PConsOxyPhosphorusRatio * Me%AlfaPhytoPC     
-                else
-            
-                    IPOxygen = 0.0
-            
-                end if cd666               
-
-                !Oxygen photosynthetic production
-                PhotoOxygen = Me%PhytoGrossGrowRate * Me%PhotosynthesisOxygenCarbonRatio
-
-
-                !Oxygen loss by respiration     
-                OxygenPhytoRespRate = Me%PlanktonOxygenCarbonRatio * PhytoTotalRespirationLossesRate
-            end if
-        
-        end if cd6
-
-
-        !Calculation of system coeficients---------------------------------------
-             Me%Matrix(Phyto, Phyto) = 1.0 + DTDay * (PhytoTotalRespirationLossesRate              &
-                                                     + PhytoExcretionsRate                         &
-                                                     + PhytoNonGrazingMortalityRate                &
-                                                     - Me%PhytoGrossGrowRate)
-
-cd4 :   if (Me%PropCalc%Phosphorus) then
-
-
-            Me%Matrix(IP, Phyto   ) =  DTDay * (Me%AlfaPhytoPC * Me%PhytoGrossGrowRate              &
-                                            - (PhytoExcretionPhosphorus * Me%PhytoSolublInorgExcreFraction))
-
-
-            Me%Matrix(DOPnr, Phyto) = -DTDay * PhytoExcretionPhosphorus                            &
-                                             * (1.0 - Me%PhytoSolublInorgExcreFraction)            &
-                                             * Me%PhytoExcreDissOrgFraction
-
-            Me%Matrix(POP, Phyto  ) = -DTDay * ((PhytoExcretionPhosphorus                          & 
-                                               * (1.0 - Me%PhytoSolublInorgExcreFraction)          &
-                                               * (1.0 - Me%PhytoExcreDissOrgFraction))             &
-                                               + DeadPhytoPhosphorus)                          
-                    
-        end if cd4
-
-
-cd5 :   if (Me%PropCalc%Nitrogen) then
-
-            Me%Matrix(AM, Phyto   ) =  DTDay * ((PhytoAmmoniaPreferenceFactor                      &
-                                               * Me%AlfaPhytoNC                                    &
-                                               * Me%PhytoGrossGrowRate)-                           &
-                                               (PhytoExcretionNitrogen                             &
-                                               * Me%PhytoSolublInorgExcreFraction))                   
-
-            Me%Matrix(NA, Phyto   ) =  DTDay * (1. - PhytoAmmoniaPreferenceFactor)                 &
-                                             * Me%AlfaPhytoNC                                      &
-                                             * Me%PhytoGrossGrowRate 
-
-
-            Me%Matrix(DONnr, Phyto) = -DTDay * PhytoExcretionNitrogen                              &
-                                             * (1.0 - Me%PhytoSolublInorgExcreFraction)            &
-                                             * Me%PhytoExcreDissOrgFraction
-
-
-            Me%Matrix(PON, Phyto  ) = -DTDay * ((PhytoExcretionNitrogen                            & 
-                                             * (1.0 - Me%PhytoSolublInorgExcreFraction)            &
-                                             * (1.0 - Me%PhytoExcreDissOrgFraction))               &
-                                             + DeadPhytoNitrogen)
-
-            
-        end if cd5
-     
-
-        if (Me%PropCalc%Oxygen) then
-        
-            Me%Matrix(O, Phyto    ) =  DTDay * (OxygenPhytoRespRate                                &
-                                                - PhotoOxygen                                      &
-                                                - NitrateOxygen                                    &
-                                                - IPOxygen)
-        end if            
-
-
-        !Independent term
-         Me%IndTerm(Phyto) = Me%ExternalVar%Mass(Phyto,index)
-
-    !------------------------------------------------------------------------
-
-    end subroutine WWTPQPhytoplankton
-
-    !----------------------------------------------------------------------------
- 
-    subroutine WWTPQDiatoms(index) 
-
-    !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-    !Local-------------------------------------------------------------------
-        
-        integer :: Diatoms
-        integer :: BioSi
-        integer :: DissSi
-        integer :: IP
-        integer :: POP, DOPnr
-        integer :: AM
-        integer :: PON
-        integer :: O
-        integer :: NA
-        integer :: DONnr
-        integer :: BOD
-
-        real    :: DTDay
-
-        real    :: DiaExcretionsRate              = null_real
-        real    :: DiaExcretionPhosphorus         = null_real
-        real    :: DiaExcretionNitrogen           = null_real
-        real    :: DeadDiaNitrogen                = null_real
-        real    :: DeadDiaPhosphorus              = null_real
-        real    :: DiaExcretionSilica             = null_real
-        real    :: DeadDiaSilica                  = null_real
-        real    :: DiaTotalRespirationLossesRate  = null_real  
-        real    :: DiaNitrateOxygen               = null_real
-        real    :: DiaIPOxygen                    = null_real 
-        
-        real    :: DiaAmmoniaPreferenceFactor     = null_real
-        real    :: DiaEndogenousRepiration        = null_real
-        real    :: DiaPhotorespirationRate        = null_real
-        real    :: DiaPhotoOxygen                 = null_real
-        real    :: OxygenDiaRespRate              = null_real
-        real    :: DiaNonGrazingMortalityRate     = null_real
-
-
-        real    :: s1, s2, xa, xb, ya, yb
-        real    :: x1, x2, x3 ,x4
-
-    !------------------------------------------------------------------------
-
-        POP     = Me%PropIndex%PartOrganicPhosphorus
-        DOPnr   = Me%PropIndex%DOPNonRefractory
-        IP      = Me%PropIndex%InorganicPhosphorus
-        AM      = Me%PropIndex%Ammonia
-        NA      = Me%PropIndex%Nitrate
-        PON     = Me%PropIndex%PartOrganicNitrogen
-        O       = Me%PropIndex%Oxygen
-        DONnr   = Me%PropIndex%DONNonRefractory
-        BOD     = Me%PropIndex%BOD
-        Diatoms = Me%PropIndex%Diatoms
-        BioSi   = Me%PropIndex%BiogenicSilica
-        DissSi  = Me%PropIndex%DissolvedSilica
-        DTDay   = Me%DTDay
-
-
-        s1       = null_real
-        s2       = null_real
-        xa       = null_real
-        xb       = null_real
-        ya       = null_real
-        yb       = null_real
-
-        x1       = null_real
-        x2       = null_real
-        x3       = null_real
-        x4       = null_real
-
-    !------------------------------------------------------------------------
-
-    !DiaGrossGrowRate, Diatoms gross grow rate
-    
-        !DiaNutrientsLimitationFactor, the nutrients limitation factor is the minimum between 
-        !Nitrogen, Phosphorus and Silica
-cd1 :   if (Me%PropCalc%Nitrogen) then
-            
-            Me%Diatoms%DiaNLimitationFactor   = (Me%ExternalVar%Mass(AM, index)                        &
-                                             + Me%ExternalVar%Mass(NA, index))                     &
-                                             / (Me%Diatoms%DiaNSatConst                            &
-                                             + Me%ExternalVar%Mass(AM, index)                      &
-                                             + Me%ExternalVar%Mass(NA, index))
-        else cd1
-            Me%Diatoms%DiaNLimitationFactor   = 1.0   !Nitrogen is not a limiting nutrient        
-        end if cd1
-
-        !Phosphorus limitation factor
-cd2 :   if (Me%PropCalc%Phosphorus.AND.(.NOT.Me%PropCalc%Bacteria)) then
-            Me%Diatoms%DiaPLimitationFactor =  Me%ExternalVar%Mass(IP, index)             &
-                                            / (Me%Diatoms%DiaPSatConst                             &
-                                            + Me%ExternalVar%Mass(IP, index))
-        else cd2
-            Me%Diatoms%DiaPLimitationFactor = 1.0   !Phosphorus is not a limiting nutrient
-        end if cd2
-
-        !Silica limitation factor
-cd3 :   if (Me%PropCalc%Silica) then
-            Me%Diatoms%DiaSiLimitationFactor =  Me%ExternalVar%Mass(DissSi, index)             &
-                                        / (Me%Diatoms%DiaSiSatConst                                &
-                                        + Me%ExternalVar%Mass(DissSi, index))
-        else cd3
-            Me%Diatoms%DiaSiLimitationFactor = 1.0   !Silica is not a limiting nutrient
-        end if cd3
-
-       
-        Me%Diatoms%DiaNutrientsLimitationFactor = min(Me%Diatoms%DiaNLimitationFactor,     &
-                                                      Me%Diatoms%DiaPLimitationFactor,   &        
-                                                      Me%Diatoms%DiaSiLimitationFactor     )
-
-
-    !DiaTempLimitationFactor, temperature effect on Diatom assimilation rate
-        s1 = (1.0 / (Me%Diatoms%DiaTOptMin - Me%Diatoms%DiaTMin))                                  &
-           * log((Me%Diatoms%DiaK2 * (1.0 - Me%Diatoms%DiaK1))                                     &
-           / (Me%Diatoms%DiaK1 * (1.0 - Me%Diatoms%DiaK2)))
-
-        s2 = (1.0 / (Me%Diatoms%DiaTMax - Me%Diatoms%DiaTOptMax))                                  &
-           * log((Me%Diatoms%DiaK3 * (1.0 - Me%Diatoms%DiaK4))                                     &
-           / (Me%Diatoms%DiaK4 * (1.0 - Me%Diatoms%DiaK3)))
-
-        ya = exp(s1 * (Me%ExternalVar%Temperature(index) - Me%Diatoms%DiaTMin))
-        yb = exp(s2 * (Me%Diatoms%DiaTMax - Me%ExternalVar%Temperature(index)))
-
-        xa = (Me%Diatoms%DiaK1 * ya) / (1.0 + Me%Diatoms%DiaK1 * (ya - 1.0))
-        xb = (Me%Diatoms%DiaK4 * yb) / (1.0 + Me%Diatoms%DiaK4 * (yb - 1.0))
-
-        Me%Diatoms%DiaTempLimitationFactor = xa * xb
-
-
-    !DiaLightLimitationFactor, temperature effect on Diatom assimilation rate
-        Me%Diatoms%DiaLightLimitationFactor =                                                       &
-          PhytoLightLimitationFactor(Thickness      = Me%ExternalVar%Thickness(index),              &
-                                     TopRadiation   = Me%ExternalVar%ShortWaveRadiation(index),     &
-                                     PExt           = Me%ExternalVar%LightExtCoefField(index),      &
-                                     Photoinhibition= Me%Diatoms%DiaPhotoinhibition)
-
-
-    !DiaGrossGrowRate
-        Me%Diatoms%DiaGrossGrowRate = Me%Diatoms%DiaGrowMaxRate                                     &   
-                                           * Me%Diatoms%DiaTempLimitationFactor                     &
-                                           * Me%Diatoms%DiaLightLimitationFactor                    &
-                                           * Me%Diatoms%DiaNutrientsLimitationFactor
-
-
-
-cd4 :   if( Me%Diatoms%DiaGrossGrowRate .LT. 0.0) then
-            stop 'Subroutine WWTPQDiatoms - ModuleModuleWWTPQ - ERR01.'
-
-        else if (Me%Diatoms%DiaGrossGrowRate .EQ. 0.0) then cd4
-
-            Me%Diatoms%DiaGrossGrowRate = -1.0 / null_real   !Avoid division by zero below
-       
-        end if cd4
-
-cd5 :   if (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen).eq.Me%MinOxygen) then
-             
-            Me%Diatoms%DiaGrossGrowRate = -1.0 / null_real
-            
-        endif cd5
-
-
-        !DiatomAmmoniaPreferenceFactor
-cd6 :   if (Me%PropCalc%Nitrogen) then
-          
-            x1 = Me%ExternalVar%Mass(AM, index) * Me%ExternalVar%Mass(NA, index)
-
-            x2 = (Me%Diatoms%DiaNSatConst + Me%ExternalVar%Mass(AM, index))                        &
-               * (Me%Diatoms%DiaNSatConst + Me%ExternalVar%Mass(NA, index))
-
-            x3 = Me%Diatoms%DiaNSatConst* Me%ExternalVar%Mass(AM, index)
-
-            x4 = (Me%ExternalVar%Mass(AM, index) + Me%ExternalVar%Mass(NA, index))                 &
-               * (Me%Diatoms%DiaNSatConst + Me%ExternalVar%Mass(NA, index))
-
-cd61 :      if ((x1 .EQ. 0.0) .AND. (x3 .EQ. 0.0)) then
-                DiaAmmoniaPreferenceFactor = 0.0                 
-            else cd61
-                DiaAmmoniaPreferenceFactor = (x1 / x2) + (x3 / x4)
-            end if cd61
-        end if cd6
-
-
-    !Respiration losses----------------------------------------
-       
-        !DiaEndogenousRepiration, endogenous respiration
-        DiaEndogenousRepiration = Me%Diatoms%DiaEndogRepConst *                                     &
-                                  exp(0.069 * Me%ExternalVar%Temperature(index))
-      
-        if (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen).eq.Me%MinOxygen) then
-            DiaEndogenousRepiration = -1.0 / null_real
-        endif
-        
-        !DiaPhotorespirationRate
-        DiaPhotorespirationRate = Me%Diatoms%DiaPhotorespFactor * Me%Diatoms%DiaGrossGrowRate
-
-
-        !DiaTotalRespirationLosses, total respiration losses
-        DiaTotalRespirationLossesRate = DiaEndogenousRepiration + DiaPhotorespirationRate
-
-    !Dead losses----------------------------------------
-        !DiaNonGrazingMortalityRate, Dia mortality from non grazing------------
-        DiaNonGrazingMortalityRate =  Me%Diatoms%DiaMortMaxRate *                                   &
-                                    (( Me%ExternalVar%Mass(Diatoms, index)                          &
-                                     /  Me%Diatoms%DiaGrossGrowRate)                                &
-                                     / (Me%Diatoms%DiaMortSatConst                                  &
-                                     + (Me%ExternalVar%Mass(Diatoms, index)                         &  
-                                     /  Me%Diatoms%DiaGrossGrowRate)))
-    !Excretion and Dead losses----------------------------------------
-        
-        !Dias Excretions
-        DiaExcretionsRate = Me%Diatoms%DiaExcretionConstant                                         &  
-                          * Me%Diatoms%DiaGrossGrowRate                                             &
-                          * (1.0 - Me%Diatoms%DiaLightLimitationFactor)
-       
-        !Silica
-            DiaExcretionSilica =  Me%Diatoms%DiaAlfaSiC                                             &
-                               * (DiaTotalRespirationLossesRate                                     &
-                               + DiaExcretionsRate)
-
-            !DiaNonGrazingMortalityRate, Diatoms Natural Mortality
-            DeadDiaSilica = DiaNonGrazingMortalityRate * Me%Diatoms%DiaAlfaSiC
-
-        !Phosphorus        
-cd9 :   if (Me%PropCalc%Phosphorus) then
-
-            DiaExcretionPhosphorus = Me%Diatoms%DiaAlfaPC                                           &
-                                   * (DiaTotalRespirationLossesRate                                 &
-                                   + DiaExcretionsRate)
-      
-     
-            !DeadDiatom, Organic Phosphorus from dead Diatoms
-            DeadDiaPhosphorus = DiaNonGrazingMortalityRate * Me%Diatoms%DiaAlfaPC
-        
-        end if cd9
-
-
-        !Nitrogen 
-cd100 : if (Me%PropCalc%Nitrogen) then
-
-            DiaExcretionNitrogen =  Me%Diatoms%DiaAlfaNC                                            &
-                                 * (DiaTotalRespirationLossesRate                                   &
-                                 + DiaExcretionsRate)
-
-            !DeadDiatom, Organic Nitrogen from dead Diatom
-            DeadDiaNitrogen = DiaNonGrazingMortalityRate * Me%Diatoms%DiaAlfaNC 
-        
-        end if cd100
-
-    !Oxygen Cycle----------------------------------------
-
-cd7 :   if (Me%PropCalc%Oxygen) then
-
-cd71 :      if (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen).eq.Me%MinOxygen) then 
-               DiaNitrateOxygen  = -1.0 / null_real
-               DiaIPOxygen       = -1.0 / null_real
-               DiaPhotoOxygen    = -1.0 / null_real
-               OxygenDiaRespRate = -1.0 / null_real
+            ReadilyBioSubRateHetBioHydrolysis = MaxSpecHydroRate*((Me%ExternalVar%Mass(SlowlyBioSub, index)               &
+          /Me%ExternalVar%Mass(HetBio, index))                                                                            &
+           /(HalfSatCoefHydroSlowlyBioSub+Me%ExternalVar%Mass(SlowlyBioSub, index)/Me%ExternalVar%Mass(HetBio, index)))   &
+           *((Me%ExternalVar%Mass(Oxygen, index)                                                                          &
+           /(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))+CorFacAnoxCond*(OxygHalfSatCoefHetBio             &
+           /(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))*(Me%ExternalVar%Mass(Nitrate, index)              &
+           /(NitHalfSatCoefDenHetBio+Me%ExternalVar%Mass(Nitrate, index))))    
            
-            else cd71
-
-cd711 :         if (Me%PropCalc%Nitrogen) then
-      
-                    !Secondary Oxygen production due to Nitrate consumption
-                    DiaNitrateOxygen = Me%Diatoms%DiaGrossGrowRate                                  &
-                                     * Me%NConsOxyNitRatio                                          &
-                                     * Me%Diatoms%DiaAlfaNC * (1 - DiaAmmoniaPreferenceFactor)      
-                else cd711
-                    DiaNitrateOxygen = 0.0
-                end if cd711               
-
-cd712:          if (Me%PropCalc%Phosphorus) then 
-
-                    !Secondary Oxygen production due to Inorganic phosphorus (phosphate) consumption
-                    DiaIPOxygen = Me%Diatoms%DiaGrossGrowRate                                       &
-                                * Me%PConsOxyPhosphorusRatio                                        &
-                                * Me%Diatoms%DiaAlfaPC      
-                else cd712
-                    DiaIPOxygen = 0.0           
-                end if cd712               
-
-
-                !Oxygen photosynthetic production
-                DiaPhotoOxygen = Me%Diatoms%DiaGrossGrowRate * Me%PhotosynthesisOxygenCarbonRatio
-    
-
-                !Oxygen loss by respiration 
-                OxygenDiaRespRate = Me%PlanktonOxygenCarbonRatio * DiaTotalRespirationLossesRate
+           endif
             
-            end if cd71      
-        end if cd7
+             
+           ReadilyBioSubRateHetBio = ReadilyBioSubRateHetBioAerGrowth + ReadilyBioSubRateHetBioAnoGrowth                  &
+           + ReadilyBioSubRateHetBioHydrolysis
+                                                  
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(ReadilyBioSub,HetBio ) = DTDay * (-ReadilyBioSubRateHetBio) 
+         Me%Matrix(ReadilyBioSub, ReadilyBioSub) = 1.0
 
+ !Independent term
+        Me%IndTerm(ReadilyBioSub) = Me%ExternalVar%Mass(ReadilyBioSub, index)
 
-    !Calculation of system coeficients---------------------------------------
-     
-            Me%Matrix(Diatoms, Diatoms) = 1.0 + DTDay * ( DiaTotalRespirationLossesRate             &
-                                                        + DiaExcretionsRate                         &
-                                                        + DiaNonGrazingMortalityRate                &
-                                                        - Me%Diatoms%DiaGrossGrowRate)
-          
-cd101 : if (Me%PropCalc%Phosphorus) then
-            
-            Me%Matrix(POP, Diatoms)   = - DTDay * ((DiaExcretionPhosphorus                          & 
-                                                * (1.0 - Me%Diatoms%DiaSolublInorgExcreFraction)    &
-                                                * (1.0 - Me%Diatoms%DiaExcreDissOrgFraction))       &
-                                                + DeadDiaPhosphorus)
+ !------------------------------------------------------------------------
 
-            Me%Matrix(DOPnr, Diatoms) = - DTDay * DiaExcretionPhosphorus                            &
-                                                * (1.0 - Me%Diatoms%DiaSolublInorgExcreFraction)    &
-                                                * Me%Diatoms%DiaExcreDissOrgFraction
-                          
-            Me%Matrix(IP, Diatoms)    =   DTDay * (Me%Diatoms%DiaAlfaPC * Me%Diatoms%DiaGrossGrowRate  &
-                                                - (DiaExcretionPhosphorus * Me%Diatoms%DiaSolublInorgExcreFraction))
-                    
-        end if cd101
+    end subroutine WWTPQReadilyBioSub
 
-cd102 : if (Me%PropCalc%Nitrogen) then
-
-            Me%Matrix(AM, Diatoms)    =  DTDay * ((DiaAmmoniaPreferenceFactor                       &
-                                               * Me%Diatoms%DiaAlfaNC                               &
-                                               * Me%Diatoms%DiaGrossGrowRate)                       &
-                                               - (DiaExcretionNitrogen                              &    
-                                               * Me%Diatoms%DiaSolublInorgExcreFraction))             
-
-            Me%Matrix(PON, Diatoms)  = - DTDay * ((DiaExcretionNitrogen                             & 
-                                               * (1.0 - Me%Diatoms%DiaSolublInorgExcreFraction)     &
-                                               * (1.0 - Me%Diatoms%DiaExcreDissOrgFraction))        &
-                                               + DeadDiaNitrogen)
-
-            Me%Matrix(DONnr, Diatoms)= - DTDay * DiaExcretionNitrogen                               &
-                                               * (1.0 - Me%Diatoms%DiaSolublInorgExcreFraction)     &
-                                               * Me%Diatoms%DiaExcreDissOrgFraction
-
-            Me%Matrix(NA, Diatoms)   =   DTDay * (1. - DiaAmmoniaPreferenceFactor)                  &
-                                               * Me%Diatoms%DiaAlfaNC * Me%Diatoms%DiaGrossGrowRate  
-
-        end if cd102     
-
-        if (Me%PropCalc%Oxygen) then
-            
-            Me%Matrix(O, Diatoms)    =   DTDay * (OxygenDiaRespRate                                 &
-                                                  - DiaPhotoOxygen                                  &
-                                                  - DiaNitrateOxygen                                &
-                                                  - DiaIPOxygen)            
-        end if
-
-cd103 : if (Me%PropCalc%Silica) then
-
-            Me%Matrix(DissSi, Diatoms) =   DTDay * Me%Diatoms%DiaAlfaSiC * Me%Diatoms%DiaGrossGrowRate                             
-                      
-            Me%Matrix(BioSi, Diatoms)  = - DTDay * (DiaExcretionSilica + DeadDiaSilica)                                     
-
-        end if cd103
-
-        !Independent term
-         Me%IndTerm(Diatoms) = Me%ExternalVar%Mass(Diatoms,index)
-
-    end subroutine WWTPQDiatoms
-
-    !----------------------------------------------------------------------------
-
-    subroutine WWTPQSilica(index)
-
-        !Arguments-------------------------------------------------------------------
-        integer, intent(IN) :: index
-
-        !Local-------------------------------------------------------------------
-        real :: SiBiogenicDissRate       = null_real              
-    !------------------------------------------------------------------------
-
-        call WWTPQDissolvedSilica  (index,SiBiogenicDissRate)
-                                                        
-        call WWTPQBiogenicSilica   (index,SiBiogenicDissRate)
+    subroutine WWTPQPartInertOrgMar  (index)
     
-    end subroutine WWTPQSilica
+    !Subroutine to calculate the propriety PartInertOrgMar
     
-    !------------------------------------------------------------------------
-    
-    subroutine WWTPQDissolvedSilica(index,SiBiogenicDissRate)
-
-        !Arguments---------------------------------------------------------------
-        integer, intent(IN ):: index
-        real, intent(OUT)   :: SiBiogenicDissRate
-
-        !Local-------------------------------------------------------------------
-        integer             :: DissSi
-        integer             :: BioSi
-        integer             :: Diatoms
-        real                :: DTDay
-
-        !------------------------------------------------------------------------
-        DissSi    = Me%PropIndex%DissolvedSilica
-        BioSi     = Me%PropIndex%BiogenicSilica
-        Diatoms   = Me%PropIndex%Diatoms
-        DTDay     = Me%DTDay
-
-       !SiBiogenicDissRate, Biogenic Silica dissolution (1/T)
-        SiBiogenicDissRate = Me%SilicaCycle%KSiBiogenicDissRate                                     &
-                           * Me%SilicaCycle%BiogenicDissTCoef                                       &
-                           **(Me%ExternalVar%Temperature(index) - 20.0) 
-                                                       
-        !Calculation of system coeficients---------------------------------------
-        Me%Matrix(DissSi, BioSi  ) = - SiBiogenicDissRate * DTDay
-        Me%Matrix(DissSi, DissSi ) = 1.0
-
-        !Independent term
-        Me%IndTerm(DissSi) = Me%ExternalVar%Mass(DissSi, index)     
-   
-    end subroutine WWTPQDissolvedSilica
-   
-    !------------------------------------------------------------------------
- 
-     subroutine WWTPQBiogenicSilica(index,SiBiogenicDissRate)
-
-        !Arguments---------------------------------------------------------------
-        integer, intent(IN ):: index
-        real, intent(IN)    :: SiBiogenicDissRate
-
-
-        !Local-------------------------------------------------------------------
-        integer             :: BioSi
-        real                :: DTDay
-
-        !------------------------------------------------------------------------
-        BioSi               = Me%PropIndex%BiogenicSilica
-        DTDay               = Me%DTDay
-
-                                                        
-        !Calculation of system coeficients---------------------------------------
-        Me%Matrix(BioSi, BioSi) = 1.0 + SiBiogenicDissRate * DTDay
-
-        !Independent term
-        Me%IndTerm(BioSi) = Me%ExternalVar%Mass(BioSi, index)
-
-    end subroutine WWTPQBiogenicSilica
-
-    !------------------------------------------------------------------------
-
-    subroutine WWTPQNitrogen(index)
-
     !Arguments---------------------------------------------------------------
 
         integer, intent(IN) :: index
 
     !Local-------------------------------------------------------------------
-        
-        real :: RefrAmmoniaMinRate      = null_real    !RefractoryAmmoniaMineralizationRate
-!       real :: NonRefrAmmoniaMinRate   = null_real    !NonRefractoryAmmoniaMineralizationRate
-        real :: PartDecompRate          = null_real
-        real :: NitrificationRateK1     = null_real 
-        real :: NitrificationRateK2     = null_real             
+        !State variables
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
 
-    !------------------------------------------------------------------------
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
 
-
-        call WWTPQAmmonia        (index, RefrAmmoniaMinRate,                                           &
-!                                     NonRefrAmmoniaMinRate,                                        &
-                                      PartDecompRate,                                               &
-                                      NitrificationRateK1,                                          &
-                                      NitrificationRateK2)
-
-        call WWTPQNitrite        (index, NitrificationRateK1, NitrificationRateK2)
-                                                                                                            
-        call WWTPQNitrate        (index, NitrificationRateK2)
-
-        call WWTPQOrganicNitrogen(index, RefrAmmoniaMinRate,                                           &
-!                                     NonRefrAmmoniaMinRate,                                        &
-                                      PartDecompRate)
-
-    !------------------------------------------------------------------------
-    end subroutine WWTPQNitrogen
-
-
-    !----------------------------------------------------------------------------
-    !AMMONIA 
-    !
-    !SOURCES: - excretion by phytoplankton, diatoms and zooplankton;
-    !         - decomposition of particulate and dissolved organic matter.
-    !
-    !SINKS:   - uptake by phytoplankton and diatoms;
-    !         - nitrification.
-
-subroutine WWTPQAmmonia(index, RefrAmmoniaMinRate,                                     &
-!                           NonRefrAmmoniaMinRate,                                  &
-                            PartDecompRate,                                         &
-                            NitrificationRateK1,                                    &
-                            NitrificationRateK2)
-!The mineralization processes assume Phytoplankton N/C Ratio; 
-
-
-    !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-        real, intent(OUT) :: RefrAmmoniaMinRate
-!       real, intent(OUT) :: NonRefrAmmoniaMinRate
-        real, intent(OUT) :: PartDecompRate                         
-        real, intent(OUT) :: NitrificationRateK1                         
-        real, intent(OUT) :: NitrificationRateK2
-
-    !Local-------------------------------------------------------------------
-
-        integer :: AM
-        integer :: DONnr
-        integer :: DONr
-        integer :: PON
-        integer :: Phyto
-        integer :: Diatoms
-        integer :: O
-
-        real    :: DTDay
-
-        real    ::  x5                      = null_real
-        real    ::  x6                      = null_real
-        real    ::  x7                      = null_real 
-
-        real    :: OxygenSinkNitrificationRate     = null_real
-
-    !------------------------------------------------------------------------
-
-        Phyto    = Me%PropIndex%Phyto
-        Diatoms  = Me%PropIndex%Diatoms
-        AM       = Me%PropIndex%Ammonia
-        DONnr    = Me%PropIndex%DONNonRefractory
-        DONr     = Me%PropIndex%DissOrganicNitrogenRefractory
-        PON      = Me%PropIndex%PartOrganicNitrogen
-        O        = Me%PropIndex%Oxygen
-
-        DTDay    = Me%DTDay
-
-
-       
-    !NitrificationRate-------------------------------------------------------
-        
-        x5 = MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                                        &
-           /(Me%NitrificationSatConst + Me%ExternalVar%Mass(O, index))
-
-        NitrificationRateK1 = Me%KNitrificationRateK1 * Me%TNitrification                               &
-                         **(Me%ExternalVar%Temperature(index) - 20.0) * x5
-
-    
-        NitrificationRateK2 = Me%KNitrificationRateK2 * Me%TNitrification                           &
-                         **(Me%ExternalVar%Temperature(index) - 20.0) * x5
-                         
-                                            
-    !MineralizationRate-------------------------------------------------------
-
-cd2 :   if (Me%PropCalc%Phyto.and.(.not.Me%PropCalc%Diatoms)) then 
-
-cd3 :       if (.NOT.Me%PropCalc%Bacteria) then
-            
-                !DONnr MineralizationRate:NonRefrAmmoniaMinRate
-                x6 = Me%ExternalVar%Mass(Phyto, index)                                              & 
-                    / (Me%PhytoNutRegenerationSatConst + Me%ExternalVar%Mass(Phyto, index))
-
-                Me%NonRefrAmmoniaMinRate = Me%KNonRefrAmmoniaMinRate                                &
-                                         * Me%TNonRefrAmmoniaMin                                    &
-                                         **(Me%ExternalVar%Temperature(index) - 20.0) * x6
-            else cd3
-               Me%NonRefrAmmoniaMinRate = 0.0
-            end if cd3
-            
-            !DONre MineralizationRate: RefrAmmoniaMinRate
-            x7 = Me%ExternalVar%Mass(Phyto, index) / (Me%PhytoNutRegenerationSatConst               &
-               + Me%ExternalVar%Mass(Phyto, index))
-            
-            RefrAmmoniaMinRate = Me%KRefrAmmoniaMinRate * Me%TRefrAmmoniaMin                        &
-                               **(Me%ExternalVar%Temperature(index) - 20.0) * x7
-
-        elseif (Me%PropCalc%Phyto.and.Me%PropCalc%Diatoms) then cd2
-
-            if (.NOT.Me%PropCalc%Bacteria) then
-
-                !DONnr MineralizationRate:NonRefrAmmoniaMinRate
-                x6 = (Me%ExternalVar%Mass(Phyto, index)+ Me%ExternalVar%Mass(Diatoms, index))       & 
-                / (Me%PhytoNutRegenerationSatConst                                                  &
-                + (Me%ExternalVar%Mass(Phyto, index)+Me%ExternalVar%Mass(Diatoms, index)))
-
-                Me%NonRefrAmmoniaMinRate = Me%KNonRefrAmmoniaMinRate                                &
-                                      * Me%TNonRefrAmmoniaMin                                       &
-                                      **(Me%ExternalVar%Temperature(index) - 20.0) * x6
-            else 
-                Me%NonRefrAmmoniaMinRate = 0.0
-            end if 
-
-            !DONre MineralizationRate: RefrAmmoniaMinRate
-            x7 = (Me%ExternalVar%Mass(Phyto, index)+ Me%ExternalVar%Mass(Diatoms, index))           &
-                 / (Me%PhytoNutRegenerationSatConst                                                 &
-                 + (Me%ExternalVar%Mass(Phyto, index)+Me%ExternalVar%Mass(Diatoms, index)))
-
-            RefrAmmoniaMinRate = Me%KRefrAmmoniaMinRate                                             &
-                             * Me%TRefrAmmoniaMin                                                   &
-                             **(Me%ExternalVar%Temperature(index) - 20.0) * x7
-
-        elseif ((.NOT.Me%PropCalc%Phyto).and.(Me%PropCalc%Diatoms)) then  cd2
-
-            if (.NOT.Me%PropCalc%Bacteria) then
-
-            !DONnr MineralizationRate:NonRefrAmmoniaMinRate
-                x6 = Me%ExternalVar%Mass(Diatoms, index)                                            & 
-                    / (Me%PhytoNutRegenerationSatConst + Me%ExternalVar%Mass(Diatoms, index))
-
-                Me%NonRefrAmmoniaMinRate = Me%KNonRefrAmmoniaMinRate                                &
-                                         * Me%TNonRefrAmmoniaMin                                     &
-                                         **(Me%ExternalVar%Temperature(index) - 20.0) * x6
-            else 
-                Me%NonRefrAmmoniaMinRate = 0.0
-            end if 
-
-            !DONre MineralizationRate: RefrAmmoniaMinRate
-            x7 = Me%ExternalVar%Mass(Diatoms, index) / (Me%PhytoNutRegenerationSatConst             &
-                 + Me%ExternalVar%Mass(Diatoms, index))
-
-            RefrAmmoniaMinRate = Me%KRefrAmmoniaMinRate * Me%TRefrAmmoniaMin                        &
-                             **(Me%ExternalVar%Temperature(index) - 20.0) * x7  
-        
-        else cd2
-
-          Me%NonRefrAmmoniaMinRate = 0.0
-          RefrAmmoniaMinRate    = 0.0
- 
-        end if cd2
-       
-       !PON MineralizationRate: PartDecompRate (1/T)
-       !aqui_5 iste termo não deveria ser só quando não existem bacterias?sim
-       PartDecompRate  = Me%KPartDecompRate * Me%TPartDecomposition                                  &
-                      **(Me%ExternalVar%Temperature(index) - 20.0) 
-
-
-    !Oxygen Cycle
-    !Oxygen consumption due to nitrification: Ammonia-> Nitrate
-    ! NH4 + 1.5O2 -> NO2- +H2O + 2H+
-    ! NO2 + 0.5O2 -> NO3
-    ! 64/14 O/N
-
-    if (Me%PropCalc%Oxygen)  then  
-        
-        OxygenSinkNitrificationRate =  NitrificationRateK1 * Me%NitrificationK1_ON_ratio                   
-        !MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)
-    end if
-
-   !Calculation of system coeficients---------------------------------------
-
-       Me%Matrix(AM, AM   ) = 1.0 + NitrificationRateK1 * DTDay
-
-       if (.NOT.Me%PropCalc%Bacteria) then
-       
-           Me%Matrix(AM, DONnr) = - Me%NonRefrAmmoniaMinRate * DTDay
- 
-           Me%Matrix(AM, PON  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
-       
-       end if
-        
-       Me%Matrix(AM, DONr ) = - RefrAmmoniaMinRate    * DTDay
-       
-
-       if (Me%PropCalc%Oxygen) Me%Matrix(O, AM) = DTDay * OxygenSinkNitrificationRate 
-
-
-    !Independent term
-        Me%IndTerm(AM) = Me%ExternalVar%Mass(AM, index)
-
-    !------------------------------------------------------------------------
-
-end subroutine WWTPQAmmonia
-
-    !----------------------------------------------------------------------------
-
-    !----------------------------------------------------------------------------
-    !NITRITE 
-    !
-    !SOURCES: - nitrification step 1 (N-NH4-->N-NO2).
-    !
-    !SINKS:   - nitrification step 2 (N-NO2-->N-NO3).
-
-subroutine WWTPQNitrite(index, NitrificationRateK1, NitrificationRateK2)
-
-    !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-        real, intent(IN) :: NitrificationRateK1, NitrificationRateK2
-                                 
-
-    !Local-------------------------------------------------------------------
-
-        integer :: AM
-        integer :: NI
-        integer :: O
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
         
         real :: DTDay
-        
-        real    :: OxygenSinkNitrificationRateK2     = null_real
-
-    !------------------------------------------------------------------------
-
-        AM = Me%PropIndex%Ammonia
-        NI = Me%PropIndex%Nitrite
-        O  = Me%PropIndex%Oxygen
-        
-        DTDay   = Me%DTDay
-        
-    if (Me%PropCalc%Oxygen)  then  
-        
-        OxygenSinkNitrificationRateK2 =  NitrificationRateK2 * Me%NitrificationK2_ON_ratio                   
-        !MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)
-    end if
-    
-
-    !Calculation of system coeficients---------------------------------------
-        Me%Matrix(NI, NI) =   DTDay * (NitrificationRateK2) + 1.0 
-        
-        Me%Matrix(NI, AM) =   DTDay * (-NitrificationRateK1)
-        
-        if (Me%PropCalc%Oxygen) Me%Matrix(O, NI) = DTDay * OxygenSinkNitrificationRateK2 
-
-    !Independent term
-        Me%IndTerm(NI) = Me%ExternalVar%Mass(NI, index) 
-
-
-    !------------------------------------------------------------------------
-
-end subroutine WWTPQNitrite
-
-    !----------------------------------------------------------------------------
-
-
-
-
-
-
-
-    !----------------------------------------------------------------------------
-    !NITRATE 
-    !
-    !SOURCES: - nitrification step 2 (N-NO2-->N-NO3).
-    !
-    !SINKS:   - denitrification (N-NO3-->N2) under anaerobic conditions;
-    !         - phytoplankton uptake.
-
-subroutine WWTPQNitrate(index, NitrificationRateK2)
-
-    !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-        real, intent(IN) :: NitrificationRateK2                       
-
-    !Local-------------------------------------------------------------------
-
-        integer :: O
-        integer :: NA
-        integer :: NI
-        integer :: BOD
-
-        real    :: ODsourceDenitrificationRate   = null_real
-        real    :: DenitrificationRate           = null_real
-        real    :: DTDay
-        real    :: x1                            = null_real
-
-    !------------------------------------------------------------------------
-
-        O       = Me%PropIndex%Oxygen
-        NA      = Me%PropIndex%Nitrate
-        NI      = Me%PropIndex%Nitrite
-        BOD     = Me%PropIndex%BOD
-
-        DTDay     = Me%DTDay
-
-    !------------------------------------------------------------------------
-
-                         
-    !DenitrificationRate, denitrification rate
-        x1 = Me%DenitrificationSatConst / (Me%DenitrificationSatConst                               &
-                                         + MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen))
-
-        DenitrificationRate = Me%KDenitrificationRate * Me%TDenitrification                         &
-                            ** (Me%ExternalVar%Temperature(index) - 20.) * x1
-
-
-    !BOD not consumed due to anaerobic organic matter decomposition during Denitrification
-        !aqui_6 5/4 não percebi...acho que não existe libertação de O2 com a desnitrificação 
-        if (Me%PropCalc%Oxygen)                                                                     &
-            ODsourceDenitrificationRate = 5.0 / 4.0 * Me%NConsOxyNitRatio                           &
-                                                    * DenitrificationRate
-
-    !Calculation of system coeficients---------------------------------------
-        Me%Matrix(NA, NA) = 1. + DTDay * (DenitrificationRate)
-
-
-        Me%Matrix(NA, NI) = -DTDay * NitrificationRateK2
-
-        if (Me%PropCalc%Oxygen)                                                                     &
-            Me%Matrix(O, NA) = -DTDay * ODsourceDenitrificationRate   
-
-
-    !Independent term
-        Me%IndTerm(NA) = Me%ExternalVar%Mass(NA, index) 
-
-    !------------------------------------------------------------------------
-
-end subroutine WWTPQNitrate
-
-    !----------------------------------------------------------------------------
-
-    !----------------------------------------------------------------------------
-
-subroutine WWTPQOrganicNitrogen(index, RefrAmmoniaMinRate,                             &
-!                                   NonRefrAmmoniaMinRate,                          &
-                                    PartDecompRate)
-
-    !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-        real,    intent(IN) :: RefrAmmoniaMinRate 
-!       real,    intent(IN) :: NonRefrAmmoniaMinRate 
-        real,    intent(IN) :: PartDecompRate 
-
-    !------------------------------------------------------------------------
-
-        call WWTPQParticulateOrganicNitrogen (index, PartDecompRate)
-
-        call WWTPQDONRefractory   (index, RefrAmmoniaMinRate, PartDecompRate)
-
-        call WWTPQDONNonRefractory(index)
-        
-        
-
-    !------------------------------------------------------------------------
-
-end subroutine WWTPQOrganicNitrogen
-
-    !----------------------------------------------------------------------------
-
-
-
-
-
-
-
-    !----------------------------------------------------------------------------
-
-subroutine WWTPQParticulateOrganicNitrogen(index, PartDecompRate)
-!The mineralization processes assume Phytoplankton N/C Ratio if phyto and diatoms are considered; 
-
-    !Arguments---------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-        real,    intent(IN) :: PartDecompRate
-
-    !Local-------------------------------------------------------------------
-
-        integer :: PON, PONr, O
-
-        real    :: DTDay
-
-    !------------------------------------------------------------------------
-
-        PON      = Me%PropIndex%PartOrganicNitrogen
-        PONr     = Me%PropIndex%PartOrganicNitrogenRefractory
-        O        = Me%PropIndex%Oxygen
-        DTDay    = Me%DTDay
-   
-
-    !Calculation of system coeficients---------------------------------------
-
-        if (Me%PropCalc%Bacteria) then
-
-            Me%Matrix(PON, PON) = 1.0  
-            Me%Matrix(PONr, PONr) = 1.0  
-
-        else
-
-            Me%Matrix(PON, PON) = DTDay * PartDecompRate + 1.0 
-
-         !aqui_7
-         !CH2O+O2 -> CO2 + H2O
-         if (Me%PropCalc%Oxygen) then
-         
-                Me%Matrix(O, PON) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio * &
-                MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                         &
-                /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
-         endif
-        endif
-         !aqui_7
-
-    !Independent term
-        Me%IndTerm(PON) = Me%ExternalVar%Mass(PON, index) 
-
-
-        if (Me%PropCalc%Bacteria) then
-
-            Me%IndTerm(PONr) = Me%ExternalVar%Mass(PONr, index) 
-
-       end if
-    !------------------------------------------------------------------------
-
-end subroutine WWTPQParticulateOrganicNitrogen
-
-    !----------------------------------------------------------------------------
-
-
-
-
-
-
-    !----------------------------------------------------------------------------
-
-subroutine WWTPQDONNonRefractory(index)
  
-    !Arguments---------------------------------------------------------------
+!------------------------------------------------------------------------
+!State variables
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
 
-        integer, intent(IN) :: index
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
 
-    !External----------------------------------------------------------------
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
 
-!        real, intent(IN) :: NonRefrAmmoniaMinRate
-
-    !Local-------------------------------------------------------------------
-
-        integer :: DONnr, O
-
-        real    :: DTDay
-
-    !------------------------------------------------------------------------
-
-        DONnr = Me%PropIndex%DONNonRefractory
-        O     = Me%PropIndex%Oxygen
-        DTDay = Me%DTDay
-
-
-
-    !Calculation of system coeficients---------------------------------------
-
-cd1 :   if (Me%PropCalc%Bacteria) then
-        
-            Me%Matrix(DONnr, DONnr) = 1.0  
-        
-        else
-           
-            Me%Matrix(DONnr, DONnr) = 1.0  + DTDay * Me%NonRefrAmmoniaMinRate
-        
-            if (Me%PropCalc%Oxygen)  then                                                               
+        DTDay                          = Me%DTDay
               
-                    Me%Matrix(O, DONnr) = DTDay * Me%NonRefrAmmoniaMinRate                          &
-                                        * 1/Me%OMAlfaNC * Me%OxyCarbonRatio                         &
-                                        * MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)           &
-                                        / (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)                
-            endif
-        endif cd1
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(PartInertOrgMar, PartInertOrgMar) = 1.0
+       
+ !Independent term
+        Me%IndTerm(PartInertOrgMar) = Me%ExternalVar%Mass(PartInertOrgMar, index)
 
+ !------------------------------------------------------------------------
 
-    !Independent term
-        Me%IndTerm(DONnr) = Me%ExternalVar%Mass(DONnr, index)
+    end subroutine WWTPQPartInertOrgMar 
 
-    !------------------------------------------------------------------------
-
-end subroutine WWTPQDONNonRefractory
-
-    !----------------------------------------------------------------------------
-
-
-
-
-
-
-    !----------------------------------------------------------------------------
-
-subroutine WWTPQDONRefractory(index, RefrAmmoniaMinRate, PartDecompRate)
+    subroutine WWTPQSlowlyBioSub (index)
+    
+    !Subroutine to calculate the propriety SlowlyBioSub
 
     !Arguments---------------------------------------------------------------
 
         integer, intent(IN) :: index
 
-        real, intent(IN) :: RefrAmmoniaMinRate, PartDecompRate
-
     !Local-------------------------------------------------------------------
-
-        integer :: DONre
-        integer :: PON
-        integer :: O
-        real    :: DTDay
-
-    !------------------------------------------------------------------------
-
-        DONre     = Me%PropIndex%DissOrganicNitrogenRefractory
-        PON     = Me%PropIndex%PartOrganicNitrogen
-          O     = Me%PropIndex%Oxygen
-        DTDay   = Me%DTDay
-
-
-
-
-    !Calculation of system coeficients---------------------------------------
-        Me%Matrix(DONre, DONre) = 1.0 + DTDay * RefrAmmoniaMinRate
-
-        Me%Matrix(DONre, PON) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-
-        if (Me%PropCalc%Oxygen) then
-            
-                Me%Matrix(O, DONre) = DTDay * RefrAmmoniaMinRate                                    &
-                                  * 1/Me%OMAlfaNC * Me%OxyCarbonRatio                               &
-                                  * MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                 &
-                                  / (MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
-        endif
-
-    !Independent term
-        Me%IndTerm(DONre) = Me%ExternalVar%Mass(DONre, index) 
-
-    !------------------------------------------------------------------------
-
-end subroutine WWTPQDONRefractory
-
-    !----------------------------------------------------------------------------
-
-
-
     
-    
-    
-    !--------------------------------------------------------------------------
+    !State variables
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
 
-subroutine WWTPQPhosphorus(index)
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
 
-    !Arguments-------------------------------------------------------------
-
-        integer, intent(IN) :: index
-
-    !External--------------------------------------------------------------
-        real                :: POPDecompRate
-        real                :: PhosphorusDOPrMinRate
-        real                :: PhosphorusDOPnrMinRate
-
-    !----------------------------------------------------------------------
-
-        call WWTPQInorganicPhosphorus(index, POPDecompRate,                            &
-                                   PhosphorusDOPrMinRate, PhosphorusDOPnrMinRate)
-        call WWTPQOrganicPhosphorus  (index, POPDecompRate,                            &
-                                   PhosphorusDOPrMinRate, PhosphorusDOPnrMinRate)
-
-    !----------------------------------------------------------------------
-
-end subroutine WWTPQPhosphorus
-
-    !--------------------------------------------------------------------------
-
-
-
-
-
-    !----------------------------------------------------------------------------
-    !INORGANIC PHOSPHORUS 
-    !
-    !SOURCES: - excretion by phytoplankton and zooplankton;
-    !         - decomposition of particulate and dissolved organic matter.
-    !
-    !SINKS:   - uptake by phytoplankton.
-
-    subroutine WWTPQInorganicPhosphorus(index, POPDecompRate,                          &
-                                     PhosphorusDOPrMinRate, PhosphorusDOPnrMinRate)
-
-    !Arguments---------------------------------------------------------------
-        real, intent(OUT)                           :: POPDecompRate
-        real, intent(OUT)                           :: PhosphorusDOPrMinRate
-        real, intent(OUT)                           :: PhosphorusDOPnrMinRate
-        integer, intent(IN)                         :: index
-
-        
-
-    !Local-------------------------------------------------------------------
-
-        integer :: Zoo
-        integer :: Phyto
-        integer :: Diatoms
-        integer :: IP
-        integer :: POP
-        integer :: DOPnr
-        integer :: DOPr
-
-        real    :: DTDay
-        real    :: x1
-
-    !------------------------------------------------------------------------
-
-
-
-        Zoo       = Me%PropIndex%Zoo  
-        Phyto     = Me%PropIndex%Phyto
-        Diatoms   = Me%PropIndex%Diatoms
-        IP        = Me%PropIndex%InorganicPhosphorus
-        POP       = Me%PropIndex%PartOrganicPhosphorus
-        DOPnr     = Me%PropIndex%DOPNonRefractory
-        DOPr      = Me%PropIndex%DissOrganicPhosphorusRefractory
-
-        DTDay     = Me%DTDay
-
-  
-
-    !PhosphorusMineralizationRate, rate of Phosphorus mineralizationRate
-  
-cd4:    if (Me%PropCalc%Phyto) then
-            
-            if (Me%PropCalc%Diatoms) then
-        
-                x1 = (Me%ExternalVar%Mass(Phyto, index)+ Me%ExternalVar%Mass(Diatoms, index))       &
-                    /(Me%PhytoNutRegenerationSatConst + (Me%ExternalVar%Mass(Phyto, index)          &
-                    +Me%ExternalVar%Mass(Diatoms, index)))
-       
-            else
-        
-                x1 = Me%ExternalVar%Mass(Phyto, index)                                              &
-                   / (Me%PhytoNutRegenerationSatConst + Me%ExternalVar%Mass(Phyto, index))
-
-            endif
-
-        else 
-        
-            if (Me%PropCalc%Diatoms) then 
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
  
-                x1 = Me%ExternalVar%Mass(Diatoms, index)                                            &
-                   / (Me%PhytoNutRegenerationSatConst + Me%ExternalVar%Mass(Diatoms, index))
-            endif
-        endif cd4
-            
-        !Non refractary phosphorus
-        PhosphorusDOPnrMinRate       = Me%KDOPnrMinRate                                             &
-                                     * Me%TDOPnrMin                                                 &
-                                     **(Me%ExternalVar%Temperature(index) - 20.0) * x1
-        !Refractary phosphorus !aqui_8        
-        PhosphorusDOPrMinRate        = Me%KDOPrMinRate                                              &
-                                     * Me%TDOPrMin                                                  &
-                                     **(Me%ExternalVar%Temperature(index) - 20.0) * x1
-
-        POPDecompRate = Me%POPDecompRate * Me%TPOPDecompRate                                        &
-                    **(Me%ExternalVar%Temperature(index) - 20.0)
-
-    
-    !Calculation of system coeficients---------------------------------------
-
+        real :: DTDay
+        real :: SlowlyBioSubRateHetBio             = null_real
+        real :: SlowlyBioSubRateAutBio             = null_real
         
+        real :: SlowlyBioSubRateHetBioDecay        = null_real
+        real :: SlowlyBioSubRateHetBioHydrolysis   = null_real
+        real :: SlowlyBioSubRateAutBioDecay        = null_real
 
-        Me%Matrix(IP, POP)   = - DTDay * POPDecompRate * Me%PhytoAvaibleDecomp
+!------------------------------------------------------------------------
+
+!State variables
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
+
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
+
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
+
+        DTDay                          = Me%DTDay
+
+
+!SlowlyBioSubRateHetBio, SlowlyBioSub Rate in function of HetBio, D-1
+
+        SlowlyBioSubRateHetBioDecay = (1-FracBioPartProd)*DecayCoefHetBio  
+           
+           if (Me%ExternalVar%Mass(HetBio, index) == 0) then
+           
+           SlowlyBioSubRateHetBioHydrolysis=0
+           
+           else
+           
+        SlowlyBioSubRateHetBioHydrolysis = -MaxSpecHydroRate*((Me%ExternalVar%Mass(SlowlyBioSub, index)                  &
+        /Me%ExternalVar%Mass(HetBio, index))/                                                                            &
+           (HalfSatCoefHydroSlowlyBioSub+Me%ExternalVar%Mass(SlowlyBioSub, index)/Me%ExternalVar%Mass(HetBio, index)))   &
+           *((Me%ExternalVar%Mass(Oxygen, index)/(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))             &
+           +CorFacAnoxCond*(OxygHalfSatCoefHetBio                                                                        &
+           /(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))                                                  &
+           *(Me%ExternalVar%Mass(Nitrate, index)/(NitHalfSatCoefDenHetBio+Me%ExternalVar%Mass(Nitrate, index))))
+
+          end if
+
+           SlowlyBioSubRateHetBio = SlowlyBioSubRateHetBioDecay + SlowlyBioSubRateHetBioHydrolysis
+           
+
+!SlowlyBioSubRateAutBio, SlowlyBioSub Rate in function of AutBio, D-1   
         
-        Me%Matrix(IP, DOPnr) = - DTDay * PhosphorusDOPnrMinRate
-
-        Me%Matrix(IP, DOPr)  = - DTDay * PhosphorusDOPrMinRate
-
-
-        !Independent term
-        Me%IndTerm(IP) = Me%ExternalVar%Mass(IP, index)
- 
- 
-
-    !------------------------------------------------------------------------
-
-end subroutine WWTPQInorganicPhosphorus
-
-    !----------------------------------------------------------------------------
-
-
-
-
-
-
-    !----------------------------------------------------------------------------
-    !ORGANIC PHOSPHORUS 
-    !
-    !SOURCES: - excretion by phytoplankto, diatoms and zooplankton;
-    !         - decomposition of particulate and dissolved organic matter.
-    !
-    !SINKS:   - mineralization.
-
-    subroutine WWTPQOrganicPhosphorus(index, POPDecompRate,                                            &
-                                   PhosphorusDOPrMinRate, PhosphorusDOPnrMinRate)
-
-        !Arguments---------------------------------------------------------------
-        integer, intent(IN)                         :: index
-        real, intent(IN)                            :: POPDecompRate
-        real, intent(IN)                            :: PhosphorusDOPrMinRate
-        real, intent(IN)                            :: PhosphorusDOPnrMinRate
-
-        !Local-------------------------------------------------------------------
-        integer :: POP
-        integer :: DOPnr
-        integer :: DOPr
-        integer :: IP
-        integer :: O
-        real    :: DTDay
-
-        !------------------------------------------------------------------------
-
-        IP      = Me%PropIndex%InorganicPhosphorus
-        O       = Me%PropIndex%Oxygen
-        DTDay   = Me%DTDay
-        POP     = Me%PropIndex%PartOrganicPhosphorus
-        DOPnr   = Me%PropIndex%DOPNonRefractory
-        DOPr    = Me%PropIndex%DissOrganicPhosphorusRefractory
-
-
-        !Calculation of system coeficients for POP---------------------------------------
-        Me%Matrix(POP, POP) = DTDay * POPDecompRate + 1.0 
-
-         if (Me%PropCalc%Oxygen)     then
-
-
-                Me%Matrix(O, POP) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
-                                   MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
-                                   /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
-        endif
-
-        !Calculation of system coeficients for DOPnr---------------------------------------       
-        Me%Matrix(DOPnr, DOPnr) = 1.0  + DTDay * PhosphorusDOPnrMinRate
-
-        if (Me%PropCalc%Oxygen)     then
-
-                Me%Matrix(O, DOPnr) = DTDay * PhosphorusDOPnrMinRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio * &
-                                   MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                 &
-                                   /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
-        endif
-
-        !Calculation of system coeficients for DOPr---------------------------------------
-        Me%Matrix(DOPr, DOPr) = 1.0 + DTDay * PhosphorusDOPrMinRate
-
-        Me%Matrix(DOPr, POP) =-DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-       
-        if (Me%PropCalc%Oxygen)     then
-
-                Me%Matrix(O, DOPr) = DTDay * PhosphorusDOPrMinRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
-                                   MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                 &
-                                   /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
-        endif
-
-    !Independent term
-        Me%IndTerm(DOPr) = Me%ExternalVar%Mass(DOPr, index) 
-
-    !Independent term
-        Me%IndTerm(DOPnr) = Me%ExternalVar%Mass(DOPnr, index)
-    
-    !Independent term
-        Me%IndTerm(POP) = Me%ExternalVar%Mass(POP, index) 
-
-    !------------------------------------------------------------------------
-
-    end subroutine WWTPQOrganicPhosphorus
-    
-    
-!------------------------------------------------------------------------    
-    
-    
-    subroutine WWTPQPompools(index)                             ! by M Mateus @ MARETEC oct_2009
-
-        !Arguments---------------------------------------------------------------
-        integer, intent(IN) :: index
-
-        !Local-----------------------------------------------------------------
-        integer                             :: AM
-        integer                             :: IP
-        integer                             :: PON1, PON2, PON3, PON4, PON5
-        integer                             :: POP1, POP2, POP3, POP4, POP5
-        integer                             :: DOPr, DONre
-        integer                             :: Zoo
-        integer                             :: O
-
-        real                                :: DTDay
-        real                                :: PONIngestPot, PONIngest
-        real                                :: POPIngestPot, POPIngest
-        
-
-        !External--------------------------------------------------------------
-        real                :: POPDecompRate
-        real                :: PartDecompRate
-
-        !------------------------------------------------------------------------
-
-        IP      = Me%PropIndex%InorganicPhosphorus
-        AM      = Me%PropIndex%Ammonia
-        Zoo     = Me%PropIndex%Zoo
-        O       = Me%PropIndex%Oxygen
-        DOPr    = Me%PropIndex%DissOrganicPhosphorusRefractory
-        DONre   = Me%PropIndex%DissOrganicNitrogenRefractory 
-        
-        DTDay   = Me%DTDay
-        
-        PONIngestPot       = null_real
-        PONIngest          = null_real
-        POPIngestPot       = null_real
-        POPIngest          = null_real
-        
-        
-        if (Me%PropCalc%Nitrogen) then
-        
-            PON1    = Me%PropIndex%PONitrogen1
-            PON2    = Me%PropIndex%PONitrogen2
-            PON3    = Me%PropIndex%PONitrogen3
-            PON4    = Me%PropIndex%PONitrogen4
-            PON5    = Me%PropIndex%PONitrogen5
-        
-        end if
-        
-        if (Me%PropCalc%Phosphorus) then
-        
-            POP1    = Me%PropIndex%POPhosphorus1
-            POP2    = Me%PropIndex%POPhosphorus2
-            POP3    = Me%PropIndex%POPhosphorus3
-            POP4    = Me%PropIndex%POPhosphorus4
-            POP5    = Me%PropIndex%POPhosphorus5
-        
-        end if
-                
-        !----------------------------------------------------------------------
-    
-    !Calculation of system coeficients for POM pools------------------------------
-        
-        if (Me%PropCalc%Nitrogen) then
-        
-        PartDecompRate  = Me%KPartDecompRate * Me%TPartDecomposition                                  &
-                      **(Me%ExternalVar%Temperature(index) - 20.0)
+           SlowlyBioSubRateAutBioDecay=(1-FracBioPartProd)*DecayCoefAutBio
                    
-        PONIngestPot = Me%TZooLimitationFactor * Me%POMIngestVmax *                                   &
-                      (Me%ExternalVar%Mass(PON1, index) / (Me%ExternalVar%Mass(PON1, index) + Me%PONIngestKs))
-                     
-        PONIngest    = MIN(PONIngestPot * Me%ExternalVar%Mass(Zoo, index),                            &
-                       Me%ExternalVar%Mass(PON1, index) / DTDay)  
-       
-       
-            Me%Matrix(PON1, PON1) =  DTDay * (PartDecompRate + PONIngest) + 1.0
-            Me%Matrix(PON2, PON2) =  DTDay * PartDecompRate + 1.0
-            Me%Matrix(PON3, PON3) =  DTDay * PartDecompRate + 1.0
-            Me%Matrix(PON4, PON4) =  DTDay * PartDecompRate + 1.0
-            Me%Matrix(PON5, PON5) =  DTDay * PartDecompRate + 1.0              
-                                    
-            
-    !Calculation of system coeficients---------------------------------------
-            
-            Me%Matrix(O, PON1) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio *     &
-                                 MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
-                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
-            Me%Matrix(O, PON2) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio *     &
-                                 MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
-                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
-            Me%Matrix(O, PON3) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio *     &
-                                 MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
-                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
-            Me%Matrix(O, PON4) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio *     &
-                                 MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
-                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
-            Me%Matrix(O, PON5) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio *     &
-                                 MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
-                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
-            
-            Me%Matrix(AM, PON1  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
-            
-            Me%Matrix(AM, PON2  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
-            
-            Me%Matrix(AM, PON3  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
-            
-            Me%Matrix(AM, PON4  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
+           SlowlyBioSubRateAutBio = SlowlyBioSubRateAutBioDecay
+                   
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(SlowlyBioSub, HetBio) = DTDay * (-SlowlyBioSubRateHetBio) 
+         Me%Matrix(SlowlyBioSub, AutBio) = DTDay * (-SlowlyBioSubRateAutBio) 
+         Me%Matrix(SlowlyBioSub, SlowlyBioSub) = 1.0
+
+ !Independent term
+        Me%IndTerm(SlowlyBioSub) = Me%ExternalVar%Mass(SlowlyBioSub, index)
+   
+ !------------------------------------------------------------------------    
+     
+    end subroutine WWTPQSlowlyBioSub
+
+    subroutine WWTPQHetBio (index)
+          
+!Subroutine to calculate HetBio
+
+    !Arguments---------------------------------------------------------------
+
+        integer, intent(IN) :: index
+
+    !Local-------------------------------------------------------------------
+
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
+
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
+
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
+        
+        real :: DTDay
+        real :: HetBioRateHetBio               = null_real
+        
+        real :: HetBioRateHetBioAerGrowth      = null_real
+        real :: HetBioRateHetBioAnoGrowth      = null_real
+        real :: HetBioRateHetBioDecay          = null_real
+
+     !------------------------------------------------------------------------
+
+!State variables
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
+
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
+
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
+
+        DTDay                          = Me%DTDay
+
+!HetBioRateHetBio, HetBio Rate in function of HetBio, D-1
+
+        HetBioRateHetBioAerGrowth=MaxSpecGrowthRateHetBio*(Me%ExternalVar%Mass(ReadilyBioSub, index)    &
+           /(HalfSatCoefHetBio+Me%ExternalVar%Mass(ReadilyBioSub, index)))                              &
+           *(Me%ExternalVar%Mass(Oxygen, index)                                                         &
+           /(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index))) 
+   
+  
+        HetBioRateHetBioAnoGrowth=MaxSpecGrowthRateHetBio*(Me%ExternalVar%Mass(ReadilyBioSub, index)    & 
+           /(HalfSatCoefHetBio+                                                                         &
+           Me%ExternalVar%Mass(ReadilyBioSub, index)))*(OxygHalfSatCoefHetBio                           &
+           /(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))                                 &
+           *(Me%ExternalVar%Mass(Nitrate, index)                                                        &
+           /(NitHalfSatCoefDenHetBio+Me%ExternalVar%Mass(Nitrate, index)))*CorFacAnoxGrowthHetBio
+
+                   
+        HetBioRateHetBioDecay= -DecayCoefHetBio      
+
+
+        HetBioRateHetBio =HetBioRateHetBioAerGrowth+HetBioRateHetBioAnoGrowth                           &
+           +HetBioRateHetBioDecay                                   
+                
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(HetBio,HetBio ) = DTDay * (-HetBioRateHetBio) + 1.0
+
+ !Independent term
+         Me%IndTerm(HetBio) = Me%ExternalVar%Mass(HetBio, index)
+    
+ !------------------------------------------------------------------------    
+
+    end subroutine WWTPQHetBio
+   
+   subroutine WWTPQAutBio (index)
+    
+    !Subroutine to calculate the propriety AutBio
+
+    !Arguments---------------------------------------------------------------
+
+        integer, intent(IN) :: index
+
+    !Local-------------------------------------------------------------------
+
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
+        
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
+
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
+ 
+        real :: DTDay
+        real :: AutBioRateAutBio             = null_real
+        
+        real :: AutBioRateAutBioAerGrowth    = null_real
+        real :: AutBioRateAutBioDecay        = null_real
+        
+  
+!------------------------------------------------------------------------
+!State variables 
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
+
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
+
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
+
+        DTDay                          = Me%DTDay
+
+!AutBioRateAutBio, AutBioRateAutBio in function of AutBio, D-1
+
+         AutBioRateAutBioAerGrowth= MaxSpecGrowthRateAutBio*(Me%ExternalVar%Mass(Ammonia, index)   &
+           /(AmmoniaHalfSatCoefAutBio+Me%ExternalVar%Mass(Ammonia, index)))  &
+           *(Me%ExternalVar%Mass(Oxygen, index)/(OxyHalfSatCoefAutBio     &
+           +Me%ExternalVar%Mass(Oxygen, index)))
            
-            Me%Matrix(AM, PON5  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
-            
-            
-            Me%Matrix(DONre, PON1) = -DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-            
-            Me%Matrix(DONre, PON2) = -DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-            
-            Me%Matrix(DONre, PON3) = -DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-            
-            Me%Matrix(DONre, PON4) = -DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-            
-            Me%Matrix(DONre, PON5) = -DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-            
-            
-            Me%Matrix(Zoo, PON1) = -DTDay * (PONIngest * Me%PON_CNratio)
-            
-            
-            !Independent term
-            Me%IndTerm(PON1) = Me%ExternalVar%Mass(PON1, index)
-            Me%IndTerm(PON2) = Me%ExternalVar%Mass(PON2, index)
-            Me%IndTerm(PON3) = Me%ExternalVar%Mass(PON3, index)
-            Me%IndTerm(PON4) = Me%ExternalVar%Mass(PON4, index)
-            Me%IndTerm(PON5) = Me%ExternalVar%Mass(PON5, index)
-        
-        end if
-        
+        AutBioRateAutBioDecay=-DecayCoefAutBio  
+
+        AutBioRateAutBio = AutBioRateAutBioAerGrowth+AutBioRateAutBioDecay                            
            
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(AutBio,AutBio) = DTDay * (-AutBioRateAutBio) + 1.0
+
+ !Independent term
+         Me%IndTerm(AutBio) = Me%ExternalVar%Mass(AutBio, index)
+
+ !------------------------------------------------------------------------ 
+
+    end subroutine WWTPQAutBio
+
+   subroutine WWTPQPartProd (index)
+  
+     !Subroutine to calculate the propriety PartProd
+
+    !Arguments---------------------------------------------------------------
+
+        integer, intent(IN) :: index
+
+    !Local-------------------------------------------------------------------
+    
+    !State variables
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
+
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
+
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
+ 
+        real    :: DTDay
+        real    :: PartProdRateHetBio      = null_real
+        real    :: PartProdRateAutBio      = null_real
         
+        real    :: PartProdRateHetBioDecay      = null_real
+        real    :: PartProdRateAutBioDecay      = null_real
         
-        if (Me%PropCalc%Phosphorus) then
-                        
-            !Calculation of system coeficients for POM pools------------------------------
-                       
-            POPDecompRate = Me%POPDecompRate * Me%TPOPDecompRate                                        &
-                    **(Me%ExternalVar%Temperature(index) - 20.0)
+!------------------------------------------------------------------------
+
+!State variables
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
+
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
+
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
+
+        DTDay                          = Me%DTDay
+
+
+!PartProdRateHetBio, PartProd Rate in function of HetBio, D-1
+
+           PartProdRateHetBioDecay=FracBioPartProd*DecayCoefHetBio
+   
+           PartProdRateHetBio = PartProdRateHetBioDecay
+
+!PartProdRateAutBio, PartProd Rate in function of AutBio, D-1   
+                
+           PartProdRateAutBioDecay = FracBioPartProd*DecayCoefAutBio
+                
+           PartProdRateAutBio = PartProdRateAutBioDecay 
+           
+  !Calculation of system coeficients---------------------------------------
+         Me%Matrix(PartProd, HetBio) = DTDay * (-PartProdRateHetBio) 
+         Me%Matrix(PartProd, AutBio) = DTDay * (-PartProdRateAutBio) 
+         Me%Matrix(PartProd, PartProd) = 1.0
+
+ !Independent term
+        Me%IndTerm(PartProd) = Me%ExternalVar%Mass(PartProd, index)
+
+ !------------------------------------------------------------------------ 
+
+    end subroutine WWTPQPartProd
+
+  subroutine WWTPQOxygen (index)
+     
+    !Subroutine to calculate the propriety Oxygen
+
+    !Arguments---------------------------------------------------------------
+
+        integer, intent(IN) :: index
+
+    !Local-------------------------------------------------------------------
+    
+    !State variables
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
+
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
+
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
+ 
+        real :: DTDay
+        real :: OxygenRateHetBio               = null_real
+        real :: OxygenRateAutBio               = null_real
+        real :: OxygenRateHetBioAerGrowth      = null_real
+        real :: OxygenRateAutBioAerGrowth      = null_real
+
+!------------------------------------------------------------------------
+
+!State variables
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
+
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
+
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
+
+        DTDay                          = Me%DTDay
+
+
+!OxygenRateHetBio, Oxygen Rate in fucntion of HetBio, D-1
+
+        OxygenRateHetBioAerGrowth=-((1-HetBioYield)/HetBioYield)                                                            &
+                   *MaxSpecGrowthRateHetBio*                                                                                &
+           (Me%ExternalVar%Mass(ReadilyBioSub, index)/(HalfSatCoefHetBio+Me%ExternalVar%Mass(ReadilyBioSub, index)))        &
+           *(Me%ExternalVar%Mass(Oxygen, index)/(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index))) 
+       
+           OxygenRateHetBio = OxygenRateHetBioAerGrowth        
+          
+!OxygenRateAutBio, Oxygen Rate in function of AutBio, D-1  
+           
+        OxygenRateAutBioAerGrowth      = -((4.57-AutoBioYield)/AutoBioYield)*MaxSpecGrowthRateAutBio*                       &
+           (Me%ExternalVar%Mass(Ammonia, index)/(AmmoniaHalfSatCoefAutBio+Me%ExternalVar%Mass(Ammonia, index)))             &
+           *(Me%ExternalVar%Mass(Oxygen, index)/(OxyHalfSatCoefAutBio+Me%ExternalVar%Mass(Oxygen, index)))
+           
+           OxygenRateAutBio =  OxygenRateAutBioAerGrowth 
+           
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(Oxygen, HetBio) = DTDay * (-OxygenRateHetBio) 
+         Me%Matrix(Oxygen, AutBio) = DTDay * (-OxygenRateAutBio)
+         Me%Matrix(Oxygen, Oxygen) = 1.0 
+
+ !Independent term
+        Me%IndTerm(Oxygen) = Me%ExternalVar%Mass(Oxygen, index)
+
+ !------------------------------------------------------------------------ 
+
+    end subroutine WWTPQOxygen
+
+subroutine WWTPQNitrate (index)
+      
+    !Subroutine to calculate the propriety Nitrate
+
+    !Arguments---------------------------------------------------------------
+
+        integer, intent(IN) :: index
+
+    !Local-------------------------------------------------------------------
+    
+    !State variables
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
+
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
+
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
+ 
+        real    :: DTDay
+        real    :: NitrateRateHetBio      = null_real
+        real    :: NitrateRateAutBio      = null_real
+        
+        real    :: NitrateRateHetBioAnoGrowth      = null_real
+        real    :: NitrateRateAutBioAerGrowth      = null_real
+
+!------------------------------------------------------------------------
+
+!State variables     
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
+
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
+
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
+
+        DTDay                          = Me%DTDay
+
+!NitrateRateHetBio, Nitrate Rate in realtion of HetBio, units
+      
+         NitrateRateHetBioAnoGrowth      = -((1.-HetBioYield)/(2.86*HetBioYield))*MaxSpecGrowthRateHetBio*              &
+          (Me%ExternalVar%Mass(ReadilyBioSub, index)                                                                    &
+           /(HalfSatCoefHetBio+Me%ExternalVar%Mass(ReadilyBioSub, index)))*(OxygHalfSatCoefHetBio                       &
+           /(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))                                                 &
+           *(Me%ExternalVar%Mass(Nitrate, index)/(NitHalfSatCoefDenHetBio+Me%ExternalVar%Mass(Nitrate, index)))         &
+           *CorFacAnoxGrowthHetBio  
+           
+           NitrateRateHetBio = NitrateRateHetBioAnoGrowth  
+
+!NitrateRateAutBio, Nitrate Rate in realtion of AutBio, units   
+           
+         NitrateRateAutBioAerGrowth = (1./AutoBioYield)*MaxSpecGrowthRateAutBio*(Me%ExternalVar%Mass(Ammonia, index)   &
+           /(AmmoniaHalfSatCoefAutBio+Me%ExternalVar%Mass(Ammonia, index)))                                             &
+           *(Me%ExternalVar%Mass(Oxygen, index)/(OxyHalfSatCoefAutBio                                                   &
+           +Me%ExternalVar%Mass(Oxygen, index)))
+           
+           NitrateRateAutBio = NitrateRateAutBioAerGrowth  
+ 
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(Nitrate, HetBio) = DTDay * (-NitrateRateHetBio) 
+         Me%Matrix(Nitrate, AutBio) = DTDay * (-NitrateRateAutBio)
+         Me%Matrix(Nitrate, Nitrate) = 1.0 
+
+ !Independent term
+        Me%IndTerm(Nitrate) = Me%ExternalVar%Mass(Nitrate, index)
+
+ !------------------------------------------------------------------------
+ 
+    end subroutine WWTPQNitrate
+
+    subroutine WWTPQAmmonia (index)
+  
+        !Subroutine to calculate the propriety Ammonia
+
+    !Arguments---------------------------------------------------------------
+
+        integer, intent(IN) :: index
+
+    !Local-------------------------------------------------------------------
+    
+    !State variables
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
+
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
+
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
+ 
+        real :: DTDay
+        real :: AmmoniaRateHetBio                 = null_real
+        real :: AmmoniaRateAutBio                 = null_real
+        
+        real :: AmmoniaRateHetBioAerGrowth        = null_real
+        real :: AmmoniaRateHetBioAnoGrowth        = null_real
+        real :: AmmoniaRateHetBioAmmonification   = null_real
+        
+        real :: AmmoniaRateAutBioAerGrowth        = null_real
+        
+!------------------------------------------------------------------------
+
+!State variables
+       
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
+
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
+
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
+
+        DTDay                          = Me%DTDay
+
+!AmmoniaRateHetBio, Ammonia Rate in function of HetBio, D-1
+
+           AmmoniaRateHetBioAerGrowth =-NCODBioMassRatio*MaxSpecGrowthRateHetBio*                                         &
+           (Me%ExternalVar%Mass(ReadilyBioSub, index)/(HalfSatCoefHetBio+Me%ExternalVar%Mass(ReadilyBioSub, index)))      &
+           *(Me%ExternalVar%Mass(Oxygen, index)/(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))   
+       
+        AmmoniaRateHetBioAnoGrowth = -NCODBioMassRatio*MaxSpecGrowthRateHetBio*                                        &
+           (Me%ExternalVar%Mass(ReadilyBioSub, index)/(HalfSatCoefHetBio+Me%ExternalVar%Mass(ReadilyBioSub, index)))      &
+           *(OxygHalfSatCoefHetBio/(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))               &
+           *(Me%ExternalVar%Mass(Nitrate, index)                                                                          &
+           /(NitHalfSatCoefDenHetBio+Me%ExternalVar%Mass(Nitrate, index)))*CorFacAnoxGrowthHetBio
+           
+           AmmoniaRateHetBioAmmonification      = AmmonifRate*Me%ExternalVar%Mass(SolBioOrgNitrogen, index)
+
+           AmmoniaRateHetBio = AmmoniaRateHetBioAerGrowth +AmmoniaRateHetBioAnoGrowth  +AmmoniaRateHetBioAmmonification
+            
+
+!AmmoniaRateAutBio, Ammonia Rate in function of AutBio, D-1 
+           
+           AmmoniaRateAutBioAerGrowth      = -(NCODBioMassRatio+(1./AutoBioYield))*MaxSpecGrowthRateAutBio*               &
+           (Me%ExternalVar%Mass(Ammonia, index)/(AmmoniaHalfSatCoefAutBio+Me%ExternalVar%Mass(Ammonia, index)))           &
+           *(Me%ExternalVar%Mass(Oxygen, index)/(OxyHalfSatCoefAutBio+Me%ExternalVar%Mass(Oxygen, index)))
+           
+           
+           AmmoniaRateAutBio =  AmmoniaRateAutBioAerGrowth 
+         
+ 
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(Ammonia, HetBio) = DTDay * (-AmmoniaRateHetBio) 
+         Me%Matrix(Ammonia, AutBio) = DTDay * (-AmmoniaRateAutBio) 
+         Me%Matrix(Ammonia, Ammonia) = 1.0
+
+ !Independent term
+        Me%IndTerm(Ammonia) = Me%ExternalVar%Mass(Ammonia, index)
+
+ !------------------------------------------------------------------------
+ 
+    end subroutine WWTPQAmmonia
+
+    subroutine WWTPQSolBioOrgNitrogen (index)
+      
+    !Subroutine to calculate the propriety SolBioOrgNitrogen
+
+    !Arguments---------------------------------------------------------------
+
+        integer, intent(IN) :: index
+
+    !Local-------------------------------------------------------------------
+    
+    !State variables
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
+
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
+
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
+ 
+        real    :: DTDay
+        real    :: SolBioOrgNitrogenRateHetBio                    = null_real
+        
+        real    :: SolBioOrgNitrogenRateHetBioAmmonification      = null_real
+        real    :: SolBioOrgNitrogenRateHetBioHydrolysis          = null_real
+
+!------------------------------------------------------------------------
+
+!State variables
+       
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
+
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
+
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
+
+        DTDay                          = Me%DTDay
+
+
+!SolBioOrgNitrogenRateHetBio, SolBioOrgNitrogen Rate in function of HetBio, D-1
+
+   SolBioOrgNitrogenRateHetBioAmmonification = -AmmonifRate*Me%ExternalVar%Mass(SolBioOrgNitrogen, index)
+ 
+      if (Me%ExternalVar%Mass(HetBio, index) == 0) then
+   
+   SolBioOrgNitrogenRateHetBioHydrolysis=0
+   
+   else
+     
+       SolBioOrgNitrogenRateHetBioHydrolysis= MaxSpecHydroRate*((Me%ExternalVar%Mass(SlowlyBioSub, index)                   &
+            /Me%ExternalVar%Mass(HetBio, index))                                                                            &
+           /(HalfSatCoefHydroSlowlyBioSub+(Me%ExternalVar%Mass(SlowlyBioSub, index)/Me%ExternalVar%Mass(HetBio, index)))    &
+           *(((Me%ExternalVar%Mass(Oxygen, index)/(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))               &
+           +CorFacAnoxCond*(OxygHalfSatCoefHetBio/(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index))))              &
+           *(Me%ExternalVar%Mass(Nitrate, index)/(NitHalfSatCoefDenHetBio+Me%ExternalVar%Mass(Nitrate, index)))             & 
+           *(Me%ExternalVar%Mass(PartBioOrgNitrogen, index)/Me%ExternalVar%Mass(SlowlyBioSub, index))))
+endif
+
+           SolBioOrgNitrogenRateHetBio =  SolBioOrgNitrogenRateHetBioAmmonification                                         &
+           +SolBioOrgNitrogenRateHetBioHydrolysis                 
+        
+
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(SolBioOrgNitrogen, HetBio) = DTDay * (-SolBioOrgNitrogenRateHetBio) 
+         Me%Matrix(SolBioOrgNitrogen, SolBioOrgNitrogen) = 1.0
+         
+ !Independent term
+        Me%IndTerm(SolBioOrgNitrogen) = Me%ExternalVar%Mass(SolBioOrgNitrogen, index)
+        
+ !------------------------------------------------------------------------
+
+    end subroutine WWTPQSolBioOrgNitrogen
+
+subroutine WWTPQPartBioOrgNitrogen (index)
+  
+       !Subroutine to calculate the propriety PartBioOrgNitrogen
+
+    !Arguments---------------------------------------------------------------
+
+        integer, intent(IN) :: index
+
+    !Local-------------------------------------------------------------------
+    
+    !State variables
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
+
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
+
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
+ 
+        real :: DTDay
+        real :: PartBioOrgNitrogenRateHetBio             = null_real
+        real :: PartBioOrgNitrogenRateAutBio             = null_real
+        
+        real :: PartBioOrgNitrogenRateHetBioDecay        = null_real
+        real :: PartBioOrgNitrogenRateHetBioHydrolysis   = null_real
+        real :: PartBioOrgNitrogenRateAutBioDecay        = null_real
+
+!------------------------------------------------------------------------
+
+!State variables
+       
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
+
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
+
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
+
+        DTDay                          = Me%DTDay
+
+
+!PartBioOrgNitrogenRateHetBio, PartBioOrgNitrogen Rate in function of HetBio, D-1
+
+          PartBioOrgNitrogenRateHetBioDecay = (NCODBioMassRatio-FracBioPartProd*NCODPartProdBioMassRatio)*DecayCoefHetBio 
+ 
+       if (Me%ExternalVar%Mass(HetBio, index) == 0) then
+ 
+            PartBioOrgNitrogenRateHetBioHydrolysis=0
+ 
+      else
+ 
+           PartBioOrgNitrogenRateHetBioHydrolysis = - MaxSpecHydroRate*((Me%ExternalVar%Mass(SlowlyBioSub, index)              &
+       /Me%ExternalVar%Mass(HetBio, index))                                                                                    &
+           /(HalfSatCoefHydroSlowlyBioSub+(Me%ExternalVar%Mass(SlowlyBioSub, index)/Me%ExternalVar%Mass(HetBio, index)))       &
+           *(((Me%ExternalVar%Mass(Oxygen, index)/(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))                  &
+           +CorFacAnoxCond*(OxygHalfSatCoefHetBio/(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index))))                 &
+           *(Me%ExternalVar%Mass(Nitrate, index)/(NitHalfSatCoefDenHetBio+Me%ExternalVar%Mass(Nitrate, index)))                & 
+           *(Me%ExternalVar%Mass(PartBioOrgNitrogen, index)/Me%ExternalVar%Mass(SlowlyBioSub, index))))
+ 
+     endif
+        
+           PartBioOrgNitrogenRateHetBio = PartBioOrgNitrogenRateHetBioDecay + PartBioOrgNitrogenRateHetBioHydrolysis
+
+!PartBioOrgNitrogenRateAutBio, PartBioOrgNitrogen Rate in relation of AutBio, units   
+           
+           PartBioOrgNitrogenRateAutBioDecay = (NCODBioMassRatio-FracBioPartProd*NCODPartProdBioMassRatio)*DecayCoefAutBio 
+           
+           PartBioOrgNitrogenRateAutBio = PartBioOrgNitrogenRateAutBioDecay
+           
+ 
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(PartBioOrgNitrogen, HetBio) = DTDay * (-PartBioOrgNitrogenRateHetBio) 
+         Me%Matrix(PartBioOrgNitrogen, AutBio) = DTDay * (-PartBioOrgNitrogenRateAutBio) 
+         Me%Matrix(PartBioOrgNitrogen, PartBioOrgNitrogen) = 1.0
+
+ !Independent term
+        Me%IndTerm(PartBioOrgNitrogen) = Me%ExternalVar%Mass(PartBioOrgNitrogen, index)
+
+ !------------------------------------------------------------------------
+ 
+    end subroutine WWTPQPartBioOrgNitrogen
+
+    subroutine WWTPQAlkalinity  (index)
+  
+       !Subroutine to calculate Alkalinity
+
+    !Arguments---------------------------------------------------------------
+
+        integer, intent(IN) :: index
+
+    !Local-------------------------------------------------------------------
+    
+    !State variables
+        integer :: SolInertOrgMat
+        integer :: ReadilyBioSub
+        integer :: PartInertOrgMar
+        integer :: SlowlyBioSub
+        integer :: HetBio
+        integer :: AutBio
+        integer :: PartProd
+        integer :: Oxygen
+        integer :: Nitrate
+        integer :: Ammonia
+        integer :: SolBioOrgNitrogen
+        integer :: PartBioOrgNitrogen
+        integer :: Alkalinity
+
+        real :: HetBioYield
+        real :: AutoBioYield
+        real :: FracBioPartProd
+        real :: NCODBioMassRatio
+        real :: NCODPartProdBioMassRatio
+
+        real :: MaxSpecGrowthRateHetBio
+        real :: HalfSatCoefHetBio
+        real :: OxygHalfSatCoefHetBio
+        real :: NitHalfSatCoefDenHetBio
+        real :: DecayCoefHetBio
+        real :: CorFacAnoxGrowthHetBio
+        real :: AmmonifRate
+        real :: MaxSpecHydroRate
+        real :: HalfSatCoefHydroSlowlyBioSub
+        real :: CorFacAnoxCond
+        real :: MaxSpecGrowthRateAutBio
+        real :: AmmoniaHalfSatCoefAutBio
+        real :: OxyHalfSatCoefAutBio
+        real :: DecayCoefAutBio
+ 
+        real :: DTDay
+        real :: AlkalinityRateHetBio                 = null_real
+        real :: AlkalinityRateAutBio                 = null_real
+        
+        real :: AlkalinityRateHetBioAerGrowth        = null_real
+        real :: AlkalinityRateHetBioAnoGrowth        = null_real
+        real :: AlkalinityRateHetBioAmmonification   = null_real
+        real :: AlkalinityRateAutBioAerGrowth        = null_real
+
+!------------------------------------------------------------------------
+
+!State variables
+       
+        SolInertOrgMat                 = Me%PropIndex%SolInertOrgMat
+        ReadilyBioSub                  = Me%PropIndex%ReadilyBioSub
+        PartInertOrgMar                = Me%PropIndex%PartInertOrgMar 
+        SlowlyBioSub                   = Me%PropIndex%SlowlyBioSub
+        HetBio                         = Me%PropIndex%HetBio
+        AutBio                         = Me%PropIndex%AutBio
+        PartProd                       = Me%PropIndex%PartProd
+        Oxygen                         = Me%PropIndex%Oxygen
+        Nitrate                        = Me%PropIndex%Nitrate
+        Ammonia                        = Me%PropIndex%Ammonia
+        SolBioOrgNitrogen              = Me%PropIndex%SolBioOrgNitrogen
+        PartBioOrgNitrogen             = Me%PropIndex%PartBioOrgNitrogen 
+        Alkalinity                     = Me%PropIndex%Alkalinity 
+
+!Stecheo Parameters
+        HetBioYield                    = Me%StechParameters%HetBioYield
+        AutoBioYield                   = Me%StechParameters%AutoBioYield
+        FracBioPartProd                = Me%StechParameters%FracBioPartProd
+        NCODBioMassRatio               = Me%StechParameters%NCODBioMassRatio
+        NCODPartProdBioMassRatio       = Me%StechParameters%NCODPartProdBioMassRatio
+
+!Kinetic Parameters
+        MaxSpecGrowthRateHetBio        = Me%KineticParameters%MaxSpecGrowthRateHetBio
+        HalfSatCoefHetBio              = Me%KineticParameters%HalfSatCoefHetBio
+        OxygHalfSatCoefHetBio          = Me%KineticParameters%OxygHalfSatCoefHetBio
+        NitHalfSatCoefDenHetBio        = Me%KineticParameters%NitHalfSatCoefDenHetBio
+        DecayCoefHetBio                = Me%KineticParameters%DecayCoefHetBio
+        CorFacAnoxGrowthHetBio         = Me%KineticParameters%CorFacAnoxGrowthHetBio
+        AmmonifRate                    = Me%KineticParameters%AmmonifRate
+        MaxSpecHydroRate               = Me%KineticParameters%MaxSpecHydroRate
+        HalfSatCoefHydroSlowlyBioSub   = Me%KineticParameters%HalfSatCoefHydroSlowlyBioSub
+        CorFacAnoxCond                 = Me%KineticParameters%CorFacAnoxCond
+        MaxSpecGrowthRateAutBio        = Me%KineticParameters%MaxSpecGrowthRateAutBio
+        AmmoniaHalfSatCoefAutBio       = Me%KineticParameters%AmmoniaHalfSatCoefAutBio
+        OxyHalfSatCoefAutBio           = Me%KineticParameters%OxyHalfSatCoefAutBio
+        DecayCoefAutBio                = Me%KineticParameters%DecayCoefAutBio
+
+        DTDay                          = Me%DTDay
+
+
+!AlkalinityRateHetBio, Alkalinity Rate in function of HetBio, D-1
+
+         AlkalinityRateHetBioAerGrowth      = (-NCODBioMassRatio/14.)*MaxSpecGrowthRateHetBio                             &
+           *(Me%ExternalVar%Mass(ReadilyBioSub, index)/(HalfSatCoefHetBio+Me%ExternalVar%Mass(ReadilyBioSub, index)))     &
+           *(Me%ExternalVar%Mass(Oxygen, index)                                                                           &
+           /(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))
+            
+         AlkalinityRateHetBioAnoGrowth= ((1.-HetBioYield)/(14.*2.86*HetBioYield)-NCODBioMassRatio/14.)                    &
+           *MaxSpecGrowthRateHetBio*                                                                                      &
+          (Me%ExternalVar%Mass(ReadilyBioSub, index)                                                                      &
+           /(HalfSatCoefHetBio+Me%ExternalVar%Mass(ReadilyBioSub, index)))*(OxygHalfSatCoefHetBio                         &
+           /(OxygHalfSatCoefHetBio+Me%ExternalVar%Mass(Oxygen, index)))                                                   &
+           *(Me%ExternalVar%Mass(Nitrate, index)/(NitHalfSatCoefDenHetBio+Me%ExternalVar%Mass(Nitrate, index)))           &
+           *CorFacAnoxGrowthHetBio  
+        
+         AlkalinityRateHetBioAmmonification = (1./14.)*AmmonifRate*Me%ExternalVar%Mass(SolBioOrgNitrogen , index)
+        
+           AlkalinityRateHetBio = AlkalinityRateHetBioAerGrowth +  AlkalinityRateHetBioAnoGrowth                          &
+           +   AlkalinityRateHetBioAmmonification                             
+             
+!AlkalinityRateAutBio, Alkalinity Rate in function of AutBio, D-1 
                     
-            POPIngestPot = Me%TZooLimitationFactor * Me%POMIngestVmax *                                   &
-                      (Me%ExternalVar%Mass(POP1, index) / (Me%ExternalVar%Mass(POP1, index) + Me%POPIngestKs))
-                     
-            POPIngest    = MIN(POPIngestPot * Me%ExternalVar%Mass(Zoo, index),                            &
-                           Me%ExternalVar%Mass(POP1, index) / DTDay)  
-       
-         
-         
-            Me%Matrix(POP1, POP1) =  DTDay * (POPDecompRate + POPIngest) + 1.0
-            Me%Matrix(POP2, POP2) =  DTDay * POPDecompRate + 1.0
-            Me%Matrix(POP3, POP3) =  DTDay * POPDecompRate + 1.0
-            Me%Matrix(POP4, POP4) =  DTDay * POPDecompRate + 1.0
-            Me%Matrix(POP5, POP5) =  DTDay * POPDecompRate + 1.0
-            
-    
-    !Calculation of system coeficients---------------------------------------
+           AlkalinityRateAutBioAerGrowth      = (-NCODBioMassRatio/14.-1./(7.*AutoBioYield))*MaxSpecGrowthRateAutBio      &
+           *(Me%ExternalVar%Mass(Ammonia , index)/(AmmoniaHalfSatCoefAutBio+Me%ExternalVar%Mass(Ammonia , index)))        &
+            *(Me%ExternalVar%Mass(Oxygen , index)/(OxyHalfSatCoefAutBio+Me%ExternalVar%Mass(Oxygen , index)))
+  
+           AlkalinityRateAutBio = AlkalinityRateAutBioAerGrowth  
+           
+ 
+ !Calculation of system coeficients---------------------------------------
+         Me%Matrix(Alkalinity, HetBio) = DTDay * (-AlkalinityRateHetBio) 
+         Me%Matrix(Alkalinity, AutBio) = DTDay * (-AlkalinityRateAutBio) 
+         Me%Matrix(Alkalinity, Alkalinity) = 1.0
 
-        Me%Matrix(O, POP1) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
-                                 MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)            &
-                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) + 0.5) 
-        
-        Me%Matrix(O, POP2) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
-                                 MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)            &
-                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) + 0.5)
-        
-        Me%Matrix(O, POP3) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
-                                 MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)            &
-                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) + 0.5)
-        
-        Me%Matrix(O, POP4) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
-                                 MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)            &
-                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) + 0.5)
-        
-        Me%Matrix(O, POP5) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
-                                 MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)            &
-                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) + 0.5)
-        
-               
-        Me%Matrix(IP, POP1)   = - DTDay * POPDecompRate * Me%PhytoAvaibleDecomp
-        
-        Me%Matrix(IP, POP2)   = - DTDay * POPDecompRate * Me%PhytoAvaibleDecomp
-        
-        Me%Matrix(IP, POP3)   = - DTDay * POPDecompRate * Me%PhytoAvaibleDecomp
-        
-        Me%Matrix(IP, POP4)   = - DTDay * POPDecompRate * Me%PhytoAvaibleDecomp
-        
-        Me%Matrix(IP, POP5)   = - DTDay * POPDecompRate * Me%PhytoAvaibleDecomp
-        
-        
-        Me%Matrix(DOPr, POP1) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-        
-        Me%Matrix(DOPr, POP2) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-        
-        Me%Matrix(DOPr, POP3) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-        
-        Me%Matrix(DOPr, POP4) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-        
-        Me%Matrix(DOPr, POP5) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
-        
-        
-        Me%Matrix(Zoo, POP1) = -DTDay * (POPIngest * Me%PON_CPratio)
-            
-            
-            !Independent term             
-            Me%IndTerm(POP1) = Me%ExternalVar%Mass(POP1, index)
-            Me%IndTerm(POP2) = Me%ExternalVar%Mass(POP2, index)
-            Me%IndTerm(POP3) = Me%ExternalVar%Mass(POP3, index)
-            Me%IndTerm(POP4) = Me%ExternalVar%Mass(POP4, index)
-            Me%IndTerm(POP5) = Me%ExternalVar%Mass(POP5, index)
-        
-        end if
-        
-    end subroutine WWTPQPompools   
-    
-    
-    
-    
-    
-    
-    
-    
+ !Independent term
+        Me%IndTerm(Alkalinity) = Me%ExternalVar%Mass(Alkalinity, index)
 
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ !------------------------------------------------------------------------
 
-    !DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR
-
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    end subroutine WWTPQAlkalinity 
 
 
-
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+!    !DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR
+!
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+!
+!
     subroutine KillWWTPQ(WWTPQID, STAT)
+    
+    !?What does it do?
 
         !Arguments---------------------------------------------------------------
         integer                        :: WWTPQID
@@ -8741,33 +3037,29 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if(Me%ObjLUD /= 0) then
                     call KillLUD(Me%ObjLUD, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                        stop 'Subroutine KillWWTPQ - ModuleWWTPQ. ERR01.'
+                        stop 'Subroutine KillWWTPQ; module ModuleWWTPQ. ERR01.'
                 end if
 
                 deallocate(Me%IndTerm, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'Subroutine Kill_WWTPQ - ModuleWWTPQ. ERR02.'
+                    stop 'Subroutine Kill_WWTPQ; module ModuleWWTPQ. ERR02.'
                 nullify(Me%IndTerm)
-
 
                 deallocate(Me%Matrix, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'Subroutine Kill_WWTPQ - ModuleWWTPQ. ERR03.'
+                    stop 'Subroutine Kill_WWTPQ; module ModuleWWTPQ. ERR03.'
                 nullify(Me%Matrix)
-
 
 cd4 :           if (associated(Me%NewMass)) then
                     deallocate(Me%NewMass, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                        stop 'Subroutine Kill_WWTPQ - ModuleWWTPQ. ERR04.'
+                        stop 'Subroutine Kill_WWTPQ; module ModuleWWTPQ. ERR04.'
                     nullify(Me%NewMass)
                 end if cd4
-
 
                 call DeallocateInstance
 
                 WWTPQID = 0
-
 
                 STAT_ = SUCCESS_
 
@@ -8777,21 +3069,19 @@ cd4 :           if (associated(Me%NewMass)) then
 
             STAT_ = ready_
 
-
         end if cd1
-
 
         if (present(STAT)) STAT = STAT_
 
     !------------------------------------------------------------------------
-
+!
     end subroutine KillWWTPQ
-
-    !------------------------------------------------------------------------
-    
-    
-    !------------------------------------------------------------------------
-
+!
+!    !------------------------------------------------------------------------
+!    
+!    
+!    !------------------------------------------------------------------------
+!
     subroutine DeallocateInstance
 
         !Local-----------------------------------------------------------------
@@ -8820,22 +3110,16 @@ cd4 :           if (associated(Me%NewMass)) then
             
     end subroutine DeallocateInstance
 
-    !--------------------------------------------------------------------------
+!    !--------------------------------------------------------------------------
 
-
-
-
-
-
-
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-    !MANAGEMENT MANAGEMENT MANAGEMENT MANAGEMENT MANAGEMENT MANAGEMENT MANAGEME
-
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+!    !MANAGEMENT MANAGEMENT MANAGEMENT MANAGEMENT MANAGEMENT MANAGEMENT MANAGEME
+!
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
     subroutine Ready (WWTPQID, ready_) 
 
         !Arguments-------------------------------------------------------------
@@ -8844,37 +3128,37 @@ cd4 :           if (associated(Me%NewMass)) then
 
         !----------------------------------------------------------------------
 
-        nullify (Me)
+        nullify (me)
 
-cd1:    if (WWTPQID > 0) then
-            call LocateObjWWTPQ (WWTPQID)
-            ready_ = VerifyReadLock (mWWTPQ_, Me%InstanceID)
+cd1:    if (wwtpqid > 0) then
+            call locateobjwwtpq (wwtpqid)
+            ready_ = verifyreadlock (mwwtpq_, me%instanceid)
         else
-            ready_ = OFF_ERR_
+            ready_ = off_err_
         end if cd1
      
         !----------------------------------------------------------------------
 
-    end subroutine Ready
+    end subroutine ready
 
     !--------------------------------------------------------------------------
 
-    subroutine LocateObjWWTPQ (WWTPQID)
+    subroutine locateobjwwtpq (wwtpqid)
 
-        !Arguments-------------------------------------------------------------
-        integer                                     :: WWTPQID
+        !arguments-------------------------------------------------------------
+        integer                                     :: wwtpqid
 
-        !Local-----------------------------------------------------------------
+        !local-----------------------------------------------------------------
 
-        Me => FirstObjWWTPQ
-        do while (associated (Me))
-            if (Me%InstanceID == WWTPQID) exit
-            Me => Me%Next
+        me => firstobjwwtpq
+        do while (associated (me))
+            if (me%instanceid == wwtpqid) exit
+            me => me%next
         enddo
 
-        if (.not. associated(Me)) stop 'ModuleWWTPQ - LocateObjWWTPQ - ERR01'
+        if (.not. associated(me)) stop 'modulewwtpq - locateobjwwtpq - err01'
 
-    end subroutine LocateObjWWTPQ
+    end subroutine locateobjwwtpq
 
     !--------------------------------------------------------------------------
 

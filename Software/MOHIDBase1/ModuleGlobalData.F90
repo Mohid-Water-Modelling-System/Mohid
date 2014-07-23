@@ -828,6 +828,17 @@ Module ModuleGlobalData
     !HNS
     integer, parameter :: HNS_                              = 20003
     
+    !WWTPQProperties
+    !Oxygen, Nitrate, Ammonia and Alkalinity were already added
+    integer, parameter :: SolInertOrgMat_                   = 20500
+    integer, parameter :: ReadilyBioSub_                    = 20501            
+    integer, parameter :: PartInertOrgMar_                  = 20502
+    integer, parameter :: SlowlyBioSub_                     = 20503
+    integer, parameter :: HetBio_                           = 20504
+    integer, parameter :: AutBio_                           = 20505
+    integer, parameter :: PartProd_                         = 20506
+    integer, parameter :: SolBioOrgNitrogen_                = 20510
+    integer, parameter :: PartBioOrgNitrogen_               = 20511
 
     !Spatial emission discharge
     integer, parameter :: DischPoint_                       = 1
@@ -1462,6 +1473,17 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_GenericPartPesticide_4       = 'generic particulate pesticide 4'
     character(StringLength), private, parameter :: Char_IndividualsPerCell           = 'individuals per cell' 
 
+    !WWTPQProperties
+    character(StringLength), private, parameter :: Char_SolInertOrgMat               = 'soluble inert organic matter'
+    character(StringLength), private, parameter :: Char_ReadilyBioSub                = 'readily biodegradable substrate'
+    character(StringLength), private, parameter :: Char_PartInertOrgMar              = 'particualte inert organic matter'
+    character(StringLength), private, parameter :: Char_SlowlyBioSub                 = 'slowly biodegradable substrate'
+    character(StringLength), private, parameter :: Char_HetBio                       = 'activate heterotrophic biomass'
+    character(StringLength), private, parameter :: Char_AutBio                       = 'activate autotrophic biomass'
+    character(StringLength), private, parameter :: Char_PartProd                     = 'particulate products from biomass decay'
+    character(StringLength), private, parameter :: Char_SolBioOrgNitrogen            = 'soluble biodegradable organic nitrogen'
+    character(StringLength), private, parameter :: Char_PartBioOrgNitrogen           = 'particulate biodegradable organic matter'
+    
     !Mapping
     integer, parameter :: Compute         = 1
     integer, parameter :: Covered         = 1
@@ -2792,7 +2814,16 @@ Module ModuleGlobalData
             call AddPropList (GenericPartPesticide_3_,  Char_GenericPartPesticide_3,     ListNumber) 
             call AddPropList (GenericPartPesticide_4_,  Char_GenericPartPesticide_4,     ListNumber) 
             call AddPropList (IndividualsPerCell_,      Char_IndividualsPerCell,         ListNumber)             
-            
+            !WWTPQProperties
+            call AddPropList (SolInertOrgMat_,          Char_SolInertOrgMat,             ListNumber)
+            call AddPropList (ReadilyBioSub_,           Char_ReadilyBioSub,              ListNumber)
+            call AddPropList (PartInertOrgMar_,         Char_PartInertOrgMar ,           ListNumber)
+            call AddPropList (SlowlyBioSub_,            Char_SlowlyBioSub,               ListNumber)
+            call AddPropList (HetBio_,                  Char_HetBio,                     ListNumber)
+            call AddPropList (AutBio_,                  Char_AutBio,                     ListNumber)
+            call AddPropList (PartProd_,                Char_PartProd,                   ListNumber)
+            call AddPropList (SolBioOrgNitrogen_,       Char_SolBioOrgNitrogen,          ListNumber)
+            call AddPropList (PartBioOrgNitrogen_,      Char_PartBioOrgNitrogen,         ListNumber)
                         
             !Place to add new properties to the names list
         

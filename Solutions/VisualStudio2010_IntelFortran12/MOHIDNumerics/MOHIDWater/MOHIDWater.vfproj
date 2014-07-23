@@ -294,14 +294,15 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleFreeVerticalMovement.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleGauge.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleGOTM.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHNS.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHydrodynamic.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHydrodynamicFile.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleInterfaceSedimentWater.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleInterfaceWaterAir.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleJet.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangian.F90">
-			<FileConfiguration Name="Release Double OpenMP|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double OpenMP|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release OpenMP|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|Win32" ExcludedFromBuild="true"/>
