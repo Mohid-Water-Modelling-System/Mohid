@@ -4773,7 +4773,7 @@ do1:            do j = JLB, JUB
 do2:            do i = ILB, IUB
                     
                                                                 
-                    if (Me%ExtWater%OpenPoints3D(i, j,KLB) == OpenPoint) then
+                    if (Me%ExtWater%OpenPoints3D(i, j,KUB) == OpenPoint) then
                     
                     TAUM=0.
                     TAUMAX=0.
