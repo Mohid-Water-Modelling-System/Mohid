@@ -669,7 +669,7 @@ Module ModuleHydrodynamic
 
     !Tidal components use to compute the tide potential effect
     integer, parameter     :: M2=1, S2=2, K2=3, N2=4, K1=5, O1=6, P1=7, Q1=8, Ssa = 9,   &
-                              Mm =10, Mf = 11 
+                              Mm =10, Mf = 11 , M3=12
 
     !Ways of computing the tide potential phase of each constituint using the doodson numbers
     integer, parameter     :: Kantha = 1, Lefevre=2
@@ -1479,7 +1479,7 @@ Module ModuleHydrodynamic
     type       T_Astro
         logical                           :: Compute    = .false. !initialization: Jauch
         
-        integer                           :: ComponentsNumber = 11
+        integer                           :: ComponentsNumber = 12
         
         real,    pointer, dimension (:  ) :: Beta       => null(), &
                                              Amplitude  => null(), &
@@ -10713,6 +10713,8 @@ i1:         if (CoordON) then
         Me%TidePotential%Beta (N2 ) = 0.693
         Me%TidePotential%Beta (K2 ) = 0.693
 
+        Me%TidePotential%Beta (M3 ) = 0.693
+        
         !Equilibrium tide amplitude (m) (Table 6.1.1 Kantha and Clayson, 2000)
         Me%TidePotential%Amplitude (Ssa) = 0.019542
         Me%TidePotential%Amplitude (Mm ) = 0.022191
@@ -10728,6 +10730,7 @@ i1:         if (CoordON) then
         Me%TidePotential%Amplitude (N2 ) = 0.046735
         Me%TidePotential%Amplitude (K2 ) = 0.030875
 
+        Me%TidePotential%Amplitude (M3 ) = 0.003198
 
         !frequency in radianos./hr. (Table 6.1.1 Kantha and Clayson, 2000)
         Me%TidePotential%Frequency (Ssa) = 0.0821373  * Pi / 180.
@@ -10744,7 +10747,8 @@ i1:         if (CoordON) then
         Me%TidePotential%Frequency (N2 ) = 28.4397295 * Pi / 180.
         Me%TidePotential%Frequency (K2 ) = 30.0821373 * Pi / 180.
 
-
+        Me%TidePotential%Frequency (M3 ) = 43.4761563 * Pi / 180.
+        
         !griflet: changed values from 0,1,2 to 1,2,3. Added +1 (array index correction).
         !Species m
         Me%TidePotential%m(Ssa) = 1
@@ -10761,6 +10765,7 @@ i1:         if (CoordON) then
         Me%TidePotential%m(N2 ) = 3
         Me%TidePotential%m(K2 ) = 3
 
+        Me%TidePotential%m(M3 ) = 4
 
         call SetDate(Me%TidePotential%TimeRef, 1900, 1, 1, 0, 0, 0)
 
@@ -35129,7 +35134,7 @@ do3:            do K=kbottom, KUB
         real,    pointer, dimension (:  )   :: Beta, EqAmp, Freq, L, AstroArg
         integer, pointer, dimension (:  )   :: m
         !griflet: lets make L2 and AstroArg local variables, statically allocated.
-        real, dimension(3)                  :: L2
+        real, dimension(4)                  :: L2
         integer, pointer, dimension (:,:,:) :: WaterPoints3D
         type (T_Time)                       :: CurrentTime, TimeRef
         real(8)                             :: UTSeconds, tc, h0, s0, p0, Tau, TimeSeconds !ps, ns,
@@ -35220,6 +35225,8 @@ do3:            do K=kbottom, KUB
             AstroArg(N2 ) = -3*s0 + 2*h0 + p0
             AstroArg(K2 ) = 2*h0
             
+            AstroArg(M3 ) = -3*s0 + 3*h0 + 180.
+            
         else if (Me%TidePotential%Algorithm == Lefevre) then
 
             !time in Junlian centuries (36525 days)
@@ -35293,15 +35300,17 @@ iw1:        if (WaterPoints3D(i, j, KUB) == WaterPoint)  then
                 L2(1) = 1.5*cos(LatRad)*cos(LatRad) - 1.
                 L2(2) = sin(2*LatRad)
                 L2(3) = cos(LatRad)*cos(LatRad)
-
+                L2(4) = cos(LatRad)*cos(LatRad)*cos(LatRad)
+                
                 TidePotentialLevel(i,j) = 0.
 
 it1:            if (Me%TidePotential%Algorithm == Kantha) then
 
-                    !griflet: m(n) was taken care of in the construct and yields 1,2 or 3 only.
+                    !griflet: m(n) was taken care of in the construct and yields 
+                    !1(Ssa,Mm,Mf),2(Q1,O1,N1,P1), 3(M2,N2,O2,P2), 4(M3).
                     do n=1, Ncomp
                         TidePotentialLevel(i,j) = TidePotentialLevel(i,j) +  Beta (n) * EqAmp(n) * L2(m(n)) *     &
-                                                  cos ( AstroArg(n) + Freq(n)*UTSeconds/3600 + real(m(n))*LongRad)
+                                                  cos ( AstroArg(n) + Freq(n)*UTSeconds/3600 + (real(m(n))-1)*LongRad)
                     enddo
 
                 else if (Me%TidePotential%Algorithm == Lefevre) then it1
