@@ -11734,8 +11734,8 @@ First:          if (LastTime.LT.Actual) then
                     !kgsoil
                     SumSoilMass   = SumSoilMass + SoilMass 
                     
-                    !reached aquifer top - compute aquifer conc
-                    if (K == GWlayer(i,j) - 1) then
+                    !reached aquifer top (can be top of soil if all soil saturated) - compute aquifer conc
+                    if (K == GWlayer(i,j)) then
                         
                         ![mg/kgsoil]                  = [mg] / [kgsoil]
                         PropertyX%AverageAquiferConc(i,j) = SumPropMass / SumSoilMass
@@ -11744,16 +11744,13 @@ First:          if (LastTime.LT.Actual) then
                         SumPropMass = 0.
                         SumSoilMass = 0.
                     
-                    !reached top of soil - compute aquifer (no vadoze) or vadoze conc                        
+                    !reached top of soil - compute vadoze conc. In case of all soil saturated condition is trapped
+                    !above and no vadoze concentration is computed here                       
                     elseif (K == Me%WorkSize%KUB) then
                         
-                        if (GWlayer(i,j) == Me%WorkSize%KUB) then
-                            ![mg/kgsoil]                  = [mg] / [kgsoil]
-                            PropertyX%AverageAquiferConc(i,j) = SumPropMass / SumSoilMass                 
-                        else
-                            ![mg/kgsoil]                  = [mg] / [kgsoil]
-                            PropertyX%AverageVadozeConc(i,j) = SumPropMass / SumSoilMass                 
-                        endif
+                        ![mg/kgsoil]                  = [mg] / [kgsoil]
+                        PropertyX%AverageVadozeConc(i,j) = SumPropMass / SumSoilMass                 
+
                     endif
                         
                 endif
@@ -11791,8 +11788,8 @@ First:          if (LastTime.LT.Actual) then
                     !m3
                     SumWaterVolume = SumWaterVolume + WaterVolume 
                     
-                    !reached aquifer top - compute aquifer conc
-                    if (K == GWlayer(i,j) - 1) then
+                    !reached aquifer top (can be top of soil if all soil saturated) - compute aquifer conc
+                    if (K == GWlayer(i,j)) then
                         
                         ![mg/kgsoil]                  = [mg] / [m3]
                         PropertyX%AverageAquiferConc(i,j) = SumPropMass / SumWaterVolume
@@ -11801,16 +11798,13 @@ First:          if (LastTime.LT.Actual) then
                         SumPropMass    = 0.
                         SumWaterVolume = 0.
                     
-                    !reached top of soil - compute aquifer (no vadoze) or vadoze conc                        
+                    !reached top of soil - compute vadoze conc. In case of all soil saturated condition is trapped
+                    !above and no vadoze concentration is computed here
                     elseif (K == Me%WorkSize%KUB) then
                         
-                        if (GWlayer(i,j) == Me%WorkSize%KUB) then
-                            ![mg/kgsoil]                  = [mg] / [m3]
-                            PropertyX%AverageAquiferConc(i,j) = SumPropMass / SumWaterVolume                 
-                        else
-                            ![mg/kgsoil]                  = [mg] / [m3]
-                            PropertyX%AverageVadozeConc(i,j) = SumPropMass / SumWaterVolume                 
-                        endif
+                        ![mg/kgsoil]                  = [mg] / [m3]
+                        PropertyX%AverageVadozeConc(i,j) = SumPropMass / SumWaterVolume                 
+
                     endif
                         
                 endif
@@ -11846,7 +11840,7 @@ First:          if (LastTime.LT.Actual) then
         !Local-------------------------------------------------------------------
         integer, dimension(:,:), pointer            :: GWlayer
         integer                                     :: STAT_CALL, CHUNK, i, j, k
-        real                                        :: SumDecay, SumCells
+        real                                        :: SumDecay, SumVolume
         !Begin-------------------------------------------------------------------
         
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "ComputeAverageDecay")
@@ -11867,42 +11861,40 @@ First:          if (LastTime.LT.Actual) then
         
 
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-        !$OMP PARALLEL PRIVATE(I,J,K,SumDecay,SumCells)
+        !$OMP PARALLEL PRIVATE(I,J,K,SumDecay,SumVolume)
                     
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
-        SumDecay    = 0.   
-        SumCells    = 0.
+        SumDecay     = 0.   
+        SumVolume    = 0.
         
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
             
             if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then        
                 
-                SumDecay = SumDecay + PropertyX%PropertyDecay(i,j,k)
-                SumCells = SumCells + 1
+                ![g/m3.day-1 or mg/kg.day-1].[m3]
+                SumDecay = SumDecay + (PropertyX%PropertyDecay(i,j,k) * Me%ExtVar%CellVolume(i,j,k))
+                SumVolume = SumVolume + Me%ExtVar%CellVolume(i,j,k)
                                
-                !reached aquifer top - compute aquifer conc
-                if (K == GWlayer(i,j) - 1) then
+                !reached aquifer top (can be top of soil if all soil saturated) - compute aquifer conc
+                if (K == GWlayer(i,j)) then
                     
-                    ![g/m3.day-1 or mg/kg.day-1]                 
-                    PropertyX%AverageAquiferDecay(i,j) = SumDecay / SumCells
+                    ![g/m3.day-1 or mg/kg.day-1]               
+                    PropertyX%AverageAquiferDecay(i,j) = SumDecay / SumVolume
                     
                     !reset
-                    SumDecay    = 0.
-                    SumCells    = 0.
+                    SumDecay     = 0.
+                    SumVolume    = 0.
                 
-                !reached top of soil - compute aquifer (no vadoze) or vadoze conc                        
+                !reached top of soil - compute vadoze conc. In case of all soil saturated condition is trapped
+                !above and no vadoze concentration is computed here                      
                 elseif (K == Me%WorkSize%KUB) then
                     
-                    if (GWlayer(i,j) == Me%WorkSize%KUB) then
-                        ![g/m3.day-1 or mg/kg.day-1]               
-                        PropertyX%AverageAquiferDecay(i,j) = SumDecay / SumCells                 
-                    else
-                        ![g/m3.day-1 or mg/kg.day-1]                 
-                        PropertyX%AverageVadozeDecay(i,j) = SumDecay / SumCells                 
-                    endif
+                    ![g/m3.day-1 or mg/kg.day-1]                 
+                    PropertyX%AverageVadozeDecay(i,j) = SumDecay / SumVolume                 
+
                 endif
                     
             endif

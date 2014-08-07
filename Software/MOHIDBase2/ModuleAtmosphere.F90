@@ -260,6 +260,8 @@ Module ModuleAtmosphere
         
         integer                                     :: RadiationMethod          = 1
         integer                                     :: CloudCoverMethod         = null_int !initialization: Jauch
+        real                                        :: CloudCoverNight          = 0.595
+        real                                        :: CloudCoverMinDay         = 0.3
         real,    pointer, dimension(:,:  )          :: LastRadiation             => null()
         integer                                     :: LastCalculateRandomCloud = null_int
         integer                                     :: PropertiesNumber         = FillValueInt
@@ -526,6 +528,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = CloudFromRandom,                                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR50'
+        
+        if (Me%CloudCoverMethod == CloudFromRadiation) then
+            !Cloud cover value for night (radiation is zero). Reference needed (default it was old value hardcoded)
+            call GetData(Me%CloudCoverNight,                                                &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'CLOUD_COVER_NIGHT',                                &
+                         ClientModule = 'ModuleAtmosphere',                                 &
+                         Default      = 0.595,                                              &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR51'
+            
+            !Minimum cloud cover value for during day (to avoid sunrise and sunset very low values)
+            !0.3 is from FAO Irrigation and Drainage Paper Report 56
+            call GetData(Me%CloudCoverMinDay,                                               &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'CLOUD_COVER_MIN_DAY',                              &
+                         ClientModule = 'ModuleAtmosphere',                                 &
+                         Default      = 0.3,                                                &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR52'
+        
+        endif
         
         call GetData(Me%PredictDT,                                                      &
                      Me%ObjEnterData, iflag,                                            &
@@ -3044,9 +3070,9 @@ do1 :   do while (associated(PropertyX))
         real                                        :: LatitudePI, LongitudePI
         real                                        :: SunstW, PossibleSunHours
         real                                        :: GmtReference, RacingWithTheSun
-        real                                        :: HourAngle, QSO, SunHighAngle
+        real                                        :: HourAngle, QSO, QSO10, SunHighAngle
         type(T_Property), pointer                   :: PropSunHours, PropSolarRadiation       
-        integer                                        :: CHUNK
+        integer                                     :: CHUNK
         
 
         call JulianDay  (Me%ActualTime, Julday)
@@ -3138,42 +3164,96 @@ do1 :   do while (associated(PropertyX))
           
                     !Hour angle 
                     HourAngle = HourAngle_ (Hour, LongitudePI, GmtReference, RacingWithTheSun)
-                   
+                 
                     !use a sunset angle of 10 as safety factor
                     SunHighAngle =  Asin( sin(LatitudePI) * sin(Declination)            +   &
                                    cos(LatitudePI) * cos(Declination) * cos(HourAngle)) *   &
                                    180./PI
 
-                    if (SunHighAngle <= 10. )then
-                        
-                        !It's nigth use sunset angle of 10º                        
-                        QSO       = TOARadiation (LatitudePI  = LatitudePI ,    &
-                                                  Declination = Declination,    &
-                                                  Julday      = Julday )     
-                                                               
-                        PropCloudCover%Field (i,j) = Me%LastRadiation(i,j) / QSO                    
-                    else
-                                                                                             
-                        !Clar day radiation
-                        QSO = TOARadiation (LatitudePI, Declination, HourAngle, Julday)
-                       
-                        if (QSO==0.0) then
-                            PropCloudCover%Field (i,j) = 0.595
-                        else
-                            PropCloudCover%Field (i,j) = PropSolarRadiation%Field (i,j)/QSO
-                        endif
-                    endif
-
-                    !correct the field
-                    if (PropCloudCover%Field (i,j) < 0) then
-
-                        PropCloudCover%Field (i,j) = 0.595
-
-                    elseif (PropCloudCover%Field (i,j) > 1) then
-
-                        PropCloudCover%Field (i,j) = 1.0
+!                    if (SunHighAngle <= 10. )then
+!                        
+!                        !It's nigth use sunset angle of 10º                        
+!                        QSO       = TOARadiation (LatitudePI  = LatitudePI ,    &
+!                                                  Declination = Declination,    &
+!                                                  Julday      = Julday )     
+!                                                               
+!                        PropCloudCover%Field (i,j) = Me%LastRadiation(i,j) / QSO                                                   
+!                                          
+!                    else
+!                                                                                             
+!                        !Clar day radiation
+!                        QSO = TOARadiation (LatitudePI, Declination, HourAngle, Julday)
+!                       
+!                        if (QSO==0.0) then
+!                            PropCloudCover%Field (i,j) = 0.595
+!                        else
+!                            PropCloudCover%Field (i,j) = PropSolarRadiation%Field (i,j)/QSO
+!                        endif
+!                        
+!                    endif
                     
+                    !David
+                    !New implementation because cloud cover should be limited at night (and in sunrise and sunset)
+                    !Because with the old formulation gives very low cloud cover values at this times (order of 0.001) 
+                    !that are not consistent with bibliography (cloud cover values from 0.3 to 1 and night around 0.5).
+                    !In the above old implementation it seems that code exists to correct it ("if (QSO==0.0)") 
+                    !but will never correct it because the situation SunHighAngles > 10 is not at night.
+                    !So compute normal radiation, start with night, than low angles, than normal day
+                    
+                    !Clear day radiation
+                    QSO = TOARadiation (LatitudePI, Declination, HourAngle, Julday)
+                    
+                    !night - impose cloud cover
+                    if (QSO == 0.0) then
+                        PropCloudCover%Field (i,j) = Me%CloudCoverNight
+                    
+                    !day
+                    else
+                    
+                        !low positive angles - sunrise or sunset - use last observed positive radiation 
+                        !and 10º TOA radiation.
+                        !Testing the formulation this part still creates low cloud cover at sunrise because   
+                        !the last radiation saved was the low value before night.
+                        if (SunHighAngle <= 10.) then
+                            
+                            !It's almost nigth use sunset angle of 10º                      
+                            QSO10    = TOARadiation (LatitudePI  = LatitudePI ,    &
+                                                     Declination = Declination,    &
+                                                     Julday      = Julday )     
+                                                                   
+                            PropCloudCover%Field (i,j) = Me%LastRadiation(i,j) / QSO10 
+                            
+                        !normal day - use observed radiation and TOA radiation
+                        else
+                            PropCloudCover%Field (i,j) = PropSolarRadiation%Field (i,j) / QSO
+                        endif
+
+                        !Correct daily values only
+                        !usually near sunrise values computed are very low (near 10º sun angle or more)
+                        !so min value for day is important to correct it
+                        if (PropCloudCover%Field (i,j) < Me%CloudCoverMinDay) then
+
+                            PropCloudCover%Field (i,j) = Me%CloudCoverMinDay
+
+                        elseif (PropCloudCover%Field (i,j) > 1) then
+
+                            PropCloudCover%Field (i,j) = 1.0
+                        
+                        endif
+
                     endif
+                    
+                    !correct the field
+!                    if (PropCloudCover%Field (i,j) < 0) then
+!
+!                        PropCloudCover%Field (i,j) = 0.595
+!
+!                    elseif (PropCloudCover%Field (i,j) > 1) then
+!
+!                        PropCloudCover%Field (i,j) = 1.0
+!                    
+!                    endif
+
                 endif
 
             end do
