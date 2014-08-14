@@ -382,7 +382,9 @@ Module ModulePorousMediaProperties
         logical                                 :: Profile_ON           = .false.
         logical                                 :: WriteRestartFile     = .false.       
         logical                                 :: RestartOverwrite     = .false.
-        integer                                 :: NextRestartOutput    = 1        
+        integer                                 :: NextRestartOutput    = 1  
+        logical                                 :: AverageConc_ON       = .false.
+        logical                                 :: AverageDecay_ON      = .false.      
     end type T_OutPut
 
     type T_AdvectionDiffusion   
@@ -3570,8 +3572,8 @@ do1:    do while(associated(Property))
         if (STAT_CALL /= SUCCESS_) &
             stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR04'
         
-        !output in HDF the average conc in aquifer and in vadoze zone for each soil collumn
-        if (NewProperty%OutputHDF) then
+        !output the average conc in aquifer and in vadoze zone for each soil collumn
+        !if (NewProperty%OutputHDF) then
             call GetData(NewProperty%OutputAverageConc,                                      &
                          Me%ObjEnterData, iflag,                                             &
                          Keyword      = 'OUTPUT_AVERAGE_CONC',                               &
@@ -3583,6 +3585,9 @@ do1:    do while(associated(Property))
                 stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR05'
             
             if (NewProperty%OutputAverageConc) then
+            
+                Me%Output%AverageConc_ON = .true.
+                
                 allocate(NewProperty%AverageAquiferConc(Me%WorkSize%ILB:Me%WorkSize%IUB,     &
                                                         Me%WorkSize%JLB:Me%WorkSize%JUB),    &
                                                         STAT = STAT_CALL)
@@ -3611,6 +3616,8 @@ do1:    do while(associated(Property))
                 
                 if (NewProperty%OutputAverageDecay) then
                 
+                    Me%Output%AverageDecay_ON = .true.
+                
                     allocate(NewProperty%AverageAquiferDecay(Me%WorkSize%ILB:Me%WorkSize%IUB,     &
                                                             Me%WorkSize%JLB:Me%WorkSize%JUB),    &
                                                             STAT = STAT_CALL)
@@ -3626,7 +3633,7 @@ do1:    do while(associated(Property))
                 endif
             endif
             
-        endif
+        !endif
         
     end subroutine Construct_PropertyOutPut
    
@@ -3663,6 +3670,12 @@ do1:    do while(associated(Property))
                 endif
                 if (PropertyX%Evolution%Decay) then
                     nProperties = nProperties + 1
+                    if (PropertyX%OutputAverageDecay) then
+                        nProperties = nProperties + 2
+                    endif
+                endif
+                if (PropertyX%OutputAverageConc) then
+                    nProperties = nProperties + 2
                 endif
             endif
             PropertyX => PropertyX%Next
@@ -3696,7 +3709,19 @@ do1:    do while(associated(Property))
                 if (PropertyX%Evolution%Decay) then
                     PropertyList(n)  = trim(PropertyX%ID%Name)//'_DecayRate['//trim(PropertyX%ID%Units)//'.day-1]'
                     n=n+1
+                    if (PropertyX%OutputAverageDecay) then
+                        PropertyList(n)  = trim(PropertyX%ID%Name)//'_AvrgAquifDecay['//trim(PropertyX%ID%Units)//'.day-1]'
+                        n=n+1  
+                        PropertyList(n)  = trim(PropertyX%ID%Name)//'_AvrgVadozeDecay['//trim(PropertyX%ID%Units)//'.day-1]'
+                        n=n+1                                          
+                    endif
                 endif
+                if (PropertyX%OutputAverageConc) then
+                    PropertyList(n)  = trim(PropertyX%ID%Name)//'_AvrgAquiferConc['//trim(PropertyX%ID%Units)//']'
+                    n=n+1 
+                    PropertyList(n)  = trim(PropertyX%ID%Name)//'_AvrgVadozeConc['//trim(PropertyX%ID%Units)//']'
+                    n=n+1                                         
+                endif                
             endif
             PropertyX=>PropertyX%Next
         enddo
@@ -5634,6 +5659,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             if (Me%CalculateECw) then
                 call ComputeECw
             endif
+            
+            !Compute average conc for each soil column
+            if (Me%Output%AverageConc_ON) then
+                call AverageConcentration
+            endif
+            !Compute average decay for each soil column
+            if (Me%Coupled%Decay .and. Me%Output%AverageDecay_ON) then
+                call AverageDecay
+            endif            
 
             if (Me%Output%Timeserie_ON) then
                 call OutPut_TimeSeries
@@ -5677,6 +5711,58 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ModifyPorousMediaProperties")
 
     end subroutine ModifyPorousMediaProperties
+
+    !-----------------------------------------------------------------------------
+
+    subroutine AverageConcentration
+
+        !Arguments----------------------------------------------------------------
+        !Local--------------------------------------------------------------------
+        type(T_Property), pointer                   :: PropertyX
+        !Begin--------------------------------------------------------------------
+        
+        PropertyX => Me%FirstProperty
+
+        do while(associated(PropertyX))
+            
+            if (PropertyX%OutputAverageConc) then
+            
+                call ComputeAverageConc (PropertyX)
+            
+            endif
+            
+            PropertyX => PropertyX%Next
+            
+        end do                        
+
+    
+    end subroutine AverageConcentration
+
+    !-----------------------------------------------------------------------------
+
+    subroutine AverageDecay
+
+        !Arguments----------------------------------------------------------------
+        !Local--------------------------------------------------------------------
+        type(T_Property), pointer                   :: PropertyX
+        !Begin--------------------------------------------------------------------
+        
+        PropertyX => Me%FirstProperty
+
+        do while(associated(PropertyX))
+            
+            if (PropertyX%OutputAverageDecay) then
+            
+                call ComputeAverageDecay (PropertyX)
+            
+            endif
+            
+            PropertyX => PropertyX%Next
+            
+        end do                        
+
+    
+    end subroutine AverageDecay
 
     !-----------------------------------------------------------------------------
 
@@ -11054,7 +11140,7 @@ do1 :   do while (associated(Property))
                         call DecayFirstOrder_Conc(Property)
                     endif
                 endif
-               
+                              
             endif     
 
             Property => Property%Next
@@ -11458,8 +11544,40 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
                                         Data3D = PropertyX%PropertyDecay,   &
                                         STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                              &
-                        stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR045'                        
-                endif                
+                        stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR045' 
+                        
+                    if (PropertyX%OutputAverageDecay) then
+                        call WriteTimeSerie(Me%ObjTimeSerie,                          &
+                                            Data2D = PropertyX%AverageAquiferDecay,   &
+                                            STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                    &
+                            stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR046'   
+
+                        call WriteTimeSerie(Me%ObjTimeSerie,                          &
+                                            Data2D = PropertyX%AverageVadozeDecay,    &
+                                            STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                    &
+                            stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR047'                              
+                                             
+                    endif                       
+                endif 
+
+                if (PropertyX%OutputAverageConc) then
+
+                    call WriteTimeSerie(Me%ObjTimeSerie,                          &
+                                        Data2D = PropertyX%AverageAquiferConc,    &
+                                        STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                    &
+                        stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR048'   
+
+                    call WriteTimeSerie(Me%ObjTimeSerie,                          &
+                                        Data2D = PropertyX%AverageVadozeConc,     &
+                                        STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                    &
+                        stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR049' 
+                    
+                endif
+                                               
             endif
             PropertyX=>PropertyX%Next
         enddo
@@ -11586,7 +11704,7 @@ First:          if (LastTime.LT.Actual) then
                             
                             if (PropertyX%OutputAverageDecay) then
                                 
-                                call ComputeAverageDecay (PropertyX)
+                                !call ComputeAverageDecay (PropertyX)
 
                                 !Sets limits for next write operations
                                 call HDF5SetLimits   (Me%ObjHDF5,                                &
@@ -11621,7 +11739,7 @@ First:          if (LastTime.LT.Actual) then
                     
                         if (PropertyX%OutputAverageConc) then
                             
-                            call ComputeAverageConc (PropertyX)
+                            !call ComputeAverageConc (PropertyX)
 
                             !Sets limits for next write operations
                             call HDF5SetLimits   (Me%ObjHDF5,                                &
