@@ -3877,6 +3877,7 @@ cd2 :           if (BlockFound) then
         real, dimension(:,:), pointer               :: AirTemperature
         real, dimension(:,:), pointer               :: RelativeHumidity
         real, dimension(:,:), pointer               :: ATMTransmitivity
+        real, dimension(:,:), pointer               :: DummyProp
         real                                        :: Kc
         real,    parameter                          :: LatentHeatOfVaporization = 2.5e6         ![J/kg]
         real,    parameter                          :: ReferenceDensity         = 1000.         ![kg/m3]
@@ -3936,6 +3937,11 @@ cd2 :           if (BlockFound) then
             !Gets ATMTransmitivity
             call GetAtmosphereProperty  (Me%ObjAtmosphere, ATMTransmitivity, ID = AtmTransmitivity_, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR02'
+
+            !This property is not needed is just to verify that the user inputed cloud cover. if not the model continues
+            !and ATMTransmitivity is a stupid number
+            call GetAtmosphereProperty  (Me%ObjAtmosphere, DummyProp, ID = CloudCover_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR02.5'
 
             !Gets Wind Modulus [m/s]
             call GetAtmosphereProperty  (Me%ObjAtmosphere, WindModulus, ID = WindModulus_, STAT = STAT_CALL)
@@ -4283,6 +4289,9 @@ cd2 :           if (BlockFound) then
             !Gets Horizontal Sun Radiation [W/m2]
             call UnGetAtmosphere  (Me%ObjAtmosphere, ATMTransmitivity,  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR07'
+
+            call UnGetAtmosphere  (Me%ObjAtmosphere, DummyProp,  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR07.1'
 
             !Gets Wind Modulus [m/s]
             call UnGetAtmosphere  (Me%ObjAtmosphere, WindModulus,       STAT = STAT_CALL)
