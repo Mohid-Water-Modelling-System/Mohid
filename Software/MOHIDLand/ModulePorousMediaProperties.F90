@@ -128,7 +128,8 @@ Module ModulePorousMediaProperties
                                         GetDischargeWaterFlow, GetDischargesIDName,      &
                                         TryIgnoreDischarge, GetDischargeSpatialEmission, &
                                         CorrectsCellsDischarges, Kill_Discharges,        &
-                                        GetDischargeConcentration
+                                        GetDischargeConcentration,                       & 
+                                        GetDischargeFlowDistribuiton, UngetDischarges
 
     !griflet
     !$ use omp_lib
@@ -945,12 +946,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Arguments--------------------------------------------------------------
         integer                                     :: DischargesID 
         !Local------------------------------------------------------------------
-        integer                                     :: STAT_CALL
-        integer                                     :: nDischarges, iDis
-        character(len=StringLength)                 :: DischargeName
-        real                                        :: CoordinateX, CoordinateY
-        logical                                     :: CoordinatesON, IgnoreOK
-        integer                                     :: Id, Jd
+        !integer                                     :: STAT_CALL
+        !integer                                     :: nDischarges, iDis
+        !character(len=StringLength)                 :: DischargeName
+        !real                                        :: CoordinateX, CoordinateY
+        !logical                                     :: CoordinatesON, IgnoreOK
+        !integer                                     :: Jd
          
 
         !ObjDischarges comes from ModueRunoff
@@ -959,56 +960,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 !                                  STAT = STAT_CALL)
 !        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunoffProperties - ConstructDischarges - ERR01'  
 
+        !ATTENTION - DIFFERENT DISCHARGES CAN NOT OCCUR AT THE SAME CELL
+        !Test this here in PMP because is only problem if properties are used
+        !or create duplications of integrated discharge in porous media
+
         if (DischargesID == 0)  then                                                
             write(*,*)'You need to define DISCHARGES : 1 in the POROUS MEDIA input file' 
             stop      'ModulePorousMediaProperties - ConstructDischarges - ERR01'
         else            
             Me%ObjDischarges     = AssociateInstance (mDISCHARGES_,     DischargesID    )
         endif
-        
-        !Gets the number of discharges
-        call GetDischargesNumber(Me%ObjDischarges, nDischarges, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR010'
-
-        do iDis = 1, nDischarges
-
-            call GetDischargesGridLocalization(Me%ObjDischarges,                &
-                                               DischargeIDNumber = iDis,        &
-                                               CoordinateX   = CoordinateX,     &
-                                               CoordinateY   = CoordinateY,     & 
-                                               CoordinatesON = CoordinatesON,   &
-                                               STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR020' 
-                    
-            call GetDischargesIDName (Me%ObjDischarges, iDis, DischargeName, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR030' 
-
-            if (CoordinatesON) then
-                
-                call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR040' 
-
-                if (Id < 0 .or. Jd < 0) then
-                
-                    call TryIgnoreDischarge(Me%ObjDischarges, iDis, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR050' 
-
-                    if (IgnoreOK) then
-                        write(*,*) 'Discharge outside the domain - ',trim(DischargeName)
-                        cycle
-                    else
-                        stop 'ModulePorousMediaProperties - ConstructDischarges - ERR060' 
-                    endif
-
-                endif
-
-                call CorrectsCellsDischarges(Me%ObjDischarges, iDis, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMediaProperties - ConstructDischarges - ERR070' 
-                    
-            endif
-            
-        enddo
-    
+           
     
     endsubroutine ConstructDischarges            
     
@@ -5771,16 +5733,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Arguments--------------------------------------------------------------
         !Local------------------------------------------------------------------
         integer                                 :: iDis, nDischarges
-        integer                                 :: i, j, k
+        integer                                 :: i, j, k, n, kd, kGrid
         integer                                 :: STAT_CALL
         real, dimension(:, :, :), pointer       :: FlowDischarge
         real, dimension(:, :   ), pointer       :: DischargesConc
         type (T_Property), pointer              :: Property
         integer                                 :: iProp
         real(8)                                 :: VolumeOld
+        integer, dimension(:),   pointer        :: VectorI, VectorJ, VectorK
+        integer                                 :: nCells, DischVertical
+        integer                                 :: kmin, kmax, FlowDistribution
 
-
-        !Get integrated flow from runoff to be sure using same values
+        !Get integrated flow from porous media to be sure using same values
+        !ATTENTION - DIFFERENT DISCHARGES CAN NOT OCCUR AT THE SAME CELL
+        !Test this here in PMP because is only problem if properties are used
+        !or create duplications of integrated discharge (per discharge) in porous media
         call GetFlowDischarge (Me%ObjPorousMedia, FlowDischarge, STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ModifyDischarges - ERR01'
         
@@ -5798,68 +5765,114 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                                DischargeIDNumber = iDis,                &
                                                Igrid = i,                               &
                                                JGrid = j,                               &
-                                               KGrid = k,                               &
+                                               KGrid = kGrid,                           &
+                                               DischVertical = DischVertical,           &
                                                STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ModifyDischarges - ERR020'
             
-            if (k /= 0) then
-                
-                nullify (Property)
-                Property => Me%FirstProperty
-                iProp = 0
-                do while (associated (Property))
-                    
-                    if (Property%Evolution%Discharges) then 
-                        
-                        iProp = iProp + 1
+            !do not process runoff discharges (K=0). if uniform, K_layer is not used but instead k_min and K_max 
+            !and user may forget K_layer zero            
+            if ((DischVertical == DischUniform_) .or. (kGrid /= 0)) then
 
-                        !Gets Discharge Concentration for this cycle of iter
-                        call GetDischargeConcentration (Me%ObjDischarges,                           &
-                                                        Me%ExtVar%Now,                              &
-                                                        iDis, DischargesConc(iDis, iProp),          &
-                                                        Property%ID%IDNumber,                       &
-                                                        STAT = STAT_CALL)
-                        if (STAT_CALL/=SUCCESS_) then
-                            if (STAT_CALL == NOT_FOUND_ERR_) then 
-                                !When a property is not found associated to a discharge
-                                !by default is consider that the concentration is zero
-                                DischargesConc(iDis, iProp) = 0.
-                            else
-                                stop 'ModulePorousMediaProperties - ModifyDischarges - ERR030'
-                            endif
-                        endif
-                        
-                        !In case of negative discharge flux for mass balance is done using old concentration
-                        !and before concentration is updated in routine DischargeProperty
-                        !Do not move this computation to after DischargeProperty
-                        !In case of positive use dicharge concentration
-                        if (Me%CheckGlobalMass) then
-                            if (FlowDischarge(i,j,k) .lt. 0.0) then                        
-                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
-                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j,k)   &
-                                                                 * Me%ExtVar%DT * Property%ConcentrationOld(i,j,k))
-                            else
-                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
-                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j,k)  &
-                                                                 * Me%ExtVar%DT * DischargesConc(i, j))
+                call GetDischargeFlowDistribuiton(Me%ObjDischarges, iDis, nCells, FlowDistribution, &
+                                                  VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)             
+                if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ModifyDischarges - ERR040'             
+               
+ dn:            do n=1, nCells
+ 
+                    if (nCells > 1) then
+                        i         = VectorI(n)
+                        j         = VectorJ(n)
+                        kd        = VectorK(n)                       
+                    endif
+
+                    if (DischVertical == DischUniform_) then
+
+                        if (kmin == FillValueInt) kmin = Me%ExtVar%KFloor(i, j)
+                        if (kmax == FillValueInt) kmax = Me%WorkSize%KUB
+
+                    else
+            
+                        kmin = kd; kmax = kd
+
+                    endif
+
+dk:                 do k=kmin, kmax
+
+                        if (Me%ExtVar%WaterPoints3D(i, j, k) /= WaterPoint)  Cycle
+
+                        nullify (Property)
+                        Property => Me%FirstProperty
+                        iProp = 0
+                        do while (associated (Property))
                             
-                            endif
-                        endif
-                        
-                        !initial volume in runoff - no discharge
-                        !m3 = m3H20/m3cell * m3cell
-                        VolumeOld = Me%ExtVar%WaterContentOld(i,j,k) * Me%ExtVar%CellVolume(i,j,k)
-                        
-                        !Update old concentration (same as doing new concentrarion and then old = new before other processes)
-                        call DischargeProperty (FlowDischarge(i,j,k), DischargesConc(iDis, iProp),        &
-                                                i, j, k, VolumeOld,   Property, Me%ExtVar%DT) !, .false.)
-                        
-                    end if
-                                    
-                    Property => Property%Next
+                            if (Property%Evolution%Discharges) then 
+                                
+                                iProp = iProp + 1
 
-                enddo
-           
+                                !Gets Discharge Concentration for this cycle of iter
+                                call GetDischargeConcentration (Me%ObjDischarges,                           &
+                                                                Me%ExtVar%Now,                              &
+                                                                iDis, DischargesConc(iDis, iProp),          &
+                                                                Property%ID%IDNumber,                       &
+                                                                STAT = STAT_CALL)
+                                if (STAT_CALL/=SUCCESS_) then
+                                    if (STAT_CALL == NOT_FOUND_ERR_) then 
+                                        !When a property is not found associated to a discharge
+                                        !by default is consider that the concentration is zero
+                                        DischargesConc(iDis, iProp) = 0.
+                                    else
+                                        stop 'ModulePorousMediaProperties - ModifyDischarges - ERR030'
+                                    endif
+                                endif
+
+                                !In case of negative discharge flux for mass balance is done using old concentration
+                                !and before concentration is updated in routine DischargeProperty
+                                !Do not move this computation to after DischargeProperty
+                                !In case of positive use dicharge concentration
+                                if (Me%CheckGlobalMass) then
+                                    if (FlowDischarge(i,j,k) .lt. 0.0) then                        
+                                        !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                        Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j,k)   &
+                                                                         * Me%ExtVar%DT * Property%ConcentrationOld(i,j,k))
+                                    else
+                                        !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                        Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j,k)  &
+                                                                         * Me%ExtVar%DT * DischargesConc(iDis, iProp))
+                                    
+                                    endif
+                                endif
+                                
+                                !initial volume in runoff - no discharge
+                                !m3 = m3H20/m3cell * m3cell
+                                VolumeOld = Me%ExtVar%WaterContentOld(i,j,k) * Me%ExtVar%CellVolume(i,j,k)
+                                
+                                !Update old concentration (same as doing new concentrarion and then old = new before other processes)
+                                call DischargeProperty (FlowDischarge(i,j,k), DischargesConc(iDis, iProp),        &
+                                                        i, j, k, VolumeOld,   Property, Me%ExtVar%DT) !, .false.)
+                                
+                            end if
+                                            
+                            Property => Property%Next
+
+                        enddo
+                    
+                    enddo dk
+                    
+                enddo dn
+
+                call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)             
+                if (STAT_CALL/=SUCCESS_)                                                    &
+                    stop 'ModulePorousMedia - ModifyWaterDischarges - ERR070'
+
+                call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)             
+                if (STAT_CALL/=SUCCESS_)                                                    &
+                    stop 'ModulePorousMedia - ModifyWaterDischarges - ERR080'
+
+                call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)             
+                if (STAT_CALL/=SUCCESS_)                                                    &
+                    stop 'ModulePorousMedia - ModifyWaterDischarges - ERR090'
+          
            endif
            
         enddo
