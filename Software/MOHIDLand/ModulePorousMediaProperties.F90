@@ -11336,13 +11336,14 @@ do1 :   do while (associated(Property))
         type (T_Property), pointer                         :: Property
         
         !Local--------------------------------------------------------------------
-        type (T_Property), pointer                         :: SoilDryDensity, DOC, POC
-        real             , pointer, dimension(:,:,:)       :: Porosity, ThetaF
+        type (T_Property), pointer                         :: SoilDryDensity, DOC, POC, POCr, POCl
+        real             , pointer, dimension(:,:,:)       :: Porosity, ThetaF, auxPOC
         real                                               :: DT
         real                                               :: AdjustedDensity, PropFactor
         real                                               :: AnaerobioseFactor, Decay
         real(8)                                            :: NO3Conc, DOCConc, POCConc, NO3HalfSaturation
         integer                                            :: i,j,k, CHUNK, STAT_CALL
+        logical                                            :: POCAvailable = .true.
         !Begin--------------------------------------------------------------------
         
         !now is used Peyrard only for nitrate but in the future may be added other properties to transform
@@ -11364,9 +11365,47 @@ do1 :   do while (associated(Property))
 
                 call SearchProperty(DOC, DOC_, .false., STAT = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'DecayPeyrard - ModulePorousMediaProperties - ERR010'
-       
+                
+                POCAvailable = .true.
+                
                 call SearchProperty(POC, POC_, .false., STAT = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'DecayPeyrard - ModulePorousMediaProperties - ERR020'
+                if (STAT_CALL /= SUCCESS_) then
+                                      
+                    !try with POCr and POCl (the normal properties used with sediment quality and vegetation)
+                    call SearchProperty(POCr, RefreactaryOrganicC_, .false., STAT = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'DecayPeyrard - ModulePorousMediaProperties - ERR011'
+                    
+                    call SearchProperty(POCl, LabileOrganicC_, .false., STAT = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'DecayPeyrard - ModulePorousMediaProperties - ERR012'
+                    
+                    POCAvailable = .false.
+                    
+                    allocate(auxPOC(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
+                    auxPOC(:,:,:) = null_real
+                    
+                    !Compute sum of POC
+                    CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                    !$OMP PARALLEL PRIVATE(I,J,K)
+                    
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    do J = Me%WorkSize%JLB, Me%WorkSize%JUB       
+                    do I = Me%WorkSize%ILB, Me%WorkSize%IUB                    
+                        if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then 
+                            auxPOC(i,j,k) = POCr%Concentration(i,j,k) + POCl%Concentration(i,j,k)
+                        endif
+                    enddo
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL   
+                    
+                    !point to the computed poc
+                    POC%Concentration => auxPOC
+                                                         
+                endif
+                 
+                
                 
                 !shorten variables
                 Porosity => Me%ExtVar%ThetaS
@@ -11432,7 +11471,11 @@ do1 :   do while (associated(Property))
                 enddo
                 !$OMP END DO
                 !$OMP END PARALLEL                    
-            
+                
+                if (.not. POCAvailable) then
+                    deallocate (auxPOC)
+                endif
+                
             endif
         
         !elseif (Property%ID%IDNumber == OtherProperty) then
