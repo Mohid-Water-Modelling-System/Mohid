@@ -341,5 +341,6 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleHorizontalMap.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleInterpolation.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleMap.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleStartAndStop.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleStatistic.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
