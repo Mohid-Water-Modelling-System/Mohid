@@ -1855,7 +1855,7 @@ cd2 :           if (BlockFound) then
         endif
 
         !Time cycle
-        do CurrentInstant = Me%HDF5StartInstant, Me%HDF5EndInstant 
+        do CurrentInstant = 1,  (Me%HDF5EndInstant -  Me%HDF5StartInstant + 1)
 
             !verify if this instant is to skip or not
             CurrentTime = Me%InstantsArray(CurrentInstant)

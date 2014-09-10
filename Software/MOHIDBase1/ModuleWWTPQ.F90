@@ -29,7 +29,7 @@
 !
 !------------------------------------------------------------------------------
 
-!Module WWTPQ uses ModuleGlobalData, ModuleLUD, ModuleEnterData
+!ModuleWWTPQ uses ModuleGlobalData, ModuleLUD, ModuleEnterData
 !?uses use ModuleFunctions, only: OxygenSaturation, PhytoLightLimitationFactor, what does it mean? what for? 
 !?uses all these modules in the end?
 
@@ -461,7 +461,7 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
 !                     ClientModule = 'ModuleWWTPQ',                                           &
 !                     STAT       = STAT_CALL)
 !        if (STAT_CALL .NE. SUCCESS_)                                                                &
-!            stop 'Subroutine WWTPQOptions; Module ModuleWWTPQ. ERR01.' 
+!            stop 'Subroutine WWTPQOptions; ModuleModuleWWTPQ. ERR01.' 
 !
 !
 !        call GetData(Me%PropCalc%Phosphorus,                                                        &
@@ -471,7 +471,7 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
 !                     ClientModule = 'ModuleWWTPQ',                                           &
 !                     STAT       = STAT_CALL)
 !        if (STAT_CALL .NE. SUCCESS_)                                                                &
-!            stop 'Subroutine WWTPQOptions; Module ModuleWWTPQ. ERR02.' 
+!            stop 'Subroutine WWTPQOptions; ModuleModuleWWTPQ. ERR02.' 
 !
 !
 !        call GetData(Me%PropCalc%Oxygen,                                                            &
@@ -481,7 +481,7 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
 !                     ClientModule = 'ModuleWWTPQ',                                           &
 !                     STAT       = STAT_CALL)                        
 !        if (STAT_CALL .NE. SUCCESS_)                                                                &
-!            stop 'Subroutine WWTPQOptions; Module ModuleWWTPQ. ERR09.' 
+!            stop 'Subroutine WWTPQOptions; ModuleModuleWWTPQ. ERR09.' 
 !
 !    end subroutine WWTPQOptions         
     
@@ -562,7 +562,7 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
 !        else
 !            write(*,*) 
 !            write(*,*) 'The Water Quality Options were not consistent, verify file data.'
-!            stop       'SUBROUTINE WWTPQReadData; Module ModuleWWTPQ. ERR01'
+!            stop       'SUBROUTINE WWTPQReadData; ModuleModuleWWTPQ. ERR01'
 !        endif   !Consistent
 
         !----------------------------------------------------------------------
@@ -593,7 +593,7 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
                                  ClientModule = 'ModuleWWTPQ',                                      &
                                  STAT       = STAT_CALL)                                            
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQReadCalcOptions; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadCalcOptions; ModuleModuleWWTPQ. ERR01.' 
 
 
         !Verifica se se pretende calcular usando um metodo IMPLICITO
@@ -604,7 +604,7 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
                      ClientModule = 'ModuleWWTPQ',                                                  &
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQReadCalcOptions; Module ModuleWWTPQ. ERR02.' 
+            stop 'Subroutine WWTPQReadCalcOptions; ModuleModuleWWTPQ. ERR02.' 
 
             !Verifica se se pretende calcular usando um metodo IMPLICITO/EXPLICITO        
         call GetData(Me%CalcMethod%SemiimpMethod,                                                   & 
@@ -614,7 +614,7 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
                      ClientModule = 'ModuleWWTPQ',                                                  &
                      STAT       = STAT_CALL)                         
         if (STAT_CALL .NE. SUCCESS_)                                                                &
-            stop 'Subroutine WWTPQReadCalcOptions; Module ModuleWWTPQ. ERR03.'         
+            stop 'Subroutine WWTPQReadCalcOptions; ModuleModuleWWTPQ. ERR03.'         
 
     end subroutine WWTPQReadCalcOptions
 
@@ -647,12 +647,12 @@ cd1 :   if (Me%dtsecond .le. 0.0) then
                                     clientmodule = 'modulewwtpq',                   &
                                     stat       = stat_call)
             if (stat_call .ne. success_)                                            &
-                stop 'subroutine wwtpqreadfileconstants; module modulewwtpq. err00.' 
+                stop 'subroutine wwtpqreadfileconstants; ModuleModuleWWTPQ. err00.' 
 
 cd22 :      if (flag .eq. 0) then
                 write(*,*) 
                 write(*,*) 'keyword dtseconds not found in water quality data file.'
-                write(*,*) 'subroutine wwtpqreadfileconstants; module modulewwtpq. wrn01.'
+                write(*,*) 'subroutine wwtpqreadfileconstants; ModuleModuleWWTPQ. wrn01.'
                 write(*,*) 'assumed ', me%dtsecond, &
                             'seconds (',  me%dtsecond / 3600.0, 'hour).'
                 write(*,*) 
@@ -674,7 +674,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                       &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
 
         !AutoBioYield, autotrophic biomass yield, G COD G-1 N
         call GetData(           Me%StechParameters%AutoBioYield,                    &
@@ -684,7 +684,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                       &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
 
         !FracBioPartProd, fraction of biomass leading to particulate products, G COD G-1 COD
         call GetData(           Me%StechParameters%FracBioPartProd,                            &
@@ -694,7 +694,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                  &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                           &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
 
         !NCODBioMassRatio, mass N/mass COD in biomass, G N G-1 COD
         call GetData(           Me%StechParameters%NCODBioMassRatio,                          &
@@ -704,7 +704,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                 &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                          &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
 
         !NCODPartProdBioMassRatio, mass N/mass COD in products from biomass, G N G-1 COD
         call GetData(           Me%StechParameters%NCODPartProdBioMassRatio,                            &
@@ -714,7 +714,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                           &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                    &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
 
         !MaxSpecGrowthRateHetBio, maximum specific growth rate for heterotrophic biomass, D-1, value at 20 ºC
         call GetData(           Me%KineticParameters%MaxSpecGrowthRateHetBio,                                       &
@@ -724,7 +724,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                                       &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                                &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
             
         !HalfSatCoefHetBio, half-saturation coefficient for heterotrophic biomass, G COD M-3
         call GetData(           Me%KineticParameters%HalfSatCoefHetBio,                         &
@@ -734,7 +734,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                   &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                            &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
   
         !OxygHalfSatCoefHetBio, oxygen half-saturation coefficient for heterotrophic biomass, G O2 M-3
         call GetData(           Me%KineticParameters%OxygHalfSatCoefHetBio,                               &
@@ -744,7 +744,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                             &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                      &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
             
         !NitHalfSatCoefDenHetBio, nitrate half-saturation coefficient for denitrifying heterotrophic biomass, G NO3-N M-3
         call GetData(           Me%KineticParameters%NitHalfSatCoefDenHetBio,                                                 &
@@ -754,7 +754,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                                                 &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                                          &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
             
         !DecayCoefHetBio, decay coefficient for heterotrophic biomass, D-1, value at 20 ºC
         call GetData(           Me%KineticParameters%DecayCoefHetBio,                         &
@@ -764,7 +764,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                 &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                          &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
           
         !CorFacAnoxGrowthHetBio, correction factor for anoxic growth of heterotrophs, dimensionless
         call GetData(           Me%KineticParameters%CorFacAnoxGrowthHetBio,                               &
@@ -774,7 +774,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                              &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                       &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
  
     
         !AmmonifRate, ammonification rate, M3 COD (G.D)-1, value at 20 ºC
@@ -785,7 +785,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                       &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'          
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.'          
       
        !MaxSpecHydroRate, maximum specific hydrolysis rate, G slowly biodegradable (COD G cell COD D)-1, value at 20 ºC
         call GetData(           Me%KineticParameters%MaxSpecHydroRate,                                                     &
@@ -795,7 +795,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                                              &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                                       &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
        
   
        !HalfSatCoefHydroSlowlyBioSub, half-saturation coefficient for hydrolysis of slowly biodegradable substrate, 
@@ -807,7 +807,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                                            &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                                     &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.' 
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.' 
             
         !CorFacAnoxCond, correction factor under anoxic conditions, dimensionless
         call GetData(           Me%KineticParameters%CorFacAnoxCond,                       &
@@ -817,7 +817,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                              &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                       &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'    
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.'    
             
         !MaxSpecGrowthRateAutBio, maximum specific growth rate for autotrophic biomass, D-1, value at 20 ºC 
         call GetData(           Me%KineticParameters%MaxSpecGrowthRateAutBio,                                       &
@@ -827,7 +827,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                                       &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                                &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'    
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.'    
             
         !AmmoniaHalfSatCoefAutBio, ammonia half-saturation coefficient for autotrophic biomass, G NH3-N M-3 
         call GetData(           Me%KineticParameters%AmmoniaHalfSatCoefAutBio,                                     &
@@ -837,7 +837,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                                      &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                               &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'  
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.'  
             
         !OxyHalfSatCoefAutBio, oxygen half-saturation coefficient for autotrophic biomass, G O2 M-3 
         call GetData(           Me%KineticParameters%OxyHalfSatCoefAutBio,                             &
@@ -847,7 +847,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                                          &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                                   &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'  
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.'  
             
    
         !DecayCoefAutBio, decay coefficient for autotrophic biomass, M3 COD (G D)-1
@@ -858,7 +858,7 @@ cd22 :      if (flag .eq. 0) then
                                 ClientModule = 'ModuleWWTPQ',                &
                                 STAT       = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'Subroutine WWTPQReadFileConstants; Module ModuleWWTPQ. ERR01.'  
+            stop 'Subroutine WWTPQReadFileConstants; ModuleModuleWWTPQ. ERR01.'  
         
     
      end subroutine WWTPQReadFileConstants
@@ -887,7 +887,7 @@ cd22 :      if (flag .eq. 0) then
 cd1 :   if (Me%CalcMethod%ExplicitMethod) then
             allocate(Me%NewMass(PropLB:PropUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Subroutine AllocateVariables; module ModuleWWTPQ. ERR01.'
+                stop 'Subroutine AllocateVariables; ModuleModuleWWTPQ. ERR01.'
         end if cd1
 
         !------------------------------------------------------------------------
@@ -1127,16 +1127,16 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 !
 !            Me%ExternalVar%Salinity                   => Salinity
 !            if (.NOT. associated(Me%ExternalVar%Salinity))         &
-!                stop 'Subroutine WWTPQ; Module ModuleWWTPQ. ERR01' 
+!                stop 'Subroutine WWTPQ; ModuleModuleWWTPQ. ERR01' 
 !
 !
             Me%ExternalVar%Temperature                => temperature
             if (.not. associated(me%externalvar%temperature))        &
-                stop 'subroutine wwtpq; module modulewwtpq. err02'
+                stop 'subroutine wwtpq; ModuleModuleWWTPQ. err02'
 
             Me%ExternalVar%Mass                       => Mass
             if (.NOT. associated(Me%ExternalVar%Mass))               &
-                stop 'Subroutine WWTPQ; Module ModuleWWTPQ. ERR03.'
+                stop 'Subroutine WWTPQ; ModuleModuleWWTPQ. ERR03.'
 
             call StartWWTPQIteration
 
@@ -1300,7 +1300,7 @@ do4 :       do equa = PropLB, PropUB           !Percorre as equacoes
                      x,                                                       &
                      STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                      &
-                stop 'Subroutine WWTPQSystemResolution; module ModuleWWTPQ. ERR03.'
+                stop 'Subroutine WWTPQSystemResolution; ModuleModuleWWTPQ. ERR03.'
 
 
 
@@ -1345,7 +1345,7 @@ cd33 :               if (equa .EQ. prop) then
                      STAT = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                      &
-                stop 'Subroutine WWTPQSystemResolution; module ModuleWWTPQ. ERR04.'
+                stop 'Subroutine WWTPQSystemResolution; ModuleModuleWWTPQ. ERR04.'
 
 
 do33 :      do prop = PropLB, PropUB
@@ -3037,23 +3037,23 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if(Me%ObjLUD /= 0) then
                     call KillLUD(Me%ObjLUD, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                        stop 'Subroutine KillWWTPQ; module ModuleWWTPQ. ERR01.'
+                        stop 'Subroutine KillWWTPQ; ModuleModuleWWTPQ. ERR01.'
                 end if
 
                 deallocate(Me%IndTerm, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'Subroutine Kill_WWTPQ; module ModuleWWTPQ. ERR02.'
+                    stop 'Subroutine Kill_WWTPQ; ModuleModuleWWTPQ. ERR02.'
                 nullify(Me%IndTerm)
 
                 deallocate(Me%Matrix, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                    &
-                    stop 'Subroutine Kill_WWTPQ; module ModuleWWTPQ. ERR03.'
+                    stop 'Subroutine Kill_WWTPQ; ModuleModuleWWTPQ. ERR03.'
                 nullify(Me%Matrix)
 
 cd4 :           if (associated(Me%NewMass)) then
                     deallocate(Me%NewMass, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                        stop 'Subroutine Kill_WWTPQ; module ModuleWWTPQ. ERR04.'
+                        stop 'Subroutine Kill_WWTPQ; ModuleModuleWWTPQ. ERR04.'
                     nullify(Me%NewMass)
                 end if cd4
 

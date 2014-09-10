@@ -101,6 +101,7 @@ Module ModuleFillMatrix
     public  :: GetTimeInstant
     public  :: GetNextValueForDTPred
     public  :: GetValuesProcessingOptions
+    public  :: GetMultiTimeSeries
                      
     
     !Modifier
@@ -121,6 +122,9 @@ Module ModuleFillMatrix
     !Management
     private ::      Ready
     private ::          LocateObjFillMatrix 
+    
+    !Data
+    public  ::  T_Station
     
     !Interfaces----------------------------------------------------------------
     interface ConstructFillMatrix
@@ -1438,9 +1442,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         enddo   
 
-        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR040'
+        !call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) &
+        !    stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR040'
                  
         !Gets the name of the mask file
         call GetData(FileName,                                                   &
@@ -3796,11 +3800,29 @@ i2a:            if (Me%PredictDTMethod == 2) then
 
                     !This methodology do NOT works with CYCLICTIME or BACKTRACKING (needs revision)
                     if (Me%Backtracking) then
-                        stop 'ConstructHDFInput - ModuleFillMatrix - ERR145'
+                        stop 'ConstructHDFInput - ModuleFillMatrix - ERR210'
                     endif
 
                     Me%HDF%PreviousInstant = 1
                     Me%HDF%PreviousTime    = HDF5TimeInstant(Me%HDF%PreviousInstant)
+                    
+                    if(Me%HDF%PreviousTime .gt. Now)then
+                        write(*,*)
+                        write(*,*)'Could not read solution from HDF5 file'
+                        write(*,*)'First file instant greater than current time'
+                        write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                        stop      'ConstructHDFInput - ModuleFillMatrix - ERR211'
+                    end if
+                    
+                    if(Me%TimeEvolution .ne. None)then
+                        if(Me%HDF%EndTime .lt. Me%EndTime)then
+                            write(*,*)
+                            write(*,*)'Could not read solution from HDF5 file'
+                            write(*,*)'Last instant in file lower than simulation ending time'
+                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR212'
+                        end if
+                    end if                    
                     
                     Me%HDF%NextInstant = 1
                     Me%HDF%NextTime    = Me%HDF%PreviousTime
@@ -3820,47 +3842,6 @@ i2a:            if (Me%PredictDTMethod == 2) then
                         Me%NextValueForDTPred = maxval(Me%HDF%NextField3D)
                         call ModifyHDFInput3D (PointsToFill3D)
                     endif
-                    
-!                    do while (Me%HDF%NextTime <= CurrentTime)                    
-!                        if (Me%HDF%NextInstant < Me%HDF%NumberOfInstants) then
-!                            Me%HDF%PreviousInstant = Me%HDF%NextInstant
-!                            Me%HDF%NextInstant     = Me%HDF%NextInstant + 1
-!                        else
-!                            stop 'ConstructHDFInput - ModuleFillMatrix - ERR150'
-!                        endif
-!                        Me%HDF%PreviousTime = HDF5TimeInstant(Me%HDF%PreviousInstant)
-!                        Me%HDF%NextTime     = HDF5TimeInstant(Me%HDF%NextInstant)
-!                    enddo
-!                
-!                    Me%HDF%NextInstant = Me%HDF%PreviousInstant
-!                    Me%HDF%NextTime    = Me%HDF%PreviousTime
-!                
-!                    !After FindDTForNextEventInHDF, PreviousInstant/PreviousTime and NextInstant/NextTime will
-!                    !point for the start/end of the first property event and DTForNextEvent will be actualized.
-!                    !Also, the Previous and Next dataset will be loaded with the values.
-!                    !The MinForDTDecrease value will be used to determine the "rain". Any value BELOW this
-!                    !treshold will be discarded.
-!                    call FindDTForNextEventInHDF(PointsToFill2D, CurrentTime)
-!                    
-!                    if (CurrentTime >= Me%HDF%PreviousTime) then
-!                        if (Me%UseOriginalValues) then
-!                            Me%Matrix2D = Me%HDF%NextField2D                    
-!                        else if (Me%AccumulateValues) then
-!                            Me%Matrix2D = Me%HDF%NextField2D / (Me%HDF%NextTime - Me%HDF%PreviousTime)
-!                        else
-!                            !Interpolates the two matrixes in time
-!                            call InterpolateMatrix2DInTime(ActualTime       = Now,                         &
-!                                                           Size             = Me%WorkSize2D,               &
-!                                                           Time1            = Me%HDF%PreviousTime,         &
-!                                                           Matrix1          = Me%HDF%PreviousField2D,      &
-!                                                           Time2            = Me%HDF%NextTime,             &
-!                                                           Matrix2          = Me%HDF%NextField2D,          &
-!                                                           MatrixOut        = Me%Matrix2D,                 &
-!                                                           PointsToFill2D   = PointsToFill2D)                
-!                        endif                        
-!                    else
-!                        Me%Matrix2D = 0.0
-!                    endif                    
                 
                 else i2a
 
@@ -3876,9 +3857,9 @@ i2a:            if (Me%PredictDTMethod == 2) then
                     
                     call CheckCyclicMonths(Me%HDF%PreviousTime, RefTime = Now, CyclicTimeON = Me%HDF%CyclicTimeON)
 
-i3:             if (Me%HDF%CyclicTimeON) then
+i3:                 if (Me%HDF%CyclicTimeON) then
                 
-                        if (Me%HDF%NumberOfInstants /= 12) stop 'ConstructHDFInput - ModuleFillMatrix - ERR210'
+                        if (Me%HDF%NumberOfInstants /= 12) stop 'ConstructHDFInput - ModuleFillMatrix - ERR213'
 
                     else i3
                     
@@ -5215,7 +5196,50 @@ if2D:   if (Me%Dim == Dim2D) then
         
         !----------------------------------------------------------------------
 
-    end subroutine GetValuesProcessingOptions    
+    end subroutine GetValuesProcessingOptions   
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetMultiTimeSeries (FillMatrixID, List, Counter, STAT)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                             :: FillMatrixID
+        type(T_Station), dimension(:), pointer, intent(OUT) :: List
+        integer, intent(OUT)                                :: Counter
+        integer, intent(OUT), optional                      :: STAT
+        
+        !Local-----------------------------------------------------------------
+        integer                                             :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        !This routine does not "lock", but just because the property do not
+        !change after it's construction. if this behaviour changes, it must 
+        !implement a "lock" system, like in others modules
+        
+        STAT_ = UNKNOWN_
+
+        call Ready(FillMatrixID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            List => Me%MultiTimeSerie%StationsList
+            Counter = Me%MultiTimeSerie%NumberOfSources
+            
+            STAT_ = SUCCESS_
+
+        else 
+
+            STAT_ = ready_
+
+        end if
+
+        if (present(STAT)) STAT = STAT_
+        
+        !----------------------------------------------------------------------
+        
+    end subroutine GetMultiTimeSeries
         
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -5600,7 +5624,7 @@ if2D:   if (Me%Dim == Dim2D) then
                         else
                                
                             sl(id2d(i,j))%ValueIsDefined = .true.
-                                                            
+                                                         
                             !Gets Value for current Time
                             call GetTimeSerieValue (sl(id2d(i,j))%ObjTimeSerie, Now,                &
                                                     sl(id2d(i,j))%Column,                           &

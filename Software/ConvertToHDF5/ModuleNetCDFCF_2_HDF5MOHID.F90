@@ -1931,6 +1931,7 @@ BF:         if (BlockFound) then
         !Local-----------------------------------------------------------------
         logical                                     :: BlockFound
         integer                                     :: iflag, STAT_CALL, ip
+        logical                                     :: check
         !begin-----------------------------------------------------------------
 
         do ip = 1, Me%PropNumber 
@@ -2004,7 +2005,16 @@ BF:         if (BlockFound) then
                         
                     endif                        
                         
-                    call ConstructPropertyID (Me%Field(ip)%ID,  Me%ObjEnterData, FromBlockInBlock)
+                    call GetData(check,                                                 &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'CHECK_PROPERTY',                       &
+                                 default      = .true.,                                 &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR58'                                        
+                    
+                    call ConstructPropertyID (Me%Field(ip)%ID,  Me%ObjEnterData, FromBlockInBlock, check)
                     
                     !Index 1 is time
                     Me%Field(ip)%ValueIn%DataType = Me%FieldInType

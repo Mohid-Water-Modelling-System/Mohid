@@ -155,6 +155,7 @@ Module ModuleDrainageNetwork
     use ModuleEnterData
     use ModuleTime
     use ModuleHDF5
+    use ModuleStartAndStop
     use ModuleFunctions            , only: InterpolateValueInTime, ConstructPropertyID, ComputeT90_Chapra,  &
                                            ComputeT90_Canteras, LongWaveDownward, LongWaveUpward,           &
                                            LatentHeat, SensibleHeat, OxygenSaturation,                      &
@@ -212,6 +213,7 @@ Module ModuleDrainageNetwork
     
     private ::      InitializeVariables
     private ::          ReadInitialFile
+    private ::          ReadInitialFileOld
     private ::          InitializeNodes
     private ::              ComputeXSFromWaterDepth
     private ::              TabularGeometry
@@ -331,6 +333,7 @@ Module ModuleDrainageNetwork
     public  :: KillDrainageNetwork
     private ::      MaxStationValuesOutput
     private ::      WriteFinalFile
+    private ::      WriteFinalFileOld
     private ::      Write_Errors_Messages                                                    
     
 
@@ -487,15 +490,49 @@ Module ModuleDrainageNetwork
         type (T_IntFlow      )                      :: IntFlow
         logical                                     :: Rates                 = .false.       
     end type T_OutPut
+    
+    !IN PROGRESS
+    type T_ReachIntegration
+        real                                        :: AccFlowVolume = 0.0,         &
+                                                       MaxFlow = 0.0,               &
+                                                       MinFlow = 0.0
+    end type T_ReachIntegration
+    
+    type T_NodeIntegration
+        real                                        :: AccWeightedVolume = 0.0,     &
+                                                       MaxVolume = 0.0,             &
+                                                       MinVolume = 0.0,             &
+                                                       AccWeightedDepth = 0.0,      &
+                                                       MaxDepth = 0.0,              &
+                                                       MinDepth = 0.0,              &
+                                                       AccWeightedLevel = 0.0,      &
+                                                       MaxLevel = 0.0,              &
+                                                       MinLevel = 0.0
+    end type T_NodeIntegration
+    
+    !IN PROGRESS
+    type T_IntegratedOutput
+        type (T_Time), dimension(:), pointer            :: OutTime          => null()
+        integer                                         :: NextOutPut       = null_int
+        logical                                         :: Yes              = .false.,  &
+                                                           Initialize       = .true.
+        real                                            :: AccTime          = 0.0,      &
+                                                           OldAccTime       = 0.0
+        type(T_ReachIntegration), dimension(:), pointer	:: OldReachStatus   => null(),  &
+                                                           ReachStatus	    => null() 
+        type(T_NodeIntegration), dimension(:), pointer	:: OldNodeStatus    => null(),  &
+                                                           NodeStatus	    => null()
+    end type T_IntegratedOutput
 
     type T_Files 
-         character(PathLength)                      :: InputData             = null_str
-         character(PathLength)                      :: FinalFile             = null_str
-         character(PathLength)                      :: HDFFile               = null_str
-         character(PathLength)                      :: Initial               = null_str
-         character(PathLength)                      :: Network               = null_str
-         integer                                    :: ObjEnterDataNetwork   = 0
-         integer                                    :: ObjEnterDataInitial   = 0
+		character(PathLength)                       :: InputData             = null_str
+        character(PathLength)                       :: FinalFile             = null_str
+        character(PathLength)                       :: HDFFile               = null_str
+        character(PathLength)                       :: IntegratedHDFFile     = null_str
+        character(PathLength)                       :: InitialFile           = null_str
+        character(PathLength)                       :: Network               = null_str
+        integer                                     :: ObjEnterDataNetwork   = 0
+        integer                                     :: ObjEnterDataInitial   = 0
     end type T_Files
 
     type T_CrossSection
@@ -830,6 +867,7 @@ Module ModuleDrainageNetwork
         integer                                     :: ObjBenthicInterface   = 0
         integer                                     :: ObjLightExtinction    = 0
         integer                                     :: ObjHDF5               = 0
+        integer                                     :: ObjIntegratedHDF5     = 0
         type (T_Time)                               :: BeginTime
         type (T_Time)                               :: EndTime
         type (T_Time)                               :: CurrentTime
@@ -851,6 +889,7 @@ Module ModuleDrainageNetwork
         logical                                     :: HasGrid               = .false.
         integer                                     :: CoordType             = null_int
         type (T_OutPut)                             :: OutPut
+        type (T_IntegratedOutput)                   :: IntegratedOutput
         type (T_ComputeOptions)                     :: ComputeOptions
         type (T_TimeSerie)                          :: TimeSerie
         type (T_Files )                             :: Files
@@ -936,12 +975,15 @@ Module ModuleDrainageNetwork
         real(8)                                     :: TotalOutputVolume            = 0.0
         real(8)                                     :: TotalFlowVolume              = 0.0 !TotalOutput trough outlets
         real(8)                                     :: TotalInputVolume             = 0.0 !by discharges
+        real(8)                                     :: TotalEvapFromSurfaceVolume   = 0.0 !by surface evaporation
         real(8)                                     :: TotalOverTopVolume           = 0.0 !OverTopping
         real(8)                                     :: TotalStormWaterOutput        = 0.0 !Total outflow to the Storm Water System
         real(8)                                     :: TotalStormWaterInput         = 0.0
+        real(8)                                     :: InitalTotalEvapFromSurfaceVolume = 0.0
         real(8)                                     :: InitialTotalOutputVolume     = 0.0
         real(8)                                     :: InitialTotalFlowVolume       = 0.0
         real(8)                                     :: InitialTotalInputVolume      = 0.0 !by discharges
+        real(8)                                     :: InitialTotalEvapFromSurfaceVolume = 0.0
         
         real(8)                                     :: OutletFlowVolume             = 0.0 !Acc. Outlet Flow Vol for the Input DT.
         !type(T_Reach), pointer                      :: OutletReach                  => null()
@@ -987,6 +1029,12 @@ Module ModuleDrainageNetwork
         !Evapotranspirate in reach pools
         real                                        :: EVTPMaximumDepth             = null_real
         real                                        :: EVTPCropCoefficient          = null_real
+        
+        !Initial and final files type
+        !1(default) => HDF, 2 => old method (soon will disapear)
+        integer                                     :: InitialFileType = 1, &
+                                                       FinalFileType = 1 
+        type (T_StartAndStop)                       :: StartStopCtrl
 
         type (T_DrainageNetwork), pointer           :: Next                         => null()
     end type  T_DrainageNetwork
@@ -1129,6 +1177,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%Output%Yes) &
                 call HDF5Output
 
+            if (Me%IntegratedOutput%Yes) &
+                call IntegratedHDF5Output                
+                
             !User Feed-Back
             call ConstructLog
             
@@ -1490,8 +1541,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR17a'
 
-            call ReadFileName('DRAINAGE_NETWORK_INI', Me%Files%Initial,         &
-                              Message = "Drainage Network Initial File",        &
+            call ReadFileName('DRAINAGE_NETWORK_INI', Me%Files%InitialFile,         &
+                              Message = "Drainage Network Initial File",            &
                               STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR18'
 
@@ -1840,7 +1891,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR46' 
 
-
+        !IN PROGRESS
+		!Sets Integrated Output Time 
+        call GetOutPutTime(Me%ObjEnterData,                                             &
+                           CurrentTime = Me%CurrentTime,                                &
+                           EndTime     = Me%EndTime,                                    &
+                           keyword     = 'INTEGRATION_TIME',						    &
+                           SearchType  = FromFile,                                      &
+                           OutPutsTime = Me%IntegratedOutput%OutTime,                   &
+                           OutPutsOn   = Me%IntegratedOutput%Yes,					    &
+                           STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR47.0' 
+        
+        if (Me%IntegratedOutput%Yes) then
+            call ReadFileName('DRAINAGE_NETWORK_INT_HDF', Me%Files%IntegratedHDFFile,	&
+                              Message = "Drainage Network Integration HDF File",		&
+                              STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR47.1'
+        endif
+        
         !Sets Output Time 
         call GetOutPutTime(Me%ObjEnterData,                                              &
                            CurrentTime = Me%CurrentTime,                                 &
@@ -1928,9 +1997,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .false.,                                            &
                      ClientModule = 'ModuleDrainageNetwork',                            &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR70'
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR70'                
         
         if (Me%ComputeOptions%EVTPFromReach) then
+            !The EVTP_FROM_REACH is disabled because it will not work since REACH%EVTP is never actualized?
+            write (*,*) 'EVTP_FROM_REACH is disabled'
+            stop 'ReadDataFile - ModuleDrainageNetwork - ERR71'
             
             !maximum depth to happen evtp (vegetation only installs in low flow conditions)
             call GetData(Me%EVTPMaximumDepth,                                               &
@@ -2005,6 +2077,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleDrainageNetwork',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR110'
+        
+        call GetData(Me%InitialFileType,                                                &
+                     Me%ObjEnterData, flag,                                             &
+                     keyword      = 'INITIAL_FILE_TYPE',                                &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     Default      = 1,                                                  &
+                     SearchType   = FromFile,                                           &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) & 
+            stop 'ReadDataFile - ModuleDrainageNetwork - ERR120'
+        
+        call GetData(Me%FinalFileType,                                                  &
+                     Me%ObjEnterData, flag,                                             &
+                     keyword      = 'FINAL_FILE_TYPE',                                  &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     Default      = Me%InitialFileType,                                 &
+                     SearchType   = FromFile,                                           &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) & 
+            stop 'ReadDataFile - ModuleDrainageNetwork - ERR130'
 
     end subroutine ReadDataFile
     
@@ -5388,11 +5480,25 @@ cd2 :           if (BlockFound) then
         !if continuous, read water depth from Initial File
         !if not continuous, water depth initialized in subroutine ReadDataFile            
         
-        if (Me%Continuous) call ReadInitialFile          
-
+        if (Me%Continuous) then
+            if (Me%InitialFileType == 1) then !Its an HDF initial file
+                Me%StartStopCtrl = T_StartAndStop (Me%Files%InitialFile, Me%StopOnWrongDate)
+                call ReadInitialFile
+            else
+                call ReadInitialFileOld
+            endif
+        endif
+            
         call InitializeNodes
         call InitializeReaches
         call InitializeProperty
+        
+        if (Me%IntegratedOutput%Yes) then
+            allocate(Me%IntegratedOutput%OldReachStatus (1:Me%TotalReaches))
+            allocate(Me%IntegratedOutput%ReachStatus (1:Me%TotalReaches))
+            allocate(Me%IntegratedOutput%OldNodeStatus (1:Me%TotalReaches))
+            allocate(Me%IntegratedOutput%NodeStatus (1:Me%TotalReaches))
+        endif
 
 if1:    if (Me%HasGrid) then
 
@@ -5499,9 +5605,76 @@ if1:    if (Me%HasGrid) then
     end subroutine InitializeVariables
 
     !---------------------------------------------------------------------------
+    
+    subroutine ReadInitialFile
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real, dimension(:), pointer                 :: PtrNodes
+        real, dimension(:), pointer                 :: PtrReaches
+        type (T_Time)                               :: BeginTime
+        integer                                     :: stat, id
+        type(T_Property), pointer                   :: prop
+        integer, dimension(1), target               :: AuxInt
+        integer, dimension(:), pointer              :: PtrInt
+        
+        !----------------------------------------------------------------------
+        
+        allocate (PtrNodes (1:Me%TotalNodes))
+        allocate (PtrReaches (1:Me%TotalNodes))
+        
+        call Me%StartStopCtrl%Add(0, PtrNodes,                                          &
+                                  units='m',                                            &
+                                  group='Results/water level',                          &
+                                  name='water level')
+        call Me%StartStopCtrl%Add(0, PtrReaches,                                        &
+                                  units='m3/s',                                         &
+                                  group='Results/flow new',                             &
+                                  name='flow new')
+        
+        if (Me%PropertyContinuous) then
+            prop => Me%FirstProperty
+            do while (associated(prop))
+                call Me%StartStopCtrl%Add(0, prop%Concentration,                        &
+                                          units=trim(trim(prop%ID%Units)),              &
+                                          group='Results/'//trim(prop%ID%Name),         &
+                                          name=trim(prop%ID%Name))                                
+                prop => prop%Next
+            end do
+        endif
+                
+        PtrInt => AuxInt
+        call Me%StartStopCtrl%Add(0, PtrInt,                                            &
+                                  units='-',                                            &
+                                  group='Control/last good iteration number',           &
+                                  name='last good iteration number')        
+        
+        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, STAT=stat)
+        if (stat /= SUCCESS_) stop 'ReadInitialFile - ModuleDrainageNetwork - ERR010'
+        
+        if (.not. Me%StartStopCtrl%Load (BeginTime)) then
+            write (*,*) Me%StartStopCtrl%Message()
+            stop 'ReadInitialFile - ModuleDrainageNetwork - ERR020'
+        endif
+        
+        do id = 1, Me%TotalNodes
+            Me%Nodes(id)%WaterLevel = PtrNodes(id)
+        end do                
+        do id = 1, Me%TotalReaches
+            Me%Reaches(id)%FlowNew = PtrReaches(id)
+        end do
+        
+        Me%CV%LastGoodNiteration = AuxInt(1)
+        
+        deallocate (PtrNodes)
+        deallocate (PtrReaches)
+        
+    end subroutine ReadInitialFile
+    
     !---------------------------------------------------------------------------
 
-    subroutine ReadInitialFile
+    subroutine ReadInitialFileOld
 
 
         !Arguments--------------------------------------------------------------
@@ -5520,11 +5693,11 @@ if1:    if (Me%HasGrid) then
         !-----------------------------------------------------------------------
 
         call UnitsManager(InitialFile, OPEN_FILE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadInitialFile - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadInitialFileOld - ERR01'
 
-        open(Unit = InitialFile, File = Me%Files%Initial, Form = 'UNFORMATTED',     &
+        open(Unit = InitialFile, File = Me%Files%InitialFile, Form = 'UNFORMATTED',     &
              status = 'OLD', IOSTAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadInitialFile - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadInitialFileOld - ERR02'
 
         !Reads Date
         read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
@@ -5540,7 +5713,7 @@ if1:    if (Me%HasGrid) then
             write(*,*) 'Date in the file'
             write(*,*) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
             write(*,*) 'DT_error', DT_error
-            if (Me%StopOnWrongDate) stop 'ModuleDrainageNetwork - ReadInitialFile - ERR04'   
+            if (Me%StopOnWrongDate) stop 'ModuleDrainageNetwork - ReadInitialFileOld - ERR04'   
 
         endif
 
@@ -5570,9 +5743,9 @@ if1:    if (Me%HasGrid) then
     10  continue
 
         call UnitsManager(InitialFile, CLOSE_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadInitialFile - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadInitialFileOld - ERR04'
 
-    end subroutine ReadInitialFile
+    end subroutine ReadInitialFileOld
 
     !---------------------------------------------------------------------------
 
@@ -6387,6 +6560,10 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
             call ConstructHDF5Output 
         endif
         
+        if (Me%IntegratedOutput%Yes) then
+            call ConstructIntegratedHDF5Output
+        endif
+        
        
     end subroutine ConstructOutput
 
@@ -6951,6 +7128,106 @@ if0:    if (Me%HasProperties) then
 
     !--------------------------------------------------------------------------
 
+    subroutine ConstructIntegratedHDF5Output
+    
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                             :: HDF5_CREATE, STAT_CALL
+        integer                                             :: iNode, ReachID
+        real, dimension(:), pointer                         :: NodeX, NodeY, ReachSize
+        integer, dimension(:), pointer                      :: NodeID, ReachIDs
+        integer, dimension(:), pointer                      :: UpNode, DownNode, ReachActive
+        
+        
+        Me%IntegratedOutPut%NextOutPut = 1  
+        
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        !Opens HDF File
+        call ConstructHDF5      (Me%ObjIntegratedHDF5, trim(Me%Files%IntegratedHDFFile)//"5", HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR01'
+        
+        !Writes information about the Nodes / Reaches
+        !Writes the Nodes X / Y
+        allocate(NodeID(1: Me%TotalNodes))
+        allocate(NodeX (1: Me%TotalNodes))
+        allocate(NodeY (1: Me%TotalNodes))
+        
+        do iNode = 1, Me%TotalNodes
+            NodeID(iNode) = Me%Nodes(iNode)%ID
+            NodeX(iNode)  = Me%Nodes(iNode)%X
+            NodeY(iNode)  = Me%Nodes(iNode)%Y
+        enddo
+
+        allocate(UpNode     (1: Me%TotalReaches))
+        allocate(DownNode   (1: Me%TotalReaches))
+        allocate(ReachIDs   (1: Me%TotalReaches))
+        allocate(ReachSize  (1: Me%TotalReaches))
+        allocate(ReachActive(1: Me%TotalReaches))
+        
+        do ReachID = 1, Me%TotalReaches
+            ReachIDs    (ReachID) = ReachID
+            UpNode      (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%ID
+            DownNode    (ReachID) = Me%Nodes(Me%Reaches(ReachID)%DownstreamNode)%ID
+            ReachSize   (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%CrossSection%TopWidth
+            if (Me%Reaches(ReachID)%Active) then 
+                ReachActive (ReachID) = 1
+            else
+                ReachActive (ReachID) = 0
+            endif
+        enddo
+
+        !Nodes
+        call HDF5SetLimits  (Me%ObjIntegratedHDF5, 1, Me%TotalNodes, STAT = STAT_CALL)
+
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Nodes", "ID", "m",                          &
+                              Array1D = NodeID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR02'
+        
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Nodes", "X", "m",                           &
+                              Array1D = NodeX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR02'
+
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Nodes", "Y", "m",                           &
+                              Array1D = NodeY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR03'
+
+        !Reaches
+        call HDF5SetLimits  (Me%ObjIntegratedHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
+        
+        !Reach - ID
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Reaches", "ID", "-",                         &
+                              Array1D = ReachIDs, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR04'
+
+        !Reach - Up Node
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Reaches", "Up", "-",                         &
+                              Array1D = UpNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR04'
+
+        !Reach - Down Node
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Reaches", "Down", "-",                       &
+                              Array1D = DownNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR05'
+
+        !Reach - Size
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Reaches", "Size", "-",                       &
+                              Array1D = ReachSize, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR06'
+
+        !Reach - Active
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Reaches", "Active", "-",                       &
+                              Array1D = ReachActive, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR07'
+
+        deallocate(NodeID, NodeX, NodeY)
+        deallocate(DownNode, UpNode, ReachIDs, ReachSize, ReachActive)    
+    
+    end subroutine ConstructIntegratedHDF5Output
+
+    !--------------------------------------------------------------------------
+    
     subroutine ConstructHDF5Output
 
         !Arguments--------------------------------------------------------------
@@ -8079,7 +8356,8 @@ if0:    if (Me%HasProperties) then
     subroutine GetVolumes(DrainageNetworkID, TotalInputVolume,                           &
                           TotalOutputVolume, TotalStoredVolume, TotalFlowVolume,         &
                           TotalOvertopVolume, TotalStormWaterOutput,                     &
-                          TotalStormWaterInput, OutletFlowVolume, STAT)
+                          TotalStormWaterInput, OutletFlowVolume,                        &
+                          TotalEvapFromSurfaceVolume, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: DrainageNetworkID
@@ -8091,6 +8369,7 @@ if0:    if (Me%HasProperties) then
         real(8), intent(OUT), optional                  :: TotalStormWaterOutput
         real(8), intent(OUT), optional                  :: TotalStormWaterInput
         real(8), intent(OUT), optional                  :: OutletFlowVolume
+        real(8), intent(OUT), optional                  :: TotalEvapFromSurfaceVolume
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
@@ -8111,6 +8390,7 @@ if0:    if (Me%HasProperties) then
             if (present (TotalStormWaterOutput )) TotalStormWaterOutput = Me%TotalStormWaterOutput
             if (present (TotalStormWaterInput  )) TotalStormWaterInput  = Me%TotalStormWaterInput
             if (present (OutletFlowVolume      )) OutletFlowVolume      = Me%OutletFlowVolume
+            if (present (TotalEvapFromSurfaceVolume)) TotalEvapFromSurfaceVolume = Me%TotalEvapFromSurfaceVolume
             STAT_CALL = SUCCESS_
         else 
             STAT_CALL = ready_
@@ -8769,11 +9049,12 @@ do2 :   do while (associated(PropertyX))
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyDrainageNet")
 
         !Mass Balance
-        Me%TotalOutputVolume       = 0.0
-        Me%TotalFlowVolume        = 0.0
-        Me%TotalInputVolume       = 0.0
-        Me%TotalOverTopVolume     = 0.0
-        Me%TotalStormWaterOutput  = 0.0
+        Me%TotalOutputVolume            = 0.0
+        Me%TotalFlowVolume              = 0.0
+        Me%TotalInputVolume             = 0.0
+        Me%TotalOverTopVolume           = 0.0
+        Me%TotalStormWaterOutput        = 0.0
+        Me%TotalEvapFromSurfaceVolume   = 0.0
         
         if (Me%CheckMass) then
             Property => Me%FirstProperty
@@ -8786,8 +9067,7 @@ do2 :   do while (associated(PropertyX))
                 Property => Property%Next
             enddo
         endif
-        
-        
+                
         !Stores Initial Value for the case that a Volume gets negative,
         !So Drainage Network can start all over
         call StoreInitialValues
@@ -8896,6 +9176,10 @@ do2 :   do while (associated(PropertyX))
                     call ComputeFlowFrequency (Me%CV%CurrentDT, SumDT)
                 endif                
 
+                if (Me%IntegratedOutput%Yes) then
+                    call ComputeIntegration (Me%CV%currentDT)
+                endif
+                
                 if (Me%Output%ComputeIntegratedFlow) then
                     call OutputIntFlow (Me%CV%CurrentDT)
                 endif  
@@ -9025,12 +9309,19 @@ do2 :   do while (associated(PropertyX))
         
         if (Me%Output%Yes) call HDF5Output
         
+        !IN PROGRESS
+        if (Me%IntegratedOutput%Yes) call IntegratedHDF5Output        
+        
         if (Me%WriteMaxStationValues) call MaxStationValues 
 
         !Restart Output
         if (Me%Output%WriteRestartFile .and. .not. (Me%CurrentTime == Me%EndTime)) then
             if(Me%CurrentTime >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                call WriteFinalFile
+                if (Me%FinalFileType == 1) then !Its an HDF final file
+                    call WriteFinalFile (.true.)
+                else
+                    call WriteFinalFileOld
+                endif
                 Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
             endif
         endif
@@ -9193,6 +9484,218 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
 
     !---------------------------------------------------------------------------
 
+    subroutine ComputeIntegration(LocalDT)
+        
+        !Argument--------------------------------------------------------------
+        real                                    :: LocalDT
+        
+        !Local-----------------------------------------------------------------
+        integer                                 :: id, nNodes
+        type(T_Reach), pointer                  :: CurrReach
+        type(T_Node), pointer                   :: CurrNode
+        type(T_ReachIntegration), pointer		:: ReachInt
+        type(T_NodeIntegration), pointer        :: NodeInt
+        real                                    :: AvgValue, Depth, Level
+        
+        !Begin-----------------------------------------------------------------
+        
+        Me%IntegratedOutput%AccTime = Me%IntegratedOutput%AccTime + LocalDT
+        
+        nNodes = 1
+        do id = 1, Me%TotalReaches
+
+            CurrReach => Me%Reaches(id)
+            ReachInt => Me%IntegratedOutput%ReachStatus(id)
+           
+            if (Me%ComputeFaces(id) == OpenPoint) then
+                !Negative flows are removed so the same volume is not accounted twice
+                !if water comes back
+                !m3 = m3 + m3/s * s
+                ReachInt%AccFlowVolume = ReachInt%AccFlowVolume + (CurrReach%FlowNew * LocalDT)
+                
+                if (Me%IntegratedOutput%Initialize) then
+                    ReachInt%MaxFlow = CurrReach%FlowNew
+                    ReachInt%MinFlow = CurrReach%FlowNew
+                else
+                    !How to interpret this if flow is negative (backwards)?
+                    !The "abs" was used to try to avoid this "backwards" flow problem
+                    if (abs(CurrReach%FlowNew) > abs(ReachInt%MaxFlow)) &
+                        ReachInt%MaxFlow = CurrReach%FlowNew				
+				    if (abs(CurrReach%FlowNew) < abs(ReachInt%MinFlow)) &
+                        ReachInt%MinFlow = CurrReach%FlowNew
+				endif
+            endif
+            
+        enddo
+        
+        
+        do id = 1, Me%TotalNodes - 1
+
+            CurrNode => Me%Nodes(id)
+            NodeInt => Me%IntegratedOutput%NodeStatus(id)
+
+            !Volumes
+            AvgValue = (CurrNode%VolumeNew + CurrNode%VolumeOld)/2
+            NodeInt%AccWeightedVolume = NodeInt%AccWeightedVolume + (AvgValue * LocalDT)
+            
+            call ComputeCrossSectionForIntegration(CurrNode, AvgValue, Depth, Level)
+            
+            if (Me%IntegratedOutput%Initialize) then
+                NodeInt%MaxVolume = AvgValue
+                NodeInt%MaxDepth = Depth
+                NodeInt%MaxLevel = Level
+                NodeInt%MinVolume = AvgValue
+                NodeInt%MinDepth = Depth
+                NodeInt%MinLevel = Level                     
+            else
+                if (AvgValue > NodeInt%MaxVolume) then
+                    NodeInt%MaxVolume = AvgValue
+                    NodeInt%MaxDepth = Depth
+                    NodeInt%MaxLevel = Level
+			    endif
+            
+			    if (AvgValue < NodeInt%MinVolume) then
+                    NodeInt%MinVolume = AvgValue
+                    NodeInt%MinDepth = Depth
+                    NodeInt%MinLevel = Level                
+                endif  
+            endif
+        enddo
+        
+        Me%IntegratedOutput%Initialize = .false.
+        
+    end subroutine ComputeIntegration    
+    
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeCrossSectionForIntegration (CurrNode, Volume, Depth, Level)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Node), pointer                      :: CurrNode
+        real, intent(in)							:: Volume
+        real, intent(out)							:: Depth
+        real, intent(out)							:: Level
+
+        !Local------------------------------------------------------------------
+        real                                        :: Av_New, AvTrapez2, TopH
+        real(8)                                     :: PoolVolume, VolNewAux
+        type(T_Reach), pointer                      :: UpReach
+        type(T_Node), pointer                       :: UpNode
+        real                                        :: LevelOut
+
+        !-----------------------------------------------------------------------
+        !(Jauch) Observations:
+        !For CurrNode%nDownstreamReaches /= 0 is ok, but for the outlet, 
+        !the computation of Level and Depth are dependent of the data for the up node and reach, 
+        !which is the "final" data for the iteration, not the "averaged" data (considering the start and end condition).
+        !Even if small, probably this will have an "error" associated, for this point, when talking about "maximun" and "minimun" 
+        !for Depth and Level, because they will be always the same (related to the final value of the up node/reach)
+        !To make this "right", the info required from the up ndoe/reach must be provided and the correct values passed to this function
+        
+if1:    if (CurrNode%nDownstreamReaches /= 0) then
+            
+            PoolVolume = CurrNode%CrossSection%PoolDepth * CurrNode%Length * CurrNode%CrossSection%BottomWidth
+
+if2:        if (Volume > PoolVolume) then
+               
+                VolNewAux = Volume / CurrNode%SingCoef
+                Av_New    = (VolNewAux - PoolVolume) / CurrNode%Length
+                
+                if (CurrNode%CrossSection%Form == Trapezoidal) then
+                
+                    if (VolNewAux <= CurrNode%VolumeMax) then
+                        Depth = TrapezoidWaterHeight (b  = CurrNode%CrossSection%BottomWidth,  &
+                                                      m  = CurrNode%CrossSection%Slope,        &
+                                                      Av = Av_New)
+                    else
+                        Depth = CurrNode%CrossSection%Height + (VolNewAux - CurrNode%VolumeMax) / &
+                                (CurrNode%CrossSection%TopWidth * CurrNode%Length)
+                    endif   
+                    
+                elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
+                   
+                    if (VolNewAux <= CurrNode%VolumeMaxTrapez1) then
+
+                        Depth = TrapezoidWaterHeight (b  = CurrNode%CrossSection%BottomWidth,  &
+                                                      m  = CurrNode%CrossSection%Slope,        &
+                                                      Av = Av_New)                    
+                    else
+                        ! from the previous if
+                        ! we already know that CurrNode%WaterDepth > CurrNode%CrossSection%MiddleHeigh
+
+                        AvTrapez2 = (VolNewAux - CurrNode%VolumeMaxTrapez1) / CurrNode%Length
+
+                        TopH =  TrapezoidWaterHeight (b  = CurrNode%CrossSection%MiddleWidth,  &
+                                                      m  = CurrNode%CrossSection%SlopeTop,     &
+                                                      Av = AvTrapez2)
+                    
+                        Depth = CurrNode%CrossSection%MiddleHeight + TopH
+                    
+                    endif
+                    
+                elseif (CurrNode%CrossSection%Form == Tabular) then
+
+                    call TabularWaterLevel (CurrNode%CrossSection, Av_New, Level)
+                    Depth = Level - CurrNode%CrossSection%BottomLevel
+
+                else
+                    
+                    stop 'Invalid cross section form - ComputeCrossSection - ModuleDrainageNetwork - ERR01'
+                    
+                end if                
+
+            else !if2
+
+                Depth = 0.0
+                
+            endif if2
+            
+            !Level has significance only if Depth is different than zero
+            Level = Depth + CurrNode%CrossSection%BottomLevel
+
+        else !if1 -> Outlet
+        
+            if (Me%Downstream%Boundary == ImposedWaterLevel) then
+
+                    !Sets Level so it "tends" to the imposed level. Using Radiation with exterior velocity = 0
+                    !(v - v_ext)*h = (n-n_ext ) sqrt(gh) with v_ext = 0 =>
+                    !n = v*h / sqrt(gh) + n_ext
+
+                    UpReach             => Me%Reaches (CurrNode%UpstreamReaches (1))
+                    UpNode              => Me%Nodes   (UpReach%UpstreamNode) 
+
+                    if (Me%Downstream%Evolution  == None) then
+                        LevelOut = Me%Downstream%DefaultValue
+                    else if (Me%Downstream%Evolution == OpenMI) then
+                        LevelOut = Me%Downstream%DefaultValue
+                    else if (Me%Downstream%Evolution == ReadTimeSerie) then
+                        call ModifyDownstreamTimeSerie (LevelOut)
+                    end if
+                    
+                    if (UpNode%WaterDepth .gt. 0.0) then
+                        Level = UpReach%Velocity*UpNode%WaterDepth / sqrt(Gravity*UpNode%WaterDepth) + LevelOut
+                    else
+                        Level = CurrNode%CrossSection%BottomLevel
+                    endif
+                    Depth = Level - CurrNode%CrossSection%BottomLevel
+               
+            else
+            
+                !Assumes constant slope in the last reach
+                UpReach => Me%Reaches (CurrNode%UpstreamReaches (1))
+                UpNode  => Me%Nodes   (UpReach%UpstreamNode)
+                
+                Level = UpNode%WaterLevel - UpReach%Slope * UpReach%Length
+                Depth = max(Level - CurrNode%CrossSection%BottomLevel, 0.0)
+                
+            endif
+                  
+        end if if1        
+                                                               
+    end subroutine ComputeCrossSectionForIntegration    
+    
+    !---------------------------------------------------------------------------            
+    
     subroutine OutputIntFlow(LocalDT)
         
         !Argument--------------------------------------------------------------
@@ -9685,7 +10188,8 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
                 VolumeNew = 0.0
             endif
             
-            if (Me%CheckMass) Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT
+            !if (Me%CheckMass) Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT
+            Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT
 
             nullify (Property)
             Property => Me%FirstProperty
@@ -12189,9 +12693,12 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                         !Update volume
                         Me%Nodes(NodeID)%VolumeNew = Me%Nodes(NodeID)%VolumeNew + Evaporation * Me%ExtVar%DT
 
-                        if (Me%CheckMass) then
-                            Me%TotalOutputVolume = Me%TotalOutputVolume - Evaporation * Me%ExtVar%DT
-                        endif
+                        !if (Me%CheckMass) then
+                        !    Me%TotalOutputVolume = Me%TotalOutputVolume - Evaporation * Me%ExtVar%DT
+                        !endif
+                        Me%TotalOutputVolume = Me%TotalOutputVolume - Evaporation * Me%ExtVar%DT
+                        
+                        Me%TotalEvapFromSurfaceVolume = Me%TotalEvapFromSurfaceVolume + (Evaporation * Me%ExtVar%DT)
                     endif
 
                 endif
@@ -12357,9 +12864,10 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                 !Update volume
                 Me%Nodes(NodeID)%VolumeNew = Me%Nodes(NodeID)%VolumeNew + EVTPFlux * Me%ExtVar%DT
 
-                if (Me%CheckMass) then
-                    Me%TotalOutputVolume = Me%TotalOutputVolume - EVTPFlux * Me%ExtVar%DT
-                endif
+                !if (Me%CheckMass) then
+                !    Me%TotalOutputVolume = Me%TotalOutputVolume - EVTPFlux * Me%ExtVar%DT
+                !endif
+                Me%TotalOutputVolume = Me%TotalOutputVolume - EVTPFlux * Me%ExtVar%DT
 
             endif
 
@@ -13351,7 +13859,11 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
         !Local-----------------------------------------------------------------
         integer                                     :: NodeID, ReachID
         type (T_Property), pointer                  :: Property
-
+        type (T_ReachIntegration), pointer          :: OldReachStatus, ReachStatus
+        type (T_NodeIntegration), pointer           :: OldNodeStatus, NodeStatus
+        
+        !----------------------------------------------------------------------
+        
         !Initial Volumes
         do NodeID = 1, Me%TotalNodes
             Me%Nodes(NodeID)%InitialVolumeNew       = Me%Nodes(NodeID)%VolumeNew
@@ -13363,6 +13875,28 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
         do ReachID = 1, Me%TotalReaches
              Me%Reaches(ReachID)%InitialFlowNew = Me%Reaches(ReachID)%FlowNew
              Me%Reaches(ReachID)%InitialFlowOld = Me%Reaches(ReachID)%FlowOld
+             
+			if (Me%IntegratedOutput%Yes) then
+                Me%IntegratedOutput%OldAccTime = Me%IntegratedOutput%AccTime
+            
+                OldReachStatus => Me%IntegratedOutput%OldReachStatus(ReachID)
+                ReachStatus	   => Me%IntegratedOutput%ReachStatus(ReachID)
+                OldNodeStatus  => Me%IntegratedOutput%OldNodeStatus(ReachID)
+                NodeStatus	   => Me%IntegratedOutput%NodeStatus(ReachID)                
+             
+                OldReachStatus%AccFlowVolume = ReachStatus%AccFlowVolume
+                OldReachStatus%MaxFlow = ReachStatus%MaxFlow
+                OldReachStatus%MinFlow = ReachStatus%MinFlow
+                OldNodeStatus%AccWeightedVolume = NodeStatus%AccWeightedVolume
+                OldNodeStatus%MaxVolume = NodeStatus%MaxVolume
+                OldNodeStatus%MinVolume = NodeStatus%MinVolume
+                OldNodeStatus%AccWeightedDepth = NodeStatus%AccWeightedDepth
+                OldNodeStatus%MaxDepth = NodeStatus%MaxDepth
+                OldNodeStatus%MinDepth = NodeStatus%MinDepth
+                OldNodeStatus%AccWeightedLevel = NodeStatus%AccWeightedLevel
+                OldNodeStatus%MaxLevel = NodeStatus%MaxLevel
+                OldNodeStatus%MinLevel = NodeStatus%MinLevel
+			endif
         end do
         
         !Initial Concentration
@@ -13375,6 +13909,7 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
         enddo
 
         if (Me%CheckMass) then
+            Me%InitialTotalEvapFromSurfaceVolume = Me%TotalEvapFromSurfaceVolume
             Me%InitialTotalOutputVolume = Me%TotalOutputVolume
             Me%InitialTotalFlowVolume   = Me%TotalFlowVolume
             Me%InitialTotalInputVolume  = Me%TotalInputVolume
@@ -13415,6 +13950,10 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
         !Local------------------------------------------------------------------
         integer                                     :: NodeID, ReachID
         type (T_Property), pointer                  :: Property
+        type (T_ReachIntegration), pointer          :: OldReachStatus, ReachStatus
+        type (T_NodeIntegration), pointer           :: OldNodeStatus, NodeStatus    
+        
+        !----------------------------------------------------------------------        
 
         !Initial Volumes
         do NodeID = 1, Me%TotalNodes
@@ -13427,6 +13966,28 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
         do ReachID = 1, Me%TotalReaches
             Me%Reaches(ReachID)%FlowNew = Me%Reaches(ReachID)%InitialFlowNew
             Me%Reaches(ReachID)%FlowOld = Me%Reaches(ReachID)%InitialFlowOld
+            
+			if (Me%IntegratedOutput%Yes) then
+                Me%IntegratedOutput%AccTime = Me%IntegratedOutput%OldAccTime                
+            
+                OldReachStatus => Me%IntegratedOutput%OldReachStatus(ReachID)
+                ReachStatus	   => Me%IntegratedOutput%ReachStatus(ReachID)
+                OldNodeStatus  => Me%IntegratedOutput%OldNodeStatus(ReachID)
+                NodeStatus	   => Me%IntegratedOutput%NodeStatus(ReachID)   
+                
+                ReachStatus%AccFlowVolume = OldReachStatus%AccFlowVolume
+                ReachStatus%MaxFlow = OldReachStatus%MaxFlow
+                ReachStatus%MinFlow = OldReachStatus%MinFlow
+                NodeStatus%AccWeightedVolume = OldNodeStatus%AccWeightedVolume
+                NodeStatus%MaxVolume = OldNodeStatus%MaxVolume
+                NodeStatus%MinVolume = OldNodeStatus%MinVolume
+                NodeStatus%AccWeightedDepth = OldNodeStatus%AccWeightedDepth
+                NodeStatus%MaxDepth = OldNodeStatus%MaxDepth
+                NodeStatus%MinDepth = OldNodeStatus%MinDepth
+                NodeStatus%AccWeightedLevel = OldNodeStatus%AccWeightedLevel
+                NodeStatus%MaxLevel = OldNodeStatus%MaxLevel
+                NodeStatus%MinLevel = OldNodeStatus%MinLevel
+			endif            
         end do
       
         !Initial Concentration
@@ -13439,6 +14000,7 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
         enddo
 
         if (Me%CheckMass) then
+            Me%TotalEvapFromSurfaceVolume = Me%InitialTotalEvapFromSurfaceVolume
             Me%TotalOutputVolume = Me%InitialTotalOutputVolume
             Me%TotalFlowVolume   = Me%InitialTotalFlowVolume
             Me%TotalInputVolume  = Me%InitialTotalInputVolume
@@ -14318,6 +14880,259 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
 
     !--------------------------------------------------------------------------
 
+    subroutine IntegratedHDF5Output
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL           
+        real, dimension(6), target                      :: AuxTime
+        real, dimension(:), pointer                     :: TimePointer
+        real, dimension(:), pointer                     :: OutputMatrix
+        real, dimension(:), pointer                     :: OutputMatrix_max
+        real, dimension(:), pointer                     :: OutputMatrix_min
+        integer                                         :: id, iReach
+        type (T_Node), pointer                          :: CurrNode
+
+        !----------------------------------------------------------------------              
+        
+        if (Me%CurrentTime >= Me%IntegratedOutPut%OutTime(Me%IntegratedOutPut%NextOutPut)) then
+
+            allocate (OutputMatrix     (1:Me%TotalReaches))
+            allocate (OutputMatrix_max (1:Me%TotalReaches))
+            allocate (OutputMatrix_min (1:Me%TotalReaches))
+
+            !Writes current time
+            call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2),         &
+                                                AuxTime(3), AuxTime(4),         &
+                                                AuxTime(5), AuxTime(6))
+            TimePointer => AuxTime
+
+            call HDF5SetLimits  (Me%ObjIntegratedHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR010'
+
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Time", "Time",                 &
+                                 "YYYY/MM/DD HH:MM:SS",                                 &
+                                 Array1D      = TimePointer,							&
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,			&
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR020'
+
+            !Everything will be written for reaches (graphical reasons)
+            !If variable is given by node, use upstream node to set reach property
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%ObjIntegratedHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR030'   
+            
+            !Writes Reach ID
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach) = Me%Reaches(CurrNode%DownstreamReaches(1))%ID
+                    iReach = iReach + 1
+                end if
+            end do
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/ID", "ReachID",                 &
+                                 "-",                                                    &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,          &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR040'
+                      
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach)     = Me%IntegratedOutput%ReachStatus(id)%AccFlowVolume / Me%IntegratedOutput%AccTime
+                    OutputMatrix_max (iReach) = Me%IntegratedOutput%ReachStatus(id)%MaxFlow
+                    OutputMatrix_min (iReach) = Me%IntegratedOutput%ReachStatus(id)%MinFlow  
+                    iReach = iReach + 1
+                end if
+            end do
+            
+            !Writes Average Channel Flow Modulus
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/average flow", "average flow", &
+                                 "m3/s",                                                        &
+                                 Array1D      = OutputMatrix,                                   &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,                 &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR050'
+            
+
+            !Writes Maximun Flow
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/max flow", "max flow", &
+                                 "m3/s",                                                &
+                                 Array1D      = OutputMatrix_max,                       &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,         &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR051'
+
+            !Writes Minimun Flow
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/min flow", "min flow", &
+                                 "m3/s",                                                &
+                                 Array1D      = OutputMatrix_min,                       &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,         &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR052'            
+                     
+           !Volumes
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    OutputMatrix (iReach)     = Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedVolume / &
+                                                Me%IntegratedOutput%AccTime
+                    OutputMatrix_max (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MaxVolume
+                    OutputMatrix_min (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MinVolume
+                    iReach = iReach + 1
+                endif
+            end do
+            
+            !Writes Average Channel Water Volume
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/average volume", "average volume", &
+                                 "m3",                                                              &
+                                 Array1D      = OutputMatrix,                                       &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,                     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR060'
+
+            !Writes Maximun Channel Water Volume
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/max volume",                       &
+                                 "max volume",                                                      &  
+                                 "m3",                                                              &
+                                 Array1D      = OutputMatrix_max,                                   &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,                     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR061'            
+
+            !Writes Minimun Channel Water Volume
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/min volume",                       &
+                                 "min volume",                                                      &  
+                                 "m3",                                                              &
+                                 Array1D      = OutputMatrix_min,									&
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,                     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR062'             
+            
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    call ComputeCrossSectionForIntegration (CurrNode, OutputMatrix (iReach),							&
+															Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedDepth,    &
+                                                            Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedLevel)	
+                                                            
+                    OutputMatrix (iReach)     = Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedDepth
+                    OutputMatrix_max (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MaxDepth
+                    OutputMatrix_min (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MinDepth
+                    iReach = iReach + 1
+                endif
+            end do
+            
+            !Writes Agerage Channel Water Depth
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/average depth",    &
+                                 "average depth",                                   &  
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix,                       &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR070'
+
+            !Writes Maximun Channel Water Depth
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/max depth",        &
+                                 "max depth",                                       &  
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix_max,                   &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR071'            
+
+            !Writes Maximun Channel Water Depth
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/min depth",        &
+                                 "min depth",                                       &  
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix_min,                   &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR072'
+            
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    OutputMatrix (iReach)     = Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedLevel 
+                    OutputMatrix_max (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MaxLevel
+                    OutputMatrix_min (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MinLevel
+                    iReach = iReach + 1
+                endif
+            end do
+            
+            !Writes Agerage Channel Water Level
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/average level",    &
+                                 "average level",                                   &  
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix,                       &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR080'
+
+            !Writes Maximun Channel Water Level
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/max level",	    &
+                                 "max level",                                       &
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix_max,					&
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR081'            
+                       
+            !Writes Minimum Channel Water Depth
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/min level",        &
+                                 "min level",                                       &  
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix_min,					&
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR082'            
+                       
+            Me%IntegratedOutPut%NextOutPut = Me%IntegratedOutPut%NextOutPut + 1
+            deallocate (OutputMatrix)
+            deallocate (OutputMatrix_max)
+            deallocate (OutputMatrix_min)
+
+            !Writes everything to disk
+            call HDF5FlushMemory (Me%ObjIntegratedHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR090'
+
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    Me%IntegratedOutput%Initialize = .true.
+                    Me%IntegratedOutput%AccTime = 0.0
+                    Me%IntegratedOutput%ReachStatus(iReach)%AccFlowVolume       = 0.0
+                    Me%IntegratedOutput%ReachStatus(iReach)%MaxFlow 			= 0.0
+                    Me%IntegratedOutput%ReachStatus(iReach)%MinFlow             = 0.0                 
+                    Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedVolume    = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MaxVolume			= 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MinVolume            = 0.0                
+                    Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedDepth     = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MaxDepth			    = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MinDepth             = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedLevel     = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MaxLevel			    = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MinLevel             = 0.0
+                    iReach = iReach + 1
+                endif
+            end do            
+            
+        endif     
+    
+    end subroutine IntegratedHDF5Output
+
+    !--------------------------------------------------------------------------
+    
     subroutine HDF5Output
 
         !Arguments-------------------------------------------------------------
@@ -14674,7 +15489,11 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
 
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
-            call WriteFinalFile
+            if (Me%FinalFileType == 1) then !Its an HDF final file
+                call WriteFinalFile (.false.)
+            else
+                call WriteFinalFileOld
+            endif
             
             if (Me%ComputeOptions%MinConcentration) call WriteCreatedMassHDF
                         
@@ -14846,7 +15665,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%Output%Yes) then
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR100'
-                endif            
+                endif  
+                
+                if (Me%IntegratedOutput%Yes) then
+                    call KillHDF5 (Me%ObjIntegratedHDF5, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR110'
+                endif
                 
                                                            
                 !Deallocates Instance
@@ -14906,8 +15730,140 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
     end subroutine MaxStationValuesOutput
 
     !---------------------------------------------------------------------------
+    
+    subroutine WriteFinalFile (restart_file)
+    
+        !Arguments--------------------------------------------------------------
+        logical                                     :: restart_file
 
-    subroutine WriteFinalFile
+        !Local------------------------------------------------------------------
+        real, dimension(:), pointer                 :: PtrNodes
+        real, dimension(:), pointer                 :: PtrReaches
+        integer                                     :: id
+        integer, dimension(1), target               :: AuxInt
+        integer, dimension(:), pointer              :: PtrInt
+        type(T_Property), pointer                   :: prop
+        real, dimension(:), pointer                 :: NodeX, NodeY, ReachSize
+        integer, dimension(:), pointer              :: NodeID, ReachIDs
+        integer, dimension(:), pointer              :: UpNode, DownNode, ReachActive
+        
+        !-----------------------------------------------------------------------
+        Me%StartStopCtrl%File           = Me%Files%FinalFile
+        Me%StartStopCtrl%WriteHorizGrid = .false.
+        
+        call Me%StartStopCtrl%Clear ()
+        
+        allocate(NodeID(1: Me%TotalNodes))
+        allocate(NodeX (1: Me%TotalNodes))
+        allocate(NodeY (1: Me%TotalNodes))
+        
+        do id = 1, Me%TotalNodes
+            NodeID(id) = Me%Nodes(id)%ID
+            NodeX(id)  = Me%Nodes(id)%X
+            NodeY(id)  = Me%Nodes(id)%Y
+        enddo
+
+        allocate(UpNode     (1: Me%TotalReaches))
+        allocate(DownNode   (1: Me%TotalReaches))
+        allocate(ReachIDs   (1: Me%TotalReaches))
+        allocate(ReachSize  (1: Me%TotalReaches))
+        allocate(ReachActive(1: Me%TotalReaches))
+
+        do id = 1, Me%TotalReaches
+            ReachIDs    (id) = id
+            UpNode      (id) = Me%Nodes(Me%Reaches(id)%UpstreamNode)%ID
+            DownNode    (id) = Me%Nodes(Me%Reaches(id)%DownstreamNode)%ID
+            ReachSize   (id) = Me%Nodes(Me%Reaches(id)%UpstreamNode)%CrossSection%TopWidth
+            if (Me%Reaches(id)%Active) then
+                ReachActive (id) = 1
+            else
+                ReachActive (id) = 0
+            endif
+        enddo
+        
+        call Me%StartStopCtrl%Add(0, NodeID,                                            &
+                                  units='-',                                            &
+                                  group='Nodes/id',                                     &
+                                  name='id')
+        call Me%StartStopCtrl%Add(0, NodeX,                                             &
+                                  units='-',                                            &
+                                  group='Nodes/x',                                      &
+                                  name='x')
+        call Me%StartStopCtrl%Add(0, NodeY,                                             &
+                                  units='-',                                            &
+                                  group='Nodes/y',                                      &
+                                  name='y')
+        call Me%StartStopCtrl%Add(0, ReachIDs,                                          &
+                                  units='-',                                            &
+                                  group='Reaches/id',                                   &
+                                  name='id')
+        call Me%StartStopCtrl%Add(0, UpNode,                                            &
+                                  units='-',                                            &
+                                  group='Reaches/up',                                   &
+                                  name='up')
+        call Me%StartStopCtrl%Add(0, DownNode,                                          &
+                                  units='-',                                            &
+                                  group='Reaches/down',                                 &
+                                  name='down')
+        call Me%StartStopCtrl%Add(0, ReachSize,                                         &
+                                  units='m',                                            &
+                                  group='Reaches/size',                                 &
+                                  name='size')
+        call Me%StartStopCtrl%Add(0, ReachActive,                                       &
+                                  units='-',                                            &
+                                  group='Reaches/active',                               &
+                                  name='active')
+        
+        AuxInt(1) = Me%CV%LastGoodNiteration
+        PtrInt => AuxInt
+        call Me%StartStopCtrl%Add(0, PtrInt,                                            &
+                                  units='-',                                            &
+                                  group='Control/last good iteration number',           &
+                                  name='last good iteration number')
+        
+        allocate (PtrNodes (1:Me%TotalNodes))
+        allocate (PtrReaches (1:Me%TotalNodes))
+        
+        do id = 1, Me%TotalNodes
+            PtrNodes(id) = Me%Nodes(id)%WaterLevel
+        end do                
+        do id = 1, Me%TotalReaches
+            PtrReaches(id) = Me%Reaches(id)%FlowNew
+        end do
+        
+        call Me%StartStopCtrl%Add(0, PtrNodes,                                          &
+                                  units='m',                                            &
+                                  group='Results/water level',                          &
+                                  name='water level')
+        call Me%StartStopCtrl%Add(0, PtrReaches,                                        &
+                                  units='m3/s',                                         &
+                                  group='Results/flow new',                             &
+                                  name='flow new')
+        
+        if (Me%PropertyContinuous) then
+            prop => Me%FirstProperty
+            do while (associated(prop))
+                call Me%StartStopCtrl%Add(0, prop%Concentration,                        &
+                                          units=trim(trim(prop%ID%Units)),              &
+                                          group='Results/'//trim(prop%ID%Name),         &
+                                          name=trim(prop%ID%Name))                                
+                prop => prop%Next
+            end do
+        endif
+        
+        if (.not. Me%StartStopCtrl%Save (Me%CurrentTime, restart_file=restart_file)) then
+            write (*,*) Me%StartStopCtrl%Message()
+            stop 'WriteFinalFile - ModuleDrainageNetwork - ERR010'
+        endif
+    
+        deallocate(NodeID, NodeX, NodeY)
+        deallocate(DownNode, UpNode, ReachIDs, ReachSize, ReachActive)
+        
+    end subroutine WriteFinalFile
+    
+    !---------------------------------------------------------------------------
+
+    subroutine WriteFinalFileOld
 
         !Arguments--------------------------------------------------------------
 
@@ -14968,7 +15924,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteFinalFile - ERR04'
 
 
-    end subroutine WriteFinalFile
+    end subroutine WriteFinalFileOld
     
     !---------------------------------------------------------------------------
 

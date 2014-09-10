@@ -839,6 +839,15 @@ Module ModuleGlobalData
     integer, parameter :: PartProd_                         = 20506
     integer, parameter :: SolBioOrgNitrogen_                = 20510
     integer, parameter :: PartBioOrgNitrogen_               = 20511
+    !Snow
+    integer, parameter :: SnowPack_                         = 30000
+    integer, parameter :: DailyAvgTemp_                     = 30001
+    integer, parameter :: ForestCoverFraction_              = 30002
+    integer, parameter :: SnowSlopeFactor_                  = 30003
+    integer, parameter :: SnowPrecipitation_                = 30004
+    integer, parameter :: SnowWaterEquivalent_              = 30005
+    integer, parameter :: SurfaceDownLatentHeat_            = 30006
+    integer, parameter :: SurfaceDownSensibleHeat_          = 30007
 
     !Spatial emission discharge
     integer, parameter :: DischPoint_                       = 1
@@ -1472,6 +1481,16 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_GenericPartPesticide_3       = 'generic particulate pesticide 3'
     character(StringLength), private, parameter :: Char_GenericPartPesticide_4       = 'generic particulate pesticide 4'
     character(StringLength), private, parameter :: Char_IndividualsPerCell           = 'individuals per cell' 
+    
+    !Snow
+    character(StringLength), private, parameter :: Char_SnowPack                     = 'snow pack' 
+    character(StringLength), private, parameter :: Char_DailyAvgTemp                 = 'daily average temperature'
+    character(StringLength), private, parameter :: Char_ForestCoverFraction          = 'forest cover fraction'
+    character(StringLength), private, parameter :: Char_SnowSlopeFactor              = 'snow slope factor'
+    character(StringLength), private, parameter :: Char_SnowPrecipitation            = 'snow precipitation'
+    character(StringLength), private, parameter :: Char_SnowWaterEquivalent          = 'snow water equivalent'
+    character(StringLength), private, parameter :: Char_SurfaceDownLatentHeat        = 'surface downward latent heat'
+    character(StringLength), private, parameter :: Char_SurfaceDownSensibleHeat      = 'surface downward sensible heat'    
 
     !WWTPQProperties
     character(StringLength), private, parameter :: Char_SolInertOrgMat               = 'soluble inert organic matter'
@@ -1730,6 +1749,7 @@ Module ModuleGlobalData
     integer, parameter ::  mAnalytical_LDS_         = 88
     integer, parameter ::  mHNS_                    = 89
     integer, parameter ::  mGlueWW3_OBC_            = 90
+    integer, parameter ::  mSnow_                   = 91
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -2824,7 +2844,14 @@ Module ModuleGlobalData
             call AddPropList (PartProd_,                Char_PartProd,                   ListNumber)
             call AddPropList (SolBioOrgNitrogen_,       Char_SolBioOrgNitrogen,          ListNumber)
             call AddPropList (PartBioOrgNitrogen_,      Char_PartBioOrgNitrogen,         ListNumber)
-                        
+            call AddPropList (SnowPack_,                Char_SnowPack,                   ListNumber)
+            call AddPropList (DailyAvgTemp_,            Char_DailyAvgTemp,               ListNumber)
+            call AddPropList (ForestCoverFraction_,     Char_ForestCoverFraction,        ListNumber)
+            call AddPropList (SnowSlopeFactor_,         Char_SnowSlopeFactor,            ListNumber)
+            call AddPropList (SnowPrecipitation_,       Char_SnowPrecipitation,          ListNumber)
+            call AddPropList (SnowWaterEquivalent_,     Char_SnowWaterEquivalent,        ListNumber)
+            call AddPropList (SurfaceDownLatentHeat_,   Char_SurfaceDownLatentHeat,      ListNumber)
+            call AddPropList (SurfaceDownSensibleHeat_, Char_SurfaceDownSensibleHeat,    ListNumber)                        
             !Place to add new properties to the names list
         
             !Ends building the property name list

@@ -43,6 +43,7 @@ Module ModuleBasin
     use ModuleTime
     use ModuleTimeSerie
     use ModuleHDF5
+    use ModuleStartAndStop
     use ModuleFunctions,      only : ReadTimeKeyWords, LatentHeat, ConstructPropertyID,  &
                                      TimeToString, ChangeSuffix, CHUNK_J, SetMatrixValue
                                      
@@ -78,7 +79,8 @@ Module ModuleBasin
                                      SetBasinColumnToRunoff, GetRunoffWaterColumn,       &
                                      GetRunoffWaterColumnOld, GetRunoffWaterLevel,       &
                                      GetRunoffTotalStoredVolume, GetMassError,           &
-                                     GetRunOffStoredVolumes, GetRunOffBoundaryFlowVolume
+                                     GetRunOffStoredVolumes, GetRunOffBoundaryFlowVolume,& 
+                                     GetRunOffTotalDischargeFlowVolume
                                      
                                      
     use ModuleRunoffProperties,                                                          &
@@ -113,7 +115,8 @@ Module ModuleBasin
                                      GetGWFlowOption, GetGWFlowToChannelsByLayer,        &
                                      GetGWToChannelsLayers, GetIgnoreWaterColumnOnEVAP,  &
                                      GetPMStoredVolume, GetEVTPVolumes,                  &
-                                     GetPMBoundaryFlowVolume
+                                     GetPMBoundaryFlowVolume,                            &
+                                     GetPMTotalDischargeFlowVolume
                                      
     use ModulePorousMediaProperties,                                                     &
                               only : ConstructPorousMediaProperties,                     &
@@ -141,9 +144,12 @@ Module ModuleBasin
     use ModuleStopWatch,      only : StartWatch, StopWatch
     
     use ModuleGeometry,       only : GetGeometrySize
+    
+    use ModuleSnow
+    
 #ifdef _ENABLE_CUDA
     use ModuleCuda
-#endif _ENABLE_CUDA    
+#endif _ENABLE_CUDA
     
     implicit none
 
@@ -163,6 +169,7 @@ Module ModuleBasin
     private ::          ConstructEVTPHDFOutput     
     private ::      ConstructTimeSeries
     private ::      ReadInitialFile
+    private ::      ReadInitialFileOld
 
     !Selector
                     
@@ -189,6 +196,7 @@ Module ModuleBasin
     public  :: KillBasin                                                     
     private ::      DeAllocateInstance
     private ::      WriteFinalFile
+    private ::      WriteFinalFileOld
 
     !Management
     private ::      Ready
@@ -202,6 +210,9 @@ Module ModuleBasin
     !Parameters----------------------------------------------------------------
     character(LEN = StringLength), parameter        :: block_begin          = '<beginproperty>'
     character(LEN = StringLength), parameter        :: block_end            = '<endproperty>'
+    
+    character(*), parameter                         :: CharAccErrorInVolume = 'acc. error in volume'
+    
     !Separate evapotranspiration
     integer, parameter                              :: SingleEvapoTranspiration   = 1
     integer, parameter                              :: SeparateEvapoTranspiration = 2
@@ -315,7 +326,7 @@ Module ModuleBasin
         
     end type T_PropMassBalance
 
-    type       T_BasinProperty
+    type T_BasinProperty
         type (T_PropertyID)                         :: ID
         real, dimension(:,:), pointer               :: Field                => null()
         logical                                     :: Constant             = .false. !in time
@@ -382,6 +393,7 @@ Module ModuleBasin
     type T_BasinWaterBalance
         real(8)  :: Rain                    = 0.0 !m3
         real(8)  :: Irrigation              = 0.0 !m3
+        real(8)  :: SnowMelting             = 0.0 !m3
         real(8)  :: DischargesOnSoil        = 0.0 !m3
         real(8)  :: DischargesOnSurface     = 0.0 !m3
         real(8)  :: DischargesOnChannels    = 0.0 !m3
@@ -422,7 +434,7 @@ Module ModuleBasin
         integer  :: NumberOfCells           = 0
     end type T_BasinWaterBalance
 
-    type       T_Basin
+    type T_Basin
         integer                                     :: InstanceID           = 0
         character(len=StringLength)                 :: ModelName            = null_str
         type (T_Size2D)                             :: Size, WorkSize
@@ -472,6 +484,7 @@ Module ModuleBasin
         real(8), dimension(:,:), pointer            :: PotentialInfCol        => null()
         real(8), dimension(:,:), pointer            :: FlowProduction         => null()
         real(8), dimension(:,:), pointer            :: InfiltrationRate       => null()
+        real(8), dimension(:,:), pointer            :: SnowMeltingRate        => null() !mm/hour
         real(8), dimension(:,:), pointer            :: PrecipRate             => null()
         real(8), dimension(:,:), pointer            :: ThroughRate            => null()
         real(8), dimension(:,:), pointer            :: EVTPRate               => null()
@@ -480,6 +493,7 @@ Module ModuleBasin
         real(8), dimension(:,:), pointer            :: AccInfiltration        => null()
         real(8), dimension(:,:), pointer            :: AccFlowProduction      => null()
         real(8), dimension(:,:), pointer            :: AccEVTP                => null()
+        real(8), dimension(:,:), pointer            :: AccSnowMelting         => null() !m
         real(8), dimension(:,:), pointer            :: PartialAccEVTP         => null() !mm
         real(8), dimension(:,:), pointer            :: PartialAccEVTPRef      => null() !mm
         real(8), dimension(:,:), pointer            :: PartialAccEVTPCrop     => null() !mm
@@ -511,6 +525,10 @@ Module ModuleBasin
         real, dimension(:), pointer                 :: TimeSeriesBuffer3 => null() !Properties Error
         real, dimension(:), pointer                 :: BWBBuffer         => null() !buffer to be used for Basin Water Balance
         
+        !Initial and final files type
+        !1(default) => HDF, 2 => old method (soon will disapear)
+        integer                                     :: InitialFileType = 1, &
+                                                       FinalFileType = 1        
         !Basin Water Balance
         type (T_BasinWaterBalance)                  :: BWB
         logical                                     :: ComputeBasinWaterBalance = .false.
@@ -549,6 +567,7 @@ Module ModuleBasin
         integer                                     :: ObjDrainageNetwork       = 0
         integer                                     :: ObjPorousMedia           = 0
         integer                                     :: ObjVegetation            = 0
+        integer                                     :: ObjSnow                  = 0
         integer                                     :: ObjHDF5                  = 0
         integer                                     :: ObjEVTPHDF               = 0
         integer                                     :: ObjEVTPHDF2              = 0
@@ -568,6 +587,8 @@ Module ModuleBasin
 
         !Used by PorousMediaProperties        
         real(8), dimension(:,:), pointer            :: WaterColumnEvaporated    => null() !in meters (m)
+        
+        type (T_StartAndStop)                       :: StartStopCtrl
     end type  T_Basin
 
     !Global Module Variables
@@ -741,7 +762,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             ChunkI = max((Me%Size%IUB - Me%Size%ILB) / ChunkIFactor, 1)            
 
             !Allocates Variables
-            call AllocateVariables ()
+            call AllocateVariables ()                        
 
             !Verifies User Options
             OptionsType = "GlobalOptions"
@@ -752,9 +773,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructCoupledModules(Me%ObjCuda)
 #else
             call ConstructCoupledModules()
-#endif _ENABLE_CUDA
-            
-            
+#endif _ENABLE_CUDA                        
 
             !Checks property related options
             if (Me%Coupled%RunoffProperties) then
@@ -769,21 +788,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructTimeSeries
             
             !Reads conditions from previous run
-            if (Me%Continuous) call ReadInitialFile
+            if (Me%Continuous) then
+                if (Me%InitialFileType == 1) then !Its an HDF initial file
+                    Me%StartStopCtrl = T_StartAndStop (Me%Files%InitialFile, Me%StopOnWrongDate)
+                    call ReadInitialFile
+                else
+                    call ReadInitialFileOld
+                endif
+            endif            
             
-            
-!            !Gets water level to control water column updates
-!            call GetRunoffWaterLevel(Me%ObjRunOff, Me%WaterLevel, STAT_CALL)
-!            if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR00'            
-!            
-!            !Actualizes the WaterColumn
-!            OptionsType = 'ConstructBasin'
-!            call ActualizeWaterColumn (OptionsType)
-!            
-!            call UngetRunoff (Me%ObjRunOff, Me%WaterLevel, STAT_CALL)
-!            if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR10'     
-
-
             !Closes Data File
             call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR99'
@@ -797,8 +810,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%Output%Yes) then
                 call HDF5OutPut       
             endif
-
-
             
             !UnGets ExternalVars
             UnLockToWhichModules = 'AllModules'
@@ -830,7 +841,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         type (T_Basin), pointer                         :: NewObjBasin
         type (T_Basin), pointer                         :: PreviousObjBasin
 
-
+        !----------------------------------------------------------------------        
+        
         !Allocates new instance
         allocate (NewObjBasin)
         nullify  (NewObjBasin%Next)
@@ -932,16 +944,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write(*,*)'Change the data files'
             stop 'ReadDataFile - ModuleBasin - ERR01.5'
         endif
-!        !Basin Initial Water Column
-!        call GetData(Me%WaterColumnCoef,                                                 &
-!                     Me%ObjEnterData, iflag,                                             &
-!                     SearchType   = FromFile,                                            &
-!                     keyword      = 'WATER_COLUMN_COEF',                                 &
-!                     default      = 0.0,                                                 & 
-!                     ClientModule = 'ModuleBasin',                                       &
-!                     STAT         = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR01'
-
 
         !Continuous Computation
         call GetData(Me%Continuous,                                                      &
@@ -1388,7 +1390,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR380'
 
-        !Verifies if the user wants to have precipitations has snow
+        !Verifies if the user wants to have snow melting
         call GetData(Me%Coupled%Snow,                                                    &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromFile,                                            &
@@ -1448,7 +1450,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(ChunkKFactor,                                              &
                      Me%ObjEnterData, iflag,                                    &  
                      keyword      = 'CHUNK_K_FACTOR',                           &
-                     ClientModule = 'ModulePorousMedia',                        &
+                     ClientModule = 'ModuleBasin',                              &
                      Default      = ChunkKFactor,                               &
                      SearchType   = FromFile,                                   &
                      STAT         = STAT_CALL)
@@ -1458,7 +1460,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(ChunkJFactor,                                              &
                      Me%ObjEnterData, iflag,                                    &  
                      keyword      = 'CHUNK_I_FACTOR',                           &
-                     ClientModule = 'ModulePorousMedia',                        &
+                     ClientModule = 'ModuleBasin',                              &
                      Default      = ChunkJFactor,                               &
                      SearchType   = FromFile,                                   &
                      STAT         = STAT_CALL)
@@ -1468,15 +1470,35 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(ChunkIFactor,                                              &
                      Me%ObjEnterData, iflag,                                    &  
                      keyword      = 'CHUNK_J_FACTOR',                           &
-                     ClientModule = 'ModulePorousMedia',                        &
+                     ClientModule = 'ModuleBasin',                              &
                      Default      = ChunkIFactor,                               &
                      SearchType   = FromFile,                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) & 
             call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleBasin - ERR460")            
         
+        call GetData(Me%InitialFileType,                                        &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'INITIAL_FILE_TYPE',                        &
+                     ClientModule = 'ModuleBasin',                              &
+                     Default      = 1,                                          &
+                     SearchType   = FromFile,                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) & 
+            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleBasin - ERR470")
+        
+        call GetData(Me%FinalFileType,                                          &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'FINAL_FILE_TYPE',                          &
+                     ClientModule = 'ModuleBasin',                              &
+                     Default      = Me%InitialFileType,                         &
+                     SearchType   = FromFile,                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) & 
+            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleBasin - ERR480")
 
     end subroutine ReadDataFile
+    
     !--------------------------------------------------------------------------
 
     subroutine VerifyOptions (WarningString)
@@ -1878,47 +1900,48 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%ComputeBasinWaterBalance) then
         
             !Time Serie for BASIN WATER BALANCE (BWB)
-            allocate(PropertyList(38))
-            allocate(Me%BWBBuffer(38))
+            allocate(PropertyList(39))
+            allocate(Me%BWBBuffer(39))
             
             PropertyList(1)     = "Rain_m3"
             PropertyList(2)     = "Irrigation_m3"
-            PropertyList(3)     = "DischargesOnSoil_m3"
-            PropertyList(4)     = "DischargesOnSurface_m3"
-            PropertyList(5)     = "DischargesOnChannels_m3"
-            PropertyList(6)     = "InitialStoredInSoil_m3"
-            PropertyList(7)     = "FinalStoredInSoil_m3"
-            PropertyList(8)     = "StoredInSoil_m3"
-            PropertyList(9)     = "InitialStoredInChannels_m3"
-            PropertyList(10)    = "FinalStoredInChannels_m3"
-            PropertyList(11)    = "StoredInChannels_m3"
-            PropertyList(12)    = "InitialStoredInStormWater_m3"
-            PropertyList(13)    = "FinalStoredInStormWater_m3"
-            PropertyList(14)    = "StoredInStormWater_m3"
-            PropertyList(15)    = "InitialStoredInLeaves_m3"
-            PropertyList(16)    = "FinalStoredInLeaves_m3"
-            PropertyList(17)    = "StoredInLeaves_m3"
-            PropertyList(18)    = "InitialStoredInSurface_m3"
-            PropertyList(19)    = "FinalStoredInSurface_m3"
-            PropertyList(20)    = "StoredInSurface_m3"
-            PropertyList(21)    = "OutletFlowVolume_m3"
-            PropertyList(22)    = "EvaporationFromSoil_m3"
-            PropertyList(23)    = "EvaporationFromLeaves_m3"
-            PropertyList(24)    = "EvaporationFromChannels_m3"
-            PropertyList(25)    = "EvaporationFromSurface_m3"
-            PropertyList(26)    = "Transpiration_m3"
-            PropertyList(27)    = "BoundaryFromSoil_m3"
-            PropertyList(28)    = "BoundaryFromSurface_m3"
-            PropertyList(29)    = "Input_m3"
-            PropertyList(30)    = "Discharges_m3"
-            PropertyList(31)    = "Output_m3"
-            PropertyList(32)    = "Stored_m3"
-            PropertyList(33)    = "Boundary_m3"            
-            PropertyList(34)    = "Error_m3"
-            PropertyList(35)    = "AccumulatedError_m3"
-            PropertyList(36)    = "Error_%"                        
-            PropertyList(37)    = "NumberOfBasinCells"
-            PropertyList(38)    = "BasinArea_m2"
+            PropertyList(3)     = "SnowMelting_m3"
+            PropertyList(4)     = "DischargesOnSoil_m3"
+            PropertyList(5)     = "DischargesOnSurface_m3"
+            PropertyList(6)     = "DischargesOnChannels_m3"
+            PropertyList(7)     = "InitialStoredInSoil_m3"
+            PropertyList(8)     = "FinalStoredInSoil_m3"
+            PropertyList(9)     = "StoredInSoil_m3"
+            PropertyList(10)    = "InitialStoredInChannels_m3"
+            PropertyList(11)    = "FinalStoredInChannels_m3"
+            PropertyList(12)    = "StoredInChannels_m3"
+            PropertyList(13)    = "InitialStoredInStormWater_m3"
+            PropertyList(14)    = "FinalStoredInStormWater_m3"
+            PropertyList(15)    = "StoredInStormWater_m3"
+            PropertyList(16)    = "InitialStoredInLeaves_m3"
+            PropertyList(17)    = "FinalStoredInLeaves_m3"
+            PropertyList(18)    = "StoredInLeaves_m3"
+            PropertyList(19)    = "InitialStoredInSurface_m3"
+            PropertyList(20)    = "FinalStoredInSurface_m3"
+            PropertyList(21)    = "StoredInSurface_m3"
+            PropertyList(22)    = "OutletFlowVolume_m3"
+            PropertyList(23)    = "EvaporationFromSoil_m3"
+            PropertyList(24)    = "EvaporationFromLeaves_m3"
+            PropertyList(25)    = "EvaporationFromChannels_m3"
+            PropertyList(26)    = "EvaporationFromSurface_m3"
+            PropertyList(27)    = "Transpiration_m3"
+            PropertyList(28)    = "BoundaryFromSoil_m3"
+            PropertyList(29)    = "BoundaryFromSurface_m3"
+            PropertyList(30)    = "Input_m3"
+            PropertyList(31)    = "Discharges_m3"
+            PropertyList(32)    = "Output_m3"
+            PropertyList(33)    = "Stored_m3"
+            PropertyList(34)    = "Boundary_m3"            
+            PropertyList(35)    = "Error_m3"
+            PropertyList(36)    = "AccumulatedError_m3"
+            PropertyList(37)    = "Error_%"                        
+            PropertyList(38)    = "NumberOfBasinCells"
+            PropertyList(39)    = "BasinArea_m2"
             !PropertyList(38)    = "HDFAccEVTP_m3"
             
             call StartTimeSerie(Me%ObjBWB, Me%ObjTime,                                      &
@@ -1952,6 +1975,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif 
 
         if (Me%Coupled%Evapotranspiration) then
+            i = i + 1
+        endif
+        
+        if (Me%Coupled%Snow) then
             i = i + 1
         endif
 
@@ -2001,6 +2028,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%Coupled%Evapotranspiration) then
             PropertyList(i) = 'Reference Evapotranspiration [mm/h]'
+            i = i + 1
+        endif
+        
+        if (Me%Coupled%Snow) then
+            PropertyList(i) = 'Snow Melting Rate [mm/h]'
+            i = i + 1
         endif
 
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
@@ -2164,12 +2197,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR04'
 
             Me%DailyFlow%ObjTimeSerie = AuxInt
-            
             deallocate(PropertyList)
-
             Me%DailyFlow%CurrentIndex = AuxTime(3)
-
-                     
         endif
 
         !Ouput of monthly values
@@ -2189,10 +2218,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             deallocate(PropertyList)
 
             Me%MonthlyFlow%ObjTimeSerie = AuxInt
-
-            Me%MonthlyFlow%CurrentIndex = AuxTime(2)
-                     
-                     
+            Me%MonthlyFlow%CurrentIndex = AuxTime(2)                                          
         endif
 
 
@@ -2405,67 +2431,6 @@ i1:         if (CoordON) then
 
    !--------------------------------------------------------------------------
    
-    !subroutine ConstructEVTPRefHDFOutput
-    !
-    !    !Arguments-------------------------------------------------------------
-    !
-    !    !Local-----------------------------------------------------------------
-    !    integer                                             :: ILB, IUB, JLB, JUB   
-    !    integer                                             :: STAT_CALL
-    !    integer                                             :: HDF5_CREATE
-    !    
-    !    !------------------------------------------------------------------------
-    !   
-    !   
-    !    !Reads file name of the EVTP hdf outupt
-    !    call ReadFileName('BASIN_EVTPREFHDF', Me%Files%EVTPRefHDFFile,                        &
-    !                       Message = "Basin EVTPREFHDF Output File", STAT = STAT_CALL)
-    !    if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR010'             
-    !
-    !   
-    !    !Bounds
-    !    ILB = Me%WorkSize%ILB
-    !    IUB = Me%WorkSize%IUB
-    !
-    !    JLB = Me%WorkSize%JLB
-    !    JUB = Me%WorkSize%JUB           
-    !    
-    !    Me%EVTPRefOutPut%NextOutPut = 1 
-    !    
-    !    call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
-    !
-    !    !Opens HDF File
-    !    call ConstructHDF5      (Me%ObjEVTPRefHDF, trim(Me%Files%EVTPRefHDFFile)//"5", HDF5_CREATE, STAT = STAT_CALL)
-    !    if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR020'
-    !
-    !  
-    !    !Write the Horizontal Grid
-    !    call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjEVTPRefHDF, STAT = STAT_CALL)
-    !    if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR030'
-    !
-    !
-    !    !Sets limits for next write operations
-    !    call HDF5SetLimits      (Me%ObjEVTPRefHDF, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
-    !    if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR040'
-    !    
-    !    !Writes the Grid
-    !    call HDF5WriteData   (Me%ObjEVTPRefHDF, "/Grid", "Bathymetry", "m",           &
-    !                          Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
-    !    if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR050'
-    !
-    !    !WriteBasinPoints
-    !    call HDF5WriteData   (Me%ObjEVTPRefHDF, "/Grid", "BasinPoints", "-",          &
-    !                          Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
-    !    if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR060'
-    !
-    !    !Flushes All pending HDF5 commands
-    !    call HDF5FlushMemory (Me%ObjEVTPRefHDF, STAT = STAT_CALL)
-    !    if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPRefHDFOutput - ModuleBasin - ERR070'       
-    !
-    !end subroutine ConstructEVTPRefHDFOutput
-    !
-   !--------------------------------------------------------------------------    
-    
     subroutine AllocateVariables
 
         !Arguments-------------------------------------------------------------
@@ -2500,6 +2465,15 @@ i1:         if (CoordON) then
                 allocate(Me%PotentialEvaporation    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
             endif  
         endif      
+        
+        if (Me%Coupled%Snow) then
+            allocate(Me%SnowMeltingRate     (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%AccSnowMelting      (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            
+            Me%SnowMeltingRate = 0.0
+            Me%AccSnowMelting  = 0.0
+        endif
+        
         allocate(Me%ThroughFall             (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%RainUncovered           (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%PotentialInfCol         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -2507,7 +2481,7 @@ i1:         if (CoordON) then
         allocate(Me%InfiltrationRate        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%PrecipRate              (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%ThroughRate             (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        allocate(Me%EVTPRate                (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%EVTPRate                (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))        
         allocate(Me%AccInfiltration         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%AccFlowProduction       (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%AccEVTP                 (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -2567,7 +2541,7 @@ i1:         if (CoordON) then
             endif                      
         endif                         
        
-        if (Me%Coupled%Snow) allocate(Me%SnowPack (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
+        !if (Me%Coupled%Snow) allocate(Me%SnowPack (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
 
         allocate(Me%TimeSeriesBuffer    (26))
         allocate(Me%TimeSeriesBuffer2   (1))
@@ -2607,7 +2581,7 @@ i1:         if (CoordON) then
         Me%FlowProduction           = null_real
         Me%WaterColumnEvaporated    = 0.0                
         
-        if (Me%Coupled%Snow) Me%SnowPack = FillValueReal
+        !if (Me%Coupled%Snow) Me%SnowPack = FillValueReal
         
         if (Me%Coupled%SimpleInfiltration) then
             allocate(Me%SI%Ks%Field             (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -2843,7 +2817,17 @@ i1:         if (CoordON) then
             
         endif
 
-       
+        if (Me%Coupled%Snow) then
+            call ConstructSnow (ModelName        = Me%ModelName,                                        &
+                                SnowID           = Me%ObjSnow,                                          &
+                                ComputeTimeID    = Me%ObjTime,                                          &
+                                HorizontalGridID = Me%ObjHorizontalGrid,                                &
+                                HorizontalMapID  = Me%ObjHorizontalMap,                                 &
+                                GridDataID       = Me%ObjGridData,                                      &
+                                BasinGeometryID  = Me%ObjBasinGeometry,                                 &
+                                STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR090'
+        endif
        
         !Constructs Simple Infiltration
         if (Me%Coupled%SimpleInfiltration) then
@@ -3154,7 +3138,7 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ReadInitialFile
+    subroutine ReadInitialFileOld
 
         !Arguments-------------------------------------------------------------
 
@@ -3169,18 +3153,18 @@ cd2 :           if (BlockFound) then
         !----------------------------------------------------------------------
 
         call UnitsManager(InitialFile, OPEN_FILE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModuleBasin - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModuleBasin - ERR01'
 
         open(Unit = InitialFile, File = Me%Files%InitialFile, Form = 'UNFORMATTED',     &
              status = 'OLD', IOSTAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModuleBasin - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModuleBasin - ERR02'
 
         !Reads Date
         read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
         call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, EndTime = EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModuleBasin - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModuleBasin - ERR03'
         
         DT_error = EndTimeFile - BeginTime
 
@@ -3191,7 +3175,7 @@ cd2 :           if (BlockFound) then
             write(*,*) 'Date in the file'
             write(*,*) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
             write(*,*) 'DT_error', DT_error
-            if (Me%StopOnWrongDate) stop 'ReadInitialFile - ModuleBasin - ERR04'   
+            if (Me%StopOnWrongDate) stop 'ReadInitialFileOld - ModuleBasin - ERR04'   
 
         endif
 
@@ -3220,9 +3204,103 @@ cd2 :           if (BlockFound) then
         call UnitsManager(InitialFile, CLOSE_FILE, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModuleBasin - ERR05'  
       
+    end subroutine ReadInitialFileOld
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ReadInitialFile
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:), pointer               :: PtrRealArray2D
+        real, pointer                               :: PtrReal
+        type (T_Time)                               :: BeginTime
+        logical                                     :: load        
+        integer                                     :: stat
+        integer                                     :: ILB, IUB, JLB, JUB
+        
+        !----------------------------------------------------------------------
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        
+        if (Me%ComputeBasinWaterBalance) then
+            PtrReal => Me%BWB%AccErrorInVolume
+            call Me%StartStopCtrl%Add(0, PtrReal,                                       &                                      
+                                      units=trim('m'),                                  &                                      
+                                      group='Results/acc. error in volume',             &
+                                      name=trim('acc. error in volume'))
+        endif
+        
+        if (Me%Coupled%Vegetation) then
+            PtrRealArray2D => Me%CanopyStorage
+            call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                &
+                                      ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,               &
+                                      units=trim('m'),                                  &
+                                      group='Results/canopy storage',                   &                                    
+                                      name=trim('canopy storage'))            
+        endif
+        
+        if (Me%StopOnWrongDate) then
+            load = .true.
+        else
+            load = .false.
+        endif
+        
+        PtrRealArray2D => Me%AccInfiltration
+        call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                    &
+                                  load=load,                                            &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  units=trim('m'),                                      &                                  
+                                  group='Results/acc. infiltration',                    &
+                                  name=trim('acc. infiltration'))
+        
+        PtrRealArray2D => Me%AccEVTP
+        call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                    &
+                                  load=load,                                            &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  units=trim('m'),                                      &                                  
+                                  group='Results/acc. evtp',                            &
+                                  name=trim('acc. evtp'))
+        
+        PtrRealArray2D => Me%AccRainFall
+        call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                    &
+                                  load=load,                                            &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  units=trim('m'),                                      &
+                                  group='Results/acc. rainfall',                        &
+                                  name=trim('acc. rainfall'))
+        
+        PtrRealArray2D => Me%AccEVPCanopy
+        call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                    &
+                                  load=load,                                            &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  units=trim('m'),                                      &
+                                  group='Results/acc. evp. canopy',                     &
+                                  name=trim('acc. evp. canopy'))
+        
+        PtrRealArray2D => Me%AccFlowProduction
+        call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                    &
+                                  load=load,                                            &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  units=trim('m'),                                      &
+                                  group='Results/acc. flow production',                 &
+                                  name=trim('acc. flow production'))
+        
+        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, STAT=stat)
+        if (stat /= SUCCESS_) stop 'ReadInitialFile - ModuleBasin - ERR010'
+        
+        if (.not. Me%StartStopCtrl%Load (BeginTime)) then
+            write (*,*) Me%StartStopCtrl%Message()
+            stop 'ReadInitialFile - ModuleBasin - ERR020'
+        endif
+        
+        Me%CanopyStorageOld = Me%CanopyStorage
+      
     end subroutine ReadInitialFile
-
-
+    
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -3318,7 +3396,18 @@ cd2 :           if (BlockFound) then
 
                 call VegetationProcesses
             
-            endif            
+            endif
+            
+            if (Me%Coupled%Snow) then
+                call SnowProcesses
+                
+                call ActualizeWaterColumn
+                
+                if (Me%Coupled%PorousMediaProperties .or. Me%Coupled%RunoffProperties) then
+                    WarningString = 'SnowProcesses'
+                    call ActualizeWaterColumnConc(WarningString)
+                endif                
+            endif
 
             !Porous Media
             if (Me%Coupled%PorousMedia) then
@@ -3393,8 +3482,8 @@ cd2 :           if (BlockFound) then
 
             !Drainage Network
             if (Me%Coupled%DrainageNetwork) then
-                call DrainageNetworkProcesses
-           endif
+                call DrainageNetworkProcesses                                
+            endif
             
             !Calibrating 1D
             if (Me%Calibrating1D) then
@@ -3433,7 +3522,12 @@ cd2 :           if (BlockFound) then
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%CurrentTime == Me%EndTime)) then
                 if(Me%CurrentTime >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                    call WriteFinalFile
+                    if (Me%FinalFileType == 1) then !Its an HDF final file
+                        call WriteFinalFile (.true.)
+                    else
+                        call WriteFinalFileOld
+                    endif
+                    
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
             endif
@@ -3504,7 +3598,7 @@ cd2 :           if (BlockFound) then
         
         endif
 
-        !Divides Precipitation into Snow, Rain, Throughfall and Canopy storage
+        !Divides Precipitation into Rain, Throughfall and Canopy storage
         if (IrrigationExists) then
             call DividePrecipitation(PrecipitationFlux, IrrigationFlux)
         else
@@ -3568,10 +3662,10 @@ cd2 :           if (BlockFound) then
         real, dimension(:, :), pointer, optional, intent(IN) :: IrrigationFlux
 
         !Local-----------------------------------------------------------------     
-        integer                                     :: i, j, STAT_CALL
-        real, dimension(:,:), pointer               :: AirTemperature
+        integer                                     :: i, j!, STAT_CALL
+        !real, dimension(:,:), pointer               :: AirTemperature
         real                                        :: GrossPrecipitation
-        real                                        :: SnowInput
+        !real                                        :: SnowInput
 !        real                                        :: CanopyDrainage
         real                                        :: CurrentFlux, Rand, SecondsPassed
         real, dimension(6), target                  :: AuxTime
@@ -3594,11 +3688,11 @@ cd2 :           if (BlockFound) then
             IsPresent = .false.    
         endif
         
-        if (Me%Coupled%Snow) then
-            !Gets Air Temperature [ºC]
-            call GetAtmosphereProperty  (Me%ObjAtmosphere, AirTemperature, ID = AirTemperature_, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DividePrecipitation - ModuleBasin - ERR10'
-        end if
+        !if (Me%Coupled%Snow) then
+        !    !Gets Air Temperature [ºC]
+        !    call GetAtmosphereProperty  (Me%ObjAtmosphere, AirTemperature, ID = AirTemperature_, STAT = STAT_CALL)
+        !    if (STAT_CALL /= SUCCESS_) stop 'DividePrecipitation - ModuleBasin - ERR10'
+        !end if
 
 
         !Verifies if the hourly average rainfall is to be concentrated in a shorted time period...
@@ -3720,26 +3814,26 @@ cd2 :           if (BlockFound) then
                 ! For now uncovered rain is total. it will be changed ir there are leafs
                 Me%RainUncovered(i, j) = GrossPrecipitation
                 
-                if (Me%Coupled%Snow) then
-                
-                    !Divides Precipitation into rain / snow
-                    !Taken from Daisy describtion
-                    if      (AirTemperature(i, j) < -2.0) then
-                        SnowInput = 0.0 !Smow module not yet active
-                        !SnowInput = GrossPrecipitation
-                    elseif  (AirTemperature(i, j) <  2.0) then
-                        SnowInput = 0.0 !Smow module not yet active
-                        !SnowInput = (2.0 - AirTemperature(i, j)) / 4.0 * GrossPrecipitation
-                    else
-                        SnowInput = 0.0
-                    endif
-                
-                    !Rain is all what remains after snow input
-                    GrossPrecipitation = GrossPrecipitation - SnowInput
-                
-                    !Increase SnowPack
-                    Me%SnowPack (i, j) = Me%SnowPack (i, j) + SnowInput
-                end if
+                !if (Me%Coupled%Snow) then
+                !
+                !    !Divides Precipitation into rain / snow
+                !    !Taken from Daisy describtion
+                !    if      (AirTemperature(i, j) < -2.0) then
+                !        SnowInput = 0.0 !Smow module not yet active
+                !        !SnowInput = GrossPrecipitation
+                !    elseif  (AirTemperature(i, j) <  2.0) then
+                !        SnowInput = 0.0 !Smow module not yet active
+                !        !SnowInput = (2.0 - AirTemperature(i, j)) / 4.0 * GrossPrecipitation
+                !    else
+                !        SnowInput = 0.0
+                !    endif
+                !
+                !    !Rain is all what remains after snow input
+                !    GrossPrecipitation = GrossPrecipitation - SnowInput
+                !
+                !    !Increase SnowPack
+                !    Me%SnowPack (i, j) = Me%SnowPack (i, j) + SnowInput
+                !end if
                                 
                 if (Me%Coupled%Vegetation) then
                     
@@ -3851,11 +3945,11 @@ cd2 :           if (BlockFound) then
         enddo
 
 
-        if (Me%Coupled%Snow) then
-            !UnGets Air Temperature [ºC]
-            call UnGetAtmosphere  (Me%ObjAtmosphere, AirTemperature,    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DividePrecipitation - ModuleBasin - ERR90'
-        end if
+        !if (Me%Coupled%Snow) then
+        !    !UnGets Air Temperature [ºC]
+        !    call UnGetAtmosphere  (Me%ObjAtmosphere, AirTemperature,    STAT = STAT_CALL)
+        !    if (STAT_CALL /= SUCCESS_) stop 'DividePrecipitation - ModuleBasin - ERR90'
+        !end if
 
 
     end subroutine DividePrecipitation
@@ -5018,11 +5112,7 @@ cd2 :           if (BlockFound) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-!        real, dimension(:, :), pointer              :: FlowX, FlowY
-!        real, dimension(:, :), pointer              :: OLFlowToChannels
-!        real, dimension(:, :), pointer              :: FlowAtBoundary
         integer                                     :: STAT_CALL
-!        integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
         character (Len = StringLength)              :: UnLockToWhichModules
         character (Len = StringLength)              :: LockToWhichModules
@@ -5041,10 +5131,7 @@ cd2 :           if (BlockFound) then
         UnLockToWhichModules = 'AllModules'
         OptionsType          = 'ModifyBasin'
         call ReadUnLockExternalVar (UnLockToWhichModules, OptionsType)
-
-!        call ModifyRunOff   (Me%ObjRunOff, Me%WaterColumn, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR01'
-        
+       
         !Runoff automatic has the most recent water column
         call ModifyRunOff   (Me%ObjRunOff, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR01'
@@ -5054,53 +5141,61 @@ cd2 :           if (BlockFound) then
         OptionsType        = 'ModifyBasin'
         call ReadLockExternalVar (LockToWhichModules, OptionsType)
         
-        !Level update is made inside the Runoff model. here it would produce duplication
-        !Basin only handles water column changes in other modules to send them to Runoff
-        
-!        call GetOverLandFlow    (Me%ObjRunOff, FlowX, FlowY, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR02'
-!
-!        call GetFlowToChannels  (Me%ObjRunOff, OLFlowToChannels, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR03'
-!
-!        call GetFlowAtBoundary  (Me%ObjRunOff, FlowAtBoundary, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR04'
-!
-!        !Updates Water column
-!        do j = JLB, JUB
-!        do i = ILB, IUB
-!
-!            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-!
-!                Me%ExtUpdate%WaterLevel (i, j) = Me%ExtUpdate%WaterLevel (i, j) &
-!                                     + ( FlowX(i, j) - FlowX(i, j+1)            &
-!                                     +   FlowY(i, j) - FlowY(i+1, j)            &
-!                                     -  OLFlowToChannels(i, j) -                &
-!                                        FlowAtBoundary(i, j)      )             &
-!                                     * Me%CurrentDT /                           &
-!                                     Me%ExtVar%GridCellArea(i, j)
-!
-!            endif
-!        enddo
-!        enddo
-!        
-!        call UnGetRunOff (Me%ObjRunOff, FlowX, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR05'
-!
-!        call UnGetRunOff (Me%ObjRunOff, FlowY, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR06'
-!
-!        call UnGetRunOff            (Me%ObjRunOff, OLFlowToChannels, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR07' 
-!
-!        call UnGetRunOff            (Me%ObjRunOff, FlowAtBoundary, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR08' 
-
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "OverLandProcesses")
 
     end subroutine OverLandProcesses    
 
     !--------------------------------------------------------------------------
+    
+    subroutine SnowProcesses
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: i, j, ILB, IUB, JLB, JUB
+        real, dimension(:,:), pointer               :: SnowMelting
+        !Begin-----------------------------------------------------------------
+            
+        if (MonitorPerformance) call StartWatch ("ModuleBasin", "SnowProcesses")
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+      
+        !Runoff automatic has the most recent water column
+        call ModifySnow (Me%ObjSnow, STAT=STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'SnowProcesses - ModuleBasin - ERR010'
+
+        call GetSnowMelting (Me%ObjSnow, SnowMelting, STAT=STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'SnowProcesses - ModuleBasin - ERR020'
+
+        !Updates Water column
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                !Increase Waterlevel due to SnowMelting
+                Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel(i, j) + SnowMelting(i, j)
+                
+                !Output - mm /hour
+                Me%SnowMeltingRate(i, j) = SnowMelting(i, j) / Me%CurrentDT * 1000.0 * 3600.0
+
+                !m
+                Me%AccSnowMelting(i, j) = Me%AccSnowMelting(i, j) + SnowMelting(i,j)                            
+            endif
+        enddo
+        enddo
+        
+        call UnGetSnowMelting (Me%ObjSnow, SnowMelting, STAT=STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'SnowProcesses - ModuleBasin - ERR030'
+
+        
+        if (MonitorPerformance) call StopWatch ("ModuleBasin", "SnowProcesses")
+
+    end subroutine SnowProcesses    
+
+    !--------------------------------------------------------------------------    
 
     subroutine DrainageNetworkProcesses
 
@@ -5441,23 +5536,6 @@ cd2 :           if (BlockFound) then
 
         !The column that infiltrates is already computed and now is water column (rain updated water column)
 
-        !Calculates Column which may infiltrate 
-!        !Throughfall + Watercolumn over MIN_WC
-!        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-!        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-!            if(Me%ExtVar%BasinPoints (i,j) == BasinPoint) then
-!            
-!                !Potencial Infiltration Column = ThroughFall
-!                Me%PotentialInfCol (i, j) = Me%ThroughFall(i, j) + Me%WaterColumnCoef * Me%WaterColumn(i, j)
-!            end if
-!        end do
-!        end do
-
-!        !Get the most recent water col from Runof
-!        call GetRunoffWaterColumn     (Me%ObjRunoff, WaterColumn, STAT = STAT_CALL) 
-!        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR00'
-
-
         if (Me%Coupled%Vegetation) then
 
             !if the user choosed to separate transpiration and evaporation,
@@ -5465,7 +5543,6 @@ cd2 :           if (BlockFound) then
             if (Me%EvapoTranspirationMethod == SeparateEvapoTranspiration) then
                 
                 call ModifyPorousMedia (ObjPorousMediaID     = Me%ObjPorousMedia,                  &
-!                                        InfiltrationColumn   = Me%PotentialInfCol,                 &
                                         InfiltrationColumn   = Me%ExtUpdate%Watercolumn,           &
                                         PotentialEvaporation = Me%PotentialEvaporation,            &
                                         ActualTranspiration  = Me%ExtVar%ActualTranspiration,      &
@@ -5475,7 +5552,6 @@ cd2 :           if (BlockFound) then
             else !No evaporation
 
                 call ModifyPorousMedia (ObjPorousMediaID     = Me%ObjPorousMedia,                  &
-!                                        InfiltrationColumn   = Me%PotentialInfCol,                 &
                                         InfiltrationColumn   = Me%ExtUpdate%Watercolumn,           &
                                         ActualTranspiration  = Me%ExtVar%ActualTranspiration,      &
                                         STAT                 = STAT_CALL)
@@ -6986,44 +7062,44 @@ cd2 :           if (BlockFound) then
         call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                              &
                              Data2D_8    = Me%ExtUpdate%Watercolumn,                     &                             
                              STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR010'
 
         !Waterlevel
         call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                              &
                              Data2D_8    = Me%ExtUpdate%WaterLevel,                      &                             
                              STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR020'
 
 
         !Infiltration Rate
         call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                              Data2D_8 = Me%InfiltrationRate,                    &                             
                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR030'
 
                !Rain Rate
         call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                              Data2D_8 = Me%PrecipRate,                          &                             
                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR04a'
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR040'
         
         !Through Fall Rate
         call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                              Data2D_8 = Me%ThroughRate,                         &                             
                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR04b'
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR050'
 
         !Efective EVTP Rate
         call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                              Data2D_8 = Me%EVTPRate,                            &                             
                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR05'
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR060'
 
         !Watercolumn Removed
         call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                     &
                              Data2D_8    = Me%WaterColumnRemoved,               &                             
                              STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR070'
 
         if (Me%Coupled%Vegetation) then
 
@@ -7032,19 +7108,19 @@ cd2 :           if (BlockFound) then
             call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                     &
                                  Data2D_8    = Me%CanopyStorageCapacity,            &                             
                                  STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR08'
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR080'
 
             !Canopy Storage
             call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                     &
                                  Data2D_8    = Me%CanopyStorage,                    &                             
                                  STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR09'
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR090'
 
             !Canopy Drainage
             call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                     &
                                  Data2D_8    = Me%CanopyDrainage,                   &                             
                                  STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR091'
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR100'
 
             allocate(CropEvapotrans(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
 
@@ -7062,7 +7138,7 @@ cd2 :           if (BlockFound) then
             call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                                  Data2D = CropEvapotrans,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR07'            
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR110'            
 
             deallocate (CropEvapotrans)
 
@@ -7070,10 +7146,10 @@ cd2 :           if (BlockFound) then
 
                 !m3/s
                 call GetTranspiration(Me%ObjVegetation, ActualTranspiration, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR095'
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR120'
                 !m
                 call GetEvaporation(Me%ObjPorousMedia, ActualEvaporation, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR096'
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR130'
                 
                 allocate(PotentialTranspiration(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
                 allocate(PotentialEvaporation(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -7120,31 +7196,31 @@ cd2 :           if (BlockFound) then
                 call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                                      Data2D = PotentialEvaporation,                     &
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR10'
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR140'
 
 
                 call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                                      Data2D = PotentialTranspiration,                   &
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR11'
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR150'
 
                 call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                                      Data2D = ActualEVAP,                               &
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR115'
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR160'
 
 
                 call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                                      Data2D = ActualTP,                                 &
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR116'
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR170'
 
 
                 call UnGetVegetation(Me%ObjVegetation, ActualTranspiration, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR0117'
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR0180'
 
                 call UnGetPorousMedia(Me%ObjPorousMedia, ActualEvaporation, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR0118'            
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR0190'            
 
                 deallocate (PotentialTranspiration)
                 deallocate (PotentialEvaporation)
@@ -7159,11 +7235,11 @@ cd2 :           if (BlockFound) then
                     call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                                          Data2D_8 = Property%VegetationConc,                &
                                          STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR120'  
+                    if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR200'  
                     call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                                          Data2D_8 = Property%VegetationOldMass,             &
                                          STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR130' 
+                    if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR210' 
                                       
                 endif
                 Property => Property%Next
@@ -7190,7 +7266,7 @@ cd2 :           if (BlockFound) then
             call WriteTimeSerie (Me%ObjTimeSerie,                                       &
                                  Data2D = PotentialEvapoTranspiration,                        &                             
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR13'
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR220'
 
             deallocate(PotentialEvapoTranspiration)
 
@@ -7205,7 +7281,7 @@ cd2 :           if (BlockFound) then
         if (Me%DailyFlow%On .and. Me%Coupled%DrainageNetwork) then
         
             call GetVolumes(Me%ObjDrainageNetwork, TotalFlowVolume = TotalFlowVolume, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR14'
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR230'
         
             !Sum Volume
             Me%DailyFlow%Flow = Me%DailyFlow%Flow + TotalFlowVolume * Me%CurrentDT
@@ -7215,7 +7291,7 @@ cd2 :           if (BlockFound) then
                 !Write time series entry
                 Me%TimeSeriesBuffer2(1) = Me%DailyFlow%Flow
                 call WriteTimeSerieLine (Me%DailyFlow%ObjTimeSerie, Me%TimeSeriesBuffer2, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR15'
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR240'
                 
                 !Resets integrated values
                 Me%DailyFlow%Flow = 0.0
@@ -7231,7 +7307,7 @@ cd2 :           if (BlockFound) then
         if (Me%MonthlyFlow%On .and. Me%Coupled%DrainageNetwork) then
         
             call GetVolumes(Me%ObjDrainageNetwork, TotalFlowVolume = TotalFlowVolume, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR16'
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR250'
         
             !Sum Volume
             Me%MonthlyFlow%Flow = Me%MonthlyFlow%Flow + TotalFlowVolume * Me%CurrentDT
@@ -7241,7 +7317,7 @@ cd2 :           if (BlockFound) then
                 !Write time series entry
                 Me%TimeSeriesBuffer2(1) = Me%MonthlyFlow%Flow
                 call WriteTimeSerieLine (Me%MonthlyFlow%ObjTimeSerie, Me%TimeSeriesBuffer2, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR17'
+                if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR260'
                 
                 !Resets integrated values
                 Me%MonthlyFlow%Flow = 0.0
@@ -7251,7 +7327,14 @@ cd2 :           if (BlockFound) then
                                 
             endif
             
-        endif            
+        endif
+        
+        if (Me%Coupled%Snow) then
+            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                     &
+                                 Data2D_8    = Me%SnowMeltingRate,                  &                             
+                                 STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR270'
+        endif
 
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "TimeSerieOutput")
 
@@ -7343,10 +7426,19 @@ cd2 :           if (BlockFound) then
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR100'
 
-
+                
+            if (Me%Coupled%Snow) then
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/AccSnowMelting",   &
+                                        "AccSnowMelting", "m",                  &
+                                        Array2D      = Me%AccSnowMelting,       &
+                                        OutputNumber = Me%OutPut%NextOutPut,    &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR110'  
+            endif
+                
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR110'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR120'
 
             Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
 
@@ -7738,81 +7830,6 @@ cd2 :           if (BlockFound) then
     end subroutine EVTPHDFOutput
 
     !--------------------------------------------------------------------------
-
-    !subroutine EVTPRefHDFOutput
-    !
-    !    !Arguments-------------------------------------------------------------
-    !
-    !    !Local-----------------------------------------------------------------
-    !    integer                                         :: ILB, IUB, JLB, JUB    
-    !    integer                                         :: STAT_CALL           
-    !    real, dimension(6), target                      :: AuxTime
-    !    real, dimension(:), pointer                     :: TimePointer
-    !
-    !    if (MonitorPerformance) call StartWatch ("ModuleBasin", "EVTPRefHDFOutput")
-    !
-    !    !Bounds
-    !    ILB = Me%WorkSize%ILB
-    !    IUB = Me%WorkSize%IUB
-    !
-    !    JLB = Me%WorkSize%JLB
-    !    JUB = Me%WorkSize%JUB   
-    !
-    !    if (Me%CurrentTime >= Me%EVTPRefOutPut%OutTime(Me%EVTPRefOutPut%NextOutPut)) then
-    !
-    !        !Writes current time
-    !        call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2), &
-    !                                            AuxTime(3), AuxTime(4), &
-    !                                            AuxTime(5), AuxTime(6))
-    !        TimePointer => AuxTime
-    !
-    !        call HDF5SetLimits  (Me%ObjEVTPRefHDF, 1, 6, STAT = STAT_CALL)
-    !        if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR010'
-    !
-    !        call HDF5WriteData  (Me%ObjEVTPRefHDF, "/Time", "Time",          &
-    !                             "YYYY/MM/DD HH:MM:SS",                      &
-    !                             Array1D      = TimePointer,                 &
-    !                             OutputNumber = Me%EVTPRefOutPut%NextOutPut, &
-    !                             STAT = STAT_CALL)
-    !        if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR020'
-    !
-    !        !Sets limits for next write operations
-    !        call HDF5SetLimits   (Me%ObjEVTPRefHDF, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
-    !        if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR030'
-    !
-    !
-    !        !Writes the Open Points
-    !        call HDF5WriteData   (Me%ObjEVTPRefHDF, "//Grid/OpenPoints",      &
-    !                              "OpenPoints", "-",                          &
-    !                              Array2D = Me%ExtVar%OpenPoints2D,           &
-    !                              OutputNumber = Me%EVTPRefOutPut%NextOutPut, &
-    !                              STAT = STAT_CALL)
-    !        if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR040'
-    !
-    !       
-    !        !Writes the Water Column - should be on runoff
-    !        call HDF5WriteData   (Me%ObjEVTPRefHDF, "//Results/ReferencePartialAccEVTP", &
-    !                              "ReferencePartialAccEVTP", "m",                        &
-    !                              Array2D      = Me%PartialAccEVTPRef,                   &
-    !                              OutputNumber = Me%EVTPRefOutPut%NextOutPut,            &
-    !                              STAT = STAT_CALL)
-    !        if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR050'
-    !  
-    !        !Writes everything to disk
-    !        call HDF5FlushMemory (Me%ObjEVTPRefHDF, STAT = STAT_CALL)
-    !        if (STAT_CALL /= SUCCESS_) stop 'EVTPRefHDFOutput - ModuleBasin - ERR100'
-    !
-    !        Me%PartialAccEVTPRef = 0.0
-    !        Me%EVTPRefOutPut%NextOutPut = Me%EVTPRefOutPut%NextOutPut + 1
-    !
-    !    endif
-    !
-    !    if (MonitorPerformance) call StopWatch ("ModuleBasin", "EVTPRefHDFOutput")
-    !        
-    !end subroutine EVTPRefHDFOutput
-
-    !--------------------------------------------------------------------------
-    
     
     subroutine GlobalMassError
 
@@ -8146,8 +8163,9 @@ cd2 :           if (BlockFound) then
         
         !Local-----------------------------------------------------------------
         integer :: stat
-        real(8) :: Volume, OldValue
-        !real(8) :: sum
+        real(8) :: Volume, OldValue        
+        real(8) :: DischargeVolume, StormVolumeIn, StormVolumeOut,          &
+                   OutletFlowVolume, EvapFromSurfVolume
         real(8) :: InitialVol, FinalVol
         logical :: LineStored        
         
@@ -8157,10 +8175,13 @@ cd2 :           if (BlockFound) then
             call GetRunOffBoundaryFlowVolume (Me%ObjRunOff, Volume, STAT = stat)
             if (stat /= SUCCESS_) stop 'ComputeBasinWaterBalance - ModuleBasin - ERR005'
             Me%BWB%BoundaryFromSurface = Me%BWB%BoundaryFromSurface + Volume
+            
+            call GetRunOffTotalDischargeFlowVolume (Me%ObjRunOff, Volume, STAT = stat)
+            if (stat /= SUCCESS_) stop 'ComputeBasinWaterBalance - ModuleBasin - ERR012'
+            Me%BWB%DischargesOnSurface = Me%BWB%DischargesOnSurface + volume            
         endif
         
-        if (Me%Coupled%PorousMedia) then
-        
+        if (Me%Coupled%PorousMedia) then        
             !Gets Evaporation from soil
             call GetEVTPVolumes(Me%ObjPorousMedia, Evaporation = Volume, STAT = stat)
             if (stat /= SUCCESS_) stop 'ComputeBasinWaterBalance - ModuleBasin - ERR010'
@@ -8169,25 +8190,35 @@ cd2 :           if (BlockFound) then
             call GetPMBoundaryFlowVolume (Me%ObjPorousMedia, Volume, STAT = stat)
             if (stat /= SUCCESS_) stop 'ComputeBasinWaterBalance - ModuleBasin - ERR011'
             Me%BWB%BoundaryFromSoil = Me%BWB%BoundaryFromSoil + Volume
+            
+            call GetPMTotalDischargeFlowVolume (Me%ObjPorousMedia, Volume, STAT = stat)
+            if (stat /= SUCCESS_) stop 'ComputeBasinWaterBalance - ModuleBasin - ERR012'
+            Me%BWB%DischargesOnSoil = Me%BWB%DischargesOnSoil + volume
         
             if (Me%Coupled%Vegetation) then
-            
                 !Gets Transpiration
                 call GetEVTPVolumes(Me%ObjPorousMedia, Transpiration = Volume, STAT = stat)
                 if (stat /= SUCCESS_) stop 'ComputeBasinWaterBalance - ModuleBasin - ERR020'
                 Me%BWB%Transpiration = Me%BWB%Transpiration + Volume
-                
             endif
-        
         endif
         
         if (Me%Coupled%DrainageNetwork) then
-        
             !Gets Outlet Flow volume from DN
-            call GetVolumes(Me%ObjDrainageNetwork, OutletFlowVolume = Volume, STAT = stat)
+            call GetVolumes(Me%ObjDrainageNetwork,                              &
+                            OutletFlowVolume = OutletFlowVolume,                &
+                            TotalInputVolume = DischargeVolume,                 &
+                            TotalStormWaterOutput = StormVolumeOut,             &
+                            TotalStormWaterInput = StormVolumeIn,               &
+                            TotalEvapFromSurfaceVolume = EvapFromSurfVolume,    & 
+                            STAT = stat)
             if (stat /= SUCCESS_) stop 'ComputeBasinWaterBalance - ModuleBasin - ERR030'
-            Me%BWB%OutletFlowVolume = Me%BWB%OutletFlowVolume + Volume
-            
+            Me%BWB%OutletFlowVolume = Me%BWB%OutletFlowVolume + OutletFlowVolume
+            Me%BWB%EvapFromChannels = Me%BWB%EvapFromChannels + EvapFromSurfVolume
+            Me%BWB%DischargesOnChannels = Me%BWB%DischargesOnChannels + DischargeVolume
+        endif
+        
+        if (Me%Coupled%Snow) then
         endif
         
         Me%BWB%StoredInSoil        = Me%BWB%FinStoredInSoil       - Me%BWB%IniStoredInSoil
@@ -8196,7 +8227,7 @@ cd2 :           if (BlockFound) then
         Me%BWB%StoredInSurface     = Me%BWB%FinStoredInSurface    - Me%BWB%IniStoredInSurface
         Me%BWB%StoredInStormWater  = Me%BWB%FinStoredInStormWater - Me%BWB%IniStoredInStormWater        
         
-        Me%BWB%Input      = Me%BWB%Rain + Me%BWB%Irrigation
+        Me%BWB%Input      = Me%BWB%Rain + Me%BWB%Irrigation + Me%BWB%SnowMelting
         Me%BWB%Stored     = Me%BWB%StoredInSoil + Me%BWB%StoredInChannels + Me%BWB%StoredInLeaves +     &
                             Me%BWB%StoredInSurface + Me%BWB%StoredInStormWater
         Me%BWB%Output     = Me%BWB%OutletFlowVolume + Me%BWB%EvapFromSoil + Me%BWB%EvapFromLeaves +     &
@@ -8221,42 +8252,43 @@ cd2 :           if (BlockFound) then
         
         Me%BWBBuffer(1)  = Me%BWB%Rain
         Me%BWBBuffer(2)  = Me%BWB%Irrigation
-        Me%BWBBuffer(3)  = Me%BWB%DischargesOnSoil
-        Me%BWBBuffer(4)  = Me%BWB%DischargesOnSurface
-        Me%BWBBuffer(5)  = Me%BWB%DischargesOnChannels
-        Me%BWBBuffer(6)  = Me%BWB%IniStoredInSoil
-        Me%BWBBuffer(7)  = Me%BWB%FinStoredInSoil
-        Me%BWBBuffer(8)  = Me%BWB%StoredInSoil
-        Me%BWBBuffer(9)  = Me%BWB%IniStoredInChannels
-        Me%BWBBuffer(10) = Me%BWB%FinStoredInChannels
-        Me%BWBBuffer(11) = Me%BWB%StoredInChannels
-        Me%BWBBuffer(12) = Me%BWB%IniStoredInStormWater
-        Me%BWBBuffer(13) = Me%BWB%FinStoredInStormWater
-        Me%BWBBuffer(14) = Me%BWB%StoredInStormWater        
-        Me%BWBBuffer(15) = Me%BWB%IniStoredInLeaves
-        Me%BWBBuffer(16) = Me%BWB%FinStoredInLeaves
-        Me%BWBBuffer(17) = Me%BWB%StoredInLeaves
-        Me%BWBBuffer(18) = Me%BWB%IniStoredInSurface
-        Me%BWBBuffer(19) = Me%BWB%FinStoredInSurface
-        Me%BWBBuffer(20) = Me%BWB%StoredInSurface
-        Me%BWBBuffer(21) = Me%BWB%OutletFlowVolume
-        Me%BWBBuffer(22) = Me%BWB%EvapFromSoil
-        Me%BWBBuffer(23) = Me%BWB%EvapFromLeaves
-        Me%BWBBuffer(24) = Me%BWB%EvapFromChannels
-        Me%BWBBuffer(25) = Me%BWB%EvapFromSurface
-        Me%BWBBuffer(26) = Me%BWB%Transpiration
-        Me%BWBBuffer(27) = Me%BWB%BoundaryFromSoil
-        Me%BWBBuffer(28) = Me%BWB%BoundaryFromSurface
-        Me%BWBBuffer(29) = Me%BWB%Input
-        Me%BWBBuffer(30) = Me%BWB%Discharges
-        Me%BWBBuffer(31) = Me%BWB%Output
-        Me%BWBBuffer(32) = Me%BWB%Stored
-        Me%BWBBuffer(33) = Me%BWB%Boundary
-        Me%BWBBuffer(34) = Me%BWB%ErrorInVolume 
-        Me%BWBBuffer(35) = Me%BWB%AccErrorInVolume
-        Me%BWBBuffer(36) = Me%BWB%ErrorInPercentage
-        Me%BWBBuffer(37) = Me%BWB%NumberOfCells
-        Me%BWBBuffer(38) = Me%BWB%BasinArea
+        Me%BWBBuffer(3)  = Me%BWB%SnowMelting
+        Me%BWBBuffer(4)  = Me%BWB%DischargesOnSoil
+        Me%BWBBuffer(5)  = Me%BWB%DischargesOnSurface
+        Me%BWBBuffer(6)  = Me%BWB%DischargesOnChannels
+        Me%BWBBuffer(7)  = Me%BWB%IniStoredInSoil
+        Me%BWBBuffer(8)  = Me%BWB%FinStoredInSoil
+        Me%BWBBuffer(9)  = Me%BWB%StoredInSoil
+        Me%BWBBuffer(10) = Me%BWB%IniStoredInChannels
+        Me%BWBBuffer(11) = Me%BWB%FinStoredInChannels
+        Me%BWBBuffer(12) = Me%BWB%StoredInChannels
+        Me%BWBBuffer(13) = Me%BWB%IniStoredInStormWater
+        Me%BWBBuffer(14) = Me%BWB%FinStoredInStormWater
+        Me%BWBBuffer(15) = Me%BWB%StoredInStormWater        
+        Me%BWBBuffer(16) = Me%BWB%IniStoredInLeaves
+        Me%BWBBuffer(17) = Me%BWB%FinStoredInLeaves
+        Me%BWBBuffer(18) = Me%BWB%StoredInLeaves
+        Me%BWBBuffer(19) = Me%BWB%IniStoredInSurface
+        Me%BWBBuffer(20) = Me%BWB%FinStoredInSurface
+        Me%BWBBuffer(21) = Me%BWB%StoredInSurface
+        Me%BWBBuffer(22) = Me%BWB%OutletFlowVolume
+        Me%BWBBuffer(23) = Me%BWB%EvapFromSoil
+        Me%BWBBuffer(24) = Me%BWB%EvapFromLeaves
+        Me%BWBBuffer(25) = Me%BWB%EvapFromChannels
+        Me%BWBBuffer(26) = Me%BWB%EvapFromSurface
+        Me%BWBBuffer(27) = Me%BWB%Transpiration
+        Me%BWBBuffer(28) = Me%BWB%BoundaryFromSoil
+        Me%BWBBuffer(29) = Me%BWB%BoundaryFromSurface
+        Me%BWBBuffer(30) = Me%BWB%Input
+        Me%BWBBuffer(31) = Me%BWB%Discharges
+        Me%BWBBuffer(32) = Me%BWB%Output
+        Me%BWBBuffer(33) = Me%BWB%Stored
+        Me%BWBBuffer(34) = Me%BWB%Boundary
+        Me%BWBBuffer(35) = Me%BWB%ErrorInVolume 
+        Me%BWBBuffer(36) = Me%BWB%AccErrorInVolume
+        Me%BWBBuffer(37) = Me%BWB%ErrorInPercentage
+        Me%BWBBuffer(38) = Me%BWB%NumberOfCells
+        Me%BWBBuffer(39) = Me%BWB%BasinArea
         
         call WriteTimeSerieLine (Me%ObjBWB, Me%BWBBuffer, LineStored = LineStored, STAT = stat)
         if (stat /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR40'         
@@ -8267,6 +8299,7 @@ cd2 :           if (BlockFound) then
         
             Me%BWB%Rain                  = 0.0
             Me%BWB%Irrigation            = 0.0
+            Me%BWB%SnowMelting           = 0.0
             Me%BWB%DischargesOnSoil      = 0.0
             Me%BWB%DischargesOnSurface   = 0.0
             Me%BWB%DischargesOnChannels  = 0.0
@@ -8567,7 +8600,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (nUsers == 0) then
 
                 !Writes file with final condition
-                call WriteFinalFile
+                if (Me%FinalFileType == 1) then !Its an HDF final file                    
+                    call WriteFinalFile (.false.)
+                else
+                    call WriteFinalFileOld
+                endif
 
                 nUsers = DeassociateInstance(mTIME_,  Me%ObjTime)
                 if (nUsers == 0)           stop 'KillBasin - ModuleBasin - ERR010'
@@ -8608,7 +8645,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%Coupled%Atmosphere) then
                     call KillAtmosphere     (Me%ObjAtmosphere,  STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR080'
-                endif                
+                endif             
+                
+                if (Me%Coupled%Snow) then
+                    call KillSnow (Me%ObjSnow, STAT=STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR085'
+                endif
                
                 PropertyX => Me%FirstProperty
                 do while(associated(PropertyX))  
@@ -8709,9 +8751,118 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     end subroutine KillBasin
 
-    !------------------------------------------------------------------------
+    !----------------------------------------------------------------------------
+    
+    subroutine WriteFinalFile (restart_file)
+    
+        !Arguments---------------------------------------------------------------
+        logical                                     :: restart_file
+        
+        !Local-------------------------------------------------------------------
+        real, dimension(:,:), pointer               :: PtrRealArray2D
+        real, pointer                               :: PtrReal
+        integer                                     :: stat
+        integer                                     :: ILB, IUB, JLB, JUB 
+        
+        !------------------------------------------------------------------------
+        
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        
+        Me%StartStopCtrl%File           = Me%Files%FinalFile
+        Me%StartStopCtrl%WriteHorizGrid = .true.
+        Me%StartStopCtrl%ObjHorizGrid   = Me%ObjHorizontalGrid
+        
+        call Me%StartStopCtrl%Clear ()
+        
+        call GetBasinPoints (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR010'
+        call GetRiverPoints (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR020'
+        call GetGridData        (Me%ObjGridData, Me%ExtVar%Topography, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR030'
+        call GetOpenPoints2D  (Me%ObjHorizontalMap, Me%ExtVar%OpenPoints2D, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR040'        
+        
+        call Me%StartStopCtrl%Add (0, Me%ExtVar%Topography, group="Grid",               &
+                                   ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                  &
+                                   name="Topography", units="m")
+        call Me%StartStopCtrl%Add (0, Me%ExtVar%BasinPoints, group="Grid",              &
+                                   ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                  &
+                                   name="BasinPoints", units="-")
+        call Me%StartStopCtrl%Add (0, Me%ExtVar%RiverPoints, group="Grid",              &
+                                   ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                  &
+                                   name="RiverPoints", units="-")        
+        call Me%StartStopCtrl%Add (0, Me%ExtVar%OpenPoints2D, group="Grid/OpenPoints",  &
+                                   ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                  &
+                                   name="OpenPoints", units="-")
+        
+        if (Me%ComputeBasinWaterBalance) then
+            PtrReal => Me%BWB%AccErrorInVolume
+            call Me%StartStopCtrl%Add(0, PtrReal, units='m',                            &
+                                      group='Results/acc. error in volume',             &
+                                      name='acc. error in volume')
+        endif
+        
+        if (Me%Coupled%Vegetation) then
+            PtrRealArray2D => Me%CanopyStorage
+            call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                     &
+                                      ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,               &
+                                      group='Results/canopy storage',                   &
+                                      name='canopy storage')            
+        endif
+        
+        PtrRealArray2D => Me%AccInfiltration
+        call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                         &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  group='Results/acc. infiltration',                    &
+                                  name='acc. infiltration')
+        
+        PtrRealArray2D => Me%AccEVTP
+        call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                         &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  group='Results/acc. evtp',                            &
+                                  name='acc. evtp')
+        
+        PtrRealArray2D => Me%AccRainFall
+        call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                         &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  group='Results/acc. rainfall',                        &
+                                  name='acc. rainfall')
+        
+        PtrRealArray2D => Me%AccEVPCanopy
+        call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                         &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  group='Results/acc. evp. canopy',                     &
+                                  name='acc. evp. canopy')
+        
+        PtrRealArray2D => Me%AccFlowProduction
+        call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                         &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  group='Results/acc. flow production',                 &
+                                  name='acc. flow production')
+        
+        if (.not. Me%StartStopCtrl%Save (Me%CurrentTime, restart_file=restart_file)) then
+            write (*,*) Me%StartStopCtrl%Message()
+            stop 'WriteFinalFile - ModuleBasin - ERR050'
+        endif
+        
+        call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR060'
+        call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR070'
+        call UnGetGridData (Me%ObjGridData, Me%ExtVar%Topography, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR080'
+        call UngetHorizontalMap (Me%ObjHorizontalMap, Me%ExtVar%OpenPoints2D, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR090'
+        
+    end subroutine WriteFinalFile
+    
+    !----------------------------------------------------------------------------
 
-    subroutine WriteFinalFile
+    subroutine WriteFinalFileOld
         
         !Arguments-------------------------------------------------------------
 
@@ -8766,7 +8917,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         call UnitsManager(FinalFile, CLOSE_FILE, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR03'
 
-    end subroutine WriteFinalFile
+    end subroutine WriteFinalFileOld
 
     !------------------------------------------------------------------------
     

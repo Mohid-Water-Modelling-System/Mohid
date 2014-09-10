@@ -257,29 +257,30 @@ Module ModuleVegetation
     use ModuleGlobalData
     use ModuleTime
     use ModuleEnterData
-    use ModuleHDF5,           only : ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,             &
-                                     HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5,      &
+    use ModuleHDF5,           only : ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,               &
+                                     HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5,        &
                                      GetHDF5GroupNumberOfItems
-    use ModuleAtmosphere,     only : GetAtmosphereProperty, AtmospherePropertyExists,             &
+    use ModuleAtmosphere,     only : GetAtmosphereProperty, AtmospherePropertyExists,               &
                                      UnGetAtmosphere
     use ModuleBasinGeometry,  only : GetBasinPoints, UngetBasin
-    use ModulePorousMedia,    only : GetWaterContent, GetHead, GetThetaR, GetComputeSoilField,    &
+    use ModulePorousMedia,    only : GetWaterContent, GetHead, GetThetaR, GetComputeSoilField,      &
                                      GetThetaField, GetLimitThetaLow, GetUnsatK, UngetPorousMedia
-    use ModuleFunctions,      only : SetMatrixValue, ConstructPropertyID, LinearInterpolation,    &
+    use ModuleFunctions,      only : SetMatrixValue, ConstructPropertyID, LinearInterpolation,      &
                                      InterpolateValueInTime, TimeToString, ChangeSuffix
-    use ModuleHorizontalGrid, only : GetHorizontalGridSize, GetGridCellArea, WriteHorizontalGrid, &
+    use ModuleHorizontalGrid, only : GetHorizontalGridSize, GetGridCellArea, WriteHorizontalGrid,   &
                                      UngetHorizontalGrid, GetGridLatitudeLongitude, GetXYCellZ
 !    use ModuleHorizontalMap,  only : GetOpenPoints2D, UngetHorizontalMap
-    use ModuleFillMatrix,     only : ConstructFillMatrix, GetDefaultValue, ModifyFillMatrix,      &
-                                     KillFillMatrix, GetIfMatrixRemainsConstant
-    use ModuleTimeSerie,      only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,               &
-                                     StartTimeSerieInput, GetTimeSerieValue,                      &
-                                     GetNumberOfTimeSeries, GetTimeSerieLocation,                 &
-                                     GetTimeSerieName, TryIgnoreTimeSerie, CorrectsCellsTimeSerie, &
+    use ModuleFillMatrix,     only : ConstructFillMatrix, GetDefaultValue, ModifyFillMatrix,        &
+                                     KillFillMatrix, GetIfMatrixRemainsConstant,                    &
+                                     GetMultiTimeSeries, T_Station
+    use ModuleTimeSerie,      only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,                 &
+                                     StartTimeSerieInput, GetTimeSerieValue,                        &
+                                     GetNumberOfTimeSeries, GetTimeSerieLocation,                   &
+                                     GetTimeSerieName, TryIgnoreTimeSerie, CorrectsCellsTimeSerie,  &
                                      GetTimeSerieDataMatrix, GetTimeSerieDataValues
-    use ModuleGridData,       only : ConstructGridData, GetGridData, UngetGridData,               &
+    use ModuleGridData,       only : ConstructGridData, GetGridData, UngetGridData,                 &
                                      KillGridData
-    use ModuleGeometry,       only : GetGeometryDistances, GetGeometrySize, GetGeometryKFloor,    &
+    use ModuleGeometry,       only : GetGeometryDistances, GetGeometrySize, GetGeometryKFloor,      &
                                      GetGeometryVolumes, UngetGeometry           
 
     implicit none
@@ -1945,7 +1946,7 @@ cd1 :       if      (STAT_CALL .EQ. SUCCESS_      ) then
 cd2 :           if (BlockFound) then                                  
                 
                     ! Construct a New Property 
-                    call ConstructProperty(NewProperty)
+                    call ConstructProperty(NewProperty, ClientNumber)
                                              
                     ! Add new Property to the Property List 
                     call AddProperty(NewProperty)
@@ -1981,10 +1982,11 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
     !This subroutine reads all the information needed to construct a new property.           
-    subroutine ConstructProperty(NewProperty)
+    subroutine ConstructProperty(NewProperty, ClientId)
 
         !Arguments-------------------------------------------------------------
-        type(T_property), pointer       :: NewProperty
+        type(T_property), pointer                   :: NewProperty
+        integer                                     :: ClientId
 
         !----------------------------------------------------------------------
              
@@ -1998,7 +2000,7 @@ cd2 :           if (BlockFound) then
 
         call ConstructPropertyEvolution (NewProperty)
         
-        call ConstructPropertyValues    (NewProperty)
+        call ConstructPropertyValues    (NewProperty, ClientId)
 
         call ConstructPropertyOutPut    (NewProperty)
 
@@ -2008,12 +2010,13 @@ cd2 :           if (BlockFound) then
     !--------------------------------------------------------------------------
     !This subroutine reads all the information needed to construct the property values       
     ! in the domain and in the boundaries            
-    subroutine ConstructPropertyValues(NewProperty)
+    subroutine ConstructPropertyValues(NewProperty, ClientId)
         !Arguments-------------------------------------------------------------
         type(T_property),              pointer      :: NewProperty
+        integer                                     :: ClientId
 
         !External--------------------------------------------------------------
-        integer                                     :: STAT_CALL
+        integer                                     :: STAT_CALL        
 
         !Local-----------------------------------------------------------------
         integer                                     :: iflag
@@ -2072,6 +2075,7 @@ cd2 :           if (BlockFound) then
                                        PointsToFill2D       = Me%ExternalVar%MappingPoints,     &
                                        Matrix2D             = NewProperty%Field,                &
                                        TypeZUV              = TypeZ_,                           &
+                                       ClientId             = ClientId,                         &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                          &
                 stop 'ConstructPropertyValues - ModuleVegetation - ERR07'
@@ -2590,6 +2594,9 @@ cd0:    if (Exist) then
         integer                                 :: column
         character(len=StringLength)             :: FileInTime, FileName, field_name
         integer                                 :: HDF5_READ, DataValues
+        type(T_Station), dimension(:), pointer  :: stations
+        integer                                 :: stations_counter
+        integer                                 :: station_i
 
         !Begin----------------------------------------------------------------
     
@@ -2622,6 +2629,7 @@ cd0:    if (Exist) then
                                        PointsToFill2D       = Me%ExternalVar%MappingPoints,     &
                                        Matrix2D             = AgricPractIDMatrix,               &
                                        TypeZUV              = TypeZ_,                           &
+                                       ClientId             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                          &
                 stop 'ConstructVegetationList - ModuleVegetation - ERR20'
@@ -2755,28 +2763,67 @@ cd0:    if (Exist) then
                             call CheckVegetationList(AgricPractIDScalar)
                             
                         enddo
-                                                        
+                               
+                    case ('MULTITIMESERIE', "Multitimeserie", 'multitimeserie', 'MultiTimeSerie')
+                        
+                        !Look into the timeseries to add the vegetations ID like the 
+                        call GetMultiTimeSeries (Me%AgricPract%ObjFillMatrix, stations, stations_counter, STAT=STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'ConstructVegetationList - ModuleVegetation - ERR120' 
+                        
+                        do station_i = 1, stations_counter
+                            
+                            if (stations(station_i)%ObjTimeSerie > 0) then                            
+                                !write (*,*) 'Timeseries :', stations(station_i)%ObjTimeSerie
+                                call GetTimeSerieDataMatrix(stations(station_i)%ObjTimeSerie,       &
+                                                            DataMatrix,                             &
+                                                            STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) &
+                                    stop 'ConstructVegetationList - ModuleVegetation - ERR130' 
+                                                       
+                                !Get number of timeserie instants (lines)
+                                call GetTimeSerieDataValues(stations(station_i)%ObjTimeSerie,       &
+                                                            DataValues,                             & 
+                                                            STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) &
+                                    stop 'ConstructVegetationList - ModuleVegetation - ERR140' 
+                        
+                                !Analyse every instant to check for agricultural practices
+                                do TimeSerieInstant = 1, DataValues
+                                    !Get ID that will be the same for every domain
+                                    AgricPractIDScalar  = NINT(DataMatrix (TimeSerieInstant, stations(station_i)%Column))
+                            
+                                    !and check if that agricultural practice is already present   
+                                    call CheckVegetationList(AgricPractIDScalar)
+                                enddo
+                            else
+                                !write (*,*) 'NewValue: ', stations(station_i)%NewValue
+                                call CheckVegetationList(NINT(stations(station_i)%NewValue))
+                            endif
+                             
+                        enddo
+                        
                     case default
                         write(*,*) 'Option not found in agricultural practices defined in file'
                         write(*,*) 'Check FILE_IN_TIME keyword in block Agricultural Practices'
                         write(*,*) 'Options allowed are TIMESERIE and HDF'
-                        stop 'ConstructVegetationList - ModuleVegetation - ERR120' 
+                        stop 'ConstructVegetationList - ModuleVegetation - ERR150' 
                 end select
 
                 
                 call KillFillMatrix(Me%AgricPract%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)&
-                    stop 'ConstructVegetationList - ModuleVegetation - ERR30'
+                    stop 'ConstructVegetationList - ModuleVegetation - ERR160'
             
             endif
 
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR70'  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR170'  
             
             deallocate (AgricPractIDMatrix)
         
         else
-            stop 'ConstructVegetationList - ModuleVegetation - ERR130'
+            stop 'ConstructVegetationList - ModuleVegetation - ERR180'
         endif            
         
     end subroutine ConstructVegetationList
@@ -4684,6 +4731,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                             PointsToFill2D       = Me%ExternalVar%BasinPoints,          &
                                             Matrix2D             = Me%HeatUnits%PotentialHUTotal,       &
                                             TypeZUV              = TypeZ_,                              &
+                                            ClientId             = ClientNumber,                        &
                                             STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR30'
                 
@@ -4750,6 +4798,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                        PointsToFill2D       = Me%ExternalVar%BasinPoints,       &
                                        Matrix2D             = AgricPractIDMatrix,               &
                                        TypeZUV              = TypeZ_,                           &
+                                       ClientId             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                          &
                 stop 'ConstructVegetationGrids - ModuleVegetation - ERR100'

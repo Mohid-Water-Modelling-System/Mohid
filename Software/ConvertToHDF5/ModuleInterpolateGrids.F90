@@ -163,6 +163,8 @@ Module ModuleInterpolateGrids
         
         real                                                :: ExtrapolateValue
         type (T_StationaryMap)                              :: StationaryMap
+        
+        logical                                             :: SaveWaterPoints2D
     end type  T_InterpolateGrids
 
     type(T_InterpolateGrids), pointer                       :: Me
@@ -681,6 +683,14 @@ Module ModuleInterpolateGrids
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR230'
 
+        call GetData(Me%SaveWaterPoints2D,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'WATER_POINTS_2D',                                  &
+                     default      =  .true.,                                            &
+                     ClientModule = 'ConvertToHDF5',                                    &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR231'
         
         call ReadFieldsToConvert(ClientNumber)
         
@@ -1083,7 +1093,6 @@ doSS:               do n = 1,Me%NumberSubSubGroups
 
         end do prop
 
-
         deallocate(Me%Father%WaterPoints2D)
 
         if(Me%Interpolation3D) then     
@@ -1170,7 +1179,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                             GroupPosition, NewFatherField%Name,         &
                             NewFatherField%Units, Rank, Dimensions,     &
                             STAT = STAT_CALL)                                
-        if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR140'
+        if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR140'
    
    
         NewField%Name  = trim(NewFatherField%Name)
@@ -1194,12 +1203,12 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                 !check dimensions
                 if(Dimensions(1) .ne. Me%Father%WorkSize2D%IUB) then
                     write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%FileName)
-                    stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR150'
+                    stop 'InterpolateGrids - ModuleInterpolateGrids - ERR150'
                 end if
 
                 if(Dimensions(2) .ne. Me%Father%WorkSize2D%JUB) then
                     write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%FileName)
-                    stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR160'
+                    stop 'InterpolateGrids - ModuleInterpolateGrids - ERR160'
                 end if 
             
                 !allocate field
@@ -1218,7 +1227,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                                     Me%Father%WorkSize2D%JLB,                   &
                                     Me%Father%WorkSize2D%JUB,                   &
                                     STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR170'
+                if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR170'
 
                 !read field
                 call HDF5ReadData(Me%Father%ObjHDF5, RootGroup,                         &
@@ -1227,18 +1236,18 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                                   Array2D      = NewFatherField%Values2D,               &
                                   OutputNumber = CurrentInstant,                        &
                                   STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR180'
+                if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR180'
 
                 if (Me%DoNotBelieveMap) then 
                     call FieldMapping (Me%Father, Values2D = NewFatherField%Values2D)
                 else
                     call GetWaterPoints2D(Me%Father%ObjHorizontalMap, FatherWP2D, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR184'
+                    if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR184'
 
                     Me%Father%WaterPoints2D(:,:) = FatherWP2D(:,:)
 
                     call UnGetHorizontalMap(Me%Father%ObjHorizontalMap, FatherWP2D, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR188'
+                    if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR188'
                 endif
 
                 if (Me%Extrapolate2DFields == NearestCell) then
@@ -1265,7 +1274,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                     elseif(Me%TypeOfInterpolation == Triangulation) then
 
                         call GetWaterPoints2D(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR183'
+                        if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR183'
 
                         if(Me%Interpolation3D) then     
                             Me%Aux%WaterPoints2D(:,:) = AuxWP2D(:,:)
@@ -1276,12 +1285,12 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                         call Triangulator               (NewFatherField, NewField, AuxGrid)
 
                         call UnGetHorizontalMap(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR186'
+                        if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR186'
 
                     elseif(Me%TypeOfInterpolation == AverageInCells)then
 
                         call GetWaterPoints2D(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR187'                    
+                        if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR187'                    
 
                         if(Me%Interpolation3D) then     
                             Me%Aux%WaterPoints2D(:,:) = AuxWP2D(:,:)
@@ -1292,12 +1301,12 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                         call AveragePointsInCells (NewFatherField, NewField, AuxGrid)
 
                         call UnGetHorizontalMap(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR188'
+                        if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR188'
 
                     else
 
                         write(*,*) 'Unknown type of interpolation'
-                        stop       'StartInterpolateGrids - ModuleInterpolateGrids - ERR190' 
+                        stop       'InterpolateGrids - ModuleInterpolateGrids - ERR190' 
 
                     end if
 
@@ -1310,7 +1319,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                 if (Me%Extrapolate2DFields /= Null_) then
 
                     call GetWaterPoints2D(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR193'
+                    if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR193'
 
 
                     if(Me%Interpolation3D) then     
@@ -1345,7 +1354,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                     endif
 
                     call UnGetHorizontalMap(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR196'
+                    if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR196'
 
                     if (Me%DoNotBelieveMap) then                             
                         call FieldMapping (AuxGrid, Values2D = NewField%Values2D)
@@ -1364,17 +1373,17 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                 !check dimensions
                 if(Dimensions(1) .ne. Me%Father%WorkSize3D%IUB) then
                     write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%FileName)
-                    stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR200'
+                    stop 'InterpolateGrids - ModuleInterpolateGrids - ERR200'
                 end if
 
                 if(Dimensions(2) .ne. Me%Father%WorkSize3D%JUB) then
                     write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%FileName)
-                    stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR210'
+                    stop 'InterpolateGrids - ModuleInterpolateGrids - ERR210'
                 end if 
 
                 if(Dimensions(3) .ne. Me%Father%WorkSize3D%KUB) then
                     write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%FileName)
-                    stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR220'
+                    stop 'InterpolateGrids - ModuleInterpolateGrids - ERR220'
                 end if 
             
                 !allocate field
@@ -1424,7 +1433,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                                     Me%Father%WorkSize3D%KLB,                   &
                                     Me%Father%WorkSize3D%KUB,                   &
                                     STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR230'
+                if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR230'
 
                 !read field
                 call HDF5ReadData(Me%Father%ObjHDF5, RootGroup,                     &
@@ -1432,7 +1441,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                                   Array3D      = NewFatherField%Values3D,           &
 !                                  OutputNumber = CurrentInstant,                   &
                                   STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR240'
+                if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR240'
 
                 if (Me%DoNotBelieveMap) then 
                     call FieldMapping (Me%Father, Values3D = NewFatherField%Values3D)
@@ -1444,7 +1453,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
 
                     call ModifyInterpolator(Me%ObjInterpolation, NewField%Values3D, &
                                             NewFatherField%Values3D, STAT = STAT_CALl)
-                    if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR1880'
+                    if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR1880'
 
                 else
 
@@ -1481,7 +1490,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                         else
 
                             write(*,*) 'Unknown type of interpolation'
-                            stop       'StartInterpolateGrids - ModuleInterpolateGrids - ERR250' 
+                            stop       'InterpolateGrids - ModuleInterpolateGrids - ERR250' 
 
                         end if
 
@@ -1585,7 +1594,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                          Me%Father%WorkSize3D%KLB-1,            &
                                          Me%Father%WorkSize3D%KUB,              &
                                          STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR270'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR270'
 
 
     
@@ -1595,7 +1604,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                       Array3D      = NewFatherSZZ%Values3D,     &
                                       OutputNumber = CurrentInstant,            &
                                       STAT         = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR280'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR280'
 
                     do k=Me%Father%WorkSize3D%KLB-1,Me%Father%WorkSize3D%KUB
 
@@ -1660,7 +1669,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                         else
 
                             write(*,*) 'Unknown type of interpolation'
-                            stop       'StartInterpolateGrids - ModuleInterpolateGrids - ERR290' 
+                            stop       'InterpolateGrids - ModuleInterpolateGrids - ERR290' 
 
                         end if
 
@@ -1692,7 +1701,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                                 ActualTime       = Me%Father%InstantsArray(CurrentInstant), &
                                                 SZZ              = AuxSZZ%Values3D,         &
                                                 STAT             = STAT_CALL )
-                    if(STAT_CALL .ne. SUCCESS_) stop 'OpenAndReadFatherHDF5File -  ModuleInterpolateGrids - ERR300'
+                    if(STAT_CALL .ne. SUCCESS_) stop 'InterpolateGrids -  ModuleInterpolateGrids - ERR300'
 
                     deallocate(SurfaceElevation)
 
@@ -1721,7 +1730,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                                 SurfaceElevation = SurfaceElevation,     &
                                                 ActualTime       = Me%BeginTime,         &
                                                 STAT             = STAT_CALL )
-                    if(STAT_CALL .ne. SUCCESS_) stop 'OpenAndReadFatherHDF5File -  ModuleInterpolateGrids - ERR260'
+                    if(STAT_CALL .ne. SUCCESS_) stop 'InterpolateGrids -  ModuleInterpolateGrids - ERR260'
 
                     deallocate(SurfaceElevation)
 
@@ -1743,7 +1752,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
             case default 
         
 !                        write(*,*)'Interpolation only available for 2D fields.'
-                stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR310'
+                stop 'InterpolateGrids - ModuleInterpolateGrids - ERR310'
         
             end select
 
@@ -2094,7 +2103,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
             SurfaceElevation(:,:) = 0
 
             call GetWaterPoints3D(Me%New%ObjMap, WaterPoints3D, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR02'
+            if (STAT_CALL /= SUCCESS_)stop 'ConstructNewGrid - ModuleInterpolateGrids - ERR02'
 
             call ComputeInitialGeometry(GeometryID      = Me%New%ObjGeometry,           &
                                         WaterPoints3D   = WaterPoints3D,                &
@@ -2502,7 +2511,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
 
         allocate(WaterPoints3D(Me%New%Size2D%ILB:Me%New%Size2D%IUB,&
                                Me%New%Size2D%JLB:Me%New%Size2D%JUB, 1), STAT=STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR02'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR01'
 
 
         call GetWaterPoints2D(Me%New%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
@@ -2518,40 +2527,49 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         
         !Opens HDF5 File
         call ConstructHDF5(Me%New%ObjHDF5, Me%New%FileName, HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR01'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR03'
         
         
         call HDF5SetLimits  (Me%New%ObjHDF5, Me%New%WorkSize2D%ILB, Me%New%WorkSize2D%IUB,&
                              Me%New%WorkSize2D%JLB, Me%New%WorkSize2D%JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR02'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR04'
 
         call GetGridData(Me%New%ObjBathymetry, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR02'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR05'
         
         call HDF5WriteData   (Me%New%ObjHDF5, "/Grid", "Bathymetry", "-",       &
                               Array2D =  Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR03'            
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR06'            
 
         call UngetGridData(Me%New%ObjBathymetry, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR02'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR07'
 
         call WriteHorizontalGrid (Me%New%ObjHorizontalGrid, Me%New%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR04'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR08'
 
         call HDF5SetLimits  (Me%New%ObjHDF5, Me%New%WorkSize2D%ILB, Me%New%WorkSize2D%IUB,&
                              Me%New%WorkSize2D%JLB, Me%New%WorkSize2D%JUB, 1,1, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR05'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR09'
 
         call HDF5WriteData   (Me%New%ObjHDF5, "/Grid", "WaterPoints3D", "-",    &
                               Array3D = WaterPoints3D,  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR06'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR10'
+        
+            if (Me%SaveWaterPoints2D) then
+            call HDF5SetLimits  (Me%New%ObjHDF5, Me%New%WorkSize2D%ILB, Me%New%WorkSize2D%IUB,&
+                                 Me%New%WorkSize2D%JLB, Me%New%WorkSize2D%JUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR11'            
+            call HDF5WriteData   (Me%New%ObjHDF5, "/Grid", "WaterPoints2D", "-",    &
+                                  Array2D = WaterPoints2D,  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR12'            
+        endif
         
         !Writes everything to disk
         call HDF5FlushMemory (Me%New%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR07'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR13'
 
         call UngetHorizontalMap(Me%New%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR02'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR14'
 
         deallocate(WaterPoints3D)
         nullify   (WaterPoints3D)

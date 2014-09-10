@@ -68,6 +68,7 @@
 Module ModulePorousMedia
 
     use ModuleGlobalData
+    use ModuleStartAndStop
     use ModuleStopWatch
     use ModuleFunctions
     use ModuleTime
@@ -130,7 +131,7 @@ Module ModulePorousMedia
     private ::      AllocateVariables
     private ::      ReadSoilTypes
     private ::      InitialFields
-    private ::      ReadInitialSoilFile
+    private ::      ReadInitialFileOld
     private ::      ConstructHDF5Output    
     private ::      ConstructTimeSerie
 
@@ -146,6 +147,7 @@ Module ModulePorousMedia
     public  ::  GetGWLayer
     public  ::  GetGWLayerOld
     public  ::  GetFlowDischarge
+    public  ::  GetPMTotalDischargeFlowVolume
     public  ::  GetPorousMediaTotalStoredVolume
     public  ::  GetFluxU
     public  ::  GetFluxV
@@ -198,7 +200,7 @@ Module ModulePorousMedia
     !Destructor
     public  ::  KillPorousMedia                                                     
     private ::      DeAllocateInstance
-    private ::      WriteFinalSoilFile
+    private ::      WriteFinalFileOld
 
     !Management
     private ::      Ready
@@ -284,6 +286,48 @@ Module ModulePorousMedia
         integer                                 :: NextSurfaceOutput    = 1
     end type T_OutPut
 
+    type T_IntegrationByHorizon
+        character(len=StringLength)                         :: Name             = null_str
+        
+        integer                                             :: StartLayer,                      &
+                                                               EndLayer
+        
+        real, dimension(:,:), pointer                       :: Old2D            => null(),      &
+                                                               Field2D          => null()
+            
+        real, dimension(:,:,:), pointer                     :: Old3D            => null(),      &
+                                                               Field3D          => null() 
+    end type T_IntegrationByHorizon
+    
+    type T_IntegrationInfo
+        logical                                             :: Yes              = .false.,      &
+                                                               ByLayer          = .false.,      &
+                                                               ByHorizon        = .false.
+            
+        real, dimension(:,:), pointer                       :: Old2D            => null(),      &
+                                                               Field2D          => null()
+            
+        real, dimension(:,:,:), pointer                     :: Old3D            => null(),      &
+                                                               Field3D          => null()  
+        
+        integer                                             :: HorizonsCount    = 0
+        type(T_IntegrationByHorizon), dimension(:), pointer :: Horizons         => null()
+    end type T_IntegrationInfo
+    
+    type T_IntegrationOutput
+        type (T_Time), dimension(:), pointer                :: OutTime          => null()
+        integer                                             :: NextOutPut       = null_int
+        logical                                             :: Yes              = .false.,      &
+                                                               Initialize       = .true.
+        type (T_IntegrationInfo)                            :: WaterContent,                    &
+                                                               RelativeWaterContent,            &
+                                                               WaterTable,                      &
+                                                               Infiltration,                    &
+                                                               BoundaryBottom
+        real                                                :: AccTime          = 0.0,          &
+                                                               OldAccTime       = 0.0
+    end type T_IntegrationOutput    
+    
     type T_Files
         character(PathLength)                   :: DataFile             = null_str
         character(PathLength)                   :: InitialFile          = null_str
@@ -292,6 +336,7 @@ Module ModulePorousMedia
         character(PathLength)                   :: BottomFile           = null_str
         character(PathLength)                   :: ASCFile              = null_str
         character(PathLength)                   :: BoxesFile            = null_str
+        character(PathLength)                   :: IntegrationHDFFile    = null_str
         integer                                 :: AsciiUnit            = null_int
     end type T_Files    
 
@@ -485,6 +530,7 @@ Module ModulePorousMedia
         integer                                 :: ObjTopography            = 0
         integer                                 :: ObjTimeSerie             = 0
         integer                                 :: ObjHDF5                  = 0
+        integer                                 :: ObjIntegrationHDF5       = 0
         integer                                 :: ObjDrainageNetwork       = 0
         integer                                 :: ObjBottomTopography      = 0
         integer                                 :: ObjEnterData             = 0
@@ -497,6 +543,7 @@ Module ModulePorousMedia
         real,    allocatable, dimension(:,:,:)  :: ThetaField        !!FieldCapacity [m3/m3]                
 
         type (T_OutPut)                         :: OutPut
+        type (T_IntegrationOutput)              :: IntegrationOutput
         type (T_ExtVar)                         :: ExtVar
         type (T_Files)                          :: Files
         type (T_Time)                           :: BeginTime
@@ -510,9 +557,11 @@ Module ModulePorousMedia
         !For Basin Water Balance
         real(8)                                 :: AccEvapFromSoil       = 0.0 !m3
         real(8)                                 :: AccTranspiration      = 0.0 !m3   
-        real(8)                                 :: AccBoundaryFlowVolume = 0.0 !m3        
+        real(8)                                 :: AccBoundaryFlowVolume = 0.0 !m3 
+        real(8)                                 :: TotalDischargeFlowVolume
 
         !Watertable Properties
+        real,    dimension(:,:), pointer        :: OldUGWaterLevel2D        => null()
         real,    dimension(:,:), pointer        :: UGWaterLevel2D           => null()
         real,    dimension(:,:), pointer        :: UGWaterDepth2D           => null()
         integer, dimension(:,:), pointer        :: UGCell                   => null()
@@ -565,38 +614,43 @@ Module ModulePorousMedia
         !Auxiliar SpeedUp Matrixes          
         logical, allocatable, dimension(:,:,:)      :: CalculateHead       
     
-        logical                                 :: TranspirationExists            = .false.
-        logical                                 :: EvaporationExists              = .false.
+        logical                                     :: TranspirationExists            = .false.
+        logical                                     :: EvaporationExists              = .false.
 
-        type (T_Retention       )               :: RC           !retention curve
-        type (T_Converge        )               :: CV           !Converge data 
+        type (T_Retention       )                   :: RC           !retention curve
+        type (T_Converge        )                   :: CV           !Converge data 
 
         !Unsaturated Options
-        type (T_SoilOptions )                   :: SoilOpt
+        type (T_SoilOptions )                       :: SoilOpt
 
-        real(8)                                 :: TotalStoredVolume    = 0.0
-        real(8)                                 :: LossToGround         = 0.0
+        real(8)                                     :: TotalStoredVolume    = 0.0
+        real(8)                                     :: LossToGround         = 0.0
 
         !Grid size
-        type (T_Size3D)                         :: Size,   WorkSize       
-        type (T_Size2D)                         :: Size2D
+        type (T_Size3D)                             :: Size,   WorkSize       
+        type (T_Size2D)                             :: Size2D
         
-        integer                                 :: DomainCellsNumber
+        integer                                     :: DomainCellsNumber
         
         !Soil Types
-        type (T_SoilType), dimension(:), pointer :: SoilTypes       => null()
+        type (T_SoilType), dimension(:), pointer    :: SoilTypes      => null()
         
         !Properties
         !type (T_Property), pointer              :: FirstProperty    => null()
                 
-        type(T_PorousMedia), pointer            :: Next             => null()
+        type(T_PorousMedia), pointer                :: Next           => null()
         
         !Accumulated fluxes for Average flux computation (for Advection diffusion) 
-        real(8), dimension(:,:,:), pointer      :: FluxUAcc       => null()
-        real(8), dimension(:,:,:), pointer      :: FluxVAcc       => null()
-        real(8), dimension(:,:,:), pointer      :: FluxWAcc       => null()
-        real(8), dimension(:,:,:), pointer      :: FluxWAccFinal  => null()
+        real(8), dimension(:,:,:), pointer          :: FluxUAcc       => null()
+        real(8), dimension(:,:,:), pointer          :: FluxVAcc       => null()
+        real(8), dimension(:,:,:), pointer          :: FluxWAcc       => null()
+        real(8), dimension(:,:,:), pointer          :: FluxWAccFinal  => null()
         
+        !Initial and final files type
+        !1(default) => HDF, 2 => old method (soon will disapear)
+        integer                                     :: InitialFileType = 1, &
+                                                       FinalFileType = 1 
+        type (T_StartAndStop)                       :: StartStopCtrl
         !integer                                 :: ChunkK = 1,  &
         !                                           ChunkJ = 1,  &
         !                                           ChunkI = 1        
@@ -751,7 +805,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ConstructDischarges
             endif
             
-            if (Me%SoilOpt%Continuous)  call ReadInitialSoilFile
+            if (Me%SoilOpt%Continuous)  then
+                if (Me%InitialFileType == 1) then !Its an HDF initial file
+                    Me%StartStopCtrl = T_StartAndStop (Me%Files%InitialFile, Me%SoilOpt%StopOnWrongDate)
+                    call ReadInitialFile
+                else
+                    call ReadInitialFileOld
+                endif
+            endif
             
             !Calculates initial Theta
             if (.not. Me%SoilOpt%Continuous) then
@@ -777,6 +838,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (Me%OutPut%Yes .or. Me%Output%SurfaceOutput) then
                 call ConstructHDF5Output
+            endif
+            
+            if (Me%IntegrationOutput%Yes) then
+                call ReadIntegrationConfiguration
+                call ConstructIntegrationHDF5Output
             endif
 
             call ConstructTimeSerie
@@ -1181,6 +1247,30 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                            STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR190'
 
+        !IN PROGRESS
+		!Sets Integrated Output Time 
+        call GetOutPutTime(Me%ObjEnterData,                                             &
+                           CurrentTime = Me%ExtVar%Now,                                 &
+                           EndTime     = Me%EndTime,                                    &
+                           keyword     = 'INTEGRATION_TIME',						    &
+                           SearchType  = FromFile,                                      &
+                           OutPutsTime = Me%IntegrationOutput%OutTime,                  &
+                           OutPutsOn   = Me%IntegrationOutput%Yes,					    &
+                           STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR191' 
+        Me%IntegrationOutput%NextOutput = 1
+        
+        if (Me%IntegrationOutput%Yes) then
+            call ReadFileName('POROUS_INT_HDF', Me%Files%IntegrationHDFFile,	        &
+                              Message = "Porous Media Integration HDF File",		    &
+                              STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR192'
+            
+            
+            
+        endif        
+        
+        
         !Checks consistency
         if (Me%OutPut%Yes .and. Me%OutPut%SurfaceOutput) then
             write(*,*)'Only normal output or 2D output can be active'
@@ -1404,9 +1494,29 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             write(*,*)
             write(*,*)'Method not known for infiltration conductivity'
             write(*,*)'Please check INFIL_CONDUCTIVITY keyword'
-            stop 'ReadDataFile - ModulePorousMedia - ERR3210'
+            stop 'ReadDataFile - ModulePorousMedia - ERR320'
         
         endif
+            
+        call GetData(Me%InitialFileType,                                        &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'INITIAL_FILE_TYPE',                        &
+                     ClientModule = 'ModuleBasin',                              &
+                     Default      = 1,                                          &
+                     SearchType   = FromFile,                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) & 
+            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModulePorousMedia - ERR330")
+        
+        call GetData(Me%FinalFileType,                                          &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'FINAL_FILE_TYPE',                          &
+                     ClientModule = 'ModuleBasin',                              &
+                     Default      = Me%InitialFileType,                         &
+                     SearchType   = FromFile,                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) & 
+            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModulePorousMedia - ERR340")
     
     end subroutine ReadDataFile
     
@@ -1867,9 +1977,46 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
            
     end function CountDomainPoints
     
-    !-------------------------------------------------------------------------    
+    !-------------------------------------------------------------------------
+    
+    subroutine ReadInitialFile
+    
+        !Arguments-------------------------------------------------------------
 
-    subroutine ReadInitialSoilFile
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:,:), pointer             :: PtrRealArray3D        
+        type (T_Time)                               :: BeginTime
+        integer                                     :: stat
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        
+        !----------------------------------------------------------------------
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB        
+        
+        PtrRealArray3D => Me%Theta
+        call Me%StartStopCtrl%Add(0, PtrRealArray3D,                                    &                                  
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB, klb=KLB, kub=KUB, &
+                                  units=trim('m3/m3'),                                  &                                  
+                                  group='Results/theta',                                &
+                                  name='theta')
+        
+        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, STAT=stat)
+        if (stat /= SUCCESS_) stop 'ReadInitialFile - ModulePorousMedia - ERR010'
+        
+        if (.not. Me%StartStopCtrl%Load (BeginTime)) then
+            write (*,*) Me%StartStopCtrl%Message()
+            stop 'ReadInitialFile - ModulePorousMedia - ERR020'
+        endif
+        
+    end subroutine ReadInitialFile
+    
+    !-------------------------------------------------------------------------
+
+    subroutine ReadInitialFileOld
 
         !Arguments-------------------------------------------------------------
 
@@ -1885,17 +2032,17 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
 
         call UnitsManager(InitialFile, OPEN_FILE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialSoilFile - ModulePorousMedia - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModulePorousMedia - ERR01'
 
         open(Unit = InitialFile, File = Me%Files%InitialFile, Form = 'UNFORMATTED', status = 'OLD', IOSTAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialSoilFile - ModulePorousMedia - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModulePorousMedia - ERR02'
 
         !Reads Date
         read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
         call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, EndTime = EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialSoilFile - ModulePorousMedia - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModulePorousMedia - ERR03'
         
         DT_error = EndTimeFile - BeginTime
 
@@ -1906,17 +2053,17 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             write(*,*) 'Date in the file'
             write(*,*) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
             write(*,*) 'DT_error', DT_error
-            if (Me%SoilOpt%StopOnWrongDate) stop 'ReadInitialSoilFile - ModulePorousMedia - ERR04'   
+            if (Me%SoilOpt%StopOnWrongDate) stop 'ReadInitialFileOld - ModulePorousMedia - ERR04'   
 
         endif
 
         read(InitialFile)Me%Theta
 
         call UnitsManager(InitialFile, CLOSE_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialSoilFile - ModulePorousMedia - ERR05'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModulePorousMedia - ERR05'
         
 
-    end subroutine ReadInitialSoilFile
+    end subroutine ReadInitialFileOld
 
     !--------------------------------------------------------------------------
 
@@ -2570,6 +2717,241 @@ HF:         if (STAT_CALL == SUCCESS_ .and. SoilTypeFound) then
     end subroutine ReadSoilTypes
 
     !--------------------------------------------------------------------------   
+  
+    subroutine ReadIntegrationPropertyConfig (Info, Is3D, BlockBegin, BlockEnd, AllocateArrays, ClientNumber)
+        
+        !Arguments-------------------------------------------------------------
+        type (T_IntegrationInfo), pointer           :: Info
+        logical, intent(IN)                         :: Is3D
+        character(*), intent(IN)                    :: BlockBegin
+        character(*), intent(IN)                    :: BlockEnd
+        logical, intent(IN), optional               :: AllocateArrays
+        integer, intent(IN )                        :: ClientNumber
+    
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL, block_i
+        logical                                     :: BlockFound
+        integer                                     :: iflag
+        integer                                     :: ILB, IUB, JLB,  JUB 
+        integer                                     :: KLB, KUB
+        logical                                     :: AllocateArrays_
+    
+        !----------------------------------------------------------------------
+        if (present(AllocateArrays)) then
+            AllocateArrays_ = AllocateArrays
+        else
+            AllocateArrays_ = .true.
+        endif
+        
+        !Bounds
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+        KUB = Me%Size%KUB
+        KLB = Me%Size%KLB
+        
+        call ExtractBlockFromBlock (Me%ObjEnterData,                                            &
+                                    ClientNumber        = ClientNumber,                         &
+                                    block_begin         = BlockBegin,                           &
+                                    block_end           = BlockEnd,                             &
+                                    BlockInBlockFound   = BlockFound,                           &
+                                    STAT                = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ReadIntegrationPropertyConfig - ModulePorousMedia - ERR010'
+        if (BlockFound) then
+            Info%Yes = .true.
+            
+            call GetData (Info%ByLayer, Me%ObjEnterData,  iflag,                                &                
+                          SearchType     = FromBlockInBlock,                                    &
+                          keyword        = 'BY_LAYER',                                          &
+                          default        = .false.,                                             &
+                          ClientModule   = 'ModulePorousMedia',                                 &
+                          STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadIntegrationPropertyConfig - ModulePorousMedia - ERR020'
+            if (Info%ByLayer .and. AllocateArrays_) then
+                if (Is3D) then
+                    allocate (Info%Old3d (ILB:IUB,JLB:JUB,KLB:KUB))
+                    Info%Old3d = 0.0
+                    
+                    allocate (Info%Field3d (ILB:IUB,JLB:JUB,KLB:KUB))
+                    Info%Field3d = 0.0
+                else
+                    allocate (Info%Old2d (ILB:IUB,JLB:JUB))
+                    Info%Old2d = 0.0
+                    
+                    allocate (Info%Field2d (ILB:IUB,JLB:JUB))
+                    Info%Field2d = 0.0
+                endif
+            endif
+            
+            call GetData (Info%ByHorizon, Me%ObjEnterData,  iflag,                              &
+                          SearchType     = FromBlockInBlock,                                    &
+                          keyword        = 'BY_HORIZON',                                        &
+                          default        = .false.,                                             &
+                          ClientModule   = 'ModulePorousMedia',                                 &
+                          STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadIntegrationPropertyConfig - ModulePorousMedia - ERR030'
+            if (Info%ByHorizon) then
+                
+                call GetNumberOfBlocks (Me%ObjEnterData, '<begininthorizon>', '<endinthorizon>',&
+                                        FromBlockInBlock_,                                      &
+                                        Info%HorizonsCount,                                     &
+                                        ClientNumber, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIntegrationPropertyConfig - ModulePorousMedia - ERR040'        
+                if (Info%HorizonsCount <= 0) stop ''                                
+                
+                allocate (Info%Horizons (Info%HorizonsCount))
+                                
+                do block_i=1, Info%HorizonsCount
+                
+                    call ExtractBlockFromBlockFromBlock (Me%ObjEnterData,                           &
+                                                         ClientNumber        = ClientNumber,        &
+                                                         block_begin         = '<begininthorizon>', &
+                                                         block_end           = '<endinthorizon>',   &
+                                                         BlockInBlockInBlockFound = BlockFound,     &
+                                                         STAT                = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ReadIntegrationPropertyConfig - ModulePorousMedia - ERR050'
+                    if (BlockFound) then
+                    
+                        call GetData (Info%Horizons(block_i)%Name,                              &
+                                      Me%ObjEnterData,  iflag,                                  &
+                                      SearchType     = FromBlockInBlockInBlock,                 &
+                                      keyword        = 'NAME',                                  &
+                                      ClientModule   = 'ModulePorousMedia',                     &
+                                      STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadIntegrationPropertyConfig - ModulePorousMedia - ERR060' 
+                    
+                        call GetData (Info%Horizons(block_i)%StartLayer,                        &
+                                      Me%ObjEnterData,  iflag,                                  &
+                                      SearchType     = FromBlockInBlockInBlock,                 &
+                                      keyword        = 'START',                                 &
+                                      ClientModule   = 'ModulePorousMedia',                     &
+                                      STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadIntegrationPropertyConfig - ModulePorousMedia - ERR070' 
+                    
+                        call GetData (Info%Horizons(block_i)%EndLayer,                          &
+                                      Me%ObjEnterData,  iflag,                                  &
+                                      SearchType     = FromBlockInBlockInBlock,                 &
+                                      keyword        = 'END',                                   &
+                                      ClientModule   = 'ModulePorousMedia',                     &
+                                      STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadIntegrationPropertyConfig - ModulePorousMedia - ERR080'
+                    
+                        if (AllocateArrays_) then
+                            if (Is3D) then
+                                allocate (Info%Horizons(block_i)%Old3D (ILB:IUB,JLB:JUB,KLB:KUB))
+                                Info%Horizons(block_i)%Old3D = 0.0
+                                
+                                allocate (Info%Horizons(block_i)%Field3D (ILB:IUB,JLB:JUB,KLB:KUB))
+                                Info%Horizons(block_i)%Field3D = 0.0
+                            else
+                                allocate (Info%Horizons(block_i)%Old2D (ILB:IUB,JLB:JUB))
+                                Info%Horizons(block_i)%Old2D = 0.0
+                                
+                                allocate (Info%Horizons(block_i)%Field2D (ILB:IUB,JLB:JUB))
+                                Info%Horizons(block_i)%Field2D = 0.0                                
+                            endif
+                        endif
+                    !    
+                    !else
+                    !    stop 'ReadIntegrationPropertyConfig - ModulePorousMedia - ERR090'
+                    endif
+                    
+                enddo
+                               
+            endif
+                       
+        else
+            Info%Yes = .false.
+        endif
+        
+        call RewindBlock(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadIntegrationPropertyConfig - ModulePorousMedia - ERR100'
+    
+    end subroutine ReadIntegrationPropertyConfig
+    
+    !--------------------------------------------------------------------------    
+    
+    subroutine ReadIntegrationConfiguration
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        logical                                     :: BlockFound
+        integer                                     :: ClientNumber
+        type (T_IntegrationInfo), pointer           :: aux
+        integer                                     :: ILB, IUB, JLB,  JUB 
+        integer                                     :: KLB, KUB
+
+        !----------------------------------------------------------------------
+             
+        !Bounds
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+        KUB = Me%Size%KUB
+        KLB = Me%Size%KLB        
+        
+        Me%IntegrationOutput%AccTime = 0.0
+        
+        call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
+        
+        call ExtractBlockFromBuffer (Me%ObjEnterData,                                           &
+                                     ClientNumber    = ClientNumber,                            &
+                                     block_begin     = '<beginintegration>',                    &
+                                     block_end       = '<endintegration>',                      &
+                                     BlockFound      = BlockFound,                              &
+                                     STAT            = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop ''
+        if (.not. BlockFound) &
+            stop ''
+                   
+        aux => Me%IntegrationOutput%WaterContent
+        call ReadIntegrationPropertyConfig (aux,                                                &
+                                            .true.,                                             &
+                                            '<beginwatercontent>',                              &
+                                            '<endwatercontent>', ClientNumber = ClientNumber)
+               
+        aux => Me%IntegrationOutput%RelativeWaterContent
+        call ReadIntegrationPropertyConfig (aux,                                                &
+                                            .true.,                                             &
+                                            '<beginrelativewatercontent>',                      &
+                                            '<endrelativeatercontent>',                         &
+                                            AllocateArrays = .false.,                           &
+                                            ClientNumber = ClientNumber)
+        
+        aux => Me%IntegrationOutput%WaterTable
+        call ReadIntegrationPropertyConfig (aux,                                                &
+                                            .false.,                                            &
+                                            '<beginwatertable>',                                &
+                                            '<endwatertable>', ClientNumber = ClientNumber) 
+        if (aux%yes) &
+            allocate (Me%OldUGWaterLevel2D (ILB:IUB,JLB:JUB))
+        
+        !Not implemented yet
+        aux => Me%IntegrationOutput%Infiltration
+        call ReadIntegrationPropertyConfig (aux,                                                &
+                                            .false.,                                            &
+                                            '<begininfiltration>',                              &
+                                            '<endinfiltration>', ClientNumber = ClientNumber)         
+
+        aux => Me%IntegrationOutput%BoundaryBottom
+        call ReadIntegrationPropertyConfig (aux,                                                &
+                                            .false.,                                            &
+                                            '<beginboundarybottom>',                            &
+                                            '<endboundarybottom>', ClientNumber = ClientNumber)
+ 
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadIntegrationConfiguration - ModulePorousMedia - ERR030'                
+    
+    end subroutine ReadIntegrationConfiguration
+
+    !--------------------------------------------------------------------------       
     
     subroutine InitialFields
 
@@ -3798,6 +4180,68 @@ DoPiezometers:      do while(associated(Piezometer))
 
     !--------------------------------------------------------------------------
 
+    subroutine ConstructIntegrationHDF5Output
+    
+        !Local-----------------------------------------------------------------
+        integer                                             :: ILB,IUB,JLB,JUB,KLB,KUB    
+        integer                                             :: STAT_CALL
+        integer                                             :: HDF5_CREATE
+        real, dimension(:, :), pointer                      :: BottomData
+
+        !Bounds
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+
+        call GetHDF5FileAccess (HDF5_CREATE = HDF5_CREATE)
+
+        !Opens HDF File
+        call ConstructHDF5 (Me%ObjIntegrationHDF5, trim(Me%Files%IntegrationHDFFile)//"5", HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegrationHDF5Output - ModulePorousMedia - ERR010'
+
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid (Me%ObjHorizontalGrid, Me%ObjIntegrationHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegrationHDF5Output - ModulePorousMedia - ERR020'
+
+        !Sets limits for next write operations
+        call HDF5SetLimits (Me%ObjIntegrationHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegrationHDF5Output - ModulePorousMedia - ERR030'
+
+        !Writes the Grid
+        call HDF5WriteData (Me%ObjIntegrationHDF5, "/Grid", "Topography", "m",                      &
+                            Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegrationHDF5Output - ModulePorousMedia - ERR040'
+
+        call GetGridData(Me%ObjBottomTopography, BottomData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegrationHDF5Output - ModulePorousMedia - ERR050'
+
+        call HDF5WriteData (Me%ObjIntegrationHDF5, "/Grid", "Bathymetry", "m",                      &
+                            Array2D = BottomData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegrationHDF5Output - ModulePorousMedia - ERR060'
+
+        call HDF5WriteData (Me%ObjIntegrationHDF5, "/Grid", "BasinPoints", "-",                     &
+                            Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegrationHDF5Output - ModulePorousMedia - ERR070'
+
+        call HDF5WriteData (Me%ObjIntegrationHDF5, "/Grid", "WaterPoints3D", "-",                  &
+                            Array3D = Me%ExtVar%WaterPoints3d, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegrationHDF5Output - ModulePorousMedia - ERR080'
+                
+        !Flushes All pending HDF5 commands
+        call HDF5FlushMemory (Me%ObjIntegrationHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegrationHDF5Output - ModulePorousMedia - ERR090'
+
+        call UnGetGridData (Me%ObjBottomTopography, BottomData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegrationHDF5Output - ModulePorousMedia - ERR100'    
+    
+    end subroutine ConstructIntegrationHDF5Output
+    
+    !--------------------------------------------------------------------------
 
     subroutine ConstructHDF5Output        
 
@@ -4439,6 +4883,37 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     
     !--------------------------------------------------------------------------
 
+    subroutine GetPMTotalDischargeFlowVolume (ObjPorousMediaID, Volume, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real(8)                                         :: Volume
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        call Ready(ObjPorousMediaID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            !call Read_Lock(mPorousMedia_, Me%InstanceID)
+            Volume = Me%TotalDischargeFlowVolume
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+    
+    end subroutine GetPMTotalDischargeFlowVolume
+    
+    !--------------------------------------------------------------------------
+    
     subroutine GetPorousMediaTotalStoredVolume (ObjPorousMediaID, TotalStoredVolume, LossToGround, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -4484,7 +4959,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            call Read_Lock(mPorousMedia_, Me%InstanceID)  !Changed 
+            !call Read_Lock(mPorousMedia_, Me%InstanceID)  !Changed 
 
             GeometryID = Me%ObjGeometry
 
@@ -5693,17 +6168,24 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             endif
             
             call CalculateUGWaterLevel
+            
+            call ComputeIntegration (Me%ExtVar%DT)
 
             !Output
             if (Me%OutPut%Yes .or. Me%OutPut%SurfaceOutput) call PorousMediaOutput                        
             if (Me%OutPut%TimeSerieON)                      call OutPutTimeSeries
             if (Me%OutPut%ProfileON  )                      call ProfileOutput
             if (Me%Output%BoxFluxes  )                      call ComputeBoxesWaterFluxes
+            if (Me%IntegrationOutput%Yes)                   call IntegrationOutput
             
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%EndTime)) then
                 if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                    call WriteFinalSoilFile
+                    if (Me%FinalFileType == 1) then !Its an HDF final file
+                        call WriteFinalFile (.true.)
+                    else
+                        call WriteFinalFileOld
+                    endif
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
             endif
@@ -5726,6 +6208,114 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     end subroutine ModifyPorousMedia
 
+    !--------------------------------------------------------------------------
+
+    subroutine ComputeIntegration(LocalDT)
+        
+        !Argument--------------------------------------------------------------
+        real                                    :: LocalDT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ILB, IUB, i
+        integer                                     :: JLB, JUB, j
+        integer                                     :: KLB, KUB, k
+        type (T_IntegrationInfo), pointer           :: Info
+        type (T_IntegrationByHorizon), pointer      :: Horizon
+        integer                                     :: hor_i
+        real                                        :: aux, dwz
+        
+        !----------------------------------------------------------------------        
+
+        !Bounds
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+        
+        Me%IntegrationOutput%AccTime = Me%IntegrationOutput%AccTime + LocalDT
+        
+        if (Me%IntegrationOutput%BoundaryBottom%yes) then
+            Info => Me%IntegrationOutput%BoundaryBottom
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Me%ExtVar%BasinPoints (i, j) == 1) then
+                    Info%Field2D (i,j) = Info%Field2D (i,j) + &
+                                         (Me%iFlowBoundaryBottom(i,j) * LocalDT)
+                else
+                    Info%Field2D (i,j) = null_real
+                endif
+            enddo
+            enddo 
+        endif
+        
+        if (Me%IntegrationOutput%WaterTable%Yes) then    
+            Info => Me%IntegrationOutput%WaterTable
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Me%ExtVar%BasinPoints (i, j) == 1) then
+                    Info%Field2D (i,j) = Info%Field2D (i,j) + &
+                                         ((Me%OldUGWaterLevel2D(i,j) + Me%UGWaterLevel2D(i,j)) / 2) * LocalDT
+                else
+                    Info%Field2D (i,j) = null_real
+                endif
+            enddo
+            enddo 
+        endif
+        
+        if (Me%IntegrationOutput%WaterContent%Yes) then    
+            Info => Me%IntegrationOutput%WaterContent
+            
+            if (Info%ByLayer) then
+                do k = KLB, KUB
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    if (Me%ExtVar%BasinPoints (i, j) == 1) then
+                        Info%Field3D (i,j,k) = Info%Field3D (i,j,k) + &
+                                                ((Me%CV%ThetaIni(i,j,k) + Me%Theta(i,j,k)) / 2) * LocalDT
+                    else
+                        Info%Field3D (i,j,k) = null_real
+                    endif
+                enddo
+                enddo 
+                enddo
+            endif
+            
+            !if (Info%ByHorizon) then
+            !    do hor_i = 1 to Info%HorizonsCount
+            !        Horizon => Info%Horizons(hor_i)
+            !        
+            !        do j = JLB, JUB
+            !        do i = ILB, IUB
+            !            
+            !            if (Me%ExtVar%BasinPoints(i,j) == 1) then
+            !                
+            !                aux = 0.0
+            !                dwz = 0.0
+            !                do k = Horizon%StartLayer, Horizon%EndLayer                                
+            !                    if (Me%ExtVar%AterPoints3D(i,j,k) == 1) then
+            !                        aux = aux + ((Me%CV%ThetaIni(i,j,k) + Me%Theta(i,j,k)) / 2) * Me%ExtVar%DWZ(i, j, k)
+            !                        dwz = dwz + Me%ExtVar%DWZ(i, j, k)
+            !                    endif                                
+            !                enddo
+            !                
+            !                Horizon%Field2D (i,j) = (aux / dwz) * LocalDT
+            !            else
+            !                Horizon%Field2D (i,j) = null_real
+            !            endif
+            !            
+            !        enddo
+            !        enddo
+            !    enddo
+            !endif
+        endif        
+    
+    end subroutine ComputeIntegration
+    
     !--------------------------------------------------------------------------
 
     subroutine VariableSaturatedFlow(InfiltrationColumn)
@@ -5773,6 +6363,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         
         Me%AccEvapFromSoil  = 0.0
         Me%AccTranspiration = 0.0
+        
+        Me%TotalDischargeFlowVolume = 0.0
         
 dConv:  do while (iteration <= Niteration)
         
@@ -5853,6 +6445,8 @@ dConv:  do while (iteration <= Niteration)
                 
                 Me%AccEvapFromSoil  = 0.0
                 Me%AccTranspiration = 0.0
+                
+                Me%TotalDischargeFlowVolume = 0.0
                                               
             else
                 
@@ -6059,7 +6653,6 @@ dk:                 do k=kmin, kmax
     end subroutine ModifyWaterDischarges  
     
     !--------------------------------------------------------------------------
-
    
     subroutine InsertInfiltrationOnFluxMatrix
     
@@ -6453,8 +7046,7 @@ dk:                 do k=kmin, kmax
     end subroutine ComputeFinalHead
 
     !----------------------------------------------------------------------------
-
-        
+       
     subroutine InfiltrationVelocity
     
         !Arguments-------------------------------------------------------------
@@ -7217,7 +7809,6 @@ dk:                 do k=kmin, kmax
 
     !--------------------------------------------------------------------------
 
-
     subroutine IntegrateDischargeFlow (SumDT)
 
         !Arguments-------------------------------------------------------------
@@ -7226,27 +7817,32 @@ dk:                 do k=kmin, kmax
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k
         integer                                     :: CHUNK
+        real(8)                                     :: sum
 
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
+        sum = Me%TotalDischargeFlowVolume
+        
         !Integrates Flow Discharges        
-        !$OMP PARALLEL PRIVATE(I,J)
+        !$OMP PARALLEL PRIVATE(I,J) REDUCTION(+:sum)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             Me%iFlowDischarge(i, j, k) = (Me%iFlowDischarge(i, j, k) * SumDT + Me%lFlowDischarge(i, j, k) * Me%CV%CurrentDT) / &
                                          (SumDT + Me%CV%CurrentDT)
+            sum = sum + Me%lFlowDischarge(i, j, k) * Me%CV%CurrentDT
         enddo
         enddo
         !$OMP END DO NOWAIT      
         enddo
         !$OMP END PARALLEL  
+        
+        Me%TotalDischargeFlowVolume = sum
 
     end subroutine IntegrateDischargeFlow
 
     !--------------------------------------------------------------------------
-
 
     subroutine UpdateWaterColumnInfiltration 
 
@@ -8029,7 +8625,6 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                         
                         Me%Theta(i,j,k) = NewTheta
                         
-
                         sum = sum + (Me%iFlowBoundaryBottom(i,j) * Me%ExtVar%DT)
                         
                         Me%RC%ThetaF  (i, j, k)   = ThetaF_ (Me%Theta (i, j, k), Me%SoilID(i, j, k))
@@ -8093,6 +8688,9 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
                     DZInCell        = LinearInterpolation(FieldTheta, 0.0, Me%RC%ThetaS(i,j,k), &
                                                           Me%ExtVar%DWZ(i,j,k), Me%Theta(i,j,k))
                 endif
+                
+                if (Me%IntegrationOutput%WaterTable%Yes) &
+                    Me%OldUGWaterLevel2D(i, j) = Me%UGWaterLevel2D(i, j)
                 
                 Me%UGWaterLevel2D(i, j) = CellBottomLevel + DZInCell
                 Me%UGWaterDepth2D(i, j) = Me%ExtVar%Topography(i, j) -Me%UGWaterLevel2D(i, j)
@@ -9476,6 +10074,316 @@ do1:                do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i,j), -1
 
     !----------------------------------------------------------------------------
 
+    subroutine IntegrationOutput
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL, hor_i
+        integer                                     :: ILB, IUB, i
+        integer                                     :: JLB, JUB, j
+        integer                                     :: KLB, KUB, k
+        real, dimension(6), target                  :: AuxTime
+        real, dimension(:), pointer                 :: TimePointer       
+        real, dimension(:,:,:), pointer             :: Modulus3D
+        real, dimension(:,:,:), pointer             :: CenterU3D, CenterV3D, CenterW3D
+        real, dimension(:,:), pointer               :: SurfaceSlice
+        real, dimension(:,:), pointer               :: Output2D, ThetaFOutput
+        real, dimension(:,:,:), pointer             :: Output3D
+        type (T_IntegrationInfo), pointer           :: Info
+        type (T_IntegrationByHorizon), pointer      :: Horizon   
+        real                                        :: aux, dwz
+
+        !Bounds
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+           
+        if (Me%ExtVar%Now >= Me%IntegrationOutput%OutTime(Me%IntegrationOutput%NextOutPut)) then
+
+            !----------------------------------------------------------------------------
+            !Common Output---------------------------------------------------------------
+            !----------------------------------------------------------------------------
+
+            !Time
+            call ExtractDate (Me%ExtVar%Now , AuxTime(1), AuxTime(2),           &
+                                              AuxTime(3), AuxTime(4),           &
+                                              AuxTime(5), AuxTime(6))
+            TimePointer => AuxTime
+
+            call HDF5SetLimits  (Me%ObjIntegrationHDF5, 1, 6, STAT = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR010'
+
+
+            call HDF5WriteData (Me%ObjIntegrationHDF5, "/Time", "Time",         &
+                                "YYYY/MM/DD HH:MM:SS",                          &
+                                Array1D      = TimePointer,                     &
+                                OutputNumber = Me%IntegrationOutput%NextOutPut, &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR020'
+
+
+            !Limits 
+            call HDF5SetLimits (Me%ObjIntegrationHDF5, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR030'
+
+
+            !Vertical 
+            call HDF5WriteData (Me%ObjIntegrationHDF5,  "/Grid/VerticalZ",      &
+                                "Vertical",   "m"              ,                &
+                                Array3D      = Me%ExtVar%SZZ  ,                 &
+                                OutputNumber = Me%IntegrationOutput%NextOutPut, &
+                                STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR040'
+
+
+            !Limits 
+            call HDF5SetLimits (Me%ObjIntegrationHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR050'
+
+            !Open Points
+            call HDF5WriteData (Me%ObjIntegrationHDF5,  "/Grid/OpenPoints" ,    &
+                                "OpenPoints", "-"                 ,             &
+                                Array3D      = Me%ExtVar%OpenPoints3D ,         &
+                                OutputNumber = Me%IntegrationOutput%NextOutPut, &
+                                STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR060'
+
+            allocate (Output2D (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate (Output3D (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
+            
+            !----------------------------------------------------------------------------
+            !Bottom boundary output------------------------------------------------------
+            !----------------------------------------------------------------------------            
+            if (Me%IntegrationOutput%BoundaryBottom%Yes) then
+                Info => Me%IntegrationOutput%BoundaryBottom
+                             
+                call HDF5WriteData (Me%ObjIntegrationHDF5, "/Results/bottom boundary volume",   &
+                                    "bottom boundary volume", "m3",                             &
+                                    Array2D      = Output2D,                                    &
+                                    OutputNumber = Me%IntegrationOutput%NextOutPut,             &
+                                    STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR070'
+
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    if (Me%ExtVar%BasinPoints (i, j) == 1) then
+                        Output2D (i,j) = Info%Field2D (i,j) / Me%IntegrationOutput%AccTime
+                    else
+                        Output2D (i,j) = null_real
+                    endif
+                enddo
+                enddo                  
+                !UGWaterDepth
+                call HDF5WriteData (Me%ObjIntegrationHDF5, "/Results/bottom boundary Flow",     &
+                                    "bottom boundary Flow", "m3/s",                             &
+                                    Array2D      = Output2D,                                    &
+                                    OutputNumber = Me%IntegrationOutput%NextOutPut,             &
+                                    STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR080'
+                
+                Info%Field2D = 0.0                                
+                
+            endif
+            
+            !----------------------------------------------------------------------------
+            !Saturated output------------------------------------------------------------
+            !----------------------------------------------------------------------------
+            if (Me%IntegrationOutput%WaterTable%Yes) then    
+                Info => Me%IntegrationOutput%WaterTable
+                
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    if (Me%ExtVar%BasinPoints (i, j) == 1) then
+                        Output2D (i,j) = min (Info%Field2D (i,j) / Me%IntegrationOutput%AccTime, Me%ExtVar%Topography (i,j))
+                    else
+                        Output2D (i,j) = null_real
+                    endif
+                enddo
+                enddo                
+                !UGWaterLevel                
+                call HDF5WriteData (Me%ObjIntegrationHDF5, "/Results/water level",          &
+                                    "water level", "m",                                     &
+                                    Array2D      = Output2D,                                &
+                                    OutputNumber = Me%IntegrationOutput%NextOutPut,         &
+                                    STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR090'
+
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    if (Me%ExtVar%BasinPoints (i, j) == 1) then
+                        Output2D (i,j) = max (Me%ExtVar%Topography (i,j) - Output2D (i,j), 0.0)
+                    else
+                        Output2D (i,j) = null_real
+                    endif
+                enddo
+                enddo                  
+                !UGWaterDepth
+                call HDF5WriteData (Me%ObjIntegrationHDF5, "/Results/water table depth",    &
+                                    "water table depth", "m",                               &
+                                    Array2D      = Output2D,                                &
+                                    OutputNumber = Me%IntegrationOutput%NextOutPut,         &
+                                    STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR100'
+
+                Info%Field2D = 0.0                               
+                
+            endif
+
+            !----------------------------------------------------------------------------
+            !Unsaturated output----------------------------------------------------------
+            !----------------------------------------------------------------------------
+                       
+            Info => Me%IntegrationOutput%WaterContent
+            if (Info%Yes) then
+                if (Info%ByLayer) then
+
+                    do k = KLB, KUB
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+                        if (Me%ExtVar%WaterPoints3d (i,j,k) == 1) then
+                            Output3D (i,j,k) = Info%Field3D (i,j,k) / Me%IntegrationOutput%AccTime
+                        else
+                            Output3D (i,j,k) = null_real
+                        endif
+                    enddo
+                    enddo
+                    enddo
+                    
+                    call HDF5WriteData (Me%ObjIntegrationHDF5, "/Results/water content",    &
+                                        "water content", "m3water/m3soil",                  &
+                                        Array3D      = Output3D,                            &
+                                        OutputNumber = Me%IntegrationOutput%NextOutPut,     &
+                                        STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR110'
+                
+                    if (Info%ByHorizon) then
+                    
+                        do hor_i = 1, Info%HorizonsCount
+                            Horizon => Info%Horizons(hor_i)
+                        
+                            do j = JLB, JUB
+                            do i = ILB, IUB
+                                aux = 0.0
+                                dwz = 0.0
+                                
+                                if (Me%ExtVar%BasinPoints(i,j) == 1) then
+                                    
+                                    do k = Horizon%StartLayer, Horizon%EndLayer
+                                        if (Me%ExtVar%WaterPoints3D (i,j,k) == 1) then
+                                            aux = aux + Output3D (i,j,k) * Me%ExtVar%DWZ(i,j,k)
+                                            dwz = dwz + Me%ExtVar%DWZ(i, j, k)
+                                        endif                                
+                                    enddo
+                            
+                                    if (dwz > 0.0) then
+                                        Output2D (i,j) = aux / dwz
+                                    else
+                                        Output2D (i,j) = null_real
+                                    endif
+                                else
+                                    Output2D (i,j) = null_real
+                                endif                            
+                            enddo
+                            enddo
+                    
+                            call HDF5WriteData (Me%ObjIntegrationHDF5,                                  &
+                                                "/Results/water content ["//trim(Horizon%Name)//"]",    &
+                                                "water content", "m3water/m3soil",                      &
+                                                Array2D      = Output2D,                                &
+                                                OutputNumber = Me%IntegrationOutput%NextOutPut,         &
+                                                STAT         = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR120'                        
+                        enddo
+                    endif                     
+                    
+                    Info%Field3D = 0.0
+                    
+                    do k = KLB, KUB
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+                        if (Me%ExtVar%WaterPoints3d (i,j,k) == 1) then
+                            Output3D (i,j,k) = ThetaF_ (Output3D (i,j,k), Me%SoilID(i,j,k))
+                        else
+                            Output3D (i,j,k) = null_real
+                        endif
+                    enddo
+                    enddo
+                    enddo
+                        
+                    call HDF5WriteData (Me%ObjIntegrationHDF5, "/Results/relative water content",   &
+                                        "relative water content", "m3water/m3soil",                 &
+                                        Array3D      = Output3D,                                    &
+                                        OutputNumber = Me%IntegrationOutput%NextOutPut,             &
+                                        STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR130'     
+                    
+                    if (Info%ByHorizon) then
+                    
+                        do hor_i = 1, Info%HorizonsCount
+                            Horizon => Info%Horizons(hor_i)
+                        
+                            do j = JLB, JUB
+                            do i = ILB, IUB
+                                aux = 0.0
+                                dwz = 0.0
+                                
+                                if (Me%ExtVar%BasinPoints(i,j) == 1) then
+                                    
+                                    do k = Horizon%StartLayer, Horizon%EndLayer
+                                        if (Me%ExtVar%WaterPoints3D (i,j,k) == 1) then
+                                            aux = aux + Output3D (i,j,k) * Me%ExtVar%DWZ(i,j,k)
+                                            dwz = dwz + Me%ExtVar%DWZ(i, j, k)
+                                        endif                                
+                                    enddo
+                            
+                                    if (dwz > 0.0) then
+                                        Output2D (i,j) = aux / dwz
+                                    else
+                                        Output2D (i,j) = null_real
+                                    endif
+                                else
+                                    Output2D (i,j) = null_real
+                                endif                            
+                            enddo
+                            enddo
+                    
+                            call HDF5WriteData (Me%ObjIntegrationHDF5,                                          &
+                                                "/Results/relative water content ["//trim(Horizon%Name)//"]",   &
+                                                "relative water content", "m3water/m3soil",                     &
+                                                Array2D      = Output2D,                                        &
+                                                OutputNumber = Me%IntegrationOutput%NextOutPut,                 &
+                                                STAT         = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR140'                        
+                        enddo
+                    endif                     
+                endif                                
+            endif            
+            
+            Me%IntegrationOutput%NextOutPut = Me%IntegrationOutput%NextOutPut + 1
+            Me%IntegrationOutput%AccTime = 0.0
+
+            !----------------------------------------------------------------------------
+            !Write everything to disk----------------------------------------------------
+            !----------------------------------------------------------------------------
+
+            call HDF5FlushMemory (Me%ObjIntegrationHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR0150'
+            
+            deallocate (Output2D)
+            deallocate (Output3D)
+
+        endif
+    
+    end subroutine IntegrationOutput
+
+    !----------------------------------------------------------------------------
+    
     subroutine PorousMediaOutput
 
         !Arguments-------------------------------------------------------------
@@ -10097,7 +11005,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (nUsers == 0) then
                 
                 !Write Output for continuous computation
-                call WriteFinalSoilFile
+                if (Me%FinalFileType == 1) then !Its an HDF final file
+                    call WriteFinalFile (.false.)
+                else
+                    call WriteFinalFileOld
+                endif
 
                 !Kills the TimeSerie
                 if (Me%ObjTimeSerie /= 0) then
@@ -10174,6 +11086,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - ModulePorousMedia - ERR140'
                 endif
 
+                if (Me%IntegrationOutput%Yes) then
+                    call KillHDF5 (Me%ObjIntegrationHDF5, STAT = STAT_)
+                    if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - ModulePorousMedia - ERR141'
+                endif
 
                 !Deallocates Instance
                 call DeallocateInstance ()
@@ -10191,8 +11107,81 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
     end subroutine KillPorousMedia        
 
     !--------------------------------------------------------------------------
+    
+    subroutine WriteFinalFile (restart_file)
+    
+        !Arguments---------------------------------------------------------------
+        logical                                     :: restart_file
+        
+        !Local-------------------------------------------------------------------
+        real, dimension(:,:,:), pointer             :: PtrRealArray3D        
+        real, dimension(:,:), pointer               :: BottomData
+        integer                                     :: stat
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB 
+        
+        !------------------------------------------------------------------------
+        
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+        
+        Me%StartStopCtrl%File           = Me%Files%FinalFile
+        Me%StartStopCtrl%WriteHorizGrid = .true.
+        Me%StartStopCtrl%ObjHorizGrid   = Me%ObjHorizontalGrid
+        
+        call Me%StartStopCtrl%Clear ()
+        
+        call GetBasinPoints (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR010'
+        call GetGridData (Me%ObjTopography, Me%ExtVar%Topography, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR020'
+        call GetWaterPoints3D (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR030'
+        call GetGridData (Me%ObjBottomTopography, BottomData, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR040'
+        
+        call Me%StartStopCtrl%Add(0, Me%ExtVar%Topography, group="Grid",                &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  name="Topography", units="m")
+        call Me%StartStopCtrl%Add(0, BottomData, group="Grid",                          &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  name="Bathymetry", units="m")        
+        call Me%StartStopCtrl%Add(0, Me%ExtVar%BasinPoints, group="Grid",               &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  name="BasinPoints", units="-")
+        call Me%StartStopCtrl%Add(0, Me%ExtVar%WaterPoints3D, group="Grid",             &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB, klb=KLB, kub=KUB, &
+                                  name="WaterPoints3D", units="-")
+        
+        PtrRealArray3D => Me%Theta
+        call Me%StartStopCtrl%Add(0, PtrRealArray3D, units='m3/m3',                     &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB, klb=KLB, kub=KUB, &
+                                  group='Results/theta',                                &
+                                  name='theta')
 
-    subroutine WriteFinalSoilFile
+        if (.not. Me%StartStopCtrl%Save (Me%ExtVar%Now, restart_file=restart_file)) then
+            write (*,*) Me%StartStopCtrl%Message()
+            stop 'WriteFinalFile - ModulePorousMedia - ERR050'
+        endif
+        
+        call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR060'
+        call UnGetGridData (Me%ObjTopography, Me%ExtVar%Topography, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR070'
+        call UnGetGridData (Me%ObjBottomTopography, BottomData, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR080'
+        call UnGetMap (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT=stat) 
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR090'
+            
+    
+    end subroutine WriteFinalFile
+    
+    !--------------------------------------------------------------------------
+
+    subroutine WriteFinalFileOld
 
         !Arguments-------------------------------------------------------------
 
@@ -10214,10 +11203,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 
         call UnitsManager(FinalFile, OPEN_FILE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalSoilFile - ModulePorousMedia - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFileOld - ModulePorousMedia - ERR01'
 
         open(Unit = FinalFile, File = FileName, Form = 'UNFORMATTED', status = 'UNKNOWN', IOSTAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalSoilFile - ModulePorousMedia - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFileOld - ModulePorousMedia - ERR02'
 
         !Writes Date
         call ExtractDate(Me%ExtVar%Now, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
@@ -10226,10 +11215,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         write(FinalFile)Me%Theta
 
         call UnitsManager(FinalFile, CLOSE_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalSoilFile - ModulePorousMedia - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFileOld - ModulePorousMedia - ERR03'
         
 
-    end subroutine WriteFinalSoilFile
+    end subroutine WriteFinalFileOld
 
     !------------------------------------------------------------------------    
     

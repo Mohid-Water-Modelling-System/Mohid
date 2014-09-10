@@ -466,7 +466,7 @@ if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
                                hash_map_in  = DirectoryList%hash_map_in,        &
                                HDFFileOut   = FirstHDFFileOut,                  &
                                hash_map_out = DirectoryList%hash_map_out,       &
-                               AuxMatrixes  = DirectoryList%AuxMatrixes,       &
+                               AuxMatrixes  = DirectoryList%AuxMatrixes,        &
                                MPIMatrixes  = DirectoryList%MPIMatrixes)
         endif if1
 

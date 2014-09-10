@@ -36,6 +36,7 @@ Module ModuleRunOff
                                         GetTimeSerieInitialData, GetTimeSerieValue
     use ModuleEnterData
     use ModuleHDF5
+    use ModuleStartAndStop
     use ModuleFunctions         ,only : TimeToString, SetMatrixValue, ChangeSuffix,      &
                                         CHUNK_J, LinearInterpolation, InterpolateValueInTime
     use ModuleHorizontalGrid    ,only : GetHorizontalGridSize, GetHorizontalGrid,        &
@@ -95,6 +96,7 @@ Module ModuleRunOff
     public  ::  GetBoundaryFlux
     public  ::  GetBoundaryCells
     public  ::  GetFlowDischarge
+    public  ::  GetRunOffTotalDischargeFlowVolume
     public  ::  GetRunoffWaterLevel 
     public  ::  GetRunoffWaterColumn        !Final WaterColumn 
     public  ::  GetRunoffWaterColumnOld     !Initial WaterColumn
@@ -357,6 +359,7 @@ Module ModuleRunOff
         real(8)                                     :: BoundaryFlowVolume        = 0.0 !m3 => positive if flow is towards boundary.          
         real(8)                                     :: VolumeStoredInSurface     = 0.0
         real(8)                                     :: VolumeStoredInStormSystem = 0.0
+        real(8)                                     :: TotalDischargeFlowVolume  = 0.0
 
         logical                                     :: WriteMaxFlowModulus  = .false.
         character(Pathlength)                       :: MaxFlowModulusFile   = null_str
@@ -375,6 +378,12 @@ Module ModuleRunOff
         !Grid size
         type (T_Size2D)                             :: Size
         type (T_Size2D)                             :: WorkSize
+        
+        !Initial and final files type
+        !1(default) => HDF, 2 => old method (soon will disapear)
+        integer                                     :: InitialFileType = 1, &
+                                                       FinalFileType = 1 
+        type (T_StartAndStop)                       :: StartStopCtrl
 
         type(T_RunOff), pointer                     :: Next                 => null()
     end type  T_RunOff
@@ -504,7 +513,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             !Reads conditions from previous run
-            if (Me%Continuous) call ReadInitialFile
+            if (Me%Continuous) then
+                if (Me%InitialFileType == 1) then !Its an HDF initial file
+                    Me%StartStopCtrl = T_StartAndStop (Me%Files%InitialFile, Me%StopOnWrongDate)
+                    call ReadInitialFile
+                else
+                    call ReadInitialFileOld
+                endif
+            endif
             
             if (Me%OutPut%Yes) then
                 call ConstructHDF5Output
@@ -1536,6 +1552,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0750'
             Me%MaxWaterColumnFile = trim(adjustl(Me%MaxWaterColumnFile))//"MaxWaterColumn.dat"
         end if
+        
+        call GetData(Me%InitialFileType,                                        &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'INITIAL_FILE_TYPE',                        &
+                     ClientModule = 'ModuleRunOff',                              &
+                     Default      = 1,                                          &
+                     SearchType   = FromFile,                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) & 
+            stop 'ReadDataFile - ModuleRunOff - ERR751'
+        
+        call GetData(Me%FinalFileType,                                          &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'FINAL_FILE_TYPE',                          &
+                     ClientModule = 'ModuleRunOff',                              &
+                     Default      = Me%InitialFileType,                         &
+                     SearchType   = FromFile,                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) & 
+            stop 'ReadDataFile - ModuleRunOff - ERR752'
 
         call ReadConvergenceParameters
         
@@ -1926,11 +1962,11 @@ do4:            do di = -1, 1
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR362'        
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadBoundaryConditions - ERR362'        
 
         if (iflag == 0) then
             write(*,*)'MAX_DTM_FOR_BOUNDARY must be defined in module Runoff'
-            stop 'ReadDataFile - ModuleRunOff - ERR0363'
+            stop 'ReadBoundaryConditions - ModuleRunOff - ERR0363'
         endif
 
         call GetData(Me%BoundaryMethod,                                     &
@@ -1944,7 +1980,7 @@ do4:            do di = -1, 1
 
         if (Me%BoundaryMethod /= ComputeFlow_ .and. Me%BoundaryMethod /= InstantaneousFlow_) then
             write(*,*)'BOUNDARY_METHOD must be or 1 - Compute Flow or 2 - Instantaneous FlowOut'
-            stop 'ReadDataFile - ModuleRunOff - ERR0363.5'
+            stop 'ReadBoundaryConditions - ModuleRunOff - ERR0363.5'
         endif
        
         !it will be changed to true if the block found
@@ -1980,7 +2016,7 @@ do4:            do di = -1, 1
 
             if (iflag == 0) then
                 write(*,*)'if using boundary, BOUNDARY_VALUE must be defined in ModuleRunoff'
-                stop 'ReadDataFile - ModulePorousMedia - ERR0110'
+                stop 'ReadBoundaryConditions - ModulePorousMedia - ERR0110'
             endif
         
         endif
@@ -2915,8 +2951,60 @@ do4:            do di = -1, 1
     end subroutine ConstructHDF5Output
 
     !--------------------------------------------------------------------------
-
+    
     subroutine ReadInitialFile
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------    
+        type (T_Time)                               :: BeginTime
+        integer                                     :: stat
+        integer                                     :: ILB, IUB, JLB, JUB, i, j
+        
+        !----------------------------------------------------------------------
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB       
+               
+        call Me%StartStopCtrl%Add(0, Me%myWaterColumn,                                  &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  units='m',                                            &                                  
+                                  group='Results/water column',                         &
+                                  name='water column')
+        
+        if (Me%StormWaterDrainage) then
+            call Me%StartStopCtrl%Add(0, Me%StormWaterVolume,                           &
+                                      ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,               &
+                                      units=trim('m3'),                                 &
+                                      group='Results/storm water volume',               &                                    
+                                      name='storm water volume')            
+        endif
+        
+        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, STAT=stat)
+        if (stat /= SUCCESS_) stop 'ReadInitialFile - ModuleRunOff - ERR010'
+        
+        if (.not. Me%StartStopCtrl%Load (BeginTime)) then
+            write (*,*) Me%StartStopCtrl%Message()
+            stop 'ReadInitialFile - ModuleRunOff - ERR020'
+        endif
+        
+        !Updates Volume & Level from Column        
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%ExtVar%BasinPoints(i, j) == 1) then
+                Me%myWaterLevel(i, j)   = Me%myWaterColumn(i, j) + Me%ExtVar%Topography(i, j)
+                Me%myWaterVolume(i, j)  = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
+            endif
+        enddo
+        enddo
+        
+    end subroutine ReadInitialFile
+    
+    !---------------------------------------------------------------------------
+    
+
+    subroutine ReadInitialFileOld
 
         !Arguments-------------------------------------------------------------
 
@@ -2931,18 +3019,18 @@ do4:            do di = -1, 1
         !----------------------------------------------------------------------
 
         call UnitsManager(InitialFile, OPEN_FILE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModuleRunoff - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModuleRunoff - ERR01'
 
         open(Unit = InitialFile, File = Me%Files%InitialFile, Form = 'UNFORMATTED',     &
              status = 'OLD', IOSTAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModuleRunoff - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModuleRunoff - ERR02'
 
         !Reads Date
         read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
         call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, EndTime = EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModuleRunoff - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModuleRunoff - ERR03'
         
         DT_error = EndTimeFile - BeginTime
 
@@ -2953,7 +3041,7 @@ do4:            do di = -1, 1
             write(*,*) 'Date in the file'
             write(*,*) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
             write(*,*) 'DT_error', DT_error
-            if (Me%StopOnWrongDate) stop 'ReadInitialFile - ModuleRunoff - ERR04'   
+            if (Me%StopOnWrongDate) stop 'ReadInitialFileOld - ModuleRunoff - ERR04'   
 
         endif
 
@@ -2966,7 +3054,7 @@ do4:            do di = -1, 1
    10   continue
 
         call UnitsManager(InitialFile, CLOSE_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModuleRunoff - ERR05'  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModuleRunoff - ERR05'  
         
         !Updates Volume & Level from Column        
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -2982,7 +3070,7 @@ do4:            do di = -1, 1
         enddo
         enddo      
       
-    end subroutine ReadInitialFile
+    end subroutine ReadInitialFileOld
  
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -3300,7 +3388,38 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         if (present(STAT)) STAT = STAT_
 
-    end subroutine GetFlowDischarge    
+    end subroutine GetFlowDischarge
+    
+    !--------------------------------------------------------------------------
+
+    subroutine GetRunOffTotalDischargeFlowVolume (ObjRunOffID, Volume, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        real(8)                                         :: Volume
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        call Ready(ObjRunOffID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            !call Read_Lock(mRUNOFF_, Me%InstanceID)
+            Volume = Me%TotalDischargeFlowVolume
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+    
+    end subroutine GetRunOffTotalDischargeFlowVolume
     
     !--------------------------------------------------------------------------
 
@@ -4081,7 +4200,11 @@ doIter:         do while (iter <= Niter)
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%EndTime)) then
                 if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                    call WriteFinalFile
+                    if (Me%FinalFileType == 1) then !Its an HDF final file
+                        call WriteFinalFile (.true.)
+                    else
+                        call WriteFinalFileOld
+                    endif
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
             endif
@@ -7433,10 +7556,13 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: CHUNK
+        real(8)                                     :: sum
+        
+        !----------------------------------------------------------------------
 
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        !$OMP PARALLEL PRIVATE(I,J)
+        !$OMP PARALLEL PRIVATE(I,J) REDUCTION(+:sum)
 
         !Integrates along X Directions
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7482,17 +7608,20 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 !            !$OMP END DO NOWAIT
 !        endif
 
+        sum = Me%TotalDischargeFlowVolume
         !Integrates Flow Discharges
         if (Me%Discharges) then
-           !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+           !$OMP DO SCHEDULE(DYNAMIC, CHUNK) 
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB                
                 Me%iFlowDischarge(i, j) = (Me%iFlowDischarge(i, j) * SumDT + Me%lFlowDischarge(i, j) * LocalDT) / &
                                           (SumDT + LocalDT)
+                sum = sum + (Me%lFlowDischarge(i, j) * LocalDT)
             enddo
             enddo
             !$OMP END DO NOWAIT
         endif
+        Me%TotalDischargeFlowVolume = sum
 
         !$OMP END PARALLEL        
 
@@ -8040,7 +8169,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                   Array2D      = Me%MyWaterColumn,              &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR050'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR050'
 
        
             !Writes the Water Level
@@ -8049,7 +8178,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                   Array2D      = Me%MyWaterLevel,               &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR060'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR060'
             
 
 
@@ -8121,7 +8250,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       Array2D      = Me%StormWaterVolume,              &
                                       OutputNumber = Me%OutPut%NextOutPut,             &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR080'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR080'
                 
                 
                 !Writes Flow X
@@ -8167,21 +8296,21 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       Array2D      = Me%StormWaterModelFlow,            &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR085'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR085'
                 
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/street gutter flow",       &
                                       "street gutter flow", "m3/s",                     &
                                       Array2D      = Me%StreetGutterFlow,               &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR085'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR085'
             
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water real flow",    &
                                       "storm water real flow", "m3/s",                  &
                                       Array2D      = Me%StormInteractionFlow,           &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR085'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR085'
            
             endif
 
@@ -8461,7 +8590,74 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
     !--------------------------------------------------------------------------
     
-    subroutine WriteFinalFile
+    subroutine WriteFinalFile (restart_file)
+    
+        !Arguments---------------------------------------------------------------
+        logical                                     :: restart_file
+        
+        !Local-------------------------------------------------------------------
+        integer                                     :: stat
+        integer                                     :: ILB, IUB, JLB, JUB
+        
+        !------------------------------------------------------------------------
+        
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        
+        Me%StartStopCtrl%File           = Me%Files%FinalFile
+        Me%StartStopCtrl%WriteHorizGrid = .true.
+        Me%StartStopCtrl%ObjHorizGrid   = Me%ObjHorizontalGrid
+        
+        call Me%StartStopCtrl%Clear ()
+        
+        call GetBasinPoints (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleRunOff - ERR010'
+        call GetRiverPoints (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleRunOff - ERR020'
+        call GetGridData        (Me%ObjGridData, Me%ExtVar%Topography, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleRunOff - ERR030'       
+        
+        call Me%StartStopCtrl%Add (0, Me%ExtVar%Topography, group="Grid",               &
+                                   ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                  &
+                                   name="Topography", units="m")
+        call Me%StartStopCtrl%Add (0, Me%ExtVar%BasinPoints, group="Grid",              &
+                                   ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                  &
+                                   name="BasinPoints", units="-")
+        call Me%StartStopCtrl%Add (0, Me%ExtVar%RiverPoints, group="Grid",              &
+                                   ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                  &
+                                   name="RiverPoints", units="-")        
+        
+        call Me%StartStopCtrl%Add(0, Me%myWaterColumn, units='m',                       &
+                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
+                                  group='Results/water column',                         &
+                                  name='water column')
+        
+        if (Me%StormWaterDrainage) then
+            call Me%StartStopCtrl%Add(0, Me%StormWaterVolume, units='m3',               &
+                                      ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,               &
+                                      group='Results/storm water volume',               &
+                                      name='storm water volume')            
+        endif
+
+        if (.not. Me%StartStopCtrl%Save (Me%ExtVar%Now, restart_file=restart_file)) then
+            write (*,*) Me%StartStopCtrl%Message()
+            stop 'WriteFinalFile - ModuleRunOff - ERR040'
+        endif
+        
+        call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleRunOff - ERR050'
+        call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleRunOff - ERR060'
+        call UnGetGridData (Me%ObjGridData, Me%ExtVar%Topography, STAT=stat)
+        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleRunOff - ERR070'
+    
+    end subroutine WriteFinalFile
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine WriteFinalFileOld
         
         !Arguments-------------------------------------------------------------
 
@@ -8487,10 +8683,10 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         endif            
         
         call UnitsManager(FinalFile, OPEN_FILE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFileOld - ModuleRunoff - ERR01'
 
         open(Unit = FinalFile, File = FileName, Form = 'UNFORMATTED', status = 'UNKNOWN', IOSTAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFileOld - ModuleRunoff - ERR02'
 
         !Writes Date
         write(FinalFile) Year_File, Month_File, Day_File, Hour_File, Minute_File,       &
@@ -8504,9 +8700,9 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
 
         call UnitsManager(FinalFile, CLOSE_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFileOld - ModuleRunoff - ERR03'
 
-    end subroutine WriteFinalFile
+    end subroutine WriteFinalFileOld
 
     !------------------------------------------------------------------------
 
@@ -8546,11 +8742,15 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (nUsers == 0) then
 
                 !Writes file with final condition
-                call WriteFinalFile
+                if (Me%FinalFileType == 1) then !Its an HDF final file
+                    call WriteFinalFile (.false.)
+                else
+                    call WriteFinalFileOld
+                endif
 
                 !Writes Mass Error
                 call ReadFileName("ROOT_SRT", MassErrorFile, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR02a'
+                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR02a'
                 MassErrorFile = trim(adjustl(MassErrorFile))//"MassError.dat"
                 
                 call WriteGridData  (MassErrorFile,                            &

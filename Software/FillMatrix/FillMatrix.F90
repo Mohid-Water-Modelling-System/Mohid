@@ -1009,7 +1009,8 @@ doj:                do j = Me%ExtVar%WorkSize%JLB, Me%ExtVar%WorkSize%JUB
             do i = Me%ExtVar%WorkSize%ILB,  Me%ExtVar%WorkSize%IUB
                 
                 if(Me%ExtVar%WaterPoints2D(i, j) == WaterPoint) then
-                   
+                
+                    Field(i, j) = null_real
                     Station     => Me%FirstStation
 DoStations:         do while(associated(Station))
                         if (Station%TimeSerieHasData) then
@@ -1023,9 +1024,9 @@ DoStations:         do while(associated(Station))
                         Station => Station%Next
                     enddo DoStations
                     
-                    if (Field(i,j) .lt. 0) then
-                        write(*,*) 'Fatal error, Type ID was not found'
-                        write(*,*) 'in cell:', i,j
+                    if (Field(i,j) == null_real) then
+                        write(*,*) 'WARNING: No data was found'
+                        write(*,*) 'for cell:', i,j
                     endif                
                 
                 else

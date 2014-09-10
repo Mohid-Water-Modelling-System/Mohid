@@ -314,10 +314,10 @@ Module ModuleGEBCO
             if(Me%Topography(iPoint) .ge. Me%Window%MinimumValue .and. &
                Me%Topography(iPoint) .le. Me%Window%MaximumValue)then
 
-                if(Me%Longitude(i) .ge. Me%Window%Left  .and. &
-                   Me%Longitude(i) .le. Me%Window%Right .and. &
-                   Me%Latitude (j) .le. Me%Window%Top   .and. &
-                   Me%Latitude (j) .ge. Me%Window%Bottom)then
+                if(Me%Longitude(j) .ge. Me%Window%Left  .and. &
+                   Me%Longitude(j) .le. Me%Window%Right .and. &
+                   Me%Latitude (i) .le. Me%Window%Top   .and. &
+                   Me%Latitude (i) .ge. Me%Window%Bottom)then
             
                     if(Me%WriteAsBathymetry)then
                         write(Me%OutputUnit,99) Me%Longitude(j), Me%Latitude(i),-Me%Topography(iPoint)
