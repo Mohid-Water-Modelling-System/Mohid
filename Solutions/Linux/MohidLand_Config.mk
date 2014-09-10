@@ -14,13 +14,13 @@ export INTEL_PATH = /opt/intel/lib/intel64/
 
 #Where are the hdf5 libraries (with --enable-fortran) in your system?
 # > sudo updatedb; locate hdf5.mod
-export HDF5MODINC = /home/user/Work/Mohid_External_Libs/include
+export HDF5MODINC = /home/user/mohid.external.libs/include
 # > sudo updatedb; locate libhdf5
-export HDF5LIBINC = /home/user/Work/Mohid_External_Libs/lib
+export HDF5LIBINC = /home/user/mohid.external.libs/lib
 
 #Where is the libz.a in your system?
-export ZLIBINC = /home/user/Work/Mohid_External_Libs/lib
-export SZLIBINC = /home/user/Work/Mohid_External_Libs/lib
+export ZLIBINC = /home/user/mohid.external.libs/lib
+export SZLIBINC = /home/user/mohid.external.libs/lib
 
 #Find CODEPLEX Respository revision and if there is local changes
 LOCAL_CHANGES := $(shell ./test_local_changes.sh)
@@ -49,12 +49,12 @@ FPP_DEFINES :=
 #FPP_DEFINES := ${FPP_DEFINES} -D_LAGRANGIAN_GLOBAL_
 #FPP_DEFINES := ${FPP_DEFINES} -D_PHREEQC_      #Not available yet
 #FPP_DEFINES := ${FPP_DEFINES} -D_PHREEQC_X64_  #Not available yet
-FPP_DEFINES := ${FPP_DEFINES} -D_COMPILED_BY=\"MohidLinux\"
+FPP_DEFINES := ${FPP_DEFINES} -D_COMPILED_BY=\"user\"
 FPP_DEFINES := ${FPP_DEFINES} -D_COMPILING_DATE=\"${COMPILING_DATE}\"
 FPP_DEFINES := ${FPP_DEFINES} -D_CODEPLEX_VERSION=\"${CODEPLEX_VERSION}${LOCAL_CHANGES}\"
 FPP_DEFINES := ${FPP_DEFINES} -D_NO_NETCDF
 FPP_DEFINES := ${FPP_DEFINES} -D_STACK_LIMITS_
-FPP_DEFINES := ${FPP_DEFINES} -D_BIG_LINE_LENGTH
+#FPP_DEFINES := ${FPP_DEFINES} -D_BIG_LINE_LENGTH
 
 export FPP_DEFINES
 
