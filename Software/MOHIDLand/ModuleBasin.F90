@@ -8404,7 +8404,7 @@ cd2 :           if (BlockFound) then
 
         !Local-------------------------------------------------------------------
         integer                                     :: STAT_CALL     
-        real                                        :: AtmosfereDT, DTForNextEvent
+        real                                        :: AtmosphereDT, DTForNextEvent
         real                                        :: DNetDT, RunOffDT
         real                                        :: PorousMediaDT, MaxDT
         integer                                     :: ID_DT
@@ -8415,10 +8415,10 @@ cd2 :           if (BlockFound) then
         !------------------------------------------------------------------------
         
         if (Me%Coupled%Atmosphere) then
-            call GetNextAtmosphereDTPrediction (Me%ObjAtmosphere, AtmosfereDT, DTForNextEvent, STAT = STAT_CALL)
+            call GetNextAtmosphereDTPrediction (Me%ObjAtmosphere, AtmosphereDT, DTForNextEvent, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleBasin - ERR010'
         else
-            AtmosfereDT     = -null_real
+            AtmosphereDT     = -null_real
             DTForNextEvent  = -null_real
         endif
 
@@ -8492,9 +8492,9 @@ cd2 :           if (BlockFound) then
             !If AtmosfereDT is zero (can happen in case of method 1 for predicting dt) 
             !it means that now reached exactly one instant existing on HDF or timeserie
             !and has no usefull information
-            if ((AtmosfereDT > 0.) .and. (AtmosfereDT < NewDT)) then
+            if ((AtmosphereDT > 0.) .and. (AtmosphereDT < NewDT)) then
             
-                NewDT = AtmosfereDT
+                NewDT = AtmosphereDT
                 ID_DT = 5
                 
                 !In the case of the DT being limited by atmosphere, 
@@ -8527,12 +8527,23 @@ cd2 :           if (BlockFound) then
             !decrease NewDT to be the half of DTForNextEvent, avoiding a smaller DT on the next 
             !prevision (because proximity with new event).
             if (NewDT < DTForNextEvent) then
-            if (DTForNextEvent/NewDT < 0.5) then
+                if (DTForNextEvent/NewDT < 2.0) then
             
-                NewDT = DTForNextEvent / 2
-                ID_DT = 7
+                    NewDT = DTForNextEvent / 2
+                    ID_DT = 7
                 
-            endif
+                endif
+            else
+                if (DTForNextEvent <= AlmostZero) then
+                    if (NewDT < AtmosphereDT) then
+                        if (AtmosphereDT/NewDT < 2.0) then
+                    
+                            NewDT = AtmosphereDT / 2
+                            ID_DT = 8
+                            
+                        endif
+                    endif
+                endif
             endif
             
         endif            
@@ -8555,7 +8566,7 @@ cd2 :           if (BlockFound) then
 
         call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
         write(AuxString, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT), &
-                                min(AtmosfereDT, MaxDT), DTForNextEvent, time_string                                
+                                min(AtmosphereDT, MaxDT), DTForNextEvent, time_string                                
         
         10 format(f12.4, 1x, f12.4, 1x, f12.4, 1x, f12.4, 1x, e20.12e3, 1x, A26)
 
