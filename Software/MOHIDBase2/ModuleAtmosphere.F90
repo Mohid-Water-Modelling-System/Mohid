@@ -483,7 +483,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine ConstructGlobalVariables
 
         !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL, iflag
+        integer                                 :: STAT_CALL, iflag, defValue
         real, dimension(6)                      :: limits
 
         !Begin------------------------------------------------------------------
@@ -562,14 +562,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR60'        
 
+        if (trim(Me%ModelName) == 'MOHID Land Model') then
+            defValue = 2
+        else
+            defValue = 1
+        endif        
         call GetData(Me%PredictDTMethod,                                                &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'PREDICT_DT_METHOD',                                &
                      ClientModule = 'ModuleAtmosphere',                                 &
-                     Default      = 1,                                                  &
+                     Default      = defValue,                                           &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR60'    
+        
+        write (*,*) ''
+        write (*,*) 'Atmosphere DT Prediction Method: ', Me%PredictDTMethod
+        write (*,*) ''        
         
         call GetData(limits,                                                            &
                      Me%ObjEnterData, iflag,                                            &

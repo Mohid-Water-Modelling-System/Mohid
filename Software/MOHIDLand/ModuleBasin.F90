@@ -1442,7 +1442,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'CONTROL_DT_CHANGES',                               &
-                     default      = .false.,                                            &
+                     default      = .true.,                                             &
                      ClientModule = 'ModuleBasin',                                      &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR430'   
