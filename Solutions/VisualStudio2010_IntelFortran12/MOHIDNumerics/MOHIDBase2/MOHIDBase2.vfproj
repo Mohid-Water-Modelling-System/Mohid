@@ -145,7 +145,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug Double|x64" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\x64\Debug Double" PreprocessorDefinitions="_GOOGLEMAPS" OpenMPConditionalCompilation="false" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\x64\Debug Double" PreprocessorDefinitions="_GOOGLEMAPS;_NO_NETCDF" OpenMPConditionalCompilation="false" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -333,6 +333,7 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleBasinGeometry.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleBoxDif.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleChainReactions.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDrainageNetwork.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleField4D.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleFillMatrix.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleGeometry.F90"/>
