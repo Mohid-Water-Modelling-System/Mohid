@@ -7204,7 +7204,7 @@ case1 : select case(PropertyID)
         !Local-----------------------------------------------------------------
         integer                                 :: iflag
         real                                    :: ErrorAux, auxFactor, DTaux
-        logical                                 :: VariableDT, Dummy, HydroDischarge
+        logical                                 :: VariableDT, Dummy
         character(LEN = StringLength)           :: AuxName
         !----------------------------------------------------------------------
 
@@ -7491,24 +7491,7 @@ case1 : select case(PropertyID)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR90'
 
-
-        if (NewProperty%evolution%Discharges .and. (.not. NewProperty%evolution%AdvectionDiffusion))  then
-            write(*,*) 
-            write(*,*)' Property ', trim(NewProperty%ID%Name), ' discharged without advection-diffusion.' 
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR100'
-            
-        end if
-      
-        call GetPointDischargesState(Me%ObjHydrodynamic, HydroDischarge)
-
-        
-        if (.not. NewProperty%evolution%Discharges) then 
-            if (HydroDischarge .and. NewProperty%evolution%AdvectionDiffusion)  then
-                write(*,*)' Property ', trim(NewProperty%ID%Name), ' must have DISCHARGES active as there is a waterdischarge' 
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR101'
-                
-            endif
-        endif
+        call CheckDischarges (NewProperty, Me%ObjHydrodynamic)
                 
         if (NewProperty%evolution%Discharges)                                            &
             NewProperty%Evolution%Variable = .true.
@@ -8158,7 +8141,35 @@ case1 : select case(PropertyID)
 
     !--------------------------------------------------------------------------
 
+    subroutine CheckDischarges (NewProperty, ObjHydrodynamic)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_property), pointer       :: NewProperty
+        integer                         :: ObjHydrodynamic
 
+        !Local-----------------------------------------------------------------
+        logical                         :: HydroDischarge        
+        !Begin----------------------------------------------------------------------------
+        
+       if (NewProperty%evolution%Discharges .and. (.not. NewProperty%evolution%AdvectionDiffusion))  then
+            write(*,*) 
+            write(*,*)' Property ', trim(NewProperty%ID%Name), ' discharged without advection-diffusion.' 
+            stop 'Subroutine CheckDischarges - ModuleWaterProperties - ERR10'
+            
+        end if
+      
+        call GetPointDischargesState(ObjHydrodynamic, HydroDischarge)
+
+        
+        if (.not. NewProperty%evolution%Discharges) then 
+            if (HydroDischarge .and. NewProperty%evolution%AdvectionDiffusion)  then
+                write(*,*)' Property ', trim(NewProperty%ID%Name), ' must have DISCHARGES active as there is a waterdischarge' 
+                stop 'Subroutine CheckDischarges - ModuleWaterProperties - ERR020'
+                
+            endif
+        endif        
+    
+    end subroutine CheckDischarges
 
     !--------------------------------------------------------------------------
     !Advection / Diffusion parameters
