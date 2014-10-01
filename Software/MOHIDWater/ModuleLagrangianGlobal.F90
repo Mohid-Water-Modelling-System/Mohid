@@ -440,7 +440,8 @@ Module ModuleLagrangianGlobal
                                        UnGetHorizontalMap
     use ModuleHorizontalGrid
     use ModuleAssimilation,     only : StartAssimilation, GetAssimilationField,             &
-                                       UnGetAssimilation, KillAssimilation
+                                       UnGetAssimilation, KillAssimilation,                 &
+                                       GetAssimilationVectorField
     use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,             &
                                        GetGeometryDistances, GetGeometryVolumes,            &
                                        GetGeometryKFloor, UnGetGeometry, GetLayer4Level,    &
@@ -1480,9 +1481,11 @@ Module ModuleLagrangianGlobal
         real                                    :: Photoinhibition          = null_real
         real                                    :: ShortWavePercentage      = null_real
         integer                                 :: AreaMethod               = null_int
+        logical                                 :: FayTotalArea             = .false.  
         real                                    :: AreaTotal                = null_real
         real                                    :: ParticleArea             = null_real
         real                                    :: VolumeTotal              = null_real
+        real                                    :: VolumeTotalIni           = null_real        
         real                                    :: VolumeOilTotal           = null_real
         real                                    :: VolTotOilBeached         = null_real
         real                                    :: VolTotBeached            = null_real
@@ -6291,15 +6294,30 @@ SP:             if (NewProperty%SedimentPartition%ON) then
         !If neceassary Starts The Oil or HNS module for this origin
         if ((NewOrigin%State%Oil) .OR. (NewOrigin%State%HNS)) then
 
-            call GetData(NewOrigin%AreaMethod,                                   &
-                         Me%ObjEnterData,                                        &
-                         flag,                                                   &
-                         SearchType   = FromBlock,                               &
-                         keyword      ='AREA_METHOD',                            &
-                         ClientModule ='ModuleLagrangianGlobal',                 &
-                         Default      = GridCells_,                              &
+            call GetData(NewOrigin%AreaMethod,                                          &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='AREA_METHOD',                                   &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         Default      = GridCells_,                                     &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1510'
+            
+            if (NewOrigin%AreaMethod == VoronoiArea_) then            
+
+                call GetData(NewOrigin%FayTotalArea,                                    &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='FAY_TOTAL_AREA',                            &
+                             ClientModule ='ModuleLagrangianGlobal',                    &
+                             Default      = OFF,                                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1513'
+            
+            
+            endif
 
             if (.not. NewOrigin%Default) then
                 if (NewOrigin%State%Oil) then
@@ -9495,9 +9513,9 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                     call GetOilAPI (CurrentOrigin%ObjOil, API = Density, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'EmissionAccident - ModuleLagrangianGlobal - ERR01'
 
-            AreaTotal = F_FayArea(VolInic          = CurrentOrigin%PointVolume,        & 
+                    AreaTotal = F_FayArea(VolInic          = CurrentOrigin%PointVolume,        & 
                                           Density          = Density,                          & 
-                                  WaterDensity     = GetFirstParticDens(CurrentOrigin),& 
+                                          WaterDensity     = GetFirstParticDens(CurrentOrigin),& 
                                           WaterTemperature = GetFirstParticTemp(CurrentOrigin),&
                                           DensityInAPI     = DensityInAPI)
 
@@ -12396,17 +12414,27 @@ d1:     do while (associated(CurrentOrigin))
             WorkSizeKUB = Me%EulerModel(em)%WorkSize%KUB
 
 
-            call GetAssimilationField(Me%EulerModel(em)%ObjAssimilation,                 &
-                                      ID          = VelocityU_,                      &
-                                      Field3D     = Me%EulerModel(em)%OverLayU,  &
-                                      STAT        = STAT_CALL)
+            !call GetAssimilationField(Me%EulerModel(em)%ObjAssimilation,                 &
+            !                          ID          = VelocityU_,                      &
+            !                          Field3D     = Me%EulerModel(em)%OverLayU,  &
+            !                          STAT        = STAT_CALL)
+                                      
+            !It is important to read vector fields in agreggated way to allow the 
+            !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
+            call GetAssimilationVectorField                                             &
+                                 (AssimilationID    = Me%EulerModel(em)%ObjAssimilation,&
+                                  VectorX_ID        = VelocityU_,                       &
+                                  VectorY_ID        = VelocityV_,                       & 
+                                  VectorX_3D        = Me%EulerModel(em)%OverLayU,       & 
+                                  VectorY_3D        = Me%EulerModel(em)%OverLayV,       &
+                                  STAT              = STAT_CALL)                                      
             if (STAT_CALL /= SUCCESS_) stop 'OverLayProcess - ModuleLagrangianGlobal - ERR01' 
 
-            call GetAssimilationField(Me%EulerModel(em)%ObjAssimilation,                 &
-                                      ID          = VelocityV_,                      &
-                                      Field3D     = Me%EulerModel(em)%OverLayV,  &
-                                      STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OverLayProcess - ModuleLagrangianGlobal - ERR02' 
+            !call GetAssimilationField(Me%EulerModel(em)%ObjAssimilation,                 &
+            !                          ID          = VelocityV_,                      &
+            !                          Field3D     = Me%EulerModel(em)%OverLayV,  &
+            !                          STAT        = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) stop 'OverLayProcess - ModuleLagrangianGlobal - ERR02' 
 
             Me%EulerModel(em)%OverLay%VelUFinal = 0.
             Me%EulerModel(em)%OverLay%VelVFinal = 0.
@@ -12415,13 +12443,11 @@ d1:     do while (associated(CurrentOrigin))
             do j = WorkSizeJLB, WorkSizeJUB
             do i = WorkSizeILB, WorkSizeIUB
 
-                Me%EulerModel(em)%OverLay%VelUFinal(i, j, k) = (Me%EulerModel(em)%OverLayU   (i, j  , k)     +   &
-                                                            Me%EulerModel(em)%OverLayU   (i, j+1, k))/2. +   &
-                                                            Me%EulerModel(em)%Velocity_U (i, j  , k)
+                Me%EulerModel(em)%OverLay%VelUFinal(i, j, k) = Me%EulerModel(em)%OverLayU   (i, j  , k)  +   &
+                                                               Me%EulerModel(em)%Velocity_U (i, j  , k)
 
-                Me%EulerModel(em)%OverLay%VelVFinal(i, j, k) = (Me%EulerModel(em)%OverLayV   (i  , j, k)     +   &
-                                                            Me%EulerModel(em)%OverLayV   (i+1, j, k))/2. +   &
-                                                            Me%EulerModel(em)%Velocity_V (i  , j, k)
+                Me%EulerModel(em)%OverLay%VelVFinal(i, j, k) = Me%EulerModel(em)%OverLayV   (i  , j, k)  +   &
+                                                               Me%EulerModel(em)%Velocity_V (i  , j, k)
             enddo
             enddo
             enddo
@@ -14405,6 +14431,7 @@ CurrOr: do while (associated(CurrentOrigin))
         integer                                     :: ThicknessGradient, Fay
         integer                                     :: SpreadingMethod
         type (T_Time)                               :: LagrangianTime
+        logical                                     :: Continuous
 
         !Begin-----------------------------------------------------------------
 
@@ -14463,11 +14490,14 @@ CurrOr: do while (associated(CurrentOrigin))
 
                 case (Continuous_)
 
-                    VolInic = CurrentOrigin%Flow * (CurrentOrigin%StopEmission - CurrentOrigin%StartEmission)
+                    !VolInic = CurrentOrigin%Flow * (CurrentOrigin%StopEmission - CurrentOrigin%StartEmission)
+                    VolInic    =  CurrentOrigin%VolumeTotalIni
+                    Continuous = .true. 
 
                 case (Instantaneous_)
 
-                    VolInic = CurrentOrigin%PointVolume
+                    VolInic    = CurrentOrigin%PointVolume
+                    Continuous = .false.                     
 
                 end select
                 
@@ -14479,6 +14509,7 @@ CurrOr: do while (associated(CurrentOrigin))
                                         VolInic            = VolInic,                   &
                                         DT                 = Me%DT_PARTIC,              &
                                         AreaTotal          = CurrentOrigin%AreaTotal,   &
+                                        Continuous         = Continuous,                &
                                         STAT               = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'MovePartic - ModuleLagrangianGlobal - ERR20'
 
@@ -18313,6 +18344,7 @@ CurrOr: do while (associated(CurrentOrigin))
 
             CurrentOrigin%AreaTotal        = 0.
             CurrentOrigin%VolumeTotal      = 0.
+            CurrentOrigin%VolumeTotalIni   = 0.
 
             CurrentPartic => CurrentOrigin%FirstPartic
             do while (associated(CurrentPartic))
@@ -18326,8 +18358,11 @@ CurrOr: do while (associated(CurrentOrigin))
                                                       CurrentPartic%HNSSpreadingDiffCoef * Me%DT_Partic
                     endif
 
-                    CurrentOrigin%VolumeTotal   = CurrentOrigin%VolumeTotal +                &
-                                                  CurrentPartic%Geometry%Volume
+                    CurrentOrigin%VolumeTotal       = CurrentOrigin%VolumeTotal +       &
+                                                        CurrentPartic%Geometry%Volume
+                                                  
+                    CurrentOrigin%VolumeTotalIni   = CurrentOrigin%VolumeTotalIni +     &
+                                                        CurrentPartic%Geometry%InitialVolume
 
                     !total area at surface (which is used for spreading) only from surface particles
                     if (CurrentPartic%Position%Surface) then
@@ -18406,6 +18441,7 @@ CurrOr: do while (associated(CurrentOrigin))
         integer                                     :: i, j, em, ig, emp, ObjTriangulation, ip, NumberOfNodes, iN, iT        
         integer                                     :: STAT_CALL, NNi, NeighborNodesNumber, ni, ic, NumberOfBoundaryNodes
         real                                        :: dx, dy, dt, Angle, Grad, vx, vy, Aux, x1, y1, t1, AuxT, RAND, dist
+        real                                        :: ThicknessLimit, FayArea
 
         !Begin-----------------------------------------------------------------
         
@@ -18422,9 +18458,11 @@ CurrOr: do while (associated(CurrentOrigin))
             CurrentOrigin%AreaTotal        = 0.
             CurrentOrigin%VolumeTotal      = 0.
             CurrentOrigin%VolumeOilTotal   = 0.
+            CurrentOrigin%VolumeTotalIni   = 0.
 
             ig = CurrentOrigin%GroupID
             iP = 0
+       
 
             CurrentPartic => CurrentOrigin%FirstPartic
             do while (associated(CurrentPartic))
@@ -18442,12 +18480,16 @@ CurrOr: do while (associated(CurrentOrigin))
                             Me%EulerModel(emp)%OilSpreading(ig)%AreaFlag(i, j) = .false.
                         endif
                     endif
+                    
+                    CurrentOrigin%VolumeTotalIni = CurrentOrigin%VolumeTotalIni +       &
+                                                        CurrentPartic%Geometry%InitialVolume
+                    
+                    CurrentOrigin%VolumeTotal    = CurrentOrigin%VolumeTotal    +       &
+                                                        CurrentPartic%Geometry%Volume
 
-                    CurrentOrigin%VolumeTotal   = CurrentOrigin%VolumeTotal +                &
-                                                  CurrentPartic%Geometry%Volume
-
-                    CurrentOrigin%VolumeOilTotal= CurrentOrigin%VolumeOilTotal +             &
-                                                  CurrentPartic%Geometry%VolumeOil
+                    CurrentOrigin%VolumeOilTotal = CurrentOrigin%VolumeOilTotal +       &
+                                                        CurrentPartic%Geometry%VolumeOil
+                                                        
                     iP = iP + 1
                     !      
                     
@@ -18468,24 +18510,32 @@ CurrOr: do while (associated(CurrentOrigin))
             enddo
 
             NumberOfNodes = iP
+            
+            
+ifay:       if (CurrentOrigin%AreaMethod == FayMethod_ .or.                             &
+                CurrentOrigin%AreaMethod == VoronoiArea_ ) then
 
-iAM:        if (CurrentOrigin%AreaMethod == FayMethod_ .or.                             &
-               (CurrentOrigin%AreaMethod == VoronoiArea_ .and. NumberOfNodes < 20)) then
-
-                call GetOilAPI (CurrentOrigin%ObjOil, API = Density, STAT = STAT_CALL)
+                call GetOilAPI (CurrentOrigin%ObjOil, API = Density)
 
                 select case (CurrentOrigin%EmissionTemporal)
                 case (Continuous_)
-                    VolInic = CurrentOrigin%VolumeTotal
+                    VolInic = CurrentOrigin%VolumeTotalIni
                 case (Instantaneous_)
                     VolInic = CurrentOrigin%PointVolume
                 end select            
 
-                CurrentOrigin%AreaTotal = F_FayArea(VolInic          = VolInic,                          & 
-                                                    Density          = Density,                          & 
-                                                    WaterDensity     = GetFirstParticDens(CurrentOrigin),& 
-                                                    WaterTemperature = GetFirstParticTemp(CurrentOrigin),&
-                                                    DensityInAPI     = .true.)
+                FayArea= F_FayArea(VolInic          = VolInic,                          & 
+                                   Density          = Density,                          & 
+                                   WaterDensity     = GetFirstParticDens(CurrentOrigin),& 
+                                   WaterTemperature = GetFirstParticTemp(CurrentOrigin),&
+                                   DensityInAPI     = .true.)
+
+            endif ifay                 
+
+iAM:        if (CurrentOrigin%AreaMethod == FayMethod_ .or.                             &
+               (CurrentOrigin%AreaMethod == VoronoiArea_ .and. NumberOfNodes < 20)) then
+               
+               CurrentOrigin%AreaTotal = FayArea
 
                 if (.not. CurrentOrigin%StartWithTriang) then
 
@@ -18664,7 +18714,9 @@ ib2:                if (.not. CurrentPartic%Beached) then
                         
                         AverageThickness = AverageThickness + CurrentPartic%Geometry%Thickness / real(NumberOfNodes)
                         
-                        if (CurrentPartic%Geometry%Thickness > 0.) then
+                        call GetOilThicknessLimit(CurrentOrigin%ObjOil, ThicknessLimit)
+                        
+                        if (CurrentPartic%Geometry%Thickness > ThicknessLimit) then
                             TotalArea    = TotalArea    + CurrentPartic%Geometry%Volume / CurrentPartic%Geometry%Thickness
                         endif
                         
@@ -18713,9 +18765,12 @@ ib2:                if (.not. CurrentPartic%Beached) then
                 
                 call KillTriangulation(ObjTriangulation, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ComputeAreaVolume - ModuleLagrangianGlobal - ERR40'   
-                
-                !CurrentOrigin%AreaTotal              = CurrentOrigin%VolumeTotal / AverageThickness
-                CurrentOrigin%AreaTotal              = TotalArea
+
+                if (CurrentOrigin%FayTotalArea) then
+                    CurrentOrigin%AreaTotal= FayArea
+                else
+                    CurrentOrigin%AreaTotal= max (TotalArea, FayArea)
+                endif
                 
             endif iAM
 
@@ -21106,6 +21161,11 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
         do while(EulerModel%SZZ(i, j, k) <= Position%Z)
             k = k - 1
         end do
+        
+        if (k < KFloor - 1) then
+            k = KFloor - 1               
+        endif        
+        
 
         Perc = (EulerModel%SZZ(i, j, k) - Position%Z) / (EulerModel%SZZ(i, j, k) - EulerModel%SZZ(i, j, k+1))
 
@@ -21113,7 +21173,7 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
         if (Perc >= 0.999) Perc = 0.99000
 
         Position%CellK = k + Perc
-
+        
         !----------------------------------------------------------------------
 
     end subroutine Convert_Z_CellK

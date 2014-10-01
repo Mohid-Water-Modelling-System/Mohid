@@ -204,6 +204,7 @@ Module ModuleOil_0D
     public  :: GetOilSpreading
     public  :: GetOilViscCin
     public  :: GetOWInterfacialTension
+    public  :: GetOilThicknessLimit
     public  :: UngetOil
 
 
@@ -2261,6 +2262,42 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
     end subroutine GetOilSpreading
 
     !----------------------------------------------------------------------------
+    
+
+    subroutine GetOilThicknessLimit(OilID, ThicknessLimit,  STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: OilID
+        real,              intent(OUT)              :: ThicknessLimit 
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_, STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(OilID, ready_) 
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                               &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            ThicknessLimit = Me%Var%ThicknessLimit
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+        !------------------------------------------------------------------------
+
+    end subroutine GetOilThicknessLimit
+
+    !----------------------------------------------------------------------------
 
     subroutine UngetOil0D(OilID, STAT)
 
@@ -4207,26 +4244,28 @@ do1 :       do Prop = (ColNbr+1), aux
     !Influence on movement, growth, etc.
 
 
-    subroutine OilActiveProcesses(OilID,                          &
-                                  LagrangianTime,                 &
-                                  WaterTemperature,               &
-                                  WaterDensity,                   &
-                                  VolInic,                        &
-                                  DT,                             &
-                                  AreaTotal,                      &
+    subroutine OilActiveProcesses(OilID,                                                &
+                                  LagrangianTime,                                       &
+                                  WaterTemperature,                                     &
+                                  WaterDensity,                                         &
+                                  VolInic,                                              &
+                                  DT,                                                   &
+                                  AreaTotal,                                            &
+                                  Continuous,                                           &
                                   STAT)
 
 
         !Arguments---------------------------------------------------------------
-        type (T_Time),     intent(IN)   :: LagrangianTime
-        integer                         :: OilID
-        real, intent(in)                :: WaterTemperature
-        real, intent(in)                :: WaterDensity
-        real, intent(in)                :: DT
-
-        real, intent(in)                :: VolInic
-        real, intent(in), optional      :: AreaTotal 
-        integer, optional, intent(OUT)  :: STAT
+        type (T_Time), intent(IN)               :: LagrangianTime
+        integer                                 :: OilID
+        real,          intent(IN)               :: WaterTemperature
+        real,          intent(IN)               :: WaterDensity
+        real,          intent(IN)               :: DT
+        real,          intent(IN)               :: VolInic
+        
+        real,          intent(IN),  optional    :: AreaTotal 
+        logical,       intent(IN),  optional    :: Continuous
+        integer,       intent(OUT), optional    :: STAT
 
 
         !External----------------------------------------------------------------
@@ -4350,6 +4389,10 @@ cd11:                        if (Me%State%FirstStepAP) then
 
                 Me%State%FirstStepAP = OFF
                 
+                if (present(Continuous)) then
+                    if (Continuous) Me%State%FirstStepAP = ON
+                endif                    
+                
             end if cd2
 
             STAT_ = SUCCESS_
@@ -4438,7 +4481,7 @@ cd1:    if (Me%Var%OilThickness .GE. Me%Var%ThicknessLimit) then
                
             Delta                      = max(1e-9,(WaterDensity - Me%Var%Density)) / WaterDensity
 
-            Me%Var%beta                       = Pi *(CFay_2**2/4.) * (Delta*Gravity*(Me%Var%VolInic**2)/          &
+            Me%Var%beta                = Pi *(CFay_2**2/4.) * (Delta*Gravity*(Me%Var%VolInic**2)/          &
                                         sqrt(WaterCinematicVisc))**(1.0/3.0)
            
 cd2:        if (Me%State%FirstStepAP) then
@@ -4852,7 +4895,8 @@ cd3 :           if (Me%State%TimeSerie) then
 
         if (ready_ .EQ. IDLE_ERR_) then
 
-            write (UnitID)  Me%Var%Time
+            write (UnitID) Me%Var%Time
+            write (UnitID) Me%Var%DTOilInternalProcesses
             write (UnitID) Me%Var%OilType
             write (UnitID) Me%Var%API
             write (UnitID) Me%Var%PourPoint
@@ -5031,7 +5075,10 @@ ifdiss:     if (Me%Var%OilDissolution) then
             write (UnitID) Me%Var%VOilRecovered
             write (UnitID) Me%Var%FMOilRecovered
             write (UnitID) Me%Var%VEmulsionRecoveryRate
-
+            
+            !DT
+            write (UnitID) Me%Var%DTOilInternalProcesses
+            
             STAT_ = SUCCESS_
 
         else 
@@ -5241,6 +5288,9 @@ ifemuls:    if (Me%Var%OilEmulsification) then
             read (UnitID) Me%Var%VOilRecovered
             read (UnitID) Me%Var%FMOilRecovered
             read (UnitID) Me%Var%VEmulsionRecoveryRate
+            
+            !DT
+            read (UnitID) Me%Var%DTOilInternalProcesses            
 
 
             STAT_ = SUCCESS_

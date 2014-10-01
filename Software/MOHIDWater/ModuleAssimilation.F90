@@ -1061,6 +1061,7 @@ cd2 :           if (BlockFound) then
                                                PointsToFill2D       = PointsToFill2D,           &
                                                Matrix2D             = Matrix2D,                 &
                                                TypeZUV              = NewProperty%Field%TypeZUV,&
+                                               ClientID             = ClientNumber,             &
                                                STAT                 = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR90'
 
@@ -1171,6 +1172,7 @@ cd2 :           if (BlockFound) then
                                                PointsToFill3D       = PointsToFill3D,           &
                                                Matrix3D             = Matrix3D,                 &
                                                TypeZUV              = NewProperty%Field%TypeZUV,&
+                                               ClientID             = ClientNumber,             &
                                                STAT                 = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR140'
 

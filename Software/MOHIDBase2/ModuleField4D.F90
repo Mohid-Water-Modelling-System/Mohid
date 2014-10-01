@@ -1648,14 +1648,18 @@ wwd1:       if (Me%WindowWithData) then
         endif
         if (PropField%Harmonics%ON) then
 
-            if      (ExtractType == FromFile_   ) then
+            if      (ExtractType == FromFile_        ) then
                     
                 ExtractTypeBlock = FromBlock_
 
-            elseif  (ExtractType == FromBlock_  ) then   
+            elseif  (ExtractType == FromBlock_       ) then   
 
                 ExtractTypeBlock = FromBlockInBlock_
         
+            elseif  (ExtractType == FromBlockInBlock_) then
+            
+                ExtractTypeBlock = FromBlockInBlockInBlock_
+            
             else
             
                 stop 'ReadOptions - ModuleField4D - ERR170'
@@ -1738,6 +1742,10 @@ wwd1:       if (Me%WindowWithData) then
         character(LEN = StringLength   ), parameter :: block_begin2 = '<<beginharmonics>>'
         character(LEN = StringLength   ), parameter :: block_end2   = '<<endharmonics>>'
         
+        character(LEN = StringLength   ), parameter :: block_begin3 = '<<<beginharmonics>>>'
+        character(LEN = StringLength   ), parameter :: block_end3   = '<<<endharmonics>>>'
+        
+        
         integer                                     :: STAT_CALL, ClientNumber, FirstLine, LastLine, i
         logical                                     :: BlockFound
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, iflag, NW
@@ -1774,6 +1782,20 @@ wwd1:       if (Me%WindowWithData) then
                                         
             if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR30'
             if (.not. BlockFound     ) stop 'ReadHarmonicWaves - ModuleField4D - ERR40'
+
+        elseif  (ExtractType == FromBlockInBlockInBlock_  ) then   
+
+            call ExtractBlockFromBlockFromBlock(EnterDataID              = Me%ObjEnterData, &
+                                                ClientNumber             = ClientNumber,    &
+                                                block_begin              = block_begin3,    &
+                                                block_end                = block_end3,      &
+                                                BlockInBlockInBlockFound = BlockFound,      &
+                                                FirstLine                = FirstLine,       &
+                                                LastLine                 = LastLine,        &
+                                                STAT                     = STAT_CALL)
+                                        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR130'
+            if (.not. BlockFound     ) stop 'ReadHarmonicWaves - ModuleField4D - ERR140'
 
     
         else

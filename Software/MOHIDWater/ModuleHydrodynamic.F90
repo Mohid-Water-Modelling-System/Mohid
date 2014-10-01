@@ -24699,13 +24699,74 @@ cd1:        if (WaterPoints3D(i, j, KUB) == OpenPoint) then
         TiCoef_2D => Me%Coef%D2%Ti
 
         BoundaryPoints   => Me%External_Var%BoundaryPoints
+    
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleHydrodynamic", "WaterLevel_ImposedWave")
+        endif 
+
+cd4:    if (.not. Me%SubModel%ON                    .and.                               &
+            .not. Me%ComputeOptions%Compute_Tide    .and.                               &
+            .not. Me%ComputeOptions%InvertBarometer) then
+
+            ImposedElevation => Me%WaterLevel%New   
+
+            CHUNK = CHUNK_J(JLB, JUB)
+            
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do  j = JLB, JUB
+            do  i = ILB, IUB
+
+               !The water level values imposed in the open boundary points are maintained
+                TiCoef_2D(i, j) = TiCoef_2D(i, j) * (1. - BoundaryPoints(i, j)) +            &
+                                  ImposedElevation(i, j) * BoundaryPoints(i, j) 
+
+                DCoef_2D(i, j)  = DCoef_2D(i, j)  * (1. - BoundaryPoints(i, j))
+
+                ECoef_2D(i, j)  = ECoef_2D(i, j)  * (1. - BoundaryPoints(i, j)) +            &
+                                  1. * BoundaryPoints(i, j)
+
+                FCoef_2D(i, j)  = FCoef_2D(i, j)  * (1. - BoundaryPoints(i, j))
+                   
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+
+
+            nullify(ImposedElevation)
+            
+        else  cd4
+        
+            CHUNK = CHUNK_J(JLB, JUB)
+            
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do  j = JLB, JUB
+            do  i = ILB, IUB
+
+               !The water level values imposed in the open boundary are set to zero
+                TiCoef_2D(i, j) = TiCoef_2D(i, j) * (1. - BoundaryPoints(i, j)) 
+
+                DCoef_2D(i, j)  = DCoef_2D(i, j)  * (1. - BoundaryPoints(i, j))
+
+                ECoef_2D(i, j)  = ECoef_2D(i, j)  * (1. - BoundaryPoints(i, j)) +            &
+                                  1. * BoundaryPoints(i, j)
+
+                FCoef_2D(i, j)  = FCoef_2D(i, j)  * (1. - BoundaryPoints(i, j))
+                   
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+
+
+        endif cd4
+
 
 cd1:    if (Me%SubModel%ON) then
 
             ImposedElevation => Me%SubModel%Z
-
-       
-    !End   - Shorten variables name
 
 cd3:        if (.not. Me%SubModel%Set) then 
             
@@ -24713,9 +24774,26 @@ cd3:        if (.not. Me%SubModel%Set) then
 
             endif cd3
        
-        !End   - Shorten variables name
+            CHUNK = CHUNK_J(JLB, JUB)
+           
+            
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do  j = JLB, JUB
+            do  i = ILB, IUB
 
-        else cd1 
+               !The water level values imposed in the open boundary points are equal to the father model
+                TiCoef_2D(i, j) = TiCoef_2D(i, j) + ImposedElevation(i, j) * BoundaryPoints(i, j) 
+
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+
+        endif cd1
+
+cd2:    if (Me%ComputeOptions%Compute_Tide .or. Me%ComputeOptions%InvertBarometer) then
+
 
             call Modify_OpenBoundary(Me%ObjOpenBoundary,                                 &
                                      Me%CurrentTime,                                     &
@@ -24726,66 +24804,37 @@ cd3:        if (.not. Me%SubModel%Set) then
             if (STAT_CALL /= SUCCESS_)                                                   &
                 Stop 'Sub. WaterLevel_ImposedWave - ModuleHydrodynamic - ERR01.'
             
-cd2:        if (Me%ComputeOptions%Compute_Tide .or. Me%ComputeOptions%InvertBarometer) then
                 
-                call GetImposedElevation(Me%ObjOpenBoundary,                &
-                                      ImposedElevation, STAT = STAT_CALL)
+            call GetImposedElevation(Me%ObjOpenBoundary,                &
+                                  ImposedElevation, STAT = STAT_CALL)
 
 
-                if (STAT_CALL /= SUCCESS_) &
-                    Stop 'Sub. WaterLevel_ImposedWave - ModuleHydrodynamic - ERR03.'
+            if (STAT_CALL /= SUCCESS_) &
+                Stop 'Sub. WaterLevel_ImposedWave - ModuleHydrodynamic - ERR03.'
 
-            else cd2
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do  j = JLB, JUB
+            do  i = ILB, IUB
 
-                ImposedElevation => Me%WaterLevel%New
+               !The water level values imposed in the open boundary points are equal to the water level computed in the OpenBoundary module
+                TiCoef_2D(i, j) = TiCoef_2D(i, j) + ImposedElevation(i, j) * BoundaryPoints(i, j) 
 
-            endif cd2
+                   
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL                
 
-        endif cd1
+            call UnGetOpenBoundary(Me%ObjOpenBoundary, ImposedElevation, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                Stop 'Sub. WaterLevel_ImposedWave - ModuleHydrodynamic - ERR04.'                
 
-        CHUNK = CHUNK_J(JLB, JUB)
-        
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "WaterLevel_ImposedWave")
-        endif 
-        
-        !$OMP PARALLEL PRIVATE(i,j)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do  j = JLB, JUB
-        do  i = ILB, IUB
-
-           !The water level values imposed in the open boundary points are maintained
-            TiCoef_2D(i, j) = TiCoef_2D(i, j) * (1. - BoundaryPoints(i, j)) +            &
-                              ImposedElevation(i, j) * BoundaryPoints(i, j) 
-
-            DCoef_2D(i, j)  = DCoef_2D(i, j)  * (1. - BoundaryPoints(i, j))
-
-            ECoef_2D(i, j)  = ECoef_2D(i, j)  * (1. - BoundaryPoints(i, j)) +            &
-                              1. * BoundaryPoints(i, j)
-
-            FCoef_2D(i, j)  = FCoef_2D(i, j)  * (1. - BoundaryPoints(i, j))
-               
-        enddo
-        enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        endif cd2
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "WaterLevel_ImposedWave")
         endif 
-
-cd4:    if (.not. Me%SubModel%ON .and. (Me%ComputeOptions%Compute_Tide .or. Me%ComputeOptions%InvertBarometer)) then
-
-    
-            call UnGetOpenBoundary(Me%ObjOpenBoundary, ImposedElevation, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                Stop 'Sub. WaterLevel_ImposedWave - ModuleHydrodynamic - ERR04.'
-
-        else  cd4
-
-            nullify(ImposedElevation)
-
-        endif cd4
 
 
         !Nullify auxiliar variables

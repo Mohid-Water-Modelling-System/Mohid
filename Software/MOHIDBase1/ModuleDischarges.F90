@@ -2752,6 +2752,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         integer                                     :: STAT_CALL
         logical                                     :: AssociateIntakeFlowON
         real                                        :: FlowFraction
+        real                                        :: UpstreamH, DownstreamH, FlowDir
+        real                                        :: D, TopValveH, BottomValveH, Haux, Theta
          !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -2760,8 +2762,6 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
-
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
 cd3 :       if (STAT_CALL/=SUCCESS_) then 
@@ -2823,28 +2823,56 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
 
 
                 !Q = C * A * sqrt(2*g) * sqrt(H)
-                H = SurfaceElevation - SurfaceElevation2
+                if (SurfaceElevation > SurfaceElevation2) then
+                    UpstreamH    = SurfaceElevation
+                    DownstreamH  = SurfaceElevation2
+                    FlowDir      = -1
+                else
+                    UpstreamH    = SurfaceElevation2
+                    DownstreamH  = SurfaceElevation
+                    FlowDir      = 1
+                endif
+                
+                D            = DischargeX%Valve%Diameter
 
-                !if the axis valve is above the water level in both sides than there is no flow
-                if (- DischargeX%Valve%AxisHeigth > max(SurfaceElevation, SurfaceElevation2)) then
+                TopValveH    = - DischargeX%Valve%AxisHeigth + D/2.
+                BottomValveH = - DischargeX%Valve%AxisHeigth - D/2.
+                
+                H            = UpstreamH - max(DownstreamH, BottomValveH)
+                
+
+                !if the axis valve minus the radius is above the water level in both sides than there is no flow
+                if ( UpstreamH <= BottomValveH) then
                 
                     H    =  0.
                     
                     Flow =  0.
 
                 else
+                    !pressure conditions    
+                    if (UpstreamH >= TopValveH) then
 
-                    A    = Pi * (DischargeX%Valve%Diameter/2.)**2
+                        A    = Pi * (D/2.)**2
+                        
+                    !free surface
+                    else
+                    
+                        Haux  = UpstreamH - BottomValveH
+                        Theta = 2* acos(1-2*Haux/D)
+                        A     = (Theta - sin(Theta))* D**2 / 8.
+                    
+                    endif
+                    
                     C    = DischargeX%Valve%DischargeCoeficient
 
-                    Flow = - sqrt(19.6) * C * A * sqrt(abs(H))
+                    Flow = sqrt(19.6) * C * A * sqrt(H)
 
-                    if (H<0.) Flow = - Flow
+                    Flow = Flow * FlowDir
                 
                     if     (DischargeX%ByPass%OneWay) then
 
-                        if ((DischargeX%ByPass%Side == SideA .and. H < 0.) .or.         &
-                            (DischargeX%ByPass%Side == SideB .and. H > 0.)) Flow = 0.
+                        if ((DischargeX%ByPass%Side == SideA .and. FlowDir > 0.) .or.         &
+                            (DischargeX%ByPass%Side == SideB .and. FlowDir < 0.)) Flow = 0.
                     endif
                 endif
 
