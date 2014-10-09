@@ -44,8 +44,8 @@ Module ModuleLevitusFormat
     private ::      KillLevitusFormat
 
     !Parameters----------------------------------------------------------------
-    integer, parameter                          :: NLevitusAnnual  = 33
-    integer, parameter                          :: NLevitusMonthly = 10
+    integer, parameter                          :: NLevitusAnnual  = 102
+    integer, parameter                          :: NLevitusMonthly = 57
 
     real,    parameter                          :: MaxDepth = 12000
 
@@ -371,43 +371,108 @@ Module ModuleLevitusFormat
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleLevitusFormat - ERR90'
 
         !Levitus Layers
-        Me%LevitusLevels(33) = 0.             
-        Me%LevitusLevels(32) = 10.            
-        Me%LevitusLevels(31) = 20.            
-        Me%LevitusLevels(30) = 30.            
-        Me%LevitusLevels(29) = 50.            
-        Me%LevitusLevels(28) = 75.          
-        Me%LevitusLevels(27) = 100.
-        Me%LevitusLevels(26) = 125.
-        Me%LevitusLevels(25) = 150.
-        Me%LevitusLevels(24) = 200.
-        Me%LevitusLevels(23) = 250.
-        Me%LevitusLevels(22) = 300.
-        Me%LevitusLevels(21) = 400.
-        Me%LevitusLevels(20) = 500.
-        Me%LevitusLevels(19) = 600.
-        Me%LevitusLevels(18) = 700.
-        Me%LevitusLevels(17) = 800.
-        Me%LevitusLevels(16) = 900.
-        Me%LevitusLevels(15) = 1000.
-        Me%LevitusLevels(14) = 1100.
-        Me%LevitusLevels(13) = 1200.
-        Me%LevitusLevels(12) = 1300.
-        Me%LevitusLevels(11) = 1400.
-        Me%LevitusLevels(10) = 1500.
-        Me%LevitusLevels( 9) = 1750.
-        Me%LevitusLevels( 8) = 2000.
-        Me%LevitusLevels( 7) = 2500.
-        Me%LevitusLevels( 6) = 3000.
-        Me%LevitusLevels( 5) = 3500.
-        Me%LevitusLevels( 4) = 4000.
-        Me%LevitusLevels( 3) = 4500.
-        Me%LevitusLevels( 2) = 5000.
+        Me%LevitusLevels(102) = 0.
+        Me%LevitusLevels(101) = 5.
+        Me%LevitusLevels(100) = 10.
+        Me%LevitusLevels(99) = 15.
+        Me%LevitusLevels(98) = 20.
+        Me%LevitusLevels(97) = 25.             
+        Me%LevitusLevels(96) = 30.            
+        Me%LevitusLevels(95) = 35.            
+        Me%LevitusLevels(94) = 40.            
+        Me%LevitusLevels(93) = 45.            
+        Me%LevitusLevels(92) = 50.          
+        Me%LevitusLevels(91) = 55.
+        Me%LevitusLevels(90) = 60.
+        Me%LevitusLevels(89) = 65.
+        Me%LevitusLevels(88) = 70.
+        Me%LevitusLevels(87) = 75.
+        Me%LevitusLevels(86) = 80.
+        Me%LevitusLevels(85) = 85.
+        Me%LevitusLevels(84) = 90.
+        Me%LevitusLevels(83) = 95.
+        Me%LevitusLevels(82) = 100.
+        Me%LevitusLevels(81) = 125.
+        Me%LevitusLevels(80) = 150.
+        Me%LevitusLevels(79) = 175.
+        Me%LevitusLevels(78) = 200.
+        Me%LevitusLevels(77) = 225.             
+        Me%LevitusLevels(76) = 250.            
+        Me%LevitusLevels(75) = 275.            
+        Me%LevitusLevels(74) = 300.            
+        Me%LevitusLevels(73) = 325.            
+        Me%LevitusLevels(72) = 350.          
+        Me%LevitusLevels(71) = 375.
+        Me%LevitusLevels(70) = 400.
+        Me%LevitusLevels(69) = 425.
+        Me%LevitusLevels(68) = 450.
+        Me%LevitusLevels(67) = 475.
+        Me%LevitusLevels(66) = 500.
+        Me%LevitusLevels(65) = 550.
+        Me%LevitusLevels(64) = 600.
+        Me%LevitusLevels(63) = 650.
+        Me%LevitusLevels(62) = 700.
+        Me%LevitusLevels(61) = 750.
+        Me%LevitusLevels(60) = 800.
+        Me%LevitusLevels(59) = 850.
+        Me%LevitusLevels(58) = 900.
+        Me%LevitusLevels(57) = 950.             
+        Me%LevitusLevels(56) = 1000.            
+        Me%LevitusLevels(55) = 1050.            
+        Me%LevitusLevels(54) = 1100.            
+        Me%LevitusLevels(53) = 1150.            
+        Me%LevitusLevels(52) = 1200.          
+        Me%LevitusLevels(51) = 1250.
+        Me%LevitusLevels(50) = 1300.
+        Me%LevitusLevels(49) = 1350.
+        Me%LevitusLevels(48) = 1400.
+        Me%LevitusLevels(47) = 1450.
+        Me%LevitusLevels(46) = 1500.
+        Me%LevitusLevels(45) = 1550.
+        Me%LevitusLevels(44) = 1600.
+        Me%LevitusLevels(43) = 1650.
+        Me%LevitusLevels(42) = 1700.
+        Me%LevitusLevels(41) = 1750.
+        Me%LevitusLevels(40) = 1800.
+        Me%LevitusLevels(39) = 1850.
+        Me%LevitusLevels(38) = 1900.
+        Me%LevitusLevels(37) = 1950.
+        Me%LevitusLevels(36) = 2000.
+        Me%LevitusLevels(35) = 2100.
+        Me%LevitusLevels(34) = 2200.
+        Me%LevitusLevels(33) = 2300.             
+        Me%LevitusLevels(32) = 2400.            
+        Me%LevitusLevels(31) = 2500.            
+        Me%LevitusLevels(30) = 2600.            
+        Me%LevitusLevels(29) = 2700.            
+        Me%LevitusLevels(28) = 2800.          
+        Me%LevitusLevels(27) = 2900.
+        Me%LevitusLevels(26) = 3000.
+        Me%LevitusLevels(25) = 3100.
+        Me%LevitusLevels(24) = 3200.
+        Me%LevitusLevels(23) = 3300.
+        Me%LevitusLevels(22) = 3400.
+        Me%LevitusLevels(21) = 3500.
+        Me%LevitusLevels(20) = 3600.
+        Me%LevitusLevels(19) = 3700.
+        Me%LevitusLevels(18) = 3800.
+        Me%LevitusLevels(17) = 3900.
+        Me%LevitusLevels(16) = 4000.
+        Me%LevitusLevels(15) = 4100.
+        Me%LevitusLevels(14) = 4200.
+        Me%LevitusLevels(13) = 4300.
+        Me%LevitusLevels(12) = 4400.
+        Me%LevitusLevels(11) = 4500.
+        Me%LevitusLevels(10) = 4600.
+        Me%LevitusLevels( 9) = 4700.
+        Me%LevitusLevels( 8) = 4800.
+        Me%LevitusLevels( 7) = 4900.
+        Me%LevitusLevels( 6) = 5000.
+        Me%LevitusLevels( 5) = 5100.
+        Me%LevitusLevels( 4) = 5200.
+        Me%LevitusLevels( 3) = 5300.
+        Me%LevitusLevels( 2) = 5400.
         Me%LevitusLevels( 1) = 5500.
-
-!0,10,20,30,50,75,100,125,150,200,250,300,400,500,600,700,800,900,1000,
-! 1100,1200,1300,1400,1500,1750,2000,2500,3000,3500,4000,4500,5000,5500
-
 
     end subroutine ReadGlobalOptions
 
@@ -1029,9 +1094,111 @@ BF:         if (BlockFound) then
         write(Me%Unit,*) 'ID : 1'
         write(Me%Unit,*) 'TYPE : CARTESIAN'
         write(Me%Unit,*) 'DOMAINDEPTH : 0.'
-        write(Me%Unit,*) 'LAYERS : 33'
-        write(Me%Unit,'(A138)') 'LAYERTHICKNESS : 6500 500 500 500 500 500 500 500 250 250'//&
-                                ' 100 100 100 100 100 100 100 100 100 100 100 100 50 50 50 25 25 25 25 20 10 10 10'
+        write(Me%Unit,*) 'LAYERS : 102'
+        write(Me%Unit,*) '<<beginlayers>> '        
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '5'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '25'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '50'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '100'
+        write(Me%Unit,*) '6500'
+        write(Me%Unit,*) '<<beginlayers>>' 
         write(Me%Unit,*) 'MININITIALLAYERTHICKNESS : 1'
         write(Me%Unit,*) '<enddomain>'
         call UnitsManager(Me%Unit, CLOSE_FILE, STAT = STAT_CALL) 
