@@ -43,7 +43,6 @@ Module ModuleBasin
     use ModuleTime
     use ModuleTimeSerie
     use ModuleHDF5
-    use ModuleStartAndStop
     use ModuleFunctions,      only : ReadTimeKeyWords, LatentHeat, ConstructPropertyID,  &
                                      TimeToString, ChangeSuffix, CHUNK_J, SetMatrixValue
                                      
@@ -169,7 +168,6 @@ Module ModuleBasin
     private ::          ConstructEVTPHDFOutput     
     private ::      ConstructTimeSeries
     private ::      ReadInitialFile
-    private ::      ReadInitialFileOld
 
     !Selector
                     
@@ -196,7 +194,6 @@ Module ModuleBasin
     public  :: KillBasin                                                     
     private ::      DeAllocateInstance
     private ::      WriteFinalFile
-    private ::      WriteFinalFileOld
 
     !Management
     private ::      Ready
@@ -222,7 +219,7 @@ Module ModuleBasin
     integer, parameter                              :: NoEvaporation            = 3
     !Initial or Final time instant, used on Basin Water Balance
     integer, parameter                              :: InitialInstant = 1
-    integer, parameter                              :: FinalInstant   = 2
+    integer, parameter                              :: FinalInstant   = 2    
     !Gw link between porous media and drainage network
 !    integer, parameter                              :: Layer_ = 2
 
@@ -525,10 +522,6 @@ Module ModuleBasin
         real, dimension(:), pointer                 :: TimeSeriesBuffer3 => null() !Properties Error
         real, dimension(:), pointer                 :: BWBBuffer         => null() !buffer to be used for Basin Water Balance
         
-        !Initial and final files type
-        !1(default) => HDF, 2 => old method (soon will disapear)
-        integer                                     :: InitialFileType = 1, &
-                                                       FinalFileType = 1        
         !Basin Water Balance
         type (T_BasinWaterBalance)                  :: BWB
         logical                                     :: ComputeBasinWaterBalance = .false.
@@ -587,8 +580,7 @@ Module ModuleBasin
 
         !Used by PorousMediaProperties        
         real(8), dimension(:,:), pointer            :: WaterColumnEvaporated    => null() !in meters (m)
-        
-        type (T_StartAndStop)                       :: StartStopCtrl
+
     end type  T_Basin
 
     !Global Module Variables
@@ -789,12 +781,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Reads conditions from previous run
             if (Me%Continuous) then
-                if (Me%InitialFileType == 1) then !Its an HDF initial file
-                    Me%StartStopCtrl = T_StartAndStop (Me%Files%InitialFile, Me%StopOnWrongDate)
-                    call ReadInitialFile
-                else
-                    call ReadInitialFileOld
-                endif
+                call ReadInitialFile
             endif            
             
             !Closes Data File
@@ -1475,27 +1462,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) & 
-            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleBasin - ERR460")            
-        
-        call GetData(Me%InitialFileType,                                        &
-                     Me%ObjEnterData, iflag,                                    &  
-                     keyword      = 'INITIAL_FILE_TYPE',                        &
-                     ClientModule = 'ModuleBasin',                              &
-                     Default      = 1,                                          &
-                     SearchType   = FromFile,                                   &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) & 
-            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleBasin - ERR470")
-        
-        call GetData(Me%FinalFileType,                                          &
-                     Me%ObjEnterData, iflag,                                    &  
-                     keyword      = 'FINAL_FILE_TYPE',                          &
-                     ClientModule = 'ModuleBasin',                              &
-                     Default      = Me%InitialFileType,                         &
-                     SearchType   = FromFile,                                   &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) & 
-            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleBasin - ERR480")
+            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleBasin - ERR460")
 
     end subroutine ReadDataFile
     
@@ -3138,7 +3105,7 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ReadInitialFileOld
+    subroutine ReadInitialFile
 
         !Arguments-------------------------------------------------------------
 
@@ -3204,102 +3171,9 @@ cd2 :           if (BlockFound) then
         call UnitsManager(InitialFile, CLOSE_FILE, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModuleBasin - ERR05'  
       
-    end subroutine ReadInitialFileOld
+    end subroutine ReadInitialFile
 
     !--------------------------------------------------------------------------
-    
-    subroutine ReadInitialFile
-
-        !Arguments-------------------------------------------------------------
-
-        !Local-----------------------------------------------------------------
-        real, dimension(:,:), pointer               :: PtrRealArray2D
-        real, pointer                               :: PtrReal
-        type (T_Time)                               :: BeginTime
-        logical                                     :: load        
-        integer                                     :: stat
-        integer                                     :: ILB, IUB, JLB, JUB
-        
-        !----------------------------------------------------------------------
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        
-        if (Me%ComputeBasinWaterBalance) then
-            PtrReal => Me%BWB%AccErrorInVolume
-            call Me%StartStopCtrl%Add(0, PtrReal,                                       &                                      
-                                      units=trim('m'),                                  &                                      
-                                      group='Results/acc. error in volume',             &
-                                      name=trim('acc. error in volume'))
-        endif
-        
-        if (Me%Coupled%Vegetation) then
-            PtrRealArray2D => Me%CanopyStorage
-            call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                &
-                                      ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,               &
-                                      units=trim('m'),                                  &
-                                      group='Results/canopy storage',                   &                                    
-                                      name=trim('canopy storage'))            
-        endif
-        
-        if (Me%StopOnWrongDate) then
-            load = .true.
-        else
-            load = .false.
-        endif
-        
-        PtrRealArray2D => Me%AccInfiltration
-        call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                    &
-                                  load=load,                                            &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  units=trim('m'),                                      &                                  
-                                  group='Results/acc. infiltration',                    &
-                                  name=trim('acc. infiltration'))
-        
-        PtrRealArray2D => Me%AccEVTP
-        call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                    &
-                                  load=load,                                            &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  units=trim('m'),                                      &                                  
-                                  group='Results/acc. evtp',                            &
-                                  name=trim('acc. evtp'))
-        
-        PtrRealArray2D => Me%AccRainFall
-        call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                    &
-                                  load=load,                                            &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  units=trim('m'),                                      &
-                                  group='Results/acc. rainfall',                        &
-                                  name=trim('acc. rainfall'))
-        
-        PtrRealArray2D => Me%AccEVPCanopy
-        call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                    &
-                                  load=load,                                            &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  units=trim('m'),                                      &
-                                  group='Results/acc. evp. canopy',                     &
-                                  name=trim('acc. evp. canopy'))
-        
-        PtrRealArray2D => Me%AccFlowProduction
-        call Me%StartStopCtrl%Add(0, PtrRealArray2D,                                    &
-                                  load=load,                                            &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  units=trim('m'),                                      &
-                                  group='Results/acc. flow production',                 &
-                                  name=trim('acc. flow production'))
-        
-        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, STAT=stat)
-        if (stat /= SUCCESS_) stop 'ReadInitialFile - ModuleBasin - ERR010'
-        
-        if (.not. Me%StartStopCtrl%Load (BeginTime)) then
-            write (*,*) Me%StartStopCtrl%Message()
-            stop 'ReadInitialFile - ModuleBasin - ERR020'
-        endif
-        
-        Me%CanopyStorageOld = Me%CanopyStorage
-      
-    end subroutine ReadInitialFile
     
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -3522,11 +3396,7 @@ cd2 :           if (BlockFound) then
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%CurrentTime == Me%EndTime)) then
                 if(Me%CurrentTime >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                    if (Me%FinalFileType == 1) then !Its an HDF final file
-                        call WriteFinalFile (.true.)
-                    else
-                        call WriteFinalFileOld
-                    endif
+                    call WriteFinalFile
                     
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
@@ -8611,11 +8481,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (nUsers == 0) then
 
                 !Writes file with final condition
-                if (Me%FinalFileType == 1) then !Its an HDF final file                    
-                    call WriteFinalFile (.false.)
-                else
-                    call WriteFinalFileOld
-                endif
+                call WriteFinalFile
 
                 nUsers = DeassociateInstance(mTIME_,  Me%ObjTime)
                 if (nUsers == 0)           stop 'KillBasin - ModuleBasin - ERR010'
@@ -8764,116 +8630,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     !----------------------------------------------------------------------------
     
-    subroutine WriteFinalFile (restart_file)
-    
-        !Arguments---------------------------------------------------------------
-        logical                                     :: restart_file
-        
-        !Local-------------------------------------------------------------------
-        real, dimension(:,:), pointer               :: PtrRealArray2D
-        real, pointer                               :: PtrReal
-        integer                                     :: stat
-        integer                                     :: ILB, IUB, JLB, JUB 
-        
-        !------------------------------------------------------------------------
-        
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        
-        Me%StartStopCtrl%File           = Me%Files%FinalFile
-        Me%StartStopCtrl%WriteHorizGrid = .true.
-        Me%StartStopCtrl%ObjHorizGrid   = Me%ObjHorizontalGrid
-        
-        call Me%StartStopCtrl%Clear ()
-        
-        call GetBasinPoints (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR010'
-        call GetRiverPoints (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR020'
-        call GetGridData        (Me%ObjGridData, Me%ExtVar%Topography, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR030'
-        call GetOpenPoints2D  (Me%ObjHorizontalMap, Me%ExtVar%OpenPoints2D, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR040'        
-        
-        call Me%StartStopCtrl%Add (0, Me%ExtVar%Topography, group="Grid",               &
-                                   ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                  &
-                                   name="Topography", units="m")
-        call Me%StartStopCtrl%Add (0, Me%ExtVar%BasinPoints, group="Grid",              &
-                                   ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                  &
-                                   name="BasinPoints", units="-")
-        call Me%StartStopCtrl%Add (0, Me%ExtVar%RiverPoints, group="Grid",              &
-                                   ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                  &
-                                   name="RiverPoints", units="-")        
-        call Me%StartStopCtrl%Add (0, Me%ExtVar%OpenPoints2D, group="Grid/OpenPoints",  &
-                                   ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                  &
-                                   name="OpenPoints", units="-")
-        
-        if (Me%ComputeBasinWaterBalance) then
-            PtrReal => Me%BWB%AccErrorInVolume
-            call Me%StartStopCtrl%Add(0, PtrReal, units='m',                            &
-                                      group='Results/acc. error in volume',             &
-                                      name='acc. error in volume')
-        endif
-        
-        if (Me%Coupled%Vegetation) then
-            PtrRealArray2D => Me%CanopyStorage
-            call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                     &
-                                      ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,               &
-                                      group='Results/canopy storage',                   &
-                                      name='canopy storage')            
-        endif
-        
-        PtrRealArray2D => Me%AccInfiltration
-        call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                         &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  group='Results/acc. infiltration',                    &
-                                  name='acc. infiltration')
-        
-        PtrRealArray2D => Me%AccEVTP
-        call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                         &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  group='Results/acc. evtp',                            &
-                                  name='acc. evtp')
-        
-        PtrRealArray2D => Me%AccRainFall
-        call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                         &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  group='Results/acc. rainfall',                        &
-                                  name='acc. rainfall')
-        
-        PtrRealArray2D => Me%AccEVPCanopy
-        call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                         &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  group='Results/acc. evp. canopy',                     &
-                                  name='acc. evp. canopy')
-        
-        PtrRealArray2D => Me%AccFlowProduction
-        call Me%StartStopCtrl%Add(0, PtrRealArray2D, units='m',                         &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  group='Results/acc. flow production',                 &
-                                  name='acc. flow production')
-        
-        if (.not. Me%StartStopCtrl%Save (Me%CurrentTime, restart_file=restart_file)) then
-            write (*,*) Me%StartStopCtrl%Message()
-            stop 'WriteFinalFile - ModuleBasin - ERR050'
-        endif
-        
-        call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR060'
-        call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR070'
-        call UnGetGridData (Me%ObjGridData, Me%ExtVar%Topography, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR080'
-        call UngetHorizontalMap (Me%ObjHorizontalMap, Me%ExtVar%OpenPoints2D, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR090'
-        
-    end subroutine WriteFinalFile
-    
-    !----------------------------------------------------------------------------
-
-    subroutine WriteFinalFileOld
+    subroutine WriteFinalFile
         
         !Arguments-------------------------------------------------------------
 
@@ -8928,7 +8685,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         call UnitsManager(FinalFile, CLOSE_FILE, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR03'
 
-    end subroutine WriteFinalFileOld
+    end subroutine WriteFinalFile
 
     !------------------------------------------------------------------------
     

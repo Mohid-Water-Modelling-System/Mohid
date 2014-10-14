@@ -155,7 +155,6 @@ Module ModuleDrainageNetwork
     use ModuleEnterData
     use ModuleTime
     use ModuleHDF5
-    use ModuleStartAndStop
     use ModuleFunctions            , only: InterpolateValueInTime, ConstructPropertyID, ComputeT90_Chapra,  &
                                            ComputeT90_Canteras, LongWaveDownward, LongWaveUpward,           &
                                            LatentHeat, SensibleHeat, OxygenSaturation,                      &
@@ -213,7 +212,6 @@ Module ModuleDrainageNetwork
     
     private ::      InitializeVariables
     private ::          ReadInitialFile
-    private ::          ReadInitialFileOld
     private ::          InitializeNodes
     private ::              ComputeXSFromWaterDepth
     private ::              TabularGeometry
@@ -333,7 +331,6 @@ Module ModuleDrainageNetwork
     public  :: KillDrainageNetwork
     private ::      MaxStationValuesOutput
     private ::      WriteFinalFile
-    private ::      WriteFinalFileOld
     private ::      Write_Errors_Messages                                                    
     
 
@@ -1029,12 +1026,6 @@ Module ModuleDrainageNetwork
         !Evapotranspirate in reach pools
         real                                        :: EVTPMaximumDepth             = null_real
         real                                        :: EVTPCropCoefficient          = null_real
-        
-        !Initial and final files type
-        !1(default) => HDF, 2 => old method (soon will disapear)
-        integer                                     :: InitialFileType = 1, &
-                                                       FinalFileType = 1 
-        type (T_StartAndStop)                       :: StartStopCtrl
 
         type (T_DrainageNetwork), pointer           :: Next                         => null()
     end type  T_DrainageNetwork
@@ -2077,26 +2068,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleDrainageNetwork',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR110'
-        
-        call GetData(Me%InitialFileType,                                                &
-                     Me%ObjEnterData, flag,                                             &
-                     keyword      = 'INITIAL_FILE_TYPE',                                &
-                     ClientModule = 'ModuleDrainageNetwork',                            &
-                     Default      = 1,                                                  &
-                     SearchType   = FromFile,                                           &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) & 
-            stop 'ReadDataFile - ModuleDrainageNetwork - ERR120'
-        
-        call GetData(Me%FinalFileType,                                                  &
-                     Me%ObjEnterData, flag,                                             &
-                     keyword      = 'FINAL_FILE_TYPE',                                  &
-                     ClientModule = 'ModuleDrainageNetwork',                            &
-                     Default      = Me%InitialFileType,                                 &
-                     SearchType   = FromFile,                                           &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) & 
-            stop 'ReadDataFile - ModuleDrainageNetwork - ERR130'
 
     end subroutine ReadDataFile
     
@@ -5481,12 +5452,7 @@ cd2 :           if (BlockFound) then
         !if not continuous, water depth initialized in subroutine ReadDataFile            
         
         if (Me%Continuous) then
-            if (Me%InitialFileType == 1) then !Its an HDF initial file
-                Me%StartStopCtrl = T_StartAndStop (Me%Files%InitialFile, Me%StopOnWrongDate)
-                call ReadInitialFile
-            else
-                call ReadInitialFileOld
-            endif
+            call ReadInitialFile
         endif
             
         call InitializeNodes
@@ -5605,76 +5571,8 @@ if1:    if (Me%HasGrid) then
     end subroutine InitializeVariables
 
     !---------------------------------------------------------------------------
-    
+
     subroutine ReadInitialFile
-    
-        !Arguments-------------------------------------------------------------
-
-        !Local-----------------------------------------------------------------
-        real, dimension(:), pointer                 :: PtrNodes
-        real, dimension(:), pointer                 :: PtrReaches
-        type (T_Time)                               :: BeginTime
-        integer                                     :: stat, id
-        type(T_Property), pointer                   :: prop
-        integer, dimension(1), target               :: AuxInt
-        integer, dimension(:), pointer              :: PtrInt
-        
-        !----------------------------------------------------------------------
-        
-        allocate (PtrNodes (1:Me%TotalNodes))
-        allocate (PtrReaches (1:Me%TotalNodes))
-        
-        call Me%StartStopCtrl%Add(0, PtrNodes,                                          &
-                                  units='m',                                            &
-                                  group='Results/water level',                          &
-                                  name='water level')
-        call Me%StartStopCtrl%Add(0, PtrReaches,                                        &
-                                  units='m3/s',                                         &
-                                  group='Results/flow new',                             &
-                                  name='flow new')
-        
-        if (Me%PropertyContinuous) then
-            prop => Me%FirstProperty
-            do while (associated(prop))
-                call Me%StartStopCtrl%Add(0, prop%Concentration,                        &
-                                          units=trim(trim(prop%ID%Units)),              &
-                                          group='Results/'//trim(prop%ID%Name),         &
-                                          name=trim(prop%ID%Name))                                
-                prop => prop%Next
-            end do
-        endif
-                
-        PtrInt => AuxInt
-        call Me%StartStopCtrl%Add(0, PtrInt,                                            &
-                                  units='-',                                            &
-                                  group='Control/last good iteration number',           &
-                                  name='last good iteration number')        
-        
-        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, STAT=stat)
-        if (stat /= SUCCESS_) stop 'ReadInitialFile - ModuleDrainageNetwork - ERR010'
-        
-        if (.not. Me%StartStopCtrl%Load (BeginTime)) then
-            write (*,*) Me%StartStopCtrl%Message()
-            stop 'ReadInitialFile - ModuleDrainageNetwork - ERR020'
-        endif
-        
-        do id = 1, Me%TotalNodes
-            Me%Nodes(id)%WaterLevel = PtrNodes(id)
-        end do                
-        do id = 1, Me%TotalReaches
-            Me%Reaches(id)%FlowNew = PtrReaches(id)
-        end do
-        
-        Me%CV%LastGoodNiteration = AuxInt(1)
-        
-        deallocate (PtrNodes)
-        deallocate (PtrReaches)
-        
-    end subroutine ReadInitialFile
-    
-    !---------------------------------------------------------------------------
-
-    subroutine ReadInitialFileOld
 
 
         !Arguments--------------------------------------------------------------
@@ -5745,7 +5643,7 @@ if1:    if (Me%HasGrid) then
         call UnitsManager(InitialFile, CLOSE_FILE, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadInitialFileOld - ERR04'
 
-    end subroutine ReadInitialFileOld
+    end subroutine ReadInitialFile
 
     !---------------------------------------------------------------------------
 
@@ -9317,11 +9215,7 @@ do2 :   do while (associated(PropertyX))
         !Restart Output
         if (Me%Output%WriteRestartFile .and. .not. (Me%CurrentTime == Me%EndTime)) then
             if(Me%CurrentTime >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                if (Me%FinalFileType == 1) then !Its an HDF final file
-                    call WriteFinalFile (.true.)
-                else
-                    call WriteFinalFileOld
-                endif
+                call WriteFinalFile
                 Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
             endif
         endif
@@ -15489,11 +15383,7 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
 
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
-            if (Me%FinalFileType == 1) then !Its an HDF final file
-                call WriteFinalFile (.false.)
-            else
-                call WriteFinalFileOld
-            endif
+            call WriteFinalFile
             
             if (Me%ComputeOptions%MinConcentration) call WriteCreatedMassHDF
                         
@@ -15731,139 +15621,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     !---------------------------------------------------------------------------
     
-    subroutine WriteFinalFile (restart_file)
-    
-        !Arguments--------------------------------------------------------------
-        logical                                     :: restart_file
-
-        !Local------------------------------------------------------------------
-        real, dimension(:), pointer                 :: PtrNodes
-        real, dimension(:), pointer                 :: PtrReaches
-        integer                                     :: id
-        integer, dimension(1), target               :: AuxInt
-        integer, dimension(:), pointer              :: PtrInt
-        type(T_Property), pointer                   :: prop
-        real, dimension(:), pointer                 :: NodeX, NodeY, ReachSize
-        integer, dimension(:), pointer              :: NodeID, ReachIDs
-        integer, dimension(:), pointer              :: UpNode, DownNode, ReachActive
-        
-        !-----------------------------------------------------------------------
-        Me%StartStopCtrl%File           = Me%Files%FinalFile
-        Me%StartStopCtrl%WriteHorizGrid = .false.
-        
-        call Me%StartStopCtrl%Clear ()
-        
-        allocate(NodeID(1: Me%TotalNodes))
-        allocate(NodeX (1: Me%TotalNodes))
-        allocate(NodeY (1: Me%TotalNodes))
-        
-        do id = 1, Me%TotalNodes
-            NodeID(id) = Me%Nodes(id)%ID
-            NodeX(id)  = Me%Nodes(id)%X
-            NodeY(id)  = Me%Nodes(id)%Y
-        enddo
-
-        allocate(UpNode     (1: Me%TotalReaches))
-        allocate(DownNode   (1: Me%TotalReaches))
-        allocate(ReachIDs   (1: Me%TotalReaches))
-        allocate(ReachSize  (1: Me%TotalReaches))
-        allocate(ReachActive(1: Me%TotalReaches))
-
-        do id = 1, Me%TotalReaches
-            ReachIDs    (id) = id
-            UpNode      (id) = Me%Nodes(Me%Reaches(id)%UpstreamNode)%ID
-            DownNode    (id) = Me%Nodes(Me%Reaches(id)%DownstreamNode)%ID
-            ReachSize   (id) = Me%Nodes(Me%Reaches(id)%UpstreamNode)%CrossSection%TopWidth
-            if (Me%Reaches(id)%Active) then
-                ReachActive (id) = 1
-            else
-                ReachActive (id) = 0
-            endif
-        enddo
-        
-        call Me%StartStopCtrl%Add(0, NodeID,                                            &
-                                  units='-',                                            &
-                                  group='Nodes/id',                                     &
-                                  name='id')
-        call Me%StartStopCtrl%Add(0, NodeX,                                             &
-                                  units='-',                                            &
-                                  group='Nodes/x',                                      &
-                                  name='x')
-        call Me%StartStopCtrl%Add(0, NodeY,                                             &
-                                  units='-',                                            &
-                                  group='Nodes/y',                                      &
-                                  name='y')
-        call Me%StartStopCtrl%Add(0, ReachIDs,                                          &
-                                  units='-',                                            &
-                                  group='Reaches/id',                                   &
-                                  name='id')
-        call Me%StartStopCtrl%Add(0, UpNode,                                            &
-                                  units='-',                                            &
-                                  group='Reaches/up',                                   &
-                                  name='up')
-        call Me%StartStopCtrl%Add(0, DownNode,                                          &
-                                  units='-',                                            &
-                                  group='Reaches/down',                                 &
-                                  name='down')
-        call Me%StartStopCtrl%Add(0, ReachSize,                                         &
-                                  units='m',                                            &
-                                  group='Reaches/size',                                 &
-                                  name='size')
-        call Me%StartStopCtrl%Add(0, ReachActive,                                       &
-                                  units='-',                                            &
-                                  group='Reaches/active',                               &
-                                  name='active')
-        
-        AuxInt(1) = Me%CV%LastGoodNiteration
-        PtrInt => AuxInt
-        call Me%StartStopCtrl%Add(0, PtrInt,                                            &
-                                  units='-',                                            &
-                                  group='Control/last good iteration number',           &
-                                  name='last good iteration number')
-        
-        allocate (PtrNodes (1:Me%TotalNodes))
-        allocate (PtrReaches (1:Me%TotalNodes))
-        
-        do id = 1, Me%TotalNodes
-            PtrNodes(id) = Me%Nodes(id)%WaterLevel
-        end do                
-        do id = 1, Me%TotalReaches
-            PtrReaches(id) = Me%Reaches(id)%FlowNew
-        end do
-        
-        call Me%StartStopCtrl%Add(0, PtrNodes,                                          &
-                                  units='m',                                            &
-                                  group='Results/water level',                          &
-                                  name='water level')
-        call Me%StartStopCtrl%Add(0, PtrReaches,                                        &
-                                  units='m3/s',                                         &
-                                  group='Results/flow new',                             &
-                                  name='flow new')
-        
-        if (Me%PropertyContinuous) then
-            prop => Me%FirstProperty
-            do while (associated(prop))
-                call Me%StartStopCtrl%Add(0, prop%Concentration,                        &
-                                          units=trim(trim(prop%ID%Units)),              &
-                                          group='Results/'//trim(prop%ID%Name),         &
-                                          name=trim(prop%ID%Name))                                
-                prop => prop%Next
-            end do
-        endif
-        
-        if (.not. Me%StartStopCtrl%Save (Me%CurrentTime, restart_file=restart_file)) then
-            write (*,*) Me%StartStopCtrl%Message()
-            stop 'WriteFinalFile - ModuleDrainageNetwork - ERR010'
-        endif
-    
-        deallocate(NodeID, NodeX, NodeY)
-        deallocate(DownNode, UpNode, ReachIDs, ReachSize, ReachActive)
-        
-    end subroutine WriteFinalFile
-    
-    !---------------------------------------------------------------------------
-
-    subroutine WriteFinalFileOld
+    subroutine WriteFinalFile
 
         !Arguments--------------------------------------------------------------
 
@@ -15924,7 +15682,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteFinalFile - ERR04'
 
 
-    end subroutine WriteFinalFileOld
+    end subroutine WriteFinalFile
     
     !---------------------------------------------------------------------------
 

@@ -68,7 +68,6 @@
 Module ModulePorousMedia
 
     use ModuleGlobalData
-    use ModuleStartAndStop
     use ModuleStopWatch
     use ModuleFunctions
     use ModuleTime
@@ -131,7 +130,7 @@ Module ModulePorousMedia
     private ::      AllocateVariables
     private ::      ReadSoilTypes
     private ::      InitialFields
-    private ::      ReadInitialFileOld
+    private ::      ReadInitialFile
     private ::      ConstructHDF5Output    
     private ::      ConstructTimeSerie
 
@@ -200,7 +199,7 @@ Module ModulePorousMedia
     !Destructor
     public  ::  KillPorousMedia                                                     
     private ::      DeAllocateInstance
-    private ::      WriteFinalFileOld
+    private ::      WriteFinalFile
 
     !Management
     private ::      Ready
@@ -645,12 +644,7 @@ Module ModulePorousMedia
         real(8), dimension(:,:,:), pointer          :: FluxVAcc       => null()
         real(8), dimension(:,:,:), pointer          :: FluxWAcc       => null()
         real(8), dimension(:,:,:), pointer          :: FluxWAccFinal  => null()
-        
-        !Initial and final files type
-        !1(default) => HDF, 2 => old method (soon will disapear)
-        integer                                     :: InitialFileType = 1, &
-                                                       FinalFileType = 1 
-        type (T_StartAndStop)                       :: StartStopCtrl
+
         !integer                                 :: ChunkK = 1,  &
         !                                           ChunkJ = 1,  &
         !                                           ChunkI = 1        
@@ -806,12 +800,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             if (Me%SoilOpt%Continuous)  then
-                if (Me%InitialFileType == 1) then !Its an HDF initial file
-                    Me%StartStopCtrl = T_StartAndStop (Me%Files%InitialFile, Me%SoilOpt%StopOnWrongDate)
-                    call ReadInitialFile
-                else
-                    call ReadInitialFileOld
-                endif
+                call ReadInitialFile
             endif
             
             !Calculates initial Theta
@@ -1497,26 +1486,6 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             stop 'ReadDataFile - ModulePorousMedia - ERR320'
         
         endif
-            
-        call GetData(Me%InitialFileType,                                        &
-                     Me%ObjEnterData, iflag,                                    &  
-                     keyword      = 'INITIAL_FILE_TYPE',                        &
-                     ClientModule = 'ModuleBasin',                              &
-                     Default      = 1,                                          &
-                     SearchType   = FromFile,                                   &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) & 
-            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModulePorousMedia - ERR330")
-        
-        call GetData(Me%FinalFileType,                                          &
-                     Me%ObjEnterData, iflag,                                    &  
-                     keyword      = 'FINAL_FILE_TYPE',                          &
-                     ClientModule = 'ModuleBasin',                              &
-                     Default      = Me%InitialFileType,                         &
-                     SearchType   = FromFile,                                   &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) & 
-            call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModulePorousMedia - ERR340")
     
     end subroutine ReadDataFile
     
@@ -1980,43 +1949,6 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
     !-------------------------------------------------------------------------
     
     subroutine ReadInitialFile
-    
-        !Arguments-------------------------------------------------------------
-
-        !Local-----------------------------------------------------------------
-        real, dimension(:,:,:), pointer             :: PtrRealArray3D        
-        type (T_Time)                               :: BeginTime
-        integer                                     :: stat
-        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
-        
-        !----------------------------------------------------------------------
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB        
-        
-        PtrRealArray3D => Me%Theta
-        call Me%StartStopCtrl%Add(0, PtrRealArray3D,                                    &                                  
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB, klb=KLB, kub=KUB, &
-                                  units=trim('m3/m3'),                                  &                                  
-                                  group='Results/theta',                                &
-                                  name='theta')
-        
-        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, STAT=stat)
-        if (stat /= SUCCESS_) stop 'ReadInitialFile - ModulePorousMedia - ERR010'
-        
-        if (.not. Me%StartStopCtrl%Load (BeginTime)) then
-            write (*,*) Me%StartStopCtrl%Message()
-            stop 'ReadInitialFile - ModulePorousMedia - ERR020'
-        endif
-        
-    end subroutine ReadInitialFile
-    
-    !-------------------------------------------------------------------------
-
-    subroutine ReadInitialFileOld
 
         !Arguments-------------------------------------------------------------
 
@@ -2063,7 +1995,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModulePorousMedia - ERR05'
         
 
-    end subroutine ReadInitialFileOld
+    end subroutine ReadInitialFile
 
     !--------------------------------------------------------------------------
 
@@ -6181,11 +6113,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%EndTime)) then
                 if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                    if (Me%FinalFileType == 1) then !Its an HDF final file
-                        call WriteFinalFile (.true.)
-                    else
-                        call WriteFinalFileOld
-                    endif
+                    call WriteFinalFile
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
             endif
@@ -11005,11 +10933,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (nUsers == 0) then
                 
                 !Write Output for continuous computation
-                if (Me%FinalFileType == 1) then !Its an HDF final file
-                    call WriteFinalFile (.false.)
-                else
-                    call WriteFinalFileOld
-                endif
+                call WriteFinalFile
 
                 !Kills the TimeSerie
                 if (Me%ObjTimeSerie /= 0) then
@@ -11108,80 +11032,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
     
-    subroutine WriteFinalFile (restart_file)
-    
-        !Arguments---------------------------------------------------------------
-        logical                                     :: restart_file
-        
-        !Local-------------------------------------------------------------------
-        real, dimension(:,:,:), pointer             :: PtrRealArray3D        
-        real, dimension(:,:), pointer               :: BottomData
-        integer                                     :: stat
-        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB 
-        
-        !------------------------------------------------------------------------
-        
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
-        
-        Me%StartStopCtrl%File           = Me%Files%FinalFile
-        Me%StartStopCtrl%WriteHorizGrid = .true.
-        Me%StartStopCtrl%ObjHorizGrid   = Me%ObjHorizontalGrid
-        
-        call Me%StartStopCtrl%Clear ()
-        
-        call GetBasinPoints (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR010'
-        call GetGridData (Me%ObjTopography, Me%ExtVar%Topography, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR020'
-        call GetWaterPoints3D (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR030'
-        call GetGridData (Me%ObjBottomTopography, BottomData, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR040'
-        
-        call Me%StartStopCtrl%Add(0, Me%ExtVar%Topography, group="Grid",                &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  name="Topography", units="m")
-        call Me%StartStopCtrl%Add(0, BottomData, group="Grid",                          &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  name="Bathymetry", units="m")        
-        call Me%StartStopCtrl%Add(0, Me%ExtVar%BasinPoints, group="Grid",               &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB,                   &
-                                  name="BasinPoints", units="-")
-        call Me%StartStopCtrl%Add(0, Me%ExtVar%WaterPoints3D, group="Grid",             &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB, klb=KLB, kub=KUB, &
-                                  name="WaterPoints3D", units="-")
-        
-        PtrRealArray3D => Me%Theta
-        call Me%StartStopCtrl%Add(0, PtrRealArray3D, units='m3/m3',                     &
-                                  ilb=ILB, iub=IUB, jlb=JLB, jub=JUB, klb=KLB, kub=KUB, &
-                                  group='Results/theta',                                &
-                                  name='theta')
-
-        if (.not. Me%StartStopCtrl%Save (Me%ExtVar%Now, restart_file=restart_file)) then
-            write (*,*) Me%StartStopCtrl%Message()
-            stop 'WriteFinalFile - ModulePorousMedia - ERR050'
-        endif
-        
-        call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR060'
-        call UnGetGridData (Me%ObjTopography, Me%ExtVar%Topography, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR070'
-        call UnGetGridData (Me%ObjBottomTopography, BottomData, STAT=stat)
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR080'
-        call UnGetMap (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT=stat) 
-        if (stat /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR090'
-            
-    
-    end subroutine WriteFinalFile
-    
-    !--------------------------------------------------------------------------
-
-    subroutine WriteFinalFileOld
+    subroutine WriteFinalFile
 
         !Arguments-------------------------------------------------------------
 
@@ -11218,7 +11069,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFileOld - ModulePorousMedia - ERR03'
         
 
-    end subroutine WriteFinalFileOld
+    end subroutine WriteFinalFile
 
     !------------------------------------------------------------------------    
     
