@@ -6418,7 +6418,7 @@ dConv:  do while (iteration <= Niteration)
 
         !Local------------------------------------------------------------------
         integer                                 :: iDis, nDischarges
-        integer                                 :: i, j, k, kd, kmin, kmax, kGrid
+        integer                                 :: i, j, k, kd, kmin, kmax
         real                                    :: SurfaceElevation    
         real                                    :: DischargeFlow, MaxFlow
         integer                                 :: STAT_CALL
@@ -6448,14 +6448,14 @@ dConv:  do while (iteration <= Niteration)
                                                DischargeIDNumber = iDis,                &
                                                Igrid = i,                               &
                                                JGrid = j,                               &
-                                               KGrid = kGrid,                           &
+                                               KGrid = kd,                              &
                                                DischVertical = DischVertical,           &  
                                                STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMedia - ModifyWaterDischarges - ERR020'
             
             !do not process runoff discharges (K=0). if uniform, K_layer is not used but instead k_min and K_max 
             !and user may forget K_layer zero
-            if ((DischVertical == DischUniform_) .or. (kGrid /= 0)) then
+            if ((DischVertical == DischUniform_) .or. (kd /= 0)) then
                 
                 !real(8) to real as expected in GetDischargeWaterFlow
                 SurfaceElevation = Me%ExtVar%Topography(i,j)

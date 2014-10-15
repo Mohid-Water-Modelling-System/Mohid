@@ -5733,7 +5733,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Arguments--------------------------------------------------------------
         !Local------------------------------------------------------------------
         integer                                 :: iDis, nDischarges
-        integer                                 :: i, j, k, n, kd, kGrid
+        integer                                 :: i, j, k, n, kd
         integer                                 :: STAT_CALL
         real, dimension(:, :, :), pointer       :: FlowDischarge
         real, dimension(:, :   ), pointer       :: DischargesConc
@@ -5765,14 +5765,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                                DischargeIDNumber = iDis,                &
                                                Igrid = i,                               &
                                                JGrid = j,                               &
-                                               KGrid = kGrid,                           &
+                                               KGrid = kd,                              &
                                                DischVertical = DischVertical,           &
                                                STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ModifyDischarges - ERR020'
             
             !do not process runoff discharges (K=0). if uniform, K_layer is not used but instead k_min and K_max 
             !and user may forget K_layer zero            
-            if ((DischVertical == DischUniform_) .or. (kGrid /= 0)) then
+            if ((DischVertical == DischUniform_) .or. (kd /= 0)) then
 
                 call GetDischargeFlowDistribuiton(Me%ObjDischarges, iDis, nCells, FlowDistribution, &
                                                   VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)             
